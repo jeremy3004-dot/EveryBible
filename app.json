@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Every Bible",
+    "slug": "EveryBible",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "com.everybible.app",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1419"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.everybible.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/monochrome-icon.png",
+        "backgroundColor": "#0f1419"
+      },
+      "package": "com.everybible.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-apple-authentication",
+      "expo-av",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#8B2635"
+        }
+      ],
+      "expo-localization",
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cfbf2bac-d680-448f-b2aa-33c4c01ad15b"
+      }
+    },
+    "owner": "jeremy1001"
+  }
+}

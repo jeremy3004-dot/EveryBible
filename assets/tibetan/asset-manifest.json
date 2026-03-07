@@ -1,0 +1,180 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-05",
+  "description": "Tibetan-style illustrations for EveryBible app field tracking journey",
+  "culturalGuidelines": {
+    "approved": [
+      "Tibetan people in traditional chuba robes",
+      "Himalayan landscapes",
+      "Monastery architecture (background only)",
+      "Prayer wheels and flags (decorative background)",
+      "Traditional textiles and cultural elements"
+    ],
+    "prohibited": [
+      "Buddhist deity statues or idols",
+      "Tibetan independence flags",
+      "Temples/monasteries as worship focus",
+      "Religious ceremony depictions",
+      "Politically sensitive imagery"
+    ]
+  },
+  "images": [
+    {
+      "id": "home-hero",
+      "filename": "home-hero.png",
+      "description": "Tibetan family reading together in traditional home",
+      "usage": "Home screen hero image",
+      "colorPalette": ["maroon", "gold", "warm earth tones"],
+      "keyElements": [
+        "Family of 3-4 people",
+        "Traditional stone house interior",
+        "Prayer flags through window",
+        "Himalayan mountains in background"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "field-entry",
+      "filename": "field-entry.png",
+      "description": "Tibetan shepherd with sheep on hillside",
+      "usage": "Field Entry stage illustration",
+      "colorPalette": ["sky blue", "gold", "green"],
+      "keyElements": [
+        "Shepherd in chuba robe",
+        "Flock of sheep",
+        "Green hillside",
+        "White stupa in distant background",
+        "Morning mist"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "field-gospel",
+      "filename": "field-gospel.png",
+      "description": "Tibetan farmer sowing seeds in terraced fields",
+      "usage": "Gospel stage illustration",
+      "colorPalette": ["maroon", "saffron gold", "green"],
+      "keyElements": [
+        "Farmer sowing seeds",
+        "Terraced agricultural fields",
+        "Himalayan peaks",
+        "Golden hour lighting",
+        "Prayer flags on hillside"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "field-discipleship",
+      "filename": "field-discipleship.png",
+      "description": "Young Tibetan person studying in simple stone room",
+      "usage": "Discipleship stage illustration",
+      "colorPalette": ["teal", "brown", "warm lamplight"],
+      "keyElements": [
+        "Young adult studying",
+        "Stone room interior",
+        "Wooden table with scrolls",
+        "Oil lamp or lantern",
+        "Contemplative atmosphere"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "field-church",
+      "filename": "field-church.png",
+      "description": "Tibetan community gathering for communal meal",
+      "usage": "Church stage illustration",
+      "colorPalette": ["warm amber", "earth tones", "natural"],
+      "keyElements": [
+        "Multiple generations gathering",
+        "Outdoor courtyard",
+        "Shared meal preparation",
+        "Monastery in distant background",
+        "Joyful interactions"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "field-multiplication",
+      "filename": "field-multiplication.png",
+      "description": "Two Tibetan people walking mountain path toward village",
+      "usage": "Multiplication stage illustration",
+      "colorPalette": ["deep purple", "gold", "sunset"],
+      "keyElements": [
+        "Two figures (mentor and student)",
+        "Mountain trail",
+        "Distant village destination",
+        "Dramatic sunset",
+        "Prayer flags on path"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    },
+    {
+      "id": "journey-complete",
+      "filename": "journey-complete.png",
+      "description": "Tibetan family celebration with colorful textiles",
+      "usage": "Journey completion celebration",
+      "colorPalette": ["gold", "maroon", "warm firelight"],
+      "keyElements": [
+        "Family celebration",
+        "Colorful traditional textiles",
+        "Fire or hearth light",
+        "Mountains through doorway",
+        "Achievement atmosphere"
+      ],
+      "aspectRatio": "16:9",
+      "resolutions": {
+        "1x": "1920x1080",
+        "2x": "3840x2160",
+        "3x": "5760x3240"
+      },
+      "status": "pending_generation"
+    }
+  ],
+  "optimization": {
+    "targetFileSize": "500KB",
+    "format": "PNG",
+    "alternativeFormat": "WebP",
+    "compressionNotes": "Maintain visual quality while reducing file size for mobile app performance"
+  },
+  "reactNativeIntegration": {
+    "assetPath": "assets/tibetan/",
+    "namingConvention": "{name}@{scale}x.png",
+    "example": "home-hero@2x.png"
+  }
+}

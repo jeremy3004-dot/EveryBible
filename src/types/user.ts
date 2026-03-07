@@ -1,0 +1,32 @@
+export interface User {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  createdAt: number;
+  lastActive: number;
+}
+
+import type { LanguageCode } from '../constants/languages';
+
+export interface UserPreferences {
+  fontSize: 'small' | 'medium' | 'large';
+  theme: 'dark' | 'light';
+  language: LanguageCode;
+  countryCode: string | null;
+  countryName: string | null;
+  contentLanguageCode: string | null;
+  contentLanguageName: string | null;
+  contentLanguageNativeName: string | null;
+  onboardingCompleted: boolean;
+  notificationsEnabled: boolean;
+  reminderTime: string | null; // HH:mm format, e.g., "09:00"
+}
+
+export interface UserProgress {
+  chaptersRead: { [key: string]: number };
+  currentBook: string;
+  currentChapter: number;
+  streakDays: number;
+  lastReadDate: string;
+}

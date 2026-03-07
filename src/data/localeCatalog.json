@@ -1,0 +1,5790 @@
+{
+  "countries": [
+    {
+      "code": "AF",
+      "name": "Afghanistan",
+      "languageCodes": ["prs", "ps", "fa"]
+    },
+    {
+      "code": "AX",
+      "name": "Åland Islands",
+      "languageCodes": ["sv"]
+    },
+    {
+      "code": "AL",
+      "name": "Albania",
+      "languageCodes": ["sq"]
+    },
+    {
+      "code": "DZ",
+      "name": "Algeria",
+      "languageCodes": ["ar", "ber"]
+    },
+    {
+      "code": "AS",
+      "name": "American Samoa",
+      "languageCodes": []
+    },
+    {
+      "code": "AD",
+      "name": "Andorra",
+      "languageCodes": ["ca"]
+    },
+    {
+      "code": "AO",
+      "name": "Angola",
+      "languageCodes": ["kg", "kmb", "kj", "pt", "umb"]
+    },
+    {
+      "code": "AI",
+      "name": "Anguilla",
+      "languageCodes": []
+    },
+    {
+      "code": "AQ",
+      "name": "Antarctica",
+      "languageCodes": []
+    },
+    {
+      "code": "AG",
+      "name": "Antigua and Barbuda",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "AR",
+      "name": "Argentina",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "AM",
+      "name": "Armenia",
+      "languageCodes": ["hy"]
+    },
+    {
+      "code": "AW",
+      "name": "Aruba",
+      "languageCodes": ["nl", "pap"]
+    },
+    {
+      "code": "AU",
+      "name": "Australia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "AT",
+      "name": "Austria",
+      "languageCodes": ["de"]
+    },
+    {
+      "code": "AZ",
+      "name": "Azerbaijan",
+      "languageCodes": ["az"]
+    },
+    {
+      "code": "BS",
+      "name": "Bahamas",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "BH",
+      "name": "Bahrain",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "BD",
+      "name": "Bangladesh",
+      "languageCodes": ["bn"]
+    },
+    {
+      "code": "BB",
+      "name": "Barbados",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "BY",
+      "name": "Belarus",
+      "languageCodes": ["be", "ru"]
+    },
+    {
+      "code": "BE",
+      "name": "Belgium",
+      "languageCodes": ["nl", "fr", "de"]
+    },
+    {
+      "code": "BZ",
+      "name": "Belize",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "BJ",
+      "name": "Benin",
+      "languageCodes": ["fr", "ff", "yo"]
+    },
+    {
+      "code": "BM",
+      "name": "Bermuda",
+      "languageCodes": []
+    },
+    {
+      "code": "BT",
+      "name": "Bhutan",
+      "languageCodes": ["dz"]
+    },
+    {
+      "code": "BO",
+      "name": "Bolivia, Plurinational State of",
+      "languageCodes": ["ay", "gn", "qu", "es"]
+    },
+    {
+      "code": "BQ",
+      "name": "Bonaire, Sint Eustatius and Saba",
+      "languageCodes": []
+    },
+    {
+      "code": "BA",
+      "name": "Bosnia and Herzegovina",
+      "languageCodes": ["bs", "hr", "sr"]
+    },
+    {
+      "code": "BW",
+      "name": "Botswana",
+      "languageCodes": ["en", "tn"]
+    },
+    {
+      "code": "BV",
+      "name": "Bouvet Island",
+      "languageCodes": []
+    },
+    {
+      "code": "BR",
+      "name": "Brazil",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "IO",
+      "name": "British Indian Ocean Territory",
+      "languageCodes": []
+    },
+    {
+      "code": "BN",
+      "name": "Brunei Darussalam",
+      "languageCodes": ["ms"]
+    },
+    {
+      "code": "BG",
+      "name": "Bulgaria",
+      "languageCodes": ["bg"]
+    },
+    {
+      "code": "BF",
+      "name": "Burkina Faso",
+      "languageCodes": ["fr", "ff", "mos"]
+    },
+    {
+      "code": "BI",
+      "name": "Burundi",
+      "languageCodes": ["fr", "rn"]
+    },
+    {
+      "code": "KH",
+      "name": "Cambodia",
+      "languageCodes": ["km"]
+    },
+    {
+      "code": "CM",
+      "name": "Cameroon",
+      "languageCodes": ["en", "fr"]
+    },
+    {
+      "code": "CA",
+      "name": "Canada",
+      "languageCodes": ["en", "fr"]
+    },
+    {
+      "code": "CV",
+      "name": "Cape Verde",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "KY",
+      "name": "Cayman Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "CF",
+      "name": "Central African Republic",
+      "languageCodes": ["fr", "sg"]
+    },
+    {
+      "code": "TD",
+      "name": "Chad",
+      "languageCodes": ["ar", "fr"]
+    },
+    {
+      "code": "CL",
+      "name": "Chile",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "CN",
+      "name": "China",
+      "languageCodes": ["zh"]
+    },
+    {
+      "code": "CX",
+      "name": "Christmas Island",
+      "languageCodes": []
+    },
+    {
+      "code": "CC",
+      "name": "Cocos (Keeling) Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "CO",
+      "name": "Colombia",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "KM",
+      "name": "Comoros",
+      "languageCodes": ["ar", "fr"]
+    },
+    {
+      "code": "CG",
+      "name": "Congo",
+      "languageCodes": ["fr", "kg", "ln"]
+    },
+    {
+      "code": "CD",
+      "name": "Congo, the Democratic Republic of the",
+      "languageCodes": ["fr", "kg", "ln", "sw", "lu"]
+    },
+    {
+      "code": "CK",
+      "name": "Cook Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "CR",
+      "name": "Costa Rica",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "CI",
+      "name": "Côte d'Ivoire",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "HR",
+      "name": "Croatia",
+      "languageCodes": ["hr", "it"]
+    },
+    {
+      "code": "CU",
+      "name": "Cuba",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "CW",
+      "name": "Curaçao",
+      "languageCodes": ["nl", "en", "pap"]
+    },
+    {
+      "code": "CY",
+      "name": "Cyprus",
+      "languageCodes": ["el", "tr"]
+    },
+    {
+      "code": "CZ",
+      "name": "Czech Republic",
+      "languageCodes": ["cs", "sk"]
+    },
+    {
+      "code": "DK",
+      "name": "Denmark",
+      "languageCodes": ["da"]
+    },
+    {
+      "code": "DJ",
+      "name": "Djibouti",
+      "languageCodes": ["aa", "ar", "fr", "so"]
+    },
+    {
+      "code": "DM",
+      "name": "Dominica",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "DO",
+      "name": "Dominican Republic",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "EC",
+      "name": "Ecuador",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "EG",
+      "name": "Egypt",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "SV",
+      "name": "El Salvador",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "GQ",
+      "name": "Equatorial Guinea",
+      "languageCodes": ["fr", "pt", "es"]
+    },
+    {
+      "code": "ER",
+      "name": "Eritrea",
+      "languageCodes": ["ar", "en", "ti"]
+    },
+    {
+      "code": "EE",
+      "name": "Estonia",
+      "languageCodes": ["et"]
+    },
+    {
+      "code": "ET",
+      "name": "Ethiopia",
+      "languageCodes": ["am"]
+    },
+    {
+      "code": "FK",
+      "name": "Falkland Islands (Malvinas)",
+      "languageCodes": []
+    },
+    {
+      "code": "FO",
+      "name": "Faroe Islands",
+      "languageCodes": ["da"]
+    },
+    {
+      "code": "FJ",
+      "name": "Fiji",
+      "languageCodes": ["en", "fj", "hi", "ur"]
+    },
+    {
+      "code": "FI",
+      "name": "Finland",
+      "languageCodes": ["fi", "sv"]
+    },
+    {
+      "code": "FR",
+      "name": "France",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "GF",
+      "name": "French Guiana",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "PF",
+      "name": "French Polynesia",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "TF",
+      "name": "French Southern Territories",
+      "languageCodes": []
+    },
+    {
+      "code": "GA",
+      "name": "Gabon",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "GM",
+      "name": "Gambia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "GE",
+      "name": "Georgia",
+      "languageCodes": ["ka"]
+    },
+    {
+      "code": "DE",
+      "name": "Germany",
+      "languageCodes": ["de"]
+    },
+    {
+      "code": "GH",
+      "name": "Ghana",
+      "languageCodes": ["ak", "en", "ee", "gaa"]
+    },
+    {
+      "code": "GI",
+      "name": "Gibraltar",
+      "languageCodes": []
+    },
+    {
+      "code": "GR",
+      "name": "Greece",
+      "languageCodes": ["el"]
+    },
+    {
+      "code": "GL",
+      "name": "Greenland",
+      "languageCodes": []
+    },
+    {
+      "code": "GD",
+      "name": "Grenada",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "GP",
+      "name": "Guadeloupe",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "GU",
+      "name": "Guam",
+      "languageCodes": []
+    },
+    {
+      "code": "GT",
+      "name": "Guatemala",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "GG",
+      "name": "Guernsey",
+      "languageCodes": []
+    },
+    {
+      "code": "GN",
+      "name": "Guinea",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "GW",
+      "name": "Guinea-Bissau",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "GY",
+      "name": "Guyana",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "HT",
+      "name": "Haiti",
+      "languageCodes": ["fr", "ht"]
+    },
+    {
+      "code": "HM",
+      "name": "Heard Island and McDonald Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "VA",
+      "name": "Holy See (Vatican City State)",
+      "languageCodes": ["it", "la"]
+    },
+    {
+      "code": "HN",
+      "name": "Honduras",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "HK",
+      "name": "Hong Kong",
+      "languageCodes": ["zh", "en"]
+    },
+    {
+      "code": "HU",
+      "name": "Hungary",
+      "languageCodes": ["hu"]
+    },
+    {
+      "code": "IS",
+      "name": "Iceland",
+      "languageCodes": ["is"]
+    },
+    {
+      "code": "IN",
+      "name": "India",
+      "languageCodes": ["bn", "en", "gu", "hi", "pa", "ta", "te"]
+    },
+    {
+      "code": "ID",
+      "name": "Indonesia",
+      "languageCodes": ["id", "ms"]
+    },
+    {
+      "code": "IR",
+      "name": "Iran, Islamic Republic of",
+      "languageCodes": ["fa"]
+    },
+    {
+      "code": "IQ",
+      "name": "Iraq",
+      "languageCodes": ["ar", "ku"]
+    },
+    {
+      "code": "IE",
+      "name": "Ireland",
+      "languageCodes": ["en", "ga"]
+    },
+    {
+      "code": "IM",
+      "name": "Isle of Man",
+      "languageCodes": []
+    },
+    {
+      "code": "IL",
+      "name": "Israel",
+      "languageCodes": ["ar", "he"]
+    },
+    {
+      "code": "IT",
+      "name": "Italy",
+      "languageCodes": ["fr", "de", "it"]
+    },
+    {
+      "code": "JM",
+      "name": "Jamaica",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "JP",
+      "name": "Japan",
+      "languageCodes": ["ja"]
+    },
+    {
+      "code": "JE",
+      "name": "Jersey",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "JO",
+      "name": "Jordan",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "KZ",
+      "name": "Kazakhstan",
+      "languageCodes": ["kk", "ru"]
+    },
+    {
+      "code": "KE",
+      "name": "Kenya",
+      "languageCodes": ["en", "sw"]
+    },
+    {
+      "code": "KI",
+      "name": "Kiribati",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "KP",
+      "name": "Korea, Democratic People's Republic of",
+      "languageCodes": ["ko"]
+    },
+    {
+      "code": "KR",
+      "name": "Korea, Republic of",
+      "languageCodes": ["ko"]
+    },
+    {
+      "code": "KW",
+      "name": "Kuwait",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "KG",
+      "name": "Kyrgyzstan",
+      "languageCodes": ["ky", "ru"]
+    },
+    {
+      "code": "LA",
+      "name": "Lao People's Democratic Republic",
+      "languageCodes": ["lo"]
+    },
+    {
+      "code": "LV",
+      "name": "Latvia",
+      "languageCodes": ["lv"]
+    },
+    {
+      "code": "LB",
+      "name": "Lebanon",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "LS",
+      "name": "Lesotho",
+      "languageCodes": ["en", "st"]
+    },
+    {
+      "code": "LR",
+      "name": "Liberia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "LY",
+      "name": "Libya",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "LI",
+      "name": "Liechtenstein",
+      "languageCodes": ["de"]
+    },
+    {
+      "code": "LT",
+      "name": "Lithuania",
+      "languageCodes": ["lt"]
+    },
+    {
+      "code": "LU",
+      "name": "Luxembourg",
+      "languageCodes": ["fr", "de", "lb"]
+    },
+    {
+      "code": "MO",
+      "name": "Macao",
+      "languageCodes": ["zh", "pt"]
+    },
+    {
+      "code": "MK",
+      "name": "Macedonia, the former Yugoslav Republic of",
+      "languageCodes": ["mk"]
+    },
+    {
+      "code": "MG",
+      "name": "Madagascar",
+      "languageCodes": ["fr", "mg"]
+    },
+    {
+      "code": "MW",
+      "name": "Malawi",
+      "languageCodes": ["ny", "en"]
+    },
+    {
+      "code": "MY",
+      "name": "Malaysia",
+      "languageCodes": ["en", "ms", "ta"]
+    },
+    {
+      "code": "MV",
+      "name": "Maldives",
+      "languageCodes": ["dv"]
+    },
+    {
+      "code": "ML",
+      "name": "Mali",
+      "languageCodes": ["bm", "fr", "ff", "snk"]
+    },
+    {
+      "code": "MT",
+      "name": "Malta",
+      "languageCodes": ["en", "mt"]
+    },
+    {
+      "code": "MH",
+      "name": "Marshall Islands",
+      "languageCodes": ["en", "mh"]
+    },
+    {
+      "code": "MQ",
+      "name": "Martinique",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "MR",
+      "name": "Mauritania",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "MU",
+      "name": "Mauritius",
+      "languageCodes": ["en", "fr", "ta"]
+    },
+    {
+      "code": "YT",
+      "name": "Mayotte",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "MX",
+      "name": "Mexico",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "FM",
+      "name": "Micronesia, Federated States of",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "MD",
+      "name": "Moldova, Republic of",
+      "languageCodes": ["ro"]
+    },
+    {
+      "code": "MC",
+      "name": "Monaco",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "MN",
+      "name": "Mongolia",
+      "languageCodes": ["mn"]
+    },
+    {
+      "code": "ME",
+      "name": "Montenegro",
+      "languageCodes": []
+    },
+    {
+      "code": "MS",
+      "name": "Montserrat",
+      "languageCodes": []
+    },
+    {
+      "code": "MA",
+      "name": "Morocco",
+      "languageCodes": ["ar", "ber"]
+    },
+    {
+      "code": "MZ",
+      "name": "Mozambique",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "MM",
+      "name": "Myanmar",
+      "languageCodes": ["my"]
+    },
+    {
+      "code": "NA",
+      "name": "Namibia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "NR",
+      "name": "Nauru",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "NP",
+      "name": "Nepal",
+      "languageCodes": ["ne"]
+    },
+    {
+      "code": "NL",
+      "name": "Netherlands",
+      "languageCodes": ["nl"]
+    },
+    {
+      "code": "NC",
+      "name": "New Caledonia",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "NZ",
+      "name": "New Zealand",
+      "languageCodes": ["en", "mi"]
+    },
+    {
+      "code": "NI",
+      "name": "Nicaragua",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "NE",
+      "name": "Niger",
+      "languageCodes": ["ar", "fr", "ff", "ha", "kr"]
+    },
+    {
+      "code": "NG",
+      "name": "Nigeria",
+      "languageCodes": ["en", "ha", "ig", "yo"]
+    },
+    {
+      "code": "NU",
+      "name": "Niue",
+      "languageCodes": []
+    },
+    {
+      "code": "NF",
+      "name": "Norfolk Island",
+      "languageCodes": []
+    },
+    {
+      "code": "MP",
+      "name": "Northern Mariana Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "NO",
+      "name": "Norway",
+      "languageCodes": ["nb", "nn", "no"]
+    },
+    {
+      "code": "OM",
+      "name": "Oman",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "PK",
+      "name": "Pakistan",
+      "languageCodes": ["en", "ur"]
+    },
+    {
+      "code": "PW",
+      "name": "Palau",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "PS",
+      "name": "Palestine, State of",
+      "languageCodes": []
+    },
+    {
+      "code": "PA",
+      "name": "Panama",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "PG",
+      "name": "Papua New Guinea",
+      "languageCodes": ["en", "ho", "tpi"]
+    },
+    {
+      "code": "PY",
+      "name": "Paraguay",
+      "languageCodes": ["gn", "es"]
+    },
+    {
+      "code": "PE",
+      "name": "Peru",
+      "languageCodes": ["ay", "qu", "es"]
+    },
+    {
+      "code": "PH",
+      "name": "Philippines",
+      "languageCodes": ["en", "fil", "tl"]
+    },
+    {
+      "code": "PN",
+      "name": "Pitcairn",
+      "languageCodes": []
+    },
+    {
+      "code": "PL",
+      "name": "Poland",
+      "languageCodes": ["pl"]
+    },
+    {
+      "code": "PT",
+      "name": "Portugal",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "PR",
+      "name": "Puerto Rico",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "QA",
+      "name": "Qatar",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "RE",
+      "name": "Réunion",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "RO",
+      "name": "Romania",
+      "languageCodes": ["ro"]
+    },
+    {
+      "code": "RU",
+      "name": "Russian Federation",
+      "languageCodes": ["ru"]
+    },
+    {
+      "code": "RW",
+      "name": "Rwanda",
+      "languageCodes": ["en", "fr", "rw"]
+    },
+    {
+      "code": "BL",
+      "name": "Saint Barthélemy",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "SH",
+      "name": "Saint Helena, Ascension and Tristan da Cunha",
+      "languageCodes": []
+    },
+    {
+      "code": "KN",
+      "name": "Saint Kitts and Nevis",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "LC",
+      "name": "Saint Lucia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "MF",
+      "name": "Saint Martin (French part)",
+      "languageCodes": []
+    },
+    {
+      "code": "PM",
+      "name": "Saint Pierre and Miquelon",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "VC",
+      "name": "Saint Vincent and the Grenadines",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "WS",
+      "name": "Samoa",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "SM",
+      "name": "San Marino",
+      "languageCodes": ["it"]
+    },
+    {
+      "code": "ST",
+      "name": "Sao Tome and Principe",
+      "languageCodes": ["pt"]
+    },
+    {
+      "code": "SA",
+      "name": "Saudi Arabia",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "SN",
+      "name": "Senegal",
+      "languageCodes": ["fr", "ff", "srr", "snk", "wo"]
+    },
+    {
+      "code": "RS",
+      "name": "Serbia",
+      "languageCodes": ["sr"]
+    },
+    {
+      "code": "SC",
+      "name": "Seychelles",
+      "languageCodes": ["en", "fr"]
+    },
+    {
+      "code": "SL",
+      "name": "Sierra Leone",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "SG",
+      "name": "Singapore",
+      "languageCodes": ["zh", "en", "ms", "ta"]
+    },
+    {
+      "code": "SX",
+      "name": "Sint Maarten (Dutch part)",
+      "languageCodes": ["nl", "en"]
+    },
+    {
+      "code": "SK",
+      "name": "Slovakia",
+      "languageCodes": ["cs", "sk"]
+    },
+    {
+      "code": "SI",
+      "name": "Slovenia",
+      "languageCodes": ["it", "sl"]
+    },
+    {
+      "code": "SB",
+      "name": "Solomon Islands",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "SO",
+      "name": "Somalia",
+      "languageCodes": ["ar", "so"]
+    },
+    {
+      "code": "ZA",
+      "name": "South Africa",
+      "languageCodes": ["af", "en", "nd", "nr", "nso", "st", "ss", "ts", "tn", "ve", "xh", "zu"]
+    },
+    {
+      "code": "GS",
+      "name": "South Georgia and the South Sandwich Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "SS",
+      "name": "South Sudan",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "ES",
+      "name": "Spain",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "LK",
+      "name": "Sri Lanka",
+      "languageCodes": ["en", "si", "ta"]
+    },
+    {
+      "code": "SD",
+      "name": "Sudan",
+      "languageCodes": ["ar", "en"]
+    },
+    {
+      "code": "SR",
+      "name": "Suriname",
+      "languageCodes": ["nl"]
+    },
+    {
+      "code": "SJ",
+      "name": "Svalbard and Jan Mayen",
+      "languageCodes": []
+    },
+    {
+      "code": "SZ",
+      "name": "Swaziland",
+      "languageCodes": ["en", "ss"]
+    },
+    {
+      "code": "SE",
+      "name": "Sweden",
+      "languageCodes": ["sv"]
+    },
+    {
+      "code": "CH",
+      "name": "Switzerland",
+      "languageCodes": ["fr", "de", "it", "rm"]
+    },
+    {
+      "code": "SY",
+      "name": "Syrian Arab Republic",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "TW",
+      "name": "Taiwan, Province of China",
+      "languageCodes": ["zh"]
+    },
+    {
+      "code": "TJ",
+      "name": "Tajikistan",
+      "languageCodes": ["fa", "ru", "tg"]
+    },
+    {
+      "code": "TZ",
+      "name": "Tanzania, United Republic of",
+      "languageCodes": ["en", "sw"]
+    },
+    {
+      "code": "TH",
+      "name": "Thailand",
+      "languageCodes": ["th"]
+    },
+    {
+      "code": "TL",
+      "name": "Timor-Leste",
+      "languageCodes": ["pt", "tet"]
+    },
+    {
+      "code": "TG",
+      "name": "Togo",
+      "languageCodes": ["ee", "fr"]
+    },
+    {
+      "code": "TK",
+      "name": "Tokelau",
+      "languageCodes": []
+    },
+    {
+      "code": "TO",
+      "name": "Tonga",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "TT",
+      "name": "Trinidad and Tobago",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "TN",
+      "name": "Tunisia",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "TR",
+      "name": "Turkey",
+      "languageCodes": ["tr"]
+    },
+    {
+      "code": "TM",
+      "name": "Turkmenistan",
+      "languageCodes": ["tk"]
+    },
+    {
+      "code": "TC",
+      "name": "Turks and Caicos Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "TV",
+      "name": "Tuvalu",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "UG",
+      "name": "Uganda",
+      "languageCodes": ["en", "sw"]
+    },
+    {
+      "code": "UA",
+      "name": "Ukraine",
+      "languageCodes": ["uk"]
+    },
+    {
+      "code": "AE",
+      "name": "United Arab Emirates",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "GB",
+      "name": "United Kingdom",
+      "languageCodes": ["en", "cy"]
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "UM",
+      "name": "United States Minor Outlying Islands",
+      "languageCodes": []
+    },
+    {
+      "code": "UY",
+      "name": "Uruguay",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "UZ",
+      "name": "Uzbekistan",
+      "languageCodes": ["uz"]
+    },
+    {
+      "code": "VU",
+      "name": "Vanuatu",
+      "languageCodes": ["bi", "en", "fr"]
+    },
+    {
+      "code": "VE",
+      "name": "Venezuela, Bolivarian Republic of",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "VN",
+      "name": "Viet Nam",
+      "languageCodes": ["vi"]
+    },
+    {
+      "code": "VG",
+      "name": "Virgin Islands, British",
+      "languageCodes": []
+    },
+    {
+      "code": "VI",
+      "name": "Virgin Islands, U.S.",
+      "languageCodes": []
+    },
+    {
+      "code": "WF",
+      "name": "Wallis and Futuna",
+      "languageCodes": ["fr"]
+    },
+    {
+      "code": "EH",
+      "name": "Western Sahara",
+      "languageCodes": ["es"]
+    },
+    {
+      "code": "YE",
+      "name": "Yemen",
+      "languageCodes": ["ar"]
+    },
+    {
+      "code": "ZM",
+      "name": "Zambia",
+      "languageCodes": ["en"]
+    },
+    {
+      "code": "ZW",
+      "name": "Zimbabwe",
+      "languageCodes": ["en", "nd", "sn"]
+    }
+  ],
+  "languages": [
+    {
+      "code": "ab",
+      "iso6391": "ab",
+      "iso6393": "abk",
+      "name": "Abkhaz",
+      "nativeName": "аҧсуа бызшәа",
+      "aliases": ["Abkhaz", "аҧсуа бызшәа", "аҧсшәа"],
+      "countryCodes": []
+    },
+    {
+      "code": "ace",
+      "iso6391": null,
+      "iso6393": "ace",
+      "name": "Achinese",
+      "nativeName": "Achinese",
+      "aliases": ["Achinese"],
+      "countryCodes": []
+    },
+    {
+      "code": "ach",
+      "iso6391": null,
+      "iso6393": "ach",
+      "name": "Acoli",
+      "nativeName": "Acoli",
+      "aliases": ["Acoli"],
+      "countryCodes": []
+    },
+    {
+      "code": "ada",
+      "iso6391": null,
+      "iso6393": "ada",
+      "name": "Adangme",
+      "nativeName": "Adangme",
+      "aliases": ["Adangme"],
+      "countryCodes": []
+    },
+    {
+      "code": "ady",
+      "iso6391": null,
+      "iso6393": "ady",
+      "name": "Adyghe",
+      "nativeName": "Adyghe",
+      "aliases": ["Adyghe", " Adygei"],
+      "countryCodes": []
+    },
+    {
+      "code": "aa",
+      "iso6391": "aa",
+      "iso6393": "aar",
+      "name": "Afar",
+      "nativeName": "Afaraf",
+      "aliases": ["Afar", "Afaraf"],
+      "countryCodes": ["DJ"]
+    },
+    {
+      "code": "afh",
+      "iso6391": null,
+      "iso6393": "afh",
+      "name": "Afrihili",
+      "nativeName": "Afrihili",
+      "aliases": ["Afrihili"],
+      "countryCodes": []
+    },
+    {
+      "code": "af",
+      "iso6391": "af",
+      "iso6393": "afr",
+      "name": "Afrikaans",
+      "nativeName": "Afrikaans",
+      "aliases": ["Afrikaans"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "afa",
+      "iso6391": null,
+      "iso6393": "afa",
+      "name": "Afro-Asiatic languages",
+      "nativeName": "Afro-Asiatic languages",
+      "aliases": ["Afro-Asiatic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ain",
+      "iso6391": null,
+      "iso6393": "ain",
+      "name": "Ainu",
+      "nativeName": "Ainu",
+      "aliases": ["Ainu"],
+      "countryCodes": []
+    },
+    {
+      "code": "ak",
+      "iso6391": "ak",
+      "iso6393": "aka",
+      "name": "Akan",
+      "nativeName": "Akan",
+      "aliases": ["Akan"],
+      "countryCodes": ["GH"]
+    },
+    {
+      "code": "akk",
+      "iso6391": null,
+      "iso6393": "akk",
+      "name": "Akkadian",
+      "nativeName": "Akkadian",
+      "aliases": ["Akkadian"],
+      "countryCodes": []
+    },
+    {
+      "code": "sq",
+      "iso6391": "sq",
+      "iso6393": "sqi",
+      "name": "Albanian",
+      "nativeName": "gjuha shqipe",
+      "aliases": ["Albanian", "gjuha shqipe"],
+      "countryCodes": ["AL"]
+    },
+    {
+      "code": "ale",
+      "iso6391": null,
+      "iso6393": "ale",
+      "name": "Aleut",
+      "nativeName": "Aleut",
+      "aliases": ["Aleut"],
+      "countryCodes": []
+    },
+    {
+      "code": "alg",
+      "iso6391": null,
+      "iso6393": "alg",
+      "name": "Algonquian languages",
+      "nativeName": "Algonquian languages",
+      "aliases": ["Algonquian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "tut",
+      "iso6391": null,
+      "iso6393": "tut",
+      "name": "Altaic languages",
+      "nativeName": "Altaic languages",
+      "aliases": ["Altaic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "am",
+      "iso6391": "am",
+      "iso6393": "amh",
+      "name": "Amharic",
+      "nativeName": "አማርኛ",
+      "aliases": ["Amharic", "አማርኛ"],
+      "countryCodes": ["ET"]
+    },
+    {
+      "code": "anp",
+      "iso6391": null,
+      "iso6393": "anp",
+      "name": "Angika",
+      "nativeName": "Angika",
+      "aliases": ["Angika"],
+      "countryCodes": []
+    },
+    {
+      "code": "apa",
+      "iso6391": null,
+      "iso6393": "apa",
+      "name": "Apache languages",
+      "nativeName": "Apache languages",
+      "aliases": ["Apache languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ar",
+      "iso6391": "ar",
+      "iso6393": "ara",
+      "name": "Arabic",
+      "nativeName": "العربية",
+      "aliases": ["Arabic", "العربية"],
+      "countryCodes": [
+        "DZ",
+        "BH",
+        "TD",
+        "KM",
+        "DJ",
+        "EG",
+        "ER",
+        "IQ",
+        "IL",
+        "JO",
+        "KW",
+        "LB",
+        "LY",
+        "MR",
+        "MA",
+        "NE",
+        "OM",
+        "QA",
+        "SA",
+        "SO",
+        "SD",
+        "SY",
+        "TN",
+        "AE",
+        "YE"
+      ]
+    },
+    {
+      "code": "an",
+      "iso6391": "an",
+      "iso6393": "arg",
+      "name": "Aragonese",
+      "nativeName": "aragonés",
+      "aliases": ["Aragonese", "aragonés"],
+      "countryCodes": []
+    },
+    {
+      "code": "arp",
+      "iso6391": null,
+      "iso6393": "arp",
+      "name": "Arapaho",
+      "nativeName": "Arapaho",
+      "aliases": ["Arapaho"],
+      "countryCodes": []
+    },
+    {
+      "code": "arw",
+      "iso6391": null,
+      "iso6393": "arw",
+      "name": "Arawak",
+      "nativeName": "Arawak",
+      "aliases": ["Arawak"],
+      "countryCodes": []
+    },
+    {
+      "code": "hy",
+      "iso6391": "hy",
+      "iso6393": "hye",
+      "name": "Armenian",
+      "nativeName": "Հայերեն",
+      "aliases": ["Armenian", "Հայերեն"],
+      "countryCodes": ["AM"]
+    },
+    {
+      "code": "rup",
+      "iso6391": null,
+      "iso6393": "rup",
+      "name": "Aromanian",
+      "nativeName": "Aromanian",
+      "aliases": ["Aromanian", " Arumanian", " Macedo-Romanian"],
+      "countryCodes": []
+    },
+    {
+      "code": "art",
+      "iso6391": null,
+      "iso6393": "art",
+      "name": "Artificial languages",
+      "nativeName": "Artificial languages",
+      "aliases": ["Artificial languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "as",
+      "iso6391": "as",
+      "iso6393": "asm",
+      "name": "Assamese",
+      "nativeName": "অসমীয়া",
+      "aliases": ["Assamese", "অসমীয়া"],
+      "countryCodes": []
+    },
+    {
+      "code": "ast",
+      "iso6391": null,
+      "iso6393": "ast",
+      "name": "Asturian",
+      "nativeName": "Asturian",
+      "aliases": ["Asturian", " Bable", " Leonese", " Asturleonese"],
+      "countryCodes": []
+    },
+    {
+      "code": "ath",
+      "iso6391": null,
+      "iso6393": "ath",
+      "name": "Athapascan languages",
+      "nativeName": "Athapascan languages",
+      "aliases": ["Athapascan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "aus",
+      "iso6391": null,
+      "iso6393": "aus",
+      "name": "Australian languages",
+      "nativeName": "Australian languages",
+      "aliases": ["Australian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "map",
+      "iso6391": null,
+      "iso6393": "map",
+      "name": "Austronesian languages",
+      "nativeName": "Austronesian languages",
+      "aliases": ["Austronesian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "av",
+      "iso6391": "av",
+      "iso6393": "ava",
+      "name": "Avaric",
+      "nativeName": "авар мацӀ",
+      "aliases": ["Avaric", "авар мацӀ", "магӀарул мацӀ"],
+      "countryCodes": []
+    },
+    {
+      "code": "ae",
+      "iso6391": "ae",
+      "iso6393": "ave",
+      "name": "Avestan",
+      "nativeName": "avesta",
+      "aliases": ["Avestan", "avesta"],
+      "countryCodes": []
+    },
+    {
+      "code": "awa",
+      "iso6391": null,
+      "iso6393": "awa",
+      "name": "Awadhi",
+      "nativeName": "Awadhi",
+      "aliases": ["Awadhi"],
+      "countryCodes": []
+    },
+    {
+      "code": "ay",
+      "iso6391": "ay",
+      "iso6393": "aym",
+      "name": "Aymara",
+      "nativeName": "aymar aru",
+      "aliases": ["Aymara", "aymar aru"],
+      "countryCodes": ["BO", "PE"]
+    },
+    {
+      "code": "az",
+      "iso6391": "az",
+      "iso6393": "aze",
+      "name": "Azerbaijani",
+      "nativeName": "azərbaycan dili",
+      "aliases": ["Azerbaijani", "azərbaycan dili"],
+      "countryCodes": ["AZ"]
+    },
+    {
+      "code": "ban",
+      "iso6391": null,
+      "iso6393": "ban",
+      "name": "Balinese",
+      "nativeName": "Balinese",
+      "aliases": ["Balinese"],
+      "countryCodes": []
+    },
+    {
+      "code": "bat",
+      "iso6391": null,
+      "iso6393": "bat",
+      "name": "Baltic languages",
+      "nativeName": "Baltic languages",
+      "aliases": ["Baltic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bal",
+      "iso6391": null,
+      "iso6393": "bal",
+      "name": "Baluchi",
+      "nativeName": "Baluchi",
+      "aliases": ["Baluchi", "Balochi"],
+      "countryCodes": []
+    },
+    {
+      "code": "bm",
+      "iso6391": "bm",
+      "iso6393": "bam",
+      "name": "Bambara",
+      "nativeName": "bamanankan",
+      "aliases": ["Bambara", "bamanankan"],
+      "countryCodes": ["ML"]
+    },
+    {
+      "code": "bai",
+      "iso6391": null,
+      "iso6393": "bai",
+      "name": "Bamileke languages",
+      "nativeName": "Bamileke languages",
+      "aliases": ["Bamileke languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bad",
+      "iso6391": null,
+      "iso6393": "bad",
+      "name": "Banda languages",
+      "nativeName": "Banda languages",
+      "aliases": ["Banda languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bnt",
+      "iso6391": null,
+      "iso6393": "bnt",
+      "name": "Bantu languages",
+      "nativeName": "Bantu languages",
+      "aliases": ["Bantu languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bas",
+      "iso6391": null,
+      "iso6393": "bas",
+      "name": "Basa",
+      "nativeName": "Basa",
+      "aliases": ["Basa"],
+      "countryCodes": []
+    },
+    {
+      "code": "ba",
+      "iso6391": "ba",
+      "iso6393": "bak",
+      "name": "Bashkir",
+      "nativeName": "башҡорт теле",
+      "aliases": ["Bashkir", "башҡорт теле"],
+      "countryCodes": []
+    },
+    {
+      "code": "eu",
+      "iso6391": "eu",
+      "iso6393": "eus",
+      "name": "Basque",
+      "nativeName": "euskara",
+      "aliases": ["Basque", "euskara", "euskera"],
+      "countryCodes": []
+    },
+    {
+      "code": "btk",
+      "iso6391": null,
+      "iso6393": "btk",
+      "name": "Batak languages",
+      "nativeName": "Batak languages",
+      "aliases": ["Batak languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bej",
+      "iso6391": null,
+      "iso6393": "bej",
+      "name": "Beja",
+      "nativeName": "Beja",
+      "aliases": ["Beja", " Bedawiyet"],
+      "countryCodes": []
+    },
+    {
+      "code": "be",
+      "iso6391": "be",
+      "iso6393": "bel",
+      "name": "Belarusian",
+      "nativeName": "беларуская мова",
+      "aliases": ["Belarusian", "беларуская мова"],
+      "countryCodes": ["BY"]
+    },
+    {
+      "code": "bem",
+      "iso6391": null,
+      "iso6393": "bem",
+      "name": "Bemba",
+      "nativeName": "Bemba",
+      "aliases": ["Bemba"],
+      "countryCodes": []
+    },
+    {
+      "code": "bn",
+      "iso6391": "bn",
+      "iso6393": "ben",
+      "name": "Bengali",
+      "nativeName": "বাংলা",
+      "aliases": ["Bengali", "Bangla", "বাংলা"],
+      "countryCodes": ["BD", "IN"]
+    },
+    {
+      "code": "ber",
+      "iso6391": null,
+      "iso6393": "ber",
+      "name": "Berber",
+      "nativeName": "Tamaziɣt",
+      "aliases": ["Berber", "Tamaziɣt", "Tamazight", "ⵜⴰⵎⴰⵣⵉⵖⵜ"],
+      "countryCodes": ["DZ", "MA"]
+    },
+    {
+      "code": "bho",
+      "iso6391": null,
+      "iso6393": "bho",
+      "name": "Bhojpuri",
+      "nativeName": "Bhojpuri",
+      "aliases": ["Bhojpuri"],
+      "countryCodes": []
+    },
+    {
+      "code": "bh",
+      "iso6391": "bh",
+      "iso6393": null,
+      "name": "Bihari",
+      "nativeName": "भोजपुरी",
+      "aliases": ["Bihari", "भोजपुरी"],
+      "countryCodes": []
+    },
+    {
+      "code": "bik",
+      "iso6391": null,
+      "iso6393": "bik",
+      "name": "Bikol",
+      "nativeName": "Bikol",
+      "aliases": ["Bikol"],
+      "countryCodes": []
+    },
+    {
+      "code": "bin",
+      "iso6391": null,
+      "iso6393": "bin",
+      "name": "Bini",
+      "nativeName": "Bini",
+      "aliases": ["Bini", " Edo"],
+      "countryCodes": []
+    },
+    {
+      "code": "bi",
+      "iso6391": "bi",
+      "iso6393": "bis",
+      "name": "Bislama",
+      "nativeName": "Bislama",
+      "aliases": ["Bislama"],
+      "countryCodes": ["VU"]
+    },
+    {
+      "code": "byn",
+      "iso6391": null,
+      "iso6393": "byn",
+      "name": "Blin",
+      "nativeName": "Blin",
+      "aliases": ["Blin", " Bilin"],
+      "countryCodes": []
+    },
+    {
+      "code": "zbl",
+      "iso6391": null,
+      "iso6393": "zbl",
+      "name": "Blissymbols",
+      "nativeName": "Blissymbols",
+      "aliases": ["Blissymbols", " Blissymbolics", " Bliss"],
+      "countryCodes": []
+    },
+    {
+      "code": "bs",
+      "iso6391": "bs",
+      "iso6393": "bos",
+      "name": "Bosnian",
+      "nativeName": "bosanski jezik",
+      "aliases": ["Bosnian", "bosanski jezik"],
+      "countryCodes": ["BA"]
+    },
+    {
+      "code": "bra",
+      "iso6391": null,
+      "iso6393": "bra",
+      "name": "Braj",
+      "nativeName": "Braj",
+      "aliases": ["Braj"],
+      "countryCodes": []
+    },
+    {
+      "code": "br",
+      "iso6391": "br",
+      "iso6393": "bre",
+      "name": "Breton",
+      "nativeName": "brezhoneg",
+      "aliases": ["Breton", "brezhoneg"],
+      "countryCodes": []
+    },
+    {
+      "code": "bug",
+      "iso6391": null,
+      "iso6393": "bug",
+      "name": "Buginese",
+      "nativeName": "Buginese",
+      "aliases": ["Buginese"],
+      "countryCodes": []
+    },
+    {
+      "code": "bg",
+      "iso6391": "bg",
+      "iso6393": "bul",
+      "name": "Bulgarian",
+      "nativeName": "български език",
+      "aliases": ["Bulgarian", "български език"],
+      "countryCodes": ["BG"]
+    },
+    {
+      "code": "bua",
+      "iso6391": null,
+      "iso6393": "bua",
+      "name": "Buriat",
+      "nativeName": "Buriat",
+      "aliases": ["Buriat"],
+      "countryCodes": []
+    },
+    {
+      "code": "my",
+      "iso6391": "my",
+      "iso6393": "mya",
+      "name": "Burmese",
+      "nativeName": "ဗမာစာ",
+      "aliases": ["Burmese", "ဗမာစာ"],
+      "countryCodes": ["MM"]
+    },
+    {
+      "code": "cad",
+      "iso6391": null,
+      "iso6393": "cad",
+      "name": "Caddo",
+      "nativeName": "Caddo",
+      "aliases": ["Caddo"],
+      "countryCodes": []
+    },
+    {
+      "code": "ca",
+      "iso6391": "ca",
+      "iso6393": "cat",
+      "name": "Catalan",
+      "nativeName": "català",
+      "aliases": ["Catalan", "Valencian", "català", "valencià"],
+      "countryCodes": ["AD"]
+    },
+    {
+      "code": "cau",
+      "iso6391": null,
+      "iso6393": "cau",
+      "name": "Caucasian languages",
+      "nativeName": "Caucasian languages",
+      "aliases": ["Caucasian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ceb",
+      "iso6391": null,
+      "iso6393": "ceb",
+      "name": "Cebuano",
+      "nativeName": "Cebuano",
+      "aliases": ["Cebuano"],
+      "countryCodes": []
+    },
+    {
+      "code": "cel",
+      "iso6391": null,
+      "iso6393": "cel",
+      "name": "Celtic languages",
+      "nativeName": "Celtic languages",
+      "aliases": ["Celtic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "cai",
+      "iso6391": null,
+      "iso6393": "cai",
+      "name": "Central American Indian languages",
+      "nativeName": "Central American Indian languages",
+      "aliases": ["Central American Indian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "chg",
+      "iso6391": null,
+      "iso6393": "chg",
+      "name": "Chagatai",
+      "nativeName": "Chagatai",
+      "aliases": ["Chagatai"],
+      "countryCodes": []
+    },
+    {
+      "code": "cmc",
+      "iso6391": null,
+      "iso6393": "cmc",
+      "name": "Chamic languages",
+      "nativeName": "Chamic languages",
+      "aliases": ["Chamic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ch",
+      "iso6391": "ch",
+      "iso6393": "cha",
+      "name": "Chamorro",
+      "nativeName": "Chamoru",
+      "aliases": ["Chamorro", "Chamoru"],
+      "countryCodes": []
+    },
+    {
+      "code": "ce",
+      "iso6391": "ce",
+      "iso6393": "che",
+      "name": "Chechen",
+      "nativeName": "нохчийн мотт",
+      "aliases": ["Chechen", "нохчийн мотт"],
+      "countryCodes": []
+    },
+    {
+      "code": "chr",
+      "iso6391": null,
+      "iso6393": "chr",
+      "name": "Cherokee",
+      "nativeName": "Cherokee",
+      "aliases": ["Cherokee"],
+      "countryCodes": []
+    },
+    {
+      "code": "chy",
+      "iso6391": null,
+      "iso6393": "chy",
+      "name": "Cheyenne",
+      "nativeName": "Cheyenne",
+      "aliases": ["Cheyenne"],
+      "countryCodes": []
+    },
+    {
+      "code": "chb",
+      "iso6391": null,
+      "iso6393": "chb",
+      "name": "Chibcha",
+      "nativeName": "Chibcha",
+      "aliases": ["Chibcha"],
+      "countryCodes": []
+    },
+    {
+      "code": "ny",
+      "iso6391": "ny",
+      "iso6393": "nya",
+      "name": "Chichewa",
+      "nativeName": "chiCheŵa",
+      "aliases": ["Chichewa", "Chewa", "Nyanja", "chiCheŵa", "chinyanja"],
+      "countryCodes": ["MW"]
+    },
+    {
+      "code": "zh",
+      "iso6391": "zh",
+      "iso6393": "zho",
+      "name": "Chinese",
+      "nativeName": "中文 (Zhōngwén)",
+      "aliases": ["Chinese", "中文 (Zhōngwén)", "汉语", "漢語"],
+      "countryCodes": ["HK", "MO", "CN", "TW", "SG"]
+    },
+    {
+      "code": "chn",
+      "iso6391": null,
+      "iso6393": "chn",
+      "name": "Chinook jargon",
+      "nativeName": "Chinook jargon",
+      "aliases": ["Chinook jargon"],
+      "countryCodes": []
+    },
+    {
+      "code": "chp",
+      "iso6391": null,
+      "iso6393": "chp",
+      "name": "Chipewyan",
+      "nativeName": "Chipewyan",
+      "aliases": ["Chipewyan", " Dene Suline"],
+      "countryCodes": []
+    },
+    {
+      "code": "cho",
+      "iso6391": null,
+      "iso6393": "cho",
+      "name": "Choctaw",
+      "nativeName": "Choctaw",
+      "aliases": ["Choctaw"],
+      "countryCodes": []
+    },
+    {
+      "code": "chk",
+      "iso6391": null,
+      "iso6393": "chk",
+      "name": "Chuukese",
+      "nativeName": "Chuukese",
+      "aliases": ["Chuukese"],
+      "countryCodes": []
+    },
+    {
+      "code": "cv",
+      "iso6391": "cv",
+      "iso6393": "chv",
+      "name": "Chuvash",
+      "nativeName": "чӑваш чӗлхи",
+      "aliases": ["Chuvash", "чӑваш чӗлхи"],
+      "countryCodes": []
+    },
+    {
+      "code": "nwc",
+      "iso6391": null,
+      "iso6393": "nwc",
+      "name": "Classical Newari",
+      "nativeName": "Classical Newari",
+      "aliases": ["Classical Newari", " Old Newari", " Classical Nepal Bhasa"],
+      "countryCodes": []
+    },
+    {
+      "code": "syc",
+      "iso6391": null,
+      "iso6393": "syc",
+      "name": "Classical Syriac",
+      "nativeName": "Classical Syriac",
+      "aliases": ["Classical Syriac"],
+      "countryCodes": []
+    },
+    {
+      "code": "cop",
+      "iso6391": null,
+      "iso6393": "cop",
+      "name": "Coptic",
+      "nativeName": "Coptic",
+      "aliases": ["Coptic"],
+      "countryCodes": []
+    },
+    {
+      "code": "kw",
+      "iso6391": "kw",
+      "iso6393": "cor",
+      "name": "Cornish",
+      "nativeName": "Kernewek",
+      "aliases": ["Cornish", "Kernewek"],
+      "countryCodes": []
+    },
+    {
+      "code": "co",
+      "iso6391": "co",
+      "iso6393": "cos",
+      "name": "Corsican",
+      "nativeName": "corsu",
+      "aliases": ["Corsican", "corsu", "lingua corsa"],
+      "countryCodes": []
+    },
+    {
+      "code": "cr",
+      "iso6391": "cr",
+      "iso6393": "cre",
+      "name": "Cree",
+      "nativeName": "ᓀᐦᐃᔭᐍᐏᐣ",
+      "aliases": ["Cree", "ᓀᐦᐃᔭᐍᐏᐣ"],
+      "countryCodes": []
+    },
+    {
+      "code": "mus",
+      "iso6391": null,
+      "iso6393": "mus",
+      "name": "Creek",
+      "nativeName": "Creek",
+      "aliases": ["Creek"],
+      "countryCodes": []
+    },
+    {
+      "code": "crp",
+      "iso6391": null,
+      "iso6393": "crp",
+      "name": "Creoles and pidgins",
+      "nativeName": "Creoles and pidgins",
+      "aliases": ["Creoles and pidgins"],
+      "countryCodes": []
+    },
+    {
+      "code": "cpe",
+      "iso6391": null,
+      "iso6393": "cpe",
+      "name": "Creoles and pidgins, English based",
+      "nativeName": "Creoles and pidgins, English based",
+      "aliases": ["Creoles and pidgins, English based"],
+      "countryCodes": []
+    },
+    {
+      "code": "cpf",
+      "iso6391": null,
+      "iso6393": "cpf",
+      "name": "Creoles and pidgins, French-based",
+      "nativeName": "Creoles and pidgins, French-based",
+      "aliases": ["Creoles and pidgins, French-based"],
+      "countryCodes": []
+    },
+    {
+      "code": "cpp",
+      "iso6391": null,
+      "iso6393": "cpp",
+      "name": "Creoles and pidgins, Portuguese-based",
+      "nativeName": "Creoles and pidgins, Portuguese-based",
+      "aliases": ["Creoles and pidgins, Portuguese-based"],
+      "countryCodes": []
+    },
+    {
+      "code": "crh",
+      "iso6391": null,
+      "iso6393": "crh",
+      "name": "Crimean Tatar",
+      "nativeName": "Crimean Tatar",
+      "aliases": ["Crimean Tatar", " Crimean Turkish"],
+      "countryCodes": []
+    },
+    {
+      "code": "hr",
+      "iso6391": "hr",
+      "iso6393": "hrv",
+      "name": "Croatian",
+      "nativeName": "hrvatski jezik",
+      "aliases": ["Croatian", "hrvatski jezik"],
+      "countryCodes": ["HR", "BA"]
+    },
+    {
+      "code": "cus",
+      "iso6391": null,
+      "iso6393": "cus",
+      "name": "Cushitic languages",
+      "nativeName": "Cushitic languages",
+      "aliases": ["Cushitic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "cs",
+      "iso6391": "cs",
+      "iso6393": "ces",
+      "name": "Czech",
+      "nativeName": "čeština",
+      "aliases": ["Czech", "čeština", "český jazyk"],
+      "countryCodes": ["CZ", "SK"]
+    },
+    {
+      "code": "dak",
+      "iso6391": null,
+      "iso6393": "dak",
+      "name": "Dakota",
+      "nativeName": "Dakota",
+      "aliases": ["Dakota"],
+      "countryCodes": []
+    },
+    {
+      "code": "da",
+      "iso6391": "da",
+      "iso6393": "dan",
+      "name": "Danish",
+      "nativeName": "dansk",
+      "aliases": ["Danish", "dansk"],
+      "countryCodes": ["DK", "FO"]
+    },
+    {
+      "code": "dar",
+      "iso6391": null,
+      "iso6393": "dar",
+      "name": "Dargwa",
+      "nativeName": "Dargwa",
+      "aliases": ["Dargwa"],
+      "countryCodes": []
+    },
+    {
+      "code": "prs",
+      "iso6391": null,
+      "iso6393": "prs",
+      "name": "Dari",
+      "nativeName": "فارسی دری",
+      "aliases": ["Dari", "فارسی دری"],
+      "countryCodes": ["AF"]
+    },
+    {
+      "code": "del",
+      "iso6391": null,
+      "iso6393": "del",
+      "name": "Delaware",
+      "nativeName": "Delaware",
+      "aliases": ["Delaware"],
+      "countryCodes": []
+    },
+    {
+      "code": "din",
+      "iso6391": null,
+      "iso6393": "din",
+      "name": "Dinka",
+      "nativeName": "Dinka",
+      "aliases": ["Dinka"],
+      "countryCodes": []
+    },
+    {
+      "code": "dv",
+      "iso6391": "dv",
+      "iso6393": "div",
+      "name": "Divehi",
+      "nativeName": "ދިވެހި",
+      "aliases": ["Divehi", "Dhivehi", "Maldivian", "ދިވެހި"],
+      "countryCodes": ["MV"]
+    },
+    {
+      "code": "doi",
+      "iso6391": null,
+      "iso6393": "doi",
+      "name": "Dogri",
+      "nativeName": "Dogri",
+      "aliases": ["Dogri"],
+      "countryCodes": []
+    },
+    {
+      "code": "dgr",
+      "iso6391": null,
+      "iso6393": "dgr",
+      "name": "Dogrib",
+      "nativeName": "Dogrib",
+      "aliases": ["Dogrib"],
+      "countryCodes": []
+    },
+    {
+      "code": "dra",
+      "iso6391": null,
+      "iso6393": "dra",
+      "name": "Dravidian languages",
+      "nativeName": "Dravidian languages",
+      "aliases": ["Dravidian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "dua",
+      "iso6391": null,
+      "iso6393": "dua",
+      "name": "Duala",
+      "nativeName": "Duala",
+      "aliases": ["Duala"],
+      "countryCodes": []
+    },
+    {
+      "code": "nl",
+      "iso6391": "nl",
+      "iso6393": "nld",
+      "name": "Dutch",
+      "nativeName": "Nederlands",
+      "aliases": ["Dutch", "Nederlands", "Vlaams"],
+      "countryCodes": ["BE", "NL", "AW", "CW", "SX", "SR"]
+    },
+    {
+      "code": "dum",
+      "iso6391": null,
+      "iso6393": "dum",
+      "name": "Dutch, Middle (ca.1050-1350)",
+      "nativeName": "Dutch, Middle (ca.1050-1350)",
+      "aliases": ["Dutch, Middle (ca.1050-1350)"],
+      "countryCodes": []
+    },
+    {
+      "code": "dyu",
+      "iso6391": null,
+      "iso6393": "dyu",
+      "name": "Dyula",
+      "nativeName": "Dyula",
+      "aliases": ["Dyula"],
+      "countryCodes": []
+    },
+    {
+      "code": "dz",
+      "iso6391": "dz",
+      "iso6393": "dzo",
+      "name": "Dzongkha",
+      "nativeName": "རྫོང་ཁ",
+      "aliases": ["Dzongkha", "རྫོང་ཁ"],
+      "countryCodes": ["BT"]
+    },
+    {
+      "code": "frs",
+      "iso6391": null,
+      "iso6393": "frs",
+      "name": "Eastern Frisian",
+      "nativeName": "Eastern Frisian",
+      "aliases": ["Eastern Frisian"],
+      "countryCodes": []
+    },
+    {
+      "code": "efi",
+      "iso6391": null,
+      "iso6393": "efi",
+      "name": "Efik",
+      "nativeName": "Efik",
+      "aliases": ["Efik"],
+      "countryCodes": []
+    },
+    {
+      "code": "egy",
+      "iso6391": null,
+      "iso6393": "egy",
+      "name": "Egyptian (Ancient)",
+      "nativeName": "Egyptian (Ancient)",
+      "aliases": ["Egyptian (Ancient)"],
+      "countryCodes": []
+    },
+    {
+      "code": "eka",
+      "iso6391": null,
+      "iso6393": "eka",
+      "name": "Ekajuk",
+      "nativeName": "Ekajuk",
+      "aliases": ["Ekajuk"],
+      "countryCodes": []
+    },
+    {
+      "code": "elx",
+      "iso6391": null,
+      "iso6393": "elx",
+      "name": "Elamite",
+      "nativeName": "Elamite",
+      "aliases": ["Elamite"],
+      "countryCodes": []
+    },
+    {
+      "code": "en",
+      "iso6391": "en",
+      "iso6393": "eng",
+      "name": "English",
+      "nativeName": "English",
+      "aliases": ["English"],
+      "countryCodes": [
+        "AG",
+        "AU",
+        "BS",
+        "BB",
+        "BZ",
+        "BW",
+        "CM",
+        "CA",
+        "CW",
+        "DM",
+        "ER",
+        "FJ",
+        "GM",
+        "GH",
+        "GD",
+        "GY",
+        "HK",
+        "IN",
+        "IE",
+        "JM",
+        "KE",
+        "KI",
+        "LS",
+        "LR",
+        "MW",
+        "MY",
+        "MT",
+        "MH",
+        "MU",
+        "FM",
+        "NA",
+        "NR",
+        "NZ",
+        "NG",
+        "PK",
+        "PW",
+        "PG",
+        "PH",
+        "RW",
+        "KN",
+        "LC",
+        "VC",
+        "WS",
+        "SC",
+        "SL",
+        "SG",
+        "SX",
+        "SB",
+        "ZA",
+        "SS",
+        "LK",
+        "SD",
+        "SZ",
+        "TZ",
+        "TO",
+        "TT",
+        "TV",
+        "UG",
+        "GB",
+        "US",
+        "VU",
+        "ZM",
+        "ZW"
+      ]
+    },
+    {
+      "code": "enm",
+      "iso6391": null,
+      "iso6393": "enm",
+      "name": "English, Middle (1100-1500)",
+      "nativeName": "English, Middle (1100-1500)",
+      "aliases": ["English, Middle (1100-1500)"],
+      "countryCodes": []
+    },
+    {
+      "code": "ang",
+      "iso6391": null,
+      "iso6393": "ang",
+      "name": "English, Old (ca.450-1100)",
+      "nativeName": "English, Old (ca.450-1100)",
+      "aliases": ["English, Old (ca.450-1100)"],
+      "countryCodes": []
+    },
+    {
+      "code": "myv",
+      "iso6391": null,
+      "iso6393": "myv",
+      "name": "Erzya",
+      "nativeName": "Erzya",
+      "aliases": ["Erzya"],
+      "countryCodes": []
+    },
+    {
+      "code": "eo",
+      "iso6391": "eo",
+      "iso6393": "epo",
+      "name": "Esperanto",
+      "nativeName": "Esperanto",
+      "aliases": ["Esperanto"],
+      "countryCodes": []
+    },
+    {
+      "code": "et",
+      "iso6391": "et",
+      "iso6393": "est",
+      "name": "Estonian",
+      "nativeName": "eesti",
+      "aliases": ["Estonian", "eesti", "eesti keel"],
+      "countryCodes": ["EE"]
+    },
+    {
+      "code": "ee",
+      "iso6391": "ee",
+      "iso6393": "ewe",
+      "name": "Ewe",
+      "nativeName": "Eʋegbe",
+      "aliases": ["Ewe", "Eʋegbe"],
+      "countryCodes": ["GH", "TG"]
+    },
+    {
+      "code": "ewo",
+      "iso6391": null,
+      "iso6393": "ewo",
+      "name": "Ewondo",
+      "nativeName": "Ewondo",
+      "aliases": ["Ewondo"],
+      "countryCodes": []
+    },
+    {
+      "code": "fan",
+      "iso6391": null,
+      "iso6393": "fan",
+      "name": "Fang",
+      "nativeName": "Fang",
+      "aliases": ["Fang"],
+      "countryCodes": []
+    },
+    {
+      "code": "fat",
+      "iso6391": null,
+      "iso6393": "fat",
+      "name": "Fanti",
+      "nativeName": "Fanti",
+      "aliases": ["Fanti"],
+      "countryCodes": []
+    },
+    {
+      "code": "fo",
+      "iso6391": "fo",
+      "iso6393": "fao",
+      "name": "Faroese",
+      "nativeName": "føroyskt",
+      "aliases": ["Faroese", "føroyskt"],
+      "countryCodes": []
+    },
+    {
+      "code": "fj",
+      "iso6391": "fj",
+      "iso6393": "fij",
+      "name": "Fijian",
+      "nativeName": "vosa Vakaviti",
+      "aliases": ["Fijian", "vosa Vakaviti"],
+      "countryCodes": ["FJ"]
+    },
+    {
+      "code": "fil",
+      "iso6391": null,
+      "iso6393": "fil",
+      "name": "Filipino",
+      "nativeName": "Filipino",
+      "aliases": ["Filipino"],
+      "countryCodes": ["PH"]
+    },
+    {
+      "code": "fi",
+      "iso6391": "fi",
+      "iso6393": "fin",
+      "name": "Finnish",
+      "nativeName": "suomi",
+      "aliases": ["Finnish", "suomi", "suomen kieli"],
+      "countryCodes": ["FI"]
+    },
+    {
+      "code": "fiu",
+      "iso6391": null,
+      "iso6393": "fiu",
+      "name": "Finno-Ugrian languages",
+      "nativeName": "Finno-Ugrian languages",
+      "aliases": ["Finno-Ugrian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "fon",
+      "iso6391": null,
+      "iso6393": "fon",
+      "name": "Fon",
+      "nativeName": "Fon",
+      "aliases": ["Fon"],
+      "countryCodes": []
+    },
+    {
+      "code": "fr",
+      "iso6391": "fr",
+      "iso6393": "fra",
+      "name": "French",
+      "nativeName": "français",
+      "aliases": ["French", "français", "langue française"],
+      "countryCodes": [
+        "BE",
+        "BJ",
+        "BF",
+        "BI",
+        "CM",
+        "CA",
+        "CF",
+        "TD",
+        "KM",
+        "CI",
+        "CD",
+        "CG",
+        "DJ",
+        "GQ",
+        "FR",
+        "GF",
+        "PF",
+        "GP",
+        "MQ",
+        "YT",
+        "NC",
+        "RE",
+        "BL",
+        "PM",
+        "WF",
+        "GA",
+        "GN",
+        "HT",
+        "IT",
+        "JE",
+        "LU",
+        "MG",
+        "ML",
+        "MU",
+        "MC",
+        "NE",
+        "RW",
+        "SN",
+        "SC",
+        "CH",
+        "TG",
+        "VU"
+      ]
+    },
+    {
+      "code": "frm",
+      "iso6391": null,
+      "iso6393": "frm",
+      "name": "French, Middle (ca.1400-1600)",
+      "nativeName": "French, Middle (ca.1400-1600)",
+      "aliases": ["French, Middle (ca.1400-1600)"],
+      "countryCodes": []
+    },
+    {
+      "code": "fro",
+      "iso6391": null,
+      "iso6393": "fro",
+      "name": "French, Old (842-ca.1400)",
+      "nativeName": "French, Old (842-ca.1400)",
+      "aliases": ["French, Old (842-ca.1400)"],
+      "countryCodes": []
+    },
+    {
+      "code": "fur",
+      "iso6391": null,
+      "iso6393": "fur",
+      "name": "Friulian",
+      "nativeName": "Friulian",
+      "aliases": ["Friulian"],
+      "countryCodes": []
+    },
+    {
+      "code": "ff",
+      "iso6391": "ff",
+      "iso6393": "ful",
+      "name": "Fula",
+      "nativeName": "Fulfulde",
+      "aliases": ["Fula", "Fulah", "Pulaar", "Pular", "Fulfulde"],
+      "countryCodes": ["BJ", "BF", "ML", "NE", "SN"]
+    },
+    {
+      "code": "gaa",
+      "iso6391": null,
+      "iso6393": "gaa",
+      "name": "Ga",
+      "nativeName": "Ga",
+      "aliases": ["Ga"],
+      "countryCodes": ["GH"]
+    },
+    {
+      "code": "car",
+      "iso6391": null,
+      "iso6393": "car",
+      "name": "Galibi Carib",
+      "nativeName": "Galibi Carib",
+      "aliases": ["Galibi Carib"],
+      "countryCodes": []
+    },
+    {
+      "code": "gl",
+      "iso6391": "gl",
+      "iso6393": "glg",
+      "name": "Galician",
+      "nativeName": "galego",
+      "aliases": ["Galician", "galego"],
+      "countryCodes": []
+    },
+    {
+      "code": "lg",
+      "iso6391": "lg",
+      "iso6393": "lug",
+      "name": "Ganda",
+      "nativeName": "Luganda",
+      "aliases": ["Ganda", "Luganda"],
+      "countryCodes": []
+    },
+    {
+      "code": "gay",
+      "iso6391": null,
+      "iso6393": "gay",
+      "name": "Gayo",
+      "nativeName": "Gayo",
+      "aliases": ["Gayo"],
+      "countryCodes": []
+    },
+    {
+      "code": "gba",
+      "iso6391": null,
+      "iso6393": "gba",
+      "name": "Gbaya",
+      "nativeName": "Gbaya",
+      "aliases": ["Gbaya"],
+      "countryCodes": []
+    },
+    {
+      "code": "gez",
+      "iso6391": null,
+      "iso6393": "gez",
+      "name": "Geez",
+      "nativeName": "Geez",
+      "aliases": ["Geez"],
+      "countryCodes": []
+    },
+    {
+      "code": "ka",
+      "iso6391": "ka",
+      "iso6393": "kat",
+      "name": "Georgian",
+      "nativeName": "ქართული",
+      "aliases": ["Georgian", "ქართული"],
+      "countryCodes": ["GE"]
+    },
+    {
+      "code": "de",
+      "iso6391": "de",
+      "iso6393": "deu",
+      "name": "German",
+      "nativeName": "Deutsch",
+      "aliases": ["German", "Deutsch"],
+      "countryCodes": ["AT", "BE", "DE", "LI", "LU", "IT", "CH"]
+    },
+    {
+      "code": "gmh",
+      "iso6391": null,
+      "iso6393": "gmh",
+      "name": "German, Middle High (ca.1050-1500)",
+      "nativeName": "German, Middle High (ca.1050-1500)",
+      "aliases": ["German, Middle High (ca.1050-1500)"],
+      "countryCodes": []
+    },
+    {
+      "code": "goh",
+      "iso6391": null,
+      "iso6393": "goh",
+      "name": "German, Old High (ca.750-1050)",
+      "nativeName": "German, Old High (ca.750-1050)",
+      "aliases": ["German, Old High (ca.750-1050)"],
+      "countryCodes": []
+    },
+    {
+      "code": "gem",
+      "iso6391": null,
+      "iso6393": "gem",
+      "name": "Germanic languages",
+      "nativeName": "Germanic languages",
+      "aliases": ["Germanic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "gil",
+      "iso6391": null,
+      "iso6393": "gil",
+      "name": "Gilbertese",
+      "nativeName": "Gilbertese",
+      "aliases": ["Gilbertese"],
+      "countryCodes": []
+    },
+    {
+      "code": "gon",
+      "iso6391": null,
+      "iso6393": "gon",
+      "name": "Gondi",
+      "nativeName": "Gondi",
+      "aliases": ["Gondi"],
+      "countryCodes": []
+    },
+    {
+      "code": "gor",
+      "iso6391": null,
+      "iso6393": "gor",
+      "name": "Gorontalo",
+      "nativeName": "Gorontalo",
+      "aliases": ["Gorontalo"],
+      "countryCodes": []
+    },
+    {
+      "code": "got",
+      "iso6391": null,
+      "iso6393": "got",
+      "name": "Gothic",
+      "nativeName": "Gothic",
+      "aliases": ["Gothic"],
+      "countryCodes": []
+    },
+    {
+      "code": "grb",
+      "iso6391": null,
+      "iso6393": "grb",
+      "name": "Grebo",
+      "nativeName": "Grebo",
+      "aliases": ["Grebo"],
+      "countryCodes": []
+    },
+    {
+      "code": "el",
+      "iso6391": "el",
+      "iso6393": "ell",
+      "name": "Greek",
+      "nativeName": "ελληνικά",
+      "aliases": ["Greek", "ελληνικά"],
+      "countryCodes": ["GR", "CY"]
+    },
+    {
+      "code": "grc",
+      "iso6391": null,
+      "iso6393": "grc",
+      "name": "Greek, Ancient (to 1453)",
+      "nativeName": "Greek, Ancient (to 1453)",
+      "aliases": ["Greek, Ancient (to 1453)"],
+      "countryCodes": []
+    },
+    {
+      "code": "gn",
+      "iso6391": "gn",
+      "iso6393": "grn",
+      "name": "Guaraní",
+      "nativeName": "Avañe'ẽ",
+      "aliases": ["Guaraní", "Avañe'ẽ"],
+      "countryCodes": ["PY", "BO"]
+    },
+    {
+      "code": "gu",
+      "iso6391": "gu",
+      "iso6393": "guj",
+      "name": "Gujarati",
+      "nativeName": "ગુજરાતી",
+      "aliases": ["Gujarati", "ગુજરાતી"],
+      "countryCodes": ["IN"]
+    },
+    {
+      "code": "gwi",
+      "iso6391": null,
+      "iso6393": "gwi",
+      "name": "Gwich'in",
+      "nativeName": "Gwich'in",
+      "aliases": ["Gwich'in"],
+      "countryCodes": []
+    },
+    {
+      "code": "hai",
+      "iso6391": null,
+      "iso6393": "hai",
+      "name": "Haida",
+      "nativeName": "Haida",
+      "aliases": ["Haida"],
+      "countryCodes": []
+    },
+    {
+      "code": "ht",
+      "iso6391": "ht",
+      "iso6393": "hat",
+      "name": "Haitian",
+      "nativeName": "Kreyòl ayisyen",
+      "aliases": ["Haitian", "Haitian Creole", "Kreyòl ayisyen"],
+      "countryCodes": ["HT"]
+    },
+    {
+      "code": "ha",
+      "iso6391": "ha",
+      "iso6393": "hau",
+      "name": "Hausa",
+      "nativeName": "(Hausa) هَوُسَ",
+      "aliases": ["Hausa", "(Hausa) هَوُسَ"],
+      "countryCodes": ["NE", "NG"]
+    },
+    {
+      "code": "haw",
+      "iso6391": null,
+      "iso6393": "haw",
+      "name": "Hawaiian",
+      "nativeName": "Hawaiian",
+      "aliases": ["Hawaiian"],
+      "countryCodes": []
+    },
+    {
+      "code": "he",
+      "iso6391": "he",
+      "iso6393": "heb",
+      "name": "Hebrew",
+      "nativeName": "עברית",
+      "aliases": ["Hebrew", "עברית"],
+      "countryCodes": ["IL"]
+    },
+    {
+      "code": "hz",
+      "iso6391": "hz",
+      "iso6393": "her",
+      "name": "Herero",
+      "nativeName": "Otjiherero",
+      "aliases": ["Herero", "Otjiherero"],
+      "countryCodes": []
+    },
+    {
+      "code": "hil",
+      "iso6391": null,
+      "iso6393": "hil",
+      "name": "Hiligaynon",
+      "nativeName": "Hiligaynon",
+      "aliases": ["Hiligaynon"],
+      "countryCodes": []
+    },
+    {
+      "code": "him",
+      "iso6391": null,
+      "iso6393": "him",
+      "name": "Himachali languages",
+      "nativeName": "Himachali languages",
+      "aliases": ["Himachali languages", " Western Pahari languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "hi",
+      "iso6391": "hi",
+      "iso6393": "hin",
+      "name": "Hindi",
+      "nativeName": "हिन्दी",
+      "aliases": ["Hindi", "हिन्दी", "हिंदी"],
+      "countryCodes": ["IN", "FJ"]
+    },
+    {
+      "code": "ho",
+      "iso6391": "ho",
+      "iso6393": "hmo",
+      "name": "Hiri Motu",
+      "nativeName": "Hiri Motu",
+      "aliases": ["Hiri Motu"],
+      "countryCodes": ["PG"]
+    },
+    {
+      "code": "hit",
+      "iso6391": null,
+      "iso6393": "hit",
+      "name": "Hittite",
+      "nativeName": "Hittite",
+      "aliases": ["Hittite"],
+      "countryCodes": []
+    },
+    {
+      "code": "hmn",
+      "iso6391": null,
+      "iso6393": "hmn",
+      "name": "Hmong",
+      "nativeName": "Hmong",
+      "aliases": ["Hmong", " Mong"],
+      "countryCodes": []
+    },
+    {
+      "code": "hu",
+      "iso6391": "hu",
+      "iso6393": "hun",
+      "name": "Hungarian",
+      "nativeName": "magyar",
+      "aliases": ["Hungarian", "magyar"],
+      "countryCodes": ["HU"]
+    },
+    {
+      "code": "hup",
+      "iso6391": null,
+      "iso6393": "hup",
+      "name": "Hupa",
+      "nativeName": "Hupa",
+      "aliases": ["Hupa"],
+      "countryCodes": []
+    },
+    {
+      "code": "iba",
+      "iso6391": null,
+      "iso6393": "iba",
+      "name": "Iban",
+      "nativeName": "Iban",
+      "aliases": ["Iban"],
+      "countryCodes": []
+    },
+    {
+      "code": "is",
+      "iso6391": "is",
+      "iso6393": "isl",
+      "name": "Icelandic",
+      "nativeName": "Íslenska",
+      "aliases": ["Icelandic", "Íslenska"],
+      "countryCodes": ["IS"]
+    },
+    {
+      "code": "io",
+      "iso6391": "io",
+      "iso6393": "ido",
+      "name": "Ido",
+      "nativeName": "Ido",
+      "aliases": ["Ido"],
+      "countryCodes": []
+    },
+    {
+      "code": "ig",
+      "iso6391": "ig",
+      "iso6393": "ibo",
+      "name": "Igbo",
+      "nativeName": "Asụsụ Igbo",
+      "aliases": ["Igbo", "Asụsụ Igbo"],
+      "countryCodes": ["NG"]
+    },
+    {
+      "code": "ijo",
+      "iso6391": null,
+      "iso6393": "ijo",
+      "name": "Ijo languages",
+      "nativeName": "Ijo languages",
+      "aliases": ["Ijo languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ilo",
+      "iso6391": null,
+      "iso6393": "ilo",
+      "name": "Iloko",
+      "nativeName": "Iloko",
+      "aliases": ["Iloko"],
+      "countryCodes": []
+    },
+    {
+      "code": "smn",
+      "iso6391": null,
+      "iso6393": "smn",
+      "name": "Inari Sami",
+      "nativeName": "Inari Sami",
+      "aliases": ["Inari Sami"],
+      "countryCodes": []
+    },
+    {
+      "code": "inc",
+      "iso6391": null,
+      "iso6393": "inc",
+      "name": "Indic languages",
+      "nativeName": "Indic languages",
+      "aliases": ["Indic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ine",
+      "iso6391": null,
+      "iso6393": "ine",
+      "name": "Indo-European languages",
+      "nativeName": "Indo-European languages",
+      "aliases": ["Indo-European languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "id",
+      "iso6391": "id",
+      "iso6393": "ind",
+      "name": "Indonesian",
+      "nativeName": "Bahasa Indonesia",
+      "aliases": ["Indonesian", "Bahasa Indonesia"],
+      "countryCodes": ["ID"]
+    },
+    {
+      "code": "inh",
+      "iso6391": null,
+      "iso6393": "inh",
+      "name": "Ingush",
+      "nativeName": "Ingush",
+      "aliases": ["Ingush"],
+      "countryCodes": []
+    },
+    {
+      "code": "ia",
+      "iso6391": "ia",
+      "iso6393": "ina",
+      "name": "Interlingua",
+      "nativeName": "Interlingua",
+      "aliases": ["Interlingua"],
+      "countryCodes": []
+    },
+    {
+      "code": "ie",
+      "iso6391": "ie",
+      "iso6393": "ile",
+      "name": "Interlingue",
+      "nativeName": "Interlingue",
+      "aliases": ["Interlingue"],
+      "countryCodes": []
+    },
+    {
+      "code": "iu",
+      "iso6391": "iu",
+      "iso6393": "iku",
+      "name": "Inuktitut",
+      "nativeName": "ᐃᓄᒃᑎᑐᑦ",
+      "aliases": ["Inuktitut", "ᐃᓄᒃᑎᑐᑦ"],
+      "countryCodes": []
+    },
+    {
+      "code": "ik",
+      "iso6391": "ik",
+      "iso6393": "ipk",
+      "name": "Inupiaq",
+      "nativeName": "Iñupiaq",
+      "aliases": ["Inupiaq", "Iñupiaq", "Iñupiatun"],
+      "countryCodes": []
+    },
+    {
+      "code": "ira",
+      "iso6391": null,
+      "iso6393": "ira",
+      "name": "Iranian languages",
+      "nativeName": "Iranian languages",
+      "aliases": ["Iranian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ga",
+      "iso6391": "ga",
+      "iso6393": "gle",
+      "name": "Irish",
+      "nativeName": "Gaeilge",
+      "aliases": ["Irish", "Gaeilge"],
+      "countryCodes": ["IE"]
+    },
+    {
+      "code": "mga",
+      "iso6391": null,
+      "iso6393": "mga",
+      "name": "Irish, Middle (900-1200)",
+      "nativeName": "Irish, Middle (900-1200)",
+      "aliases": ["Irish, Middle (900-1200)"],
+      "countryCodes": []
+    },
+    {
+      "code": "sga",
+      "iso6391": null,
+      "iso6393": "sga",
+      "name": "Irish, Old (to 900)",
+      "nativeName": "Irish, Old (to 900)",
+      "aliases": ["Irish, Old (to 900)"],
+      "countryCodes": []
+    },
+    {
+      "code": "iro",
+      "iso6391": null,
+      "iso6393": "iro",
+      "name": "Iroquoian languages",
+      "nativeName": "Iroquoian languages",
+      "aliases": ["Iroquoian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "it",
+      "iso6391": "it",
+      "iso6393": "ita",
+      "name": "Italian",
+      "nativeName": "italiano",
+      "aliases": ["Italian", "italiano"],
+      "countryCodes": ["IT", "HR", "SM", "SI", "CH", "VA"]
+    },
+    {
+      "code": "ja",
+      "iso6391": "ja",
+      "iso6393": "jpn",
+      "name": "Japanese",
+      "nativeName": "日本語 (にほんご)",
+      "aliases": ["Japanese", "日本語 (にほんご)"],
+      "countryCodes": ["JP"]
+    },
+    {
+      "code": "jv",
+      "iso6391": "jv",
+      "iso6393": "jav",
+      "name": "Javanese",
+      "nativeName": "basa Jawa",
+      "aliases": ["Javanese", "basa Jawa"],
+      "countryCodes": []
+    },
+    {
+      "code": "jrb",
+      "iso6391": null,
+      "iso6393": "jrb",
+      "name": "Judeo-Arabic",
+      "nativeName": "Judeo-Arabic",
+      "aliases": ["Judeo-Arabic"],
+      "countryCodes": []
+    },
+    {
+      "code": "jpr",
+      "iso6391": null,
+      "iso6393": "jpr",
+      "name": "Judeo-Persian",
+      "nativeName": "Judeo-Persian",
+      "aliases": ["Judeo-Persian"],
+      "countryCodes": []
+    },
+    {
+      "code": "kbd",
+      "iso6391": null,
+      "iso6393": "kbd",
+      "name": "Kabardian",
+      "nativeName": "Kabardian",
+      "aliases": ["Kabardian"],
+      "countryCodes": []
+    },
+    {
+      "code": "kab",
+      "iso6391": null,
+      "iso6393": "kab",
+      "name": "Kabyle",
+      "nativeName": "Kabyle",
+      "aliases": ["Kabyle"],
+      "countryCodes": []
+    },
+    {
+      "code": "kac",
+      "iso6391": null,
+      "iso6393": "kac",
+      "name": "Kachin",
+      "nativeName": "Kachin",
+      "aliases": ["Kachin", " Jingpho"],
+      "countryCodes": []
+    },
+    {
+      "code": "kl",
+      "iso6391": "kl",
+      "iso6393": "kal",
+      "name": "Kalaallisut",
+      "nativeName": "kalaallisut",
+      "aliases": ["Kalaallisut", "Greenlandic", "kalaallisut", "kalaallit oqaasii"],
+      "countryCodes": []
+    },
+    {
+      "code": "xal",
+      "iso6391": null,
+      "iso6393": "xal",
+      "name": "Kalmyk",
+      "nativeName": "Kalmyk",
+      "aliases": ["Kalmyk", " Oirat"],
+      "countryCodes": []
+    },
+    {
+      "code": "kam",
+      "iso6391": null,
+      "iso6393": "kam",
+      "name": "Kamba",
+      "nativeName": "Kamba",
+      "aliases": ["Kamba"],
+      "countryCodes": []
+    },
+    {
+      "code": "kn",
+      "iso6391": "kn",
+      "iso6393": "kan",
+      "name": "Kannada",
+      "nativeName": "ಕನ್ನಡ",
+      "aliases": ["Kannada", "ಕನ್ನಡ"],
+      "countryCodes": []
+    },
+    {
+      "code": "kr",
+      "iso6391": "kr",
+      "iso6393": "kau",
+      "name": "Kanuri",
+      "nativeName": "Kanuri",
+      "aliases": ["Kanuri"],
+      "countryCodes": ["NE"]
+    },
+    {
+      "code": "kaa",
+      "iso6391": null,
+      "iso6393": "kaa",
+      "name": "Kara-Kalpak",
+      "nativeName": "Kara-Kalpak",
+      "aliases": ["Kara-Kalpak"],
+      "countryCodes": []
+    },
+    {
+      "code": "krc",
+      "iso6391": null,
+      "iso6393": "krc",
+      "name": "Karachay-Balkar",
+      "nativeName": "Karachay-Balkar",
+      "aliases": ["Karachay-Balkar"],
+      "countryCodes": []
+    },
+    {
+      "code": "krl",
+      "iso6391": null,
+      "iso6393": "krl",
+      "name": "Karelian",
+      "nativeName": "Karelian",
+      "aliases": ["Karelian"],
+      "countryCodes": []
+    },
+    {
+      "code": "kar",
+      "iso6391": null,
+      "iso6393": "kar",
+      "name": "Karen languages",
+      "nativeName": "Karen languages",
+      "aliases": ["Karen languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ks",
+      "iso6391": "ks",
+      "iso6393": "kas",
+      "name": "Kashmiri",
+      "nativeName": "कश्मीरी",
+      "aliases": ["Kashmiri", "कश्मीरी", "كشميري‎"],
+      "countryCodes": []
+    },
+    {
+      "code": "csb",
+      "iso6391": null,
+      "iso6393": "csb",
+      "name": "Kashubian",
+      "nativeName": "Kashubian",
+      "aliases": ["Kashubian"],
+      "countryCodes": []
+    },
+    {
+      "code": "kaw",
+      "iso6391": null,
+      "iso6393": "kaw",
+      "name": "Kawi",
+      "nativeName": "Kawi",
+      "aliases": ["Kawi"],
+      "countryCodes": []
+    },
+    {
+      "code": "kk",
+      "iso6391": "kk",
+      "iso6393": "kaz",
+      "name": "Kazakh",
+      "nativeName": "қазақ тілі",
+      "aliases": ["Kazakh", "қазақ тілі"],
+      "countryCodes": ["KZ"]
+    },
+    {
+      "code": "kha",
+      "iso6391": null,
+      "iso6393": "kha",
+      "name": "Khasi",
+      "nativeName": "Khasi",
+      "aliases": ["Khasi"],
+      "countryCodes": []
+    },
+    {
+      "code": "km",
+      "iso6391": "km",
+      "iso6393": "khm",
+      "name": "Khmer",
+      "nativeName": "ខ្មែរ",
+      "aliases": ["Khmer", "ខ្មែរ", "ខេមរភាសា", "ភាសាខ្មែរ"],
+      "countryCodes": ["KH"]
+    },
+    {
+      "code": "khi",
+      "iso6391": null,
+      "iso6393": "khi",
+      "name": "Khoisan languages",
+      "nativeName": "Khoisan languages",
+      "aliases": ["Khoisan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "kho",
+      "iso6391": null,
+      "iso6393": "kho",
+      "name": "Khotanese",
+      "nativeName": "Khotanese",
+      "aliases": ["Khotanese", " Sakan"],
+      "countryCodes": []
+    },
+    {
+      "code": "ki",
+      "iso6391": "ki",
+      "iso6393": "kik",
+      "name": "Kikuyu",
+      "nativeName": "Gĩkũyũ",
+      "aliases": ["Kikuyu", "Gikuyu", "Gĩkũyũ"],
+      "countryCodes": []
+    },
+    {
+      "code": "kmb",
+      "iso6391": null,
+      "iso6393": "kmb",
+      "name": "Kimbundu",
+      "nativeName": "Kimbundu",
+      "aliases": ["Kimbundu"],
+      "countryCodes": ["AO"]
+    },
+    {
+      "code": "rw",
+      "iso6391": "rw",
+      "iso6393": "kin",
+      "name": "Kinyarwanda",
+      "nativeName": "Ikinyarwanda",
+      "aliases": ["Kinyarwanda", "Ikinyarwanda"],
+      "countryCodes": ["RW"]
+    },
+    {
+      "code": "rn",
+      "iso6391": "rn",
+      "iso6393": "run",
+      "name": "Kirundi",
+      "nativeName": "Ikirundi",
+      "aliases": ["Kirundi", "Ikirundi"],
+      "countryCodes": ["BI"]
+    },
+    {
+      "code": "tlh",
+      "iso6391": null,
+      "iso6393": "tlh",
+      "name": "Klingon",
+      "nativeName": "Klingon",
+      "aliases": ["Klingon", " tlhIngan-Hol"],
+      "countryCodes": []
+    },
+    {
+      "code": "kv",
+      "iso6391": "kv",
+      "iso6393": "kom",
+      "name": "Komi",
+      "nativeName": "коми кыв",
+      "aliases": ["Komi", "коми кыв"],
+      "countryCodes": []
+    },
+    {
+      "code": "kg",
+      "iso6391": "kg",
+      "iso6393": "kon",
+      "name": "Kongo",
+      "nativeName": "Kikongo",
+      "aliases": ["Kongo", "Kikongo"],
+      "countryCodes": ["AO", "CD", "CG"]
+    },
+    {
+      "code": "kok",
+      "iso6391": null,
+      "iso6393": "kok",
+      "name": "Konkani",
+      "nativeName": "Konkani",
+      "aliases": ["Konkani"],
+      "countryCodes": []
+    },
+    {
+      "code": "ko",
+      "iso6391": "ko",
+      "iso6393": "kor",
+      "name": "Korean",
+      "nativeName": "한국어",
+      "aliases": ["Korean", "한국어", "조선어"],
+      "countryCodes": ["KP", "KR"]
+    },
+    {
+      "code": "kos",
+      "iso6391": null,
+      "iso6393": "kos",
+      "name": "Kosraean",
+      "nativeName": "Kosraean",
+      "aliases": ["Kosraean"],
+      "countryCodes": []
+    },
+    {
+      "code": "kpe",
+      "iso6391": null,
+      "iso6393": "kpe",
+      "name": "Kpelle",
+      "nativeName": "Kpelle",
+      "aliases": ["Kpelle"],
+      "countryCodes": []
+    },
+    {
+      "code": "kro",
+      "iso6391": null,
+      "iso6393": "kro",
+      "name": "Kru languages",
+      "nativeName": "Kru languages",
+      "aliases": ["Kru languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "kum",
+      "iso6391": null,
+      "iso6393": "kum",
+      "name": "Kumyk",
+      "nativeName": "Kumyk",
+      "aliases": ["Kumyk"],
+      "countryCodes": []
+    },
+    {
+      "code": "ku",
+      "iso6391": "ku",
+      "iso6393": "kur",
+      "name": "Kurdish",
+      "nativeName": "Kurdî",
+      "aliases": ["Kurdish", "Kurdî", "كوردی‎"],
+      "countryCodes": ["IQ"]
+    },
+    {
+      "code": "kru",
+      "iso6391": null,
+      "iso6393": "kru",
+      "name": "Kurukh",
+      "nativeName": "Kurukh",
+      "aliases": ["Kurukh"],
+      "countryCodes": []
+    },
+    {
+      "code": "kut",
+      "iso6391": null,
+      "iso6393": "kut",
+      "name": "Kutenai",
+      "nativeName": "Kutenai",
+      "aliases": ["Kutenai"],
+      "countryCodes": []
+    },
+    {
+      "code": "kj",
+      "iso6391": "kj",
+      "iso6393": "kua",
+      "name": "Kwanyama",
+      "nativeName": "Kuanyama",
+      "aliases": ["Kwanyama", "Kuanyama"],
+      "countryCodes": ["AO"]
+    },
+    {
+      "code": "ky",
+      "iso6391": "ky",
+      "iso6393": "kir",
+      "name": "Kyrgyz",
+      "nativeName": "Кыргызча",
+      "aliases": ["Kyrgyz", "Кыргызча", "Кыргыз тили"],
+      "countryCodes": ["KG"]
+    },
+    {
+      "code": "lad",
+      "iso6391": null,
+      "iso6393": "lad",
+      "name": "Ladino",
+      "nativeName": "Ladino",
+      "aliases": ["Ladino"],
+      "countryCodes": []
+    },
+    {
+      "code": "lah",
+      "iso6391": null,
+      "iso6393": "lah",
+      "name": "Lahnda",
+      "nativeName": "Lahnda",
+      "aliases": ["Lahnda"],
+      "countryCodes": []
+    },
+    {
+      "code": "lam",
+      "iso6391": null,
+      "iso6393": "lam",
+      "name": "Lamba",
+      "nativeName": "Lamba",
+      "aliases": ["Lamba"],
+      "countryCodes": []
+    },
+    {
+      "code": "day",
+      "iso6391": null,
+      "iso6393": "day",
+      "name": "Land Dayak languages",
+      "nativeName": "Land Dayak languages",
+      "aliases": ["Land Dayak languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "lo",
+      "iso6391": "lo",
+      "iso6393": "lao",
+      "name": "Lao",
+      "nativeName": "ພາສາລາວ",
+      "aliases": ["Lao", "ພາສາລາວ"],
+      "countryCodes": ["LA"]
+    },
+    {
+      "code": "la",
+      "iso6391": "la",
+      "iso6393": "lat",
+      "name": "Latin",
+      "nativeName": "latine",
+      "aliases": ["Latin", "latine", "lingua latina"],
+      "countryCodes": ["VA"]
+    },
+    {
+      "code": "lv",
+      "iso6391": "lv",
+      "iso6393": "lav",
+      "name": "Latvian",
+      "nativeName": "latviešu valoda",
+      "aliases": ["Latvian", "latviešu valoda"],
+      "countryCodes": ["LV"]
+    },
+    {
+      "code": "lez",
+      "iso6391": null,
+      "iso6393": "lez",
+      "name": "Lezghian",
+      "nativeName": "Lezghian",
+      "aliases": ["Lezghian"],
+      "countryCodes": []
+    },
+    {
+      "code": "li",
+      "iso6391": "li",
+      "iso6393": "lim",
+      "name": "Limburgish",
+      "nativeName": "Limburgs",
+      "aliases": ["Limburgish", "Limburgan", "Limburger", "Limburgs"],
+      "countryCodes": []
+    },
+    {
+      "code": "ln",
+      "iso6391": "ln",
+      "iso6393": "lin",
+      "name": "Lingala",
+      "nativeName": "Lingála",
+      "aliases": ["Lingala", "Lingála"],
+      "countryCodes": ["CD", "CG"]
+    },
+    {
+      "code": "lt",
+      "iso6391": "lt",
+      "iso6393": "lit",
+      "name": "Lithuanian",
+      "nativeName": "lietuvių kalba",
+      "aliases": ["Lithuanian", "lietuvių kalba"],
+      "countryCodes": ["LT"]
+    },
+    {
+      "code": "jbo",
+      "iso6391": null,
+      "iso6393": "jbo",
+      "name": "Lojban",
+      "nativeName": "Lojban",
+      "aliases": ["Lojban"],
+      "countryCodes": []
+    },
+    {
+      "code": "nds",
+      "iso6391": null,
+      "iso6393": "nds",
+      "name": "Low German",
+      "nativeName": "Low German",
+      "aliases": ["Low German", " Low Saxon", " German, Low", " Saxon, Low"],
+      "countryCodes": []
+    },
+    {
+      "code": "dsb",
+      "iso6391": null,
+      "iso6393": "dsb",
+      "name": "Lower Sorbian",
+      "nativeName": "Lower Sorbian",
+      "aliases": ["Lower Sorbian"],
+      "countryCodes": []
+    },
+    {
+      "code": "loz",
+      "iso6391": null,
+      "iso6393": "loz",
+      "name": "Lozi",
+      "nativeName": "Lozi",
+      "aliases": ["Lozi"],
+      "countryCodes": []
+    },
+    {
+      "code": "lu",
+      "iso6391": "lu",
+      "iso6393": "lub",
+      "name": "Luba-Katanga",
+      "nativeName": "Tshiluba",
+      "aliases": ["Luba-Katanga", "Tshiluba"],
+      "countryCodes": ["CD"]
+    },
+    {
+      "code": "lua",
+      "iso6391": null,
+      "iso6393": "lua",
+      "name": "Luba-Lulua",
+      "nativeName": "Luba-Lulua",
+      "aliases": ["Luba-Lulua"],
+      "countryCodes": []
+    },
+    {
+      "code": "lui",
+      "iso6391": null,
+      "iso6393": "lui",
+      "name": "Luiseno",
+      "nativeName": "Luiseno",
+      "aliases": ["Luiseno"],
+      "countryCodes": []
+    },
+    {
+      "code": "smj",
+      "iso6391": null,
+      "iso6393": "smj",
+      "name": "Lule Sami",
+      "nativeName": "Lule Sami",
+      "aliases": ["Lule Sami"],
+      "countryCodes": []
+    },
+    {
+      "code": "lun",
+      "iso6391": null,
+      "iso6393": "lun",
+      "name": "Lunda",
+      "nativeName": "Lunda",
+      "aliases": ["Lunda"],
+      "countryCodes": []
+    },
+    {
+      "code": "luo",
+      "iso6391": null,
+      "iso6393": "luo",
+      "name": "Luo (Kenya and Tanzania)",
+      "nativeName": "Luo (Kenya and Tanzania)",
+      "aliases": ["Luo (Kenya and Tanzania)"],
+      "countryCodes": []
+    },
+    {
+      "code": "lus",
+      "iso6391": null,
+      "iso6393": "lus",
+      "name": "Lushai",
+      "nativeName": "Lushai",
+      "aliases": ["Lushai"],
+      "countryCodes": []
+    },
+    {
+      "code": "lb",
+      "iso6391": "lb",
+      "iso6393": "ltz",
+      "name": "Luxembourgish",
+      "nativeName": "Lëtzebuergesch",
+      "aliases": ["Luxembourgish", "Letzeburgesch", "Lëtzebuergesch"],
+      "countryCodes": ["LU"]
+    },
+    {
+      "code": "mk",
+      "iso6391": "mk",
+      "iso6393": "mkd",
+      "name": "Macedonian",
+      "nativeName": "македонски јазик",
+      "aliases": ["Macedonian", "македонски јазик"],
+      "countryCodes": ["MK"]
+    },
+    {
+      "code": "mad",
+      "iso6391": null,
+      "iso6393": "mad",
+      "name": "Madurese",
+      "nativeName": "Madurese",
+      "aliases": ["Madurese"],
+      "countryCodes": []
+    },
+    {
+      "code": "mag",
+      "iso6391": null,
+      "iso6393": "mag",
+      "name": "Magahi",
+      "nativeName": "Magahi",
+      "aliases": ["Magahi"],
+      "countryCodes": []
+    },
+    {
+      "code": "mai",
+      "iso6391": null,
+      "iso6393": "mai",
+      "name": "Maithili",
+      "nativeName": "Maithili",
+      "aliases": ["Maithili"],
+      "countryCodes": []
+    },
+    {
+      "code": "mak",
+      "iso6391": null,
+      "iso6393": "mak",
+      "name": "Makasar",
+      "nativeName": "Makasar",
+      "aliases": ["Makasar"],
+      "countryCodes": []
+    },
+    {
+      "code": "mg",
+      "iso6391": "mg",
+      "iso6393": "mlg",
+      "name": "Malagasy",
+      "nativeName": "fiteny malagasy",
+      "aliases": ["Malagasy", "fiteny malagasy"],
+      "countryCodes": ["MG"]
+    },
+    {
+      "code": "ms",
+      "iso6391": "ms",
+      "iso6393": "msa",
+      "name": "Malay",
+      "nativeName": "bahasa Melayu",
+      "aliases": ["Malay", "bahasa Melayu", "بهاس ملايو‎"],
+      "countryCodes": ["MY", "BN", "SG", "ID"]
+    },
+    {
+      "code": "ml",
+      "iso6391": "ml",
+      "iso6393": "mal",
+      "name": "Malayalam",
+      "nativeName": "മലയാളം",
+      "aliases": ["Malayalam", "മലയാളം"],
+      "countryCodes": []
+    },
+    {
+      "code": "mt",
+      "iso6391": "mt",
+      "iso6393": "mlt",
+      "name": "Maltese",
+      "nativeName": "Malti",
+      "aliases": ["Maltese", "Malti"],
+      "countryCodes": ["MT"]
+    },
+    {
+      "code": "mnc",
+      "iso6391": null,
+      "iso6393": "mnc",
+      "name": "Manchu",
+      "nativeName": "Manchu",
+      "aliases": ["Manchu"],
+      "countryCodes": []
+    },
+    {
+      "code": "mdr",
+      "iso6391": null,
+      "iso6393": "mdr",
+      "name": "Mandar",
+      "nativeName": "Mandar",
+      "aliases": ["Mandar"],
+      "countryCodes": []
+    },
+    {
+      "code": "man",
+      "iso6391": null,
+      "iso6393": "man",
+      "name": "Mandingo",
+      "nativeName": "Mandingo",
+      "aliases": ["Mandingo"],
+      "countryCodes": []
+    },
+    {
+      "code": "mni",
+      "iso6391": null,
+      "iso6393": "mni",
+      "name": "Manipuri",
+      "nativeName": "Manipuri",
+      "aliases": ["Manipuri"],
+      "countryCodes": []
+    },
+    {
+      "code": "mno",
+      "iso6391": null,
+      "iso6393": "mno",
+      "name": "Manobo languages",
+      "nativeName": "Manobo languages",
+      "aliases": ["Manobo languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "gv",
+      "iso6391": "gv",
+      "iso6393": "glv",
+      "name": "Manx",
+      "nativeName": "Gaelg",
+      "aliases": ["Manx", "Gaelg", "Gailck"],
+      "countryCodes": []
+    },
+    {
+      "code": "mi",
+      "iso6391": "mi",
+      "iso6393": "mri",
+      "name": "Māori",
+      "nativeName": "te reo Māori",
+      "aliases": ["Māori", "te reo Māori"],
+      "countryCodes": ["NZ"]
+    },
+    {
+      "code": "arn",
+      "iso6391": null,
+      "iso6393": "arn",
+      "name": "Mapudungun",
+      "nativeName": "Mapudungun",
+      "aliases": ["Mapudungun", " Mapuche"],
+      "countryCodes": []
+    },
+    {
+      "code": "mr",
+      "iso6391": "mr",
+      "iso6393": "mar",
+      "name": "Marathi (Marāṭhī)",
+      "nativeName": "मराठी",
+      "aliases": ["Marathi (Marāṭhī)", "मराठी"],
+      "countryCodes": []
+    },
+    {
+      "code": "chm",
+      "iso6391": null,
+      "iso6393": "chm",
+      "name": "Mari",
+      "nativeName": "Mari",
+      "aliases": ["Mari"],
+      "countryCodes": []
+    },
+    {
+      "code": "mh",
+      "iso6391": "mh",
+      "iso6393": "mah",
+      "name": "Marshallese",
+      "nativeName": "Kajin M̧ajeļ",
+      "aliases": ["Marshallese", "Kajin M̧ajeļ"],
+      "countryCodes": ["MH"]
+    },
+    {
+      "code": "mwr",
+      "iso6391": null,
+      "iso6393": "mwr",
+      "name": "Marwari",
+      "nativeName": "Marwari",
+      "aliases": ["Marwari"],
+      "countryCodes": []
+    },
+    {
+      "code": "mas",
+      "iso6391": null,
+      "iso6393": "mas",
+      "name": "Masai",
+      "nativeName": "Masai",
+      "aliases": ["Masai"],
+      "countryCodes": []
+    },
+    {
+      "code": "myn",
+      "iso6391": null,
+      "iso6393": "myn",
+      "name": "Mayan languages",
+      "nativeName": "Mayan languages",
+      "aliases": ["Mayan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "men",
+      "iso6391": null,
+      "iso6393": "men",
+      "name": "Mende",
+      "nativeName": "Mende",
+      "aliases": ["Mende"],
+      "countryCodes": []
+    },
+    {
+      "code": "mic",
+      "iso6391": null,
+      "iso6393": "mic",
+      "name": "Mi'kmaq",
+      "nativeName": "Mi'kmaq",
+      "aliases": ["Mi'kmaq", " Micmac"],
+      "countryCodes": []
+    },
+    {
+      "code": "min",
+      "iso6391": null,
+      "iso6393": "min",
+      "name": "Minangkabau",
+      "nativeName": "Minangkabau",
+      "aliases": ["Minangkabau"],
+      "countryCodes": []
+    },
+    {
+      "code": "mwl",
+      "iso6391": null,
+      "iso6393": "mwl",
+      "name": "Mirandese",
+      "nativeName": "Mirandese",
+      "aliases": ["Mirandese"],
+      "countryCodes": []
+    },
+    {
+      "code": "moh",
+      "iso6391": null,
+      "iso6393": "moh",
+      "name": "Mohawk",
+      "nativeName": "Mohawk",
+      "aliases": ["Mohawk"],
+      "countryCodes": []
+    },
+    {
+      "code": "mdf",
+      "iso6391": null,
+      "iso6393": "mdf",
+      "name": "Moksha",
+      "nativeName": "Moksha",
+      "aliases": ["Moksha"],
+      "countryCodes": []
+    },
+    {
+      "code": "mkh",
+      "iso6391": null,
+      "iso6393": "mkh",
+      "name": "Mon-Khmer languages",
+      "nativeName": "Mon-Khmer languages",
+      "aliases": ["Mon-Khmer languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "lol",
+      "iso6391": null,
+      "iso6393": "lol",
+      "name": "Mongo",
+      "nativeName": "Mongo",
+      "aliases": ["Mongo"],
+      "countryCodes": []
+    },
+    {
+      "code": "mn",
+      "iso6391": "mn",
+      "iso6393": "mon",
+      "name": "Mongolian",
+      "nativeName": "монгол",
+      "aliases": ["Mongolian", "монгол"],
+      "countryCodes": ["MN"]
+    },
+    {
+      "code": "mos",
+      "iso6391": null,
+      "iso6393": "mos",
+      "name": "Mossi",
+      "nativeName": "Mossi",
+      "aliases": ["Mossi"],
+      "countryCodes": ["BF"]
+    },
+    {
+      "code": "mul",
+      "iso6391": null,
+      "iso6393": "mul",
+      "name": "Multiple languages",
+      "nativeName": "Multiple languages",
+      "aliases": ["Multiple languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "mun",
+      "iso6391": null,
+      "iso6393": "mun",
+      "name": "Munda languages",
+      "nativeName": "Munda languages",
+      "aliases": ["Munda languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "nqo",
+      "iso6391": null,
+      "iso6393": "nqo",
+      "name": "N'Ko",
+      "nativeName": "N'Ko",
+      "aliases": ["N'Ko"],
+      "countryCodes": []
+    },
+    {
+      "code": "nah",
+      "iso6391": null,
+      "iso6393": "nah",
+      "name": "Nahuatl languages",
+      "nativeName": "Nahuatl languages",
+      "aliases": ["Nahuatl languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "na",
+      "iso6391": "na",
+      "iso6393": "nau",
+      "name": "Nauru",
+      "nativeName": "Ekakairũ Naoero",
+      "aliases": ["Nauru", "Ekakairũ Naoero"],
+      "countryCodes": []
+    },
+    {
+      "code": "nv",
+      "iso6391": "nv",
+      "iso6393": "nav",
+      "name": "Navajo",
+      "nativeName": "Diné bizaad",
+      "aliases": ["Navajo", "Navaho", "Diné bizaad", "Dinékʼehǰí"],
+      "countryCodes": []
+    },
+    {
+      "code": "ng",
+      "iso6391": "ng",
+      "iso6393": "ndo",
+      "name": "Ndonga",
+      "nativeName": "Owambo",
+      "aliases": ["Ndonga", "Owambo"],
+      "countryCodes": []
+    },
+    {
+      "code": "nap",
+      "iso6391": null,
+      "iso6393": "nap",
+      "name": "Neapolitan",
+      "nativeName": "Neapolitan",
+      "aliases": ["Neapolitan"],
+      "countryCodes": []
+    },
+    {
+      "code": "new",
+      "iso6391": null,
+      "iso6393": "new",
+      "name": "Nepal Bhasa",
+      "nativeName": "Nepal Bhasa",
+      "aliases": ["Nepal Bhasa", " Newari"],
+      "countryCodes": []
+    },
+    {
+      "code": "ne",
+      "iso6391": "ne",
+      "iso6393": "nep",
+      "name": "Nepali",
+      "nativeName": "नेपाली",
+      "aliases": ["Nepali", "नेपाली"],
+      "countryCodes": ["NP"]
+    },
+    {
+      "code": "nia",
+      "iso6391": null,
+      "iso6393": "nia",
+      "name": "Nias",
+      "nativeName": "Nias",
+      "aliases": ["Nias"],
+      "countryCodes": []
+    },
+    {
+      "code": "nic",
+      "iso6391": null,
+      "iso6393": "nic",
+      "name": "Niger-Kordofanian languages",
+      "nativeName": "Niger-Kordofanian languages",
+      "aliases": ["Niger-Kordofanian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ssa",
+      "iso6391": null,
+      "iso6393": "ssa",
+      "name": "Nilo-Saharan languages",
+      "nativeName": "Nilo-Saharan languages",
+      "aliases": ["Nilo-Saharan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "niu",
+      "iso6391": null,
+      "iso6393": "niu",
+      "name": "Niuean",
+      "nativeName": "Niuean",
+      "aliases": ["Niuean"],
+      "countryCodes": []
+    },
+    {
+      "code": "zxx",
+      "iso6391": null,
+      "iso6393": "zxx",
+      "name": "No linguistic content",
+      "nativeName": "No linguistic content",
+      "aliases": ["No linguistic content", " Not applicable"],
+      "countryCodes": []
+    },
+    {
+      "code": "nog",
+      "iso6391": null,
+      "iso6393": "nog",
+      "name": "Nogai",
+      "nativeName": "Nogai",
+      "aliases": ["Nogai"],
+      "countryCodes": []
+    },
+    {
+      "code": "non",
+      "iso6391": null,
+      "iso6393": "non",
+      "name": "Norse, Old",
+      "nativeName": "Norse, Old",
+      "aliases": ["Norse, Old"],
+      "countryCodes": []
+    },
+    {
+      "code": "nai",
+      "iso6391": null,
+      "iso6393": "nai",
+      "name": "North American Indian languages",
+      "nativeName": "North American Indian languages",
+      "aliases": ["North American Indian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "frr",
+      "iso6391": null,
+      "iso6393": "frr",
+      "name": "Northern Frisian",
+      "nativeName": "Northern Frisian",
+      "aliases": ["Northern Frisian"],
+      "countryCodes": []
+    },
+    {
+      "code": "nd",
+      "iso6391": "nd",
+      "iso6393": "nde",
+      "name": "Northern Ndebele",
+      "nativeName": "isiNdebele",
+      "aliases": ["Northern Ndebele", "isiNdebele"],
+      "countryCodes": ["ZA", "ZW"]
+    },
+    {
+      "code": "se",
+      "iso6391": "se",
+      "iso6393": "sme",
+      "name": "Northern Sami",
+      "nativeName": "Davvisámegiella",
+      "aliases": ["Northern Sami", "Davvisámegiella"],
+      "countryCodes": []
+    },
+    {
+      "code": "nso",
+      "iso6391": null,
+      "iso6393": "nso",
+      "name": "Northern Sotho",
+      "nativeName": "Sesotho sa Leboa",
+      "aliases": ["Northern Sotho", "Sesotho sa Leboa"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "no",
+      "iso6391": "no",
+      "iso6393": "nor",
+      "name": "Norwegian",
+      "nativeName": "Norsk",
+      "aliases": ["Norwegian", "Norsk"],
+      "countryCodes": ["NO"]
+    },
+    {
+      "code": "nb",
+      "iso6391": "nb",
+      "iso6393": "nob",
+      "name": "Norwegian Bokmål",
+      "nativeName": "Norsk bokmål",
+      "aliases": ["Norwegian Bokmål", "Norsk bokmål"],
+      "countryCodes": ["NO"]
+    },
+    {
+      "code": "nn",
+      "iso6391": "nn",
+      "iso6393": "nno",
+      "name": "Norwegian Nynorsk",
+      "nativeName": "Norsk nynorsk",
+      "aliases": ["Norwegian Nynorsk", "Norsk nynorsk"],
+      "countryCodes": ["NO"]
+    },
+    {
+      "code": "nub",
+      "iso6391": null,
+      "iso6393": "nub",
+      "name": "Nubian languages",
+      "nativeName": "Nubian languages",
+      "aliases": ["Nubian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ii",
+      "iso6391": "ii",
+      "iso6393": "iii",
+      "name": "Nuosu",
+      "nativeName": "Nuosuhxop",
+      "aliases": ["Nuosu", "Nuosuhxop"],
+      "countryCodes": []
+    },
+    {
+      "code": "nym",
+      "iso6391": null,
+      "iso6393": "nym",
+      "name": "Nyamwezi",
+      "nativeName": "Nyamwezi",
+      "aliases": ["Nyamwezi"],
+      "countryCodes": []
+    },
+    {
+      "code": "nyn",
+      "iso6391": null,
+      "iso6393": "nyn",
+      "name": "Nyankole",
+      "nativeName": "Nyankole",
+      "aliases": ["Nyankole"],
+      "countryCodes": []
+    },
+    {
+      "code": "nyo",
+      "iso6391": null,
+      "iso6393": "nyo",
+      "name": "Nyoro",
+      "nativeName": "Nyoro",
+      "aliases": ["Nyoro"],
+      "countryCodes": []
+    },
+    {
+      "code": "nzi",
+      "iso6391": null,
+      "iso6393": "nzi",
+      "name": "Nzima",
+      "nativeName": "Nzima",
+      "aliases": ["Nzima"],
+      "countryCodes": []
+    },
+    {
+      "code": "oc",
+      "iso6391": "oc",
+      "iso6393": "oci",
+      "name": "Occitan",
+      "nativeName": "occitan",
+      "aliases": ["Occitan", "occitan", "lenga d'òc"],
+      "countryCodes": []
+    },
+    {
+      "code": "arc",
+      "iso6391": null,
+      "iso6393": "arc",
+      "name": "Official Aramaic (700-300 BCE)",
+      "nativeName": "Official Aramaic (700-300 BCE)",
+      "aliases": ["Official Aramaic (700-300 BCE)", " Imperial Aramaic (700-300 BCE)"],
+      "countryCodes": []
+    },
+    {
+      "code": "oj",
+      "iso6391": "oj",
+      "iso6393": "oji",
+      "name": "Ojibwe",
+      "nativeName": "ᐊᓂᔑᓈᐯᒧᐎᓐ",
+      "aliases": ["Ojibwe", "Ojibwa", "ᐊᓂᔑᓈᐯᒧᐎᓐ"],
+      "countryCodes": []
+    },
+    {
+      "code": "cu",
+      "iso6391": "cu",
+      "iso6393": "chu",
+      "name": "Old Church Slavonic",
+      "nativeName": "ѩзыкъ словѣньскъ",
+      "aliases": ["Old Church Slavonic", "Church Slavonic", "Old Bulgarian", "ѩзыкъ словѣньскъ"],
+      "countryCodes": []
+    },
+    {
+      "code": "or",
+      "iso6391": "or",
+      "iso6393": "ori",
+      "name": "Oriya",
+      "nativeName": "ଓଡ଼ିଆ",
+      "aliases": ["Oriya", "ଓଡ଼ିଆ"],
+      "countryCodes": []
+    },
+    {
+      "code": "om",
+      "iso6391": "om",
+      "iso6393": "orm",
+      "name": "Oromo",
+      "nativeName": "Afaan Oromoo",
+      "aliases": ["Oromo", "Afaan Oromoo"],
+      "countryCodes": []
+    },
+    {
+      "code": "osa",
+      "iso6391": null,
+      "iso6393": "osa",
+      "name": "Osage",
+      "nativeName": "Osage",
+      "aliases": ["Osage"],
+      "countryCodes": []
+    },
+    {
+      "code": "os",
+      "iso6391": "os",
+      "iso6393": "oss",
+      "name": "Ossetian",
+      "nativeName": "ирон æвзаг",
+      "aliases": ["Ossetian", "Ossetic", "ирон æвзаг"],
+      "countryCodes": []
+    },
+    {
+      "code": "oto",
+      "iso6391": null,
+      "iso6393": "oto",
+      "name": "Otomian languages",
+      "nativeName": "Otomian languages",
+      "aliases": ["Otomian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "pal",
+      "iso6391": null,
+      "iso6393": "pal",
+      "name": "Pahlavi",
+      "nativeName": "Pahlavi",
+      "aliases": ["Pahlavi"],
+      "countryCodes": []
+    },
+    {
+      "code": "pau",
+      "iso6391": null,
+      "iso6393": "pau",
+      "name": "Palauan",
+      "nativeName": "Palauan",
+      "aliases": ["Palauan"],
+      "countryCodes": []
+    },
+    {
+      "code": "pi",
+      "iso6391": "pi",
+      "iso6393": "pli",
+      "name": "Pāli",
+      "nativeName": "पाऴि",
+      "aliases": ["Pāli", "पाऴि"],
+      "countryCodes": []
+    },
+    {
+      "code": "pam",
+      "iso6391": null,
+      "iso6393": "pam",
+      "name": "Pampanga",
+      "nativeName": "Pampanga",
+      "aliases": ["Pampanga", " Kapampangan"],
+      "countryCodes": []
+    },
+    {
+      "code": "pag",
+      "iso6391": null,
+      "iso6393": "pag",
+      "name": "Pangasinan",
+      "nativeName": "Pangasinan",
+      "aliases": ["Pangasinan"],
+      "countryCodes": []
+    },
+    {
+      "code": "pa",
+      "iso6391": "pa",
+      "iso6393": "pan",
+      "name": "Panjabi",
+      "nativeName": "ਪੰਜਾਬੀ",
+      "aliases": ["Panjabi", "Punjabi", "ਪੰਜਾਬੀ", "پنجابی‎"],
+      "countryCodes": ["IN"]
+    },
+    {
+      "code": "pap",
+      "iso6391": null,
+      "iso6393": "pap",
+      "name": "Papiamento",
+      "nativeName": "Papiamento",
+      "aliases": ["Papiamento"],
+      "countryCodes": ["AW", "CW"]
+    },
+    {
+      "code": "paa",
+      "iso6391": null,
+      "iso6393": "paa",
+      "name": "Papuan languages",
+      "nativeName": "Papuan languages",
+      "aliases": ["Papuan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ps",
+      "iso6391": "ps",
+      "iso6393": "pus",
+      "name": "Pashto",
+      "nativeName": "پښتو",
+      "aliases": ["Pashto", "Pushto", "پښتو"],
+      "countryCodes": ["AF"]
+    },
+    {
+      "code": "fa",
+      "iso6391": "fa",
+      "iso6393": "fas",
+      "name": "Persian",
+      "nativeName": "فارسی",
+      "aliases": ["Persian", "Farsi", "فارسی"],
+      "countryCodes": ["IR", "AF", "TJ"]
+    },
+    {
+      "code": "peo",
+      "iso6391": null,
+      "iso6393": "peo",
+      "name": "Persian, Old (ca.600-400 B.C.)",
+      "nativeName": "Persian, Old (ca.600-400 B.C.)",
+      "aliases": ["Persian, Old (ca.600-400 B.C.)"],
+      "countryCodes": []
+    },
+    {
+      "code": "phi",
+      "iso6391": null,
+      "iso6393": "phi",
+      "name": "Philippine languages",
+      "nativeName": "Philippine languages",
+      "aliases": ["Philippine languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "phn",
+      "iso6391": null,
+      "iso6393": "phn",
+      "name": "Phoenician",
+      "nativeName": "Phoenician",
+      "aliases": ["Phoenician"],
+      "countryCodes": []
+    },
+    {
+      "code": "pon",
+      "iso6391": null,
+      "iso6393": "pon",
+      "name": "Pohnpeian",
+      "nativeName": "Pohnpeian",
+      "aliases": ["Pohnpeian"],
+      "countryCodes": []
+    },
+    {
+      "code": "pl",
+      "iso6391": "pl",
+      "iso6393": "pol",
+      "name": "Polish",
+      "nativeName": "język polski",
+      "aliases": ["Polish", "język polski", "polszczyzna"],
+      "countryCodes": ["PL"]
+    },
+    {
+      "code": "pt",
+      "iso6391": "pt",
+      "iso6393": "por",
+      "name": "Portuguese",
+      "nativeName": "português",
+      "aliases": ["Portuguese", "português"],
+      "countryCodes": ["AO", "BR", "CV", "TL", "GQ", "GW", "MO", "MZ", "PT", "ST"]
+    },
+    {
+      "code": "pra",
+      "iso6391": null,
+      "iso6393": "pra",
+      "name": "Prakrit languages",
+      "nativeName": "Prakrit languages",
+      "aliases": ["Prakrit languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "pro",
+      "iso6391": null,
+      "iso6393": "pro",
+      "name": "Proven�al, Old (to 1500)",
+      "nativeName": "Proven�al, Old (to 1500)",
+      "aliases": ["Proven�al, Old (to 1500)", "Occitan, Old (to 1500)"],
+      "countryCodes": []
+    },
+    {
+      "code": "qu",
+      "iso6391": "qu",
+      "iso6393": "que",
+      "name": "Quechua",
+      "nativeName": "Runa Simi",
+      "aliases": ["Quechua", "Runa Simi", "Kichwa"],
+      "countryCodes": ["BO", "PE"]
+    },
+    {
+      "code": "raj",
+      "iso6391": null,
+      "iso6393": "raj",
+      "name": "Rajasthani",
+      "nativeName": "Rajasthani",
+      "aliases": ["Rajasthani"],
+      "countryCodes": []
+    },
+    {
+      "code": "rap",
+      "iso6391": null,
+      "iso6393": "rap",
+      "name": "Rapanui",
+      "nativeName": "Rapanui",
+      "aliases": ["Rapanui"],
+      "countryCodes": []
+    },
+    {
+      "code": "rar",
+      "iso6391": null,
+      "iso6393": "rar",
+      "name": "Rarotongan",
+      "nativeName": "Rarotongan",
+      "aliases": ["Rarotongan", " Cook Islands Maori"],
+      "countryCodes": []
+    },
+    {
+      "code": "qaa-qtz",
+      "iso6391": null,
+      "iso6393": "qaa-qtz",
+      "name": "Reserved for local use",
+      "nativeName": "Reserved for local use",
+      "aliases": ["Reserved for local use"],
+      "countryCodes": []
+    },
+    {
+      "code": "roa",
+      "iso6391": null,
+      "iso6393": "roa",
+      "name": "Romance languages",
+      "nativeName": "Romance languages",
+      "aliases": ["Romance languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "ro",
+      "iso6391": "ro",
+      "iso6393": "ron",
+      "name": "Romanian",
+      "nativeName": "limba română",
+      "aliases": ["Romanian", "limba română"],
+      "countryCodes": ["RO", "MD"]
+    },
+    {
+      "code": "rm",
+      "iso6391": "rm",
+      "iso6393": "roh",
+      "name": "Romansh",
+      "nativeName": "rumantsch grischun",
+      "aliases": ["Romansh", "rumantsch grischun"],
+      "countryCodes": ["CH"]
+    },
+    {
+      "code": "rom",
+      "iso6391": null,
+      "iso6393": "rom",
+      "name": "Romany",
+      "nativeName": "Romany",
+      "aliases": ["Romany"],
+      "countryCodes": []
+    },
+    {
+      "code": "ru",
+      "iso6391": "ru",
+      "iso6393": "rus",
+      "name": "Russian",
+      "nativeName": "русский язык",
+      "aliases": ["Russian", "русский язык"],
+      "countryCodes": ["RU", "BY", "KZ", "KG", "TJ"]
+    },
+    {
+      "code": "sal",
+      "iso6391": null,
+      "iso6393": "sal",
+      "name": "Salishan languages",
+      "nativeName": "Salishan languages",
+      "aliases": ["Salishan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sam",
+      "iso6391": null,
+      "iso6393": "sam",
+      "name": "Samaritan Aramaic",
+      "nativeName": "Samaritan Aramaic",
+      "aliases": ["Samaritan Aramaic"],
+      "countryCodes": []
+    },
+    {
+      "code": "smi",
+      "iso6391": null,
+      "iso6393": "smi",
+      "name": "Sami languages",
+      "nativeName": "Sami languages",
+      "aliases": ["Sami languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sm",
+      "iso6391": "sm",
+      "iso6393": "smo",
+      "name": "Samoan",
+      "nativeName": "gagana fa'a Samoa",
+      "aliases": ["Samoan", "gagana fa'a Samoa"],
+      "countryCodes": []
+    },
+    {
+      "code": "sad",
+      "iso6391": null,
+      "iso6393": "sad",
+      "name": "Sandawe",
+      "nativeName": "Sandawe",
+      "aliases": ["Sandawe"],
+      "countryCodes": []
+    },
+    {
+      "code": "sg",
+      "iso6391": "sg",
+      "iso6393": "sag",
+      "name": "Sango",
+      "nativeName": "yângâ tî sängö",
+      "aliases": ["Sango", "yângâ tî sängö"],
+      "countryCodes": ["CF"]
+    },
+    {
+      "code": "sa",
+      "iso6391": "sa",
+      "iso6393": "san",
+      "name": "Sanskrit (Saṁskṛta)",
+      "nativeName": "संस्कृतम्",
+      "aliases": ["Sanskrit (Saṁskṛta)", "संस्कृतम्"],
+      "countryCodes": []
+    },
+    {
+      "code": "sat",
+      "iso6391": null,
+      "iso6393": "sat",
+      "name": "Santali",
+      "nativeName": "Santali",
+      "aliases": ["Santali"],
+      "countryCodes": []
+    },
+    {
+      "code": "sc",
+      "iso6391": "sc",
+      "iso6393": "srd",
+      "name": "Sardinian",
+      "nativeName": "sardu",
+      "aliases": ["Sardinian", "sardu"],
+      "countryCodes": []
+    },
+    {
+      "code": "sas",
+      "iso6391": null,
+      "iso6393": "sas",
+      "name": "Sasak",
+      "nativeName": "Sasak",
+      "aliases": ["Sasak"],
+      "countryCodes": []
+    },
+    {
+      "code": "sco",
+      "iso6391": null,
+      "iso6393": "sco",
+      "name": "Scots",
+      "nativeName": "Scots",
+      "aliases": ["Scots"],
+      "countryCodes": []
+    },
+    {
+      "code": "gd",
+      "iso6391": "gd",
+      "iso6393": "gla",
+      "name": "Scottish Gaelic",
+      "nativeName": "Gàidhlig",
+      "aliases": ["Scottish Gaelic", "Gaelic", "Gàidhlig"],
+      "countryCodes": []
+    },
+    {
+      "code": "sel",
+      "iso6391": null,
+      "iso6393": "sel",
+      "name": "Selkup",
+      "nativeName": "Selkup",
+      "aliases": ["Selkup"],
+      "countryCodes": []
+    },
+    {
+      "code": "sem",
+      "iso6391": null,
+      "iso6393": "sem",
+      "name": "Semitic languages",
+      "nativeName": "Semitic languages",
+      "aliases": ["Semitic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sr",
+      "iso6391": "sr",
+      "iso6393": "srp",
+      "name": "Serbian",
+      "nativeName": "српски језик",
+      "aliases": ["Serbian", "српски језик"],
+      "countryCodes": ["RS", "BA"]
+    },
+    {
+      "code": "srr",
+      "iso6391": null,
+      "iso6393": "srr",
+      "name": "Serer",
+      "nativeName": "Serer",
+      "aliases": ["Serer"],
+      "countryCodes": ["SN"]
+    },
+    {
+      "code": "shn",
+      "iso6391": null,
+      "iso6393": "shn",
+      "name": "Shan",
+      "nativeName": "Shan",
+      "aliases": ["Shan"],
+      "countryCodes": []
+    },
+    {
+      "code": "sn",
+      "iso6391": "sn",
+      "iso6393": "sna",
+      "name": "Shona",
+      "nativeName": "chiShona",
+      "aliases": ["Shona", "chiShona"],
+      "countryCodes": ["ZW"]
+    },
+    {
+      "code": "scn",
+      "iso6391": null,
+      "iso6393": "scn",
+      "name": "Sicilian",
+      "nativeName": "Sicilian",
+      "aliases": ["Sicilian"],
+      "countryCodes": []
+    },
+    {
+      "code": "sid",
+      "iso6391": null,
+      "iso6393": "sid",
+      "name": "Sidamo",
+      "nativeName": "Sidamo",
+      "aliases": ["Sidamo"],
+      "countryCodes": []
+    },
+    {
+      "code": "sgn",
+      "iso6391": null,
+      "iso6393": "sgn",
+      "name": "Sign Languages",
+      "nativeName": "Sign Languages",
+      "aliases": ["Sign Languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "bla",
+      "iso6391": null,
+      "iso6393": "bla",
+      "name": "Siksika",
+      "nativeName": "Siksika",
+      "aliases": ["Siksika"],
+      "countryCodes": []
+    },
+    {
+      "code": "sd",
+      "iso6391": "sd",
+      "iso6393": "snd",
+      "name": "Sindhi",
+      "nativeName": "सिन्धी",
+      "aliases": ["Sindhi", "सिन्धी", "سنڌي، سندھی‎"],
+      "countryCodes": []
+    },
+    {
+      "code": "si",
+      "iso6391": "si",
+      "iso6393": "sin",
+      "name": "Sinhala",
+      "nativeName": "සිංහල",
+      "aliases": ["Sinhala", "Sinhalese", "සිංහල"],
+      "countryCodes": ["LK"]
+    },
+    {
+      "code": "sit",
+      "iso6391": null,
+      "iso6393": "sit",
+      "name": "Sino-Tibetan languages",
+      "nativeName": "Sino-Tibetan languages",
+      "aliases": ["Sino-Tibetan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sio",
+      "iso6391": null,
+      "iso6393": "sio",
+      "name": "Siouan languages",
+      "nativeName": "Siouan languages",
+      "aliases": ["Siouan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sms",
+      "iso6391": null,
+      "iso6393": "sms",
+      "name": "Skolt Sami",
+      "nativeName": "Skolt Sami",
+      "aliases": ["Skolt Sami"],
+      "countryCodes": []
+    },
+    {
+      "code": "den",
+      "iso6391": null,
+      "iso6393": "den",
+      "name": "Slave (Athapascan)",
+      "nativeName": "Slave (Athapascan)",
+      "aliases": ["Slave (Athapascan)"],
+      "countryCodes": []
+    },
+    {
+      "code": "sla",
+      "iso6391": null,
+      "iso6393": "sla",
+      "name": "Slavic languages",
+      "nativeName": "Slavic languages",
+      "aliases": ["Slavic languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sk",
+      "iso6391": "sk",
+      "iso6393": "slk",
+      "name": "Slovak",
+      "nativeName": "slovenčina",
+      "aliases": ["Slovak", "slovenčina", "slovenský jazyk"],
+      "countryCodes": ["SK", "CZ"]
+    },
+    {
+      "code": "sl",
+      "iso6391": "sl",
+      "iso6393": "slv",
+      "name": "Slovene",
+      "nativeName": "slovenski jezik",
+      "aliases": ["Slovene", "slovenski jezik", "slovenščina"],
+      "countryCodes": ["SI"]
+    },
+    {
+      "code": "sog",
+      "iso6391": null,
+      "iso6393": "sog",
+      "name": "Sogdian",
+      "nativeName": "Sogdian",
+      "aliases": ["Sogdian"],
+      "countryCodes": []
+    },
+    {
+      "code": "so",
+      "iso6391": "so",
+      "iso6393": "som",
+      "name": "Somali",
+      "nativeName": "Soomaaliga",
+      "aliases": ["Somali", "Soomaaliga", "af Soomaali"],
+      "countryCodes": ["DJ", "SO"]
+    },
+    {
+      "code": "son",
+      "iso6391": null,
+      "iso6393": "son",
+      "name": "Songhai languages",
+      "nativeName": "Songhai languages",
+      "aliases": ["Songhai languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "snk",
+      "iso6391": null,
+      "iso6393": "snk",
+      "name": "Soninke",
+      "nativeName": "Soninke",
+      "aliases": ["Soninke"],
+      "countryCodes": ["ML", "SN"]
+    },
+    {
+      "code": "wen",
+      "iso6391": null,
+      "iso6393": "wen",
+      "name": "Sorbian languages",
+      "nativeName": "Sorbian languages",
+      "aliases": ["Sorbian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "sai",
+      "iso6391": null,
+      "iso6393": "sai",
+      "name": "South American Indian languages",
+      "nativeName": "South American Indian languages",
+      "aliases": ["South American Indian languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "alt",
+      "iso6391": null,
+      "iso6393": "alt",
+      "name": "Southern Altai",
+      "nativeName": "Southern Altai",
+      "aliases": ["Southern Altai"],
+      "countryCodes": []
+    },
+    {
+      "code": "nr",
+      "iso6391": "nr",
+      "iso6393": "nbl",
+      "name": "Southern Ndebele",
+      "nativeName": "isiNdebele",
+      "aliases": ["Southern Ndebele", "isiNdebele"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "sma",
+      "iso6391": null,
+      "iso6393": "sma",
+      "name": "Southern Sami",
+      "nativeName": "Southern Sami",
+      "aliases": ["Southern Sami"],
+      "countryCodes": []
+    },
+    {
+      "code": "st",
+      "iso6391": "st",
+      "iso6393": "sot",
+      "name": "Southern Sotho",
+      "nativeName": "Sesotho",
+      "aliases": ["Southern Sotho", "Sesotho"],
+      "countryCodes": ["LS", "ZA"]
+    },
+    {
+      "code": "es",
+      "iso6391": "es",
+      "iso6393": "spa",
+      "name": "Spanish",
+      "nativeName": "español",
+      "aliases": ["Spanish", "Castilian", "español", "castellano"],
+      "countryCodes": [
+        "AR",
+        "BO",
+        "CL",
+        "CO",
+        "CR",
+        "CU",
+        "DO",
+        "EC",
+        "SV",
+        "GQ",
+        "GT",
+        "HN",
+        "MX",
+        "NI",
+        "PA",
+        "PY",
+        "PE",
+        "PR",
+        "ES",
+        "UY",
+        "VE",
+        "EH"
+      ]
+    },
+    {
+      "code": "srn",
+      "iso6391": null,
+      "iso6393": "srn",
+      "name": "Sranan Tongo",
+      "nativeName": "Sranan Tongo",
+      "aliases": ["Sranan Tongo"],
+      "countryCodes": []
+    },
+    {
+      "code": "zgh",
+      "iso6391": null,
+      "iso6393": "zgh",
+      "name": "Standard Moroccan Tamazight",
+      "nativeName": "Standard Moroccan Tamazight",
+      "aliases": ["Standard Moroccan Tamazight"],
+      "countryCodes": []
+    },
+    {
+      "code": "suk",
+      "iso6391": null,
+      "iso6393": "suk",
+      "name": "Sukuma",
+      "nativeName": "Sukuma",
+      "aliases": ["Sukuma"],
+      "countryCodes": []
+    },
+    {
+      "code": "sux",
+      "iso6391": null,
+      "iso6393": "sux",
+      "name": "Sumerian",
+      "nativeName": "Sumerian",
+      "aliases": ["Sumerian"],
+      "countryCodes": []
+    },
+    {
+      "code": "su",
+      "iso6391": "su",
+      "iso6393": "sun",
+      "name": "Sundanese",
+      "nativeName": "Basa Sunda",
+      "aliases": ["Sundanese", "Basa Sunda"],
+      "countryCodes": []
+    },
+    {
+      "code": "sus",
+      "iso6391": null,
+      "iso6393": "sus",
+      "name": "Susu",
+      "nativeName": "Susu",
+      "aliases": ["Susu"],
+      "countryCodes": []
+    },
+    {
+      "code": "sw",
+      "iso6391": "sw",
+      "iso6393": "swa",
+      "name": "Swahili",
+      "nativeName": "Kiswahili",
+      "aliases": ["Swahili", "Kiswahili"],
+      "countryCodes": ["CD", "KE", "TZ", "UG"]
+    },
+    {
+      "code": "ss",
+      "iso6391": "ss",
+      "iso6393": "ssw",
+      "name": "Swati",
+      "nativeName": "SiSwati",
+      "aliases": ["Swati", "SiSwati"],
+      "countryCodes": ["SZ", "ZA"]
+    },
+    {
+      "code": "sv",
+      "iso6391": "sv",
+      "iso6393": "swe",
+      "name": "Swedish",
+      "nativeName": "Svenska",
+      "aliases": ["Swedish", "Svenska"],
+      "countryCodes": ["SE", "FI", "AX"]
+    },
+    {
+      "code": "gsw",
+      "iso6391": null,
+      "iso6393": "gsw",
+      "name": "Swiss German",
+      "nativeName": "Swiss German",
+      "aliases": ["Swiss German", " Alemannic", " Alsatian"],
+      "countryCodes": []
+    },
+    {
+      "code": "syr",
+      "iso6391": null,
+      "iso6393": "syr",
+      "name": "Syriac",
+      "nativeName": "Syriac",
+      "aliases": ["Syriac"],
+      "countryCodes": []
+    },
+    {
+      "code": "tl",
+      "iso6391": "tl",
+      "iso6393": "tgl",
+      "name": "Tagalog",
+      "nativeName": "Wikang Tagalog",
+      "aliases": ["Tagalog", "Wikang Tagalog"],
+      "countryCodes": ["PH"]
+    },
+    {
+      "code": "ty",
+      "iso6391": "ty",
+      "iso6393": "tah",
+      "name": "Tahitian",
+      "nativeName": "Reo Tahiti",
+      "aliases": ["Tahitian", "Reo Tahiti"],
+      "countryCodes": []
+    },
+    {
+      "code": "tai",
+      "iso6391": null,
+      "iso6393": "tai",
+      "name": "Tai languages",
+      "nativeName": "Tai languages",
+      "aliases": ["Tai languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "tg",
+      "iso6391": "tg",
+      "iso6393": "tgk",
+      "name": "Tajik",
+      "nativeName": "тоҷикӣ",
+      "aliases": ["Tajik", "тоҷикӣ", "toğikī", "تاجیکی‎"],
+      "countryCodes": ["TJ"]
+    },
+    {
+      "code": "tmh",
+      "iso6391": null,
+      "iso6393": "tmh",
+      "name": "Tamashek",
+      "nativeName": "Tamashek",
+      "aliases": ["Tamashek"],
+      "countryCodes": []
+    },
+    {
+      "code": "ta",
+      "iso6391": "ta",
+      "iso6393": "tam",
+      "name": "Tamil",
+      "nativeName": "தமிழ்",
+      "aliases": ["Tamil", "தமிழ்"],
+      "countryCodes": ["IN", "SG", "LK", "MY", "MU"]
+    },
+    {
+      "code": "tt",
+      "iso6391": "tt",
+      "iso6393": "tat",
+      "name": "Tatar",
+      "nativeName": "татар теле",
+      "aliases": ["Tatar", "татар теле", "tatar tele"],
+      "countryCodes": []
+    },
+    {
+      "code": "te",
+      "iso6391": "te",
+      "iso6393": "tel",
+      "name": "Telugu",
+      "nativeName": "తెలుగు",
+      "aliases": ["Telugu", "తెలుగు"],
+      "countryCodes": ["IN"]
+    },
+    {
+      "code": "ter",
+      "iso6391": null,
+      "iso6393": "ter",
+      "name": "Tereno",
+      "nativeName": "Tereno",
+      "aliases": ["Tereno"],
+      "countryCodes": []
+    },
+    {
+      "code": "tet",
+      "iso6391": null,
+      "iso6393": "tet",
+      "name": "Tetum",
+      "nativeName": "Tetum",
+      "aliases": ["Tetum"],
+      "countryCodes": ["TL"]
+    },
+    {
+      "code": "th",
+      "iso6391": "th",
+      "iso6393": "tha",
+      "name": "Thai",
+      "nativeName": "ไทย",
+      "aliases": ["Thai", "ไทย"],
+      "countryCodes": ["TH"]
+    },
+    {
+      "code": "bo",
+      "iso6391": "bo",
+      "iso6393": "bod",
+      "name": "Tibetan Standard",
+      "nativeName": "བོད་ཡིག",
+      "aliases": ["Tibetan Standard", "Tibetan", "Central", "བོད་ཡིག"],
+      "countryCodes": []
+    },
+    {
+      "code": "tig",
+      "iso6391": null,
+      "iso6393": "tig",
+      "name": "Tigre",
+      "nativeName": "Tigre",
+      "aliases": ["Tigre"],
+      "countryCodes": []
+    },
+    {
+      "code": "ti",
+      "iso6391": "ti",
+      "iso6393": "tir",
+      "name": "Tigrinya",
+      "nativeName": "ትግርኛ",
+      "aliases": ["Tigrinya", "ትግርኛ"],
+      "countryCodes": ["ER"]
+    },
+    {
+      "code": "tem",
+      "iso6391": null,
+      "iso6393": "tem",
+      "name": "Timne",
+      "nativeName": "Timne",
+      "aliases": ["Timne"],
+      "countryCodes": []
+    },
+    {
+      "code": "tiv",
+      "iso6391": null,
+      "iso6393": "tiv",
+      "name": "Tiv",
+      "nativeName": "Tiv",
+      "aliases": ["Tiv"],
+      "countryCodes": []
+    },
+    {
+      "code": "tli",
+      "iso6391": null,
+      "iso6393": "tli",
+      "name": "Tlingit",
+      "nativeName": "Tlingit",
+      "aliases": ["Tlingit"],
+      "countryCodes": []
+    },
+    {
+      "code": "tpi",
+      "iso6391": null,
+      "iso6393": "tpi",
+      "name": "Tok Pisin",
+      "nativeName": "Tok Pisin",
+      "aliases": ["Tok Pisin"],
+      "countryCodes": ["PG"]
+    },
+    {
+      "code": "tkl",
+      "iso6391": null,
+      "iso6393": "tkl",
+      "name": "Tokelau",
+      "nativeName": "Tokelau",
+      "aliases": ["Tokelau"],
+      "countryCodes": []
+    },
+    {
+      "code": "tog",
+      "iso6391": null,
+      "iso6393": "tog",
+      "name": "Tonga (Nyasa)",
+      "nativeName": "Tonga (Nyasa)",
+      "aliases": ["Tonga (Nyasa)"],
+      "countryCodes": []
+    },
+    {
+      "code": "to",
+      "iso6391": "to",
+      "iso6393": "ton",
+      "name": "Tonga (Tonga Islands)",
+      "nativeName": "faka Tonga",
+      "aliases": ["Tonga (Tonga Islands)", "faka Tonga"],
+      "countryCodes": []
+    },
+    {
+      "code": "tsi",
+      "iso6391": null,
+      "iso6393": "tsi",
+      "name": "Tsimshian",
+      "nativeName": "Tsimshian",
+      "aliases": ["Tsimshian"],
+      "countryCodes": []
+    },
+    {
+      "code": "ts",
+      "iso6391": "ts",
+      "iso6393": "tso",
+      "name": "Tsonga",
+      "nativeName": "Xitsonga",
+      "aliases": ["Tsonga", "Xitsonga"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "tn",
+      "iso6391": "tn",
+      "iso6393": "tsn",
+      "name": "Tswana",
+      "nativeName": "Setswana",
+      "aliases": ["Tswana", "Setswana"],
+      "countryCodes": ["BW", "ZA"]
+    },
+    {
+      "code": "tum",
+      "iso6391": null,
+      "iso6393": "tum",
+      "name": "Tumbuka",
+      "nativeName": "Tumbuka",
+      "aliases": ["Tumbuka"],
+      "countryCodes": []
+    },
+    {
+      "code": "tup",
+      "iso6391": null,
+      "iso6393": "tup",
+      "name": "Tupi languages",
+      "nativeName": "Tupi languages",
+      "aliases": ["Tupi languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "tr",
+      "iso6391": "tr",
+      "iso6393": "tur",
+      "name": "Turkish",
+      "nativeName": "Türkçe",
+      "aliases": ["Turkish", "Türkçe"],
+      "countryCodes": ["TR", "CY"]
+    },
+    {
+      "code": "ota",
+      "iso6391": null,
+      "iso6393": "ota",
+      "name": "Turkish, Ottoman (1500-1928)",
+      "nativeName": "Turkish, Ottoman (1500-1928)",
+      "aliases": ["Turkish, Ottoman (1500-1928)"],
+      "countryCodes": []
+    },
+    {
+      "code": "tk",
+      "iso6391": "tk",
+      "iso6393": "tuk",
+      "name": "Turkmen",
+      "nativeName": "Türkmen",
+      "aliases": ["Turkmen", "Türkmen", "Түркмен"],
+      "countryCodes": ["TM"]
+    },
+    {
+      "code": "tvl",
+      "iso6391": null,
+      "iso6393": "tvl",
+      "name": "Tuvalu",
+      "nativeName": "Tuvalu",
+      "aliases": ["Tuvalu"],
+      "countryCodes": []
+    },
+    {
+      "code": "tyv",
+      "iso6391": null,
+      "iso6393": "tyv",
+      "name": "Tuvinian",
+      "nativeName": "Tuvinian",
+      "aliases": ["Tuvinian"],
+      "countryCodes": []
+    },
+    {
+      "code": "tw",
+      "iso6391": "tw",
+      "iso6393": "twi",
+      "name": "Twi",
+      "nativeName": "Twi",
+      "aliases": ["Twi"],
+      "countryCodes": []
+    },
+    {
+      "code": "udm",
+      "iso6391": null,
+      "iso6393": "udm",
+      "name": "Udmurt",
+      "nativeName": "Udmurt",
+      "aliases": ["Udmurt"],
+      "countryCodes": []
+    },
+    {
+      "code": "uga",
+      "iso6391": null,
+      "iso6393": "uga",
+      "name": "Ugaritic",
+      "nativeName": "Ugaritic",
+      "aliases": ["Ugaritic"],
+      "countryCodes": []
+    },
+    {
+      "code": "uk",
+      "iso6391": "uk",
+      "iso6393": "ukr",
+      "name": "Ukrainian",
+      "nativeName": "українська мова",
+      "aliases": ["Ukrainian", "українська мова"],
+      "countryCodes": ["UA"]
+    },
+    {
+      "code": "umb",
+      "iso6391": null,
+      "iso6393": "umb",
+      "name": "Umbundu",
+      "nativeName": "Umbundu",
+      "aliases": ["Umbundu"],
+      "countryCodes": ["AO"]
+    },
+    {
+      "code": "mis",
+      "iso6391": null,
+      "iso6393": "mis",
+      "name": "Uncoded languages",
+      "nativeName": "Uncoded languages",
+      "aliases": ["Uncoded languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "und",
+      "iso6391": null,
+      "iso6393": "und",
+      "name": "Undetermined",
+      "nativeName": "Undetermined",
+      "aliases": ["Undetermined"],
+      "countryCodes": []
+    },
+    {
+      "code": "hsb",
+      "iso6391": null,
+      "iso6393": "hsb",
+      "name": "Upper Sorbian",
+      "nativeName": "Upper Sorbian",
+      "aliases": ["Upper Sorbian"],
+      "countryCodes": []
+    },
+    {
+      "code": "ur",
+      "iso6391": "ur",
+      "iso6393": "urd",
+      "name": "Urdu",
+      "nativeName": "اردو",
+      "aliases": ["Urdu", "اردو"],
+      "countryCodes": ["PK", "FJ"]
+    },
+    {
+      "code": "ug",
+      "iso6391": "ug",
+      "iso6393": "uig",
+      "name": "Uyghur",
+      "nativeName": "Uyƣurqə",
+      "aliases": ["Uyghur", "Uighur", "Uyƣurqə", "ئۇيغۇرچە‎"],
+      "countryCodes": []
+    },
+    {
+      "code": "uz",
+      "iso6391": "uz",
+      "iso6393": "uzb",
+      "name": "Uzbek",
+      "nativeName": "O‘zbek",
+      "aliases": ["Uzbek", "O‘zbek", "Ўзбек", "أۇزبېك‎"],
+      "countryCodes": ["UZ"]
+    },
+    {
+      "code": "vai",
+      "iso6391": null,
+      "iso6393": "vai",
+      "name": "Vai",
+      "nativeName": "Vai",
+      "aliases": ["Vai"],
+      "countryCodes": []
+    },
+    {
+      "code": "ve",
+      "iso6391": "ve",
+      "iso6393": "ven",
+      "name": "Venda",
+      "nativeName": "Tshivenḓa",
+      "aliases": ["Venda", "Tshivenḓa"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "vi",
+      "iso6391": "vi",
+      "iso6393": "vie",
+      "name": "Vietnamese",
+      "nativeName": "Tiếng Việt",
+      "aliases": ["Vietnamese", "Tiếng Việt"],
+      "countryCodes": ["VN"]
+    },
+    {
+      "code": "vo",
+      "iso6391": "vo",
+      "iso6393": "vol",
+      "name": "Volapük",
+      "nativeName": "Volapük",
+      "aliases": ["Volapük"],
+      "countryCodes": []
+    },
+    {
+      "code": "vot",
+      "iso6391": null,
+      "iso6393": "vot",
+      "name": "Votic",
+      "nativeName": "Votic",
+      "aliases": ["Votic"],
+      "countryCodes": []
+    },
+    {
+      "code": "wak",
+      "iso6391": null,
+      "iso6393": "wak",
+      "name": "Wakashan languages",
+      "nativeName": "Wakashan languages",
+      "aliases": ["Wakashan languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "wa",
+      "iso6391": "wa",
+      "iso6393": "wln",
+      "name": "Walloon",
+      "nativeName": "walon",
+      "aliases": ["Walloon", "walon"],
+      "countryCodes": []
+    },
+    {
+      "code": "war",
+      "iso6391": null,
+      "iso6393": "war",
+      "name": "Waray",
+      "nativeName": "Waray",
+      "aliases": ["Waray"],
+      "countryCodes": []
+    },
+    {
+      "code": "was",
+      "iso6391": null,
+      "iso6393": "was",
+      "name": "Washo",
+      "nativeName": "Washo",
+      "aliases": ["Washo"],
+      "countryCodes": []
+    },
+    {
+      "code": "cy",
+      "iso6391": "cy",
+      "iso6393": "cym",
+      "name": "Welsh",
+      "nativeName": "Cymraeg",
+      "aliases": ["Welsh", "Cymraeg"],
+      "countryCodes": ["GB"]
+    },
+    {
+      "code": "fy",
+      "iso6391": "fy",
+      "iso6393": "fry",
+      "name": "Western Frisian",
+      "nativeName": "Frysk",
+      "aliases": ["Western Frisian", "Frysk"],
+      "countryCodes": []
+    },
+    {
+      "code": "wal",
+      "iso6391": null,
+      "iso6393": "wal",
+      "name": "Wolaitta",
+      "nativeName": "Wolaitta",
+      "aliases": ["Wolaitta", " Wolaytta"],
+      "countryCodes": []
+    },
+    {
+      "code": "wo",
+      "iso6391": "wo",
+      "iso6393": "wol",
+      "name": "Wolof",
+      "nativeName": "Wollof",
+      "aliases": ["Wolof", "Wollof"],
+      "countryCodes": ["SN"]
+    },
+    {
+      "code": "xh",
+      "iso6391": "xh",
+      "iso6393": "xho",
+      "name": "Xhosa",
+      "nativeName": "isiXhosa",
+      "aliases": ["Xhosa", "isiXhosa"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "sah",
+      "iso6391": null,
+      "iso6393": "sah",
+      "name": "Yakut",
+      "nativeName": "Yakut",
+      "aliases": ["Yakut"],
+      "countryCodes": []
+    },
+    {
+      "code": "yao",
+      "iso6391": null,
+      "iso6393": "yao",
+      "name": "Yao",
+      "nativeName": "Yao",
+      "aliases": ["Yao"],
+      "countryCodes": []
+    },
+    {
+      "code": "yap",
+      "iso6391": null,
+      "iso6393": "yap",
+      "name": "Yapese",
+      "nativeName": "Yapese",
+      "aliases": ["Yapese"],
+      "countryCodes": []
+    },
+    {
+      "code": "yi",
+      "iso6391": "yi",
+      "iso6393": "yid",
+      "name": "Yiddish",
+      "nativeName": "ייִדיש",
+      "aliases": ["Yiddish", "ייִדיש"],
+      "countryCodes": []
+    },
+    {
+      "code": "yo",
+      "iso6391": "yo",
+      "iso6393": "yor",
+      "name": "Yoruba",
+      "nativeName": "Yorùbá",
+      "aliases": ["Yoruba", "Yorùbá"],
+      "countryCodes": ["BJ", "NG"]
+    },
+    {
+      "code": "ypk",
+      "iso6391": null,
+      "iso6393": "ypk",
+      "name": "Yupik languages",
+      "nativeName": "Yupik languages",
+      "aliases": ["Yupik languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "znd",
+      "iso6391": null,
+      "iso6393": "znd",
+      "name": "Zande languages",
+      "nativeName": "Zande languages",
+      "aliases": ["Zande languages"],
+      "countryCodes": []
+    },
+    {
+      "code": "zap",
+      "iso6391": null,
+      "iso6393": "zap",
+      "name": "Zapotec",
+      "nativeName": "Zapotec",
+      "aliases": ["Zapotec"],
+      "countryCodes": []
+    },
+    {
+      "code": "zza",
+      "iso6391": null,
+      "iso6393": "zza",
+      "name": "Zaza",
+      "nativeName": "Zaza",
+      "aliases": ["Zaza", " Dimili", " Dimli", " Kirdki", " Kirmanjki", " Zazaki"],
+      "countryCodes": []
+    },
+    {
+      "code": "zen",
+      "iso6391": null,
+      "iso6393": "zen",
+      "name": "Zenaga",
+      "nativeName": "Zenaga",
+      "aliases": ["Zenaga"],
+      "countryCodes": []
+    },
+    {
+      "code": "za",
+      "iso6391": "za",
+      "iso6393": "zha",
+      "name": "Zhuang",
+      "nativeName": "Saɯ cueŋƅ",
+      "aliases": ["Zhuang", "Chuang", "Saɯ cueŋƅ", "Saw cuengh"],
+      "countryCodes": []
+    },
+    {
+      "code": "zu",
+      "iso6391": "zu",
+      "iso6393": "zul",
+      "name": "Zulu",
+      "nativeName": "isiZulu",
+      "aliases": ["Zulu", "isiZulu"],
+      "countryCodes": ["ZA"]
+    },
+    {
+      "code": "zun",
+      "iso6391": null,
+      "iso6393": "zun",
+      "name": "Zuni",
+      "nativeName": "Zuni",
+      "aliases": ["Zuni"],
+      "countryCodes": []
+    }
+  ]
+}

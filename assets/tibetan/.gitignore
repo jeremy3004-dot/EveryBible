@@ -1,0 +1,16 @@
+# Generated image variants (originals should be versioned)
+*.png
+!originals/*.png
+
+# Generated files from processing script
+*@2x.png
+*@3x.png
+
+# Optional WebP variants
+*.webp
+
+# macOS
+.DS_Store
+
+# Temporary processing files
+*.tmp
