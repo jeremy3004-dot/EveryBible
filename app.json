@@ -55,6 +55,7 @@
         }
       ],
       "expo-localization",
+      "./plugins/withBrandedSplashAsset",
       "@react-native-google-signin/google-signin"
     ],
     "extra": {

@@ -25,7 +25,7 @@ const iosSplashDir = path.join(
   'ios',
   'EveryBible',
   'Images.xcassets',
-  'SplashScreenLegacy.imageset'
+  'SplashScreenBrand.imageset'
 );
 const androidResDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'res');
 const splashBackground = '#101113';
@@ -223,7 +223,7 @@ async function generateIcons() {
   console.log('- assets/favicon.png');
   console.log('- assets/splash-icon.png');
   console.log('- ios/EveryBible/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png');
-  console.log('- ios/EveryBible/Images.xcassets/SplashScreenLegacy.imageset/image*.png');
+  console.log('- ios/EveryBible/Images.xcassets/SplashScreenBrand.imageset/image*.png');
   console.log('- android/app/src/main/res/drawable-*/splashscreen_logo.png');
   console.log('- android/app/src/main/res/mipmap-*/ic_launcher*.webp');
 }

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Image, InteractionManager } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { usePrivacyLock, useSync } from './src/hooks';
 import i18n, { changeLanguage } from './src/i18n';
 import { LocaleSetupFlow } from './src/screens/onboarding';
+import { createStartupCoordinator } from './src/services/startup';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -24,21 +25,40 @@ function LoadingScreen() {
   const [loadingStatus, setLoadingStatus] = useState('loading.initializing');
   const [isReady, setIsReady] = useState(false);
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warmupCancelRef = useRef<(() => void) | null>(null);
   const initializeAuth = useAuthStore((state) => state.initialize);
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
+  const startupCoordinator = useMemo(
+    () =>
+      createStartupCoordinator({
+        initializeAuth,
+        initializePrivacy,
+        preloadBibleData: initBibleData,
+        scheduleTask: (task) => {
+          const handle = InteractionManager.runAfterInteractions(() => {
+            void task();
+          });
+
+          return () => {
+            handle.cancel();
+          };
+        },
+        onWarmupError: (error) => {
+          console.error('Deferred startup warmup failed:', error);
+        },
+      }),
+    [initializeAuth, initializePrivacy]
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     async function initialize() {
       try {
-        setLoadingStatus('loading.loadingBible');
-        await initBibleData();
         setLoadingStatus('loading.settingUp');
-        await initializeAuth();
-        await initializePrivacy();
+        await startupCoordinator.initializeCritical();
         setLoadingStatus('loading.ready');
       } catch (error) {
         console.error('Failed to initialize:', error);
@@ -59,11 +79,30 @@ function LoadingScreen() {
 
     return () => {
       isMounted = false;
+      if (warmupCancelRef.current) {
+        warmupCancelRef.current();
+        warmupCancelRef.current = null;
+      }
       if (readyTimerRef.current) {
         clearTimeout(readyTimerRef.current);
       }
     };
-  }, [initializeAuth, initializePrivacy]);
+  }, [startupCoordinator]);
+
+  useEffect(() => {
+    if (!isReady || !preferences.onboardingCompleted || warmupCancelRef.current) {
+      return;
+    }
+
+    warmupCancelRef.current = startupCoordinator.startDeferredWarmups();
+
+    return () => {
+      if (warmupCancelRef.current) {
+        warmupCancelRef.current();
+        warmupCancelRef.current = null;
+      }
+    };
+  }, [isReady, preferences.onboardingCompleted, startupCoordinator]);
 
   useEffect(() => {
     if (preferences.language) {
