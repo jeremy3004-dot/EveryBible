@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncProgress } from '../services/sync';
+import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
 interface ProgressState {
   chaptersRead: Record<string, number>; // { "GEN_1": timestamp, ... }
@@ -123,6 +124,10 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: 'progress-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedProgressState(persistedState),
+      }),
     }
   )
 );

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../types';
+import { sanitizePersistedAudioState } from './persistedStateSanitizers';
 
 interface AudioState {
   // Playback state (not persisted)
@@ -119,6 +120,10 @@ export const useAudioStore = create<AudioState>()(
         playbackRate: state.playbackRate,
         autoAdvanceChapter: state.autoAdvanceChapter,
         sleepTimerMinutes: state.sleepTimerMinutes,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedAudioState(persistedState),
       }),
     }
   )

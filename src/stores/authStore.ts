@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
+import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
 
 interface AuthState {
   user: User | null;
@@ -22,20 +23,6 @@ interface AuthState {
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
-
-const defaultPreferences: UserPreferences = {
-  fontSize: 'medium',
-  theme: 'dark',
-  language: 'en',
-  countryCode: null,
-  countryName: null,
-  contentLanguageCode: null,
-  contentLanguageName: null,
-  contentLanguageNativeName: null,
-  onboardingCompleted: false,
-  notificationsEnabled: false,
-  reminderTime: null,
-};
 
 let authSubscription: Subscription | null = null;
 
@@ -63,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       isInitialized: false,
-      preferences: defaultPreferences,
+      preferences: defaultAuthPreferences,
 
       setUser: (user) =>
         set({
@@ -152,7 +139,7 @@ export const useAuthStore = create<AuthState>()(
           return {
             ...typedState,
             preferences: {
-              ...defaultPreferences,
+              ...defaultAuthPreferences,
               ...typedState.preferences,
               // Existing installs should not be blocked by the new onboarding gate.
               onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
@@ -163,7 +150,7 @@ export const useAuthStore = create<AuthState>()(
         return {
           ...typedState,
           preferences: {
-            ...defaultPreferences,
+            ...defaultAuthPreferences,
             ...typedState.preferences,
           },
         };
@@ -173,6 +160,16 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         preferences: state.preferences,
       }),
+      merge: (persistedState, currentState) => {
+        const sanitized = sanitizePersistedAuthState(persistedState);
+
+        return {
+          ...currentState,
+          user: sanitized.user,
+          isAuthenticated: sanitized.isAuthenticated,
+          preferences: sanitized.preferences,
+        };
+      },
     }
   )
 );

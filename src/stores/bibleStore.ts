@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { bibleTranslations } from '../constants';
 import type { Verse, BibleTranslation, TranslationDownloadProgress } from '../types';
+import { sanitizePersistedBibleState } from './persistedStateSanitizers';
 
 interface BibleState {
   currentBook: string;
@@ -115,6 +116,10 @@ export const useBibleStore = create<BibleState>()(
         currentChapter: state.currentChapter,
         currentTranslation: state.currentTranslation,
         translations: state.translations,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedBibleState(persistedState),
       }),
     }
   )

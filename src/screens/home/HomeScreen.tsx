@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getBookById } from '../../constants';
+import { bibleTranslations, getBookById } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useProgressStore, useBibleStore } from '../../stores';
@@ -28,7 +28,9 @@ export function HomeScreen() {
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  const translations = useBibleStore((state) => state.translations);
+  const translations = useBibleStore((state) =>
+    Array.isArray(state.translations) ? state.translations : bibleTranslations
+  );
   const currentBookInfo = getBookById(currentBook);
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
