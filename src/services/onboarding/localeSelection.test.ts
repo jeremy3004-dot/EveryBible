@@ -6,6 +6,8 @@ const engine = createLocaleSearchEngine({
   countries: [
     { code: 'NP', name: 'Nepal', languageCodes: ['ne'] },
     { code: 'IN', name: 'India', languageCodes: ['hi', 'pa'] },
+    { code: 'DE', name: 'Germany', languageCodes: ['de'] },
+    { code: 'GB', name: 'United Kingdom', languageCodes: ['en'] },
   ],
   languages: [
     {
@@ -60,6 +62,29 @@ test('fuzzy country search tolerates misspellings', () => {
   const results = engine.searchCountries('nepl');
 
   assert.equal(results[0]?.code, 'NP');
+});
+
+test('country search returns the full catalog when no query is provided', () => {
+  const results = engine.searchCountries('', 'en');
+
+  assert.equal(results.length, 4);
+});
+
+test('country display names localize to the selected interface language', () => {
+  assert.equal(engine.getCountryDisplayName('DE', 'es'), 'Alemania');
+  assert.equal(engine.getCountryDisplayName('GB', 'es'), 'Reino Unido');
+});
+
+test('country search matches localized country names', () => {
+  const results = engine.searchCountries('alem', 'es');
+
+  assert.equal(results[0]?.code, 'DE');
+});
+
+test('country search prioritizes translated name matches over incidental country-code matches', () => {
+  const results = engine.searchCountries('reino', 'es');
+
+  assert.equal(results[0]?.code, 'GB');
 });
 
 test('language search returns recommended matches first for the selected country', () => {

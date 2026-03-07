@@ -21,6 +21,7 @@ import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
+import { localeSearchEngine } from '../../services/onboarding/localeSelection';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
@@ -82,10 +83,17 @@ export function SettingsScreen() {
     setShowLanguagePicker(false);
   };
 
-  const localeSummary =
-    preferences.countryName && preferences.contentLanguageNativeName
-      ? `${preferences.countryName} • ${preferences.contentLanguageNativeName}`
-      : preferences.countryName || preferences.contentLanguageNativeName || t('common.notSet');
+  const localeSummary = (() => {
+    const localizedCountryName = preferences.countryCode
+      ? localeSearchEngine.getCountryDisplayName(preferences.countryCode, currentLanguage)
+      : preferences.countryName;
+
+    if (localizedCountryName && preferences.contentLanguageNativeName) {
+      return `${localizedCountryName} • ${preferences.contentLanguageNativeName}`;
+    }
+
+    return localizedCountryName || preferences.contentLanguageNativeName || t('common.notSet');
+  })();
 
   const handleTimeSelect = async () => {
     const timeString = `${selectedHour.toString().padStart(2, '0')}:${selectedMinute}`;

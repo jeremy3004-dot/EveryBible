@@ -82,6 +82,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     interfaceLanguageSearchEngine.getLanguageByCode(selectedInterfaceLanguageCode) ?? LANGUAGES.en;
   const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
   const selectedLanguage = localeSearchEngine.getLanguageByCode(selectedLanguageCode);
+  const selectedCountryDisplayName = selectedCountry
+    ? localeSearchEngine.getCountryDisplayName(selectedCountry.code, selectedInterfaceLanguageCode)
+    : '';
   const currentStepNumber = Math.max(steps.indexOf(step) + 1, 1);
 
   const interfaceLanguageResults = useMemo(
@@ -90,8 +93,8 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   );
 
   const countryResults = useMemo(
-    () => localeSearchEngine.searchCountries(countryQuery, 40),
-    [countryQuery]
+    () => localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode),
+    [countryQuery, selectedInterfaceLanguageCode]
   );
 
   const languageResults = useMemo(
@@ -211,9 +214,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     );
   };
 
-  const renderCountryRow = (countryCode: string, countryName: string) => {
+  const renderCountryRow = (countryCode: string) => {
     const isSelected = selectedCountryCode === countryCode;
     const flag = getFlagEmoji(countryCode);
+    const countryName = localeSearchEngine.getCountryDisplayName(
+      countryCode,
+      selectedInterfaceLanguageCode
+    );
 
     return (
       <TouchableOpacity
@@ -490,7 +497,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             />
 
             <View style={styles.listSection}>
-              {countryResults.map((country) => renderCountryRow(country.code, country.name))}
+              {countryResults.map((country) => renderCountryRow(country.code))}
             </View>
           </>
         ) : step === 'contentLanguage' ? (
@@ -500,7 +507,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             </Text>
             <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
               {t('onboarding.languageBody', {
-                country: selectedCountry?.name ?? t('common.notSet'),
+                country: selectedCountryDisplayName || t('common.notSet'),
               })}
             </Text>
 
@@ -517,7 +524,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                   <Text style={styles.pillFlagEmoji}>{getFlagEmoji(selectedCountry.code)}</Text>
                 ) : null}
                 <Text style={[styles.countryPillText, { color: colors.primaryText }]}>
-                  {selectedCountry?.name}
+                  {selectedCountryDisplayName}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -545,7 +552,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               <View style={styles.listSection}>
                 <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
                   {t('onboarding.recommendedLanguages', {
-                    country: selectedCountry?.name ?? '',
+                    country: selectedCountryDisplayName,
                   })}
                 </Text>
                 {languageResults.recommended.map((language) => renderLanguageRow(language, true))}
@@ -723,8 +730,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               ? t('onboarding.finish')
               : t('common.continue')
           }
-          onPress={() => {
+          onPress={async () => {
             if (step === 'interface') {
+              await changeLanguage(selectedInterfaceLanguageCode);
               goToNextStep();
               return;
             }

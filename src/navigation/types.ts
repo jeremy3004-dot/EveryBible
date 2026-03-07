@@ -69,7 +69,6 @@ export type AuthStackParamList = {
 export type RootTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   Bible: NavigatorScreenParams<BibleStackParamList>;
-  Harvest: NavigatorScreenParams<LearnStackParamList>;
   More: NavigatorScreenParams<MoreStackParamList>;
 };
 
@@ -109,7 +108,6 @@ export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About
 // Tab screen props
 export type HomeTabProps = BottomTabScreenProps<RootTabParamList, 'Home'>;
 export type BibleTabProps = BottomTabScreenProps<RootTabParamList, 'Bible'>;
-export type HarvestTabProps = BottomTabScreenProps<RootTabParamList, 'Harvest'>;
 export type MoreTabProps = BottomTabScreenProps<RootTabParamList, 'More'>;
 
 // Global navigation type declaration

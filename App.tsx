@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -15,6 +15,8 @@ import { LocaleSetupFlow } from './src/screens/onboarding';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+const loadingIcon = require('./assets/icon.png');
 
 function LoadingScreen() {
   const { colors } = useTheme();
@@ -72,6 +74,14 @@ function LoadingScreen() {
   if (!isReady) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.loadingIconFrame,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+        >
+          <Image source={loadingIcon} style={styles.loadingIcon} resizeMode="cover" />
+        </View>
         <Text style={[styles.appName, { color: colors.primaryText }]}>Every Bible</Text>
         <ActivityIndicator size="large" color={colors.accentGreen} style={styles.spinner} />
         <Text style={[styles.loadingText, { color: colors.secondaryText }]}>
@@ -124,6 +134,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingIconFrame: {
+    width: 132,
+    height: 132,
+    borderRadius: 28,
+    overflow: 'hidden',
+    marginBottom: 24,
+    borderWidth: 1,
+  },
+  loadingIcon: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 32,

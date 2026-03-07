@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { RootTabParamList } from './types';
 import { HomeStack } from './HomeStack';
 import { BibleStack } from './BibleStack';
-import { LearnStack } from './LearnStack';
 import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -16,7 +15,6 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const tabIcons: Record<keyof RootTabParamList, { focused: IconName; unfocused: IconName }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Bible: { focused: 'book', unfocused: 'book-outline' },
-  Harvest: { focused: 'leaf', unfocused: 'leaf-outline' },
   More: { focused: 'ellipsis-horizontal', unfocused: 'ellipsis-horizontal-outline' },
 };
 
@@ -51,14 +49,6 @@ export function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: t('tabs.home') }} />
       <Tab.Screen name="Bible" component={BibleStack} options={{ tabBarLabel: t('tabs.bible') }} />
-      <Tab.Screen
-        name="Harvest"
-        component={LearnStack}
-        options={{
-          tabBarLabel: t('tabs.harvest'),
-          tabBarButton: () => null,
-        }}
-      />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
     </Tab.Navigator>
   );

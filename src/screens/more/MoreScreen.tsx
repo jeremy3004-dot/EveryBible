@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
 
@@ -125,7 +126,9 @@ export function MoreScreen() {
         </View>
 
         {/* App Version */}
-        <Text style={[styles.version, { color: colors.secondaryText }]}>{t('more.appVersion', { version: '1.0.0' })}</Text>
+        <Text style={[styles.version, { color: colors.secondaryText }]}>
+          {t('about.version', { version: config.version })}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,5 +1,9 @@
 import Fuse from 'fuse.js';
-import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
+import {
+  DEFAULT_LANGUAGE,
+  SUPPORTED_LANGUAGES,
+  type LanguageCode,
+} from '../../constants/languages';
 
 export interface LocaleCountry {
   code: string;
@@ -27,7 +31,37 @@ interface LanguageSearchResult {
   global: LocaleLanguage[];
 }
 
+interface CountrySearchEntry {
+  country: LocaleCountry;
+  displayName: string;
+  searchNames: string[];
+}
+
 const localeCatalog = require('../../data/localeCatalog.json') as LocaleCatalog;
+
+const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
+  en: ['en'],
+  zh: ['zh-Hans', 'zh'],
+  hi: ['hi'],
+  es: ['es'],
+  ar: ['ar'],
+  fr: ['fr'],
+  bn: ['bn'],
+  pt: ['pt'],
+  ru: ['ru'],
+  ur: ['ur'],
+  id: ['id'],
+  de: ['de'],
+  ja: ['ja'],
+  pa: ['pa-Guru', 'pa'],
+  mr: ['mr'],
+  te: ['te'],
+  tr: ['tr'],
+  ta: ['ta'],
+  vi: ['vi'],
+  ko: ['ko'],
+  ne: ['ne'],
+};
 
 const normalizeSearchText = (value: string): string =>
   value
@@ -56,13 +90,11 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
   const languages = catalog.languages
     .slice()
     .sort((left, right) => left.name.localeCompare(right.name));
-
-  const countryFuse = new Fuse(countries, {
-    includeScore: true,
-    ignoreLocation: true,
-    threshold: 0.35,
-    keys: ['name', 'code'],
-  });
+  const countryDisplayNameCache = new Map<LanguageCode, Map<string, string>>();
+  const countrySearchCache = new Map<
+    LanguageCode,
+    { entries: CountrySearchEntry[]; fuse: Fuse<CountrySearchEntry> }
+  >();
 
   const languageFuse = new Fuse(languages, {
     includeScore: true,
@@ -77,6 +109,83 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     }
 
     return countries.find((country) => country.code === countryCode.toUpperCase()) ?? null;
+  };
+
+  const getCountryDisplayNames = (languageCode: LanguageCode) => {
+    const cached = countryDisplayNameCache.get(languageCode);
+    if (cached) {
+      return cached;
+    }
+
+    const names = new Map<string, string>();
+    let displayNames: Intl.DisplayNames | null = null;
+
+    if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+      try {
+        displayNames = new Intl.DisplayNames(
+          [...COUNTRY_DISPLAY_LOCALES[languageCode], DEFAULT_LANGUAGE],
+          { type: 'region' }
+        );
+      } catch {
+        displayNames = null;
+      }
+    }
+
+    countries.forEach((country) => {
+      const localizedName = displayNames?.of(country.code);
+      names.set(
+        country.code,
+        localizedName && localizedName !== country.code ? localizedName : country.name
+      );
+    });
+
+    countryDisplayNameCache.set(languageCode, names);
+    return names;
+  };
+
+  const getCountryDisplayName = (
+    countryCode: string | null | undefined,
+    languageCode: LanguageCode = DEFAULT_LANGUAGE
+  ): string => {
+    const country = getCountryByCode(countryCode);
+    if (!country) {
+      return '';
+    }
+
+    return getCountryDisplayNames(languageCode).get(country.code) ?? country.name;
+  };
+
+  const getCountrySearchData = (languageCode: LanguageCode) => {
+    const cached = countrySearchCache.get(languageCode);
+    if (cached) {
+      return cached;
+    }
+
+    const entries = countries
+      .map((country) => {
+        const displayName = getCountryDisplayName(country.code, languageCode);
+        const searchNames = [country.name, displayName].filter(
+          (value, index, values) => values.findIndex((candidate) => candidate === value) === index
+        );
+
+        return {
+          country,
+          displayName,
+          searchNames,
+        };
+      })
+      .sort((left, right) => left.displayName.localeCompare(right.displayName, languageCode));
+
+    const fuse = new Fuse(entries, {
+      includeScore: true,
+      ignoreLocation: true,
+      threshold: 0.35,
+      keys: ['displayName', 'searchNames'],
+    });
+
+    const searchData = { entries, fuse };
+    countrySearchCache.set(languageCode, searchData);
+    return searchData;
   };
 
   const getLanguageByCode = (languageCode: string | null | undefined): LocaleLanguage | null => {
@@ -94,17 +203,34 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     );
   };
 
-  const searchCountries = (query: string, limit: number = 30): LocaleCountry[] => {
+  const searchCountries = (
+    query: string,
+    languageCode: LanguageCode = DEFAULT_LANGUAGE,
+    limit: number = countries.length
+  ): LocaleCountry[] => {
     const trimmedQuery = query.trim();
+    const { entries, fuse } = getCountrySearchData(languageCode);
 
     if (!trimmedQuery) {
-      return countries.slice(0, limit);
+      return entries.map((entry) => entry.country).slice(0, limit);
     }
 
-    return countryFuse
-      .search(trimmedQuery)
-      .map((result) => result.item)
-      .slice(0, limit);
+    const normalizedQuery = normalizeSearchText(trimmedQuery);
+    const exactCodeMatches = entries.filter(
+      (entry) => normalizeSearchText(entry.country.code) === normalizedQuery
+    );
+    const prefixMatches = entries.filter((entry) =>
+      entry.searchNames.some((searchName) => {
+        const haystack = normalizeSearchText(searchName);
+        return haystack.includes(normalizedQuery);
+      })
+    );
+
+    const fuzzyMatches = fuse.search(trimmedQuery).map((result) => result.item);
+
+    return uniqueByCode(
+      [...exactCodeMatches, ...prefixMatches, ...fuzzyMatches].map((entry) => entry.country)
+    ).slice(0, limit);
   };
 
   const getRecommendedLanguages = (countryCode: string | null | undefined, limit: number = 12) => {
@@ -171,6 +297,7 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     countries,
     languages,
     getCountryByCode,
+    getCountryDisplayName,
     getLanguageByCode,
     searchCountries,
     getRecommendedLanguages,

@@ -11,6 +11,7 @@ const generatedIconPath = path.join(assetsDir, 'icon.png');
 const generatedAdaptivePath = path.join(assetsDir, 'adaptive-icon.png');
 const generatedMonochromePath = path.join(assetsDir, 'monochrome-icon.png');
 const generatedFaviconPath = path.join(assetsDir, 'favicon.png');
+const generatedSplashPath = path.join(assetsDir, 'splash-icon.png');
 const iosIconPath = path.join(
   projectRoot,
   'ios',
@@ -19,7 +20,16 @@ const iosIconPath = path.join(
   'AppIcon.appiconset',
   'App-Icon-1024x1024@1x.png'
 );
+const iosSplashDir = path.join(
+  projectRoot,
+  'ios',
+  'EveryBible',
+  'Images.xcassets',
+  'SplashScreenLegacy.imageset'
+);
 const androidResDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'res');
+const splashBackground = '#101113';
+const splashPortraitSize = { width: 1284, height: 2778 };
 
 const launcherSizes = [
   ['mdpi', 48],
@@ -35,6 +45,14 @@ const adaptiveSizes = [
   ['xhdpi', 216],
   ['xxhdpi', 324],
   ['xxxhdpi', 432],
+];
+
+const androidSplashSizes = [
+  ['mdpi', 288],
+  ['hdpi', 432],
+  ['xhdpi', 576],
+  ['xxhdpi', 864],
+  ['xxxhdpi', 1152],
 ];
 
 const monochromeIconSvg = `
@@ -87,6 +105,77 @@ const writeRasterOutput = async (outputPath, size, format) => {
   await pipeline.toFile(outputPath);
 };
 
+const createRoundedMask = (size, radius) => Buffer.from(`
+<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#ffffff"/>
+</svg>
+`);
+
+const createRoundedIconBuffer = async (size, radius) =>
+  sharp(sourceIconPath)
+    .resize(size, size, {
+      fit: 'cover',
+      position: 'center',
+    })
+    .composite([{ input: createRoundedMask(size, radius), blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+
+const writeSplashPortraitOutput = async (outputPath) => {
+  await ensureDirectory(path.dirname(outputPath));
+
+  const iconSize = 428;
+  const iconRadius = 86;
+  const iconBuffer = await createRoundedIconBuffer(iconSize, iconRadius);
+  const iconLeft = Math.round((splashPortraitSize.width - iconSize) / 2);
+  const iconTop = Math.round((splashPortraitSize.height - iconSize) / 2);
+
+  await sharp({
+    create: {
+      width: splashPortraitSize.width,
+      height: splashPortraitSize.height,
+      channels: 4,
+      background: splashBackground,
+    },
+  })
+    .composite([
+      {
+        input: iconBuffer,
+        left: iconLeft,
+        top: iconTop,
+      },
+    ])
+    .png()
+    .toFile(outputPath);
+};
+
+const writeAndroidSplashOutput = async (outputPath, size) => {
+  await ensureDirectory(path.dirname(outputPath));
+
+  const iconSize = Math.round(size * 0.68);
+  const iconRadius = Math.round(iconSize * 0.2);
+  const iconBuffer = await createRoundedIconBuffer(iconSize, iconRadius);
+  const iconOffset = Math.round((size - iconSize) / 2);
+
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite([
+      {
+        input: iconBuffer,
+        left: iconOffset,
+        top: iconOffset,
+      },
+    ])
+    .png()
+    .toFile(outputPath);
+};
+
 const writeMonochromeOutput = async () => {
   await sharp(Buffer.from(monochromeIconSvg)).resize(432, 432).png().toFile(generatedMonochromePath);
 };
@@ -100,7 +189,11 @@ async function generateIcons() {
   await writeRasterOutput(generatedAdaptivePath, 432, 'png');
   await writeMonochromeOutput();
   await writeRasterOutput(generatedFaviconPath, 64, 'png');
+  await writeSplashPortraitOutput(generatedSplashPath);
   await writeRasterOutput(iosIconPath, 1024, 'png');
+  await writeSplashPortraitOutput(path.join(iosSplashDir, 'image.png'));
+  await writeSplashPortraitOutput(path.join(iosSplashDir, 'image@2x.png'));
+  await writeSplashPortraitOutput(path.join(iosSplashDir, 'image@3x.png'));
 
   for (const [density, size] of launcherSizes) {
     const densityDir = path.join(androidResDir, `mipmap-${density}`);
@@ -117,13 +210,21 @@ async function generateIcons() {
       .toFile(path.join(densityDir, 'ic_launcher_monochrome.webp'));
   }
 
+  for (const [density, size] of androidSplashSizes) {
+    const densityDir = path.join(androidResDir, `drawable-${density}`);
+    await writeAndroidSplashOutput(path.join(densityDir, 'splashscreen_logo.png'), size);
+  }
+
   console.log('Updated icon assets from the approved source image:');
   console.log('- assets/icon-source.jpg');
   console.log('- assets/icon.png');
   console.log('- assets/adaptive-icon.png');
   console.log('- assets/monochrome-icon.png');
   console.log('- assets/favicon.png');
+  console.log('- assets/splash-icon.png');
   console.log('- ios/EveryBible/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png');
+  console.log('- ios/EveryBible/Images.xcassets/SplashScreenLegacy.imageset/image*.png');
+  console.log('- android/app/src/main/res/drawable-*/splashscreen_logo.png');
   console.log('- android/app/src/main/res/mipmap-*/ic_launcher*.webp');
 }
 
