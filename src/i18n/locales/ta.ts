@@ -226,6 +226,9 @@ export const ta = {
     accountCreated: 'கணக்கு உருவாக்கப்பட்டது',
     verifyEmailMessage: 'உங்கள் கணக்கைச் சரிபார்க்க உங்கள் மின்னஞ்சலைச் சரிபார்க்கவும்',
   },
+  profile: {
+    streak: 'நாள் தொடர்',
+  },
   harvest: {
     title: 'அறுவடை',
     subtitle: 'உங்கள் நம்பிக்கை பயணத்தில் வளருங்கள்',

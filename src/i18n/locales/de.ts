@@ -228,6 +228,9 @@ export const de = {
     accountCreated: 'Konto erstellt',
     verifyEmailMessage: 'Bitte überprüfen Sie Ihre E-Mails, um Ihr Konto zu bestätigen',
   },
+  profile: {
+    streak: 'Tagesserie',
+  },
   harvest: {
     title: 'Ernte',
     subtitle: 'Wachsen Sie auf Ihrem Glaubensweg',

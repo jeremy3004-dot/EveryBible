@@ -227,6 +227,9 @@ export const fr = {
     accountCreated: 'Compte créé',
     verifyEmailMessage: 'Veuillez vérifier votre courrier électronique pour vérifier votre compte',
   },
+  profile: {
+    streak: 'Série de jours',
+  },
   harvest: {
     title: 'Récolte',
     subtitle: 'Grandissez dans votre cheminement de foi',

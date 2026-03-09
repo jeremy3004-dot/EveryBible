@@ -8,3 +8,4 @@ export {
   getCurrentSession,
   type AuthResult,
 } from './authService';
+export { isSilentAuthError, type AuthErrorCode } from './authErrors';

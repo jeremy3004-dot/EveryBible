@@ -226,6 +226,9 @@ export const pt = {
     accountCreated: 'Conta criada',
     verifyEmailMessage: 'Verifique seu e-mail para verificar sua conta',
   },
+  profile: {
+    streak: 'Sequência de dias',
+  },
   harvest: {
     title: 'Colheita',
     subtitle: 'Cresça em sua jornada de fé',

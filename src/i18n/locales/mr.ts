@@ -225,6 +225,9 @@ export const mr = {
     accountCreated: 'खाते तयार केले',
     verifyEmailMessage: 'कृपया तुमचे खाते सत्यापित करण्यासाठी तुमचा ईमेल तपासा',
   },
+  profile: {
+    streak: 'दिवसांची मालिका',
+  },
   harvest: {
     title: 'कापणी',
     subtitle: 'तुमच्या विश्वासाच्या प्रवासात वाढ',

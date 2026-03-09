@@ -225,6 +225,9 @@ export const ne = {
     accountCreated: 'खाता बनाइयो',
     verifyEmailMessage: 'आफ्नो खाता प्रमाणित गर्न कृपया आफ्नो इमेल जाँच गर्नुहोस्',
   },
+  profile: {
+    streak: 'दिनको श्रृंखला',
+  },
   harvest: {
     title: 'फसल',
     subtitle: 'तपाईंको विश्वास यात्रामा बढ्नुहोस्',

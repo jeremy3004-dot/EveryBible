@@ -225,6 +225,9 @@ export const id = {
     accountCreated: 'Akun Dibuat',
     verifyEmailMessage: 'Silakan periksa email Anda untuk memverifikasi akun Anda',
   },
+  profile: {
+    streak: 'Rangkaian hari',
+  },
   harvest: {
     title: 'Memanen',
     subtitle: 'Tumbuhkan dalam perjalanan iman Anda',

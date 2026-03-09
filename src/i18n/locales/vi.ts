@@ -226,6 +226,9 @@ export const vi = {
     accountCreated: 'Đã tạo tài khoản',
     verifyEmailMessage: 'Vui lòng kiểm tra email để xác minh tài khoản của bạn',
   },
+  profile: {
+    streak: 'Chuỗi ngày',
+  },
   harvest: {
     title: 'Mùa gặt',
     subtitle: 'Tăng trưởng trong hành trình đức tin của bạn',

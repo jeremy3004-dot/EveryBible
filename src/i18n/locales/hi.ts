@@ -225,6 +225,9 @@ export const hi = {
     accountCreated: 'खाता बनाया गया',
     verifyEmailMessage: 'कृपया अपना खाता सत्यापित करने के लिए अपना ईमेल जांचें',
   },
+  profile: {
+    streak: 'दिन की श्रृंखला',
+  },
   harvest: {
     title: 'फसल',
     subtitle: 'अपनी आस्था यात्रा में आगे बढ़ें',

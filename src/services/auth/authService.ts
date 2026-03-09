@@ -3,6 +3,15 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
+import type { AuthErrorCode } from './authErrors';
+import {
+  configurationAuthError,
+  mapAppleAuthError,
+  mapGoogleAuthError,
+  mapSupabaseAuthError,
+  providerUnavailableAuthError,
+  unknownAuthError,
+} from './authErrors';
 
 // Configure Google Sign-In on module load
 GoogleSignin.configure({
@@ -14,6 +23,7 @@ export interface AuthResult {
   success: boolean;
   user?: User;
   error?: string;
+  code?: AuthErrorCode;
 }
 
 // Convert Supabase user to app User type
@@ -39,7 +49,7 @@ export const signUpWithEmail = async (
   displayName?: string
 ): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured' };
+    return configurationAuthError();
   }
 
   try {
@@ -54,23 +64,23 @@ export const signUpWithEmail = async (
     });
 
     if (error) {
-      return { success: false, error: error.message };
+      return mapSupabaseAuthError(error);
     }
 
     if (data.user) {
       return { success: true, user: mapSupabaseUser(data.user) };
     }
 
-    return { success: false, error: 'Sign up failed' };
+    return unknownAuthError('Sign up failed');
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+    return unknownAuthError(e);
   }
 };
 
 // Email sign-in
 export const signInWithEmail = async (email: string, password: string): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured' };
+    return configurationAuthError();
   }
 
   try {
@@ -80,27 +90,27 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     });
 
     if (error) {
-      return { success: false, error: error.message };
+      return mapSupabaseAuthError(error);
     }
 
     if (data.user) {
       return { success: true, user: mapSupabaseUser(data.user) };
     }
 
-    return { success: false, error: 'Sign in failed' };
+    return unknownAuthError('Sign in failed');
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+    return unknownAuthError(e);
   }
 };
 
 // Apple Sign-In (iOS only)
 export const signInWithApple = async (): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured' };
+    return configurationAuthError();
   }
 
   if (Platform.OS !== 'ios') {
-    return { success: false, error: 'Apple Sign-In is only available on iOS' };
+    return providerUnavailableAuthError('Apple Sign-In is only available on iOS');
   }
 
   try {
@@ -112,7 +122,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
     });
 
     if (!credential.identityToken) {
-      return { success: false, error: 'No identity token received' };
+      return providerUnavailableAuthError('No identity token received');
     }
 
     const { data, error } = await supabase.auth.signInWithIdToken({
@@ -121,7 +131,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
     });
 
     if (error) {
-      return { success: false, error: error.message };
+      return mapSupabaseAuthError(error);
     }
 
     if (data.user) {
@@ -138,19 +148,16 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       return { success: true, user: mapSupabaseUser(data.user) };
     }
 
-    return { success: false, error: 'Apple sign in failed' };
+    return unknownAuthError('Apple sign in failed');
   } catch (e) {
-    if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') {
-      return { success: false, error: 'Sign in cancelled' };
-    }
-    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+    return mapAppleAuthError(e);
   }
 };
 
 // Google Sign-In
 export const signInWithGoogle = async (): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured' };
+    return configurationAuthError();
   }
 
   try {
@@ -159,7 +166,7 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
     const idToken = response.data?.idToken;
 
     if (!idToken) {
-      return { success: false, error: 'No ID token received from Google' };
+      return providerUnavailableAuthError('No ID token received from Google');
     }
 
     const { data, error } = await supabase.auth.signInWithIdToken({
@@ -168,28 +175,37 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
     });
 
     if (error) {
-      return { success: false, error: error.message };
+      return mapSupabaseAuthError(error);
     }
 
     if (data.user) {
       return { success: true, user: mapSupabaseUser(data.user) };
     }
 
-    return { success: false, error: 'Google sign in failed' };
+    return unknownAuthError('Google sign in failed');
   } catch (error) {
     if (isErrorWithCode(error)) {
       switch (error.code) {
         case statusCodes.SIGN_IN_CANCELLED:
-          return { success: false, error: 'Google sign in cancelled' };
+          return mapGoogleAuthError({
+            code: 'SIGN_IN_CANCELLED',
+            message: error.message,
+          });
         case statusCodes.IN_PROGRESS:
-          return { success: false, error: 'Sign in already in progress' };
+          return mapGoogleAuthError({
+            code: 'IN_PROGRESS',
+            message: error.message,
+          });
         case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-          return { success: false, error: 'Play services not available' };
+          return mapGoogleAuthError({
+            code: 'PLAY_SERVICES_NOT_AVAILABLE',
+            message: error.message,
+          });
         default:
-          return { success: false, error: error.message };
+          return mapGoogleAuthError(error);
       }
     }
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    return unknownAuthError(error);
   }
 };
 

@@ -19,6 +19,11 @@ interface ProgressState {
   markChapterRead: (bookId: string, chapter: number) => void;
   isChapterRead: (bookId: string, chapter: number) => boolean;
   updateStreak: () => void;
+  applySyncedProgress: (progress: {
+    chaptersRead: Record<string, number>;
+    streakDays: number;
+    lastReadDate: string | null;
+  }) => void;
 }
 
 const getStartOfDay = (date: Date): number => {
@@ -119,6 +124,25 @@ export const useProgressStore = create<ProgressState>()(
           // Starting new streak
           set({ streakDays: 1, lastReadDate: today });
         }
+      },
+
+      applySyncedProgress: (progress) => {
+        const state = get();
+        const hasChanged =
+          state.streakDays !== progress.streakDays ||
+          state.lastReadDate !== progress.lastReadDate ||
+          Object.keys(state.chaptersRead).length !== Object.keys(progress.chaptersRead).length ||
+          Object.entries(progress.chaptersRead).some(([key, value]) => state.chaptersRead[key] !== value);
+
+        if (!hasChanged) {
+          return;
+        }
+
+        set({
+          chaptersRead: progress.chaptersRead,
+          streakDays: progress.streakDays,
+          lastReadDate: progress.lastReadDate,
+        });
       },
     }),
     {

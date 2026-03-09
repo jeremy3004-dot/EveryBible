@@ -212,6 +212,9 @@ export const zh = {
     accountCreated: '帐户已创建',
     verifyEmailMessage: '请检查您的电子邮件以验证您的帐户',
   },
+  profile: {
+    streak: '连续天数',
+  },
   harvest: {
     title: '收成',
     subtitle: '在你的信仰之旅中成长',

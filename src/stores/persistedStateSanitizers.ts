@@ -140,6 +140,7 @@ export const sanitizePersistedAuthState = (
   user: User | null;
   isAuthenticated: boolean;
   preferences: UserPreferences;
+  preferencesUpdatedAt: string | null;
 } => {
   const persisted = isRecord(value) ? value : {};
   const userValue = persisted.user;
@@ -165,6 +166,10 @@ export const sanitizePersistedAuthState = (
     user,
     isAuthenticated: user !== null && persisted.isAuthenticated === true,
     preferences: sanitizeUserPreferences(persisted.preferences),
+    preferencesUpdatedAt:
+      typeof persisted.preferencesUpdatedAt === 'string' && persisted.preferencesUpdatedAt.length > 0
+        ? persisted.preferencesUpdatedAt
+        : null,
   };
 };
 

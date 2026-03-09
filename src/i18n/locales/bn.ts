@@ -223,6 +223,9 @@ export const bn = {
     accountCreated: 'অ্যাকাউন্ট তৈরি করা হয়েছে',
     verifyEmailMessage: 'আপনার অ্যাকাউন্ট যাচাই করতে আপনার ইমেল চেক করুন',
   },
+  profile: {
+    streak: 'দিনের ধারা',
+  },
   harvest: {
     title: 'ফসল',
     subtitle: 'আপনার বিশ্বাস যাত্রা বৃদ্ধি',

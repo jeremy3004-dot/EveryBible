@@ -225,6 +225,9 @@ export const en = {
     accountCreated: 'Account Created',
     verifyEmailMessage: 'Please check your email to verify your account',
   },
+  profile: {
+    streak: 'Day Streak',
+  },
   harvest: {
     title: 'Harvest',
     subtitle: 'Grow in your faith journey',

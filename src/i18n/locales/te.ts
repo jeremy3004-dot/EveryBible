@@ -226,6 +226,9 @@ export const te = {
     accountCreated: 'ఖాతా సృష్టించబడింది',
     verifyEmailMessage: 'దయచేసి మీ ఖాతాను ధృవీకరించడానికి మీ ఇమెయిల్‌ను తనిఖీ చేయండి',
   },
+  profile: {
+    streak: 'రోజుల వరుస',
+  },
   harvest: {
     title: 'హార్వెస్ట్',
     subtitle: 'మీ విశ్వాస ప్రయాణంలో ఎదగండి',

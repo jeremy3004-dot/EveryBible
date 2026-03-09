@@ -222,6 +222,9 @@ export const ko = {
     accountCreated: '계정이 생성되었습니다',
     verifyEmailMessage: '계정을 확인하려면 이메일을 확인하세요.',
   },
+  profile: {
+    streak: '연속 일수',
+  },
   harvest: {
     title: '수확하다',
     subtitle: '당신의 믿음의 여정에서 성장하세요',

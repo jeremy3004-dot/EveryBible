@@ -14,12 +14,14 @@ interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   preferences: UserPreferences;
+  preferencesUpdatedAt: string | null;
 
   // Actions
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
   setPreferences: (prefs: Partial<UserPreferences>) => void;
+  applySyncedPreferences: (preferences: UserPreferences, updatedAt: string | null) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -51,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isInitialized: false,
       preferences: defaultAuthPreferences,
+      preferencesUpdatedAt: null,
 
       setUser: (user) =>
         set({
@@ -70,7 +73,33 @@ export const useAuthStore = create<AuthState>()(
       setPreferences: (prefs) =>
         set((state) => ({
           preferences: { ...state.preferences, ...prefs },
+          preferencesUpdatedAt: new Date().toISOString(),
         })),
+
+      applySyncedPreferences: (preferences, updatedAt) =>
+        set((state) => {
+          const preferencesChanged =
+            state.preferences.fontSize !== preferences.fontSize ||
+            state.preferences.theme !== preferences.theme ||
+            state.preferences.language !== preferences.language ||
+            state.preferences.countryCode !== preferences.countryCode ||
+            state.preferences.countryName !== preferences.countryName ||
+            state.preferences.contentLanguageCode !== preferences.contentLanguageCode ||
+            state.preferences.contentLanguageName !== preferences.contentLanguageName ||
+            state.preferences.contentLanguageNativeName !== preferences.contentLanguageNativeName ||
+            state.preferences.onboardingCompleted !== preferences.onboardingCompleted ||
+            state.preferences.notificationsEnabled !== preferences.notificationsEnabled ||
+            state.preferences.reminderTime !== preferences.reminderTime;
+
+          if (!preferencesChanged && state.preferencesUpdatedAt === updatedAt) {
+            return state;
+          }
+
+          return {
+            preferences,
+            preferencesUpdatedAt: updatedAt,
+          };
+        }),
 
       signOut: async () => {
         await authSignOut();
@@ -78,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           session: null,
           isAuthenticated: false,
+          preferencesUpdatedAt: null,
         });
       },
 
@@ -127,7 +157,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persistedState: unknown, version) => {
         if (!persistedState || typeof persistedState !== 'object') {
@@ -144,6 +174,18 @@ export const useAuthStore = create<AuthState>()(
               // Existing installs should not be blocked by the new onboarding gate.
               onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
             },
+            preferencesUpdatedAt: null,
+          };
+        }
+
+        if (version < 3) {
+          return {
+            ...typedState,
+            preferences: {
+              ...defaultAuthPreferences,
+              ...typedState.preferences,
+            },
+            preferencesUpdatedAt: null,
           };
         }
 
@@ -168,6 +210,7 @@ export const useAuthStore = create<AuthState>()(
           user: sanitized.user,
           isAuthenticated: sanitized.isAuthenticated,
           preferences: sanitized.preferences,
+          preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
         };
       },
     }

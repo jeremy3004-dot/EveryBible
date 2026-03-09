@@ -3,62 +3,18 @@ import { useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
+import {
+  mergePreferences,
+  mergeReadingSnapshot,
+  type LocalPreferenceSnapshot,
+  type LocalReadingSnapshot,
+} from './syncMerge';
 
 export interface SyncResult {
   success: boolean;
   error?: string;
   merged?: boolean;
 }
-
-interface LocalReadingSnapshot {
-  chaptersRead: Record<string, number>;
-  streakDays: number;
-  lastReadDate: string | null;
-  currentBook: string;
-  currentChapter: number;
-}
-
-const progressMapsEqual = (
-  left: Record<string, number>,
-  right: Record<string, number>
-): boolean => {
-  const leftKeys = Object.keys(left);
-  const rightKeys = Object.keys(right);
-
-  if (leftKeys.length !== rightKeys.length) {
-    return false;
-  }
-
-  return leftKeys.every((key) => left[key] === right[key]);
-};
-
-const mergeProgress = (
-  local: Record<string, number>,
-  remote: Record<string, number>
-): Record<string, number> => {
-  const merged = { ...local };
-
-  for (const [key, remoteTimestamp] of Object.entries(remote)) {
-    const localTimestamp = local[key];
-    if (!localTimestamp || remoteTimestamp > localTimestamp) {
-      merged[key] = remoteTimestamp;
-    }
-  }
-
-  return merged;
-};
-
-const getLatestDateString = (left: string | null, right: string | null): string | null => {
-  if (!left) {
-    return right;
-  }
-
-  if (!right) {
-    return left;
-  }
-
-  return left > right ? left : right;
-};
 
 const getLocalReadingSnapshot = (): LocalReadingSnapshot => {
   const progressState = useProgressStore.getState();
@@ -73,56 +29,23 @@ const getLocalReadingSnapshot = (): LocalReadingSnapshot => {
   };
 };
 
-const getChapterTimestamp = (
-  chaptersRead: Record<string, number>,
-  bookId: string,
-  chapter: number
-): number => {
-  return chaptersRead[`${bookId}_${chapter}`] ?? 0;
-};
-
-const resolveReadingPosition = (
-  localState: LocalReadingSnapshot,
-  remoteData: UserProgress | null,
-  mergedChaptersRead: Record<string, number>
-): { bookId: string; chapter: number; fromRemote: boolean } => {
-  if (!remoteData?.current_book || !remoteData.current_chapter) {
-    return {
-      bookId: localState.currentBook,
-      chapter: localState.currentChapter,
-      fromRemote: false,
-    };
-  }
-
-  const remoteTimestamp =
-    getChapterTimestamp(mergedChaptersRead, remoteData.current_book, remoteData.current_chapter) ||
-    Date.parse(remoteData.synced_at || '') ||
-    0;
-  const localTimestamp = getChapterTimestamp(
-    mergedChaptersRead,
-    localState.currentBook,
-    localState.currentChapter
-  );
-
-  const shouldUseRemote =
-    (localState.currentBook === 'GEN' &&
-      localState.currentChapter === 1 &&
-      Object.keys(localState.chaptersRead).length === 0) ||
-    remoteTimestamp > localTimestamp;
-
-  if (shouldUseRemote) {
-    return {
-      bookId: remoteData.current_book,
-      chapter: remoteData.current_chapter,
-      fromRemote: true,
-    };
-  }
+const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
+  const authState = useAuthStore.getState();
 
   return {
-    bookId: localState.currentBook,
-    chapter: localState.currentChapter,
-    fromRemote: false,
+    preferences: authState.preferences,
+    updatedAt: authState.preferencesUpdatedAt,
   };
+};
+
+const applyMergedReadingState = (
+  mergedReading: ReturnType<typeof mergeReadingSnapshot>
+): void => {
+  useProgressStore.getState().applySyncedProgress(mergedReading.progress);
+  useBibleStore.getState().applySyncedReadingPosition({
+    bookId: mergedReading.readingPosition.bookId,
+    chapter: mergedReading.readingPosition.chapter,
+  });
 };
 
 const ensureCloudProfile = async (): Promise<SyncResult> => {
@@ -190,38 +113,20 @@ export const syncProgress = async (): Promise<SyncResult> => {
     }
 
     const remoteData = data as UserProgress | null;
-    const remoteChapters = (remoteData?.chapters_read as Record<string, number>) || {};
-    const mergedChaptersRead = mergeProgress(localState.chaptersRead, remoteChapters);
-    const mergedProgress = !progressMapsEqual(mergedChaptersRead, localState.chaptersRead);
+    const mergedReading = mergeReadingSnapshot(localState, remoteData);
 
-    if (mergedProgress) {
-      useProgressStore.setState({ chaptersRead: mergedChaptersRead });
-    }
-
-    const resolvedReading = resolveReadingPosition(localState, remoteData, mergedChaptersRead);
-
-    if (
-      resolvedReading.fromRemote &&
-      (resolvedReading.bookId !== localState.currentBook ||
-        resolvedReading.chapter !== localState.currentChapter)
-    ) {
-      useBibleStore.setState({
-        currentBook: resolvedReading.bookId,
-        currentChapter: resolvedReading.chapter,
-      });
+    if (mergedReading.changed) {
+      applyMergedReadingState(mergedReading);
     }
 
     const { error: upsertError } = await supabase.from('user_progress').upsert(
       {
         user_id: userId,
-        chapters_read: mergedChaptersRead,
-        streak_days: Math.max(localState.streakDays, remoteData?.streak_days ?? 0),
-        last_read_date: getLatestDateString(
-          localState.lastReadDate,
-          remoteData?.last_read_date ?? null
-        ),
-        current_book: resolvedReading.bookId,
-        current_chapter: resolvedReading.chapter,
+        chapters_read: mergedReading.progress.chaptersRead,
+        streak_days: mergedReading.progress.streakDays,
+        last_read_date: mergedReading.progress.lastReadDate,
+        current_book: mergedReading.readingPosition.bookId,
+        current_chapter: mergedReading.readingPosition.chapter,
         synced_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }
@@ -231,7 +136,7 @@ export const syncProgress = async (): Promise<SyncResult> => {
       return { success: false, error: upsertError.message };
     }
 
-    return { success: true, merged: mergedProgress || resolvedReading.fromRemote };
+    return { success: true, merged: mergedReading.changed };
   } catch (error) {
     return {
       success: false,
@@ -255,25 +160,48 @@ export const syncPreferences = async (): Promise<SyncResult> => {
     return profileResult;
   }
 
-  const authState = useAuthStore.getState();
-  const localPrefs = authState.preferences;
-
   try {
+    const localSnapshot = getLocalPreferenceSnapshot();
+    const { data, error: fetchError } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      return { success: false, error: fetchError.message };
+    }
+
+    const remotePreferences = data as UserPreferences | null;
+    const mergedPreferences = mergePreferences(localSnapshot, remotePreferences);
+
+    if (mergedPreferences.source === 'remote') {
+      useAuthStore
+        .getState()
+        .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+
+      return {
+        success: true,
+        merged: mergedPreferences.changed || mergedPreferences.updatedAt !== localSnapshot.updatedAt,
+      };
+    }
+
+    const syncedAt = new Date().toISOString();
     const { error: upsertError } = await supabase.from('user_preferences').upsert(
       {
         user_id: userId,
-        font_size: localPrefs.fontSize,
-        theme: localPrefs.theme,
-        language: localPrefs.language,
-        country_code: localPrefs.countryCode,
-        country_name: localPrefs.countryName,
-        content_language_code: localPrefs.contentLanguageCode,
-        content_language_name: localPrefs.contentLanguageName,
-        content_language_native_name: localPrefs.contentLanguageNativeName,
-        onboarding_completed: localPrefs.onboardingCompleted,
-        notifications_enabled: localPrefs.notificationsEnabled,
-        reminder_time: localPrefs.reminderTime,
-        synced_at: new Date().toISOString(),
+        font_size: mergedPreferences.preferences.fontSize,
+        theme: mergedPreferences.preferences.theme,
+        language: mergedPreferences.preferences.language,
+        country_code: mergedPreferences.preferences.countryCode,
+        country_name: mergedPreferences.preferences.countryName,
+        content_language_code: mergedPreferences.preferences.contentLanguageCode,
+        content_language_name: mergedPreferences.preferences.contentLanguageName,
+        content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
+        onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
+        notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
+        reminder_time: mergedPreferences.preferences.reminderTime,
+        synced_at: syncedAt,
       },
       { onConflict: 'user_id' }
     );
@@ -282,7 +210,15 @@ export const syncPreferences = async (): Promise<SyncResult> => {
       return { success: false, error: upsertError.message };
     }
 
-    return { success: true };
+    useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt);
+
+    return {
+      success: true,
+      merged:
+        mergedPreferences.changed ||
+        remotePreferences?.synced_at !== localSnapshot.updatedAt ||
+        localSnapshot.updatedAt !== syncedAt,
+    };
   } catch (error) {
     return {
       success: false,
@@ -338,29 +274,7 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
     const localState = getLocalReadingSnapshot();
 
     if (progressData) {
-      const remoteChapters = (progressData.chapters_read as Record<string, number>) || {};
-      const mergedChapters = mergeProgress(localState.chaptersRead, remoteChapters);
-      const resolvedReading = resolveReadingPosition(localState, progressData, mergedChapters);
-
-      useProgressStore.setState({
-        chaptersRead: mergedChapters,
-        streakDays: Math.max(localState.streakDays, progressData.streak_days),
-        lastReadDate: getLatestDateString(
-          localState.lastReadDate,
-          progressData.last_read_date || null
-        ),
-      });
-
-      if (
-        resolvedReading.fromRemote &&
-        (resolvedReading.bookId !== localState.currentBook ||
-          resolvedReading.chapter !== localState.currentChapter)
-      ) {
-        useBibleStore.setState({
-          currentBook: resolvedReading.bookId,
-          currentChapter: resolvedReading.chapter,
-        });
-      }
+      applyMergedReadingState(mergeReadingSnapshot(localState, progressData));
     }
 
     const { data: prefsDataRaw, error: prefsError } = await supabase
@@ -376,27 +290,10 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
     const prefsData = prefsDataRaw as UserPreferences | null;
 
     if (prefsData) {
-      const localPreferences = useAuthStore.getState().preferences;
-      useAuthStore.setState({
-        preferences: {
-          ...localPreferences,
-          fontSize: prefsData.font_size || localPreferences.fontSize,
-          theme: prefsData.theme || localPreferences.theme,
-          language: prefsData.language || localPreferences.language,
-          countryCode: prefsData.country_code ?? localPreferences.countryCode,
-          countryName: prefsData.country_name ?? localPreferences.countryName,
-          contentLanguageCode:
-            prefsData.content_language_code ?? localPreferences.contentLanguageCode,
-          contentLanguageName:
-            prefsData.content_language_name ?? localPreferences.contentLanguageName,
-          contentLanguageNativeName:
-            prefsData.content_language_native_name ?? localPreferences.contentLanguageNativeName,
-          onboardingCompleted:
-            prefsData.onboarding_completed ?? localPreferences.onboardingCompleted,
-          notificationsEnabled: prefsData.notifications_enabled,
-          reminderTime: prefsData.reminder_time,
-        },
-      });
+      const mergedPreferences = mergePreferences(getLocalPreferenceSnapshot(), prefsData);
+      useAuthStore
+        .getState()
+        .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
     }
 
     return { success: true, merged: true };

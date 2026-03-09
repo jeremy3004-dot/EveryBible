@@ -227,6 +227,9 @@ export const ja = {
     accountCreated: 'アカウントが作成されました',
     verifyEmailMessage: 'メールをチェックしてアカウントを確認してください',
   },
+  profile: {
+    streak: '連続日数',
+  },
   harvest: {
     title: '収穫',
     subtitle: '信仰の旅で成長する',

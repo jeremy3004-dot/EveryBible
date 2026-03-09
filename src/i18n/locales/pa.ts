@@ -226,6 +226,9 @@ export const pa = {
     accountCreated: 'ਖਾਤਾ ਬਣਾਇਆ ਗਿਆ',
     verifyEmailMessage: 'ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਖਾਤੇ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ ਆਪਣੀ ਈਮੇਲ ਦੀ ਜਾਂਚ ਕਰੋ',
   },
+  profile: {
+    streak: 'ਦਿਨਾਂ ਦੀ ਲੜੀ',
+  },
   harvest: {
     title: 'ਵਾਢੀ',
     subtitle: 'ਆਪਣੇ ਵਿਸ਼ਵਾਸ ਦੀ ਯਾਤਰਾ ਵਿੱਚ ਵਾਧਾ ਕਰੋ',

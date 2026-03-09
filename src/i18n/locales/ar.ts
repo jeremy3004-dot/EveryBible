@@ -221,6 +221,9 @@ export const ar = {
     accountCreated: 'تم إنشاء الحساب',
     verifyEmailMessage: 'يرجى التحقق من بريدك الإلكتروني للتحقق من حسابك',
   },
+  profile: {
+    streak: 'سلسلة الأيام',
+  },
   harvest: {
     title: 'محصول',
     subtitle: 'تنمو في رحلتك الإيمانية',

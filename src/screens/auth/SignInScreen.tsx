@@ -17,8 +17,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../../constants';
-import { signInWithEmail, signInWithApple, signInWithGoogle, resetPassword } from '../../services/auth';
+import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import {
+  isSilentAuthError,
+  resetPassword,
+  signInWithApple,
+  signInWithEmail,
+  signInWithGoogle,
+  type AuthResult,
+} from '../../services/auth';
 import { useAuthStore } from '../../stores/authStore';
 import { pullFromCloud } from '../../services/sync';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -28,6 +35,8 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 export function SignInScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const setUser = useAuthStore((state) => state.setUser);
 
   const [email, setEmail] = useState('');
@@ -35,6 +44,20 @@ export function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  const finishSignIn = async (user: NonNullable<AuthResult['user']>) => {
+    setUser(user);
+    await pullFromCloud();
+    navigation.getParent()?.goBack();
+  };
+
+  const showAuthFailure = (result: AuthResult, fallbackMessage: string) => {
+    if (isSilentAuthError(result.code)) {
+      return;
+    }
+
+    Alert.alert(t('auth.signInFailed'), result.error || fallbackMessage);
+  };
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
@@ -62,11 +85,9 @@ export function SignInScreen() {
     try {
       const result = await signInWithEmail(email, password);
       if (result.success && result.user) {
-        setUser(result.user);
-        await pullFromCloud();
-        navigation.getParent()?.goBack();
+        await finishSignIn(result.user);
       } else {
-        Alert.alert(t('auth.signInFailed'), result.error || t('auth.checkCredentials'));
+        showAuthFailure(result, t('auth.checkCredentials'));
       }
     } catch {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
@@ -80,11 +101,9 @@ export function SignInScreen() {
     try {
       const result = await signInWithApple();
       if (result.success && result.user) {
-        setUser(result.user);
-        await pullFromCloud();
-        navigation.getParent()?.goBack();
-      } else if (result.error !== t('auth.signInCancelled')) {
-        Alert.alert(t('auth.signInFailed'), result.error || t('auth.appleSignInFailed'));
+        await finishSignIn(result.user);
+      } else {
+        showAuthFailure(result, t('auth.appleSignInFailed'));
       }
     } catch {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
@@ -98,11 +117,9 @@ export function SignInScreen() {
     try {
       const result = await signInWithGoogle();
       if (result.success && result.user) {
-        setUser(result.user);
-        await pullFromCloud();
-        navigation.getParent()?.goBack();
-      } else if (result.error !== 'Google sign in cancelled') {
-        Alert.alert(t('auth.signInFailed'), result.error || t('auth.googleSignInFailed'));
+        await finishSignIn(result.user);
+      } else {
+        showAuthFailure(result, t('auth.googleSignInFailed'));
       }
     } catch {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
@@ -246,7 +263,7 @@ export function SignInScreen() {
               onPress={handleGoogleSignIn}
               disabled={isLoading}
             >
-              <Ionicons name="logo-google" size={20} color="#DB4437" />
+              <Ionicons name="logo-google" size={20} color={colors.accentPrimary} />
               <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
             </TouchableOpacity>
 
@@ -263,145 +280,148 @@ export function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 16,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 0,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginBottom: 32,
-  },
-  form: {
-    gap: 20,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primaryText,
-  },
-  input: {
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: colors.primaryText,
-  },
-  inputError: {
-    borderColor: colors.error,
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.error,
-  },
-  forgotPassword: {
-    fontSize: 14,
-    color: colors.accentGreen,
-    textAlign: 'right',
-  },
-  signInButton: {
-    backgroundColor: colors.accentGreen,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  signInButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primaryText,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.cardBorder,
-  },
-  dividerText: {
-    fontSize: 14,
-    color: colors.secondaryText,
-    marginHorizontal: 16,
-  },
-  appleButton: {
-    height: 50,
-    width: '100%',
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 12,
-    gap: 10,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f1f1f',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 14,
-    color: colors.secondaryText,
-  },
-  footerLink: {
-    fontSize: 14,
-    color: colors.accentGreen,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      padding: 16,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    content: {
+      flex: 1,
+      padding: 24,
+      paddingTop: 0,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.primaryText,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.secondaryText,
+      marginBottom: 32,
+    },
+    form: {
+      gap: 20,
+    },
+    inputContainer: {
+      gap: 8,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primaryText,
+    },
+    input: {
+      backgroundColor: colors.cardBackground,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      color: colors.primaryText,
+    },
+    inputError: {
+      borderColor: colors.error,
+    },
+    passwordContainer: {
+      position: 'relative',
+    },
+    passwordInput: {
+      paddingRight: 50,
+    },
+    eyeButton: {
+      position: 'absolute',
+      right: 16,
+      top: 16,
+    },
+    errorText: {
+      fontSize: 12,
+      color: colors.error,
+    },
+    forgotPassword: {
+      fontSize: 14,
+      color: colors.accentPrimary,
+      textAlign: 'right',
+    },
+    signInButton: {
+      backgroundColor: colors.accentPrimary,
+      borderRadius: 12,
+      padding: 16,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.7,
+    },
+    signInButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primaryText,
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 24,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.cardBorder,
+    },
+    dividerText: {
+      fontSize: 14,
+      color: colors.secondaryText,
+      marginHorizontal: 16,
+    },
+    appleButton: {
+      height: 50,
+      width: '100%',
+    },
+    googleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.cardBackground,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 14,
+      marginTop: 12,
+      gap: 10,
+    },
+    googleButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primaryText,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+    },
+    footerText: {
+      fontSize: 14,
+      color: colors.secondaryText,
+    },
+    footerLink: {
+      fontSize: 14,
+      color: colors.accentPrimary,
+      fontWeight: '600',
+    },
+  });

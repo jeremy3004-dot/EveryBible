@@ -226,6 +226,9 @@ export const tr = {
     accountCreated: 'Hesap Oluşturuldu',
     verifyEmailMessage: 'Hesabınızı doğrulamak için lütfen e-postanızı kontrol edin',
   },
+  profile: {
+    streak: 'Gün serisi',
+  },
   harvest: {
     title: 'Hasat',
     subtitle: 'İnanç yolculuğunuzda büyüyün',

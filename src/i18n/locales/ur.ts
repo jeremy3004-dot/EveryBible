@@ -225,6 +225,9 @@ export const ur = {
     accountCreated: 'اکاؤنٹ بنایا گیا۔',
     verifyEmailMessage: 'اپنے اکاؤنٹ کی تصدیق کے لیے براہ کرم اپنا ای میل چیک کریں۔',
   },
+  profile: {
+    streak: 'دنوں کا تسلسل',
+  },
   harvest: {
     title: 'فصل',
     subtitle: 'اپنے ایمانی سفر میں بڑھو',
