@@ -1,4 +1,4 @@
-/* global require, module */
+/* global require, module, __dirname */
 
 const fs = require('fs/promises');
 const path = require('path');
@@ -8,6 +8,26 @@ const LEGACY_SPLASH_ASSET_NAME = 'SplashScreenLegacy';
 const BRANDED_SPLASH_ASSET_NAME = 'SplashScreenBrand';
 const DEFAULT_LAUNCH_STORYBOARD_NAME = 'SplashScreen';
 const BRANDED_LAUNCH_STORYBOARD_NAME = 'EveryBibleLaunchScreen';
+const DISCREET_APP_ICON_NAME = 'DiscreetAppIcon';
+const DISCREET_APP_ICON_FILE_NAME = `${DISCREET_APP_ICON_NAME}-1024x1024@1x.png`;
+const DISCREET_APP_ICON_INFO_PLIST_ENTRY = {
+  CFBundleIconFiles: [DISCREET_APP_ICON_NAME],
+  UIPrerenderedIcon: false,
+};
+const DISCREET_APP_ICON_CONTENTS = {
+  images: [
+    {
+      filename: DISCREET_APP_ICON_FILE_NAME,
+      idiom: 'universal',
+      platform: 'ios',
+      size: '1024x1024',
+    },
+  ],
+  info: {
+    version: 1,
+    author: 'codex',
+  },
+};
 
 const rewriteSplashStoryboardAssetName = (contents) =>
   contents.replaceAll(LEGACY_SPLASH_ASSET_NAME, BRANDED_SPLASH_ASSET_NAME);
@@ -18,10 +38,62 @@ const rewriteLaunchStoryboardFilename = (contents) =>
     `${BRANDED_LAUNCH_STORYBOARD_NAME}.storyboard`
   );
 
+const applyAlternateAppIconBuildSetting = (projectFile) =>
+  projectFile.replaceAll(
+    /(\bASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n)(?!\s*ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = DiscreetAppIcon;)/g,
+    `$1\t\t\t\tASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ${DISCREET_APP_ICON_NAME};\n`
+  );
+
 const applyLaunchStoryboardName = (infoPlist) => ({
   ...infoPlist,
   UILaunchStoryboardName: BRANDED_LAUNCH_STORYBOARD_NAME,
 });
+
+const normalizeIconDictionary = (iconDictionary) =>
+  iconDictionary && typeof iconDictionary === 'object' ? iconDictionary : {};
+
+const applyAlternateAppIconInfoPlist = (infoPlist) => {
+  const phoneIcons = normalizeIconDictionary(infoPlist.CFBundleIcons);
+  const phoneAlternateIcons = normalizeIconDictionary(phoneIcons.CFBundleAlternateIcons);
+  const ipadIcons = normalizeIconDictionary(infoPlist['CFBundleIcons~ipad']);
+  const ipadAlternateIcons = normalizeIconDictionary(ipadIcons.CFBundleAlternateIcons);
+
+  return {
+    ...infoPlist,
+    CFBundleIcons: {
+      ...phoneIcons,
+      CFBundleAlternateIcons: {
+        ...phoneAlternateIcons,
+        [DISCREET_APP_ICON_NAME]: DISCREET_APP_ICON_INFO_PLIST_ENTRY,
+      },
+    },
+    'CFBundleIcons~ipad': {
+      ...ipadIcons,
+      CFBundleAlternateIcons: {
+        ...ipadAlternateIcons,
+        [DISCREET_APP_ICON_NAME]: DISCREET_APP_ICON_INFO_PLIST_ENTRY,
+      },
+    },
+  };
+};
+
+const ensureDiscreetAppIconAssets = async (iosRoot, projectName) => {
+  const discreetIconSetPath = path.join(
+    iosRoot,
+    projectName,
+    'Images.xcassets',
+    `${DISCREET_APP_ICON_NAME}.appiconset`
+  );
+  const discreetIconAssetPath = path.join(discreetIconSetPath, DISCREET_APP_ICON_FILE_NAME);
+  const sourceDiscreetIconPath = path.join(__dirname, '..', 'assets', 'icon-discreet.png');
+
+  await fs.mkdir(discreetIconSetPath, { recursive: true });
+  await fs.copyFile(sourceDiscreetIconPath, discreetIconAssetPath);
+  await fs.writeFile(
+    path.join(discreetIconSetPath, 'Contents.json'),
+    JSON.stringify(DISCREET_APP_ICON_CONTENTS, null, 2)
+  );
+};
 
 const ensureBrandedLaunchStoryboard = async (iosRoot, projectName) => {
   const projectFilePath = path.join(iosRoot, `${projectName}.xcodeproj`, 'project.pbxproj');
@@ -50,7 +122,9 @@ const ensureBrandedLaunchStoryboard = async (iosRoot, projectName) => {
   }
 
   const projectFile = await fs.readFile(projectFilePath, 'utf8');
-  const rewrittenProjectFile = rewriteLaunchStoryboardFilename(projectFile);
+  const rewrittenProjectFile = applyAlternateAppIconBuildSetting(
+    rewriteLaunchStoryboardFilename(projectFile)
+  );
   if (rewrittenProjectFile !== projectFile) {
     await fs.writeFile(projectFilePath, rewrittenProjectFile);
   }
@@ -100,7 +174,9 @@ const ensureBrandedSplashAsset = async (iosRoot, projectName) => {
 
 const withBrandedLaunchInfoPlist = (config) =>
   withInfoPlist(config, (nextConfig) => {
-    nextConfig.modResults = applyLaunchStoryboardName(nextConfig.modResults);
+    nextConfig.modResults = applyAlternateAppIconInfoPlist(
+      applyLaunchStoryboardName(nextConfig.modResults)
+    );
     return nextConfig;
   });
 
@@ -113,6 +189,7 @@ const withBrandedSplashAsset = (config) =>
 
       await ensureBrandedLaunchStoryboard(iosRoot, projectName);
       await ensureBrandedSplashAsset(iosRoot, projectName);
+      await ensureDiscreetAppIconAssets(iosRoot, projectName);
 
       return nextConfig;
     },
@@ -121,6 +198,10 @@ const withBrandedSplashAsset = (config) =>
 module.exports = withBrandedSplashAsset;
 module.exports.BRANDED_SPLASH_ASSET_NAME = BRANDED_SPLASH_ASSET_NAME;
 module.exports.BRANDED_LAUNCH_STORYBOARD_NAME = BRANDED_LAUNCH_STORYBOARD_NAME;
+module.exports.DISCREET_APP_ICON_NAME = DISCREET_APP_ICON_NAME;
 module.exports.rewriteSplashStoryboardAssetName = rewriteSplashStoryboardAssetName;
 module.exports.rewriteLaunchStoryboardFilename = rewriteLaunchStoryboardFilename;
+module.exports.applyAlternateAppIconBuildSetting = applyAlternateAppIconBuildSetting;
+module.exports.applyAlternateAppIconInfoPlist = applyAlternateAppIconInfoPlist;
+module.exports.ensureDiscreetAppIconAssets = ensureDiscreetAppIconAssets;
 module.exports.applyLaunchStoryboardName = applyLaunchStoryboardName;
