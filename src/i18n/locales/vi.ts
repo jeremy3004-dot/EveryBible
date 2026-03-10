@@ -98,6 +98,11 @@ export const vi = {
     chapter: 'Chương',
     verse: 'Thơ',
     selectTranslation: 'Chọn bản dịch',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Có sẵn',
     translationComingSoon:
       '{{name}} sẽ có sẵn để tải xuống trong bản cập nhật trong tương lai. Hiện tại chỉ có Berean Standard Bible (BSB).',

@@ -36,6 +36,7 @@ export interface BibleTranslation {
   copyright: string;
   isDownloaded: boolean;
   downloadedBooks: string[]; // Book IDs that are downloaded
+  downloadedAudioBooks: string[];
   totalBooks: number;
   sizeInMB: number;
   hasText: boolean;

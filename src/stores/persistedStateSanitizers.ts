@@ -52,6 +52,12 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
         )
       : defaultTranslation.downloadedBooks;
 
+    const downloadedAudioBooks = Array.isArray(persisted.downloadedAudioBooks)
+      ? persisted.downloadedAudioBooks.filter(
+          (bookId): bookId is string => typeof bookId === 'string' && Boolean(getBookById(bookId))
+        )
+      : defaultTranslation.downloadedAudioBooks;
+
     const audioGranularity = validAudioGranularities.has(
       persisted.audioGranularity as AudioGranularity
     )
@@ -65,6 +71,7 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
           ? persisted.isDownloaded
           : defaultTranslation.isDownloaded,
       downloadedBooks,
+      downloadedAudioBooks,
       hasText:
         typeof persisted.hasText === 'boolean' ? persisted.hasText : defaultTranslation.hasText,
       hasAudio:

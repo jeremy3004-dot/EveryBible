@@ -98,6 +98,11 @@ export const pt = {
     chapter: 'Capítulo',
     verse: 'Verso',
     selectTranslation: 'Selecione Tradução',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Disponível',
     translationComingSoon:
       '{{name}} estará disponível para download em uma atualização futura. Atualmente apenas o Berean Standard Bible (BSB) está disponível.',

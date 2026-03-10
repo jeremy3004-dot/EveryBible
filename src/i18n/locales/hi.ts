@@ -98,6 +98,11 @@ export const hi = {
     chapter: 'अध्याय',
     verse: 'कविता',
     selectTranslation: 'अनुवाद का चयन करें',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'उपलब्ध',
     translationComingSoon:
       '{{name}} भविष्य के अपडेट में डाउनलोड के लिए उपलब्ध होगा। वर्तमान में केवल Berean Standard Bible (BSB) उपलब्ध है।',

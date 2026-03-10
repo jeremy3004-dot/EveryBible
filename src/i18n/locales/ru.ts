@@ -98,6 +98,11 @@ export const ru = {
     chapter: 'Глава',
     verse: 'Стих',
     selectTranslation: 'Выберите перевод',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Доступный',
     translationComingSoon:
       '{{name}} будет доступен для загрузки в будущем обновлении. В настоящее время доступен только Berean Standard Bible (BSB).',

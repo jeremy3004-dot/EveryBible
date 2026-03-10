@@ -98,6 +98,11 @@ export const tr = {
     chapter: 'Bölüm',
     verse: 'Ayet',
     selectTranslation: 'Çeviriyi Seçin',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Mevcut',
     translationComingSoon:
       '{{name}} gelecekteki bir güncellemeyle indirilebilecek. Şu anda yalnızca Berean Standard Bible (BSB) mevcuttur.',

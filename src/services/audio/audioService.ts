@@ -1,192 +1,57 @@
-// Bible.is API integration for Audio Bible playback
-// API documentation: https://scripture.api.bible/
-
 import { getTranslationById } from '../../constants';
-import type { BibleIsAudioResponse } from '../../types';
-
-// Bible.is API configuration
-// Note: For production, register at https://www.faithcomesbyhearing.com/ for an API key
-const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
-const BIBLE_IS_API_KEY = process.env.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
-
-// Book ID mapping from app format to Bible.is format
-const BOOK_ID_MAP: Record<string, string> = {
-  GEN: 'GEN',
-  EXO: 'EXO',
-  LEV: 'LEV',
-  NUM: 'NUM',
-  DEU: 'DEU',
-  JOS: 'JOS',
-  JDG: 'JDG',
-  RUT: 'RUT',
-  '1SA': '1SA',
-  '2SA': '2SA',
-  '1KI': '1KI',
-  '2KI': '2KI',
-  '1CH': '1CH',
-  '2CH': '2CH',
-  EZR: 'EZR',
-  NEH: 'NEH',
-  EST: 'EST',
-  JOB: 'JOB',
-  PSA: 'PSA',
-  PRO: 'PRO',
-  ECC: 'ECC',
-  SNG: 'SNG',
-  ISA: 'ISA',
-  JER: 'JER',
-  LAM: 'LAM',
-  EZK: 'EZK',
-  DAN: 'DAN',
-  HOS: 'HOS',
-  JOL: 'JOL',
-  AMO: 'AMO',
-  OBA: 'OBA',
-  JON: 'JON',
-  MIC: 'MIC',
-  NAM: 'NAM',
-  HAB: 'HAB',
-  ZEP: 'ZEP',
-  HAG: 'HAG',
-  ZEC: 'ZEC',
-  MAL: 'MAL',
-  MAT: 'MAT',
-  MRK: 'MRK',
-  LUK: 'LUK',
-  JHN: 'JHN',
-  ACT: 'ACT',
-  ROM: 'ROM',
-  '1CO': '1CO',
-  '2CO': '2CO',
-  GAL: 'GAL',
-  EPH: 'EPH',
-  PHP: 'PHP',
-  COL: 'COL',
-  '1TH': '1TH',
-  '2TH': '2TH',
-  '1TI': '1TI',
-  '2TI': '2TI',
-  TIT: 'TIT',
-  PHM: 'PHM',
-  HEB: 'HEB',
-  JAS: 'JAS',
-  '1PE': '1PE',
-  '2PE': '2PE',
-  '1JN': '1JN',
-  '2JN': '2JN',
-  '3JN': '3JN',
-  JUD: 'JUD',
-  REV: 'REV',
-};
-
-// Cache for audio URLs to avoid repeated API calls
-const audioUrlCache = new Map<string, { url: string; duration: number }>();
-
-function getCacheKey(
-  translationId: string,
-  bookId: string,
-  chapter: number,
-  verse?: number
-): string {
-  return `${translationId}_${bookId}_${chapter}_${verse ?? 'chapter'}`;
-}
+import {
+  getDownloadedChapterAudioUri,
+  type RemoteAudioAsset,
+} from './audioDownloadService';
+import { AUDIO_DOWNLOAD_ROOT_URI, expoAudioFileSystemAdapter } from './audioDownloadStorage';
+import {
+  clearRemoteAudioCache,
+  fetchRemoteChapterAudio,
+  prefetchRemoteChapterAudio,
+} from './audioRemote';
+import { resolvePreferredChapterAudio } from './audioSource';
 
 export async function getChapterAudioUrl(
   translationId: string,
   bookId: string,
   chapter: number,
   verse?: number
-): Promise<{ url: string; duration: number } | null> {
-  const cacheKey = getCacheKey(translationId, bookId, chapter, verse);
+): Promise<RemoteAudioAsset | null> {
+  const translation = getTranslationById(translationId);
+  const canUseLocalChapterAudio = verse == null || translation?.audioGranularity === 'chapter';
 
-  // Check cache first
-  if (audioUrlCache.has(cacheKey)) {
-    return audioUrlCache.get(cacheKey)!;
+  const localUri = canUseLocalChapterAudio
+    ? await getDownloadedChapterAudioUri(
+        translationId,
+        bookId,
+        chapter,
+        expoAudioFileSystemAdapter,
+        AUDIO_DOWNLOAD_ROOT_URI
+      )
+    : null;
+
+  if (localUri) {
+    return resolvePreferredChapterAudio(localUri, null);
   }
 
-  // If no API key is configured, return null
-  if (!BIBLE_IS_API_KEY) {
-    console.warn('Bible.is API key not configured. Audio playback unavailable.');
-    return null;
-  }
-
-  try {
-    const translation = getTranslationById(translationId);
-    const filesetId = translation?.audioFilesetId;
-
-    if (!filesetId) {
-      return null;
-    }
-
-    const bibleIsBookId = BOOK_ID_MAP[bookId] || bookId;
-
-    const response = await fetch(
-      `${BIBLE_IS_API_BASE}/bibles/filesets/${filesetId}/${bibleIsBookId}/${chapter}?v=4&key=${BIBLE_IS_API_KEY}`,
-      {
-        headers: {
-          Accept: 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
-    const data: BibleIsAudioResponse = await response.json();
-
-    if (data.data && data.data.length > 0) {
-      const audioFile =
-        verse == null
-          ? data.data[0]
-          : (data.data.find((file) => verse >= file.verse_start && verse <= file.verse_end) ??
-            data.data[0]);
-      const result = {
-        url: audioFile.path,
-        duration: audioFile.duration * 1000, // Convert to milliseconds
-      };
-
-      // Cache the result
-      audioUrlCache.set(cacheKey, result);
-
-      return result;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error fetching audio URL:', error);
-    return null;
-  }
+  const remoteAudio = await fetchRemoteChapterAudio(translationId, bookId, chapter, verse);
+  return resolvePreferredChapterAudio(localUri, remoteAudio);
 }
 
-// Check if audio is available for a specific translation
 export function isAudioAvailable(translationId: string): boolean {
   const translation = getTranslationById(translationId);
-  return Boolean(translation?.hasAudio && translation.audioFilesetId && BIBLE_IS_API_KEY);
+  return Boolean(translation?.hasAudio);
 }
 
-// Clear the audio URL cache (useful for memory management)
 export function clearAudioCache(): void {
-  audioUrlCache.clear();
+  clearRemoteAudioCache();
 }
 
-// Prefetch audio URLs for upcoming chapters
 export async function prefetchChapterAudio(
   translationId: string,
   bookId: string,
   startChapter: number,
   count: number = 3
 ): Promise<void> {
-  const prefetchPromises: Promise<unknown>[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const chapter = startChapter + i;
-    const cacheKey = getCacheKey(translationId, bookId, chapter);
-
-    if (!audioUrlCache.has(cacheKey)) {
-      prefetchPromises.push(getChapterAudioUrl(translationId, bookId, chapter));
-    }
-  }
-
-  await Promise.allSettled(prefetchPromises);
+  await prefetchRemoteChapterAudio(translationId, bookId, startChapter, count);
 }

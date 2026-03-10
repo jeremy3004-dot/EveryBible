@@ -98,6 +98,11 @@ export const bn = {
     chapter: 'অধ্যায়',
     verse: 'আয়াত',
     selectTranslation: 'অনুবাদ নির্বাচন করুন',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'পাওয়া যায়',
     translationComingSoon:
       '{{name}} ভবিষ্যতের আপডেটে ডাউনলোডের জন্য উপলব্ধ হবে৷ বর্তমানে শুধুমাত্র Berean Standard Bible (BSB) উপলব্ধ।',

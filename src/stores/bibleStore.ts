@@ -1,8 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { bibleTranslations } from '../constants';
+import { bibleBooks, bibleTranslations, getBookById } from '../constants';
 import type { Verse, BibleTranslation, TranslationDownloadProgress } from '../types';
+import {
+  AUDIO_DOWNLOAD_ROOT_URI,
+  downloadAudioBook,
+  downloadAudioTranslation,
+  expoAudioFileSystemAdapter,
+  fetchRemoteChapterAudio,
+} from '../services/audio';
 import { sanitizePersistedBibleState } from './persistedStateSanitizers';
 
 interface BibleState {
@@ -31,9 +38,12 @@ interface BibleState {
   getCurrentTranslationInfo: () => BibleTranslation | undefined;
   downloadTranslation: (translationId: string, bookId?: string) => Promise<void>;
   downloadAllBooks: (translationId: string) => Promise<void>;
+  downloadAudioForBook: (translationId: string, bookId: string) => Promise<void>;
+  downloadAudioForTranslation: (translationId: string) => Promise<void>;
   cancelDownload: () => void;
   deleteTranslation: (translationId: string) => void;
   isBookDownloaded: (translationId: string, bookId: string) => boolean;
+  isAudioBookDownloaded: (translationId: string, bookId: string) => boolean;
 }
 
 export const useBibleStore = create<BibleState>()(
@@ -89,6 +99,64 @@ export const useBibleStore = create<BibleState>()(
         await get().downloadTranslation(translationId);
       },
 
+      downloadAudioForBook: async (translationId: string, bookId: string) => {
+        const translation = get().translations.find((item) => item.id === translationId);
+        const book = getBookById(bookId);
+
+        if (!translation?.hasAudio || !book) {
+          throw new Error('Audio downloads are not available for this book.');
+        }
+
+        await downloadAudioBook({
+          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+          translationId,
+          book,
+          fileSystem: expoAudioFileSystemAdapter,
+          resolveRemoteAudio: fetchRemoteChapterAudio,
+        });
+
+        set((state) => ({
+          translations: state.translations.map((item) =>
+            item.id === translationId
+              ? {
+                  ...item,
+                  downloadedAudioBooks: Array.from(
+                    new Set([...item.downloadedAudioBooks, bookId])
+                  ),
+                }
+              : item
+          ),
+        }));
+      },
+
+      downloadAudioForTranslation: async (translationId: string) => {
+        const translation = get().translations.find((item) => item.id === translationId);
+        if (!translation?.hasAudio) {
+          throw new Error('Audio downloads are not available for this translation.');
+        }
+
+        const result = await downloadAudioTranslation({
+          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+          translationId,
+          books: bibleBooks,
+          fileSystem: expoAudioFileSystemAdapter,
+          resolveRemoteAudio: fetchRemoteChapterAudio,
+        });
+
+        set((state) => ({
+          translations: state.translations.map((item) =>
+            item.id === translationId
+              ? {
+                  ...item,
+                  downloadedAudioBooks: Array.from(
+                    new Set([...item.downloadedAudioBooks, ...result.downloadedBookIds])
+                  ),
+                }
+              : item
+          ),
+        }));
+      },
+
       cancelDownload: () => {
         set({ downloadProgress: null });
       },
@@ -105,6 +173,7 @@ export const useBibleStore = create<BibleState>()(
                 ...t,
                 isDownloaded: false,
                 downloadedBooks: [],
+                downloadedAudioBooks: [],
               };
             }
             return t;
@@ -119,6 +188,11 @@ export const useBibleStore = create<BibleState>()(
         if (!translation) return false;
         if (translation.isDownloaded) return true;
         return translation.downloadedBooks.includes(bookId);
+      },
+
+      isAudioBookDownloaded: (translationId, bookId) => {
+        const translation = get().translations.find((t) => t.id === translationId);
+        return translation?.downloadedAudioBooks.includes(bookId) ?? false;
       },
     }),
     {

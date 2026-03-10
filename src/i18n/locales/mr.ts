@@ -98,6 +98,11 @@ export const mr = {
     chapter: 'धडा',
     verse: 'श्लोक',
     selectTranslation: 'भाषांतर निवडा',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'उपलब्ध',
     translationComingSoon:
       '{{name}} भविष्यातील अपडेटमध्ये डाउनलोडसाठी उपलब्ध असेल. सध्या फक्त Berean Standard Bible (BSB) उपलब्ध आहे.',

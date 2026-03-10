@@ -98,6 +98,11 @@ export const ta = {
     chapter: 'அத்தியாயம்',
     verse: 'வசனம்',
     selectTranslation: 'மொழிபெயர்ப்பைத் தேர்ந்தெடுக்கவும்',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'கிடைக்கும்',
     translationComingSoon:
       'எதிர்கால புதுப்பிப்பில் {{name}} பதிவிறக்கம் செய்யப்படும். தற்போது Berean Standard Bible (BSB) மட்டுமே கிடைக்கிறது.',

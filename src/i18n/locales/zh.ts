@@ -90,6 +90,11 @@ export const zh = {
     chapter: '章',
     verse: '诗',
     selectTranslation: '选择翻译',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: '可用的',
     translationComingSoon:
       '{{name}} 将在未来的更新中提供下载。目前仅 Berean Standard Bible (BSB) 可用。',

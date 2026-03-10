@@ -98,6 +98,11 @@ export const ur = {
     chapter: 'باب',
     verse: 'آیت',
     selectTranslation: 'ترجمہ منتخب کریں۔',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'دستیاب ہے۔',
     translationComingSoon:
       '{{name}} مستقبل کے اپ ڈیٹ میں ڈاؤن لوڈ کے لیے دستیاب ہوگا۔ فی الحال صرف Berean Standard Bible (BSB) دستیاب ہے۔',

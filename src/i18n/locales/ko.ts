@@ -98,6 +98,11 @@ export const ko = {
     chapter: '장',
     verse: '절',
     selectTranslation: '번역 선택',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: '사용 가능',
     translationComingSoon:
       '{{name}}는 향후 업데이트에서 다운로드할 수 있습니다. 현재는 Berean Standard Bible (BSB)만 사용할 수 있습니다.',

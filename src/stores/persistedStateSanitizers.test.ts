@@ -23,6 +23,21 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
+test('sanitizePersistedBibleState preserves valid downloaded audio books only', () => {
+  const sanitized = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'bsb',
+        downloadedAudioBooks: ['GEN', 'INVALID', 'JHN'],
+      },
+    ],
+  });
+
+  const bsb = sanitized.translations.find((translation) => translation.id === 'bsb');
+  assert.ok(bsb);
+  assert.deepEqual(bsb.downloadedAudioBooks, ['GEN', 'JHN']);
+});
+
 test('sanitizePersistedProgressState removes invalid chapter entries', () => {
   const sanitized = sanitizePersistedProgressState({
     chaptersRead: {

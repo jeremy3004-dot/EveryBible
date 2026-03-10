@@ -98,6 +98,11 @@ export const te = {
     chapter: 'అధ్యాయం',
     verse: 'పద్యం',
     selectTranslation: 'అనువాదం ఎంచుకోండి',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'అందుబాటులో ఉంది',
     translationComingSoon:
       '{{name}} భవిష్యత్ నవీకరణలో డౌన్‌లోడ్ చేసుకోవడానికి అందుబాటులో ఉంటుంది. ప్రస్తుతం Berean Standard Bible (BSB) మాత్రమే అందుబాటులో ఉంది.',

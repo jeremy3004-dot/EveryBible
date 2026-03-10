@@ -98,6 +98,11 @@ export const id = {
     chapter: 'Bab',
     verse: 'Ayat',
     selectTranslation: 'Pilih Terjemahan',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Tersedia',
     translationComingSoon:
       '{{name}} akan tersedia untuk diunduh pada pembaruan mendatang. Saat ini hanya Berean Standard Bible (BSB) yang tersedia.',

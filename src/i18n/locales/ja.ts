@@ -98,6 +98,11 @@ export const ja = {
     chapter: '章',
     verse: '詩',
     selectTranslation: '翻訳を選択',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: '利用可能',
     translationComingSoon:
       '{{name}} は将来のアップデートでダウンロードできるようになる予定です。現在はBerean Standard Bible (BSB)のみとなっております。',

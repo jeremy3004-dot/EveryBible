@@ -98,6 +98,11 @@ export const pa = {
     chapter: 'ਅਧਿਆਇ',
     verse: 'ਆਇਤ',
     selectTranslation: 'ਅਨੁਵਾਦ ਚੁਣੋ',
+    manageAudio: 'Manage Audio',
+    audioDownloads: 'Audio Downloads',
+    downloadBibleAudio: 'Download Entire Bible Audio',
+    audioSavedOffline: 'Saved for Offline Listening',
+    audioDownloadFailed: 'We could not download this audio right now.',
     available: 'ਉਪਲਬਧ ਹੈ',
     translationComingSoon:
       '{{name}} ਭਵਿੱਖ ਦੇ ਅੱਪਡੇਟ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਉਪਲਬਧ ਹੋਵੇਗਾ। ਵਰਤਮਾਨ ਵਿੱਚ ਸਿਰਫ Berean Standard Bible (BSB) ਉਪਲਬਧ ਹੈ।',
