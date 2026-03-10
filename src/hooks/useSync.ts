@@ -6,11 +6,12 @@ import { useAuthStore } from '../stores/authStore';
 
 export const useSync = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
   const appState = useRef(AppState.currentState);
   const isSyncing = useRef(false);
 
   const performSync = useCallback(async () => {
-    if (!isAuthenticated || isSyncing.current) return;
+    if (!isInitialized || !isAuthenticated || isSyncing.current) return;
 
     isSyncing.current = true;
     try {
@@ -20,7 +21,7 @@ export const useSync = () => {
     } finally {
       isSyncing.current = false;
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInitialized]);
 
   // Sync on app foreground
   useEffect(() => {
@@ -51,7 +52,7 @@ export const useSync = () => {
 
   // Initial sync when auth changes
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isInitialized && isAuthenticated) {
       void (async () => {
         try {
           await pullFromCloud();
@@ -61,7 +62,7 @@ export const useSync = () => {
         }
       })();
     }
-  }, [isAuthenticated, performSync]);
+  }, [isAuthenticated, isInitialized, performSync]);
 
   return { sync: performSync };
 };

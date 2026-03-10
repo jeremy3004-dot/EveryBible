@@ -1,11 +1,29 @@
 import * as bibleDb from './bibleDatabase';
 import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
+import { shouldLoadDailyScriptureText } from './dailyScripture';
 import { loadBSBData } from './bsbData';
 import { buildDailyScripture } from './presentation';
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
+const MIN_READY_VERSE_COUNT = 20000;
+
+export async function isBibleDataReady(): Promise<boolean> {
+  if (isInitialized) {
+    return true;
+  }
+
+  await bibleDb.initDatabase();
+  const count = await bibleDb.getVerseCount();
+  const ready = count >= MIN_READY_VERSE_COUNT;
+
+  if (ready) {
+    isInitialized = true;
+  }
+
+  return ready;
+}
 
 export async function initBibleData(): Promise<void> {
   if (isInitialized) return;
@@ -21,7 +39,7 @@ export async function initBibleData(): Promise<void> {
     // Check if we already have data
     const count = await bibleDb.getVerseCount();
 
-    if (count < 20000) {
+    if (count < MIN_READY_VERSE_COUNT) {
       // Load full BSB data
       await loadFullBSBData();
     }
@@ -112,14 +130,26 @@ export async function getVerseOfTheDay(): Promise<Verse | null> {
 
 export async function getDailyScripture(
   translation: Pick<BibleTranslation, 'hasText' | 'hasAudio' | 'audioGranularity'>,
-  audioAvailable: boolean
+  audioAvailable: boolean,
+  options?: { allowInitialization?: boolean }
 ): Promise<DailyScripture> {
   const reference = getTodayReference();
+  const allowInitialization = options?.allowInitialization ?? true;
 
   let verse: Verse | null = null;
+  const bibleReady = await isBibleDataReady();
 
-  if (translation.hasText) {
-    await initBibleData();
+  if (
+    shouldLoadDailyScriptureText({
+      translationHasText: translation.hasText,
+      isBibleReady: bibleReady,
+      allowInitialization,
+    })
+  ) {
+    if (!bibleReady) {
+      await initBibleData();
+    }
+
     const verses = await getChapter(reference.bookId, reference.chapter);
     verse = verses.find((item) => item.verse === reference.verse) ?? verses[0] ?? null;
   }

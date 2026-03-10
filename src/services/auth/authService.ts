@@ -3,6 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
+import { createGoogleSignInInitializer } from './googleSignIn';
 import type { AuthErrorCode } from './authErrors';
 import {
   configurationAuthError,
@@ -13,10 +14,11 @@ import {
   unknownAuthError,
 } from './authErrors';
 
-// Configure Google Sign-In on module load
-GoogleSignin.configure({
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+const ensureGoogleSignInConfigured = createGoogleSignInInitializer({
+  env: process.env,
+  configure: (config) => {
+    GoogleSignin.configure(config);
+  },
 });
 
 export interface AuthResult {
@@ -161,7 +163,14 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
   }
 
   try {
-    await GoogleSignin.hasPlayServices();
+    if (!ensureGoogleSignInConfigured()) {
+      return configurationAuthError('Google sign in is not configured');
+    }
+
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices();
+    }
+
     const response = await GoogleSignin.signIn();
     const idToken = response.data?.idToken;
 
@@ -255,11 +264,18 @@ export const getCurrentSession = async () => {
     return { session: null, user: null };
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session?.user) {
-    return { session, user: mapSupabaseUser(session.user) };
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.user) {
+      return { session, user: mapSupabaseUser(session.user) };
+    }
+
+    return { session: null, user: null };
+  } catch (error) {
+    console.error('Failed to restore auth session:', error);
+    return { session: null, user: null };
   }
-  return { session: null, user: null };
 };

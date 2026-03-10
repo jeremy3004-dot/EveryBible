@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  InteractionManager,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +32,7 @@ export function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
@@ -42,30 +51,58 @@ export function HomeScreen() {
   const getYearCount = useProgressStore((state) => state.getYearCount);
 
   useEffect(() => {
-    void loadVerseOfDay();
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      void loadVerseOfDay({ allowInitialization: false });
+    });
+
+    retryTimerRef.current = setTimeout(() => {
+      void loadVerseOfDay({ allowInitialization: false, silent: true });
+    }, 2500);
+
+    return () => {
+      interactionHandle.cancel();
+
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTranslation, audioEnabled]);
 
-  const loadVerseOfDay = async () => {
-    setIsLoadingVerse(true);
+  const loadVerseOfDay = async ({
+    allowInitialization = true,
+    silent = false,
+  }: {
+    allowInitialization?: boolean;
+    silent?: boolean;
+  } = {}) => {
+    if (!silent) {
+      setIsLoadingVerse(true);
+    }
+
     try {
       if (!currentTranslationInfo) {
         setDailyScripture(null);
         return;
       }
 
-      const scripture = await getDailyScripture(currentTranslationInfo, audioEnabled);
+      const scripture = await getDailyScripture(currentTranslationInfo, audioEnabled, {
+        allowInitialization,
+      });
       setDailyScripture(scripture);
     } catch (error) {
       console.error('Error loading verse of the day:', error);
     } finally {
-      setIsLoadingVerse(false);
+      if (!silent) {
+        setIsLoadingVerse(false);
+      }
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadVerseOfDay();
+    await loadVerseOfDay({ allowInitialization: true });
     setRefreshing(false);
   };
 
