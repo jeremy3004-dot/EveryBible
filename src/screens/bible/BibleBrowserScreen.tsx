@@ -16,8 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  oldTestamentBooks,
-  newTestamentBooks,
+  bibleBooks,
   type BibleBook,
   config,
   getBookIcon,
@@ -25,6 +24,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
+import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible';
 import type { BibleStackParamList } from '../../navigation/types';
 import type { BibleTranslation } from '../../types';
 
@@ -32,12 +32,12 @@ type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 56) / 2;
+const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useI18n();
-  const [selectedTestament, setSelectedTestament] = useState<'OT' | 'NT'>('OT');
   const [showTranslationModal, setShowTranslationModal] = useState(false);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
@@ -45,7 +45,6 @@ export function BibleBrowserScreen() {
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
 
   const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
-  const books = selectedTestament === 'OT' ? oldTestamentBooks : newTestamentBooks;
 
   const handleBookPress = (book: BibleBook) => {
     navigation.navigate('ChapterSelector', { bookId: book.id });
@@ -94,11 +93,29 @@ export function BibleBrowserScreen() {
       <Text style={[styles.bookName, { color: colors.biblePrimaryText }]} numberOfLines={2}>
         {item.name}
       </Text>
-      <Text style={[styles.chapterCount, { color: colors.bibleSecondaryText }]}>
-        {item.chapters} {t('bible.chapters')}
-      </Text>
     </TouchableOpacity>
   );
+
+  const renderRow = ({ item }: { item: BibleBrowserRow }) => {
+    if (item.type === 'divider') {
+      return (
+        <View style={styles.dividerRow}>
+          <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
+          <Text style={[styles.dividerLabel, { color: colors.bibleSecondaryText }]}>
+            {t(item.testament === 'NT' ? 'bible.newTestament' : 'bible.oldTestament')}
+          </Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.row}>
+        {item.books.map((book) => renderBookCard({ item: book }))}
+        {item.books.length === 1 ? <View style={styles.bookCardSpacer} /> : null}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView
@@ -135,69 +152,11 @@ export function BibleBrowserScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.toggleWrapper}>
-        <View
-          style={[
-            styles.toggleContainer,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              selectedTestament === 'OT' && {
-                backgroundColor: colors.bibleElevatedSurface,
-              },
-            ]}
-            onPress={() => setSelectedTestament('OT')}
-          >
-            <Text
-              style={[
-                styles.toggleText,
-                {
-                  color:
-                    selectedTestament === 'OT'
-                      ? colors.biblePrimaryText
-                      : colors.bibleSecondaryText,
-                },
-              ]}
-            >
-              {t('bible.oldTestament')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              selectedTestament === 'NT' && {
-                backgroundColor: colors.bibleElevatedSurface,
-              },
-            ]}
-            onPress={() => setSelectedTestament('NT')}
-          >
-            <Text
-              style={[
-                styles.toggleText,
-                {
-                  color:
-                    selectedTestament === 'NT'
-                      ? colors.biblePrimaryText
-                      : colors.bibleSecondaryText,
-                },
-              ]}
-            >
-              {t('bible.newTestament')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <FlatList
-        data={books}
-        renderItem={renderBookCard}
+        data={bibleBrowserRows}
+        renderItem={renderRow}
         keyExtractor={(item) => item.id}
-        numColumns={2}
         contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
       />
 
@@ -345,42 +304,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  toggleWrapper: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    borderRadius: 18,
-    padding: 4,
-    borderWidth: 1,
-  },
-  toggleButton: {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 28,
+    paddingTop: 8,
   },
   row: {
     justifyContent: 'space-between',
     marginBottom: 12,
+    flexDirection: 'row',
   },
   bookCard: {
     width: CARD_WIDTH,
-    minHeight: 152,
+    minHeight: 136,
     borderRadius: 24,
     borderWidth: 1,
     padding: 18,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   iconBadge: {
     width: 54,
@@ -399,11 +339,27 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 22,
-    marginBottom: 10,
   },
-  chapterCount: {
+  bookCardSpacer: {
+    width: CARD_WIDTH,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerLabel: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   modalOverlay: {
     flex: 1,
