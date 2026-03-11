@@ -5,18 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { RootTabParamList } from './types';
 import { HomeStack } from './HomeStack';
 import { BibleStack } from './BibleStack';
+import { LearnStack } from './LearnStack';
 import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
+import { rootTabManifest } from './tabManifest';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
-
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const tabIcons: Record<keyof RootTabParamList, { focused: IconName; unfocused: IconName }> = {
-  Home: { focused: 'home', unfocused: 'home-outline' },
-  Bible: { focused: 'book', unfocused: 'book-outline' },
-  More: { focused: 'ellipsis-horizontal', unfocused: 'ellipsis-horizontal-outline' },
-};
 
 export function TabNavigator() {
   const { colors } = useTheme();
@@ -41,14 +35,24 @@ export function TabNavigator() {
           fontWeight: '500',
         },
         tabBarIcon: ({ focused, color, size }) => {
-          const icons = tabIcons[route.name];
-          const iconName = focused ? icons.focused : icons.unfocused;
+          const tab = rootTabManifest.find((entry) => entry.name === route.name);
+          const iconName = focused ? tab?.focusedIcon : tab?.unfocusedIcon;
+
+          if (!iconName) {
+            return null;
+          }
+
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: t('tabs.home') }} />
       <Tab.Screen name="Bible" component={BibleStack} options={{ tabBarLabel: t('tabs.bible') }} />
+      <Tab.Screen
+        name="Learn"
+        component={LearnStack}
+        options={{ tabBarLabel: t('tabs.harvest') }}
+      />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
     </Tab.Navigator>
   );

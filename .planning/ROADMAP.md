@@ -73,7 +73,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: Wire the learn navigation surface and lesson entrypoints into the active shell
+- [x] 04-01: Wire the learn navigation surface and lesson entrypoints into the active shell
 - [ ] 04-02: Reconcile local group state with synced group flows and migration expectations
 - [ ] 04-03: Verify group-session capture, permissions, and data-protection behavior
 
@@ -101,5 +101,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Startup And Backend Hardening | 2/2 | Awaiting device verification | - |
 | 2. Onboarding And Preference Cohesion | 2/2 | Awaiting device verification | - |
 | 3. Core Reading And Audio Polish | 2/2 | Awaiting device verification | - |
-| 4. Discipleship And Group Rollout | 0/3 | Not started | - |
+| 4. Discipleship And Group Rollout | 1/3 | In progress | - |
 | 5. Release Hardening And Distribution | 0/2 | Not started | - |

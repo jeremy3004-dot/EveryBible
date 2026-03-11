@@ -82,7 +82,7 @@
 | AUDIO-01 | Phase 3 | In verification |
 | AUDIO-02 | Phase 3 | In verification |
 | AUDIO-03 | Phase 3 | In verification |
-| DISC-01 | Phase 4 | Pending |
+| DISC-01 | Phase 4 | In verification |
 | GROUP-01 | Phase 4 | Pending |
 | GROUP-02 | Phase 4 | Pending |
 | REL-01 | Phase 5 | Pending |
@@ -95,4 +95,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after Phase 3 execution evidence was recorded*
+*Last updated: 2026-03-11 after Phase 4 plan 01 execution evidence was recorded*
