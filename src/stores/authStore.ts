@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
+import { resolveInitializedAuthState } from './authSessionState';
 import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
 
 interface AuthState {
@@ -117,18 +118,15 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         try {
-          if (isSupabaseConfigured()) {
+          const hasSupabaseConfig = isSupabaseConfigured();
+          const restoredState = hasSupabaseConfig
+            ? resolveInitializedAuthState(await getCurrentSession())
+            : resolveInitializedAuthState({ session: null, user: null });
+
+          set(restoredState);
+
+          if (hasSupabaseConfig) {
             // Get current session
-            const { session, user } = await getCurrentSession();
-
-            if (session && user) {
-              set({
-                session,
-                user,
-                isAuthenticated: true,
-              });
-            }
-
             if (!authSubscription) {
               const { data } = supabase.auth.onAuthStateChange((_event, session) => {
                 if (session?.user) {

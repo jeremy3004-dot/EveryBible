@@ -164,8 +164,14 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
   }
 
   try {
-    if (!ensureGoogleSignInConfigured()) {
-      return providerUnavailableAuthError('Google sign in is not available on this build yet.');
+    const googleSignInAvailability = ensureGoogleSignInConfigured();
+
+    if (!googleSignInAvailability.available) {
+      return providerUnavailableAuthError(
+        googleSignInAvailability.reason === 'android_client_id_only'
+          ? 'Google sign in requires the web client ID for this build.'
+          : 'Google sign in is not available on this build yet.'
+      );
     }
 
     if (Platform.OS === 'android') {

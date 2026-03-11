@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createGoogleSignInInitializer,
-  resolveGoogleSignInConfig,
-} from './googleSignIn';
+import * as googleSignIn from './googleSignIn';
+
+const { createGoogleSignInInitializer, resolveGoogleSignInConfig } = googleSignIn;
 
 test('resolveGoogleSignInConfig returns null when no client IDs are available', () => {
   assert.equal(resolveGoogleSignInConfig({}), null);
@@ -34,8 +33,8 @@ test('google sign-in initializer configures at most once and only when values ex
     },
   });
 
-  assert.equal(initialize(), true);
-  assert.equal(initialize(), true);
+  assert.deepEqual(initialize(), { available: true });
+  assert.deepEqual(initialize(), { available: true });
   assert.deepEqual(calls, [
     {
       iosClientId: 'ios-client',
@@ -53,6 +52,22 @@ test('google sign-in initializer safely skips configuration when IDs are missing
     },
   });
 
-  assert.equal(initialize(), false);
+  assert.deepEqual(initialize(), {
+    available: false,
+    reason: 'missing_client_ids',
+  });
   assert.deepEqual(calls, []);
+});
+
+test('resolveGoogleSignInAvailability flags android-only client ID configuration', () => {
+  assert.equal(typeof googleSignIn.resolveGoogleSignInAvailability, 'function');
+  assert.deepEqual(
+    googleSignIn.resolveGoogleSignInAvailability({
+      EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: 'android-client',
+    }),
+    {
+      available: false,
+      reason: 'android_client_id_only',
+    }
+  );
 });
