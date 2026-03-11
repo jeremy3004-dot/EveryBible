@@ -8,6 +8,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "node --test --import tsx \"src/**/*.test.ts\"",
+    "test:release": "node --test --import tsx src/services/startup/startupService.test.ts src/stores/authSessionState.test.ts src/services/auth/authErrors.test.ts src/services/auth/googleSignIn.test.ts src/services/sync/syncMerge.test.ts src/services/bible/browserRows.test.ts src/screens/bible/bibleSearchModel.test.ts src/services/bible/dailyScripture.test.ts src/services/audio/audioAvailability.test.ts src/services/audio/audioSource.test.ts src/services/audio/audioDownloadService.test.ts src/services/groups/groupRepository.test.ts src/services/groups/groupService.test.ts src/screens/learn/groupRolloutModel.test.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
