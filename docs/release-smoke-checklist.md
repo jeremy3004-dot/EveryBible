@@ -7,10 +7,10 @@ Use this checklist before calling an EveryBible build release-ready.
 Run:
 
 ```bash
-npm run test:release
+npm run release:verify
 ```
 
-This focused gate covers the highest-signal startup, auth, sync, reading, audio, and group logic checks without requiring the entire suite first.
+This release gate runs lint, typecheck, release metadata contracts, and the focused `test:release` suite that covers the highest-signal startup, auth, sync, reading, audio, and group logic checks.
 
 ## Manual Device Gates
 

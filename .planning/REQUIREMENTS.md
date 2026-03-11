@@ -85,8 +85,8 @@
 | DISC-01 | Phase 4 | In verification |
 | GROUP-01 | Phase 4 | In verification |
 | GROUP-02 | Phase 4 | In verification |
-| REL-01 | Phase 5 | Pending |
-| REL-02 | Phase 5 | Pending |
+| REL-01 | Phase 5 | In verification |
+| REL-02 | Phase 5 | In verification |
 
 **Coverage:**
 - v1 requirements: 21 total
@@ -95,4 +95,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after Phase 4 plan 03 execution evidence was recorded*
+*Last updated: 2026-03-11 after Phase 5 plan 02 execution evidence was recorded*

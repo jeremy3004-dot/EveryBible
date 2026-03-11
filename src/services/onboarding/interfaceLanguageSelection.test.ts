@@ -1,11 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { LanguageCode } from '../../constants/languages';
 import { INTERFACE_LANGUAGE_CODES, interfaceLanguageSearchEngine } from './interfaceLanguageSelection';
 
 test('supports a broad global interface language set without dropping Nepali', () => {
   assert.ok(INTERFACE_LANGUAGE_CODES.length >= 20);
 
-  const requiredLanguageCodes = ['en', 'zh', 'hi', 'es', 'ar', 'fr', 'bn', 'pt', 'ru', 'ur', 'id', 'de', 'ne'];
+  const requiredLanguageCodes: LanguageCode[] = [
+    'en',
+    'zh',
+    'hi',
+    'es',
+    'ar',
+    'fr',
+    'bn',
+    'pt',
+    'ru',
+    'ur',
+    'id',
+    'de',
+    'ne',
+  ];
 
   for (const code of requiredLanguageCodes) {
     assert.ok(INTERFACE_LANGUAGE_CODES.includes(code));

@@ -1,18 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
+const toRootFilePath = (relativePathFromRepoRoot: string): string =>
+  path.join(REPO_ROOT, relativePathFromRepoRoot);
 
 const readRootFile = (relativePathFromRepoRoot: string): string =>
-  readFileSync(new URL(`../../../${relativePathFromRepoRoot}`, import.meta.url), 'utf8');
+  readFileSync(toRootFilePath(relativePathFromRepoRoot), 'utf8');
 
 const readOptionalRootFile = (relativePathFromRepoRoot: string): string | null => {
-  const fileUrl = new URL(`../../../${relativePathFromRepoRoot}`, import.meta.url);
+  const filePath = toRootFilePath(relativePathFromRepoRoot);
 
-  if (!existsSync(fileUrl)) {
+  if (!existsSync(filePath)) {
     return null;
   }
 
-  return readFileSync(fileUrl, 'utf8');
+  return readFileSync(filePath, 'utf8');
 };
 
 const readExpoConfig = (): { expo: { newArchEnabled?: boolean; scheme?: string } } =>

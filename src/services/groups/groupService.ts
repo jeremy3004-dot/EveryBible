@@ -8,6 +8,32 @@ export interface SyncedGroup extends GroupRecord {
 
 const JOIN_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+async function requireSignedInUserForSyncedGroupAction(action: string) {
+  const backendConfigured = isSupabaseConfigured();
+  const {
+    data: { user },
+    error: authError,
+  } = backendConfigured
+    ? await supabase.auth.getUser()
+    : { data: { user: null }, error: null };
+
+  if (authError) {
+    throw new Error(authError.message);
+  }
+
+  assertSyncedGroupServiceReady({
+    backendConfigured,
+    signedIn: Boolean(user),
+    action,
+  });
+
+  if (!user) {
+    throw new Error(`You must be signed in to ${action}`);
+  }
+
+  return user;
+}
+
 function generateJoinCode(): string {
   let code = '';
 
@@ -165,23 +191,7 @@ export async function updateSyncedGroupLesson(
   groupId: string,
   values: Pick<GroupRecord, 'current_course_id' | 'current_lesson_id'>
 ): Promise<GroupRecord> {
-  const backendConfigured = isSupabaseConfigured();
-  const {
-    data: { user },
-    error: authError,
-  } = backendConfigured
-    ? await supabase.auth.getUser()
-    : { data: { user: null }, error: null };
-
-  if (authError) {
-    throw new Error(authError.message);
-  }
-
-  assertSyncedGroupServiceReady({
-    backendConfigured,
-    signedIn: Boolean(user),
-    action: 'update a group lesson',
-  });
+  await requireSignedInUserForSyncedGroupAction('update a group lesson');
 
   const { data, error } = await supabase
     .from('groups')
@@ -203,23 +213,7 @@ export async function recordSyncedGroupSession(values: {
   lessonId: string;
   notes?: Record<string, string>;
 }): Promise<GroupSessionRecord> {
-  const backendConfigured = isSupabaseConfigured();
-  const {
-    data: { user },
-    error: authError,
-  } = backendConfigured
-    ? await supabase.auth.getUser()
-    : { data: { user: null }, error: null };
-
-  if (authError) {
-    throw new Error(authError.message);
-  }
-
-  assertSyncedGroupServiceReady({
-    backendConfigured,
-    signedIn: Boolean(user),
-    action: 'record a session',
-  });
+  const user = await requireSignedInUserForSyncedGroupAction('record a session');
 
   const insert: InsertTables<'group_sessions'> = {
     group_id: values.groupId,

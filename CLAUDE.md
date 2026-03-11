@@ -78,6 +78,9 @@ npm run ios            # Build and run on iOS simulator (requires Xcode)
 npm run android        # Build and run on Android emulator
 npm run web            # Start web version (limited functionality)
 npm run lint           # ESLint check
+npm run typecheck      # TypeScript compile check
+npm run test:release   # Focused release regression suite
+npm run release:verify # Lint + typecheck + release metadata + release regressions
 npm run lint:fix       # Auto-fix ESLint issues
 npm run format         # Format code with Prettier
 npm run format:check   # Check code formatting
@@ -86,11 +89,11 @@ npm run format:check   # Check code formatting
 ### EAS Build & Deploy
 ```bash
 eas build --platform ios --profile development    # Dev build with dev client
-eas build --platform ios --profile preview        # Preview build (TestFlight)
-eas build --platform ios --profile production     # Production build
+eas build --platform ios --profile preview        # Internal distribution build
+eas build --platform ios --profile production     # Store/TestFlight submission build
 eas build --platform android --profile production # Android production build
-eas submit --platform ios                         # Submit iOS to App Store
-eas submit --platform android                     # Submit Android to Play Store
+eas submit --platform ios --profile production    # Submit iOS to App Store/TestFlight
+eas submit --platform android --profile production # Submit Android to Play Store
 ```
 
 ### Supabase
@@ -208,7 +211,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 ### External Dependencies
 - **Supabase:** Backend (auth, profiles, progress, groups). Tables: profiles, user_progress, groups, group_members, group_sessions
 - **Bible.is API:** Audio Bible streaming (optional, requires API key)
-- **Google OAuth:** Sign in with Google (requires Web/iOS/Android client IDs)
+- **Google OAuth:** Sign in with Google (uses the supported web + iOS client IDs)
 - **Apple Sign-In:** iOS native authentication (configured in app.json)
 - **Expo Notifications:** Push notifications for reminders and group updates
 - **SQLite:** Local Bible database (bibleDatabase.ts manages this)
@@ -216,7 +219,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 ### Known Issues & Workarounds
 - **iOS Audio Playback:** Requires UIBackgroundModes: ['audio'] in app.json for background play
 - **Android Edge-to-Edge:** predictiveBackGestureEnabled: false to avoid nav issues
-- **Google Sign-In:** Needs all 3 client IDs (web for Supabase, iOS/Android for native)
+- **Google Sign-In:** Uses the supported web + iOS client IDs; Android-only client ID setup is not supported here
 - **Expo Go Limitations:** Dev builds required for Apple Sign-In, Google Sign-In, notifications
 - **CocoaPods:** May need manual installation (see global CLAUDE.md for fix)
 - **AsyncStorage Persistence:** Zustand stores persist user/session but NOT session tokens (security)
@@ -399,7 +402,6 @@ EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=xxx
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=xxx
-EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=xxx
 ```
 
 ### Auth Methods
@@ -554,7 +556,7 @@ const {
 ### EAS Configuration
 See `eas.json` for build profiles:
 - **development:** Dev client, internal distribution
-- **preview:** Preview builds for TestFlight/internal testing
+- **preview:** Internal distribution builds (not TestFlight)
 - **production:** App Store/Play Store builds
 
 ### Build Process
@@ -565,9 +567,12 @@ eas build --platform ios --profile production
 # Android Production
 eas build --platform android --profile production
 
+# Preflight iOS submission artifact
+bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
+
 # Submit to stores
-eas submit --platform ios
-eas submit --platform android
+eas submit --platform ios --profile production
+eas submit --platform android --profile production
 ```
 
 ### App Store Configuration
@@ -587,7 +592,7 @@ eas submit --platform android
 2. Test on both platforms
 3. Run lint and format checks
 4. Build with EAS (production profile)
-5. Test builds via TestFlight/Internal Testing
+5. Test builds via internal distribution or TestFlight, depending on profile
 6. Submit to stores
 7. Monitor crash reports
 
@@ -620,7 +625,8 @@ cd ios && pod install && cd ..
 - Verify UIBackgroundModes: ['audio'] in app.json
 
 **Google Sign-In fails:**
-- Need all 3 client IDs (web, iOS, Android)
+- Need the supported client IDs (web and iOS)
+- Android-only Google client ID setup is not supported in this repo
 - Web client ID must be configured in Supabase
 
 **TypeScript errors after dependency update:**
