@@ -38,6 +38,18 @@ yarn-error.*
 
 # generated native folders
 /ios
+!/ios/
+/ios/*
+!/ios/EveryBible/
+!/ios/EveryBible/**
+!/ios/EveryBible.xcodeproj/
+/ios/EveryBible.xcodeproj/*
+!/ios/EveryBible.xcodeproj/project.pbxproj
+!/ios/EveryBible.xcodeproj/xcshareddata/
+!/ios/EveryBible.xcodeproj/xcshareddata/xcschemes/
+!/ios/EveryBible.xcodeproj/xcshareddata/xcschemes/EveryBible.xcscheme
+!/ios/Podfile
+!/ios/Podfile.properties.json
 /android
 .env
 .claude-flow/
