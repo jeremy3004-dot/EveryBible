@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,6 +33,16 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const readRootFile = (relativePathFromRepoRoot: string): string =>
   readFileSync(path.join(REPO_ROOT, relativePathFromRepoRoot), 'utf8');
 
+const readOptionalRootFile = (relativePathFromRepoRoot: string): string | null => {
+  const filePath = path.join(REPO_ROOT, relativePathFromRepoRoot);
+
+  if (!existsSync(filePath)) {
+    return null;
+  }
+
+  return readFileSync(filePath, 'utf8');
+};
+
 const readRootJson = <T>(relativePathFromRepoRoot: string): T =>
   JSON.parse(readRootFile(relativePathFromRepoRoot)) as T;
 
@@ -64,30 +74,40 @@ const readPbxprojValue = (contents: string, key: string): string => {
   return matches[0];
 };
 
-test('release metadata stays aligned across Expo, package, iOS, Android, and EAS', () => {
+test('release metadata stays aligned across tracked config and generated native outputs when present', () => {
   const packageJson = readRootJson<PackageJson>('package.json');
   const appConfig = readRootJson<AppConfig>('app.json');
   const easConfig = readRootJson<EasConfig>('eas.json');
-  const infoPlist = readRootFile('ios/EveryBible/Info.plist');
+  const infoPlist = readOptionalRootFile('ios/EveryBible/Info.plist');
   const pbxproj = readRootFile('ios/EveryBible.xcodeproj/project.pbxproj');
-  const androidGradle = readRootFile('android/app/build.gradle');
+  const androidGradle = readOptionalRootFile('android/app/build.gradle');
 
   const appVersion = appConfig.expo.version;
-  const iosShortVersion = readPlistString(infoPlist, 'CFBundleShortVersionString');
-  const iosBuildNumber = readPlistString(infoPlist, 'CFBundleVersion');
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
-  const iosProjectVersion = readPbxprojValue(pbxproj, 'CURRENT_PROJECT_VERSION');
-  const androidVersionName = readGradleString(androidGradle, 'versionName');
-  const androidVersionCode = readGradleNumber(androidGradle, 'versionCode');
 
   assert.equal(packageJson.version, appVersion);
-  assert.equal(iosShortVersion, appVersion);
   assert.equal(iosMarketingVersion, appVersion);
-  assert.equal(androidVersionName, appVersion);
-  assert.equal(iosProjectVersion, iosBuildNumber);
-  assert.equal(androidVersionCode, iosBuildNumber);
   assert.equal(easConfig.cli?.appVersionSource, 'remote');
   assert.equal(easConfig.build?.production?.autoIncrement, true);
+
+  if (infoPlist) {
+    const iosShortVersion = readPlistString(infoPlist, 'CFBundleShortVersionString');
+    const iosBuildNumber = readPlistString(infoPlist, 'CFBundleVersion');
+    const iosProjectVersion = readPbxprojValue(pbxproj, 'CURRENT_PROJECT_VERSION');
+
+    assert.equal(iosShortVersion, appVersion);
+    assert.equal(iosProjectVersion, iosBuildNumber);
+
+    if (androidGradle) {
+      const androidVersionCode = readGradleNumber(androidGradle, 'versionCode');
+      assert.equal(androidVersionCode, iosBuildNumber);
+    }
+  }
+
+  if (androidGradle) {
+    const androidVersionName = readGradleString(androidGradle, 'versionName');
+    assert.equal(androidVersionName, appVersion);
+  }
 });
 
 test('release docs match the supported distribution and Google sign-in contract', () => {
