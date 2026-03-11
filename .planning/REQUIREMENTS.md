@@ -66,11 +66,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| SYNC-01 | Phase 1 | Pending |
-| SYNC-02 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | In verification |
+| AUTH-02 | Phase 1 | In verification |
+| AUTH-03 | Phase 1 | In verification |
+| SYNC-01 | Phase 1 | In verification |
+| SYNC-02 | Phase 1 | In verification |
 | LOCL-01 | Phase 2 | Pending |
 | LOCL-02 | Phase 2 | Pending |
 | PRIV-01 | Phase 2 | Pending |
@@ -95,4 +95,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial brownfield definition*
+*Last updated: 2026-03-11 after Phase 1 execution evidence was recorded*
