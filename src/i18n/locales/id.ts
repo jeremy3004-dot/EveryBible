@@ -301,6 +301,16 @@ export const id = {
     localGroupsDescription: 'Grup-grup ini hanya disimpan secara lokal dan belum disinkronkan.',
     localOnly: 'Hanya lokal',
     noLocalGroups: 'Belum ada grup lokal yang disimpan di perangkat ini.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: 'Masuk sekarang agar akun Anda siap ketika grup yang disinkronkan diaktifkan.',
     groupSyncReady: 'Akun Anda siap untuk grup yang disinkronkan setelah peluncuran dimulai.',
     scriptureNavigationUnavailable: 'Navigasi Alkitab dari pelajaran pelatihan akan segera hadir.',

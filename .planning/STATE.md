@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 4 of 5 (Discipleship And Group Rollout)
-Plan: 1 of 3 in current phase
-Status: Phase 4 in progress after mounting the live Harvest tab
-Last activity: 2026-03-11 — Executed Phase 4 plan 01 to mount LearnStack in the active root shell with passing automated checks
+Plan: 2 of 3 in current phase
+Status: Phase 4 in progress after separating local and synced group surfaces
+Last activity: 2026-03-11 — Executed Phase 4 plan 02 to preserve local groups while making synced rollout state explicit with passing automated checks
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: n/a (first execution session)
 - Total execution time: n/a
 
@@ -30,11 +30,11 @@ Progress: [███████░░░] 70%
 | 1. Startup And Backend Hardening | 2 | n/a | n/a |
 | 2. Onboarding And Preference Cohesion | 2 | n/a | n/a |
 | 3. Core Reading And Audio Polish | 2 | n/a | n/a |
-| 4. Discipleship And Group Rollout | 1 | n/a | n/a |
+| 4. Discipleship And Group Rollout | 2 | n/a | n/a |
 
 **Recent Trend:**
-- Last 5 plans: 02-01, 02-02, 03-01, 03-02, 04-01
-- Trend: Stable execution with growing surface-area confidence
+- Last 5 plans: 02-02, 03-01, 03-02, 04-01, 04-02
+- Trend: Stable execution with honest rollout boundaries and growing surface-area confidence
 
 *Updated after each plan completion*
 
@@ -52,6 +52,7 @@ Recent decisions affecting current work:
 - Phase 3: Expose local Bible search through the live browser instead of adding a separate search screen or data path
 - Phase 3: Gate audio affordances by real remote-or-offline capability rather than by translation metadata alone
 - Phase 4: Mount the existing LearnStack directly in the root shell before attempting deeper discipleship or group rewrites
+- Phase 4: Use a read-side group repository boundary so preserved local groups stay usable while synced groups remain honest about rollout status
 
 ### Pending Todos
 
@@ -63,10 +64,10 @@ None yet.
 - Phase 2 still needs manual device validation for locale completion, discreet-mode relock, and reminder delivery
 - Phase 3 still needs manual device validation for offline search, daily audio CTA behavior, and remote-vs-offline audio transitions
 - Phase 4 still needs manual device validation for Harvest-tab navigation, lesson entry, and back-stack behavior
-- Group study currently spans both local-state and synced backend models
+- Phase 4 still needs backend/session validation for synced group recording and permissions
 
 ## Session Continuity
 
-Last session: 2026-03-11 19:22 +0545
-Stopped at: Phase 4 plan 01 complete; next work is local-vs-synced group-surface reconciliation
-Resume file: .planning/phases/04-discipleship-and-group-rollout/04-01-SUMMARY.md
+Last session: 2026-03-11 20:08 +0545
+Stopped at: Phase 4 plan 02 complete; next work is synced group-session guardrails and permission verification
+Resume file: .planning/phases/04-discipleship-and-group-rollout/04-02-SUMMARY.md

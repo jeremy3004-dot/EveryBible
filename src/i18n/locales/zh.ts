@@ -284,6 +284,16 @@ export const zh = {
     localGroupsDescription: '这些组仅保存在本地，尚未同步。',
     localOnly: '仅限本地',
     noLocalGroups: '此设备上尚未保存任何本地组。',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: '立即登录，以便在启用同步群组时您的帐户已准备就绪。',
     groupSyncReady: '一旦推出开始，您的帐户就可以同步群组了。',
     scriptureNavigationUnavailable: '培训课程的圣经导航即将推出。',

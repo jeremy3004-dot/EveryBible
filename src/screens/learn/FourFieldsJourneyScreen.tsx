@@ -10,8 +10,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { LearnStackParamList } from '../../navigation/types';
 import { FIELD_ORDER, fieldInfo, fourFieldsCourses } from '../../data/fourFieldsCourses';
 import { JourneyPath } from '../../components/fourfields';
+import { isSupabaseConfigured } from '../../services/supabase';
+import { useAuthStore } from '../../stores/authStore';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import type { FieldType } from '../../types/course';
+import { getGroupRolloutModel } from './groupRolloutModel';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 
@@ -19,6 +22,7 @@ export function FourFieldsJourneyScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
   const {
     getCompletedLessonsCount,
     getTotalLessonsCount,
@@ -26,6 +30,13 @@ export function FourFieldsJourneyScreen() {
     isFieldUnlocked,
     getNextLesson,
   } = useFourFieldsStore();
+  const localGroupCount = useFourFieldsStore((state) => state.groups.length);
+  const groupRollout = getGroupRolloutModel({
+    isSignedIn: Boolean(user),
+    localGroupCount,
+    syncFeatureEnabled: config.features.studyGroupsSync,
+    backendConfigured: isSupabaseConfigured(),
+  });
 
   const completedCount = getCompletedLessonsCount();
   const totalCount = getTotalLessonsCount();
@@ -181,7 +192,7 @@ export function FourFieldsJourneyScreen() {
           </View>
         )}
 
-        {!config.features.studyGroupsSync && (
+        {groupRollout.showGroupEntry ? (
           <TouchableOpacity
             style={[
               styles.groupsCard,
@@ -210,7 +221,7 @@ export function FourFieldsJourneyScreen() {
               {t('harvest.groupPreviewCta')}
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

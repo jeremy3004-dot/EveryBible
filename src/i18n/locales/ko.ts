@@ -296,6 +296,16 @@ export const ko = {
     localGroupsDescription: '이러한 그룹은 로컬에만 저장되며 아직 동기화되지 않습니다.',
     localOnly: '로컬 전용',
     noLocalGroups: '아직 이 기기에 저장된 로컬 그룹이 없습니다.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: '동기화된 그룹이 활성화되면 계정이 준비되도록 지금 로그인하세요.',
     groupSyncReady: '출시가 시작되면 계정을 동기화된 그룹에 사용할 수 있습니다.',
     scriptureNavigationUnavailable: '훈련 수업의 성경 탐색이 곧 제공될 예정입니다.',

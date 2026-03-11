@@ -294,6 +294,16 @@ export const ar = {
     localGroupsDescription: 'يتم حفظ هذه المجموعات محليًا فقط ولم تتم مزامنتها بعد.',
     localOnly: 'محلي فقط',
     noLocalGroups: 'لم يتم حفظ أي مجموعات محلية على هذا الجهاز حتى الآن.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: 'قم بتسجيل الدخول الآن حتى يصبح حسابك جاهزًا عند تمكين المجموعات المتزامنة.',
     groupSyncReady: 'حسابك جاهز للمجموعات المتزامنة بمجرد بدء الطرح.',
     scriptureNavigationUnavailable: 'الملاحة الكتاب المقدس من دروس التدريب قريبا.',

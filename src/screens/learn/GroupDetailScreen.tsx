@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants';
+import { colors, config } from '../../constants';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
 import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
+import { buildGroupDetailSnapshot, getSyncedGroup, loadGroupDetailSnapshot } from '../../services/groups';
+import { isSupabaseConfigured } from '../../services/supabase';
+import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'GroupDetail'>;
@@ -26,18 +29,113 @@ export function GroupDetailScreen() {
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
 
-  const { getGroup, leaveGroup, getGroupProgress } = useFourFieldsStore();
+  const groups = useFourFieldsStore((state) => state.groups);
+  const groupProgress = useFourFieldsStore((state) => state.groupProgress);
+  const leaveGroup = useFourFieldsStore((state) => state.leaveGroup);
   const user = useAuthStore((state) => state.user);
-  const userId = user?.uid || 'anonymous';
+  const userId = user?.uid ?? null;
+  const isSignedIn = Boolean(user);
+  const syncFeatureEnabled = config.features.studyGroupsSync;
+  const backendConfigured = isSupabaseConfigured();
+  const localGroup = groups.find((candidate) => candidate.id === groupId) ?? null;
+  const localSnapshot = buildGroupDetailSnapshot({
+    localGroup,
+    localProgress: localGroup ? groupProgress[groupId] ?? null : null,
+    syncedGroup: null,
+    currentUserId: userId,
+  });
+  const remoteRequestKey =
+    localSnapshot == null && syncFeatureEnabled && backendConfigured && isSignedIn
+      ? `${groupId}:${user?.uid ?? 'signed-in'}`
+      : null;
+  const [remoteGroupState, setRemoteGroupState] = useState<{
+    key: string | null;
+    group: GroupDetailSnapshot | null;
+    error: string | null;
+  }>({
+    key: null,
+    group: null,
+    error: null,
+  });
 
-  const group = getGroup(groupId);
-  const groupProgress = getGroupProgress(groupId);
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!remoteRequestKey) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void loadGroupDetailSnapshot({
+      groupId,
+      localGroups: [],
+      localProgress: {},
+      syncFeatureEnabled,
+      backendConfigured,
+      signedIn: isSignedIn,
+      currentUserId: userId,
+      getSyncedGroup,
+    })
+      .then((snapshot) => {
+        if (!cancelled) {
+          setRemoteGroupState({
+            key: remoteRequestKey,
+            group: snapshot,
+            error: null,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRemoteGroupState({
+          key: remoteRequestKey,
+          group: null,
+          error: error instanceof Error ? error.message : 'Unable to load group.',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    backendConfigured,
+    groupId,
+    isSignedIn,
+    remoteRequestKey,
+    syncFeatureEnabled,
+    userId,
+  ]);
+
+  const group =
+    localSnapshot ??
+    (remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
+      ? remoteGroupState.group
+      : null);
+  const loadError =
+    remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
+      ? remoteGroupState.error
+      : null;
+  const isLoading = localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Loading group...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!group) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Group not found</Text>
+          <Text style={styles.errorText}>{loadError ?? 'Group not found'}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.errorLink}>Go back</Text>
           </TouchableOpacity>
@@ -46,14 +144,9 @@ export function GroupDetailScreen() {
     );
   }
 
-  const currentMember = group.members.find((m) => m.id === userId);
-  const isLeader = currentMember?.role === 'leader';
-  const currentCourse = fourFieldsCourses.find(
-    (c) => c.id === group.currentCourseId
-  );
-  const currentLesson = currentCourse?.lessons.find(
-    (l) => l.id === group.currentLessonId
-  );
+  const isLocalGroup = group.source === 'local';
+  const currentCourse = fourFieldsCourses.find((course) => course.id === group.currentCourseId);
+  const currentLesson = currentCourse?.lessons.find((lesson) => lesson.id === group.currentLessonId);
   const currentFieldInfo = currentCourse ? fieldInfo[currentCourse.field] : null;
 
   const handleShareCode = async () => {
@@ -67,13 +160,25 @@ export function GroupDetailScreen() {
   };
 
   const handleStartSession = () => {
+    if (!isLocalGroup) {
+      Alert.alert(
+        'Synced sessions are still rolling out',
+        'This synced group is visible now, but secure session recording is still being verified for this build.'
+      );
+      return;
+    }
+
     navigation.navigate('GroupSession', { groupId });
   };
 
   const handleLeaveGroup = () => {
+    if (!isLocalGroup || !userId) {
+      return;
+    }
+
     Alert.alert(
-      isLeader ? 'Leave Group' : 'Leave Group',
-      isLeader
+      'Leave Group',
+      group.isLeader
         ? 'As the leader, leaving will transfer leadership to the next oldest member. Are you sure?'
         : 'Are you sure you want to leave this group?',
       [
@@ -90,7 +195,7 @@ export function GroupDetailScreen() {
     );
   };
 
-  const completedCount = groupProgress?.completedLessons.length || 0;
+  const completedCount = group.completedLessonCount;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -138,55 +243,85 @@ export function GroupDetailScreen() {
                 </Text>
               </View>
               <Text style={styles.progressText}>
-                {completedCount} lessons completed
+                {completedCount === null
+                  ? 'Synced progress will appear after session rollout is enabled.'
+                  : `${completedCount} lessons completed`}
               </Text>
             </View>
             <Text style={styles.currentTitle}>{currentCourse.title}</Text>
             <Text style={styles.currentLesson}>
               Next: {currentLesson.title}
             </Text>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={handleStartSession}
-            >
-              <Ionicons name="play" size={20} color="#fff" />
-              <Text style={styles.startButtonText}>Start Group Session</Text>
-            </TouchableOpacity>
+            {isLocalGroup ? (
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={handleStartSession}
+              >
+                <Ionicons name="play" size={20} color="#fff" />
+                <Text style={styles.startButtonText}>Start Group Session</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.readOnlyCard}>
+                <View style={styles.readOnlyHeader}>
+                  <Ionicons name="lock-closed-outline" size={18} color={colors.accentGreen} />
+                  <Text style={styles.readOnlyTitle}>Synced group preview</Text>
+                </View>
+                <Text style={styles.readOnlyBody}>
+                  Secure synced session recording is still being verified for this build.
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
         {/* Members Section */}
         <Text style={styles.sectionTitle}>
-          Members ({group.members.length})
+          Members ({group.memberCount})
         </Text>
-        {group.members.map((member) => {
-          const isCurrentUser = member.id === userId;
-          return (
-            <View key={member.id} style={styles.memberCard}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>
-                  {member.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.memberInfo}>
-                <View style={styles.memberNameRow}>
-                  <Text style={styles.memberName}>
-                    {member.name}
-                    {isCurrentUser && ' (you)'}
+        {isLocalGroup ? (
+          group.members.map((member) => {
+            const isCurrentUser = member.id === userId;
+
+            return (
+              <View key={member.id} style={styles.memberCard}>
+                <View style={styles.memberAvatar}>
+                  <Text style={styles.memberInitial}>
+                    {(member.name ?? '?').charAt(0).toUpperCase()}
                   </Text>
-                  {member.role === 'leader' && (
-                    <View style={styles.leaderBadge}>
-                      <Text style={styles.leaderBadgeText}>Leader</Text>
-                    </View>
-                  )}
                 </View>
-                <Text style={styles.memberJoined}>
-                  Joined {new Date(member.joinedAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.memberInfo}>
+                  <View style={styles.memberNameRow}>
+                    <Text style={styles.memberName}>
+                      {member.name}
+                      {isCurrentUser && ' (you)'}
+                    </Text>
+                    {member.role === 'leader' && (
+                      <View style={styles.leaderBadge}>
+                        <Text style={styles.leaderBadgeText}>Leader</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.memberJoined}>
+                    {member.joinedAt == null
+                      ? 'Joined recently'
+                      : `Joined ${new Date(member.joinedAt).toLocaleDateString()}`}
+                  </Text>
+                </View>
               </View>
+            );
+          })
+        ) : (
+          <View style={styles.readOnlyCard}>
+            <View style={styles.readOnlyHeader}>
+              <Ionicons name="people-outline" size={18} color={colors.accentGreen} />
+              <Text style={styles.readOnlyTitle}>Read-only synced membership</Text>
             </View>
-          );
-        })}
+            <Text style={styles.readOnlyBody}>
+              This synced group came from your signed-in account. Member names and synced lesson
+              history will appear here as rollout continues.
+            </Text>
+          </View>
+        )}
 
         {/* About the 3/3rds Format */}
         <View style={styles.infoCard}>
@@ -211,13 +346,15 @@ export function GroupDetailScreen() {
         </View>
 
         {/* Leave Group */}
-        <TouchableOpacity
-          style={styles.leaveButton}
-          onPress={handleLeaveGroup}
-        >
-          <Ionicons name="exit-outline" size={20} color={colors.error} />
-          <Text style={styles.leaveButtonText}>Leave Group</Text>
-        </TouchableOpacity>
+        {isLocalGroup && userId ? (
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={handleLeaveGroup}
+          >
+            <Ionicons name="exit-outline" size={20} color={colors.error} />
+            <Text style={styles.leaveButtonText}>Leave Group</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -348,6 +485,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  readOnlyCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+  },
+  readOnlyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  readOnlyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primaryText,
+  },
+  readOnlyBody: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.secondaryText,
   },
   sectionTitle: {
     fontSize: 18,

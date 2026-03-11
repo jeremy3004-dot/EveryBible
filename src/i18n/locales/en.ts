@@ -299,6 +299,16 @@ export const en = {
     localGroupsDescription: 'These groups are saved locally only and are not yet synced.',
     localOnly: 'Local only',
     noLocalGroups: 'No local groups saved on this device yet.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: 'Sign in now so your account is ready when synced groups are enabled.',
     groupSyncReady: 'Your account is ready for synced groups once rollout begins.',
     scriptureNavigationUnavailable: 'Bible navigation from training lessons is coming soon.',

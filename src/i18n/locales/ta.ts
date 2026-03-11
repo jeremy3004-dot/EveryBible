@@ -302,6 +302,16 @@ export const ta = {
       'இந்தக் குழுக்கள் உள்நாட்டில் மட்டுமே சேமிக்கப்பட்டு இன்னும் ஒத்திசைக்கப்படவில்லை.',
     localOnly: 'உள்ளூர் மட்டும்',
     noLocalGroups: 'இந்தச் சாதனத்தில் இதுவரை உள்ளூர் குழுக்கள் எதுவும் சேமிக்கப்படவில்லை.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'இப்போது உள்நுழையவும், ஒத்திசைக்கப்பட்ட குழுக்கள் இயக்கப்பட்டால் உங்கள் கணக்கு தயாராக இருக்கும்.',
     groupSyncReady:

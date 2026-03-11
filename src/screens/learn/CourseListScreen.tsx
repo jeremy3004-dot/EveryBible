@@ -8,8 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { config } from '../../constants';
 import type { LearnStackParamList } from '../../navigation/types';
+import { isSupabaseConfigured } from '../../services/supabase';
+import { useAuthStore } from '../../stores/authStore';
 import { fourFieldsCourses } from '../../data/fourFieldsCourses';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
+import { getGroupRolloutModel } from './groupRolloutModel';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 
@@ -17,7 +20,15 @@ export function CourseListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
   const { getCompletedLessonsCount, getTotalLessonsCount, getNextLesson } = useFourFieldsStore();
+  const localGroupCount = useFourFieldsStore((state) => state.groups.length);
+  const groupRollout = getGroupRolloutModel({
+    isSignedIn: Boolean(user),
+    localGroupCount,
+    syncFeatureEnabled: config.features.studyGroupsSync,
+    backendConfigured: isSupabaseConfigured(),
+  });
 
   const completedLessons = getCompletedLessonsCount();
   const totalLessons = getTotalLessonsCount();
@@ -98,7 +109,7 @@ export function CourseListScreen() {
           </View>
         </TouchableOpacity>
 
-        {!config.features.studyGroupsSync && (
+        {groupRollout.showGroupEntry ? (
           <TouchableOpacity
             style={[
               styles.secondaryCard,
@@ -127,7 +138,7 @@ export function CourseListScreen() {
               {t('harvest.groupPreviewCta')}
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

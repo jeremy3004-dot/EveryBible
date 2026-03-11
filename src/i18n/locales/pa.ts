@@ -301,6 +301,16 @@ export const pa = {
       "ਇਹ ਸਮੂਹ ਸਿਰਫ਼ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸੁਰੱਖਿਅਤ ਕੀਤੇ ਗਏ ਹਨ ਅਤੇ ਅਜੇ ਤੱਕ ਸਮਕਾਲੀ ਨਹੀਂ ਹਨ।",
     localOnly: 'ਸਿਰਫ਼ ਸਥਾਨਕ',
     noLocalGroups: "ਇਸ ਡਿਵਾਈਸ 'ਤੇ ਅਜੇ ਤੱਕ ਕੋਈ ਸਥਾਨਕ ਸਮੂਹ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੇ ਗਏ ਹਨ।",
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       "ਹੁਣੇ ਸਾਈਨ ਇਨ ਕਰੋ ਤਾਂ ਕਿ ਸਿੰਕ ਕੀਤੇ ਸਮੂਹਾਂ ਦੇ ਸਮਰੱਥ ਹੋਣ 'ਤੇ ਤੁਹਾਡਾ ਖਾਤਾ ਤਿਆਰ ਹੋਵੇ।",
     groupSyncReady: "ਰੋਲਆਊਟ ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਤੁਹਾਡਾ ਖਾਤਾ ਸਿੰਕ ਕੀਤੇ ਸਮੂਹਾਂ ਲਈ ਤਿਆਰ ਹੈ।",

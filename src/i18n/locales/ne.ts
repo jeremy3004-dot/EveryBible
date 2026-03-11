@@ -300,6 +300,16 @@ export const ne = {
       'यी समूहहरू स्थानीय रूपमा मात्र बचत गरिएका छन् र अझै सिङ्क गरिएका छैनन्।',
     localOnly: 'स्थानीय मात्र',
     noLocalGroups: 'यस यन्त्रमा अहिलेसम्म कुनै पनि स्थानीय समूहहरू सुरक्षित गरिएको छैन।',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'अब साइन इन गर्नुहोस् ताकि सिंक गरिएका समूहहरू सक्षम हुँदा तपाईंको खाता तयार हुन्छ।',
     groupSyncReady: 'रोलआउट सुरु भएपछि तपाईंको खाता सिंक गरिएका समूहहरूको लागि तयार छ।',

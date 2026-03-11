@@ -298,6 +298,16 @@ export const bn = {
       'এই গোষ্ঠীগুলি শুধুমাত্র স্থানীয়ভাবে সংরক্ষিত হয় এবং এখনও সিঙ্ক করা হয়নি৷',
     localOnly: 'শুধুমাত্র স্থানীয়',
     noLocalGroups: 'এই ডিভাইসে এখনও কোনো স্থানীয় গোষ্ঠী সংরক্ষণ করা হয়নি৷',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'এখন সাইন ইন করুন যাতে সিঙ্ক করা গোষ্ঠীগুলি সক্ষম হলে আপনার অ্যাকাউন্ট প্রস্তুত থাকে৷',
     groupSyncReady: 'রোলআউট শুরু হলে আপনার অ্যাকাউন্ট সিঙ্ক করা গোষ্ঠীর জন্য প্রস্তুত।',

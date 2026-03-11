@@ -1,4 +1,19 @@
 export {
+  buildGroupDetailSnapshot,
+  buildGroupRepositorySnapshot,
+  buildLocalGroupSummary,
+  buildSyncedGroupSummary,
+  getGroupRepositoryMode,
+  loadGroupDetailSnapshot,
+  loadGroupRepositorySnapshot,
+} from './groupRepository';
+export type {
+  GroupDetailSnapshot,
+  GroupRepositorySnapshot,
+  GroupSource,
+  GroupSummary,
+} from './groupRepository';
+export {
   createSyncedGroup,
   getSyncedGroup,
   joinSyncedGroup,

@@ -304,6 +304,16 @@ export const fr = {
       'Ces groupes sont enregistrés localement uniquement et ne sont pas encore synchronisés.',
     localOnly: 'Local uniquement',
     noLocalGroups: "Aucun groupe local n'a encore été enregistré sur cet appareil.",
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'Connectez-vous maintenant pour que votre compte soit prêt lorsque les groupes synchronisés sont activés.',
     groupSyncReady:

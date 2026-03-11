@@ -301,6 +301,16 @@ export const te = {
       'ఈ సమూహాలు స్థానికంగా మాత్రమే సేవ్ చేయబడ్డాయి మరియు ఇంకా సమకాలీకరించబడలేదు.',
     localOnly: 'స్థానికంగా మాత్రమే',
     noLocalGroups: 'ఈ పరికరంలో ఇంకా స్థానిక సమూహాలు ఏవీ సేవ్ చేయబడలేదు.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'ఇప్పుడే సైన్ ఇన్ చేయండి కాబట్టి సమకాలీకరించబడిన సమూహాలు ప్రారంభించబడినప్పుడు మీ ఖాతా సిద్ధంగా ఉంటుంది.',
     groupSyncReady:

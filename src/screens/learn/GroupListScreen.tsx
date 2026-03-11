@@ -1,14 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { LearnStackParamList } from '../../navigation/types';
+import {
+  buildGroupRepositorySnapshot,
+  listSyncedGroups,
+  type SyncedGroup,
+} from '../../services/groups';
+import { isSupabaseConfigured } from '../../services/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
+import { getGroupRolloutModel } from './groupRolloutModel';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 
@@ -18,6 +26,90 @@ export function GroupListScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const groups = useFourFieldsStore((state) => state.groups);
+  const syncFeatureEnabled = config.features.studyGroupsSync;
+  const backendConfigured = isSupabaseConfigured();
+  const isSignedIn = Boolean(user);
+  const groupRollout = getGroupRolloutModel({
+    isSignedIn,
+    localGroupCount: groups.length,
+    syncFeatureEnabled,
+    backendConfigured,
+  });
+  const syncRequestKey = syncFeatureEnabled && backendConfigured && isSignedIn
+    ? user?.uid ?? 'signed-in'
+    : null;
+  const [remoteSyncState, setRemoteSyncState] = useState<{
+    key: string | null;
+    groups: SyncedGroup[];
+    error: string | null;
+  }>({
+    key: null,
+    groups: [],
+    error: null,
+  });
+  const syncedGroups = syncRequestKey !== null && remoteSyncState.key === syncRequestKey
+    ? remoteSyncState.groups
+    : [];
+  const syncLoadError = syncRequestKey !== null && remoteSyncState.key === syncRequestKey
+    ? remoteSyncState.error
+    : null;
+  const isLoadingSynced = syncRequestKey !== null && remoteSyncState.key !== syncRequestKey;
+  const repositorySnapshot = buildGroupRepositorySnapshot({
+    localGroups: groups,
+    syncFeatureEnabled,
+    backendConfigured,
+    signedIn: isSignedIn,
+    syncedGroups,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!syncRequestKey) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void listSyncedGroups()
+      .then((nextGroups) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRemoteSyncState({
+          key: syncRequestKey,
+          groups: nextGroups,
+          error: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRemoteSyncState({
+          key: syncRequestKey,
+          groups: [],
+          error: error instanceof Error ? error.message : 'Unable to refresh synced groups.',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [syncRequestKey]);
+
+  const statusIconName =
+    groupRollout.syncStatusKey === 'harvest.groupSyncReady'
+      ? 'checkmark-circle-outline'
+      : groupRollout.syncStatusKey === 'harvest.groupSyncSignin'
+        ? 'person-outline'
+        : 'cloud-offline-outline';
+  const statusIconColor =
+    groupRollout.syncStatusKey === 'harvest.groupSyncReady'
+      ? colors.success
+      : colors.accentPrimary;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -63,12 +155,12 @@ export function GroupListScreen() {
             ]}
           >
             <Ionicons
-              name={user ? 'checkmark-circle-outline' : 'person-outline'}
+              name={statusIconName}
               size={20}
-              color={user ? colors.success : colors.accentPrimary}
+              color={statusIconColor}
             />
             <Text style={[styles.statusText, { color: colors.primaryText }]}>
-              {user ? t('harvest.groupSyncReady') : t('harvest.groupSyncSignin')}
+              {t(groupRollout.syncStatusKey)}
             </Text>
           </View>
         </View>
@@ -86,15 +178,17 @@ export function GroupListScreen() {
             {t('harvest.localGroupsDescription')}
           </Text>
 
-          {groups.length > 0 ? (
+          {repositorySnapshot.localGroups.length > 0 ? (
             <View style={styles.localList}>
-              {groups.map((group) => (
-                <View
+              {repositorySnapshot.localGroups.map((group) => (
+                <TouchableOpacity
                   key={group.id}
                   style={[
                     styles.groupRow,
                     { backgroundColor: colors.background, borderColor: colors.cardBorder },
                   ]}
+                  onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
+                  activeOpacity={0.85}
                 >
                   <View style={[styles.groupIcon, { backgroundColor: colors.accentPrimary + '16' }]}>
                     <Ionicons name="people-outline" size={18} color={colors.accentPrimary} />
@@ -102,7 +196,7 @@ export function GroupListScreen() {
                   <View style={styles.groupCopy}>
                     <Text style={[styles.groupName, { color: colors.primaryText }]}>{group.name}</Text>
                     <Text style={[styles.groupMeta, { color: colors.secondaryText }]}>
-                      {group.members.length} • {group.joinCode}
+                      {group.memberCount} • {group.joinCode}
                     </Text>
                   </View>
                   <View style={[styles.localOnlyBadge, { backgroundColor: colors.cardBorder }]}>
@@ -110,7 +204,7 @@ export function GroupListScreen() {
                       {t('harvest.localOnly')}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
@@ -127,6 +221,95 @@ export function GroupListScreen() {
             </View>
           )}
         </View>
+
+        {repositorySnapshot.mode !== 'local-only' && (
+          <View
+            style={[
+              styles.localCard,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
+            <Text style={[styles.localTitle, { color: colors.primaryText }]}>
+              {t('harvest.syncedGroupsTitle')}
+            </Text>
+            <Text style={[styles.localBody, { color: colors.secondaryText }]}>
+              {isSignedIn
+                ? t('harvest.syncedGroupsDescription')
+                : t('harvest.syncedGroupsSignin')}
+            </Text>
+
+            {syncLoadError ? (
+              <View
+                style={[
+                  styles.emptyState,
+                  { backgroundColor: colors.background, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Ionicons name="alert-circle-outline" size={30} color={colors.error} />
+                <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+                  {t('harvest.groupSyncLoadError')}
+                </Text>
+              </View>
+            ) : isLoadingSynced && repositorySnapshot.syncedGroups.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyState,
+                  { backgroundColor: colors.background, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Ionicons name="sync-outline" size={30} color={colors.accentPrimary} />
+                <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+                  {t('harvest.loadingSyncedGroups')}
+                </Text>
+              </View>
+            ) : repositorySnapshot.syncedGroups.length > 0 ? (
+              <View style={styles.localList}>
+                {repositorySnapshot.syncedGroups.map((group) => (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={[
+                      styles.groupRow,
+                      { backgroundColor: colors.background, borderColor: colors.cardBorder },
+                    ]}
+                    onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
+                    activeOpacity={0.85}
+                  >
+                    <View
+                      style={[styles.groupIcon, { backgroundColor: colors.accentSecondary + '16' }]}
+                    >
+                      <Ionicons name="cloud-done-outline" size={18} color={colors.accentSecondary} />
+                    </View>
+                    <View style={styles.groupCopy}>
+                      <Text style={[styles.groupName, { color: colors.primaryText }]}>
+                        {group.name}
+                      </Text>
+                      <Text style={[styles.groupMeta, { color: colors.secondaryText }]}>
+                        {group.memberCount} • {group.joinCode}
+                      </Text>
+                    </View>
+                    <View style={[styles.localOnlyBadge, { backgroundColor: colors.cardBorder }]}>
+                      <Text style={[styles.localOnlyText, { color: colors.secondaryText }]}>
+                        {t('harvest.syncedLabel')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.emptyState,
+                  { backgroundColor: colors.background, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Ionicons name="cloud-outline" size={30} color={colors.secondaryText} />
+                <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+                  {t('harvest.noSyncedGroups')}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

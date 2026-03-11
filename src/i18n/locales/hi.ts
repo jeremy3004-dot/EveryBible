@@ -301,6 +301,16 @@ export const hi = {
       'ये समूह केवल स्थानीय रूप से सहेजे गए हैं और अभी तक समन्वयित नहीं हुए हैं।',
     localOnly: 'केवल स्थानीय',
     noLocalGroups: 'इस डिवाइस पर अभी तक कोई स्थानीय समूह सहेजा नहीं गया है.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin: 'अभी साइन इन करें ताकि सिंक किए गए समूह सक्षम होने पर आपका खाता तैयार हो जाए।',
     groupSyncReady: 'रोलआउट शुरू होते ही आपका खाता समन्वयित समूहों के लिए तैयार है।',
     scriptureNavigationUnavailable: 'प्रशिक्षण पाठों से बाइबिल नेविगेशन जल्द ही आ रहा है।',

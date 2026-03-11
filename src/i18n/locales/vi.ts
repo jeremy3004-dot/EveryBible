@@ -301,6 +301,16 @@ export const vi = {
     localGroupsDescription: 'Các nhóm này chỉ được lưu cục bộ và chưa được đồng bộ hóa.',
     localOnly: 'Chỉ địa phương',
     noLocalGroups: 'Chưa có nhóm địa phương nào được lưu trên thiết bị này.',
+    syncedGroupsTitle: 'Synced groups',
+    syncedGroupsDescription:
+      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
+    noSyncedGroups: 'No synced groups are available for this account yet.',
+    syncedLabel: 'Synced',
+    loadingSyncedGroups: 'Checking for synced groups linked to this account...',
+    groupSyncLoadError: 'Synced groups could not be refreshed right now.',
+    groupSyncPending:
+      'Synced groups are not enabled in this build yet. Local groups stay on this device.',
     groupSyncSignin:
       'Đăng nhập ngay bây giờ để tài khoản của bạn sẵn sàng khi nhóm được đồng bộ hóa được bật.',
     groupSyncReady:
