@@ -87,6 +87,7 @@ The app integrates with Supabase for auth and sync, Bible.is for remote audio, E
 - Native plugin registration in [`app.json`](/Users/dev/Projects/EveryBible/app.json)
 - Notification scheduling and permissions live in [`src/screens/more/SettingsScreen.tsx`](/Users/dev/Projects/EveryBible/src/screens/more/SettingsScreen.tsx)
 - The feature is preference-backed and can sync via [`src/services/sync/syncService.ts`](/Users/dev/Projects/EveryBible/src/services/sync/syncService.ts)
+- No backend-driven push registration or push delivery service is visible in repo code; the current implementation is local scheduled reminders
 
 ## Native / Expo Platform Hooks
 

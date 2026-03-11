@@ -12,6 +12,7 @@
 - Expo config: [`app.json`](/Users/dev/Projects/EveryBible/app.json)
 - Native projects are committed: [`ios/`](/Users/dev/Projects/EveryBible/ios) and [`android/`](/Users/dev/Projects/EveryBible/android)
 - React Native New Architecture is disabled: `expo.newArchEnabled = false` in [`app.json`](/Users/dev/Projects/EveryBible/app.json)
+- There is custom native code for privacy behavior in [`ios/EveryBible/EveryBiblePrivacyModule.swift`](/Users/dev/Projects/EveryBible/ios/EveryBible/EveryBiblePrivacyModule.swift) and [`android/app/src/main/java/com/everybible/app/EveryBiblePrivacyModule.kt`](/Users/dev/Projects/EveryBible/android/app/src/main/java/com/everybible/app/EveryBiblePrivacyModule.kt)
 
 ## Language And Tooling
 

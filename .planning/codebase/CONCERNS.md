@@ -34,6 +34,7 @@
 
 - Dual ESLint config files in [`eslint.config.js`](/Users/dev/Projects/EveryBible/eslint.config.js) and [`.eslintrc.js`](/Users/dev/Projects/EveryBible/.eslintrc.js) can drift and confuse editors or CI
 - The Supabase client intentionally stays generic in [`src/services/supabase/client.ts`](/Users/dev/Projects/EveryBible/src/services/supabase/client.ts), so schema drift will be caught later than with generated types
+- React Native New Architecture flags look inconsistent across config layers: [`app.json`](/Users/dev/Projects/EveryBible/app.json) disables it, [`ios/Podfile.properties.json`](/Users/dev/Projects/EveryBible/ios/Podfile.properties.json) disables it for iOS, while [`android/gradle.properties`](/Users/dev/Projects/EveryBible/android/gradle.properties) still enables it on Android
 - Large content and locale files will make refactors noisy and can obscure user-facing logic changes in diffs
 
 ## Active Or Recently Sensitive Areas
