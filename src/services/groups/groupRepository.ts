@@ -1,4 +1,5 @@
 import type { Group, GroupProgress } from '../../types/course';
+import type { GroupMemberRecord } from '../supabase';
 
 export type GroupSource = 'local' | 'synced';
 export type GroupRepositoryMode = 'local-only' | 'signin-required' | 'sync-enabled';
@@ -9,7 +10,7 @@ export interface SyncedGroupSummaryRecord {
   join_code: string;
   current_course_id: string;
   current_lesson_id: string;
-  group_members: Array<{ user_id: string }>;
+  group_members: Array<Pick<GroupMemberRecord, 'user_id' | 'role' | 'joined_at'>>;
 }
 
 export interface GroupSummary {

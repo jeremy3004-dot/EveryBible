@@ -88,8 +88,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Add release-focused regression checks for core user journeys
-- [ ] 05-02: Align native and Expo config, build metadata, and submission readiness
+- [x] 05-01: Add release-focused regression checks for core user journeys
+- [x] 05-02: Align native and Expo config, build metadata, and submission readiness
 
 ## Progress
 
@@ -102,4 +102,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Onboarding And Preference Cohesion | 2/2 | Awaiting device verification | - |
 | 3. Core Reading And Audio Polish | 2/2 | Awaiting device verification | - |
 | 4. Discipleship And Group Rollout | 3/3 | Awaiting device verification | - |
-| 5. Release Hardening And Distribution | 0/2 | Not started | - |
+| 5. Release Hardening And Distribution | 2/2 | Awaiting signed-build verification | - |

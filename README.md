@@ -61,7 +61,6 @@ Required variables:
 Optional for full features:
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Google OAuth web client ID
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Google OAuth iOS client ID
-- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` - Google OAuth Android client ID
 - `EXPO_PUBLIC_BIBLE_IS_API_KEY` - Bible.is API key for audio
 
 ### 3. Supabase Setup
@@ -116,6 +115,9 @@ If you encounter CocoaPods issues, see the global CLAUDE.md for troubleshooting.
 
 ```bash
 npm run lint              # Check code with ESLint
+npm run typecheck         # Verify TypeScript compile safety
+npm run test:release      # Run the focused pre-release regression suite
+npm run release:verify    # Lint + typecheck + release metadata + focused release tests
 npm run lint:fix          # Auto-fix ESLint issues
 npm run format            # Format code with Prettier
 npm run format:check      # Check code formatting
@@ -128,11 +130,11 @@ npm run format:check      # Check code formatting
 eas build --profile development --platform ios
 eas build --profile development --platform android
 
-# Preview builds (TestFlight / Internal Testing)
+# Preview builds (internal distribution installs)
 eas build --profile preview --platform ios
 eas build --profile preview --platform android
 
-# Production builds
+# Production builds (store / TestFlight submission candidates)
 eas build --profile production --platform ios
 eas build --profile production --platform android
 ```
@@ -140,11 +142,14 @@ eas build --profile production --platform android
 ### Deployment
 
 ```bash
-# Submit to App Store
-eas submit --platform ios
+# Preflight an iOS IPA before submission
+bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
+
+# Submit to App Store / TestFlight
+eas submit --platform ios --profile production
 
 # Submit to Google Play
-eas submit --platform android
+eas submit --platform android --profile production
 ```
 
 ## Project Structure
@@ -247,7 +252,8 @@ cd android && ./gradlew clean && cd ..
 - Restart Expo dev server after changing .env
 
 ### Google Sign-In not working
-- Ensure all 3 client IDs are configured (web, iOS, Android)
+- Ensure the supported client IDs are configured (web and iOS)
+- Android-only Google client ID setup is not supported in this repo
 - Web client ID must be added to Supabase auth providers
 - Test on physical device (doesn't work in Expo Go)
 
@@ -263,7 +269,7 @@ cd android && ./gradlew clean && cd ..
 3. All user-facing text must use i18n translation keys
 4. Use theme colors from `useTheme()` (no hardcoded colors)
 5. Test on both iOS and Android
-6. Run `npm run lint && npm run format:check` before committing
+6. Run `npm run release:verify` before cutting a release, and at least `npm run lint && npm run format:check` before committing
 
 See `CLAUDE.md` for detailed development guidelines.
 
