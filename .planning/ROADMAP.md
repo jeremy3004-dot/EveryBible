@@ -31,8 +31,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Audit and harden startup, auth initialization, and session restoration
-- [ ] 01-02: Validate sync merge behavior, Supabase contracts, and device-config dependencies
+- [x] 01-01: Audit and harden startup, auth initialization, and session restoration
+- [x] 01-02: Validate sync merge behavior, Supabase contracts, and device-config dependencies
 
 ### Phase 2: Onboarding And Preference Cohesion
 **Goal**: Make the first-run and settings experience internally consistent for language, locale, privacy, and reminders.
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Startup And Backend Hardening | 0/2 | Not started | - |
+| 1. Startup And Backend Hardening | 2/2 | Awaiting device verification | - |
 | 2. Onboarding And Preference Cohesion | 0/2 | Not started | - |
 | 3. Core Reading And Audio Polish | 0/2 | Not started | - |
 | 4. Discipleship And Group Rollout | 0/3 | Not started | - |
