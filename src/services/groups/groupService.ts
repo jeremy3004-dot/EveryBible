@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { GroupMemberRecord, GroupRecord, GroupSessionRecord, InsertTables } from '../supabase';
+import { assertSyncedGroupServiceReady } from './groupServiceGuards';
 
 export interface SyncedGroup extends GroupRecord {
   group_members: GroupMemberRecord[];
@@ -164,6 +165,24 @@ export async function updateSyncedGroupLesson(
   groupId: string,
   values: Pick<GroupRecord, 'current_course_id' | 'current_lesson_id'>
 ): Promise<GroupRecord> {
+  const backendConfigured = isSupabaseConfigured();
+  const {
+    data: { user },
+    error: authError,
+  } = backendConfigured
+    ? await supabase.auth.getUser()
+    : { data: { user: null }, error: null };
+
+  if (authError) {
+    throw new Error(authError.message);
+  }
+
+  assertSyncedGroupServiceReady({
+    backendConfigured,
+    signedIn: Boolean(user),
+    action: 'update a group lesson',
+  });
+
   const { data, error } = await supabase
     .from('groups')
     .update(values)
@@ -184,18 +203,23 @@ export async function recordSyncedGroupSession(values: {
   lessonId: string;
   notes?: Record<string, string>;
 }): Promise<GroupSessionRecord> {
+  const backendConfigured = isSupabaseConfigured();
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser();
+  } = backendConfigured
+    ? await supabase.auth.getUser()
+    : { data: { user: null }, error: null };
 
   if (authError) {
     throw new Error(authError.message);
   }
 
-  if (!user) {
-    throw new Error('You must be signed in to record a session');
-  }
+  assertSyncedGroupServiceReady({
+    backendConfigured,
+    signedIn: Boolean(user),
+    action: 'record a session',
+  });
 
   const insert: InsertTables<'group_sessions'> = {
     group_id: values.groupId,

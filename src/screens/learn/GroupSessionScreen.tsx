@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants';
+import { colors, config } from '../../constants';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
+import { useAuthStore } from '../../stores/authStore';
 import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
 import { LessonSectionRenderer } from '../../components/fourfields';
+import {
+  buildGroupDetailSnapshot,
+  getSyncedGroup,
+  getSyncedGroupServiceAvailability,
+  loadGroupDetailSnapshot,
+  recordSyncedGroupSession,
+  updateSyncedGroupLesson,
+} from '../../services/groups';
+import { isSupabaseConfigured } from '../../services/supabase';
+import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'GroupSession'>;
@@ -32,16 +44,121 @@ export function GroupSessionScreen() {
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
 
-  const { getGroup, markGroupLessonComplete, updateGroupLesson } = useFourFieldsStore();
+  const groups = useFourFieldsStore((state) => state.groups);
+  const groupProgress = useFourFieldsStore((state) => state.groupProgress);
+  const markGroupLessonComplete = useFourFieldsStore((state) => state.markGroupLessonComplete);
+  const updateLocalGroupLesson = useFourFieldsStore((state) => state.updateGroupLesson);
+  const user = useAuthStore((state) => state.user);
   const [currentPhase, setCurrentPhase] = useState<SessionPhase>('look-back');
+  const [isSavingSynced, setIsSavingSynced] = useState(false);
+  const userId = user?.uid ?? null;
+  const isSignedIn = Boolean(user);
+  const syncFeatureEnabled = config.features.studyGroupsSync;
+  const backendConfigured = isSupabaseConfigured();
+  const localGroup = groups.find((candidate) => candidate.id === groupId) ?? null;
+  const localSnapshot = buildGroupDetailSnapshot({
+    localGroup,
+    localProgress: localGroup ? groupProgress[groupId] ?? null : null,
+    syncedGroup: null,
+    currentUserId: userId,
+  });
+  const remoteRequestKey =
+    localSnapshot == null && syncFeatureEnabled && backendConfigured && isSignedIn
+      ? `${groupId}:${user?.uid ?? 'signed-in'}`
+      : null;
+  const [remoteGroupState, setRemoteGroupState] = useState<{
+    key: string | null;
+    group: GroupDetailSnapshot | null;
+    error: string | null;
+  }>({
+    key: null,
+    group: null,
+    error: null,
+  });
 
-  const group = getGroup(groupId);
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!remoteRequestKey) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void loadGroupDetailSnapshot({
+      groupId,
+      localGroups: [],
+      localProgress: {},
+      syncFeatureEnabled,
+      backendConfigured,
+      signedIn: isSignedIn,
+      currentUserId: userId,
+      getSyncedGroup,
+    })
+      .then((snapshot) => {
+        if (!cancelled) {
+          setRemoteGroupState({
+            key: remoteRequestKey,
+            group: snapshot,
+            error: null,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRemoteGroupState({
+          key: remoteRequestKey,
+          group: null,
+          error: error instanceof Error ? error.message : 'Unable to load group.',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    backendConfigured,
+    groupId,
+    isSignedIn,
+    remoteRequestKey,
+    syncFeatureEnabled,
+    userId,
+  ]);
+
+  const group =
+    localSnapshot ??
+    (remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
+      ? remoteGroupState.group
+      : null);
+  const loadError =
+    remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
+      ? remoteGroupState.error
+      : null;
+  const isLoading = localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
+  const syncedServiceAvailability = getSyncedGroupServiceAvailability({
+    backendConfigured,
+    signedIn: isSignedIn,
+  });
+  const isSyncedGroup = group?.source === 'synced';
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Loading group...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!group) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Group not found</Text>
+          <Text style={styles.errorText}>{loadError ?? 'Group not found'}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.errorLink}>Go back</Text>
           </TouchableOpacity>
@@ -74,14 +191,51 @@ export function GroupSessionScreen() {
     }
   };
 
-  const handleComplete = () => {
-    if (currentLesson) {
+  const handleComplete = async () => {
+    if (!currentLesson) {
+      return;
+    }
+
+    if (!isSyncedGroup) {
       markGroupLessonComplete(groupId, currentLesson.id);
+      if (nextLesson && currentCourse) {
+        updateLocalGroupLesson(groupId, currentCourse.id, nextLesson.id);
+      }
+      navigation.goBack();
+      return;
     }
-    if (nextLesson && currentCourse) {
-      updateGroupLesson(groupId, currentCourse.id, nextLesson.id);
+
+    if (syncedServiceAvailability !== 'ready') {
+      Alert.alert(
+        'Synced session unavailable',
+        syncedServiceAvailability === 'backend-unavailable'
+          ? 'This build is not configured for synced group recording yet.'
+          : 'You must be signed in before you can save a synced group session.'
+      );
+      return;
     }
-    navigation.goBack();
+
+    try {
+      setIsSavingSynced(true);
+      await recordSyncedGroupSession({
+        groupId,
+        courseId: group.currentCourseId,
+        lessonId: currentLesson.id,
+      });
+      if (nextLesson && currentCourse) {
+        await updateSyncedGroupLesson(groupId, {
+          current_course_id: currentCourse.id,
+          current_lesson_id: nextLesson.id,
+        });
+      }
+      navigation.goBack();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Synced group session could not be saved.';
+      Alert.alert('Unable to save synced session', message);
+    } finally {
+      setIsSavingSynced(false);
+    }
   };
 
   return (
@@ -167,6 +321,15 @@ export function GroupSessionScreen() {
             <Text style={styles.lessonTitle}>{currentLesson.title}</Text>
           </View>
         )}
+
+        {isSyncedGroup ? (
+          <View style={styles.syncedNoticeCard}>
+            <Ionicons name="cloud-done-outline" size={18} color={colors.accentGreen} />
+            <Text style={styles.syncedNoticeText}>
+              Completing this session will save a synced record for your signed-in group.
+            </Text>
+          </View>
+        ) : null}
 
         {/* Phase Content */}
         {currentPhase === 'look-back' && (
@@ -371,11 +534,20 @@ export function GroupSessionScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.footerButtonPrimary}
-              onPress={handleComplete}
+              style={[styles.footerButtonPrimary, isSavingSynced && styles.footerButtonPrimaryDisabled]}
+              onPress={() => {
+                void handleComplete();
+              }}
+              disabled={isSavingSynced}
             >
               <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.footerButtonPrimaryText}>Complete Session</Text>
+              <Text style={styles.footerButtonPrimaryText}>
+                {isSavingSynced
+                  ? 'Saving...'
+                  : isSyncedGroup
+                    ? 'Save Synced Session'
+                    : 'Complete Session'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -490,6 +662,21 @@ const styles = StyleSheet.create({
   },
   lessonInfo: {
     marginBottom: 20,
+  },
+  syncedNoticeCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  syncedNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.primaryText,
   },
   fieldBadge: {
     alignSelf: 'flex-start',
@@ -684,6 +871,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
+  },
+  footerButtonPrimaryDisabled: {
+    opacity: 0.7,
   },
   footerButtonPrimaryText: {
     fontSize: 15,

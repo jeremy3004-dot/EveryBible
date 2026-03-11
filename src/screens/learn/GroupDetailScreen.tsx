@@ -17,7 +17,12 @@ import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
 import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
-import { buildGroupDetailSnapshot, getSyncedGroup, loadGroupDetailSnapshot } from '../../services/groups';
+import {
+  buildGroupDetailSnapshot,
+  getSyncedGroup,
+  getSyncedGroupServiceAvailability,
+  loadGroupDetailSnapshot,
+} from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
 
@@ -115,6 +120,10 @@ export function GroupDetailScreen() {
     (remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
       ? remoteGroupState.group
       : null);
+  const syncedServiceAvailability = getSyncedGroupServiceAvailability({
+    backendConfigured,
+    signedIn: isSignedIn,
+  });
   const loadError =
     remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
       ? remoteGroupState.error
@@ -145,6 +154,8 @@ export function GroupDetailScreen() {
   }
 
   const isLocalGroup = group.source === 'local';
+  const canStartSession =
+    isLocalGroup || (group.source === 'synced' && syncedServiceAvailability === 'ready');
   const currentCourse = fourFieldsCourses.find((course) => course.id === group.currentCourseId);
   const currentLesson = currentCourse?.lessons.find((lesson) => lesson.id === group.currentLessonId);
   const currentFieldInfo = currentCourse ? fieldInfo[currentCourse.field] : null;
@@ -160,14 +171,6 @@ export function GroupDetailScreen() {
   };
 
   const handleStartSession = () => {
-    if (!isLocalGroup) {
-      Alert.alert(
-        'Synced sessions are still rolling out',
-        'This synced group is visible now, but secure session recording is still being verified for this build.'
-      );
-      return;
-    }
-
     navigation.navigate('GroupSession', { groupId });
   };
 
@@ -252,13 +255,15 @@ export function GroupDetailScreen() {
             <Text style={styles.currentLesson}>
               Next: {currentLesson.title}
             </Text>
-            {isLocalGroup ? (
+            {canStartSession ? (
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={handleStartSession}
               >
                 <Ionicons name="play" size={20} color="#fff" />
-                <Text style={styles.startButtonText}>Start Group Session</Text>
+                <Text style={styles.startButtonText}>
+                  {isLocalGroup ? 'Start Group Session' : 'Save Synced Session'}
+                </Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.readOnlyCard}>
@@ -267,7 +272,8 @@ export function GroupDetailScreen() {
                   <Text style={styles.readOnlyTitle}>Synced group preview</Text>
                 </View>
                 <Text style={styles.readOnlyBody}>
-                  Secure synced session recording is still being verified for this build.
+                  Secure synced session recording is not available until backend configuration and
+                  signed-in access are both ready for this build.
                 </Text>
               </View>
             )}

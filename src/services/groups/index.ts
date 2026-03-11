@@ -14,6 +14,11 @@ export type {
   GroupSummary,
 } from './groupRepository';
 export {
+  assertSyncedGroupServiceReady,
+  getSyncedGroupServiceAvailability,
+} from './groupServiceGuards';
+export type { SyncedGroupServiceAvailability } from './groupServiceGuards';
+export {
   createSyncedGroup,
   getSyncedGroup,
   joinSyncedGroup,
