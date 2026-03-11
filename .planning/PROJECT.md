@@ -58,6 +58,8 @@ The codebase map in [`.planning/codebase/`](/Users/dev/Projects/EveryBible/.plan
 | Initialize GSD around a brownfield hardening roadmap instead of a greenfield feature wishlist | The codebase already implements most of the product surface; the higher leverage is completion and stabilization | ✓ Good |
 | Use standard-granularity phases with parallel execution and verification enabled | The project is broad enough for phased planning, but we still want plans small enough to execute cleanly | — Pending |
 | Defer web parity, realtime collaboration, and custom backend work until the mobile baseline is stable | These areas would expand scope without improving the core reading/listening journey immediately | — Pending |
+| Wire local scripture search into the existing Bible browser and reader rather than introducing a separate search route | The service layer already supported offline search; the gap was discoverability, not data plumbing | ✓ Good |
+| Gate audio entrypoints by real remote-or-offline capability instead of only `hasAudio` metadata | The product should not advertise streaming or downloads that the current build cannot satisfy | ✓ Good |
 
 ---
-*Last updated: 2026-03-11 after GSD brownfield initialization*
+*Last updated: 2026-03-11 after Phase 3 execution*

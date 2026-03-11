@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,15 +21,25 @@ import {
   bibleBooks,
   type BibleBook,
   config,
+  getBookById,
   getBookIcon,
 } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
-import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible';
-import { isAudioBookDownloaded, isTranslationAudioDownloaded } from '../../services/audio';
+import { buildBibleBrowserRows, searchBible, type BibleBrowserRow } from '../../services/bible';
+import {
+  getAudioAvailability,
+  isAudioBookDownloaded,
+  isRemoteAudioAvailable,
+  isTranslationAudioDownloaded,
+} from '../../services/audio';
 import type { BibleStackParamList } from '../../navigation/types';
-import type { BibleTranslation } from '../../types';
+import type { BibleTranslation, Verse } from '../../types';
+import {
+  formatBibleSearchReference,
+  shouldRunBibleSearch,
+} from './bibleSearchModel';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
@@ -43,6 +54,11 @@ export function BibleBrowserScreen() {
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
   const [activeAudioDownloadKey, setActiveAudioDownloadKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Verse[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
@@ -54,12 +70,77 @@ export function BibleBrowserScreen() {
   const audioManagerTranslation = translations.find(
     (translation) => translation.id === audioManagerTranslationId
   );
+  const getTranslationAudioAvailability = (
+    translation: Pick<BibleTranslation, 'id' | 'hasAudio' | 'downloadedAudioBooks'>,
+    bookId?: string
+  ) =>
+    getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: translation.hasAudio,
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+      downloadedAudioBooks: translation.downloadedAudioBooks,
+      bookId,
+    });
   const translationAudioDownloaded = audioManagerTranslation
     ? isTranslationAudioDownloaded(audioManagerTranslation.downloadedAudioBooks, bibleBooks)
     : false;
+  const audioManagerAvailability = audioManagerTranslation
+    ? getTranslationAudioAvailability(audioManagerTranslation)
+    : null;
+  const isSearchActive = shouldRunBibleSearch(deferredSearchQuery);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const runSearch = async () => {
+      const trimmedQuery = deferredSearchQuery.trim();
+
+      if (!shouldRunBibleSearch(trimmedQuery)) {
+        setSearchResults([]);
+        setSearchError(null);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setSearchError(null);
+
+      try {
+        const results = await searchBible(trimmedQuery);
+
+        if (!isCancelled) {
+          setSearchResults(results);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Error searching Bible:', error);
+          setSearchResults([]);
+          setSearchError(t('bible.failedToLoad'));
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSearching(false);
+        }
+      }
+    };
+
+    void runSearch();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [deferredSearchQuery, t]);
 
   const handleBookPress = (book: BibleBook) => {
     navigation.navigate('ChapterSelector', { bookId: book.id });
+  };
+
+  const handleSearchResultPress = (verse: Verse) => {
+    navigation.navigate('BibleReader', {
+      bookId: verse.bookId,
+      chapter: verse.chapter,
+      focusVerse: verse.verse,
+    });
   };
 
   const handleTranslationSelect = (translation: BibleTranslation) => {
@@ -87,7 +168,7 @@ export function BibleBrowserScreen() {
   };
 
   const handleDownloadEntireBibleAudio = async () => {
-    if (!audioManagerTranslation) {
+    if (!audioManagerTranslation || !audioManagerAvailability?.canDownloadAudio) {
       return;
     }
 
@@ -104,7 +185,7 @@ export function BibleBrowserScreen() {
   };
 
   const handleDownloadBookAudio = async (bookId: string) => {
-    if (!audioManagerTranslation) {
+    if (!audioManagerTranslation || !audioManagerAvailability?.canDownloadAudio) {
       return;
     }
 
@@ -172,48 +253,135 @@ export function BibleBrowserScreen() {
     );
   };
 
+  const renderSearchResult = ({ item }: { item: Verse }) => {
+    const bookName = getBookById(item.bookId)?.name;
+    const referenceLabel = formatBibleSearchReference(item, (bookId) => getBookById(bookId)?.name);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.searchResultCard,
+          {
+            backgroundColor: colors.bibleSurface,
+            borderColor: colors.bibleDivider,
+          },
+        ]}
+        onPress={() => handleSearchResultPress(item)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.searchResultHeader}>
+          <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
+            {referenceLabel}
+          </Text>
+          {bookName ? (
+            <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
+          ) : null}
+        </View>
+        <Text style={[styles.searchExcerpt, { color: colors.biblePrimaryText }]} numberOfLines={3}>
+          <Text style={[styles.searchVerseNumber, { color: colors.bibleAccent }]}>
+            {item.verse}{' '}
+          </Text>
+          {item.text}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bibleBackground }]}
       edges={['top']}
     >
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('bible.title')}</Text>
-          <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-            {currentTranslationInfo?.name || 'Berean Standard Bible'}
-          </Text>
+        <View style={styles.headerTopRow}>
+          <View>
+            <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('bible.title')}</Text>
+            <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
+              {currentTranslationInfo?.name || 'Berean Standard Bible'}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.translationButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={() => {
+              if (config.features.multipleTranslations) {
+                setShowTranslationModal(true);
+              }
+            }}
+            activeOpacity={config.features.multipleTranslations ? 0.85 : 1}
+          >
+            <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
+            <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
+              {currentTranslationInfo?.abbreviation || 'BSB'}
+            </Text>
+            {config.features.multipleTranslations ? (
+              <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
+            ) : null}
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
+        <View
           style={[
-            styles.translationButton,
+            styles.searchInputShell,
             { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
           ]}
-          onPress={() => {
-            if (config.features.multipleTranslations) {
-              setShowTranslationModal(true);
-            }
-          }}
-          activeOpacity={config.features.multipleTranslations ? 0.85 : 1}
         >
-          <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
-          <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
-            {currentTranslationInfo?.abbreviation || 'BSB'}
-          </Text>
-          {config.features.multipleTranslations ? (
-            <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
+          <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t('common.search')}
+            placeholderTextColor={colors.bibleSecondaryText}
+            style={[styles.searchInput, { color: colors.biblePrimaryText }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
+            </TouchableOpacity>
           ) : null}
-        </TouchableOpacity>
+        </View>
       </View>
 
-      <FlatList
-        data={bibleBrowserRows}
-        renderItem={renderRow}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {isSearchActive ? (
+        isSearching ? (
+          <View style={styles.searchLoadingState}>
+            <ActivityIndicator color={colors.bibleAccent} />
+          </View>
+        ) : searchError ? (
+          <View
+            style={[
+              styles.searchFeedbackCard,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+          >
+            <Text style={[styles.searchFeedbackText, { color: colors.biblePrimaryText }]}>
+              {searchError}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={searchResults}
+            renderItem={renderSearchResult}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={styles.searchResultsContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )
+      ) : (
+        <FlatList
+          data={bibleBrowserRows}
+          renderItem={renderRow}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {config.features.multipleTranslations ? (
         <Modal
@@ -241,10 +409,7 @@ export function BibleBrowserScreen() {
               <ScrollView style={styles.translationList} showsVerticalScrollIndicator={false}>
                 {translations.map((translation) => {
                   const isSelected = currentTranslation === translation.id;
-                  const isAudioDownloaded = isTranslationAudioDownloaded(
-                    translation.downloadedAudioBooks,
-                    bibleBooks
-                  );
+                  const audioAvailability = getTranslationAudioAvailability(translation);
                   return (
                     <View
                       key={translation.id}
@@ -326,7 +491,7 @@ export function BibleBrowserScreen() {
                         ) : null}
                       </TouchableOpacity>
 
-                      {translation.hasAudio ? (
+                      {audioAvailability.canManageAudio ? (
                         <View style={styles.translationActionRow}>
                           <TouchableOpacity
                             style={[
@@ -340,10 +505,18 @@ export function BibleBrowserScreen() {
                             activeOpacity={0.85}
                           >
                             <Ionicons
-                              name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
+                              name={
+                                translation.downloadedAudioBooks.length > 0
+                                  ? 'checkmark-circle'
+                                  : audioAvailability.canDownloadAudio
+                                    ? 'download-outline'
+                                    : 'cloud-offline-outline'
+                              }
                               size={16}
                               color={
-                                isAudioDownloaded ? colors.success : colors.bibleSecondaryText
+                                translation.downloadedAudioBooks.length > 0
+                                  ? colors.success
+                                  : colors.bibleSecondaryText
                               }
                             />
                             <Text
@@ -352,7 +525,7 @@ export function BibleBrowserScreen() {
                                 { color: colors.biblePrimaryText },
                               ]}
                             >
-                              {isAudioDownloaded
+                              {translation.downloadedAudioBooks.length > 0
                                 ? t('bible.audioSavedOffline')
                                 : t('bible.manageAudio')}
                             </Text>
@@ -417,13 +590,25 @@ export function BibleBrowserScreen() {
                       borderColor: colors.bibleDivider,
                     },
                   ]}
-                  onPress={translationAudioDownloaded ? undefined : handleDownloadEntireBibleAudio}
-                  activeOpacity={translationAudioDownloaded ? 1 : 0.85}
-                  disabled={translationAudioDownloaded || activeAudioDownloadKey !== null}
+                  onPress={
+                    translationAudioDownloaded || !audioManagerAvailability?.canDownloadAudio
+                      ? undefined
+                      : handleDownloadEntireBibleAudio
+                  }
+                  activeOpacity={
+                    translationAudioDownloaded || !audioManagerAvailability?.canDownloadAudio
+                      ? 1
+                      : 0.85
+                  }
+                  disabled={
+                    translationAudioDownloaded ||
+                    activeAudioDownloadKey !== null ||
+                    !audioManagerAvailability?.canDownloadAudio
+                  }
                 >
                   <View style={styles.downloadAllInfo}>
                     <Text style={[styles.downloadAllTitle, { color: colors.biblePrimaryText }]}>
-                      {translationAudioDownloaded
+                      {translationAudioDownloaded || !audioManagerAvailability?.canDownloadAudio
                         ? t('bible.audioSavedOffline')
                         : t('bible.downloadBibleAudio')}
                     </Text>
@@ -441,9 +626,21 @@ export function BibleBrowserScreen() {
                     <ActivityIndicator color={colors.bibleAccent} />
                   ) : (
                     <Ionicons
-                      name={translationAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
+                      name={
+                        translationAudioDownloaded
+                          ? 'checkmark-circle'
+                          : audioManagerAvailability?.canDownloadAudio
+                            ? 'download-outline'
+                            : 'cloud-offline-outline'
+                      }
                       size={22}
-                      color={translationAudioDownloaded ? colors.success : colors.bibleAccent}
+                      color={
+                        translationAudioDownloaded
+                          ? colors.success
+                          : audioManagerAvailability?.canDownloadAudio
+                            ? colors.bibleAccent
+                            : colors.bibleSecondaryText
+                      }
                     />
                   )}
                 </TouchableOpacity>
@@ -451,6 +648,10 @@ export function BibleBrowserScreen() {
                 {bibleBooks.map((book) => {
                   const bookAudioDownloaded = isAudioBookDownloaded(
                     audioManagerTranslation.downloadedAudioBooks,
+                    book.id
+                  );
+                  const bookAudioAvailability = getTranslationAudioAvailability(
+                    audioManagerTranslation,
                     book.id
                   );
                   const isBookDownloading = activeAudioDownloadKey === `book:${book.id}`;
@@ -474,20 +675,40 @@ export function BibleBrowserScreen() {
                           },
                         ]}
                         onPress={
-                          bookAudioDownloaded || activeAudioDownloadKey !== null
+                          bookAudioDownloaded ||
+                          activeAudioDownloadKey !== null ||
+                          !bookAudioAvailability.canDownloadAudio
                             ? undefined
                             : () => handleDownloadBookAudio(book.id)
                         }
-                        activeOpacity={bookAudioDownloaded ? 1 : 0.85}
-                        disabled={bookAudioDownloaded || activeAudioDownloadKey !== null}
+                        activeOpacity={
+                          bookAudioDownloaded || !bookAudioAvailability.canDownloadAudio ? 1 : 0.85
+                        }
+                        disabled={
+                          bookAudioDownloaded ||
+                          activeAudioDownloadKey !== null ||
+                          !bookAudioAvailability.canDownloadAudio
+                        }
                       >
                         {isBookDownloading ? (
                           <ActivityIndicator color={colors.bibleAccent} size="small" />
                         ) : (
                           <Ionicons
-                            name={bookAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
+                            name={
+                              bookAudioDownloaded
+                                ? 'checkmark-circle'
+                                : bookAudioAvailability.canDownloadAudio
+                                  ? 'download-outline'
+                                  : 'cloud-offline-outline'
+                            }
                             size={20}
-                            color={bookAudioDownloaded ? colors.success : colors.bibleAccent}
+                            color={
+                              bookAudioDownloaded
+                                ? colors.success
+                                : bookAudioAvailability.canDownloadAudio
+                                  ? colors.bibleAccent
+                                  : colors.bibleSecondaryText
+                            }
                           />
                         )}
                       </TouchableOpacity>
@@ -508,12 +729,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 10,
+    gap: 12,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   title: {
@@ -541,6 +765,71 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 28,
     paddingTop: 8,
+  },
+  searchInputShell: {
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  clearSearchButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchLoadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchResultsContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 28,
+    paddingTop: 8,
+    gap: 12,
+  },
+  searchResultCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+    gap: 10,
+  },
+  searchResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  searchReference: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  searchExcerpt: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  searchVerseNumber: {
+    fontWeight: '700',
+  },
+  searchFeedbackCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+  },
+  searchFeedbackText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   row: {
     justifyContent: 'space-between',

@@ -75,13 +75,13 @@
 | LOCL-02 | Phase 2 | In verification |
 | PRIV-01 | Phase 2 | In verification |
 | PREF-01 | Phase 2 | In verification |
-| READ-01 | Phase 3 | Pending |
-| READ-02 | Phase 3 | Pending |
-| READ-03 | Phase 3 | Pending |
-| READ-04 | Phase 3 | Pending |
-| AUDIO-01 | Phase 3 | Pending |
-| AUDIO-02 | Phase 3 | Pending |
-| AUDIO-03 | Phase 3 | Pending |
+| READ-01 | Phase 3 | In verification |
+| READ-02 | Phase 3 | In verification |
+| READ-03 | Phase 3 | In verification |
+| READ-04 | Phase 3 | In verification |
+| AUDIO-01 | Phase 3 | In verification |
+| AUDIO-02 | Phase 3 | In verification |
+| AUDIO-03 | Phase 3 | In verification |
 | DISC-01 | Phase 4 | Pending |
 | GROUP-01 | Phase 4 | Pending |
 | GROUP-02 | Phase 4 | Pending |
@@ -95,4 +95,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after Phase 2 execution evidence was recorded*
+*Last updated: 2026-03-11 after Phase 3 execution evidence was recorded*

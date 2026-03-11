@@ -10,6 +10,7 @@ import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
+import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { useBibleStore, useProgressStore } from '../../stores';
 import { useFontSize, useAudioPlayer } from '../../hooks';
 import { VersesSkeleton, AudioFirstChapterCard, AudioPlayerBar } from '../../components';
@@ -25,6 +26,8 @@ export function BibleReaderScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const autoplayKeyRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const verseOffsetsRef = useRef<Record<number, number>>({});
 
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,11 +43,23 @@ export function BibleReaderScreen() {
     (translation) => translation.id === currentTranslation
   );
   const { fontSize, scaleValue, setSize } = useFontSize();
-  const { showPlayer, togglePlayer, audioAvailable, playChapter, setShowPlayer } =
-    useAudioPlayer(currentTranslation);
+  const {
+    showPlayer,
+    togglePlayer,
+    currentBookId: activeAudioBookId,
+    currentChapter: activeAudioChapter,
+    playChapter,
+    setShowPlayer,
+  } = useAudioPlayer(currentTranslation);
 
   const book = getBookById(bookId);
-  const audioEnabled = config.features.audioEnabled && audioAvailable;
+  const audioEnabled = getAudioAvailability({
+    featureEnabled: config.features.audioEnabled,
+    translationHasAudio: Boolean(currentTranslationInfo?.hasAudio),
+    remoteAudioAvailable: isRemoteAudioAvailable(currentTranslation),
+    downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
+    bookId,
+  }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
   const chapterPresentationMode = getChapterPresentationMode({
     verses,
@@ -62,6 +77,26 @@ export function BibleReaderScreen() {
     void loadChapter();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, chapter, currentTranslation]);
+
+  useEffect(() => {
+    verseOffsetsRef.current = {};
+  }, [bookId, chapter]);
+
+  useEffect(() => {
+    if (isLoading || focusVerse == null) {
+      return;
+    }
+
+    const verseOffset = verseOffsetsRef.current[focusVerse];
+    if (verseOffset == null) {
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(verseOffset - 24, 0),
+      animated: false,
+    });
+  }, [focusVerse, isLoading, verses]);
 
   useEffect(() => {
     if (!autoplayAudio || !audioEnabled || isLoading) {
@@ -97,6 +132,18 @@ export function BibleReaderScreen() {
     setShowPlayer,
   ]);
 
+  useEffect(() => {
+    if (!audioEnabled || activeAudioBookId !== bookId || !activeAudioChapter) {
+      return;
+    }
+
+    if (activeAudioChapter === chapter) {
+      return;
+    }
+
+    navigation.setParams({ chapter: activeAudioChapter, focusVerse: undefined });
+  }, [audioEnabled, activeAudioBookId, activeAudioChapter, bookId, chapter, navigation]);
+
   const loadChapter = async () => {
     setIsLoading(true);
     setError(null);
@@ -127,14 +174,14 @@ export function BibleReaderScreen() {
   const handlePrevChapter = () => {
     if (hasPrevChapter) {
       setShowFontSizeSheet(false);
-      navigation.setParams({ chapter: chapter - 1 });
+      navigation.setParams({ chapter: chapter - 1, focusVerse: undefined });
     }
   };
 
   const handleNextChapter = () => {
     if (hasNextChapter) {
       setShowFontSizeSheet(false);
-      navigation.setParams({ chapter: chapter + 1 });
+      navigation.setParams({ chapter: chapter + 1, focusVerse: undefined });
     }
   };
 
@@ -174,7 +221,7 @@ export function BibleReaderScreen() {
           chapter={chapter}
           translationLabel={translationLabel}
           onChapterChange={(newChapter) => {
-            navigation.setParams({ chapter: newChapter });
+            navigation.setParams({ chapter: newChapter, focusVerse: undefined });
           }}
         />
       );
@@ -204,7 +251,21 @@ export function BibleReaderScreen() {
     return (
       <View style={styles.readerColumn}>
         {verses.map((verse) => (
-          <View key={verse.id} style={styles.readerBlock}>
+          <View
+            key={verse.id}
+            style={[
+              styles.readerBlock,
+              verse.verse === focusVerse
+                ? {
+                    backgroundColor: colors.bibleSurface,
+                    borderColor: colors.bibleAccent,
+                  }
+                : null,
+            ]}
+            onLayout={(event) => {
+              verseOffsetsRef.current[verse.verse] = event.nativeEvent.layout.y;
+            }}
+          >
             {verse.heading ? (
               <Text
                 style={[
@@ -324,6 +385,7 @@ export function BibleReaderScreen() {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -416,7 +478,7 @@ export function BibleReaderScreen() {
             bookId={bookId}
             chapter={chapter}
             onChapterChange={(newChapter) => {
-              navigation.setParams({ chapter: newChapter });
+              navigation.setParams({ chapter: newChapter, focusVerse: undefined });
             }}
           />
         ) : null}
@@ -543,6 +605,11 @@ const styles = StyleSheet.create({
   },
   readerBlock: {
     gap: 10,
+    borderWidth: 1,
+    borderRadius: 18,
+    borderColor: 'transparent',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   sectionHeading: {
     fontWeight: '700',

@@ -1,6 +1,7 @@
 export * from './audioService';
 export * from './audioPlayer';
 export * from './audioDownloads';
+export * from './audioAvailability';
 export * from './audioDownloadService';
 export * from './audioDownloadStorage';
 export * from './audioSource';

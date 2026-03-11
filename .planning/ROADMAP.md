@@ -59,8 +59,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Polish scripture browsing, reader state, and daily-scripture presentation
-- [ ] 03-02: Harden audio playback, controls, and offline download UX
+- [x] 03-01: Polish scripture browsing, reader state, and daily-scripture presentation
+- [x] 03-02: Harden audio playback, controls, and offline download UX
 
 ### Phase 4: Discipleship And Group Rollout
 **Goal**: Complete the app's learn surface and make group-study behavior coherent across local and synced paths.
@@ -100,6 +100,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Startup And Backend Hardening | 2/2 | Awaiting device verification | - |
 | 2. Onboarding And Preference Cohesion | 2/2 | Awaiting device verification | - |
-| 3. Core Reading And Audio Polish | 0/2 | Not started | - |
+| 3. Core Reading And Audio Polish | 2/2 | Awaiting device verification | - |
 | 4. Discipleship And Group Rollout | 0/3 | Not started | - |
 | 5. Release Hardening And Distribution | 0/2 | Not started | - |

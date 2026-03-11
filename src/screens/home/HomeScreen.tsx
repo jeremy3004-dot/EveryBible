@@ -18,7 +18,7 @@ import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useProgressStore, useBibleStore } from '../../stores';
 import { getDailyScripture } from '../../services/bible';
-import { isAudioAvailable } from '../../services/audio';
+import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
@@ -44,7 +44,8 @@ export function HomeScreen() {
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
-  const audioEnabled = config.features.audioEnabled && isAudioAvailable(currentTranslation);
+  const remoteAudioAvailable =
+    config.features.audioEnabled && isRemoteAudioAvailable(currentTranslation);
   const getTodayCount = useProgressStore((state) => state.getTodayCount);
   const getWeekCount = useProgressStore((state) => state.getWeekCount);
   const getMonthCount = useProgressStore((state) => state.getMonthCount);
@@ -68,7 +69,7 @@ export function HomeScreen() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTranslation, audioEnabled]);
+  }, [currentTranslation, remoteAudioAvailable]);
 
   const loadVerseOfDay = async ({
     allowInitialization = true,
@@ -87,7 +88,7 @@ export function HomeScreen() {
         return;
       }
 
-      const scripture = await getDailyScripture(currentTranslationInfo, audioEnabled, {
+      const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
         allowInitialization,
       });
       setDailyScripture(scripture);
@@ -121,7 +122,7 @@ export function HomeScreen() {
   };
 
   const handlePlayDailyAudio = () => {
-    if (!dailyScripture) {
+    if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
       return;
     }
 
@@ -141,6 +142,26 @@ export function HomeScreen() {
         dailyScripture.verse ? `:${dailyScripture.verse}` : ''
       }`
     : null;
+  const dailyAudioAvailability =
+    dailyScripture && currentTranslationInfo
+      ? getAudioAvailability({
+          featureEnabled: config.features.audioEnabled,
+          translationHasAudio: currentTranslationInfo.hasAudio,
+          remoteAudioAvailable,
+          downloadedAudioBooks: currentTranslationInfo.downloadedAudioBooks,
+          bookId: dailyScripture.bookId,
+        })
+      : null;
+  const shouldShowDailyAudio =
+    dailyScripture != null &&
+    dailyAudioAvailability?.canPlayAudio &&
+    dailyScripture.kind !== 'verse-text';
+  const dailyAudioKind =
+    shouldShowDailyAudio && dailyScripture?.kind === 'empty'
+      ? currentTranslationInfo?.audioGranularity === 'verse'
+        ? 'verse-audio'
+        : 'section-audio'
+      : dailyScripture?.kind;
 
   return (
     <SafeAreaView
@@ -174,7 +195,7 @@ export function HomeScreen() {
             ]}
           >
             <Text style={[styles.cardTitle, { color: colors.secondaryText }]}>
-              {dailyScripture?.kind === 'section-audio'
+              {dailyAudioKind === 'section-audio'
                 ? t('home.sectionOfTheDay')
                 : t('home.verseOfTheDay')}
             </Text>
@@ -187,10 +208,10 @@ export function HomeScreen() {
                   {dailyReferenceLabel}
                 </Text>
               </>
-            ) : dailyScripture && dailyScripture.kind !== 'empty' ? (
+            ) : shouldShowDailyAudio ? (
               <>
                 <Text style={[styles.audioFallbackBody, { color: colors.primaryText }]}>
-                  {dailyScripture.kind === 'section-audio'
+                  {dailyAudioKind === 'section-audio'
                     ? t('home.sectionOfTheDayBody')
                     : t('home.verseAudioBody')}
                 </Text>
@@ -204,7 +225,7 @@ export function HomeScreen() {
                 >
                   <Ionicons name="play" size={18} color={colors.bibleBackground} />
                   <Text style={[styles.audioActionText, { color: colors.bibleBackground }]}>
-                    {dailyScripture.kind === 'section-audio'
+                    {dailyAudioKind === 'section-audio'
                       ? t('home.playSectionOfTheDay')
                       : t('home.playVerseOfTheDay')}
                   </Text>
