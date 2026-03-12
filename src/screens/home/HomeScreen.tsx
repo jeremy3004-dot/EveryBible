@@ -18,18 +18,12 @@ import { bibleTranslations, getBookById } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useProgressStore, useBibleStore } from '../../stores';
-import { useFourFieldsStore } from '../../stores/fourFieldsStore';
-import { fourFieldsCourses } from '../../data/fourFieldsCourses';
 import { getDailyScripture } from '../../services/bible';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
-import {
-  getJourneyProgressPercent,
-  resolveHomeMomentumMetric,
-  resolveHomePrimaryAction,
-} from './homeExperienceModel';
+import { resolveHomeMomentumMetric, resolveHomePrimaryAction } from './homeExperienceModel';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -59,9 +53,6 @@ export function HomeScreen() {
   const getMonthCount = useProgressStore((state) => state.getMonthCount);
   const getYearCount = useProgressStore((state) => state.getYearCount);
   const streakDays = useProgressStore((state) => state.streakDays);
-  const getCompletedLessonsCount = useFourFieldsStore((state) => state.getCompletedLessonsCount);
-  const getTotalLessonsCount = useFourFieldsStore((state) => state.getTotalLessonsCount);
-  const getNextLesson = useFourFieldsStore((state) => state.getNextLesson);
 
   useEffect(() => {
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
@@ -130,14 +121,6 @@ export function HomeScreen() {
   const chaptersThisWeek = getWeekCount();
   const chaptersThisMonth = getMonthCount();
   const chaptersThisYear = getYearCount();
-  const completedLessons = getCompletedLessonsCount();
-  const totalLessons = getTotalLessonsCount();
-  const journeyProgress = getJourneyProgressPercent(completedLessons, totalLessons);
-  const nextLesson = getNextLesson();
-  const nextCourse = nextLesson
-    ? fourFieldsCourses.find((course) => course.id === nextLesson.courseId)
-    : null;
-  const nextLessonMeta = nextCourse?.lessons.find((lesson) => lesson.id === nextLesson?.lessonId);
 
   const handleContinueReading = () => {
     navigation.navigate('Bible', {
@@ -145,21 +128,6 @@ export function HomeScreen() {
       params: { bookId: currentBook, chapter: currentChapter },
     });
   };
-
-  const handleContinueJourney = () => {
-    if (nextLesson) {
-      navigation.navigate('Learn', {
-        screen: 'FourFieldsLessonView',
-        params: nextLesson,
-      });
-      return;
-    }
-
-    navigation.navigate('Learn', {
-      screen: 'FourFieldsJourney',
-    });
-  };
-
   const handlePlayDailyAudio = () => {
     if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
       return;
@@ -177,11 +145,6 @@ export function HomeScreen() {
   };
 
   const handlePrimaryAction = () => {
-    if (primaryAction === 'continue-journey') {
-      handleContinueJourney();
-      return;
-    }
-
     if (primaryAction === 'play-daily-audio') {
       handlePlayDailyAudio();
       return;
@@ -217,48 +180,33 @@ export function HomeScreen() {
       : dailyScripture?.kind;
   const primaryAction = resolveHomePrimaryAction({
     chaptersToday,
-    hasNextLesson: nextLesson != null,
+    hasNextLesson: false,
     canPlayDailyAudio: shouldShowDailyAudio,
   });
   const momentumMetric = resolveHomeMomentumMetric({
     streakDays,
     weekCount: chaptersThisWeek,
-    completedLessons,
+    completedLessons: 0,
   });
   const heroMetricLabel =
-    momentumMetric === 'streak'
-      ? t('profile.streak')
-      : momentumMetric === 'journey'
-        ? t('harvest.fourFieldsJourney')
-        : t('home.week');
-  const heroMetricValue =
-    momentumMetric === 'streak'
-      ? streakDays
-      : momentumMetric === 'journey'
-        ? completedLessons
-        : chaptersThisWeek;
+    momentumMetric === 'streak' ? t('profile.streak') : t('home.week');
+  const heroMetricValue = momentumMetric === 'streak' ? streakDays : chaptersThisWeek;
   const heroActionLabel =
-    primaryAction === 'continue-journey'
-      ? t('harvest.continueJourney')
-      : primaryAction === 'play-daily-audio'
-        ? dailyAudioKind === 'section-audio'
-          ? t('home.playSectionOfTheDay')
-          : t('home.playVerseOfTheDay')
-        : t('home.continueReading');
+    primaryAction === 'play-daily-audio'
+      ? dailyAudioKind === 'section-audio'
+        ? t('home.playSectionOfTheDay')
+        : t('home.playVerseOfTheDay')
+      : t('home.continueReading');
   const heroActionTitle =
-    primaryAction === 'continue-journey'
-      ? (nextLessonMeta?.title ?? t('harvest.fourFieldsJourney'))
-      : primaryAction === 'play-daily-audio'
-        ? (dailyReferenceLabel ?? t('home.defaultReference'))
-        : `${currentBookInfo?.name || 'Genesis'} ${currentChapter}`;
+    primaryAction === 'play-daily-audio'
+      ? (dailyReferenceLabel ?? t('home.defaultReference'))
+      : `${currentBookInfo?.name || 'Genesis'} ${currentChapter}`;
   const heroActionBody =
-    primaryAction === 'continue-journey'
-      ? t('harvest.lessonsCompleted', { completed: completedLessons, total: totalLessons })
-      : primaryAction === 'play-daily-audio'
-        ? dailyAudioKind === 'section-audio'
-          ? t('home.sectionOfTheDayBody')
-          : t('home.verseAudioBody')
-        : t('home.welcome');
+    primaryAction === 'play-daily-audio'
+      ? dailyAudioKind === 'section-audio'
+        ? t('home.sectionOfTheDayBody')
+        : t('home.verseAudioBody')
+      : t('home.welcome');
   const heroGradientColors = isDark
     ? (['#25181b', '#181b21', '#111316'] as const)
     : (['#fff6ea', '#f6ede1', '#efe2d2'] as const);
@@ -452,42 +400,6 @@ export function HomeScreen() {
             {t('home.year')}
           </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.card,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-          onPress={handleContinueJourney}
-          activeOpacity={0.85}
-        >
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { backgroundColor: colors.accentSecondary + '20' }]}>
-              <Ionicons name="sparkles-outline" size={18} color={colors.accentSecondary} />
-            </View>
-            <View style={styles.sectionCopy}>
-              <Text style={[styles.cardTitle, { color: colors.secondaryText }]}>
-                {t('harvest.fourFieldsJourney')}
-              </Text>
-              <Text style={[styles.cardSubtext, { color: colors.primaryText }]}>
-                {nextLessonMeta?.title ?? t('harvest.browseFields')}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.progressSection}>
-            <View style={[styles.progressTrack, { backgroundColor: colors.cardBorder }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${journeyProgress}%`, backgroundColor: colors.accentPrimary },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressText, { color: colors.secondaryText }]}>
-              {t('harvest.lessonsCompleted', { completed: completedLessons, total: totalLessons })}
-            </Text>
-          </View>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -657,21 +569,5 @@ const styles = StyleSheet.create({
   },
   cardSkeleton: {
     marginBottom: 0,
-  },
-  progressSection: {
-    gap: 8,
-  },
-  progressTrack: {
-    height: 10,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
 });
