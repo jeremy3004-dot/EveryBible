@@ -34,13 +34,10 @@ export function HomeScreen() {
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentBook = useBibleStore((state) => state.currentBook);
-  const currentChapter = useBibleStore((state) => state.currentChapter);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) =>
     Array.isArray(state.translations) ? state.translations : bibleTranslations
   );
-  const currentBookInfo = getBookById(currentBook);
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
@@ -112,13 +109,6 @@ export function HomeScreen() {
     if (hour < 12) return t('home.goodMorning');
     if (hour < 17) return t('home.goodAfternoon');
     return t('home.goodEvening');
-  };
-
-  const handleContinueReading = () => {
-    navigation.navigate('Bible', {
-      screen: 'BibleReader',
-      params: { bookId: currentBook, chapter: currentChapter },
-    });
   };
 
   const handlePlayDailyAudio = () => {
@@ -244,27 +234,6 @@ export function HomeScreen() {
           </View>
         )}
 
-        {/* Continue Reading Card */}
-        <TouchableOpacity
-          style={[
-            styles.card,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-          onPress={handleContinueReading}
-        >
-          <Text style={[styles.cardTitle, { color: colors.secondaryText }]}>
-            {t('home.continueReading')}
-          </Text>
-          <Text style={[styles.cardSubtext, { color: colors.primaryText }]}>
-            {currentBookInfo?.name || 'Genesis'} {currentChapter}
-          </Text>
-          <View style={styles.continueArrow}>
-            <Text style={[styles.continueText, { color: colors.accentGreen }]}>
-              {t('common.continue')}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
         {/* Stats Card */}
         <View
           style={[
@@ -375,17 +344,6 @@ const styles = StyleSheet.create({
   audioActionText: {
     fontSize: 14,
     fontWeight: '700',
-  },
-  cardSubtext: {
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  continueArrow: {
-    marginTop: 12,
-  },
-  continueText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',
