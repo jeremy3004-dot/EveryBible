@@ -144,7 +144,7 @@ export function HomeScreen() {
       : null;
   const shouldShowDailyAudio =
     dailyScripture != null &&
-    Boolean(dailyAudioAvailability?.canPlayAudio) &&
+    dailyAudioAvailability?.canPlayAudio &&
     dailyScripture.kind !== 'verse-text';
   const dailyAudioKind =
     shouldShowDailyAudio && dailyScripture?.kind === 'empty'
@@ -152,6 +152,7 @@ export function HomeScreen() {
         ? 'verse-audio'
         : 'section-audio'
       : dailyScripture?.kind;
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -171,6 +172,7 @@ export function HomeScreen() {
         <Text style={[styles.greeting, { color: colors.primaryText }]}>{getGreeting()}</Text>
         <Text style={[styles.subtitle, { color: colors.secondaryText }]}>{t('home.welcome')}</Text>
 
+        {/* Verse of the Day Card */}
         {isLoadingVerse ? (
           <View style={styles.cardSkeleton}>
             <CardSkeleton lines={3} />
@@ -232,6 +234,7 @@ export function HomeScreen() {
           </View>
         )}
 
+        {/* Stats Card */}
         <View
           style={[
             styles.card,
@@ -243,22 +246,36 @@ export function HomeScreen() {
           </Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>{getTodayCount()}</Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>{t('home.today')}</Text>
+              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
+                {getTodayCount()}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
+                {t('home.today')}
+              </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>{getWeekCount()}</Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>{t('home.week')}</Text>
+              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
+                {getWeekCount()}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
+                {t('home.week')}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statNumber, { color: colors.primaryText }]}>
                 {getMonthCount()}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>{t('home.month')}</Text>
+              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
+                {t('home.month')}
+              </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>{getYearCount()}</Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>{t('home.year')}</Text>
+              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
+                {getYearCount()}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
+                {t('home.year')}
+              </Text>
             </View>
           </View>
         </View>
@@ -276,7 +293,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    gap: 14,
   },
   greeting: {
     fontSize: 28,
@@ -285,62 +301,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    marginBottom: 4,
-  },
-  heroCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 20,
-    gap: 16,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'flex-start',
-  },
-  heroIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroCopy: {
-    flex: 1,
-  },
-  heroEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  heroBody: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  heroButton: {
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    marginBottom: 24,
   },
   card: {
     borderRadius: 16,
     padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
   },
   cardTitle: {
@@ -395,6 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cardSkeleton: {
-    marginBottom: 0,
+    marginBottom: 16,
   },
 });

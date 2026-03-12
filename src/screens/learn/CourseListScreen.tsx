@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,10 @@ import { getBookById } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { useBibleStore, useProgressStore } from '../../stores';
-import { harvestStudySections, type HarvestStudyEntry } from './harvestStudies';
+import {
+  creationToChristPlaylist,
+  type CreationToChristPlaylistEntry,
+} from './creationToChristPlaylist';
 
 export function CourseListScreen() {
   const { colors } = useTheme();
@@ -15,16 +18,12 @@ export function CourseListScreen() {
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const isChapterRead = useProgressStore((state) => state.isChapterRead);
-  const [expandedSectionId, setExpandedSectionId] = useState<string>(harvestStudySections[0]?.id ?? '');
 
-  const allStudyEntries = harvestStudySections.flatMap((section) =>
-    section.groups.flatMap((group) => group.entries)
-  );
-  const completedCount = allStudyEntries.filter((entry) =>
+  const completedCount = creationToChristPlaylist.filter((entry) =>
     isChapterRead(entry.bookId, entry.chapter)
   ).length;
 
-  const openStudyChapter = (entry: HarvestStudyEntry) => {
+  const openPlaylistChapter = (entry: CreationToChristPlaylistEntry) => {
     if (!rootNavigationRef.isReady()) {
       return;
     }
@@ -40,16 +39,12 @@ export function CourseListScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top']}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: colors.primaryText }]}>{t('harvest.title')}</Text>
         <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
-          {t('harvest.chapterStudiesSubtitle', {
-            defaultValue:
-              'Topical chapter studies designed for full-context reading and listening across the Bible.',
+          {t('harvest.creationToChristSubtitle', {
+            defaultValue: 'A chapter-by-chapter story arc from creation to Christ.',
           })}
         </Text>
 
@@ -59,188 +54,106 @@ export function CourseListScreen() {
             { backgroundColor: colors.cardBackground, borderColor: colors.accentPrimary },
           ]}
         >
+          <View style={styles.heroHeader}>
+            <View style={[styles.heroIcon, { backgroundColor: colors.accentPrimary + '18' }]}>
+              <Ionicons name="play-circle" size={26} color={colors.accentPrimary} />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={[styles.heroEyebrow, { color: colors.accentPrimary }]}>
+                {t('harvest.chapterPlaylistEyebrow', { defaultValue: 'Chapter Playlist' })}
+              </Text>
+              <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+                {t('harvest.creationToChristTitle', { defaultValue: 'Creation to Christ' })}
+              </Text>
+            </View>
+          </View>
+
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-            {t('harvest.chapterStudiesBody', {
+            {t('harvest.chapterPlaylistBody', {
               defaultValue:
-                'Each study opens full chapters so audio playback and reading stay reliable and in context across devices.',
+                'Every item opens a full Bible chapter so listening works consistently across translations and devices.',
             })}
           </Text>
 
           <View style={styles.metricsRow}>
-            <View
-              style={[
-                styles.metricChip,
-                { backgroundColor: colors.background, borderColor: colors.cardBorder },
-              ]}
-            >
+            <View style={[styles.metricChip, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
               <Text style={[styles.metricValue, { color: colors.primaryText }]}>
-                {harvestStudySections.length}
-              </Text>
-              <Text style={[styles.metricLabel, { color: colors.secondaryText }]}>
-                {t('harvest.studies', { defaultValue: 'Studies' })}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.metricChip,
-                { backgroundColor: colors.background, borderColor: colors.cardBorder },
-              ]}
-            >
-              <Text style={[styles.metricValue, { color: colors.primaryText }]}>
-                {allStudyEntries.length}
+                {creationToChristPlaylist.length}
               </Text>
               <Text style={[styles.metricLabel, { color: colors.secondaryText }]}>
                 {t('harvest.chapters', { defaultValue: 'Chapters' })}
               </Text>
             </View>
-            <View
-              style={[
-                styles.metricChip,
-                { backgroundColor: colors.background, borderColor: colors.cardBorder },
-              ]}
-            >
-              <Text style={[styles.metricValue, { color: colors.primaryText }]}>
-                {completedCount}
-              </Text>
+            <View style={[styles.metricChip, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
+              <Text style={[styles.metricValue, { color: colors.primaryText }]}>{completedCount}</Text>
               <Text style={[styles.metricLabel, { color: colors.secondaryText }]}>
                 {t('harvest.read', { defaultValue: 'Read' })}
+              </Text>
+            </View>
+            <View style={[styles.metricChip, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
+              <Ionicons name="volume-high-outline" size={16} color={colors.accentPrimary} />
+              <Text style={[styles.metricLabel, { color: colors.secondaryText }]}>
+                {t('harvest.chapterOnly', { defaultValue: 'Chapter only' })}
               </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.playlist}>
-          {harvestStudySections.map((section) => {
-            const sectionEntries = section.groups.flatMap((group) => group.entries);
-            const sectionCompletedCount = sectionEntries.filter((entry) =>
-              isChapterRead(entry.bookId, entry.chapter)
-            ).length;
-            const isExpanded = expandedSectionId === section.id;
+          {creationToChristPlaylist.map((entry, index) => {
+            const isActive = currentBook === entry.bookId && currentChapter === entry.chapter;
+            const read = isChapterRead(entry.bookId, entry.chapter);
+            const bookName = getBookById(entry.bookId)?.name ?? entry.bookId;
+            const reference = `${bookName} ${entry.chapter}`;
 
             return (
-              <View
-                key={section.id}
+              <TouchableOpacity
+                key={`${entry.bookId}:${entry.chapter}`}
                 style={[
-                  styles.sectionCard,
+                  styles.playlistRow,
                   {
                     backgroundColor: colors.cardBackground,
-                    borderColor: isExpanded ? colors.accentPrimary : colors.cardBorder,
+                    borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
                   },
                 ]}
+                onPress={() => openPlaylistChapter(entry)}
+                activeOpacity={0.9}
               >
-                <TouchableOpacity
-                  style={styles.sectionHeader}
-                  onPress={() => setExpandedSectionId(section.id)}
-                  activeOpacity={0.85}
+                <View
+                  style={[
+                    styles.indexBadge,
+                    { backgroundColor: isActive ? colors.accentPrimary : colors.background },
+                  ]}
                 >
-                  <View style={styles.sectionHeaderTextWrap}>
-                    <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
-                      {section.title}
-                    </Text>
-                    <Text style={[styles.sectionProgress, { color: colors.accentPrimary }]}>
-                      {sectionCompletedCount}/{sectionEntries.length}{' '}
-                      {t('harvest.read', { defaultValue: 'Read' })}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.secondaryText}
-                  />
-                </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.indexBadgeText,
+                      { color: isActive ? '#fff' : colors.secondaryText },
+                    ]}
+                  >
+                    {index + 1}
+                  </Text>
+                </View>
 
-                {isExpanded ? (
-                  <>
-                    <Text style={[styles.sectionDescription, { color: colors.secondaryText }]}>
-                      {section.description}
-                    </Text>
-
-                    {section.groups.map((group) => (
-                      <View key={group.id} style={styles.groupBlock}>
-                        {section.groups.length > 1 ? (
-                          <Text style={[styles.groupTitle, { color: colors.primaryText }]}>
-                            {group.title}
-                          </Text>
-                        ) : null}
-
-                        {group.entries.map((entry, index) => {
-                          const isActive =
-                            currentBook === entry.bookId && currentChapter === entry.chapter;
-                          const read = isChapterRead(entry.bookId, entry.chapter);
-                          const bookName = getBookById(entry.bookId)?.name ?? entry.bookId;
-                          const reference = `${bookName} ${entry.chapter}`;
-
-                          return (
-                            <TouchableOpacity
-                              key={`${section.id}:${group.id}:${entry.bookId}:${entry.chapter}`}
-                              style={[
-                                styles.playlistRow,
-                                {
-                                  backgroundColor: colors.background,
-                                  borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
-                                },
-                              ]}
-                              onPress={() => openStudyChapter(entry)}
-                              activeOpacity={0.9}
-                            >
-                              <View
-                                style={[
-                                  styles.indexBadge,
-                                  {
-                                    backgroundColor: isActive
-                                      ? colors.accentPrimary
-                                      : colors.cardBackground,
-                                  },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.indexBadgeText,
-                                    { color: isActive ? '#fff' : colors.secondaryText },
-                                  ]}
-                                >
-                                  {index + 1}
-                                </Text>
-                              </View>
-
-                              <View style={styles.rowContent}>
-                                <Text style={[styles.rowTitle, { color: colors.primaryText }]}>
-                                  {reference}
-                                </Text>
-                                <Text style={[styles.rowSubtitle, { color: colors.secondaryText }]}>
-                                  {isActive
-                                    ? t('harvest.nowReading', {
-                                        defaultValue: 'Now open in Bible tab',
-                                      })
-                                    : t('harvest.playChapterSubtitle', {
-                                        defaultValue: 'Open and play full chapter',
-                                      })}
-                                </Text>
-                              </View>
-
-                              <View style={styles.rowMeta}>
-                                {read ? (
-                                  <Ionicons
-                                    name="checkmark-circle"
-                                    size={22}
-                                    color={colors.success}
-                                  />
-                                ) : (
-                                  <Ionicons
-                                    name="play-circle-outline"
-                                    size={22}
-                                    color={colors.accentPrimary}
-                                  />
-                                )}
-                              </View>
-                            </TouchableOpacity>
-                          );
+                <View style={styles.rowContent}>
+                  <Text style={[styles.rowTitle, { color: colors.primaryText }]}>{reference}</Text>
+                  <Text style={[styles.rowSubtitle, { color: colors.secondaryText }]}>
+                    {isActive
+                      ? t('harvest.nowReading', { defaultValue: 'Now open in Bible tab' })
+                      : t('harvest.playChapterSubtitle', {
+                          defaultValue: 'Open and play full chapter',
                         })}
-                      </View>
-                    ))}
-                  </>
-                ) : null}
-              </View>
+                  </Text>
+                </View>
+
+                <View style={styles.rowMeta}>
+                  {read ? (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                  ) : (
+                    <Ionicons name="play-circle-outline" size={22} color={colors.accentPrimary} />
+                  )}
+                </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -273,8 +186,34 @@ const styles = StyleSheet.create({
   heroCard: {
     borderWidth: 1,
     borderRadius: 20,
-    padding: 16,
+    padding: 18,
+    gap: 14,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
+  },
+  heroIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroCopy: {
+    flex: 1,
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
   },
   heroBody: {
     fontSize: 14,
@@ -288,8 +227,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
@@ -305,49 +244,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   playlist: {
-    gap: 14,
+    gap: 10,
     paddingBottom: 20,
-  },
-  sectionCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    gap: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sectionHeaderTextWrap: {
-    flex: 1,
-    gap: 4,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  sectionDescription: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  sectionProgress: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  groupBlock: {
-    gap: 8,
-  },
-  groupTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 2,
   },
   playlistRow: {
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
