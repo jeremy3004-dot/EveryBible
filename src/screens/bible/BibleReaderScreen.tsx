@@ -17,12 +17,7 @@ import { VersesSkeleton, AudioFirstChapterCard, AudioPlayerBar } from '../../com
 import type { BibleTranslation, Verse } from '../../types';
 import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
 import {
-  creationToChristPlaylist,
-  creationToChristPlaylistId,
-} from '../learn/creationToChristPlaylist';
-import {
   getNextFontSizeSheetVisibility,
-  getPlaylistNavigationTargets,
   getNextTranslationSheetVisibility,
 } from './bibleReaderModel';
 
@@ -31,7 +26,7 @@ type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleReaderScreenProps['route']>();
-  const { bookId, chapter, autoplayAudio, focusVerse, playlistId } = route.params;
+  const { bookId, chapter, autoplayAudio, focusVerse } = route.params;
   const { colors } = useTheme();
   const { t } = useTranslation();
   const autoplayKeyRef = useRef<string | null>(null);
@@ -180,17 +175,8 @@ export function BibleReaderScreen() {
     return null;
   }
 
-  const playlistNavigationTargets = getPlaylistNavigationTargets(
-    playlistId === creationToChristPlaylistId ? creationToChristPlaylist : null,
-    bookId,
-    chapter
-  );
-  const hasPrevChapter = playlistNavigationTargets.hasPlaylistContext
-    ? playlistNavigationTargets.previousTarget != null
-    : chapter > 1;
-  const hasNextChapter = playlistNavigationTargets.hasPlaylistContext
-    ? playlistNavigationTargets.nextTarget != null
-    : chapter < book.chapters;
+  const hasPrevChapter = chapter > 1;
+  const hasNextChapter = chapter < book.chapters;
   const dismissFontSizeSheetFromReader = () => {
     setShowFontSizeSheet((current) =>
       getNextFontSizeSheetVisibility(current, 'readerContentTap')
@@ -198,22 +184,6 @@ export function BibleReaderScreen() {
   };
 
   const handlePrevChapter = () => {
-    if (playlistNavigationTargets.hasPlaylistContext) {
-      if (!playlistNavigationTargets.previousTarget) {
-        return;
-      }
-
-      setShowFontSizeSheet((current) =>
-        getNextFontSizeSheetVisibility(current, 'chapterChange')
-      );
-      navigation.setParams({
-        bookId: playlistNavigationTargets.previousTarget.bookId,
-        chapter: playlistNavigationTargets.previousTarget.chapter,
-        focusVerse: undefined,
-      });
-      return;
-    }
-
     if (hasPrevChapter) {
       setShowFontSizeSheet((current) =>
         getNextFontSizeSheetVisibility(current, 'chapterChange')
@@ -223,22 +193,6 @@ export function BibleReaderScreen() {
   };
 
   const handleNextChapter = () => {
-    if (playlistNavigationTargets.hasPlaylistContext) {
-      if (!playlistNavigationTargets.nextTarget) {
-        return;
-      }
-
-      setShowFontSizeSheet((current) =>
-        getNextFontSizeSheetVisibility(current, 'chapterChange')
-      );
-      navigation.setParams({
-        bookId: playlistNavigationTargets.nextTarget.bookId,
-        chapter: playlistNavigationTargets.nextTarget.chapter,
-        focusVerse: undefined,
-      });
-      return;
-    }
-
     if (hasNextChapter) {
       setShowFontSizeSheet((current) =>
         getNextFontSizeSheetVisibility(current, 'chapterChange')
