@@ -14,7 +14,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "eas-build-pre-install": "bash scripts/eas-preinstall.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
