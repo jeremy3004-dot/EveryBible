@@ -2,6 +2,17 @@ import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse }
 
 export type ChapterPresentationMode = 'text' | 'audio-first' | 'empty';
 
+interface AudioFirstChapterFact {
+  label: string;
+  value: string;
+}
+
+export interface AudioFirstChapterPresentation {
+  title: string;
+  pills: string[];
+  facts: AudioFirstChapterFact[];
+}
+
 interface ChapterPresentationOptions {
   verses: Verse[];
   translation?: Pick<BibleTranslation, 'hasText' | 'hasAudio' | 'audioGranularity'>;
@@ -13,6 +24,16 @@ interface BuildDailyScriptureOptions {
   verse: Verse | null;
   translation?: Pick<BibleTranslation, 'hasAudio' | 'audioGranularity'>;
   audioAvailable: boolean;
+}
+
+interface BuildAudioFirstChapterPresentationOptions {
+  bookName: string;
+  chapter: number;
+  translationLabel: string;
+  testamentLabel: string;
+  chapterLabel: string;
+  availableLabel: string;
+  offlineLabel?: string;
 }
 
 export function getChapterPresentationMode({
@@ -29,6 +50,25 @@ export function getChapterPresentationMode({
   }
 
   return 'empty';
+}
+
+export function buildAudioFirstChapterPresentation({
+  bookName,
+  chapter,
+  translationLabel,
+  testamentLabel,
+  chapterLabel,
+  availableLabel,
+  offlineLabel,
+}: BuildAudioFirstChapterPresentationOptions): AudioFirstChapterPresentation {
+  return {
+    title: `${bookName} ${chapter}`,
+    pills: [translationLabel, testamentLabel, offlineLabel].filter(Boolean) as string[],
+    facts: [
+      { label: chapterLabel, value: String(chapter) },
+      { label: availableLabel, value: translationLabel },
+    ],
+  };
 }
 
 export function buildDailyScripture({
