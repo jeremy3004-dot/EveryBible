@@ -66,9 +66,14 @@ test('applies the branded launch storyboard name to Info.plist data', () => {
   assert.equal(rewritten.UILaunchStoryboardName, BRANDED_LAUNCH_STORYBOARD_NAME);
 });
 
-test('adds alternate icon entries to generated Info.plist data', () => {
+test('keeps alternate icon metadata out of Info.plist so iOS uses asset catalogs only', () => {
   const infoPlist = {
     CFBundleIcons: {
+      CFBundlePrimaryIcon: {
+        CFBundleIconFiles: ['AppIcon'],
+      },
+    },
+    'CFBundleIcons~ipad': {
       CFBundlePrimaryIcon: {
         CFBundleIconFiles: ['AppIcon'],
       },
@@ -76,27 +81,8 @@ test('adds alternate icon entries to generated Info.plist data', () => {
   };
 
   const rewritten = applyAlternateAppIconInfoPlist(infoPlist);
-  const phoneAlternateIcons = rewritten.CFBundleIcons as {
-    CFBundleAlternateIcons?: Record<
-      string,
-      { CFBundleIconFiles?: string[]; UIPrerenderedIcon?: boolean }
-    >;
-  };
-  const ipadAlternateIcons = rewritten['CFBundleIcons~ipad'] as {
-    CFBundleAlternateIcons?: Record<
-      string,
-      { CFBundleIconFiles?: string[]; UIPrerenderedIcon?: boolean }
-    >;
-  };
 
-  assert.deepEqual(phoneAlternateIcons.CFBundleAlternateIcons?.[DISCREET_APP_ICON_NAME], {
-    CFBundleIconFiles: [DISCREET_APP_ICON_NAME],
-    UIPrerenderedIcon: false,
-  });
-  assert.deepEqual(ipadAlternateIcons.CFBundleAlternateIcons?.[DISCREET_APP_ICON_NAME], {
-    CFBundleIconFiles: [DISCREET_APP_ICON_NAME],
-    UIPrerenderedIcon: false,
-  });
+  assert.deepEqual(rewritten, infoPlist);
 });
 
 test('adds the alternate app icon build setting to Xcode configs', () => {
@@ -143,11 +129,26 @@ test('recreates the discreet alternate icon asset set during prebuild', async ()
   const iconContents = JSON.parse(
     await fs.readFile(path.join(discreetIconSetPath, 'Contents.json'), 'utf8')
   ) as {
-    images: Array<{ filename: string }>;
+    images: Array<{ filename?: string; idiom: string; size: string; scale?: string }>;
   };
 
-  await fs.access(path.join(discreetIconSetPath, 'DiscreetAppIcon-1024x1024@1x.png'));
-  assert.equal(iconContents.images[0]?.filename, 'DiscreetAppIcon-1024x1024@1x.png');
+  const expectedIconFiles = [
+    'DiscreetAppIcon-60x60@2x.png',
+    'DiscreetAppIcon-60x60@3x.png',
+    'DiscreetAppIcon-76x76@1x.png',
+    'DiscreetAppIcon-76x76@2x.png',
+    'DiscreetAppIcon-83.5x83.5@2x.png',
+    'DiscreetAppIcon-1024x1024@1x.png',
+  ];
+
+  for (const filename of expectedIconFiles) {
+    await fs.access(path.join(discreetIconSetPath, filename));
+  }
+
+  const listedFiles = iconContents.images
+    .map((entry) => entry.filename)
+    .filter((entry): entry is string => typeof entry === 'string');
+  assert.deepEqual(listedFiles.sort(), [...expectedIconFiles].sort());
 
   await fs.rm(iosRoot, { recursive: true, force: true });
 });

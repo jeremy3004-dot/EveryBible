@@ -4,6 +4,7 @@ import sharp from 'sharp';
 
 const projectRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const masterOutputPath = path.join(projectRoot, 'assets', 'icon-discreet.png');
+const iosGeneratedAssetsRoot = path.join(projectRoot, 'assets', 'discreet-icons', 'ios');
 const iosIconSetPath = path.join(
   projectRoot,
   'ios',
@@ -19,6 +20,27 @@ const androidIconSizes = [
   ['xhdpi', 96],
   ['xxhdpi', 144],
   ['xxxhdpi', 192],
+];
+
+const iosIconSpecs = [
+  { filename: 'DiscreetAppIcon-60x60@2x.png', size: 120, idiom: 'iphone', logicalSize: '60x60', scale: '2x' },
+  { filename: 'DiscreetAppIcon-60x60@3x.png', size: 180, idiom: 'iphone', logicalSize: '60x60', scale: '3x' },
+  { filename: 'DiscreetAppIcon-76x76@1x.png', size: 76, idiom: 'ipad', logicalSize: '76x76', scale: '1x' },
+  { filename: 'DiscreetAppIcon-76x76@2x.png', size: 152, idiom: 'ipad', logicalSize: '76x76', scale: '2x' },
+  {
+    filename: 'DiscreetAppIcon-83.5x83.5@2x.png',
+    size: 167,
+    idiom: 'ipad',
+    logicalSize: '83.5x83.5',
+    scale: '2x',
+  },
+  {
+    filename: 'DiscreetAppIcon-1024x1024@1x.png',
+    size: 1024,
+    idiom: 'ios-marketing',
+    logicalSize: '1024x1024',
+    scale: '1x',
+  },
 ];
 
 const masterSvg = `
@@ -54,14 +76,12 @@ const masterSvg = `
 `;
 
 const iosContents = {
-  images: [
-    {
-      filename: 'DiscreetAppIcon-1024x1024@1x.png',
-      idiom: 'universal',
-      platform: 'ios',
-      size: '1024x1024',
-    },
-  ],
+  images: iosIconSpecs.map((spec) => ({
+    filename: spec.filename,
+    idiom: spec.idiom,
+    size: spec.logicalSize,
+    scale: spec.scale,
+  })),
   info: {
     version: 1,
     author: 'codex',
@@ -78,8 +98,15 @@ const writePng = async (targetPath, size) => {
 
 await ensureDirectory(path.dirname(masterOutputPath));
 await ensureDirectory(iosIconSetPath);
+await ensureDirectory(iosGeneratedAssetsRoot);
 await writePng(masterOutputPath, 1024);
-await writePng(path.join(iosIconSetPath, 'DiscreetAppIcon-1024x1024@1x.png'), 1024);
+
+for (const spec of iosIconSpecs) {
+  const outputBuffer = await sharp(Buffer.from(masterSvg)).resize(spec.size, spec.size).png().toBuffer();
+  await fs.writeFile(path.join(iosGeneratedAssetsRoot, spec.filename), outputBuffer);
+  await fs.writeFile(path.join(iosIconSetPath, spec.filename), outputBuffer);
+}
+
 await fs.writeFile(path.join(iosIconSetPath, 'Contents.json'), JSON.stringify(iosContents, null, 2));
 
 for (const [density, size] of androidIconSizes) {

@@ -9,20 +9,31 @@ const BRANDED_SPLASH_ASSET_NAME = 'SplashScreenBrand';
 const DEFAULT_LAUNCH_STORYBOARD_NAME = 'SplashScreen';
 const BRANDED_LAUNCH_STORYBOARD_NAME = 'EveryBibleLaunchScreen';
 const DISCREET_APP_ICON_NAME = 'DiscreetAppIcon';
-const DISCREET_APP_ICON_FILE_NAME = `${DISCREET_APP_ICON_NAME}-1024x1024@1x.png`;
-const DISCREET_APP_ICON_INFO_PLIST_ENTRY = {
-  CFBundleIconFiles: [DISCREET_APP_ICON_NAME],
-  UIPrerenderedIcon: false,
-};
+const DISCREET_APP_ICON_SPECS = [
+  { filename: `${DISCREET_APP_ICON_NAME}-60x60@2x.png`, idiom: 'iphone', size: '60x60', scale: '2x' },
+  { filename: `${DISCREET_APP_ICON_NAME}-60x60@3x.png`, idiom: 'iphone', size: '60x60', scale: '3x' },
+  { filename: `${DISCREET_APP_ICON_NAME}-76x76@1x.png`, idiom: 'ipad', size: '76x76', scale: '1x' },
+  { filename: `${DISCREET_APP_ICON_NAME}-76x76@2x.png`, idiom: 'ipad', size: '76x76', scale: '2x' },
+  {
+    filename: `${DISCREET_APP_ICON_NAME}-83.5x83.5@2x.png`,
+    idiom: 'ipad',
+    size: '83.5x83.5',
+    scale: '2x',
+  },
+  {
+    filename: `${DISCREET_APP_ICON_NAME}-1024x1024@1x.png`,
+    idiom: 'ios-marketing',
+    size: '1024x1024',
+    scale: '1x',
+  },
+];
 const DISCREET_APP_ICON_CONTENTS = {
-  images: [
-    {
-      filename: DISCREET_APP_ICON_FILE_NAME,
-      idiom: 'universal',
-      platform: 'ios',
-      size: '1024x1024',
-    },
-  ],
+  images: DISCREET_APP_ICON_SPECS.map((spec) => ({
+    filename: spec.filename,
+    idiom: spec.idiom,
+    size: spec.size,
+    scale: spec.scale,
+  })),
   info: {
     version: 1,
     author: 'codex',
@@ -49,33 +60,7 @@ const applyLaunchStoryboardName = (infoPlist) => ({
   UILaunchStoryboardName: BRANDED_LAUNCH_STORYBOARD_NAME,
 });
 
-const normalizeIconDictionary = (iconDictionary) =>
-  iconDictionary && typeof iconDictionary === 'object' ? iconDictionary : {};
-
-const applyAlternateAppIconInfoPlist = (infoPlist) => {
-  const phoneIcons = normalizeIconDictionary(infoPlist.CFBundleIcons);
-  const phoneAlternateIcons = normalizeIconDictionary(phoneIcons.CFBundleAlternateIcons);
-  const ipadIcons = normalizeIconDictionary(infoPlist['CFBundleIcons~ipad']);
-  const ipadAlternateIcons = normalizeIconDictionary(ipadIcons.CFBundleAlternateIcons);
-
-  return {
-    ...infoPlist,
-    CFBundleIcons: {
-      ...phoneIcons,
-      CFBundleAlternateIcons: {
-        ...phoneAlternateIcons,
-        [DISCREET_APP_ICON_NAME]: DISCREET_APP_ICON_INFO_PLIST_ENTRY,
-      },
-    },
-    'CFBundleIcons~ipad': {
-      ...ipadIcons,
-      CFBundleAlternateIcons: {
-        ...ipadAlternateIcons,
-        [DISCREET_APP_ICON_NAME]: DISCREET_APP_ICON_INFO_PLIST_ENTRY,
-      },
-    },
-  };
-};
+const applyAlternateAppIconInfoPlist = (infoPlist) => infoPlist;
 
 const ensureDiscreetAppIconAssets = async (iosRoot, projectName) => {
   const discreetIconSetPath = path.join(
@@ -84,11 +69,17 @@ const ensureDiscreetAppIconAssets = async (iosRoot, projectName) => {
     'Images.xcassets',
     `${DISCREET_APP_ICON_NAME}.appiconset`
   );
-  const discreetIconAssetPath = path.join(discreetIconSetPath, DISCREET_APP_ICON_FILE_NAME);
-  const sourceDiscreetIconPath = path.join(__dirname, '..', 'assets', 'icon-discreet.png');
+  const sourceDiscreetIconRoot = path.join(__dirname, '..', 'assets', 'discreet-icons', 'ios');
 
   await fs.mkdir(discreetIconSetPath, { recursive: true });
-  await fs.copyFile(sourceDiscreetIconPath, discreetIconAssetPath);
+
+  for (const spec of DISCREET_APP_ICON_SPECS) {
+    await fs.copyFile(
+      path.join(sourceDiscreetIconRoot, spec.filename),
+      path.join(discreetIconSetPath, spec.filename)
+    );
+  }
+
   await fs.writeFile(
     path.join(discreetIconSetPath, 'Contents.json'),
     JSON.stringify(DISCREET_APP_ICON_CONTENTS, null, 2)
