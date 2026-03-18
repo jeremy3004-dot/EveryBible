@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Dimensions,
   Modal,
   ScrollView,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import {
   bibleBooks,
   type BibleBook,
@@ -27,7 +27,13 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
-import { buildBibleBrowserRows, searchBible, type BibleBrowserRow } from '../../services/bible';
+import {
+  buildBibleBrowserRows,
+  parsePassageReference,
+  searchBible,
+  type BibleBrowserRow,
+  type PassageReferenceTarget,
+} from '../../services/bible';
 import {
   getAudioAvailability,
   isAudioBookDownloaded,
@@ -38,7 +44,7 @@ import type { BibleStackParamList } from '../../navigation/types';
 import type { BibleTranslation, Verse } from '../../types';
 import {
   formatBibleSearchReference,
-  shouldRunBibleSearch,
+  resolveBibleSearchIntent,
 } from './bibleSearchModel';
 import { getTranslationSelectionState } from './bibleTranslationModel';
 
@@ -47,6 +53,8 @@ type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 56) / 2;
 const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
+const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 170;
+const SEARCH_RESULT_ESTIMATED_SIZE = 118;
 
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -88,15 +96,18 @@ export function BibleBrowserScreen() {
   const audioManagerAvailability = audioManagerTranslation
     ? getTranslationAudioAvailability(audioManagerTranslation)
     : null;
-  const isSearchActive = shouldRunBibleSearch(deferredSearchQuery);
+  const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parsePassageReference);
 
   useEffect(() => {
     let isCancelled = false;
 
     const runSearch = async () => {
-      const trimmedQuery = deferredSearchQuery.trim();
+      const deferredSearchIntent = resolveBibleSearchIntent(
+        deferredSearchQuery,
+        parsePassageReference
+      );
 
-      if (!shouldRunBibleSearch(trimmedQuery)) {
+      if (deferredSearchIntent.kind !== 'full-text') {
         setSearchResults([]);
         setSearchError(null);
         setIsSearching(false);
@@ -107,7 +118,7 @@ export function BibleBrowserScreen() {
       setSearchError(null);
 
       try {
-        const results = await searchBible(trimmedQuery);
+        const results = await searchBible(deferredSearchIntent.query);
 
         if (!isCancelled) {
           setSearchResults(results);
@@ -136,12 +147,27 @@ export function BibleBrowserScreen() {
     navigation.navigate('ChapterSelector', { bookId: book.id });
   };
 
+  const handleReferencePress = (target: PassageReferenceTarget) => {
+    navigation.navigate('BibleReader', {
+      bookId: target.bookId,
+      chapter: target.chapter,
+      focusVerse: target.focusVerse,
+    });
+  };
+
   const handleSearchResultPress = (verse: Verse) => {
     navigation.navigate('BibleReader', {
       bookId: verse.bookId,
       chapter: verse.chapter,
       focusVerse: verse.verse,
     });
+  };
+
+  const handleSearchSubmit = () => {
+    const submitIntent = resolveBibleSearchIntent(searchQuery, parsePassageReference);
+    if (submitIntent.kind === 'reference') {
+      handleReferencePress(submitIntent.target);
+    }
   };
 
   const handleTranslationSelect = (translation: BibleTranslation) => {
@@ -299,6 +325,12 @@ export function BibleBrowserScreen() {
     );
   };
 
+  const referenceMeta = searchIntent.kind === 'reference'
+    ? searchIntent.target.focusVerse
+      ? `${t('bible.chapter')} ${searchIntent.target.chapter} • ${t('bible.verse')} ${searchIntent.target.focusVerse}`
+      : `${t('bible.chapter')} ${searchIntent.target.chapter}`
+    : null;
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bibleBackground }]}
@@ -351,6 +383,7 @@ export function BibleBrowserScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
+            onSubmitEditing={handleSearchSubmit}
           />
           {searchQuery.length > 0 ? (
             <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
@@ -360,7 +393,7 @@ export function BibleBrowserScreen() {
         </View>
       </View>
 
-      {isSearchActive ? (
+      {searchIntent.kind === 'full-text' ? (
         isSearching ? (
           <View style={styles.searchLoadingState}>
             <ActivityIndicator color={colors.bibleAccent} />
@@ -377,21 +410,48 @@ export function BibleBrowserScreen() {
             </Text>
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={searchResults}
             renderItem={renderSearchResult}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.searchResultsContent}
             showsVerticalScrollIndicator={false}
+            estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
           />
         )
+      ) : searchIntent.kind === 'reference' ? (
+        <TouchableOpacity
+          style={[
+            styles.referenceActionCard,
+            {
+              backgroundColor: colors.bibleSurface,
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+          onPress={() => handleReferencePress(searchIntent.target)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.searchResultHeader}>
+            <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
+              {searchIntent.target.label}
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
+          </View>
+          {referenceMeta ? (
+            <Text style={[styles.referenceMetaText, { color: colors.biblePrimaryText }]}>
+              {referenceMeta}
+            </Text>
+          ) : null}
+        </TouchableOpacity>
       ) : (
-        <FlatList
+        <FlashList
           data={bibleBrowserRows}
           renderItem={renderRow}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
+          getItemType={(item) => item.type}
         />
       )}
 
@@ -859,6 +919,18 @@ const styles = StyleSheet.create({
   },
   searchFeedbackText: {
     fontSize: 15,
+    fontWeight: '600',
+  },
+  referenceActionCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+    gap: 8,
+  },
+  referenceMetaText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   row: {

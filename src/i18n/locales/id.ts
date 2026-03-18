@@ -178,6 +178,7 @@ export const id = {
     guestUser: 'Pengguna Tamu',
     signInToSync: 'Masuk untuk menyinkronkan kemajuan Anda',
     signInOrCreate: 'Masuk atau Buat Akun',
+    readingActivity: 'Reading Activity',
     signOut: 'Keluar',
     signOutConfirm:
       'Apakah Anda yakin ingin keluar? Kemajuan membaca lokal Anda akan dipertahankan.',
@@ -232,6 +233,17 @@ export const id = {
   },
   profile: {
     streak: 'Rangkaian hari',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'Memanen',

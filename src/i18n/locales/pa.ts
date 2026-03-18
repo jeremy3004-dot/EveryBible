@@ -179,6 +179,7 @@ export const pa = {
     guestUser: 'ਮਹਿਮਾਨ ਉਪਭੋਗਤਾ',
     signInToSync: 'ਆਪਣੀ ਤਰੱਕੀ ਨੂੰ ਸਿੰਕ ਕਰਨ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ',
     signInOrCreate: 'ਸਾਈਨ ਇਨ ਕਰੋ ਜਾਂ ਖਾਤਾ ਬਣਾਓ',
+    readingActivity: 'Reading Activity',
     signOut: 'ਸਾਇਨ ਆਉਟ',
     signOutConfirm:
       'ਕੀ ਤੁਸੀਂ ਪੱਕਾ ਸਾਈਨ ਆਉਟ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ? ਤੁਹਾਡੀ ਸਥਾਨਕ ਰੀਡਿੰਗ ਪ੍ਰਗਤੀ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਿਆ ਜਾਵੇਗਾ।',
@@ -233,6 +234,17 @@ export const pa = {
   },
   profile: {
     streak: 'ਦਿਨਾਂ ਦੀ ਲੜੀ',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'ਵਾਢੀ',

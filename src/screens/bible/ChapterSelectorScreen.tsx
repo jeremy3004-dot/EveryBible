@@ -1,17 +1,23 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { getBookById, getBookIcon } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
+import {
+  CHAPTER_GRID_ROW_GAP,
+  buildChapterGridRows,
+  getChapterGridItemSize,
+} from './chapterSelectorModel';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 72) / 5;
+const ITEM_SIZE = getChapterGridItemSize(width);
 
 export function ChapterSelectorScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -25,26 +31,31 @@ export function ChapterSelectorScreen() {
     return null;
   }
 
-  const chapters = Array.from({ length: book.chapters }, (_, index) => index + 1);
+  const chapterRows = buildChapterGridRows(book.chapters);
 
   const handleChapterPress = (chapter: number) => {
     navigation.navigate('BibleReader', { bookId, chapter });
   };
 
-  const renderChapter = ({ item }: { item: number }) => (
-    <TouchableOpacity
-      style={[
-        styles.chapterButton,
-        {
-          backgroundColor: colors.bibleSurface,
-          borderColor: colors.bibleDivider,
-        },
-      ]}
-      onPress={() => handleChapterPress(item)}
-      activeOpacity={0.85}
-    >
-      <Text style={[styles.chapterNumber, { color: colors.biblePrimaryText }]}>{item}</Text>
-    </TouchableOpacity>
+  const renderChapterRow = ({ item }: { item: number[] }) => (
+    <View style={styles.row}>
+      {item.map((chapter) => (
+        <TouchableOpacity
+          key={chapter}
+          style={[
+            styles.chapterButton,
+            {
+              backgroundColor: colors.bibleSurface,
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+          onPress={() => handleChapterPress(chapter)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.chapterNumber, { color: colors.biblePrimaryText }]}>{chapter}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 
   return (
@@ -85,14 +96,14 @@ export function ChapterSelectorScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={chapters}
-        renderItem={renderChapter}
-        keyExtractor={(item) => item.toString()}
-        numColumns={5}
+      <FlashList
+        data={chapterRows}
+        renderItem={renderChapterRow}
+        keyExtractor={(_, index) => `row-${index}`}
+        estimatedItemSize={ITEM_SIZE + CHAPTER_GRID_ROW_GAP}
         contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
+        extraData={colors}
       />
     </SafeAreaView>
   );
@@ -149,11 +160,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
-  row: {
-    justifyContent: 'flex-start',
-    gap: 8,
-    marginBottom: 8,
-  },
   chapterButton: {
     width: ITEM_SIZE,
     height: ITEM_SIZE,
@@ -165,5 +171,10 @@ const styles = StyleSheet.create({
   chapterNumber: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: CHAPTER_GRID_ROW_GAP,
   },
 });

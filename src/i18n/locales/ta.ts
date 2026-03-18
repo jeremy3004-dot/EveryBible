@@ -179,6 +179,7 @@ export const ta = {
     guestUser: 'விருந்தினர் பயனர்',
     signInToSync: 'உங்கள் முன்னேற்றத்தை ஒத்திசைக்க உள்நுழையவும்',
     signInOrCreate: 'உள்நுழையவும் அல்லது கணக்கை உருவாக்கவும்',
+    readingActivity: 'Reading Activity',
     signOut: 'வெளியேறு',
     signOutConfirm:
       'நிச்சயமாக வெளியேற விரும்புகிறீர்களா? உங்கள் உள்ளூர் வாசிப்பு முன்னேற்றம் பாதுகாக்கப்படும்.',
@@ -233,6 +234,17 @@ export const ta = {
   },
   profile: {
     streak: 'நாள் தொடர்',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'அறுவடை',

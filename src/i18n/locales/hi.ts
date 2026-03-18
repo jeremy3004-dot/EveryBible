@@ -178,6 +178,7 @@ export const hi = {
     guestUser: 'अतिथि उपयोगकर्ता',
     signInToSync: 'अपनी प्रगति को समन्वयित करने के लिए साइन इन करें',
     signInOrCreate: 'साइन इन करें या खाता बनाने के लिए',
+    readingActivity: 'Reading Activity',
     signOut: 'साइन आउट',
     signOutConfirm:
       'क्या आप द्वारा साइन आउट किया जाना सुनिश्चित है? आपकी स्थानीय पठन प्रगति को संरक्षित रखा जाएगा।',
@@ -232,6 +233,17 @@ export const hi = {
   },
   profile: {
     streak: 'दिन की श्रृंखला',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'फसल',

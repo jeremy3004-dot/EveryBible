@@ -26,6 +26,7 @@
 - [ ] **READ-02**: User can search scripture locally without network access
 - [ ] **READ-03**: User can keep and restore current reading position and reading streak across app sessions
 - [ ] **READ-04**: User sees a reliable daily scripture / verse-of-the-day surface that degrades gracefully when optional text or audio is unavailable
+- [ ] **READ-05**: User can type common scripture references and jump directly to the intended passage from the Bible surface
 
 ### Audio
 
@@ -39,6 +40,11 @@
 - [ ] **DISC-01**: User can access Four Fields discipleship journeys and lesson content from the mobile app
 - [ ] **GROUP-01**: User can create, join, and manage study groups without losing existing local progress
 - [ ] **GROUP-02**: Group leaders can record lesson progress and session activity with backend rules that protect group data when sync is enabled
+
+### Engagement And Performance
+
+- [ ] **ENG-01**: User can view daily reading activity and streak progress in a calendar surface backed by existing reading data
+- [ ] **PERF-01**: Long Bible browse and scripture-result lists remain responsive on device without changing the current read/listen flow
 
 ### Release Quality
 
@@ -80,6 +86,7 @@
 | READ-02 | Phase 3 | In verification |
 | READ-03 | Phase 3 | In verification |
 | READ-04 | Phase 3 | In verification |
+| READ-05 | Phase 6 | In verification |
 | AUDIO-01 | Phase 3 | In verification |
 | AUDIO-02 | Phase 3 | In verification |
 | AUDIO-03 | Phase 3 | In verification |
@@ -87,14 +94,16 @@
 | DISC-01 | Phase 4 | In verification |
 | GROUP-01 | Phase 4 | In verification |
 | GROUP-02 | Phase 4 | In verification |
+| ENG-01 | Phase 6 | In verification |
+| PERF-01 | Phase 6 | In verification |
 | REL-01 | Phase 5 | In verification |
 | REL-02 | Phase 5 | In verification |
 
 **Coverage:**
-- v1 requirements: 22 total
-- Mapped to phases: 22
+- v1 requirements: 25 total
+- Mapped to phases: 25
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-14 after executing Phase 05.1 plan 01 and adding AUDIO-04 verification coverage*
+*Last updated: 2026-03-18 after executing Phase 6 and moving scripture parsing, activity calendar, and list responsiveness into verification*

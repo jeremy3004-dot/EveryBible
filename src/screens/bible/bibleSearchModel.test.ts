@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   MIN_BIBLE_SEARCH_QUERY_LENGTH,
   formatBibleSearchReference,
+  resolveBibleSearchIntent,
   shouldRunBibleSearch,
 } from './bibleSearchModel';
 
@@ -40,4 +41,45 @@ test('falls back to the raw book id when the book name is unavailable', () => {
     ),
     'ROM 8:28'
   );
+});
+
+test('resolves a parsed scripture reference into a direct navigation intent', () => {
+  const target = {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: 16,
+    label: 'John 3:16',
+  };
+
+  assert.deepEqual(
+    resolveBibleSearchIntent(' John 3:16 ', () => target),
+    {
+      kind: 'reference',
+      query: 'John 3:16',
+      target,
+    }
+  );
+});
+
+test('falls back to full-text search when reference parsing does not match', () => {
+  assert.deepEqual(resolveBibleSearchIntent(' love one another ', () => null), {
+    kind: 'full-text',
+    query: 'love one another',
+  });
+});
+
+test('keeps short queries idle and does not ask the parser to resolve them', () => {
+  let parserCalls = 0;
+
+  assert.deepEqual(
+    resolveBibleSearchIntent(' a ', () => {
+      parserCalls += 1;
+      return null;
+    }),
+    {
+      kind: 'idle',
+      query: 'a',
+    }
+  );
+  assert.equal(parserCalls, 0);
 });

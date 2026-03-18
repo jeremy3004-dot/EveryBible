@@ -22,6 +22,12 @@ type MenuItem = {
 
 const menuItems: MenuItem[] = [
   { id: 'profile', titleKey: 'more.profile', icon: 'person-outline', screen: 'Profile' },
+  {
+    id: 'readingActivity',
+    titleKey: 'more.readingActivity',
+    icon: 'calendar-outline',
+    screen: 'ReadingActivity',
+  },
   { id: 'settings', titleKey: 'more.settings', icon: 'settings-outline', screen: 'Settings' },
   { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
 ];

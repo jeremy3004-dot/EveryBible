@@ -5,6 +5,7 @@ import { SettingsScreen } from '../screens/more/SettingsScreen';
 import { LocalePreferencesScreen } from '../screens/more/LocalePreferencesScreen';
 import { PrivacyPreferencesScreen } from '../screens/more/PrivacyPreferencesScreen';
 import { ProfileScreen } from '../screens/more/ProfileScreen';
+import { ReadingActivityScreen } from '../screens/more/ReadingActivityScreen';
 import { AboutScreen } from '../screens/more/AboutScreen';
 import { AuthStack } from './AuthStack';
 import { useTheme } from '../contexts/ThemeContext';
@@ -26,6 +27,7 @@ export function MoreStack() {
       <Stack.Screen name="LocalePreferences" component={LocalePreferencesScreen} />
       <Stack.Screen name="PrivacyPreferences" component={PrivacyPreferencesScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="ReadingActivity" component={ReadingActivityScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       <Stack.Screen name="Auth" component={AuthStack} options={{ presentation: 'modal' }} />
     </Stack.Navigator>

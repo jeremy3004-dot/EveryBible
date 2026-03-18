@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Core Reading And Audio Polish** - Finish the read/listen experience the product is judged by every day
 - [ ] **Phase 4: Discipleship And Group Rollout** - Wire the learn surface fully and unify local and synced group behavior
 - [ ] **Phase 5: Release Hardening And Distribution** - Add the checks and config alignment needed for confident TestFlight and store releases
+- [ ] **Phase 6: Discovery, Retention, And Responsiveness** - Make scripture entry smarter, reading progress more visible, and heavy Bible lists smoother
 
 ## Phase Details
 
@@ -91,10 +92,25 @@ Plans:
 - [x] 05-01: Add release-focused regression checks for core user journeys
 - [x] 05-02: Align native and Expo config, build metadata, and submission readiness
 
+### Phase 6: Discovery, Retention, And Responsiveness
+**Goal**: Make Bible discovery faster, reading momentum more visible, and the heaviest scripture lists more responsive without rewriting the core read/listen flow.
+**Depends on**: Phase 05.1
+**Requirements**: READ-05, ENG-01, PERF-01
+**Success Criteria** (what must be TRUE):
+  1. User can type common references like `John 3:16` or `1 Cor 13` in the Bible surface and open the intended passage directly.
+  2. User can open a reading-activity calendar that reflects existing local reading progress and current streak context without introducing plan-management complexity.
+  3. The list-heavy Bible browse surfaces stay responsive on device while preserving current navigation and audio behavior.
+**Plans**: 3 plans
+
+Plans:
+- [x] 06-01: Add typed passage-reference parsing and direct navigation to the Bible surface
+- [x] 06-02: Upgrade the heaviest Bible list surfaces to FlashList without changing current behavior
+- [x] 06-03: Add a reading-activity calendar surface backed by existing progress state
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -104,6 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1
 | 4. Discipleship And Group Rollout | 3/3 | Awaiting device verification | - |
 | 5. Release Hardening And Distribution | 2/2 | Awaiting signed-build verification | - |
 | 05.1 Audio-only downloadable Bible experience | 1/1 | Awaiting device verification | - |
+| 6. Discovery, Retention, And Responsiveness | 3/3 | In verification | - |
 
 ### Phase 05.1: Audio-only downloadable Bible experience (INSERTED)
 

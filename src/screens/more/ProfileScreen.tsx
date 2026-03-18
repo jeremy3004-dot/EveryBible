@@ -26,6 +26,10 @@ export function ProfileScreen() {
     navigation.navigate('Auth');
   };
 
+  const handleReadingActivity = () => {
+    navigation.navigate('ReadingActivity');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -65,6 +69,17 @@ export function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        <TouchableOpacity style={styles.activityCard} onPress={handleReadingActivity}>
+          <View style={styles.activityIcon}>
+            <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
+          </View>
+          <View style={styles.activityCopy}>
+            <Text style={styles.activityTitle}>{t('profile.readingActivity')}</Text>
+            <Text style={styles.activityDescription}>{t('profile.readingActivitySubtitle')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+        </TouchableOpacity>
 
         {!isAuthenticated && (
           <View style={styles.signInCard}>
@@ -171,6 +186,38 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12,
       color: colors.secondaryText,
       textAlign: 'center',
+    },
+    activityCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      backgroundColor: colors.cardBackground,
+      borderRadius: 16,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    activityIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.accentPrimary + '14',
+    },
+    activityCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    activityTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.primaryText,
+    },
+    activityDescription: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.secondaryText,
     },
     signInCard: {
       backgroundColor: colors.cardBackground,

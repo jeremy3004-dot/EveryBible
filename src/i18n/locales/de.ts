@@ -180,6 +180,7 @@ export const de = {
     guestUser: 'Gastbenutzer',
     signInToSync: 'Melden Sie sich an, um Ihren Fortschritt zu synchronisieren',
     signInOrCreate: 'Anmelden oder Konto erstellen',
+    readingActivity: 'Reading Activity',
     signOut: 'Abmelden',
     signOutConfirm:
       'Möchten Sie sich wirklich abmelden? Ihr lokaler Lesefortschritt bleibt erhalten.',
@@ -235,6 +236,17 @@ export const de = {
   },
   profile: {
     streak: 'Tagesserie',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'Ernte',

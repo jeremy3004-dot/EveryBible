@@ -180,6 +180,7 @@ export const ja = {
     guestUser: 'ゲストユーザー',
     signInToSync: 'サインインして進行状況を同期してください',
     signInOrCreate: 'サインインまたはアカウントを作成',
+    readingActivity: 'Reading Activity',
     signOut: 'サインアウト',
     signOutConfirm:
       'サインアウトしてもよろしいですか?ローカルでの読み取りの進行状況は保存されます。',
@@ -234,6 +235,17 @@ export const ja = {
   },
   profile: {
     streak: '連続日数',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: '収穫',

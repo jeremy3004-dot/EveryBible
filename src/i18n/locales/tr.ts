@@ -179,6 +179,7 @@ export const tr = {
     guestUser: 'Misafir Kullanıcı',
     signInToSync: 'İlerlemenizi senkronize etmek için oturum açın',
     signInOrCreate: 'Oturum Açın veya Hesap Oluşturun',
+    readingActivity: 'Reading Activity',
     signOut: 'Oturumu Kapat',
     signOutConfirm:
       'Oturumu kapatmak istediğinizden emin misiniz? Yerel okuma ilerlemeniz korunacaktır.',
@@ -233,6 +234,17 @@ export const tr = {
   },
   profile: {
     streak: 'Gün serisi',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'Hasat',

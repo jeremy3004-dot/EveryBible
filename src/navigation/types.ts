@@ -15,7 +15,6 @@ export type BibleStackParamList = {
     chapter: number;
     autoplayAudio?: boolean;
     focusVerse?: number;
-    playlistId?: 'creationToChrist';
   };
   ChapterSelector: {
     bookId: string;
@@ -57,6 +56,7 @@ export type MoreStackParamList = {
   LocalePreferences: undefined;
   PrivacyPreferences: undefined;
   Profile: undefined;
+  ReadingActivity: undefined;
   About: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
 };
@@ -110,6 +110,10 @@ export type PrivacyPreferencesScreenProps = NativeStackScreenProps<
   'PrivacyPreferences'
 >;
 export type ProfileScreenProps = NativeStackScreenProps<MoreStackParamList, 'Profile'>;
+export type ReadingActivityScreenProps = NativeStackScreenProps<
+  MoreStackParamList,
+  'ReadingActivity'
+>;
 export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About'>;
 
 // Tab screen props

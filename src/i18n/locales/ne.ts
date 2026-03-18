@@ -178,6 +178,7 @@ export const ne = {
     guestUser: 'अतिथि प्रयोगकर्ता',
     signInToSync: 'आफ्नो प्रगति सिंक गर्न साइन इन गर्नुहोस्',
     signInOrCreate: 'साइन इन गर्नुहोस् वा खाता सिर्जना गर्नुहोस्',
+    readingActivity: 'Reading Activity',
     signOut: 'साइन आउट गर्नुहोस्',
     signOutConfirm:
       'के तपाई साईन आउट गर्न निश्चित हुनुहुन्छ? तपाईंको स्थानीय पढाइ प्रगति सुरक्षित गरिनेछ।',
@@ -232,6 +233,17 @@ export const ne = {
   },
   profile: {
     streak: 'दिनको श्रृंखला',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'फसल',

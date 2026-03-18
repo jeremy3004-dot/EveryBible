@@ -178,6 +178,7 @@ export const ur = {
     guestUser: 'مہمان صارف',
     signInToSync: 'اپنی پیشرفت کو مطابقت پذیر بنانے کے لیے سائن ان کریں۔',
     signInOrCreate: 'سائن ان کریں یا اکاؤنٹ بنائیں',
+    readingActivity: 'Reading Activity',
     signOut: 'سائن آؤٹ کریں۔',
     signOutConfirm:
       'کیا آپ واقعی سائن آؤٹ کرنا چاہتے ہیں؟ آپ کی مقامی پڑھنے کی پیشرفت محفوظ رہے گی۔',
@@ -232,6 +233,17 @@ export const ur = {
   },
   profile: {
     streak: 'دنوں کا تسلسل',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'فصل',

@@ -176,6 +176,7 @@ export const bn = {
     guestUser: 'অতিথি ব্যবহারকারী',
     signInToSync: 'আপনার অগ্রগতি সিঙ্ক করতে সাইন ইন করুন৷',
     signInOrCreate: 'সাইন ইন করুন বা অ্যাকাউন্ট তৈরি করুন',
+    readingActivity: 'Reading Activity',
     signOut: 'সাইন আউট',
     signOutConfirm:
       'আপনি কি নিশ্চিত আপনি সাইন আউট করতে চান? আপনার স্থানীয় পড়ার অগ্রগতি সংরক্ষণ করা হবে।',
@@ -230,6 +231,17 @@ export const bn = {
   },
   profile: {
     streak: 'দিনের ধারা',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'ফসল',

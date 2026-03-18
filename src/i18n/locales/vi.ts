@@ -179,6 +179,7 @@ export const vi = {
     guestUser: 'Người dùng khách',
     signInToSync: 'Đăng nhập để đồng bộ hóa tiến trình của bạn',
     signInOrCreate: 'Đăng nhập hoặc tạo tài khoản',
+    readingActivity: 'Reading Activity',
     signOut: 'Đăng xuất',
     signOutConfirm:
       'Bạn có chắc chắn muốn đăng xuất không? Tiến trình đọc cục bộ của bạn sẽ được bảo tồn.',
@@ -233,6 +234,17 @@ export const vi = {
   },
   profile: {
     streak: 'Chuỗi ngày',
+    readingActivity: 'Reading Activity',
+    readingActivitySubtitle: 'See your reading days and streak at a glance.',
+    readingDays: 'Reading Days',
+    chaptersRead: 'Chapters Read',
+    chapterRead: 'Chapter Read',
+    selectedDay: 'Selected Day',
+    tapDayHint: 'Tap a marked day to see details.',
+    noReadingActivityTitle: 'No reading activity yet',
+    noReadingActivityBody: 'Open a chapter to start filling your reading calendar.',
+    firstReadAt: 'First read at {{time}}',
+    lastReadAt: 'Last read at {{time}}',
   },
   harvest: {
     title: 'Mùa gặt',
