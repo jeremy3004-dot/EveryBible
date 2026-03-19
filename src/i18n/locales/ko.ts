@@ -104,8 +104,7 @@ export const ko = {
     audioSavedOffline: 'Saved for Offline Listening',
     audioDownloadFailed: 'We could not download this audio right now.',
     available: '사용 가능',
-    translationComingSoon:
-      '{{name}}는 향후 업데이트에서 다운로드할 수 있습니다. 현재는 Berean Standard Bible (BSB)만 사용할 수 있습니다.',
+    translationComingSoon: '{{name}}는 향후 업데이트에서 다운로드할 수 있습니다.',
     failedToLoad: '지금은 이 장을 로드할 수 없습니다.',
     noVersesAvailable: '{{book}} {{chapter}}에는 아직 작성된 텍스트가 없습니다.',
     fullBibleComingSoon:

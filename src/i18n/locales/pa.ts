@@ -105,7 +105,7 @@ export const pa = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'ਉਪਲਬਧ ਹੈ',
     translationComingSoon:
-      '{{name}} ਭਵਿੱਖ ਦੇ ਅੱਪਡੇਟ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਉਪਲਬਧ ਹੋਵੇਗਾ। ਵਰਤਮਾਨ ਵਿੱਚ ਸਿਰਫ Berean Standard Bible (BSB) ਉਪਲਬਧ ਹੈ।',
+      '{{name}} ਭਵਿੱਖ ਦੇ ਅੱਪਡੇਟ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਉਪਲਬਧ ਹੋਵੇਗਾ।',
     failedToLoad: 'ਅਸੀਂ ਇਸ ਚੈਪਟਰ ਨੂੰ ਹੁਣੇ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕੇ।',
     noVersesAvailable: '{{book}} {{chapter}} ਕੋਲ ਅਜੇ ਤੱਕ ਕੋਈ ਲਿਖਤੀ ਟੈਕਸਟ ਨਹੀਂ ਹੈ।',
     fullBibleComingSoon:

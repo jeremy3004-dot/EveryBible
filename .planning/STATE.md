@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Manual UX/device verification for Phase 6 typed scripture entry, reading-activity calendar, and FlashList migrations while earlier release QA remains visible
+**Current focus:** Manual UX/device verification for Phase 6 typed scripture entry, reading-activity calendar, FlashList migrations, and the now-live WEB audio-only download path
 
 ## Current Position
 
 Phase: 6 (Discovery, Retention, And Responsiveness)
 Plan: 3 of 3 in current phase
-Status: Phase implemented and verified in automation; awaiting manual device verification for the new Bible discovery, retention, and list-performance surfaces
-Last activity: 2026-03-18 — Executed Phase 6 plans 01-03 with passing tests, lint, typecheck, and release verification
+Status: Phase implemented and verified in automation; awaiting manual device verification for the new Bible discovery, retention, list-performance, and audio-download surfaces
+Last activity: 2026-03-19 — Replaced the placeholder Phase 05.1 audio-only provider with live public-domain WEB chapter audio, added provider regression tests, and refreshed the no-text listening UI
 
 Progress: [██████████] 100%
 
@@ -65,7 +65,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Manual device verification for Phase 05.1 audio-only translation selection, download, and offline playback behavior
+- Manual device verification for Phase 05.1 WEB audio translation selection, download, and offline playback behavior
 - Manual verification for typed references like `John 3:16`, `1 Cor 13`, and `Luke 10:5-7, 10-11` from the Bible surface
 - Manual verification for ChapterSelector and BibleBrowser FlashList behavior on device, especially scroll feel and layout stability
 - Manual verification for the Reading Activity screen from More/Profile, including marked days and selected-day detail behavior
@@ -83,7 +83,7 @@ Recent decisions affecting current work:
 - Phase 3 still needs manual device validation for offline search, daily audio CTA behavior, and remote-vs-offline audio transitions
 - Phase 4 still needs manual device validation for Harvest-tab navigation, local-vs-synced group flows, and synced session completion
 - Signed builds, device checks, and distribution attachment still need manual verification before the milestone can be called shipped
-- Phase 05.1 still needs manual device verification for audio-only translation download and offline playback behavior
+- Phase 05.1 now uses direct eBible.org WEB audio and still needs manual device verification for in-app download/offline playback behavior
 - Phase 6 adds new dependencies (`@shopify/flash-list`, `react-native-calendars`, `bible-passage-reference-parser`) that need verification against current Expo / React Native runtime behavior
 
 ## Session Continuity

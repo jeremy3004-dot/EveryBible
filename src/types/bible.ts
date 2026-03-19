@@ -25,6 +25,7 @@ export interface ChapterRead {
 }
 
 export type AudioGranularity = 'none' | 'chapter' | 'verse';
+export type AudioProvider = 'bible-is' | 'ebible-webbe';
 
 // Bible Translations
 export interface BibleTranslation {
@@ -42,6 +43,7 @@ export interface BibleTranslation {
   hasText: boolean;
   hasAudio: boolean;
   audioGranularity: AudioGranularity;
+  audioProvider?: AudioProvider;
   audioFilesetId?: string;
 }
 

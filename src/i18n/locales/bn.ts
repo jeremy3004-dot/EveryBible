@@ -105,7 +105,7 @@ export const bn = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'পাওয়া যায়',
     translationComingSoon:
-      '{{name}} ভবিষ্যতের আপডেটে ডাউনলোডের জন্য উপলব্ধ হবে৷ বর্তমানে শুধুমাত্র Berean Standard Bible (BSB) উপলব্ধ।',
+      '{{name}} ভবিষ্যতের আপডেটে ডাউনলোডের জন্য উপলব্ধ হবে৷',
     failedToLoad: 'আমরা এখন এই অধ্যায়টি লোড করতে পারিনি৷',
     noVersesAvailable: '{{book}} {{chapter}} এখনও কোন লেখা নেই.',
     fullBibleComingSoon:

@@ -105,7 +105,7 @@ export const vi = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Có sẵn',
     translationComingSoon:
-      '{{name}} sẽ có sẵn để tải xuống trong bản cập nhật trong tương lai. Hiện tại chỉ có Berean Standard Bible (BSB).',
+      '{{name}} sẽ có sẵn để tải xuống trong bản cập nhật trong tương lai.',
     failedToLoad: 'Chúng tôi không thể tải chương này ngay bây giờ.',
     noVersesAvailable: '{{book}} {{chapter}} chưa có văn bản nào được viết.',
     fullBibleComingSoon:

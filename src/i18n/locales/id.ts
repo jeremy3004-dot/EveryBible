@@ -105,7 +105,7 @@ export const id = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Tersedia',
     translationComingSoon:
-      '{{name}} akan tersedia untuk diunduh pada pembaruan mendatang. Saat ini hanya Berean Standard Bible (BSB) yang tersedia.',
+      '{{name}} akan tersedia untuk diunduh pada pembaruan mendatang.',
     failedToLoad: 'Kami tidak dapat memuat bab ini sekarang.',
     noVersesAvailable: '{{book}} {{chapter}} belum memiliki teks tertulis.',
     fullBibleComingSoon:

@@ -194,9 +194,9 @@ import { BOOKS } from '../constants';
 - **Bible Text:** Berean Standard Bible (BSB) is the default translation, stored in SQLite for offline access
 - **Four Fields:** Discipleship training method (Entry, Gospel, Discipleship, Kingdom Growth) - core feature
 - **Groups:** Users can create study groups, track progress, conduct sessions
-- **Audio Bible:** Streamed via Bible.is API (requires EXPO_PUBLIC_BIBLE_IS_API_KEY)
+- **Audio Bible:** Public-domain WEB chapter audio is available without extra credentials; Bible.is remains optional for configured streamed translations
 - **Progress Tracking:** Tracks verses read, courses completed, time spent - syncs to Supabase
-- **Offline Mode:** App works fully offline except OAuth, audio streaming, and sync
+- **Offline Mode:** App works fully offline except OAuth, sync, and any remote-only audio streams that have not been downloaded yet
 - **User Preferences:** Font size, theme, language, notifications - persist via AsyncStorage
 
 ### Four Fields Model
@@ -210,7 +210,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 
 ### External Dependencies
 - **Supabase:** Backend (auth, profiles, progress, groups). Tables: profiles, user_progress, groups, group_members, group_sessions
-- **Bible.is API:** Audio Bible streaming (optional, requires API key)
+- **Bible.is API:** Optional streaming source for configured translations that still use Bible.is filesets
 - **Google OAuth:** Sign in with Google (uses the supported web + iOS client IDs)
 - **Apple Sign-In:** iOS native authentication (configured in app.json)
 - **Expo Notifications:** Push notifications for reminders and group updates
@@ -472,8 +472,8 @@ await signOut();
 ## Audio Features
 
 ### Audio Bible
-- Streaming from Bible.is API
-- Requires EXPO_PUBLIC_BIBLE_IS_API_KEY
+- World English Bible chapter audio streams directly from eBible.org and can be downloaded for offline playback
+- Bible.is streaming remains supported for configured translations when `EXPO_PUBLIC_BIBLE_IS_API_KEY` is present
 - Background playback supported (iOS: UIBackgroundModes)
 - Managed by `useAudioPlayer` hook and `audioStore`
 
@@ -493,7 +493,7 @@ const {
 ### Audio Issues
 - iOS: Must configure background modes in app.json
 - Android: Foreground service permission required
-- Streaming requires network (no offline audio currently)
+- Remote streaming requires network, but downloaded chapter audio is available offline
 - expo-av handles playback
 
 ---
