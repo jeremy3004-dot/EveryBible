@@ -7,7 +7,7 @@ A mobile Bible study app with offline access, audio playback, discipleship train
 EveryBible is a comprehensive Bible study application built with React Native and Expo. It provides:
 
 - **Offline Bible Reading:** Complete Berean Standard Bible (BSB) stored locally in SQLite
-- **Audio Bible:** Stream Bible chapters via Bible.is API
+- **Audio Bible:** Stream and download public-domain WEB chapter audio, with optional Bible.is streaming when configured
 - **Four Fields Discipleship:** Training courses based on the Four Fields model
 - **Group Study:** Create and manage study groups with progress tracking
 - **Multi-language Support:** English, Spanish, Nepali, and Hindi
@@ -32,7 +32,7 @@ EveryBible is a comprehensive Bible study application built with React Native an
 - iOS: Xcode 15+ and CocoaPods
 - Android: Android Studio and JDK 17
 - Supabase account and project
-- (Optional) Bible.is API key for audio features
+- (Optional) Bible.is API key for additional streamed audio sources
 - (Optional) Google OAuth credentials
 - EAS CLI for builds (`npm install -g eas-cli`)
 
@@ -61,7 +61,7 @@ Required variables:
 Optional for full features:
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Google OAuth web client ID
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Google OAuth iOS client ID
-- `EXPO_PUBLIC_BIBLE_IS_API_KEY` - Bible.is API key for audio
+- `EXPO_PUBLIC_BIBLE_IS_API_KEY` - Bible.is API key for additional streamed audio sources
 
 ### 3. Supabase Setup
 
@@ -184,10 +184,11 @@ eas submit --platform android --profile production
 - Bookmarks and reading history
 
 ### Audio Bible
-- Stream Bible chapters from Bible.is
+- Stream and download World English Bible chapter audio from eBible.org without extra credentials
+- Optionally stream Bible.is-backed chapter audio when `EXPO_PUBLIC_BIBLE_IS_API_KEY` is configured
+- Offline audio downloads are supported for the WEB audio translation
 - Background playback support
 - Playback controls and progress tracking
-- Requires API key (see .env.example)
 
 ### Four Fields Discipleship
 Implementation of the Four Fields training model:
