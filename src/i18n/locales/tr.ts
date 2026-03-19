@@ -104,8 +104,7 @@ export const tr = {
     audioSavedOffline: 'Saved for Offline Listening',
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'Mevcut',
-    translationComingSoon:
-      '{{name}} gelecekteki bir güncellemeyle indirilebilecek. Şu anda yalnızca Berean Standard Bible (BSB) mevcuttur.',
+    translationComingSoon: '{{name}} gelecekteki bir güncellemeyle indirilebilecek.',
     failedToLoad: 'Bu bölümü şu anda yükleyemedik.',
     noVersesAvailable: "{{book}} {{chapter}}'in henüz yazılı metni yok.",
     fullBibleComingSoon:

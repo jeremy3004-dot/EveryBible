@@ -38,6 +38,41 @@ test('sanitizePersistedBibleState preserves valid downloaded audio books only', 
   assert.deepEqual(bsb.downloadedAudioBooks, ['GEN', 'JHN']);
 });
 
+test('sanitizePersistedBibleState refreshes bundled translation capabilities during upgrades', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'web',
+    translations: [
+      {
+        id: 'web',
+        hasAudio: false,
+        audioGranularity: 'none',
+        downloadedAudioBooks: ['GEN'],
+      },
+    ],
+  });
+
+  const web = sanitized.translations.find((translation) => translation.id === 'web');
+
+  assert.equal(sanitized.currentTranslation, 'web');
+  assert.ok(web);
+  assert.equal(web.hasAudio, true);
+  assert.equal(web.audioGranularity, 'chapter');
+  assert.deepEqual(web.downloadedAudioBooks, ['GEN']);
+});
+
+test('sanitizePersistedBibleState falls back when a retired translation is selected', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb_audio',
+    translations: [
+      {
+        id: 'bsb_audio',
+      },
+    ],
+  });
+
+  assert.equal(sanitized.currentTranslation, 'bsb');
+});
+
 test('sanitizePersistedProgressState removes invalid chapter entries', () => {
   const sanitized = sanitizePersistedProgressState({
     chaptersRead: {

@@ -119,26 +119,38 @@ export function AudioFirstChapterCard({
     >
       <View
         style={[
-          styles.iconShell,
+          styles.heroPanel,
           {
             backgroundColor: colors.bibleElevatedSurface,
             borderColor: colors.bibleDivider,
           },
         ]}
       >
-        <Image source={getBookIcon(bookId)} style={styles.icon} resizeMode="contain" />
-      </View>
+        <Image source={getBookIcon(bookId)} style={styles.heroWatermark} resizeMode="contain" />
 
-      <View style={styles.copyBlock}>
-        <Text style={[styles.badge, { color: colors.bibleAccent }]}>
-          {t('bible.audioOnlyTitle')}
-        </Text>
-        <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-          {book?.name} {chapter}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-          {t('bible.audioOnlyBody', { translation: translationLabel })}
-        </Text>
+        <View
+          style={[
+            styles.iconShell,
+            {
+              backgroundColor: colors.bibleSurface,
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+        >
+          <Image source={getBookIcon(bookId)} style={styles.icon} resizeMode="contain" />
+        </View>
+
+        <View style={styles.copyBlock}>
+          <Text style={[styles.badge, { color: colors.bibleAccent }]}>
+            {t('bible.audioOnlyTitle')}
+          </Text>
+          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+            {book?.name} {chapter}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
+            {t('bible.audioOnlyBody', { translation: translationLabel })}
+          </Text>
+        </View>
       </View>
 
       <TouchableOpacity
@@ -201,6 +213,22 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 18,
   },
+  heroPanel: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 24,
+    gap: 18,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  heroWatermark: {
+    position: 'absolute',
+    right: -12,
+    bottom: -18,
+    width: 168,
+    height: 168,
+    opacity: 0.12,
+  },
   iconShell: {
     width: 88,
     height: 88,
@@ -225,8 +253,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
     textAlign: 'center',
   },
   subtitle: {

@@ -105,7 +105,7 @@ export const ja = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: '利用可能',
     translationComingSoon:
-      '{{name}} は将来のアップデートでダウンロードできるようになる予定です。現在はBerean Standard Bible (BSB)のみとなっております。',
+      '{{name}} は将来のアップデートでダウンロードできるようになる予定です。',
     failedToLoad: '現在、この章をロードできませんでした。',
     noVersesAvailable: '{{book}} {{chapter}} にはまだテキストが書き込まれていません。',
     fullBibleComingSoon:

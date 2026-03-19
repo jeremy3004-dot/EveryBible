@@ -3,7 +3,6 @@ import { getBookById } from '../constants/books';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../types/audio';
 import type {
-  AudioGranularity,
   BibleTranslation,
   PlaybackRate,
   SleepTimerOption,
@@ -14,7 +13,6 @@ import type {
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
 const validFontSizes = new Set<UserPreferences['fontSize']>(['small', 'medium', 'large']);
 const validThemes = new Set<UserPreferences['theme']>(['dark', 'light']);
-const validAudioGranularities = new Set<AudioGranularity>(['none', 'chapter', 'verse']);
 const validPlaybackRates = new Set<PlaybackRate>(PLAYBACK_RATES);
 const validSleepTimers = new Set<SleepTimerOption>(SLEEP_TIMER_OPTIONS.map((option) => option.value));
 
@@ -58,12 +56,6 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
         )
       : defaultTranslation.downloadedAudioBooks;
 
-    const audioGranularity = validAudioGranularities.has(
-      persisted.audioGranularity as AudioGranularity
-    )
-      ? (persisted.audioGranularity as AudioGranularity)
-      : defaultTranslation.audioGranularity;
-
     return {
       ...defaultTranslation,
       isDownloaded:
@@ -72,15 +64,6 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
           : defaultTranslation.isDownloaded,
       downloadedBooks,
       downloadedAudioBooks,
-      hasText:
-        typeof persisted.hasText === 'boolean' ? persisted.hasText : defaultTranslation.hasText,
-      hasAudio:
-        typeof persisted.hasAudio === 'boolean' ? persisted.hasAudio : defaultTranslation.hasAudio,
-      audioGranularity,
-      audioFilesetId:
-        typeof persisted.audioFilesetId === 'string'
-          ? persisted.audioFilesetId
-          : defaultTranslation.audioFilesetId,
     };
   });
 };

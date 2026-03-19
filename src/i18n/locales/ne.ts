@@ -105,7 +105,7 @@ export const ne = {
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'उपलब्ध छ',
     translationComingSoon:
-      '{{name}} भविष्यको अद्यावधिकमा डाउनलोडको लागि उपलब्ध हुनेछ। हाल Berean Standard Bible (BSB) मात्र उपलब्ध छ।',
+      '{{name}} भविष्यको अद्यावधिकमा डाउनलोडको लागि उपलब्ध हुनेछ।',
     failedToLoad: 'हामीले अहिले यो अध्याय लोड गर्न सकेनौं।',
     noVersesAvailable: '{{book}} {{chapter}} सँग अझै लेखिएको पाठ छैन।',
     fullBibleComingSoon:

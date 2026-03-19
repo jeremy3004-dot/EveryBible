@@ -96,8 +96,7 @@ export const zh = {
     audioSavedOffline: 'Saved for Offline Listening',
     audioDownloadFailed: 'We could not download this audio right now.',
     available: '可用的',
-    translationComingSoon:
-      '{{name}} 将在未来的更新中提供下载。目前仅 Berean Standard Bible (BSB) 可用。',
+    translationComingSoon: '{{name}} 将在未来的更新中提供下载。',
     failedToLoad: '我们现在无法加载本章。',
     noVersesAvailable: '{{book}} {{chapter}} 还没有文字。',
     fullBibleComingSoon: '本章目前没有文本版本。如果音频可用，Every Bible 将打开聆听体验。',

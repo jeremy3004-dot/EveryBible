@@ -104,8 +104,7 @@ export const ta = {
     audioSavedOffline: 'Saved for Offline Listening',
     audioDownloadFailed: 'We could not download this audio right now.',
     available: 'கிடைக்கும்',
-    translationComingSoon:
-      'எதிர்கால புதுப்பிப்பில் {{name}} பதிவிறக்கம் செய்யப்படும். தற்போது Berean Standard Bible (BSB) மட்டுமே கிடைக்கிறது.',
+    translationComingSoon: 'எதிர்கால புதுப்பிப்பில் {{name}} பதிவிறக்கம் செய்யப்படும்.',
     failedToLoad: 'எங்களால் இந்த அத்தியாயத்தை இப்போது ஏற்ற முடியவில்லை.',
     noVersesAvailable: '{{book}} {{chapter}} இல் இன்னும் எழுதப்பட்ட உரை இல்லை.',
     fullBibleComingSoon:
