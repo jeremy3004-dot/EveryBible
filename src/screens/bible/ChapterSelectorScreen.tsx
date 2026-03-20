@@ -37,12 +37,10 @@ export function ChapterSelectorScreen() {
 
   const currentBookId = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
-  const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const setPreferredChapterLaunchMode = useBibleStore(
     (state) => state.setPreferredChapterLaunchMode
   );
-  const translations = useBibleStore((state) => state.translations);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
 
   const book = getBookById(bookId);
@@ -51,7 +49,6 @@ export function ChapterSelectorScreen() {
   }
 
   const chapterRows = buildChapterGridRows(book.chapters);
-  const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
   const bookHubPresentation = buildBookHubPresentation({
     book,
     chaptersRead,
@@ -239,33 +236,6 @@ export function ChapterSelectorScreen() {
                 resizeMode="contain"
               />
 
-              <View style={styles.heroTopRow}>
-                <View
-                  style={[
-                    styles.heroPill,
-                    {
-                      backgroundColor: `${bookHubPresentation.palette.tint}1f`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.heroPillText, { color: colors.biblePrimaryText }]}>
-                    {book.testament === 'NT' ? t('bible.newTestament') : t('bible.oldTestament')}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.heroPill,
-                    {
-                      backgroundColor: `${bookHubPresentation.palette.tint}1f`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.heroPillText, { color: colors.biblePrimaryText }]}>
-                    {currentTranslationInfo?.abbreviation?.toUpperCase() ?? 'BSB'}
-                  </Text>
-                </View>
-              </View>
-
               <View
                 style={[
                   styles.heroIconWrap,
@@ -279,81 +249,11 @@ export function ChapterSelectorScreen() {
               </View>
 
               <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{book.name}</Text>
-              <Text style={[styles.subtitle, { color: colors.biblePrimaryText }]}>
-                {book.chapters} {t('bible.chapters')}
-              </Text>
-
-              <Text style={[styles.summary, { color: colors.biblePrimaryText }]}>
-                {bookHubPresentation.summary}
-              </Text>
             </LinearGradient>
-
-            <View
-              style={[
-                styles.calloutCard,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-            >
-              <View style={styles.calloutRow}>
-                <View style={styles.calloutCopy}>
-                  <Text style={[styles.calloutEyebrow, { color: colors.bibleSecondaryText }]}>
-                    {preferredChapterLaunchMode === 'listen' ? 'Listening path' : 'Reading path'}
-                  </Text>
-                  <Text style={[styles.calloutTitle, { color: colors.biblePrimaryText }]}>
-                    {t('common.continue')} {book.name} {bookHubPresentation.continueChapter}
-                  </Text>
-                  <Text style={[styles.calloutBody, { color: colors.bibleSecondaryText }]}>
-                    {preferredChapterLaunchMode === 'listen'
-                      ? 'Open the shared listen view and keep the player ready.'
-                      : 'Open the reading view and stay anchored in the text.'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    { backgroundColor: colors.bibleAccent },
-                  ]}
-                  onPress={() => navigateToChapter(bookHubPresentation.continueChapter)}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons
-                    name={preferredChapterLaunchMode === 'listen' ? 'headset-outline' : 'book-outline'}
-                    size={16}
-                    color={colors.bibleBackground}
-                  />
-                  <Text style={[styles.primaryButtonText, { color: colors.bibleBackground }]}>
-                    {preferredChapterLaunchMode === 'listen' ? 'Listen' : 'Read'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View
-                style={[
-                  styles.infoStrip,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Ionicons name="sparkles-outline" size={15} color={colors.bibleAccent} />
-                <Text style={[styles.infoStripText, { color: colors.bibleSecondaryText }]}>
-                  {bookHubPresentation.introLabel}
-                </Text>
-              </View>
-            </View>
 
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
                 {t('bible.chapters')}
-              </Text>
-              <Text style={[styles.sectionBody, { color: colors.bibleSecondaryText }]}>
-                {preferredChapterLaunchMode === 'listen'
-                  ? 'Tap any chapter to open it in listen mode first.'
-                  : 'Tap any chapter to open it in read mode first.'}
               </Text>
             </View>
           </View>
@@ -404,7 +304,7 @@ const styles = StyleSheet.create({
   headerContent: {
     paddingTop: 10,
     paddingBottom: 20,
-    gap: 18,
+    gap: 14,
   },
   headerRow: {
     flexDirection: 'row',
@@ -444,7 +344,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 24,
     overflow: 'hidden',
-    minHeight: 330,
+    minHeight: 220,
+    justifyContent: 'flex-end',
   },
   heroWatermark: {
     position: 'absolute',
@@ -453,20 +354,6 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     opacity: 0.16,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
-  },
-  heroPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  heroPillText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   heroIconWrap: {
     width: 78,
@@ -484,87 +371,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '800',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    opacity: 0.8,
-    marginBottom: 16,
-  },
-  summary: {
-    fontSize: 16,
-    lineHeight: 24,
-    maxWidth: '78%',
-    marginBottom: 18,
-  },
-  calloutCard: {
-    borderWidth: 1,
-    borderRadius: 28,
-    padding: 18,
-    gap: 16,
-  },
-  calloutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  calloutCopy: {
-    flex: 1,
-    gap: 6,
-  },
-  calloutEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  calloutTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  calloutBody: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  primaryButton: {
-    minWidth: 116,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  infoStrip: {
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  infoStripText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+    marginTop: 8,
   },
   sectionHeader: {
-    gap: 6,
+    gap: 0,
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: '800',
-  },
-  sectionBody: {
-    fontSize: 14,
-    lineHeight: 20,
   },
   chapterButton: {
     width: ITEM_SIZE,

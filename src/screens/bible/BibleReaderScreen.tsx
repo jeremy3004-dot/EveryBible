@@ -30,7 +30,7 @@ import {
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
   shouldAutoplayChapterAudio,
-  shouldTransferActiveAudioOnChapterChange,
+  shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
 import { getTranslationSelectionState } from './bibleTranslationModel';
 
@@ -44,6 +44,8 @@ export function BibleReaderScreen() {
   const { t } = useTranslation();
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
+  const previousActiveAudioBookIdRef = useRef<string | null>(null);
+  const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
@@ -267,11 +269,20 @@ export function BibleReaderScreen() {
   ]);
 
   useEffect(() => {
-    if (!audioEnabled || activeAudioBookId !== bookId || !activeAudioChapter) {
-      return;
-    }
+    const shouldSync = shouldSyncReaderToActiveAudioChapter({
+      audioEnabled,
+      bookId,
+      chapter,
+      activeAudioBookId,
+      activeAudioChapter,
+      previousActiveAudioBookId: previousActiveAudioBookIdRef.current,
+      previousActiveAudioChapter: previousActiveAudioChapterRef.current,
+    });
 
-    if (activeAudioChapter === chapter) {
+    previousActiveAudioBookIdRef.current = activeAudioBookId;
+    previousActiveAudioChapterRef.current = activeAudioChapter;
+
+    if (!shouldSync || activeAudioChapter == null) {
       return;
     }
 
@@ -304,6 +315,10 @@ export function BibleReaderScreen() {
 
   const hasPrevChapter = chapter > 1;
   const hasNextChapter = chapter < book.chapters;
+  const showBottomAudioBar =
+    audioEnabled && showPlayer && chapterPresentationMode === 'text' && chapterSessionMode === 'read';
+  const shouldFillReaderCanvas =
+    chapterPresentationMode === 'audio-first' || chapterSessionMode === 'listen';
   const syncReaderChapter = (nextChapter: number) => {
     navigation.setParams({ chapter: nextChapter, focusVerse: undefined, autoplayAudio: false });
   };
@@ -317,46 +332,6 @@ export function BibleReaderScreen() {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const handlePrevChapter = async () => {
-    if (!hasPrevChapter) {
-      return;
-    }
-
-    setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));
-
-    const nextChapterNumber = chapter - 1;
-    if (
-      shouldTransferActiveAudioOnChapterChange({
-        audioEnabled,
-        isCurrentAudioChapter,
-      })
-    ) {
-      await playChapter(bookId, nextChapterNumber);
-    }
-
-    syncReaderChapter(nextChapterNumber);
-  };
-
-  const handleNextChapter = async () => {
-    if (!hasNextChapter) {
-      return;
-    }
-
-    setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));
-
-    const nextChapterNumber = chapter + 1;
-    if (
-      shouldTransferActiveAudioOnChapterChange({
-        audioEnabled,
-        isCurrentAudioChapter,
-      })
-    ) {
-      await playChapter(bookId, nextChapterNumber);
-    }
-
-    syncReaderChapter(nextChapterNumber);
   };
 
   const handleTranslationChipPress = () => {
@@ -709,14 +684,16 @@ export function BibleReaderScreen() {
 
     if (verses.length === 0 && chapterPresentationMode === 'audio-first') {
       return (
-        <AudioFirstChapterCard
-          bookId={bookId}
-          chapter={chapter}
-          translationLabel={translationLabel}
-          onChapterChange={(newChapter) => {
-            syncReaderChapter(newChapter);
-          }}
-        />
+        <View style={styles.audioFirstShell}>
+          <AudioFirstChapterCard
+            bookId={bookId}
+            chapter={chapter}
+            translationLabel={translationLabel}
+            onChapterChange={(newChapter) => {
+              syncReaderChapter(newChapter);
+            }}
+          />
+        </View>
       );
     }
 
@@ -808,7 +785,7 @@ export function BibleReaderScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bibleBackground }]}
-      edges={['top']}
+      edges={['top', 'bottom']}
     >
       <View style={[styles.header, { borderBottomColor: colors.bibleDivider }]}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
@@ -979,14 +956,18 @@ export function BibleReaderScreen() {
         }}
         contentContainerStyle={[
           styles.content,
+          shouldFillReaderCanvas ? styles.immersiveContent : null,
           {
-            paddingBottom:
-              audioEnabled && showPlayer && chapterPresentationMode === 'text' ? 28 : 40,
+            paddingBottom: showBottomAudioBar ? 28 : 32,
           },
         ]}
       >
         <View
-          style={[styles.readerShell, { backgroundColor: colors.bibleBackground }]}
+          style={[
+            styles.readerShell,
+            shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
+            { backgroundColor: colors.bibleBackground },
+          ]}
           onTouchStart={showFontSizeSheet ? dismissFontSizeSheetFromReader : undefined}
         >
           {renderContent()}
@@ -1436,11 +1417,8 @@ export function BibleReaderScreen() {
         </SafeAreaView>
       </Modal>
 
-      <View style={[styles.footerShell, { borderTopColor: colors.bibleDivider }]}>
-        {audioEnabled &&
-        showPlayer &&
-        chapterPresentationMode === 'text' &&
-        chapterSessionMode === 'read' ? (
+      {showBottomAudioBar ? (
+        <View style={[styles.footerShell, { borderTopColor: colors.bibleDivider }]}>
           <AudioPlayerBar
             bookId={bookId}
             chapter={chapter}
@@ -1448,56 +1426,8 @@ export function BibleReaderScreen() {
               syncReaderChapter(newChapter);
             }}
           />
-        ) : null}
-
-        <View
-          style={[
-            styles.chapterRail,
-            {
-              borderTopColor:
-                audioEnabled && showPlayer && chapterPresentationMode === 'text'
-                  ? colors.bibleDivider
-                  : 'transparent',
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.chapterButton,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-                opacity: hasPrevChapter ? 1 : 0.45,
-              },
-            ]}
-            onPress={() => void handlePrevChapter()}
-            disabled={!hasPrevChapter}
-          >
-            <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
-            <Text style={[styles.chapterButtonText, { color: colors.biblePrimaryText }]}>
-              {t('common.previous')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.chapterButton,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-                opacity: hasNextChapter ? 1 : 0.45,
-              },
-            ]}
-            onPress={() => void handleNextChapter()}
-            disabled={!hasNextChapter}
-          >
-            <Text style={[styles.chapterButtonText, { color: colors.biblePrimaryText }]}>
-              {t('common.next')}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.biblePrimaryText} />
-          </TouchableOpacity>
         </View>
-      </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1583,16 +1513,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 18,
   },
+  immersiveContent: {
+    flexGrow: 1,
+  },
   readerShell: {
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
   },
+  immersiveReaderShell: {
+    flex: 1,
+  },
+  audioFirstShell: {
+    flex: 1,
+  },
   readerColumn: {
     gap: 10,
   },
   listenColumn: {
+    flex: 1,
     gap: 16,
+    justifyContent: 'space-between',
   },
   listenHeroCard: {
     borderWidth: 1,
@@ -1962,28 +1903,5 @@ const styles = StyleSheet.create({
   },
   footerShell: {
     borderTopWidth: 1,
-  },
-  chapterRail: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 18,
-    borderTopWidth: 1,
-  },
-  chapterButton: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  chapterButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

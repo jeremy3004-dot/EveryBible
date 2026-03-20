@@ -7,6 +7,7 @@ import {
   getInitialChapterSessionMode,
   getNextTranslationSheetVisibility,
   shouldAutoplayChapterAudio,
+  shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
 } from './bibleReaderModel';
 
@@ -259,6 +260,47 @@ test('reader chapter rail only transfers audio when the displayed chapter is cur
     shouldTransferActiveAudioOnChapterChange({
       audioEnabled: false,
       isCurrentAudioChapter: true,
+    }),
+    false
+  );
+});
+
+test('reader only follows active audio chapter changes when the reader was already showing the playing chapter', () => {
+  assert.equal(
+    shouldSyncReaderToActiveAudioChapter({
+      audioEnabled: true,
+      bookId: 'GEN',
+      chapter: 3,
+      activeAudioBookId: 'GEN',
+      activeAudioChapter: 4,
+      previousActiveAudioBookId: 'GEN',
+      previousActiveAudioChapter: 3,
+    }),
+    true
+  );
+
+  assert.equal(
+    shouldSyncReaderToActiveAudioChapter({
+      audioEnabled: true,
+      bookId: 'GEN',
+      chapter: 5,
+      activeAudioBookId: 'GEN',
+      activeAudioChapter: 3,
+      previousActiveAudioBookId: 'GEN',
+      previousActiveAudioChapter: 3,
+    }),
+    false
+  );
+
+  assert.equal(
+    shouldSyncReaderToActiveAudioChapter({
+      audioEnabled: true,
+      bookId: 'GEN',
+      chapter: 3,
+      activeAudioBookId: 'EXO',
+      activeAudioChapter: 1,
+      previousActiveAudioBookId: 'GEN',
+      previousActiveAudioChapter: 3,
     }),
     false
   );

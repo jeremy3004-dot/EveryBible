@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 Phase: 10 (Book Companion Content And Ecosystem Surfaces)
 Plan: 3 of 3 in current phase
 Status: Phases 8 to 10 implemented and verified in automation; awaiting manual device QA for content layout, saved-library flows, and mini-player continuity
-Last activity: 2026-03-20 — Fixed duplicate chapter playback during reader navigation by clearing stale autoplay params, transferring the live audio session on chapter rail changes, and invalidating stale in-flight audio loads
+Last activity: 2026-03-20 — Simplified the book-hub hero by removing the testament/translation pills, chapter-count and summary copy, and the listening-path promo card so the chapter list takes visual priority
 
 Progress: [██████████] 100%
 
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - Phase 10: Attach companion modules to the book hub through one reusable schema and a thin analytics seam instead of adding a CMS or vendor analytics dependency first
 - Post-phase polish: Keep completion context in the chapter grid, but remove the large hero progress card from the book hub because it competes with the actual reader/listener surfaces
 - Post-phase polish: Treat chapter-to-chapter audio navigation as a single-session handoff and cancel stale chapter loads instead of letting multiple playback requests race
+- Post-phase polish: Let the player own chapter transport inside BibleReader, hide the global tab shell on that route, and use the freed vertical space for a fuller listen/audio-first layout
+- Post-phase polish: Only resync BibleReader to the active audio chapter when the reader was already showing that playing chapter; manual chapter launches must override stale playback state
+- Post-phase polish: Keep the book hub focused on title plus chapter grid, removing extra explanatory and promotional chrome that competes with the actual reading/listening action
 
 ### Pending Todos
 
@@ -84,8 +87,11 @@ Recent decisions affecting current work:
 - Manual device verification for the new book hub hero, synopsis, intro strip, continue CTA, and chapter grid across smaller phones
 - Manual verification for saved-library flows, including favorites, playlist save/reopen, queue advancement, history reopen, and share/download behavior
 - Manual verification for reader chapter navigation while audio is already playing, especially repeated `Next`/`Previous` taps and mixed read/listen mode transitions
+- Manual verification for opening a different chapter from the chapter list while another chapter is already playing, ensuring the new chapter starts immediately instead of snapping back
 - Manual verification for the global mini-player across tabs, app background/foreground transitions, and reopen/dismiss behavior
 - Manual verification for companion-module sections, including sparse-book empty states and return navigation back into the book hub or chapter session
+- Manual device verification for the full-screen BibleReader chrome, especially hidden tabs, audio-only chapter spacing, and read/listen mode bottom insets on smaller phones
+- Manual device verification for the simplified book hub on smaller phones, ensuring the reduced hero still balances cleanly above the chapter grid
 
 ### Roadmap Evolution
 

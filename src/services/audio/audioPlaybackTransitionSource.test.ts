@@ -56,8 +56,14 @@ test('reader chapter navigation hands active audio over instead of replaying the
 
   assert.match(
     readerSource,
-    /shouldTransferActiveAudioOnChapterChange\(\{/,
-    'BibleReaderScreen should transfer playback during chapter navigation when the displayed chapter is currently playing'
+    /const handlePreviousListenChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*await previousChapter\(\);[\s\S]*return;[\s\S]*\}/,
+    'BibleReaderScreen should hand active playback to previousChapter when the current reader chapter is already playing'
+  );
+
+  assert.match(
+    readerSource,
+    /const handleNextListenChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*await nextChapter\(\);[\s\S]*return;[\s\S]*\}/,
+    'BibleReaderScreen should hand active playback to nextChapter when the current reader chapter is already playing'
   );
 
   assert.match(

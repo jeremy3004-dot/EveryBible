@@ -153,65 +153,69 @@ export function AudioFirstChapterCard({
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.progressContainer}
-        activeOpacity={0.85}
-        onPress={(event) => {
-          const { locationX } = event.nativeEvent;
-          event.currentTarget.measure((_x, _y, measuredWidth) => {
-            handleSeek(locationX, measuredWidth);
-          });
-        }}
-      >
-        <View style={[styles.progressTrack, { backgroundColor: colors.bibleDivider }]}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${progress}%`, backgroundColor: colors.bibleAccent },
-            ]}
-          />
+      <View style={styles.controlBlock}>
+        <TouchableOpacity
+          style={styles.progressContainer}
+          activeOpacity={0.85}
+          onPress={(event) => {
+            const { locationX } = event.nativeEvent;
+            event.currentTarget.measure((_x, _y, measuredWidth) => {
+              handleSeek(locationX, measuredWidth);
+            });
+          }}
+        >
+          <View style={[styles.progressTrack, { backgroundColor: colors.bibleDivider }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress}%`, backgroundColor: colors.bibleAccent },
+              ]}
+            />
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.timeRow}>
+          <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
+            {formatTime(currentPosition)}
+          </Text>
+          <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
+            {formatTime(duration)}
+          </Text>
         </View>
-      </TouchableOpacity>
 
-      <View style={styles.timeRow}>
-        <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(currentPosition)}
-        </Text>
-        <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(duration)}
-        </Text>
+        <PlaybackControls
+          status={isCurrentChapter ? status : 'idle'}
+          playbackRate={playbackRate}
+          sleepTimerRemaining={sleepTimerRemaining}
+          hasPreviousChapter={hasPreviousChapter}
+          hasNextChapter={hasNextChapter}
+          onPlayPause={handlePlayPause}
+          onPreviousChapter={handlePreviousChapter}
+          onNextChapter={handleNextChapter}
+          onSkipBackward={skipBackward}
+          onSkipForward={skipForward}
+          onChangePlaybackRate={changePlaybackRate}
+          onSetSleepTimer={startSleepTimer}
+        />
+
+        {error ? (
+          <Text style={[styles.errorText, { color: colors.bibleAccent }]} numberOfLines={2}>
+            {error}
+          </Text>
+        ) : null}
       </View>
-
-      <PlaybackControls
-        status={isCurrentChapter ? status : 'idle'}
-        playbackRate={playbackRate}
-        sleepTimerRemaining={sleepTimerRemaining}
-        hasPreviousChapter={hasPreviousChapter}
-        hasNextChapter={hasNextChapter}
-        onPlayPause={handlePlayPause}
-        onPreviousChapter={handlePreviousChapter}
-        onNextChapter={handleNextChapter}
-        onSkipBackward={skipBackward}
-        onSkipForward={skipForward}
-        onChangePlaybackRate={changePlaybackRate}
-        onSetSleepTimer={startSleepTimer}
-      />
-
-      {error ? (
-        <Text style={[styles.errorText, { color: colors.bibleAccent }]} numberOfLines={2}>
-          {error}
-        </Text>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 28,
     padding: 24,
     gap: 18,
+    justifyContent: 'space-between',
   },
   heroPanel: {
     borderWidth: 1,
@@ -261,6 +265,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     textAlign: 'center',
+  },
+  controlBlock: {
+    gap: 18,
   },
   progressContainer: {
     justifyContent: 'center',

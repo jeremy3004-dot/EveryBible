@@ -48,6 +48,16 @@ interface ShouldTransferActiveAudioOnChapterChangeInput {
   isCurrentAudioChapter: boolean;
 }
 
+interface ShouldSyncReaderToActiveAudioChapterInput {
+  audioEnabled: boolean;
+  bookId: string;
+  chapter: number;
+  activeAudioBookId: string | null;
+  activeAudioChapter: number | null;
+  previousActiveAudioBookId: string | null;
+  previousActiveAudioChapter: number | null;
+}
+
 export const getNextFontSizeSheetVisibility = (
   isVisible: boolean,
   action: FontSizeSheetAction
@@ -185,6 +195,26 @@ export const shouldTransferActiveAudioOnChapterChange = ({
   isCurrentAudioChapter,
 }: ShouldTransferActiveAudioOnChapterChangeInput): boolean =>
   audioEnabled && isCurrentAudioChapter;
+
+export const shouldSyncReaderToActiveAudioChapter = ({
+  audioEnabled,
+  bookId,
+  chapter,
+  activeAudioBookId,
+  activeAudioChapter,
+  previousActiveAudioBookId,
+  previousActiveAudioChapter,
+}: ShouldSyncReaderToActiveAudioChapterInput): boolean => {
+  if (!audioEnabled || activeAudioBookId !== bookId || activeAudioChapter == null) {
+    return false;
+  }
+
+  if (activeAudioChapter === chapter) {
+    return false;
+  }
+
+  return previousActiveAudioBookId === bookId && previousActiveAudioChapter === chapter;
+};
 
 function getVerseWeight(verse: Verse): number {
   const headingWeight = verse.heading?.trim().length ?? 0;

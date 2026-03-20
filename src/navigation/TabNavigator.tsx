@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { RootTabParamList } from './types';
 import { HomeStack } from './HomeStack';
@@ -9,12 +10,21 @@ import { LearnStack } from './LearnStack';
 import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
+import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const defaultTabBarStyle = {
+    backgroundColor: colors.background,
+    borderTopColor: colors.cardBorder,
+    borderTopWidth: 1,
+    paddingTop: 8,
+    paddingBottom: 8,
+    height: 65,
+  } as const;
 
   return (
     <Tab.Navigator
@@ -22,14 +32,11 @@ export function TabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.cardBorder,
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 65,
-        },
+        tabBarStyle:
+          route.name === 'Bible' &&
+          shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route))
+            ? { display: 'none' }
+            : defaultTabBarStyle,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
