@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MoreStackParamList } from './types';
 import { MoreScreen } from '../screens/more/MoreScreen';
+import { LibraryScreen } from '../screens/more/LibraryScreen';
 import { SettingsScreen } from '../screens/more/SettingsScreen';
 import { LocalePreferencesScreen } from '../screens/more/LocalePreferencesScreen';
 import { PrivacyPreferencesScreen } from '../screens/more/PrivacyPreferencesScreen';
@@ -23,6 +24,7 @@ export function MoreStack() {
       }}
     >
       <Stack.Screen name="MoreScreen" component={MoreScreen} />
+      <Stack.Screen name="Library" component={LibraryScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="LocalePreferences" component={LocalePreferencesScreen} />
       <Stack.Screen name="PrivacyPreferences" component={PrivacyPreferencesScreen} />

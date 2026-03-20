@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { TabNavigator } from './TabNavigator';
+import { MiniPlayer } from '../components';
 import { useTheme } from '../contexts/ThemeContext';
 import { flushQueuedAuthFlow, rootNavigationRef } from './rootNavigation';
 
@@ -29,6 +30,7 @@ export function RootNavigator() {
       }}
     >
       <TabNavigator />
+      <MiniPlayer />
     </NavigationContainer>
   );
 }

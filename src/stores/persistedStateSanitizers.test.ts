@@ -5,6 +5,7 @@ import {
   sanitizePersistedAudioState,
   sanitizePersistedAuthState,
   sanitizePersistedBibleState,
+  sanitizePersistedLibraryState,
   sanitizePersistedProgressState,
 } from './persistedStateSanitizers';
 
@@ -12,12 +13,14 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
   const sanitized = sanitizePersistedBibleState({
     currentBook: 'INVALID',
     currentChapter: -4,
+    preferredChapterLaunchMode: 'audio',
     currentTranslation: 'missing',
     translations: { broken: true },
   });
 
   assert.equal(sanitized.currentBook, 'GEN');
   assert.equal(sanitized.currentChapter, 1);
+  assert.equal(sanitized.preferredChapterLaunchMode, 'read');
   assert.equal(sanitized.currentTranslation, 'bsb');
   assert.ok(Array.isArray(sanitized.translations));
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
@@ -25,6 +28,7 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
 
 test('sanitizePersistedBibleState preserves valid downloaded audio books only', () => {
   const sanitized = sanitizePersistedBibleState({
+    preferredChapterLaunchMode: 'listen',
     translations: [
       {
         id: 'bsb',
@@ -35,6 +39,7 @@ test('sanitizePersistedBibleState preserves valid downloaded audio books only', 
 
   const bsb = sanitized.translations.find((translation) => translation.id === 'bsb');
   assert.ok(bsb);
+  assert.equal(sanitized.preferredChapterLaunchMode, 'listen');
   assert.deepEqual(bsb.downloadedAudioBooks, ['GEN', 'JHN']);
 });
 
@@ -137,9 +142,56 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
     playbackRate: 9,
     autoAdvanceChapter: 'yes',
     sleepTimerMinutes: 999,
+    queue: [
+      { id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 },
+      { id: 'oops', bookId: 'BAD', chapter: 1, addedAt: 2 },
+    ],
+    queueIndex: 9,
+    lastPlayedBookId: 'MAT',
+    lastPlayedChapter: 5,
+    lastPosition: 3200,
   });
 
   assert.equal(sanitized.playbackRate, 1.0);
   assert.equal(sanitized.autoAdvanceChapter, true);
   assert.equal(sanitized.sleepTimerMinutes, null);
+  assert.deepEqual(sanitized.queue, [{ id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 }]);
+  assert.equal(sanitized.queueIndex, 0);
+  assert.equal(sanitized.lastPlayedBookId, 'MAT');
+  assert.equal(sanitized.lastPlayedChapter, 5);
+  assert.equal(sanitized.lastPosition, 3200);
+});
+
+test('sanitizePersistedLibraryState keeps only valid favorites, playlists, and history entries', () => {
+  const sanitized = sanitizePersistedLibraryState({
+    favorites: [
+      { id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 },
+      { id: 'BAD:1', bookId: 'BAD', chapter: 1, addedAt: 2 },
+    ],
+    playlists: [
+      {
+        id: 'saved',
+        title: '',
+        createdAt: 1,
+        updatedAt: 2,
+        entries: [
+          { id: 'JHN:3', bookId: 'JHN', chapter: 3, addedAt: 3 },
+          { id: 'oops', bookId: 'BAD', chapter: 1, addedAt: 4 },
+        ],
+      },
+    ],
+    history: [
+      { id: 'GAL:1', bookId: 'GAL', chapter: 1, listenedAt: 10, progress: 0.3 },
+      { id: 'oops', bookId: 'BAD', chapter: 1, listenedAt: 11, progress: 2 },
+    ],
+  });
+
+  assert.deepEqual(sanitized.favorites, [{ id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 }]);
+  assert.equal(sanitized.playlists[0]?.title, 'Untitled');
+  assert.deepEqual(sanitized.playlists[0]?.entries, [
+    { id: 'JHN:3', bookId: 'JHN', chapter: 3, addedAt: 3 },
+  ]);
+  assert.deepEqual(sanitized.history, [
+    { id: 'GAL:1', bookId: 'GAL', chapter: 1, listenedAt: 10, progress: 0.3 },
+  ]);
 });

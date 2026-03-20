@@ -174,10 +174,13 @@ export const sanitizePersistedBibleState = (value: unknown) => {
     persisted.currentChapter > 0
       ? persisted.currentChapter
       : 1;
+  const preferredChapterLaunchMode: 'listen' | 'read' =
+    persisted.preferredChapterLaunchMode === 'listen' ? 'listen' : 'read';
 
   return {
     currentBook,
     currentChapter,
+    preferredChapterLaunchMode,
     currentTranslation:
       typeof persisted.currentTranslation === 'string' &&
       translationIds.has(persisted.currentTranslation)
@@ -224,6 +227,20 @@ export const sanitizePersistedProgressState = (value: unknown) => {
 
 export const sanitizePersistedAudioState = (value: unknown) => {
   const persisted = isRecord(value) ? value : {};
+  const queue = Array.isArray(persisted.queue)
+    ? persisted.queue.filter(
+        (entry): entry is { id: string; bookId: string; chapter: number; addedAt: number } =>
+          isRecord(entry) &&
+          typeof entry.id === 'string' &&
+          typeof entry.bookId === 'string' &&
+          Boolean(getBookById(entry.bookId)) &&
+          typeof entry.chapter === 'number' &&
+          Number.isInteger(entry.chapter) &&
+          entry.chapter > 0 &&
+          typeof entry.addedAt === 'number' &&
+          Number.isFinite(entry.addedAt)
+      )
+    : [];
 
   return {
     playbackRate:
@@ -236,5 +253,105 @@ export const sanitizePersistedAudioState = (value: unknown) => {
     sleepTimerMinutes: validSleepTimers.has(persisted.sleepTimerMinutes as SleepTimerOption)
       ? ((persisted.sleepTimerMinutes as SleepTimerOption) ?? null)
       : null,
+    queue,
+    queueIndex:
+      typeof persisted.queueIndex === 'number' &&
+      Number.isInteger(persisted.queueIndex) &&
+      persisted.queueIndex >= 0 &&
+      persisted.queueIndex < Math.max(queue.length, 1)
+        ? persisted.queueIndex
+        : 0,
+    lastPlayedBookId: sanitizeBookId(persisted.lastPlayedBookId),
+    lastPlayedChapter:
+      typeof persisted.lastPlayedChapter === 'number' &&
+      Number.isInteger(persisted.lastPlayedChapter) &&
+      persisted.lastPlayedChapter > 0
+        ? persisted.lastPlayedChapter
+        : null,
+    lastPosition:
+      typeof persisted.lastPosition === 'number' &&
+      Number.isFinite(persisted.lastPosition) &&
+      persisted.lastPosition >= 0
+        ? persisted.lastPosition
+        : 0,
+  };
+};
+
+export const sanitizePersistedLibraryState = (value: unknown) => {
+  const persisted = isRecord(value) ? value : {};
+  const favorites = Array.isArray(persisted.favorites)
+    ? persisted.favorites.filter(
+        (entry): entry is { id: string; bookId: string; chapter: number; addedAt: number } =>
+          isRecord(entry) &&
+          typeof entry.id === 'string' &&
+          typeof entry.bookId === 'string' &&
+          Boolean(getBookById(entry.bookId)) &&
+          typeof entry.chapter === 'number' &&
+          Number.isInteger(entry.chapter) &&
+          entry.chapter > 0 &&
+          typeof entry.addedAt === 'number' &&
+          Number.isFinite(entry.addedAt)
+      )
+    : [];
+
+  const playlists = Array.isArray(persisted.playlists)
+    ? persisted.playlists.filter(isRecord).map((playlist) => ({
+        id: typeof playlist.id === 'string' ? playlist.id : `playlist-${Date.now()}`,
+        title:
+          typeof playlist.title === 'string' && playlist.title.trim().length > 0
+            ? playlist.title
+            : 'Untitled',
+        createdAt:
+          typeof playlist.createdAt === 'number' && Number.isFinite(playlist.createdAt)
+            ? playlist.createdAt
+            : Date.now(),
+        updatedAt:
+          typeof playlist.updatedAt === 'number' && Number.isFinite(playlist.updatedAt)
+            ? playlist.updatedAt
+            : Date.now(),
+        entries: Array.isArray(playlist.entries)
+          ? playlist.entries.filter(
+              (entry): entry is { id: string; bookId: string; chapter: number; addedAt: number } =>
+                isRecord(entry) &&
+                typeof entry.id === 'string' &&
+                typeof entry.bookId === 'string' &&
+                Boolean(getBookById(entry.bookId)) &&
+                typeof entry.chapter === 'number' &&
+                Number.isInteger(entry.chapter) &&
+                entry.chapter > 0 &&
+                typeof entry.addedAt === 'number' &&
+                Number.isFinite(entry.addedAt)
+            )
+          : [],
+      }))
+    : [];
+
+  const history = Array.isArray(persisted.history)
+    ? persisted.history.filter(
+        (entry): entry is {
+          id: string;
+          bookId: string;
+          chapter: number;
+          listenedAt: number;
+          progress: number;
+        } =>
+          isRecord(entry) &&
+          typeof entry.id === 'string' &&
+          typeof entry.bookId === 'string' &&
+          Boolean(getBookById(entry.bookId)) &&
+          typeof entry.chapter === 'number' &&
+          Number.isInteger(entry.chapter) &&
+          entry.chapter > 0 &&
+          typeof entry.listenedAt === 'number' &&
+          Number.isFinite(entry.listenedAt) &&
+          typeof entry.progress === 'number' &&
+          Number.isFinite(entry.progress)
+      )
+    : [];
+
+  return {
+    favorites,
+    playlists,
+    history,
   };
 };

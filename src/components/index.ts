@@ -2,4 +2,5 @@ export { Skeleton, VersesSkeleton, CardSkeleton, StatCardSkeleton } from './skel
 export { ErrorBoundary } from './ErrorBoundary';
 export * from './fourfields';
 export * from './audio';
+export * from './bible';
 export * from './privacy';

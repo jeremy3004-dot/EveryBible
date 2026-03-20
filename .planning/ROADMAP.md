@@ -4,6 +4,8 @@
 
 This roadmap treats EveryBible as a brownfield mobile product that already has most of its feature surface in code, but still needs a disciplined pass to align startup, sync, onboarding, reading/audio polish, learn flows, and release safety. The goal is not to reinvent the app; it is to turn the existing foundation into a coherent, dependable v1.0 baseline that GSD can plan and execute phase by phase.
 
+After the foundation and discovery work, the next Milestone 2 sequence focuses on Dwell-inspired Bible experience parity: richer book hubs, a premium chapter session with synchronized read/listen states, a more complete media-product action model, and companion content around each book.
+
 ## Phases
 
 **Phase Numbering:**
@@ -18,6 +20,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Discipleship And Group Rollout** - Wire the learn surface fully and unify local and synced group behavior
 - [ ] **Phase 5: Release Hardening And Distribution** - Add the checks and config alignment needed for confident TestFlight and store releases
 - [ ] **Phase 6: Discovery, Retention, And Responsiveness** - Make scripture entry smarter, reading progress more visible, and heavy Bible lists smoother
+- [x] **Phase 7: Premium Reader And Personal Study** - Turn the chapter experience into a premium read/listen session with synchronized context and follow-along text
+- [x] **Phase 8: Bible Book Hub And Chapter Launch Experience** - Add Dwell-style book landing pages between the book grid and chapter session
+- [x] **Phase 9: Saved Library And Audio Personalization** - Add the media-product actions around listening such as favorites, playlists, sharing, and persistent resume/history
+- [x] **Phase 10: Book Companion Content And Ecosystem Surfaces** - Populate each book hub with figures, passages, plans, devotionals, and playlists without breaking the core Bible loop
 
 ## Phase Details
 
@@ -107,10 +113,70 @@ Plans:
 - [x] 06-02: Upgrade the heaviest Bible list surfaces to FlashList without changing current behavior
 - [x] 06-03: Add a reading-activity calendar surface backed by existing progress state
 
+### Phase 7: Premium Reader And Personal Study
+**Goal**: Transform the chapter-level Bible experience into a calm, premium session where reading and listening share context, and listen mode can reveal live follow-along text instead of forcing a separate flow.
+**Depends on**: Phase 6
+**Requirements**: M2-READ-01, M2-AUDIO-01
+**Success Criteria** (what must be TRUE):
+  1. User can open a chapter once and switch between `Listen` and `Read` without losing the chapter, verse focus, or playback context.
+  2. Listen mode exposes a Dwell-style follow-along text surface that auto-scrolls and highlights the current verse or timed text segment from the player chrome.
+  3. Read mode keeps typography/display controls available without crowding the content, and transitions between the two modes feel intentional rather than like separate screens.
+**Plans**: 3 plans
+
+Plans:
+- [x] 07-01: Build a shared chapter-session model and segmented read/listen shell
+- [x] 07-02: Implement immersive listen mode with follow-along text overlay and synchronized verse focus
+- [x] 07-03: Refine read mode typography, controls, and continuity between listen and read
+
+### Phase 8: Bible Book Hub And Chapter Launch Experience
+**Goal**: Insert a richer book-detail layer between the book browser and the chapter session so each Bible book has artwork, intro context, a primary play CTA, and clearer launch points into chapters.
+**Depends on**: Phase 7
+**Requirements**: M2-BROWSE-01
+**Success Criteria** (what must be TRUE):
+  1. Tapping a book from the Bible browser opens a dedicated book hub instead of dropping directly into a plain chapter grid.
+  2. The book hub can show art, synopsis, intro audio when available, chapter entry points, and resilient empty/loading states when supporting metadata is missing.
+  3. Launching a chapter from the hub preserves the user’s preferred mode and hands off to the shared chapter session cleanly.
+**Plans**: 3 plans
+
+Plans:
+- [x] 08-01: Define book metadata, artwork, and intro-audio contracts with fallback behavior
+- [x] 08-02: Build the book hub screen with hero, synopsis, play CTA, and chapter launch grid
+- [x] 08-03: Wire browser-to-hub-to-chapter navigation, resume state, and mini-player handoff
+
+### Phase 9: Saved Library And Audio Personalization
+**Goal**: Add the media-product actions that make listening feel owned and resumable: favorites, playlists, sharing, downloads, queue/history, and honest personalization controls for voice or ambient layers where supported.
+**Depends on**: Phase 8
+**Requirements**: M2-LIB-01
+**Success Criteria** (what must be TRUE):
+  1. User can favorite, share, download, and save books or chapters to playlists from the listen experience and related overflow menus.
+  2. User can reopen recent listening from queue/history and control playback from a persistent mini-player outside the immediate reader screen.
+  3. Voice, translation, and ambient controls communicate availability honestly and never imply options the content layer cannot support.
+**Plans**: 3 plans
+
+Plans:
+- [x] 09-01: Add local-first saved-item, playlist, and queue/history models for Bible listening
+- [x] 09-02: Build player actions and overflow flows for favorite, share, download, and playlist entry
+- [x] 09-03: Ship a persistent mini-player plus voice/ambient selection surfaces with fallbacks
+
+### Phase 10: Book Companion Content And Ecosystem Surfaces
+**Goal**: Turn book hubs into broader study destinations by attaching Dwell-style companion modules such as passages, devotionals, plans, figures, and playlists through reusable, data-driven sections.
+**Depends on**: Phase 9
+**Requirements**: M2-CONTENT-01
+**Success Criteria** (what must be TRUE):
+  1. Each book hub can render optional companion modules from a shared contract without breaking when some modules have no content.
+  2. Users can open book-adjacent passages, devotionals, figures, plans, and playlists from one surface and return without losing their Bible context.
+  3. The companion content system supports graceful offline/loading/error behavior instead of assuming full connectivity.
+**Plans**: 3 plans
+
+Plans:
+- [x] 10-01: Define companion-content schema, sourcing rules, and offline cache strategy
+- [x] 10-02: Build reusable book-hub sections for passages, devotionals, figures, plans, and playlists
+- [x] 10-03: Add analytics and verification coverage for module launch, empty states, and return navigation
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -121,6 +187,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6
 | 5. Release Hardening And Distribution | 2/2 | Awaiting signed-build verification | - |
 | 05.1 Audio-only downloadable Bible experience | 1/1 | Awaiting device verification | - |
 | 6. Discovery, Retention, And Responsiveness | 3/3 | In verification | - |
+| 7. Premium Reader And Personal Study | 3/3 | Automated verification complete; needs device UX QA | 2026-03-20 |
+| 8. Bible Book Hub And Chapter Launch Experience | 3/3 | Automated verification complete; needs device content/layout QA | 2026-03-20 |
+| 9. Saved Library And Audio Personalization | 3/3 | Automated verification complete; needs device playback/library QA | 2026-03-20 |
+| 10. Book Companion Content And Ecosystem Surfaces | 3/3 | Automated verification complete; needs device module/navigation QA | 2026-03-20 |
 
 ### Phase 05.1: Audio-only downloadable Bible experience (INSERTED)
 

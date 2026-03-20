@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../types';
+import type { AudioQueueEntry } from './audioQueueModel';
 import { sanitizePersistedAudioState } from './persistedStateSanitizers';
 
 interface AudioState {
@@ -15,6 +16,13 @@ interface AudioState {
 
   // Player visibility
   showPlayer: boolean;
+
+  // Queue and resume state
+  queue: AudioQueueEntry[];
+  queueIndex: number;
+  lastPlayedBookId: string | null;
+  lastPlayedChapter: number | null;
+  lastPosition: number;
 
   // Sleep timer state
   sleepTimerEndTime: number | null;
@@ -30,6 +38,11 @@ interface AudioState {
   setPosition: (position: number) => void;
   setDuration: (duration: number) => void;
   setError: (error: string | null) => void;
+  syncQueueToTrack: (bookId: string, chapter: number) => void;
+  addToQueue: (bookId: string, chapter: number) => void;
+  removeFromQueue: (entryId: string) => void;
+  clearQueue: () => void;
+  setQueueIndex: (queueIndex: number) => void;
 
   // Player visibility
   setShowPlayer: (show: boolean) => void;
@@ -56,6 +69,11 @@ export const useAudioStore = create<AudioState>()(
       duration: 0,
       error: null,
       showPlayer: false,
+      queue: [],
+      queueIndex: 0,
+      lastPlayedBookId: null,
+      lastPlayedChapter: null,
+      lastPosition: 0,
       sleepTimerEndTime: null,
 
       // Initial settings
@@ -72,13 +90,61 @@ export const useAudioStore = create<AudioState>()(
           currentChapter: chapter,
           currentPosition: 0,
           duration: 0,
+          lastPlayedBookId: bookId,
+          lastPlayedChapter: chapter,
+          lastPosition: 0,
         }),
 
-      setPosition: (position) => set({ currentPosition: position }),
+      setPosition: (position) =>
+        set({
+          currentPosition: position,
+          lastPosition: position,
+        }),
 
       setDuration: (duration) => set({ duration }),
 
       setError: (error) => set({ error, status: error ? 'error' : 'idle' }),
+
+      syncQueueToTrack: (bookId, chapter) =>
+        set((state) => {
+          const queueId = `${bookId}:${chapter}`;
+          const existingIndex = state.queue.findIndex((entry) => entry.id === queueId);
+
+          if (existingIndex >= 0) {
+            return { queueIndex: existingIndex };
+          }
+
+          return {
+            queue: [{ id: queueId, bookId, chapter, addedAt: Date.now() }],
+            queueIndex: 0,
+          };
+        }),
+
+      addToQueue: (bookId, chapter) =>
+        set((state) => {
+          const queueId = `${bookId}:${chapter}`;
+          if (state.queue.some((entry) => entry.id === queueId)) {
+            return state;
+          }
+
+          return {
+            queue: [...state.queue, { id: queueId, bookId, chapter, addedAt: Date.now() }],
+          };
+        }),
+
+      removeFromQueue: (entryId) =>
+        set((state) => {
+          const nextQueue = state.queue.filter((entry) => entry.id !== entryId);
+          const nextIndex = Math.min(state.queueIndex, Math.max(nextQueue.length - 1, 0));
+
+          return {
+            queue: nextQueue,
+            queueIndex: nextQueue.length === 0 ? 0 : nextIndex,
+          };
+        }),
+
+      clearQueue: () => set({ queue: [], queueIndex: 0 }),
+      setQueueIndex: (queueIndex) => set({ queueIndex }),
 
       // Player visibility
       setShowPlayer: (show) => set({ showPlayer: show }),
@@ -120,6 +186,11 @@ export const useAudioStore = create<AudioState>()(
         playbackRate: state.playbackRate,
         autoAdvanceChapter: state.autoAdvanceChapter,
         sleepTimerMinutes: state.sleepTimerMinutes,
+        queue: state.queue,
+        queueIndex: state.queueIndex,
+        lastPlayedBookId: state.lastPlayedBookId,
+        lastPlayedChapter: state.lastPlayedChapter,
+        lastPosition: state.lastPosition,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

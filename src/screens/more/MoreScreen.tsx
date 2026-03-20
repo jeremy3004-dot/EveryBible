@@ -14,13 +14,15 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
 type MenuItem = {
   id: string;
-  titleKey: string;
+  titleKey?: string;
+  title?: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   screen?: keyof MoreStackParamList;
   action?: () => void;
 };
 
 const menuItems: MenuItem[] = [
+  { id: 'library', title: 'Saved Library', icon: 'library-outline', screen: 'Library' },
   { id: 'profile', titleKey: 'more.profile', icon: 'person-outline', screen: 'Profile' },
   {
     id: 'readingActivity',
@@ -125,7 +127,9 @@ export function MoreScreen() {
               onPress={() => handleMenuPress(item)}
             >
               <Ionicons name={item.icon} size={24} color={colors.secondaryText} />
-              <Text style={[styles.menuItemText, { color: colors.primaryText }]}>{t(item.titleKey)}</Text>
+              <Text style={[styles.menuItemText, { color: colors.primaryText }]}>
+                {item.title ?? (item.titleKey ? t(item.titleKey) : '')}
+              </Text>
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
             </TouchableOpacity>
           ))}

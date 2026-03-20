@@ -14,6 +14,7 @@ export type BibleStackParamList = {
     bookId: string;
     chapter: number;
     autoplayAudio?: boolean;
+    preferredMode?: 'listen' | 'read';
     focusVerse?: number;
   };
   ChapterSelector: {
@@ -52,6 +53,7 @@ export type LearnStackParamList = {
 // More Stack
 export type MoreStackParamList = {
   MoreScreen: undefined;
+  Library: undefined;
   Settings: undefined;
   LocalePreferences: undefined;
   PrivacyPreferences: undefined;
@@ -105,6 +107,7 @@ export type GroupSessionScreenProps = NativeStackScreenProps<LearnStackParamList
 
 export type MoreScreenProps = NativeStackScreenProps<MoreStackParamList, 'MoreScreen'>;
 export type SettingsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Settings'>;
+export type LibraryScreenProps = NativeStackScreenProps<MoreStackParamList, 'Library'>;
 export type PrivacyPreferencesScreenProps = NativeStackScreenProps<
   MoreStackParamList,
   'PrivacyPreferences'

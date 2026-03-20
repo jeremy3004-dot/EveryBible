@@ -60,6 +60,14 @@
 - **WEB-01**: The product offers a maintained web experience with meaningful feature parity
 - **MULTI-01**: Users can download additional text translations beyond the bundled BSB baseline
 
+### Premium Bible Experience
+
+- **M2-READ-01**: User can switch between `Listen` and `Read` for the same chapter without losing their current context
+- **M2-AUDIO-01**: User can open live follow-along text from listen mode and see playback progress reflected in the visible text
+- **M2-BROWSE-01**: User can open a rich book hub with artwork, synopsis, intro action, and chapter entry points before entering a chapter
+- **M2-LIB-01**: User can favorite, share, download, and organize Bible listening content with persistent resume and history behavior
+- **M2-CONTENT-01**: Book hubs can surface companion modules such as passages, devotionals, figures, plans, and playlists with graceful fallbacks
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -98,6 +106,11 @@
 | PERF-01 | Phase 6 | In verification |
 | REL-01 | Phase 5 | In verification |
 | REL-02 | Phase 5 | In verification |
+| M2-READ-01 | Phase 7 | Planned |
+| M2-AUDIO-01 | Phase 7 | Planned |
+| M2-BROWSE-01 | Phase 8 | Planned |
+| M2-LIB-01 | Phase 9 | Planned |
+| M2-CONTENT-01 | Phase 10 | Planned |
 
 **Coverage:**
 - v1 requirements: 25 total

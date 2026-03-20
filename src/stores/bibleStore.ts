@@ -17,6 +17,7 @@ import { sanitizePersistedBibleState } from './persistedStateSanitizers';
 interface BibleState {
   currentBook: string;
   currentChapter: number;
+  preferredChapterLaunchMode: 'listen' | 'read';
   verses: Verse[];
   isLoading: boolean;
   error: string | null;
@@ -29,6 +30,7 @@ interface BibleState {
   // Basic actions
   setCurrentBook: (bookId: string) => void;
   setCurrentChapter: (chapter: number) => void;
+  setPreferredChapterLaunchMode: (mode: 'listen' | 'read') => void;
   applySyncedReadingPosition: (readingPosition: { bookId: string; chapter: number }) => void;
   setVerses: (verses: Verse[]) => void;
   setLoading: (loading: boolean) => void;
@@ -53,6 +55,7 @@ export const useBibleStore = create<BibleState>()(
     (set, get) => ({
       currentBook: 'GEN',
       currentChapter: 1,
+      preferredChapterLaunchMode: 'read',
       verses: [],
       isLoading: false,
       error: null,
@@ -62,6 +65,8 @@ export const useBibleStore = create<BibleState>()(
 
       setCurrentBook: (bookId) => set({ currentBook: bookId }),
       setCurrentChapter: (chapter) => set({ currentChapter: chapter }),
+      setPreferredChapterLaunchMode: (preferredChapterLaunchMode) =>
+        set({ preferredChapterLaunchMode }),
       applySyncedReadingPosition: ({ bookId, chapter }) => {
         const { currentBook, currentChapter } = get();
 
@@ -221,6 +226,7 @@ export const useBibleStore = create<BibleState>()(
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
+        preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,
         translations: state.translations,
       }),
