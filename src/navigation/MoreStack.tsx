@@ -1,14 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MoreStackParamList } from './types';
-import { MoreScreen } from '../screens/more/MoreScreen';
-import { LibraryScreen } from '../screens/more/LibraryScreen';
-import { SettingsScreen } from '../screens/more/SettingsScreen';
-import { LocalePreferencesScreen } from '../screens/more/LocalePreferencesScreen';
-import { PrivacyPreferencesScreen } from '../screens/more/PrivacyPreferencesScreen';
-import { ProfileScreen } from '../screens/more/ProfileScreen';
-import { ReadingActivityScreen } from '../screens/more/ReadingActivityScreen';
-import { AboutScreen } from '../screens/more/AboutScreen';
-import { AuthStack } from './AuthStack';
 import { useTheme } from '../contexts/ThemeContext';
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -23,15 +14,47 @@ export function MoreStack() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="MoreScreen" component={MoreScreen} />
-      <Stack.Screen name="Library" component={LibraryScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="LocalePreferences" component={LocalePreferencesScreen} />
-      <Stack.Screen name="PrivacyPreferences" component={PrivacyPreferencesScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="ReadingActivity" component={ReadingActivityScreen} />
-      <Stack.Screen name="About" component={AboutScreen} />
-      <Stack.Screen name="Auth" component={AuthStack} options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="MoreScreen"
+        getComponent={() => require('../screens/more/MoreScreen').MoreScreen}
+      />
+      <Stack.Screen
+        name="Library"
+        getComponent={() => require('../screens/more/LibraryScreen').LibraryScreen}
+      />
+      <Stack.Screen
+        name="Settings"
+        getComponent={() => require('../screens/more/SettingsScreen').SettingsScreen}
+      />
+      <Stack.Screen
+        name="LocalePreferences"
+        getComponent={() =>
+          require('../screens/more/LocalePreferencesScreen').LocalePreferencesScreen
+        }
+      />
+      <Stack.Screen
+        name="PrivacyPreferences"
+        getComponent={() =>
+          require('../screens/more/PrivacyPreferencesScreen').PrivacyPreferencesScreen
+        }
+      />
+      <Stack.Screen
+        name="Profile"
+        getComponent={() => require('../screens/more/ProfileScreen').ProfileScreen}
+      />
+      <Stack.Screen
+        name="ReadingActivity"
+        getComponent={() => require('../screens/more/ReadingActivityScreen').ReadingActivityScreen}
+      />
+      <Stack.Screen
+        name="About"
+        getComponent={() => require('../screens/more/AboutScreen').AboutScreen}
+      />
+      <Stack.Screen
+        name="Auth"
+        getComponent={() => require('./AuthStack').AuthStack}
+        options={{ presentation: 'modal' }}
+      />
     </Stack.Navigator>
   );
 }

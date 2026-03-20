@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { InteractionManager } from 'react-native';
+import { InteractionManager, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
-import { RootNavigator, openAuthFlow, type PendingAuthMode } from './src/navigation';
-import { initBibleData } from './src/services/bible';
-import { useAuthStore, usePrivacyStore } from './src/stores';
-import { ErrorBoundary, PrivacyLockScreen } from './src/components';
+import { openAuthFlow, type PendingAuthMode } from './src/navigation/rootNavigation';
+import { initBibleData } from './src/services/bible/bibleService';
+import { useAuthStore } from './src/stores/authStore';
+import { usePrivacyStore } from './src/stores/privacyStore';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
-import { usePrivacyLock, useSync } from './src/hooks';
+import { usePrivacyLock } from './src/hooks/usePrivacyLock';
+import { useSync } from './src/hooks/useSync';
 import i18n, { changeLanguage } from './src/i18n';
-import { LocaleSetupFlow } from './src/screens/onboarding';
+import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 
 // Keep the splash screen visible while we fetch resources
@@ -24,7 +27,9 @@ interface LoadingScreenProps {
 }
 
 function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
+  const { colors } = useTheme();
   const [isReady, setIsReady] = useState(false);
+  const [shouldRenderNavigator, setShouldRenderNavigator] = useState(false);
   const warmupCancelRef = useRef<(() => void) | null>(null);
   const initializeAuth = useAuthStore((state) => state.initialize);
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
@@ -114,6 +119,21 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
     }
   }, [preferences.language]);
 
+  useEffect(() => {
+    if (!isReady || !preferences.onboardingCompleted || isPrivacyLocked) {
+      setShouldRenderNavigator(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setShouldRenderNavigator(true);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isPrivacyLocked, isReady, preferences.onboardingCompleted]);
+
   if (!isReady) {
     return null;
   }
@@ -135,6 +155,12 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
   if (isPrivacyLocked) {
     return <PrivacyLockScreen />;
   }
+
+  if (!shouldRenderNavigator) {
+    return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
+  }
+
+  const { RootNavigator } = require('./src/navigation/RootNavigator') as typeof import('./src/navigation/RootNavigator');
 
   return <RootNavigator />;
 }
@@ -196,3 +222,9 @@ function AppContent() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  bootShell: {
+    flex: 1,
+  },
+});

@@ -1,5 +1,4 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SignInScreen, SignUpScreen } from '../screens/auth';
 import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -12,8 +11,14 @@ export function AuthStack() {
         animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen name="SignIn" component={SignInScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen
+        name="SignIn"
+        getComponent={() => require('../screens/auth/SignInScreen').SignInScreen}
+      />
+      <Stack.Screen
+        name="SignUp"
+        getComponent={() => require('../screens/auth/SignUpScreen').SignUpScreen}
+      />
     </Stack.Navigator>
   );
 }

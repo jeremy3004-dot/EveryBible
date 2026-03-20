@@ -1,8 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BibleStackParamList } from './types';
-import { BibleBrowserScreen } from '../screens/bible/BibleBrowserScreen';
-import { BibleReaderScreen } from '../screens/bible/BibleReaderScreen';
-import { ChapterSelectorScreen } from '../screens/bible/ChapterSelectorScreen';
 import { useTheme } from '../contexts/ThemeContext';
 
 const Stack = createNativeStackNavigator<BibleStackParamList>();
@@ -17,9 +14,18 @@ export function BibleStack() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="BibleBrowser" component={BibleBrowserScreen} />
-      <Stack.Screen name="ChapterSelector" component={ChapterSelectorScreen} />
-      <Stack.Screen name="BibleReader" component={BibleReaderScreen} />
+      <Stack.Screen
+        name="BibleBrowser"
+        getComponent={() => require('../screens/bible/BibleBrowserScreen').BibleBrowserScreen}
+      />
+      <Stack.Screen
+        name="ChapterSelector"
+        getComponent={() => require('../screens/bible/ChapterSelectorScreen').ChapterSelectorScreen}
+      />
+      <Stack.Screen
+        name="BibleReader"
+        getComponent={() => require('../screens/bible/BibleReaderScreen').BibleReaderScreen}
+      />
     </Stack.Navigator>
   );
 }
