@@ -4,6 +4,8 @@ import { getBibleBookExperienceContent } from '../../data/bibleBookExperience';
 export const CHAPTER_GRID_COLUMNS = 5;
 export const CHAPTER_GRID_HORIZONTAL_PADDING = 72;
 export const CHAPTER_GRID_ROW_GAP = 8;
+const BOOK_HUB_ACCENT_COLOR = '#e35d5b';
+const BOOK_HUB_ICON_TINT = '#f5f2ea';
 export type ChapterLaunchMode = 'listen' | 'read';
 
 export interface BookHubPresentation {
@@ -138,19 +140,10 @@ function getFallbackArtworkVariant(order: number) {
   return variants[order % variants.length];
 }
 
-function getBookHubPalette(book: BibleBook) {
-  const palettes =
-    book.testament === 'NT'
-      ? ([
-          { gradient: ['#304a78', '#7e6db3'], accent: '#f3d28b', tint: '#d7e8ff' },
-          { gradient: ['#4a375f', '#b16372'], accent: '#f3d28b', tint: '#f9dde3' },
-          { gradient: ['#214f5d', '#5f8c91'], accent: '#f7c95f', tint: '#d8f0ef' },
-        ] as const)
-      : ([
-          { gradient: ['#5a3b2f', '#936142'], accent: '#f0c78d', tint: '#f7e6d0' },
-          { gradient: ['#3f4c2f', '#7b8350'], accent: '#f0d38a', tint: '#ebf2cf' },
-          { gradient: ['#4a394f', '#74627d'], accent: '#e3c38f', tint: '#eadcf1' },
-        ] as const);
-
-  return palettes[book.order % palettes.length];
+function getBookHubPalette(_book: BibleBook) {
+  return {
+    gradient: [BOOK_HUB_ACCENT_COLOR, BOOK_HUB_ACCENT_COLOR] as const,
+    accent: BOOK_HUB_ACCENT_COLOR,
+    tint: BOOK_HUB_ICON_TINT,
+  };
 }

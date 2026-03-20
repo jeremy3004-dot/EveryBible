@@ -43,6 +43,30 @@ test('buildBookHubPresentation uses seeded synopsis when local book content exis
   assert.equal(presentation.continueChapter, 1);
 });
 
+test('buildBookHubPresentation uses the shared accent banner palette for every book hub', () => {
+  const genesis = getBookById('GEN');
+  const micah = getBookById('MIC');
+  assert.ok(genesis);
+  assert.ok(micah);
+
+  const genesisPresentation = buildBookHubPresentation({
+    book: genesis,
+    chaptersRead: {},
+    currentBookId: 'MAT',
+    currentChapter: 1,
+  });
+  const micahPresentation = buildBookHubPresentation({
+    book: micah,
+    chaptersRead: {},
+    currentBookId: 'MAT',
+    currentChapter: 1,
+  });
+
+  assert.deepEqual(genesisPresentation.palette.gradient, ['#e35d5b', '#e35d5b']);
+  assert.deepEqual(micahPresentation.palette.gradient, ['#e35d5b', '#e35d5b']);
+  assert.deepEqual(genesisPresentation.palette.gradient, micahPresentation.palette.gradient);
+});
+
 test('buildBookHubPresentation falls back to generated copy and resumes the in-flight book session', () => {
   const book = getBookById('OBA');
   assert.ok(book);

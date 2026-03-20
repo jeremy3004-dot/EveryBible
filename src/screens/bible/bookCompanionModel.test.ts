@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBookCompanionEmptyState, buildBookCompanionSections } from './bookCompanionModel';
+import { buildBookCompanionSections } from './bookCompanionModel';
 
 test('buildBookCompanionSections returns ordered screen-ready modules for seeded books', () => {
   const sections = buildBookCompanionSections('GAL');
@@ -18,11 +18,4 @@ test('buildBookCompanionSections returns ordered screen-ready modules for seeded
 
 test('buildBookCompanionSections falls back to an empty list when a book has no seeded modules', () => {
   assert.deepEqual(buildBookCompanionSections('OBA'), []);
-});
-
-test('buildBookCompanionEmptyState keeps the fallback copy book-specific', () => {
-  assert.deepEqual(buildBookCompanionEmptyState('Obadiah'), {
-    title: 'More companion content is coming',
-    body: 'Obadiah will gain guided passages, figures, and playlists in a future update.',
-  });
 });

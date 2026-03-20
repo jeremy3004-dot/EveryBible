@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Validate the simplified audio-first reader on device and package the next TestFlight build when requested
+**Current focus:** Validate the simplified Bible listen/book-hub chrome on device and package the next TestFlight build when requested
 
 ## Current Position
 
 Phase: 11 (Audio reader chrome simplification and Dwell-style listen layout polish)
 Plan: 3 of 3 in current phase
 Status: Automated verification complete; awaiting device visual QA and release packaging
-Last activity: 2026-03-20 — Executed Phase 11 by simplifying the audio-first Bible screen chrome, removing extra transport/copy/shells, and locking the layout with new regression coverage
+Last activity: 2026-03-20 — Applied a post-Phase 11 book-hub polish pass that removes non-reader Listen/Read chrome, deletes the empty companion placeholder card, and normalizes hero banners to the shared accent color
 
 Progress: [██████████] 98%
 
@@ -76,6 +76,7 @@ Recent decisions affecting current work:
 - Post-phase polish: Only resync BibleReader to the active audio chapter when the reader was already showing that playing chapter; manual chapter launches must override stale playback state
 - Post-phase polish: Keep the book hub focused on title plus chapter grid, removing extra explanatory and promotional chrome that competes with the actual reading/listening action
 - Post-phase polish: Treat the audio-first Bible screen as a dedicated minimal listen surface with its own stripped header and transport variant instead of reusing the fuller reader chrome
+- Post-phase polish: Keep the Listen/Read toggle exclusive to the actual chapter session screen, and keep book-hub hero banners on the shared accent red instead of rotating per-book colors
 - Phase 11: Reuse the existing playback/session model, but give audio-first chapters a dedicated chapter-only transport and art-led layout instead of stacking extra shells and explanatory copy
 
 ### Pending Todos
@@ -94,6 +95,7 @@ Recent decisions affecting current work:
 - Manual verification for companion-module sections, including sparse-book empty states and return navigation back into the book hub or chapter session
 - Manual device verification for the full-screen BibleReader chrome, especially hidden tabs, audio-only chapter spacing, and read/listen mode bottom insets on smaller phones
 - Manual device verification for the simplified book hub on smaller phones, ensuring the reduced hero still balances cleanly above the chapter grid
+- Manual device verification that simplified book hubs no longer show the top Listen/Read rail, no longer show the empty companion fallback card, and keep the same accent-red hero background across books
 - Manual device verification for the new simplified audio-first listen screen, especially header removal, three-button transport spacing, and overflow/favorite actions on smaller iPhones
 - Manual device verification that the top audio toggle/button remains discoverable enough on text chapters now that audio-first chapters no longer show duplicate top chrome
 

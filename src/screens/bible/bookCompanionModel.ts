@@ -57,13 +57,6 @@ export function buildBookCompanionSections(bookId: string): BookCompanionSection
     }));
 }
 
-export function buildBookCompanionEmptyState(bookName: string) {
-  return {
-    title: 'More companion content is coming',
-    body: `${bookName} will gain guided passages, figures, and playlists in a future update.`,
-  };
-}
-
 function buildBookCompanionCard(item: BibleCompanionItem): BookCompanionCardModel {
   return {
     id: item.id,

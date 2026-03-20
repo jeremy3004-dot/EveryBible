@@ -7,7 +7,7 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('ChapterSelectorScreen keeps the book hub hero minimal and removes the listening-path promo chrome', () => {
+test('ChapterSelectorScreen keeps the book hub hero minimal and removes non-reader chrome', () => {
   const source = readRelativeSource('./ChapterSelectorScreen.tsx');
 
   assert.equal(
@@ -32,5 +32,35 @@ test('ChapterSelectorScreen keeps the book hub hero minimal and removes the list
     source.includes("book.chapters} {t('bible.chapters')"),
     false,
     'ChapterSelectorScreen should not render the chapter-count subtitle under the book title'
+  );
+
+  assert.equal(
+    source.includes('styles.modeSwitch'),
+    false,
+    'ChapterSelectorScreen should not render the Listen/Read mode switch on the book hub page'
+  );
+
+  assert.equal(
+    source.includes('styles.modePill'),
+    false,
+    'ChapterSelectorScreen should not render mode pill chrome outside the actual reader screen'
+  );
+
+  assert.equal(
+    source.includes('styles.heroWatermark'),
+    false,
+    'ChapterSelectorScreen should not render the oversized background watermark behind the book art'
+  );
+
+  assert.equal(
+    source.includes('buildBookCompanionEmptyState'),
+    false,
+    'ChapterSelectorScreen should not render the empty companion-content fallback card'
+  );
+
+  assert.equal(
+    source.includes('styles.emptyCard'),
+    false,
+    'ChapterSelectorScreen should not keep the empty companion-content placeholder styles'
   );
 });

@@ -13,10 +13,9 @@ import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperie
 import { useBibleStore, useProgressStore } from '../../stores';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
 import type { BookCompanionCardModel } from './bookCompanionModel';
-import { buildBookCompanionEmptyState, buildBookCompanionSections } from './bookCompanionModel';
+import { buildBookCompanionSections } from './bookCompanionModel';
 import {
   CHAPTER_GRID_ROW_GAP,
-  type ChapterLaunchMode,
   buildChapterGridRows,
   buildChapterLaunchParams,
   buildBookHubPresentation,
@@ -38,9 +37,6 @@ export function ChapterSelectorScreen() {
   const currentBookId = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
-  const setPreferredChapterLaunchMode = useBibleStore(
-    (state) => state.setPreferredChapterLaunchMode
-  );
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
 
   const book = getBookById(bookId);
@@ -56,27 +52,23 @@ export function ChapterSelectorScreen() {
     currentChapter,
   });
   const companionSections = buildBookCompanionSections(bookId);
-  const companionEmptyState = buildBookCompanionEmptyState(book.name);
   const completedChapters = new Set(bookHubPresentation.completedChapters);
 
-  const navigateToChapter = (chapter: number, preferredMode = preferredChapterLaunchMode) => {
-    setPreferredChapterLaunchMode(preferredMode);
+  const navigateToChapter = (chapter: number) => {
     trackBibleExperienceEvent({
       name: 'book_hub_chapter_opened',
       bookId,
       chapter,
       source: 'book-hub',
-      mode: preferredMode,
+      mode: preferredChapterLaunchMode,
     });
-    navigation.navigate('BibleReader', buildChapterLaunchParams(bookId, chapter, preferredMode));
-  };
-
-  const handleModePress = (mode: ChapterLaunchMode) => {
-    setPreferredChapterLaunchMode(mode);
+    navigation.navigate(
+      'BibleReader',
+      buildChapterLaunchParams(bookId, chapter, preferredChapterLaunchMode)
+    );
   };
 
   const handleCompanionPress = (item: BookCompanionCardModel) => {
-    setPreferredChapterLaunchMode(preferredChapterLaunchMode);
     trackBibleExperienceEvent({
       name: 'book_companion_opened',
       bookId: item.target.bookId,
@@ -93,35 +85,6 @@ export function ChapterSelectorScreen() {
       ),
       focusVerse: item.target.focusVerse,
     });
-  };
-
-  const renderModePill = (mode: ChapterLaunchMode) => {
-    const isSelected = preferredChapterLaunchMode === mode;
-
-    return (
-      <TouchableOpacity
-        key={mode}
-        style={[
-          styles.modePill,
-          {
-            backgroundColor: isSelected ? colors.bibleControlBackground : 'transparent',
-          },
-        ]}
-        onPress={() => handleModePress(mode)}
-        activeOpacity={0.85}
-      >
-        <Text
-          style={[
-            styles.modePillText,
-            {
-              color: isSelected ? colors.bibleBackground : colors.bibleSecondaryText,
-            },
-          ]}
-        >
-          {mode === 'listen' ? 'Listen' : 'Read'}
-        </Text>
-      </TouchableOpacity>
-    );
   };
 
   const renderChapterRow = ({ item }: { item: number[] }) => (
@@ -191,7 +154,6 @@ export function ChapterSelectorScreen() {
         showsVerticalScrollIndicator={false}
         extraData={{
           colors,
-          preferredChapterLaunchMode,
           continueChapter: bookHubPresentation.continueChapter,
         }}
         ListHeaderComponent={
@@ -209,19 +171,6 @@ export function ChapterSelectorScreen() {
               >
                 <Ionicons name="chevron-back" size={22} color={colors.biblePrimaryText} />
               </TouchableOpacity>
-
-              <View
-                style={[
-                  styles.modeSwitch,
-                  {
-                    backgroundColor: colors.bibleSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                {renderModePill('listen')}
-                {renderModePill('read')}
-              </View>
             </View>
 
             <LinearGradient
@@ -230,12 +179,6 @@ export function ChapterSelectorScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.heroCard}
             >
-              <Image
-                source={getBookIcon(book.id)}
-                style={styles.heroWatermark}
-                resizeMode="contain"
-              />
-
               <View
                 style={[
                   styles.heroIconWrap,
@@ -259,34 +202,17 @@ export function ChapterSelectorScreen() {
           </View>
         }
         ListFooterComponent={
-          <View style={styles.footerContent}>
-            {companionSections.length > 0 ? (
-              companionSections.map((section) => (
+          companionSections.length > 0 ? (
+            <View style={styles.footerContent}>
+              {companionSections.map((section) => (
                 <CompanionSection
                   key={section.id}
                   section={section}
                   onPressItem={handleCompanionPress}
                 />
-              ))
-            ) : (
-              <View
-                style={[
-                  styles.emptyCard,
-                  {
-                    backgroundColor: colors.bibleSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Text style={[styles.emptyTitle, { color: colors.biblePrimaryText }]}>
-                  {companionEmptyState.title}
-                </Text>
-                <Text style={[styles.emptyBody, { color: colors.bibleSecondaryText }]}>
-                  {companionEmptyState.body}
-                </Text>
-              </View>
-            )}
-          </View>
+              ))}
+            </View>
+          ) : null
         }
       />
     </SafeAreaView>
@@ -309,8 +235,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
+    justifyContent: 'flex-start',
   },
   backButton: {
     width: 44,
@@ -320,40 +245,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modeSwitch: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 999,
-    padding: 4,
-    flex: 1,
-    maxWidth: 220,
-    alignSelf: 'center',
-  },
-  modePill: {
-    flex: 1,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  modePillText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
   heroCard: {
     borderRadius: 30,
     padding: 24,
     overflow: 'hidden',
     minHeight: 220,
     justifyContent: 'flex-end',
-  },
-  heroWatermark: {
-    position: 'absolute',
-    right: -30,
-    bottom: -10,
-    width: 250,
-    height: 250,
-    opacity: 0.16,
   },
   heroIconWrap: {
     width: 78,
@@ -410,19 +307,5 @@ const styles = StyleSheet.create({
   footerContent: {
     paddingTop: 18,
     gap: 24,
-  },
-  emptyCard: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 18,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  emptyBody: {
-    fontSize: 14,
-    lineHeight: 20,
   },
 });
