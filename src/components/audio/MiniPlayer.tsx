@@ -1,19 +1,20 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigationState } from '@react-navigation/native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById } from '../../constants';
 import { useAudioPlayer } from '../../hooks';
 import { useAudioStore, useBibleStore } from '../../stores';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { getCurrentRouteName } from './miniPlayerModel';
 
-export function MiniPlayer() {
+interface MiniPlayerProps {
+  currentRouteName: string | null;
+}
+
+export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const setCurrentTrack = useAudioStore((state) => state.setCurrentTrack);
   const clearQueue = useAudioStore((state) => state.clearQueue);
-  const currentRouteName = useNavigationState((state) => getCurrentRouteName(state));
   const {
     status,
     currentBookId,

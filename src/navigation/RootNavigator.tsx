@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { TabNavigator } from './TabNavigator';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,11 +7,18 @@ import { useAudioStore } from '../stores/audioStore';
 
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
+  const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
+  const getCurrentRouteName = useCallback(() => rootNavigationRef.getCurrentRoute()?.name ?? null, []);
+  const handleReady = useCallback(() => {
+    flushQueuedAuthFlow();
+    setCurrentRouteName(getCurrentRouteName());
+  }, [getCurrentRouteName]);
 
   return (
     <NavigationContainer
       ref={rootNavigationRef}
-      onReady={flushQueuedAuthFlow}
+      onReady={handleReady}
+      onStateChange={() => setCurrentRouteName(getCurrentRouteName())}
       theme={{
         dark: isDark,
         colors: {
@@ -30,12 +38,12 @@ export function RootNavigator() {
       }}
     >
       <TabNavigator />
-      <MiniPlayerHost />
+      <MiniPlayerHost currentRouteName={currentRouteName} />
     </NavigationContainer>
   );
 }
 
-function MiniPlayerHost() {
+function MiniPlayerHost({ currentRouteName }: { currentRouteName: string | null }) {
   const hasPlayableSession = useAudioStore((state) =>
     Boolean(
       (state.currentBookId && state.currentChapter) ||
@@ -49,5 +57,5 @@ function MiniPlayerHost() {
 
   const { MiniPlayer } = require('../components/audio/MiniPlayer') as typeof import('../components/audio/MiniPlayer');
 
-  return <MiniPlayer />;
+  return <MiniPlayer currentRouteName={currentRouteName} />;
 }
