@@ -1,5 +1,4 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
 import { getBookById, getBookIcon } from '../../constants';
@@ -20,7 +19,6 @@ export function AudioFirstChapterCard({
   onChapterChange,
 }: AudioFirstChapterCardProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -106,51 +104,29 @@ export function AudioFirstChapterCard({
   const hasPreviousChapter = currentChapter ? currentChapter > 1 : chapter > 1;
   const hasNextChapter =
     currentChapter && book ? currentChapter < book.chapters : chapter < (book?.chapters ?? 1);
+  const remainingDuration = Math.max(duration - currentPosition, 0);
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.bibleSurface,
-          borderColor: colors.bibleDivider,
-        },
-      ]}
-    >
+    <View style={styles.card}>
       <View
         style={[
-          styles.heroPanel,
+          styles.artworkFrame,
           {
             backgroundColor: colors.bibleElevatedSurface,
             borderColor: colors.bibleDivider,
           },
         ]}
       >
-        <Image source={getBookIcon(bookId)} style={styles.heroWatermark} resizeMode="contain" />
+        <Image source={getBookIcon(bookId)} style={styles.artwork} resizeMode="cover" />
+      </View>
 
-        <View
-          style={[
-            styles.iconShell,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-        >
-          <Image source={getBookIcon(bookId)} style={styles.icon} resizeMode="contain" />
-        </View>
-
-        <View style={styles.copyBlock}>
-          <Text style={[styles.badge, { color: colors.bibleAccent }]}>
-            {t('bible.audioOnlyTitle')}
-          </Text>
-          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-            {book?.name} {chapter}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-            {t('bible.audioOnlyBody', { translation: translationLabel })}
-          </Text>
-        </View>
+      <View style={styles.metaBlock}>
+        <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+          {book?.name} {chapter}
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
+          {translationLabel}
+        </Text>
       </View>
 
       <View style={styles.controlBlock}>
@@ -178,12 +154,16 @@ export function AudioFirstChapterCard({
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
             {formatTime(currentPosition)}
           </Text>
+          <Text style={[styles.timeCenterText, { color: colors.bibleSecondaryText }]}>
+            {book?.name} {chapter}
+          </Text>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-            {formatTime(duration)}
+            -{formatTime(remainingDuration)}
           </Text>
         </View>
 
         <PlaybackControls
+          variant="chapter-only"
           status={isCurrentChapter ? status : 'idle'}
           playbackRate={playbackRate}
           sleepTimerRemaining={sleepTimerRemaining}
@@ -211,60 +191,32 @@ export function AudioFirstChapterCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 28,
-    padding: 24,
-    gap: 18,
+    paddingBottom: 12,
+    gap: 24,
     justifyContent: 'space-between',
   },
-  heroPanel: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 24,
-    gap: 18,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  heroWatermark: {
-    position: 'absolute',
-    right: -12,
-    bottom: -18,
-    width: 168,
-    height: 168,
-    opacity: 0.12,
-  },
-  iconShell: {
-    width: 88,
-    height: 88,
+  artworkFrame: {
+    alignSelf: 'stretch',
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 28,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
+    overflow: 'hidden',
   },
-  icon: {
-    width: 52,
-    height: 52,
+  artwork: {
+    width: '100%',
+    height: '100%',
   },
-  copyBlock: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
+  metaBlock: {
+    gap: 6,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: '700',
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 24,
-    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
   },
   controlBlock: {
     gap: 18,
@@ -284,11 +236,19 @@ const styles = StyleSheet.create({
   },
   timeRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   timeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  timeCenterText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   errorText: {
     fontSize: 13,

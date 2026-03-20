@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getBookById } from '../../constants';
+import { getBookById, getBookIcon } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -126,10 +126,13 @@ export function BibleReaderScreen() {
     translation: currentTranslationInfo,
     audioAvailable: audioEnabled,
   });
-  const canAdjustFontSize = chapterPresentationMode === 'text' && verses.length > 0;
+  const canReadDisplayedChapter = chapterPresentationMode === 'text' && verses.length > 0;
+  const canAdjustFontSize = canReadDisplayedChapter;
   const canShowTranslationSheet = config.features.multipleTranslations;
-  const canToggleSessionMode =
-    audioEnabled && chapterPresentationMode === 'text' && verses.length > 0;
+  const canToggleSessionMode = audioEnabled && canReadDisplayedChapter;
+  const showSessionModeRail = canToggleSessionMode || chapterPresentationMode === 'audio-first';
+  const showMinimalListenChrome =
+    chapterSessionMode === 'listen' || chapterPresentationMode === 'audio-first';
   const activeFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,
@@ -536,54 +539,37 @@ export function BibleReaderScreen() {
     const listenDuration = isCurrentAudioChapter ? duration : 0;
     const progress = listenDuration > 0 ? (listenPosition / listenDuration) * 100 : 0;
     const highlightedVerse = activeFollowAlongVerse ?? focusVerse ?? verses[0]?.verse ?? null;
+    const remainingDuration = Math.max(listenDuration - listenPosition, 0);
 
     return (
       <View style={styles.listenColumn}>
         <View
           style={[
-            styles.listenHeroCard,
+            styles.listenArtworkFrame,
             {
-              backgroundColor: colors.bibleSurface,
+              backgroundColor: colors.bibleElevatedSurface,
               borderColor: colors.bibleDivider,
             },
           ]}
         >
-          <Text style={[styles.listenEyebrow, { color: colors.bibleAccent }]}>
-            {translationLabel}
-          </Text>
+          <Image source={getBookIcon(bookId)} style={styles.listenArtwork} resizeMode="cover" />
+        </View>
+
+        <View style={styles.listenMetaBlock}>
           <Text style={[styles.listenChapterTitle, { color: colors.biblePrimaryText }]}>
             {book.name} {chapter}
           </Text>
           <Text style={[styles.listenChapterMeta, { color: colors.bibleSecondaryText }]}>
-            {highlightedVerse != null
-              ? `${t('bible.verse')} ${highlightedVerse}`
-              : `${verses.length} ${t('bible.chapter')}`}
+            {verses.length} {verses.length === 1 ? 'Verse' : 'Verses'}
           </Text>
-
-          <TouchableOpacity
-            style={[
-              styles.listenPrimaryAction,
-              { backgroundColor: colors.bibleControlBackground },
-            ]}
-            onPress={handlePlayDisplayedChapter}
-          >
-            <Ionicons
-              name={listenStatus === 'playing' ? 'pause' : 'play'}
-              size={18}
-              color={colors.bibleBackground}
-            />
-            <Text style={[styles.listenPrimaryActionText, { color: colors.bibleBackground }]}>
-              {listenStatus === 'playing' ? 'Pause chapter' : 'Play chapter'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View
           style={[
             styles.listenPlayerCard,
             {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
+              backgroundColor: 'transparent',
+              borderColor: 'transparent',
             },
           ]}
         >
@@ -611,12 +597,16 @@ export function BibleReaderScreen() {
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
               {formatTime(listenPosition)}
             </Text>
+            <Text style={[styles.listenTimeCenterText, { color: colors.bibleSecondaryText }]}>
+              {highlightedVerse != null ? `${book.name} ${chapter}:${highlightedVerse}` : `${book.name} ${chapter}`}
+            </Text>
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
-              {formatTime(listenDuration)}
+              -{formatTime(remainingDuration)}
             </Text>
           </View>
 
           <PlaybackControls
+            variant="chapter-only"
             status={listenStatus}
             playbackRate={playbackRate}
             sleepTimerRemaining={sleepTimerRemaining}
@@ -787,13 +777,22 @@ export function BibleReaderScreen() {
       style={[styles.container, { backgroundColor: colors.bibleBackground }]}
       edges={['top', 'bottom']}
     >
-      <View style={[styles.header, { borderBottomColor: colors.bibleDivider }]}>
+      <View
+        style={[
+          styles.header,
+          showMinimalListenChrome ? styles.minimalHeader : null,
+          {
+            borderBottomColor: colors.bibleDivider,
+            borderBottomWidth: showMinimalListenChrome ? 0 : 1,
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.biblePrimaryText} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          {canToggleSessionMode ? (
+          {showSessionModeRail ? (
             <View
               style={[
                 styles.sessionModeRail,
@@ -802,6 +801,7 @@ export function BibleReaderScreen() {
             >
               {(['listen', 'read'] as const).map((mode) => {
                 const isSelected = chapterSessionMode === mode;
+                const isDisabled = mode === 'read' && !canReadDisplayedChapter;
 
                 return (
                   <TouchableOpacity
@@ -813,8 +813,10 @@ export function BibleReaderScreen() {
                             backgroundColor: colors.bibleControlBackground,
                           }
                         : null,
+                      isDisabled ? styles.disabledSessionModeButton : null,
                     ]}
                     onPress={() => handleSessionModePress(mode)}
+                    disabled={isDisabled}
                   >
                     <Text
                       style={[
@@ -832,69 +834,75 @@ export function BibleReaderScreen() {
             </View>
           ) : null}
 
-          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-            {book.name} {chapter}
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.translationChip,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: showTranslationSheet ? colors.bibleAccent : colors.bibleDivider,
-              },
-            ]}
-            onPress={handleTranslationChipPress}
-            activeOpacity={canShowTranslationSheet ? 0.85 : 1}
-            disabled={!canShowTranslationSheet}
-          >
-            <Text style={[styles.translationChipText, { color: colors.bibleSecondaryText }]}>
-              {translationLabel}
-            </Text>
-            {canShowTranslationSheet ? (
-              <Ionicons
-                name="chevron-down"
-                size={12}
-                color={showTranslationSheet ? colors.bibleAccent : colors.bibleSecondaryText}
-              />
-            ) : null}
-          </TouchableOpacity>
+          {!showMinimalListenChrome && (
+            <>
+              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+                {book.name} {chapter}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.translationChip,
+                  {
+                    backgroundColor: colors.bibleSurface,
+                    borderColor: showTranslationSheet ? colors.bibleAccent : colors.bibleDivider,
+                  },
+                ]}
+                onPress={handleTranslationChipPress}
+                activeOpacity={canShowTranslationSheet ? 0.85 : 1}
+                disabled={!canShowTranslationSheet}
+              >
+                <Text style={[styles.translationChipText, { color: colors.bibleSecondaryText }]}>
+                  {translationLabel}
+                </Text>
+                {canShowTranslationSheet ? (
+                  <Ionicons
+                    name="chevron-down"
+                    size={12}
+                    color={showTranslationSheet ? colors.bibleAccent : colors.bibleSecondaryText}
+                  />
+                ) : null}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[
-              styles.iconButton,
-              styles.secondaryIconButton,
-              {
-                borderColor: showFontSizeSheet ? colors.bibleAccent : colors.bibleDivider,
-                opacity: canAdjustFontSize ? 1 : 0.45,
-              },
-            ]}
-            onPress={() => {
-              if (!canAdjustFontSize) {
-                return;
-              }
-
-              setShowFontSizeSheet((current) =>
-                getNextFontSizeSheetVisibility(current, 'toggleButton')
-              );
-              setChapterSessionMode('read');
-            }}
-            disabled={!canAdjustFontSize}
-          >
-            <Text
+          {!showMinimalListenChrome && (
+            <TouchableOpacity
               style={[
-                styles.fontButtonLabel,
+                styles.iconButton,
+                styles.secondaryIconButton,
                 {
-                  color: showFontSizeSheet ? colors.bibleAccent : colors.biblePrimaryText,
+                  borderColor: showFontSizeSheet ? colors.bibleAccent : colors.bibleDivider,
+                  opacity: canAdjustFontSize ? 1 : 0.45,
                 },
               ]}
-            >
-              AA
-            </Text>
-          </TouchableOpacity>
+              onPress={() => {
+                if (!canAdjustFontSize) {
+                  return;
+                }
 
-          {audioEnabled && chapterPresentationMode === 'text' ? (
+                setShowFontSizeSheet((current) =>
+                  getNextFontSizeSheetVisibility(current, 'toggleButton')
+                );
+                setChapterSessionMode('read');
+              }}
+              disabled={!canAdjustFontSize}
+            >
+              <Text
+                style={[
+                  styles.fontButtonLabel,
+                  {
+                    color: showFontSizeSheet ? colors.bibleAccent : colors.biblePrimaryText,
+                  },
+                ]}
+              >
+                AA
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {audioEnabled && chapterPresentationMode === 'text' && !showMinimalListenChrome && (
             <TouchableOpacity
               style={[
                 styles.iconButton,
@@ -902,25 +910,16 @@ export function BibleReaderScreen() {
                 { borderColor: colors.bibleDivider },
               ]}
               onPress={() => {
-                if (chapterSessionMode === 'listen') {
-                  setShowFollowAlongText(true);
-                  return;
-                }
-
                 togglePlayer();
               }}
             >
               <Ionicons
-                name={chapterSessionMode === 'listen' ? 'document-text-outline' : showPlayer ? 'volume-high' : 'volume-medium-outline'}
+                name={showPlayer ? 'volume-high' : 'volume-medium-outline'}
                 size={20}
-                color={
-                  chapterSessionMode === 'listen' || showPlayer
-                    ? colors.bibleAccent
-                    : colors.biblePrimaryText
-                }
+                color={showPlayer ? colors.bibleAccent : colors.biblePrimaryText}
               />
             </TouchableOpacity>
-          ) : null}
+          )}
 
           <TouchableOpacity
             style={[
@@ -1445,6 +1444,9 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
+  minimalHeader: {
+    paddingBottom: 8,
+  },
   iconButton: {
     width: 36,
     height: 36,
@@ -1478,6 +1480,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 16,
     alignItems: 'center',
+  },
+  disabledSessionModeButton: {
+    opacity: 0.45,
   },
   sessionModeLabel: {
     fontSize: 14,
@@ -1532,49 +1537,34 @@ const styles = StyleSheet.create({
   },
   listenColumn: {
     flex: 1,
-    gap: 16,
+    gap: 20,
     justifyContent: 'space-between',
   },
-  listenHeroCard: {
-    borderWidth: 1,
+  listenArtworkFrame: {
+    alignSelf: 'stretch',
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 28,
-    padding: 24,
-    gap: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  listenEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  listenArtwork: {
+    width: '100%',
+    height: '100%',
+  },
+  listenMetaBlock: {
+    gap: 6,
   },
   listenChapterTitle: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '700',
   },
   listenChapterMeta: {
     fontSize: 14,
     fontWeight: '600',
   },
-  listenPrimaryAction: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  listenPrimaryActionText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   listenPlayerCard: {
-    borderWidth: 1,
-    borderRadius: 28,
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 20,
+    paddingBottom: 8,
     gap: 10,
   },
   listenProgressTouch: {
@@ -1592,12 +1582,20 @@ const styles = StyleSheet.create({
   },
   listenTimeRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+    gap: 12,
   },
   listenTimeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  listenTimeCenterText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   listenActionsRow: {
     flexDirection: 'row',

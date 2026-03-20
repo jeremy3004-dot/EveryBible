@@ -64,6 +64,7 @@
 
 - **M2-READ-01**: User can switch between `Listen` and `Read` for the same chapter without losing their current context
 - **M2-AUDIO-01**: User can open live follow-along text from listen mode and see playback progress reflected in the visible text
+- **M2-AUDIO-02**: User can open an audio-first Bible chapter in a simplified Dwell-style listen layout with only essential chrome and chapter transport
 - **M2-BROWSE-01**: User can open a rich book hub with artwork, synopsis, intro action, and chapter entry points before entering a chapter
 - **M2-LIB-01**: User can favorite, share, download, and organize Bible listening content with persistent resume and history behavior
 - **M2-CONTENT-01**: Book hubs can surface companion modules such as passages, devotionals, figures, plans, and playlists with graceful fallbacks
@@ -106,11 +107,12 @@
 | PERF-01 | Phase 6 | In verification |
 | REL-01 | Phase 5 | In verification |
 | REL-02 | Phase 5 | In verification |
-| M2-READ-01 | Phase 7 | Planned |
-| M2-AUDIO-01 | Phase 7 | Planned |
-| M2-BROWSE-01 | Phase 8 | Planned |
-| M2-LIB-01 | Phase 9 | Planned |
-| M2-CONTENT-01 | Phase 10 | Planned |
+| M2-READ-01 | Phase 7 | In verification |
+| M2-AUDIO-01 | Phase 7 | In verification |
+| M2-AUDIO-02 | Phase 11 | In verification |
+| M2-BROWSE-01 | Phase 8 | In verification |
+| M2-LIB-01 | Phase 9 | In verification |
+| M2-CONTENT-01 | Phase 10 | In verification |
 
 **Coverage:**
 - v1 requirements: 25 total
@@ -119,4 +121,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-18 after executing Phase 6 and moving scripture parsing, activity calendar, and list responsiveness into verification*
+*Last updated: 2026-03-20 after executing Phase 11 and moving Milestone 2 Bible-experience requirements into verification*

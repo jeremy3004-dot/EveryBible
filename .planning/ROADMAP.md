@@ -24,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Bible Book Hub And Chapter Launch Experience** - Add Dwell-style book landing pages between the book grid and chapter session
 - [x] **Phase 9: Saved Library And Audio Personalization** - Add the media-product actions around listening such as favorites, playlists, sharing, and persistent resume/history
 - [x] **Phase 10: Book Companion Content And Ecosystem Surfaces** - Populate each book hub with figures, passages, plans, devotionals, and playlists without breaking the core Bible loop
+- [x] **Phase 11: Audio reader chrome simplification and Dwell-style listen layout polish** - Strip the audio-first Bible screen down to the essential Dwell-style listen chrome while keeping EveryBible's current palette
 
 ## Phase Details
 
@@ -173,10 +174,25 @@ Plans:
 - [x] 10-02: Build reusable book-hub sections for passages, devotionals, figures, plans, and playlists
 - [x] 10-03: Add analytics and verification coverage for module launch, empty states, and return navigation
 
+### Phase 11: Audio reader chrome simplification and Dwell-style listen layout polish
+**Goal**: Make the audio-first Bible chapter screen feel deliberately minimal and Dwell-inspired by removing redundant chrome, explanatory copy, and transport clutter while preserving EveryBible's existing colors and playback behavior.
+**Depends on**: Phase 10
+**Requirements**: M2-AUDIO-02
+**Success Criteria** (what must be TRUE):
+  1. Audio-first Bible chapters show only the essential listen-shell chrome: back button, `Listen / Read` toggle, overflow actions, cover art, chapter label, progress, and chapter transport.
+  2. The screen removes redundant elements called out in device feedback, including the top title/version/`AA` bar, 10-second skip buttons, nested shell framing, background icon watermark, and audio-only explanatory copy.
+  3. The simplified screen keeps current EveryBible colors, does not regress chapter switching or playback continuity, and gains regression coverage plus a focused device QA checklist.
+**Plans**: 3 plans
+
+Plans:
+- [x] 11-01: Simplify the audio-first reader chrome and remove redundant header/body copy
+- [x] 11-02: Rebuild the audio-first transport layout around chapter controls and clean visual shells
+- [x] 11-03: Add regression checks and device QA for the simplified Dwell-style listen screen
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -191,6 +207,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 8. Bible Book Hub And Chapter Launch Experience | 3/3 | Automated verification complete; needs device content/layout QA | 2026-03-20 |
 | 9. Saved Library And Audio Personalization | 3/3 | Automated verification complete; needs device playback/library QA | 2026-03-20 |
 | 10. Book Companion Content And Ecosystem Surfaces | 3/3 | Automated verification complete; needs device module/navigation QA | 2026-03-20 |
+| 11. Audio reader chrome simplification and Dwell-style listen layout polish | 3/3 | Automated verification complete; needs device visual QA | 2026-03-20 |
 
 ### Phase 05.1: Audio-only downloadable Bible experience (INSERTED)
 

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Manual UX/device verification for the newly completed Dwell-inspired milestone slice, especially chapter-to-chapter audio handoff, book hubs, saved-library flows, the global mini-player, and companion modules on physical devices
+**Current focus:** Validate the simplified audio-first reader on device and package the next TestFlight build when requested
 
 ## Current Position
 
-Phase: 10 (Book Companion Content And Ecosystem Surfaces)
+Phase: 11 (Audio reader chrome simplification and Dwell-style listen layout polish)
 Plan: 3 of 3 in current phase
-Status: Phases 8 to 10 implemented and verified in automation; awaiting manual device QA for content layout, saved-library flows, and mini-player continuity
-Last activity: 2026-03-20 — Simplified the book-hub hero by removing the testament/translation pills, chapter-count and summary copy, and the listening-path promo card so the chapter list takes visual priority
+Status: Automated verification complete; awaiting device visual QA and release packaging
+Last activity: 2026-03-20 — Executed Phase 11 by simplifying the audio-first Bible screen chrome, removing extra transport/copy/shells, and locking the layout with new regression coverage
 
-Progress: [██████████] 100%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
+- Total plans completed: 30
 - Current phase plans remaining: 0
-- Average duration: n/a (first execution session)
+- Average duration: n/a
 - Total execution time: n/a
 
 **By Phase:**
@@ -41,8 +41,8 @@ Progress: [██████████] 100%
 | 10. Book Companion Content And Ecosystem Surfaces | 3 | n/a | n/a |
 
 **Recent Trend:**
-- Last 5 plans: 09-02, 09-03, 10-01, 10-02, 10-03
-- Trend: Strong execution with the remaining Dwell-inspired roadmap phases implemented through local-first contracts, reusable book hubs, and saved-library flows
+- Last 5 plans: 10-02, 10-03, 11-01, 11-02, 11-03
+- Trend: Milestone 2 execution is complete in code; remaining work is device QA and release distribution rather than new implementation
 
 *Updated after each plan completion*
 
@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - Post-phase polish: Let the player own chapter transport inside BibleReader, hide the global tab shell on that route, and use the freed vertical space for a fuller listen/audio-first layout
 - Post-phase polish: Only resync BibleReader to the active audio chapter when the reader was already showing that playing chapter; manual chapter launches must override stale playback state
 - Post-phase polish: Keep the book hub focused on title plus chapter grid, removing extra explanatory and promotional chrome that competes with the actual reading/listening action
+- Post-phase polish: Treat the audio-first Bible screen as a dedicated minimal listen surface with its own stripped header and transport variant instead of reusing the fuller reader chrome
+- Phase 11: Reuse the existing playback/session model, but give audio-first chapters a dedicated chapter-only transport and art-led layout instead of stacking extra shells and explanatory copy
 
 ### Pending Todos
 
@@ -92,6 +94,8 @@ Recent decisions affecting current work:
 - Manual verification for companion-module sections, including sparse-book empty states and return navigation back into the book hub or chapter session
 - Manual device verification for the full-screen BibleReader chrome, especially hidden tabs, audio-only chapter spacing, and read/listen mode bottom insets on smaller phones
 - Manual device verification for the simplified book hub on smaller phones, ensuring the reduced hero still balances cleanly above the chapter grid
+- Manual device verification for the new simplified audio-first listen screen, especially header removal, three-button transport spacing, and overflow/favorite actions on smaller iPhones
+- Manual device verification that the top audio toggle/button remains discoverable enough on text chapters now that audio-first chapters no longer show duplicate top chrome
 
 ### Roadmap Evolution
 
@@ -101,6 +105,7 @@ Recent decisions affecting current work:
 - Phase 8 mapped from Dwell gap audit: Bible Book Hub And Chapter Launch Experience
 - Phase 9 mapped from Dwell gap audit: Saved Library And Audio Personalization
 - Phase 10 mapped from Dwell gap audit: Book Companion Content And Ecosystem Surfaces
+- Phase 11 added: Audio reader chrome simplification and Dwell-style listen layout polish
 
 ### Blockers/Concerns
 
@@ -114,9 +119,10 @@ Recent decisions affecting current work:
 - Dwell-style follow-along text currently uses weighted progress estimation because the current audio layer does not expose uniform verse-level timing metadata
 - Phases 8 to 10 ship with local-first seeded metadata and companion content; any future backend source now needs only to implement the existing contracts rather than redefining the UI layer
 - Gstack/browser verification remains intentionally skipped for the new Bible flows because the repo does not include Expo web dependencies and the shipped surfaces are native-first
+- Phase 11 now depends on device QA for visual fit on smaller iPhones because the new art-led listen layout intentionally uses more vertical space and fewer header affordances
 
 ## Session Continuity
 
-Last session: 2026-03-20 09:05 +0545
-Stopped at: Phases 8 to 10 implemented with automated verification; remaining work is physical-device QA for the new hub, library, mini-player, and companion-content flows
-Resume file: .planning/phases/10-book-companion-content-and-ecosystem-surfaces/10-03-SUMMARY.md
+Last session: 2026-03-20 21:18 +0545
+Stopped at: Phase 11 implementation and automated verification are complete; next step is device QA of the simplified listen screen and TestFlight packaging on request
+Resume file: .planning/phases/11-audio-reader-chrome-simplification-and-dwell-style-listen-layout-polish/11-CONTEXT.md

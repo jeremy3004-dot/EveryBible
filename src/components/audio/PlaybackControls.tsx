@@ -7,6 +7,7 @@ import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../../types';
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../../types';
 
 interface PlaybackControlsProps {
+  variant?: 'default' | 'chapter-only';
   status: AudioStatus;
   playbackRate: PlaybackRate;
   sleepTimerRemaining: number | null;
@@ -22,6 +23,7 @@ interface PlaybackControlsProps {
 }
 
 export function PlaybackControls({
+  variant = 'default',
   status,
   playbackRate,
   sleepTimerRemaining,
@@ -42,6 +44,7 @@ export function PlaybackControls({
 
   const isLoading = status === 'loading';
   const isPlaying = status === 'playing';
+  const showSkipControls = variant === 'default';
 
   return (
     <View style={styles.container}>
@@ -58,17 +61,19 @@ export function PlaybackControls({
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.skipButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={onSkipBackward}
-          disabled={isLoading}
-        >
-          <Ionicons name="play-back" size={16} color={colors.biblePrimaryText} />
-          <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
-        </TouchableOpacity>
+        {showSkipControls ? (
+          <TouchableOpacity
+            style={[
+              styles.skipButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={onSkipBackward}
+            disabled={isLoading}
+          >
+            <Ionicons name="play-back" size={16} color={colors.biblePrimaryText} />
+            <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.playButton, { backgroundColor: colors.bibleControlBackground }]}
@@ -86,17 +91,19 @@ export function PlaybackControls({
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.skipButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={onSkipForward}
-          disabled={isLoading}
-        >
-          <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
-          <Ionicons name="play-forward" size={16} color={colors.biblePrimaryText} />
-        </TouchableOpacity>
+        {showSkipControls ? (
+          <TouchableOpacity
+            style={[
+              styles.skipButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={onSkipForward}
+            disabled={isLoading}
+          >
+            <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
+            <Ionicons name="play-forward" size={16} color={colors.biblePrimaryText} />
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.iconButton, !hasNextChapter && styles.disabledButton]}
