@@ -262,6 +262,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 10. Book Companion Content And Ecosystem Surfaces                             | 3/3            | Automated verification complete; needs device module/navigation QA | 2026-03-20 |
 | 11. Audio reader chrome simplification and Dwell-style listen layout polish   | 3/3            | Automated verification complete; needs device visual QA            | 2026-03-20 |
 | 12. Professional Design System Unification                                    | 3/3            | Automated verification complete; needs device visual QA            | 2026-03-20 |
+| 12.1 Premium liquid-glass reader chrome and scroll-collapse motion            | 3/3            | TestFlight build 100 distributed; needs device visual QA           | 2026-03-21 |
 | 13. Public-domain Berean Standard Bible sourcing and direct audio integration | 1/2            | Plan 01 complete; official text refresh pipeline pending           | 2026-03-21 |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
@@ -280,7 +281,7 @@ Plans:
 
 - [x] 12.1-01: Define the premium reader motion model and visual contract from the supplied video
 - [x] 12.1-02: Rebuild the read-mode BibleReader chrome with liquid-glass surfaces and scroll-collapse animation
-- [ ] 12.1-03: Lock the redesign with regression coverage, verification, and release readiness
+- [x] 12.1-03: Lock the redesign with regression coverage, verification, and release readiness
 
 ### Phase 05.1: Audio-only downloadable Bible experience (INSERTED)
 

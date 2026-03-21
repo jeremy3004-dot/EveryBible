@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Execute Phase 12.1 to rebuild the Bible read experience around the supplied premium liquid-glass video reference, then package a new TestFlight build
+**Current focus:** Collect device QA on the shipped premium reader redesign from TestFlight build 100, then continue Phase 13's official text refresh work
 
 ## Current Position
 
 Phase: 12.1 (Premium liquid-glass reader chrome and scroll-collapse motion)
-Plan: 2 of 3 in current phase
-Status: Core implementation complete; release packaging in progress
-Last activity: 2026-03-21 — Rebuilt the read-mode BibleReader around blur-backed floating chrome, serif typography, and scroll-collapse motion; next step is TestFlight release packaging
+Plan: 3 of 3 in current phase
+Status: Automated verification complete; TestFlight build 100 is distributed and awaiting device visual QA
+Last activity: 2026-03-21 — Shipped the premium liquid-glass Bible reader redesign to TestFlight and verified build 100 is VALID and attached to the intended tester path
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 30
+- Total plans completed: 31
 - Current phase plans remaining: 0
 - Average duration: n/a
 - Total execution time: n/a
@@ -43,8 +43,8 @@ Progress: [██████████] 99%
 
 **Recent Trend:**
 
-- Last 5 plans: 10-02, 10-03, 11-01, 11-02, 11-03
-- Trend: Milestone 2 had shifted into QA/release mode, but the new premium-reader reference created a high-priority design-and-motion follow-up that now sits ahead of the next release
+- Last 5 plans: 11-02, 11-03, 12.1-01, 12.1-02, 12.1-03
+- Trend: The premium-reader redesign is now shipped to TestFlight, so the roadmap returns to QA hardening and the pending official text refresh pipeline
 
 _Updated after each plan completion_
 
@@ -135,10 +135,11 @@ Recent decisions affecting current work:
 - Phase 11 now depends on device QA for visual fit on smaller iPhones because the new art-led listen layout intentionally uses more vertical space and fewer header affordances
 - Phase 12 improves the main impression surfaces first; deeper edge screens such as full settings flows may still benefit from a second-pass polish after device review
 - Phase 12.1 depends on a credible React Native approximation of Apple's liquid-glass feel; Expo blur and motion tuning must improve the experience without making controls unreadable or brittle on device
+- Phase 12.1 is now in TestFlight as App Store Connect build `100` (`aa288850-2023-4ff4-817f-a071af783fd1`), with `processingState=VALID`, `group_has_build=true`, and `tester_has_build=true` for `curryj@protonmail.com`
 - Phase 13 still needs device QA for BSB download/offline playback after the direct-source provider swap, and plan 02 still needs to replace the older local BSB text refresh path with official Berean downloads
 
 ## Session Continuity
 
-Last session: 2026-03-21 00:16 +0545
-Stopped at: Phase 12.1 has been inserted from the supplied motion reference; next step is implementing the premium read-mode chrome, scroll collapse, and release verification
-Resume file: .planning/phases/12.1-premium-liquid-glass-reader-chrome-and-scroll-collapse-motion/12.1-CONTEXT.md
+Last session: 2026-03-21 11:30 +0545
+Stopped at: Phase 12.1 shipped to TestFlight build 100; next step is manual device QA on the new premium read-mode motion and then resuming Phase 13 plan 02
+Resume file: .planning/phases/12.1-premium-liquid-glass-reader-chrome-and-scroll-collapse-motion/12.1-03-SUMMARY.md
