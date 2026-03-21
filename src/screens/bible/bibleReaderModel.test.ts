@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildReaderChapterRouteParams,
   getReaderChromeAnimationProgress,
   isReaderChromeCollapsed,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
@@ -57,6 +58,38 @@ test('keeps the translation sheet closed when translation switching is unavailab
 test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'selectTranslation'), false);
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
+});
+
+test('builds chapter route params that preserve the current reader session mode', () => {
+  assert.deepEqual(
+    buildReaderChapterRouteParams({
+      bookId: 'JHN',
+      chapter: 4,
+      preferredMode: 'read',
+    }),
+    {
+      bookId: 'JHN',
+      chapter: 4,
+      focusVerse: undefined,
+      preferredMode: 'read',
+      autoplayAudio: false,
+    }
+  );
+
+  assert.deepEqual(
+    buildReaderChapterRouteParams({
+      bookId: 'JHN',
+      chapter: 5,
+      preferredMode: 'listen',
+    }),
+    {
+      bookId: 'JHN',
+      chapter: 5,
+      focusVerse: undefined,
+      preferredMode: 'listen',
+      autoplayAudio: false,
+    }
+  );
 });
 
 test('prefers listen mode when autoplay starts the chapter session', () => {

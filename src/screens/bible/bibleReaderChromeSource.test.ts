@@ -341,3 +341,13 @@ test('premium read chapter arrows transfer active audio before syncing the displ
     'BibleReaderScreen should hand active audio off to the next chapter before syncing the read view'
   );
 });
+
+test('chapter sync preserves the current reader session mode in navigation params', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const syncReaderReference = \(nextBookId: string, nextChapter: number\) => \{[\s\S]*navigation\.setParams\([\s\S]*buildReaderChapterRouteParams\({[\s\S]*preferredMode: chapterSessionMode,[\s\S]*}\)[\s\S]*\);/s,
+    'BibleReaderScreen should preserve the active listen-or-read session mode by passing it into the shared reader route-param builder'
+  );
+});

@@ -9,6 +9,12 @@ export type FontSizeSheetAction =
 export type TranslationSheetAction = 'toggleChip' | 'selectTranslation' | 'dismiss';
 export type ChapterSessionMode = 'listen' | 'read';
 
+interface ReaderChapterRouteParamsInput {
+  bookId: string;
+  chapter: number;
+  preferredMode: ChapterSessionMode;
+}
+
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
 export const READER_TOP_CHROME_DISMISS_DISTANCE = 148;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
@@ -112,6 +118,18 @@ export const getNextTranslationSheetVisibility = (
 
   return false;
 };
+
+export const buildReaderChapterRouteParams = ({
+  bookId,
+  chapter,
+  preferredMode,
+}: ReaderChapterRouteParamsInput) => ({
+  bookId,
+  chapter,
+  focusVerse: undefined,
+  preferredMode,
+  autoplayAudio: false,
+});
 
 export const getReaderChromeAnimationProgress = (
   offsetY: number,

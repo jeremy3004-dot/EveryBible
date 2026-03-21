@@ -42,6 +42,7 @@ import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigati
 import {
   READER_HERO_COLLAPSE_DISTANCE,
   READER_TOP_CHROME_DISMISS_DISTANCE,
+  buildReaderChapterRouteParams,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
   isActiveAudioTrackMatch,
@@ -467,12 +468,13 @@ export function BibleReaderScreen() {
   const shouldFillReaderCanvas =
     chapterPresentationMode === 'audio-first' || chapterSessionMode === 'listen';
   const syncReaderReference = (nextBookId: string, nextChapter: number) => {
-    navigation.setParams({
-      bookId: nextBookId,
-      chapter: nextChapter,
-      focusVerse: undefined,
-      autoplayAudio: false,
-    });
+    navigation.setParams(
+      buildReaderChapterRouteParams({
+        bookId: nextBookId,
+        chapter: nextChapter,
+        preferredMode: chapterSessionMode,
+      })
+    );
   };
   const dismissFontSizeSheetFromReader = () => {
     setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'readerContentTap'));
