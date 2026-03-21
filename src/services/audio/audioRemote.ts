@@ -1,3 +1,4 @@
+import { getBookById } from '../../constants/books';
 import { getTranslationById } from '../../constants/translations';
 import type { BibleIsAudioResponse } from '../../types';
 import type { RemoteAudioAsset } from './audioDownloadService';
@@ -5,6 +6,7 @@ import type { RemoteAudioAsset } from './audioDownloadService';
 const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
 const BIBLE_IS_API_KEY = process.env.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
 const EBIBLE_WEBBE_AUDIO_BASE = 'https://ebible.org/eng-webbe/mp3';
+const OPENBIBLE_BSB_SOUER_AUDIO_BASE = 'https://openbible.com/audio/souer';
 
 const BOOK_ID_MAP: Record<string, string> = {
   GEN: 'GEN',
@@ -171,6 +173,26 @@ function buildEbibleWebbeChapterAudioUrl(bookId: string, chapter: number): strin
   return `${EBIBLE_WEBBE_AUDIO_BASE}/eng-webbe_${bookPrefix}_${chapterSegment}.mp3`;
 }
 
+function buildOpenBibleBsbSouerChapterAudioUrl(bookId: string, chapter: number): string | null {
+  if (!Number.isInteger(chapter) || chapter < 1) {
+    return null;
+  }
+
+  const book = getBookById(bookId);
+  if (!book) {
+    return null;
+  }
+
+  const orderSegment = String(book.order).padStart(2, '0');
+  const bookSegment =
+    /^[1-3][A-Z]{2}$/.test(bookId)
+      ? `${bookId[0]}${bookId[1]}${bookId[2].toLowerCase()}`
+      : `${bookId[0]}${bookId.slice(1).toLowerCase()}`;
+  const chapterSegment = String(chapter).padStart(3, '0');
+
+  return `${OPENBIBLE_BSB_SOUER_AUDIO_BASE}/BSB_${orderSegment}_${bookSegment}_${chapterSegment}.mp3`;
+}
+
 export async function fetchRemoteChapterAudio(
   translationId: string,
   bookId: string,
@@ -186,6 +208,21 @@ export async function fetchRemoteChapterAudio(
   const translation = getTranslationById(translationId);
   if (!translation?.hasAudio) {
     return null;
+  }
+
+  if (translation.audioProvider === 'openbible-bsb-souer') {
+    const url = buildOpenBibleBsbSouerChapterAudioUrl(bookId, chapter);
+    if (!url) {
+      return null;
+    }
+
+    const result = {
+      url,
+      duration: 0,
+    };
+
+    audioUrlCache.set(cacheKey, result);
+    return result;
   }
 
   if (translation.audioProvider === 'ebible-webbe') {
@@ -258,7 +295,10 @@ export function isRemoteAudioAvailable(translationId: string): boolean {
     return false;
   }
 
-  if (translation.audioProvider === 'ebible-webbe') {
+  if (
+    translation.audioProvider === 'ebible-webbe' ||
+    translation.audioProvider === 'openbible-bsb-souer'
+  ) {
     return true;
   }
 

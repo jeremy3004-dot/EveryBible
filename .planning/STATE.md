@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Validate the new professional design system on device and package the next release when requested
+**Current focus:** Execute Phase 12.1 to rebuild the Bible read experience around the supplied premium liquid-glass video reference, then package a new TestFlight build
 
 ## Current Position
 
-Phase: 12 (Professional Design System Unification)
-Plan: 3 of 3 in current phase
-Status: Automated verification complete; awaiting device visual QA
-Last activity: 2026-03-20 — Completed the Phase 12 design-system sweep with shared tokens, tighter theme colors, and higher-consistency styling across the main app shell, Home, Bible, Learn, and More surfaces
+Phase: 12.1 (Premium liquid-glass reader chrome and scroll-collapse motion)
+Plan: 0 of 3 in current phase
+Status: Context and execution planning in progress
+Last activity: 2026-03-21 — Inserted urgent Phase 12.1 after reviewing the supplied reader video and mapping the premium read-mode collapse behavior into the roadmap
 
 Progress: [██████████] 99%
 
@@ -42,7 +42,7 @@ Progress: [██████████] 99%
 
 **Recent Trend:**
 - Last 5 plans: 10-02, 10-03, 11-01, 11-02, 11-03
-- Trend: Milestone 2 execution is complete in code; remaining work is device QA and release distribution rather than new implementation
+- Trend: Milestone 2 had shifted into QA/release mode, but the new premium-reader reference created a high-priority design-and-motion follow-up that now sits ahead of the next release
 
 *Updated after each plan completion*
 
@@ -101,6 +101,9 @@ Recent decisions affecting current work:
 - Manual device verification for the new simplified audio-first listen screen, especially header removal, three-button transport spacing, and overflow/favorite actions on smaller iPhones
 - Manual device verification that the top audio toggle/button remains discoverable enough on text chapters now that audio-first chapters no longer show duplicate top chrome
 - Manual device verification for the new Phase 12 professional design system, especially tab-bar fit, card density, and title hierarchy across Home, Bible, Learn, More, Profile, and Reading Activity
+- Manual device verification for the new Phase 12.1 premium read-mode chrome, especially scroll-collapse timing, glass legibility, and safe-area fit on smaller iPhones
+- Manual device verification that built-in BSB audio still streams, downloads, and plays offline correctly after the direct-source swap away from Bible.is
+- Plan 13-02: replace the older local BSB text refresh path with an official Berean download/import pipeline and regenerate bundled BSB artifacts from first-party files
 
 ### Roadmap Evolution
 
@@ -112,6 +115,8 @@ Recent decisions affecting current work:
 - Phase 10 mapped from Dwell gap audit: Book Companion Content And Ecosystem Surfaces
 - Phase 11 added: Audio reader chrome simplification and Dwell-style listen layout polish
 - Phase 12 added: Professional design-system unification across the app shell and highest-traffic screens
+- Phase 12.1 inserted after Phase 12: Premium liquid-glass reader chrome and scroll-collapse motion (URGENT)
+- Phase 13 added: Public-domain Berean Standard Bible sourcing and direct audio integration
 
 ### Blockers/Concerns
 
@@ -127,9 +132,11 @@ Recent decisions affecting current work:
 - Gstack/browser verification remains intentionally skipped for the new Bible flows because the repo does not include Expo web dependencies and the shipped surfaces are native-first
 - Phase 11 now depends on device QA for visual fit on smaller iPhones because the new art-led listen layout intentionally uses more vertical space and fewer header affordances
 - Phase 12 improves the main impression surfaces first; deeper edge screens such as full settings flows may still benefit from a second-pass polish after device review
+- Phase 12.1 depends on a credible React Native approximation of Apple's liquid-glass feel; Expo blur and motion tuning must improve the experience without making controls unreadable or brittle on device
+- Phase 13 still needs device QA for BSB download/offline playback after the direct-source provider swap, and plan 02 still needs to replace the older local BSB text refresh path with official Berean downloads
 
 ## Session Continuity
 
 Last session: 2026-03-21 00:16 +0545
-Stopped at: Phase 12 implementation and automated verification are complete; next step is device QA of the professional design sweep and release packaging on request
-Resume file: .planning/phases/12-professional-design-system-unification/12-CONTEXT.md
+Stopped at: Phase 12.1 has been inserted from the supplied motion reference; next step is implementing the premium read-mode chrome, scroll collapse, and release verification
+Resume file: .planning/phases/12.1-premium-liquid-glass-reader-chrome-and-scroll-collapse-motion/12.1-CONTEXT.md

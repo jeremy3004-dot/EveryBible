@@ -194,7 +194,7 @@ import { BOOKS } from '../constants';
 - **Bible Text:** Berean Standard Bible (BSB) is the default translation, stored in SQLite for offline access
 - **Four Fields:** Discipleship training method (Entry, Gospel, Discipleship, Kingdom Growth) - core feature
 - **Groups:** Users can create study groups, track progress, conduct sessions
-- **Audio Bible:** Public-domain WEB chapter audio is available without extra credentials; Bible.is remains optional for configured streamed translations
+- **Audio Bible:** Public-domain BSB and WEB chapter audio are available without extra credentials; Bible.is remains optional only for any future configured streamed translations
 - **Progress Tracking:** Tracks verses read, courses completed, time spent - syncs to Supabase
 - **Offline Mode:** App works fully offline except OAuth, sync, and any remote-only audio streams that have not been downloaded yet
 - **User Preferences:** Font size, theme, language, notifications - persist via AsyncStorage
@@ -210,7 +210,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 
 ### External Dependencies
 - **Supabase:** Backend (auth, profiles, progress, groups). Tables: profiles, user_progress, groups, group_members, group_sessions
-- **Bible.is API:** Optional streaming source for configured translations that still use Bible.is filesets
+- **Bible.is API:** Optional streaming source only for any future translations that still use Bible.is filesets
 - **Google OAuth:** Sign in with Google (uses the supported web + iOS client IDs)
 - **Apple Sign-In:** iOS native authentication (configured in app.json)
 - **Expo Notifications:** Push notifications for reminders and group updates

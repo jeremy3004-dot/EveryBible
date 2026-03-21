@@ -79,7 +79,7 @@ https://everybible-legal.github.io/privacy.html
 - No login required to use the app
 - Optional account creation for sync features
 - Uses Supabase for authentication and data sync
-- Audio content provided via Bible.is API
+- Audio content provided via direct public-domain sources from Berean/OpenBible and eBible.org
 - BSB translation is public domain
 
 ## Age Rating

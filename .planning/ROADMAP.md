@@ -208,7 +208,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -225,6 +225,23 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 10. Book Companion Content And Ecosystem Surfaces | 3/3 | Automated verification complete; needs device module/navigation QA | 2026-03-20 |
 | 11. Audio reader chrome simplification and Dwell-style listen layout polish | 3/3 | Automated verification complete; needs device visual QA | 2026-03-20 |
 | 12. Professional Design System Unification | 3/3 | Automated verification complete; needs device visual QA | 2026-03-20 |
+| 13. Public-domain Berean Standard Bible sourcing and direct audio integration | 1/2 | Plan 01 complete; official text refresh pipeline pending | 2026-03-21 |
+
+### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
+
+**Goal:** Rebuild the read-mode Bible chapter experience around the supplied video so the reader feels premium, glassy, and motion-led instead of like a static screen with attached controls.
+**Requirements**: M2-READ-01, M2-DESIGN-01
+**Depends on:** Phase 12
+**Success Criteria** (what must be TRUE):
+  1. Read mode opens in the video-led resting state: top back/segment/overflow glass controls, centered serif chapter hero, and bottom floating glass controls without the old static header or bottom audio bar.
+  2. Scrolling the chapter collapses the resting chrome into the compact pinned state from the video, including disappearing top controls and shrinking bottom controls down to a centered chapter pill.
+  3. The redesign keeps current read/listen session continuity and adds regression coverage for the new collapse model, glass chrome, and read-mode control placement.
+**Plans:** 3 plans
+
+Plans:
+- [ ] 12.1-01: Define the premium reader motion model and visual contract from the supplied video
+- [ ] 12.1-02: Rebuild the read-mode BibleReader chrome with liquid-glass surfaces and scroll-collapse animation
+- [ ] 12.1-03: Lock the redesign with regression coverage, verification, and release readiness
 
 ### Phase 05.1: Audio-only downloadable Bible experience (INSERTED)
 
@@ -239,3 +256,18 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 
 Plans:
 - [x] 05.1-01: Implement and verify audio-only translation download path plus no-text UI behavior
+
+### Phase 13: Public-domain Berean Standard Bible sourcing and direct audio integration
+
+**Goal:** Replace legacy BSB sourcing ambiguity with official public-domain text provenance and direct public BSB audio so the built-in English experience no longer depends on private audio credentials.
+**Requirements**: READ-01, AUDIO-03, AUDIO-04
+**Depends on:** Phase 12
+**Success Criteria** (what must be TRUE):
+  1. The app's built-in BSB translation points at official Berean public-domain terms for text and direct public MP3 chapter audio for playback/downloads.
+  2. BSB chapter audio can stream and download without `EXPO_PUBLIC_BIBLE_IS_API_KEY`, matching the app's existing public-source WEB approach.
+  3. The repo documents a clean follow-up path for refreshing bundled BSB text artifacts from official Berean downloads instead of opaque local source files.
+**Plans:** 2 plans
+
+Plans:
+- [x] 13-01: Replace BSB runtime audio dependency with direct public-source chapter MP3s and normalize licensing/docs
+- [ ] 13-02: Replace the BSB text refresh pipeline with official Berean download sources and regenerate bundled artifacts
