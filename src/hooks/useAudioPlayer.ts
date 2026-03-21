@@ -10,6 +10,7 @@ import {
 import { getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
+import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
 import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
@@ -41,6 +42,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPosition,
     playbackRate,
     autoAdvanceChapter,
+    repeatMode,
     sleepTimerMinutes,
     sleepTimerEndTime,
     setStatus,
@@ -58,6 +60,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     togglePlayer,
     setPlaybackRate,
     setAutoAdvanceChapter,
+    setRepeatMode,
+    cycleRepeatMode,
     setSleepTimer,
     clearSleepTimer,
     resetPlayback,
@@ -177,6 +181,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     const store = useAudioStore.getState();
     const {
       autoAdvanceChapter: shouldAutoAdvance,
+      repeatMode: activeRepeatMode,
       currentBookId: bookId,
       currentChapter: chapterNum,
       queue,
@@ -184,6 +189,22 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       setQueueIndex,
       playbackSequence,
     } = store;
+
+    const currentBook = bookId ? getBookById(bookId) : null;
+    const repeatTarget = resolveRepeatPlaybackTarget({
+      repeatMode: activeRepeatMode,
+      bookId,
+      chapter: chapterNum,
+      totalChapters: currentBook?.chapters ?? null,
+    });
+    if (repeatTarget && playChapterForTranslationRef.current) {
+      await playChapterForTranslationRef.current(
+        store.currentTranslationId ?? translationId,
+        repeatTarget.bookId,
+        repeatTarget.chapter
+      );
+      return;
+    }
 
     const nextQueuedEntry = advanceAudioQueue(queue, queueIndex);
     if (nextQueuedEntry && playChapterForTranslationRef.current) {
@@ -214,8 +235,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return;
     }
 
-    const book = getBookById(bookId);
-    if (!book) {
+    if (!currentBook) {
       setStatus('idle');
       return;
     }
@@ -223,7 +243,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     const nextChapterNum = chapterNum + 1;
 
     // Check if there's a next chapter in this book
-    if (nextChapterNum <= book.chapters && playChapterForTranslationRef.current) {
+    if (nextChapterNum <= currentBook.chapters && playChapterForTranslationRef.current) {
       // Auto-advance to next chapter
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
@@ -519,6 +539,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPosition,
     playbackRate,
     autoAdvanceChapter,
+    repeatMode,
     sleepTimerMinutes,
     sleepTimerRemaining,
     audioAvailable,
@@ -548,6 +569,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // Settings
     changePlaybackRate,
     setAutoAdvanceChapter,
+    setRepeatMode,
+    cycleRepeatMode,
     startSleepTimer,
     clearSleepTimer,
   };

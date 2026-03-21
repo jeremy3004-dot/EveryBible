@@ -29,6 +29,28 @@ test('PlaybackControls supports a chapter-only transport variant without 10-seco
   );
 });
 
+test('PlaybackControls exposes a repeat utility button alongside playback speed controls', () => {
+  const source = readRelativeSource('./PlaybackControls.tsx');
+
+  assert.match(
+    source,
+    /repeatMode: RepeatMode;/,
+    'PlaybackControls should accept repeat mode from the shared audio player state'
+  );
+
+  assert.match(
+    source,
+    /onCycleRepeatMode: \(\) => void;/,
+    'PlaybackControls should let listen surfaces cycle the repeat mode from a shared utility button'
+  );
+
+  assert.match(
+    source,
+    /<TouchableOpacity[\s\S]*onPress=\{\(\) => onCycleRepeatMode\(\)\}[\s\S]*renderRepeatModeIcon/s,
+    'PlaybackControls should render a repeat button in the utility row'
+  );
+});
+
 test('Bible listen surfaces opt into the chapter-only transport variant', () => {
   const audioFirstSource = readRelativeSource('./AudioFirstChapterCard.tsx');
   const readerSource = readRelativeSource('../../screens/bible/BibleReaderScreen.tsx');

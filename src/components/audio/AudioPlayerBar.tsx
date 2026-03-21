@@ -25,6 +25,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
     duration,
     error,
     playbackRate,
+    repeatMode,
     sleepTimerRemaining,
     playChapter,
     togglePlayPause,
@@ -34,6 +35,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
     skipBackward,
     skipForward,
     changePlaybackRate,
+    cycleRepeatMode,
     startSleepTimer,
     setShowPlayer,
   } = useAudioPlayer(currentTranslation);
@@ -158,6 +160,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
       <PlaybackControls
         status={isCurrentChapter ? status : 'idle'}
         playbackRate={playbackRate}
+        repeatMode={repeatMode}
         sleepTimerRemaining={sleepTimerRemaining}
         hasPreviousChapter={hasPreviousChapter}
         hasNextChapter={hasNextChapter}
@@ -167,6 +170,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
         onSkipBackward={skipBackward}
         onSkipForward={skipForward}
         onChangePlaybackRate={changePlaybackRate}
+        onCycleRepeatMode={cycleRepeatMode}
         onSetSleepTimer={startSleepTimer}
       />
 

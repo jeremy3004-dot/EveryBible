@@ -5,6 +5,7 @@ import type {
   AudioPlaybackSequenceEntry,
   AudioStatus,
   PlaybackRate,
+  RepeatMode,
   SleepTimerOption,
 } from '../types';
 import {
@@ -12,6 +13,7 @@ import {
   syncAudioQueueToTrack,
   type AudioQueueEntry,
 } from './audioQueueModel';
+import { getNextRepeatMode } from './audioPlaybackCompletionModel';
 import { sanitizePersistedAudioState } from './persistedStateSanitizers';
 
 interface AudioState {
@@ -42,6 +44,7 @@ interface AudioState {
   // Settings (persisted)
   playbackRate: PlaybackRate;
   autoAdvanceChapter: boolean;
+  repeatMode: RepeatMode;
   sleepTimerMinutes: SleepTimerOption;
 
   // Playback actions
@@ -69,6 +72,8 @@ interface AudioState {
   // Settings actions
   setPlaybackRate: (rate: PlaybackRate) => void;
   setAutoAdvanceChapter: (enabled: boolean) => void;
+  setRepeatMode: (mode: RepeatMode) => void;
+  cycleRepeatMode: () => void;
   setSleepTimer: (minutes: SleepTimerOption) => void;
   clearSleepTimer: () => void;
 
@@ -100,6 +105,7 @@ export const useAudioStore = create<AudioState>()(
       // Initial settings
       playbackRate: 1.0,
       autoAdvanceChapter: true,
+      repeatMode: 'off',
       sleepTimerMinutes: null,
 
       // Playback actions
@@ -180,6 +186,13 @@ export const useAudioStore = create<AudioState>()(
 
       setAutoAdvanceChapter: (enabled) => set({ autoAdvanceChapter: enabled }),
 
+      setRepeatMode: (mode) => set({ repeatMode: mode }),
+
+      cycleRepeatMode: () =>
+        set((state) => ({
+          repeatMode: getNextRepeatMode(state.repeatMode),
+        })),
+
       setSleepTimer: (minutes) =>
         set({
           sleepTimerMinutes: minutes,
@@ -211,6 +224,7 @@ export const useAudioStore = create<AudioState>()(
       partialize: (state) => ({
         playbackRate: state.playbackRate,
         autoAdvanceChapter: state.autoAdvanceChapter,
+        repeatMode: state.repeatMode,
         sleepTimerMinutes: state.sleepTimerMinutes,
         queue: state.queue,
         queueIndex: state.queueIndex,

@@ -239,6 +239,7 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
   const sanitized = sanitizePersistedAudioState({
     playbackRate: 9,
     autoAdvanceChapter: 'yes',
+    repeatMode: 'forever',
     sleepTimerMinutes: 999,
     queue: [
       { id: 'bsb:MAT:5', translationId: 'bsb', bookId: 'MAT', chapter: 5, addedAt: 1 },
@@ -253,6 +254,7 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
 
   assert.equal(sanitized.playbackRate, 1.0);
   assert.equal(sanitized.autoAdvanceChapter, true);
+  assert.equal(sanitized.repeatMode, 'off');
   assert.equal(sanitized.sleepTimerMinutes, null);
   assert.deepEqual(sanitized.queue, [
     { id: 'bsb:MAT:5', translationId: 'bsb', bookId: 'MAT', chapter: 5, addedAt: 1 },
@@ -262,6 +264,14 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
   assert.equal(sanitized.lastPlayedBookId, 'MAT');
   assert.equal(sanitized.lastPlayedChapter, 5);
   assert.equal(sanitized.lastPosition, 3200);
+});
+
+test('sanitizePersistedAudioState preserves supported repeat modes', () => {
+  const sanitized = sanitizePersistedAudioState({
+    repeatMode: 'book',
+  });
+
+  assert.equal(sanitized.repeatMode, 'book');
 });
 
 test('sanitizePersistedLibraryState keeps only valid favorites, playlists, and history entries', () => {

@@ -3,13 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../../types';
+import type { AudioStatus, PlaybackRate, RepeatMode, SleepTimerOption } from '../../types';
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../../types';
 
 interface PlaybackControlsProps {
   variant?: 'default' | 'chapter-only';
   status: AudioStatus;
   playbackRate: PlaybackRate;
+  repeatMode: RepeatMode;
   sleepTimerRemaining: number | null;
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
@@ -19,6 +20,7 @@ interface PlaybackControlsProps {
   onSkipBackward: () => void;
   onSkipForward: () => void;
   onChangePlaybackRate: (rate: PlaybackRate) => void;
+  onCycleRepeatMode: () => void;
   onSetSleepTimer: (minutes: SleepTimerOption) => void;
 }
 
@@ -26,6 +28,7 @@ export function PlaybackControls({
   variant = 'default',
   status,
   playbackRate,
+  repeatMode,
   sleepTimerRemaining,
   hasPreviousChapter,
   hasNextChapter,
@@ -35,6 +38,7 @@ export function PlaybackControls({
   onSkipBackward,
   onSkipForward,
   onChangePlaybackRate,
+  onCycleRepeatMode,
   onSetSleepTimer,
 }: PlaybackControlsProps) {
   const { colors } = useTheme();
@@ -45,6 +49,29 @@ export function PlaybackControls({
   const isLoading = status === 'loading';
   const isPlaying = status === 'playing';
   const showSkipControls = variant === 'default';
+  const isRepeatActive = repeatMode !== 'off';
+  const repeatIconColor = isRepeatActive ? colors.bibleAccent : colors.bibleSecondaryText;
+  const repeatAccessibilityLabel =
+    repeatMode === 'chapter'
+      ? 'Repeat chapter'
+      : repeatMode === 'book'
+        ? 'Repeat book'
+        : 'Repeat off';
+
+  const renderRepeatModeIcon = () => (
+    <View style={styles.repeatIconWrapper}>
+      <Ionicons
+        name={repeatMode === 'off' ? 'repeat-outline' : 'repeat'}
+        size={18}
+        color={repeatIconColor}
+      />
+      {repeatMode === 'chapter' ? (
+        <View style={[styles.repeatBadge, { backgroundColor: repeatIconColor }]}>
+          <Text style={[styles.repeatBadgeText, { color: colors.bibleBackground }]}>1</Text>
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -129,6 +156,20 @@ export function PlaybackControls({
           <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
             {playbackRate}x
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.utilityButton,
+            styles.repeatUtilityButton,
+            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+          ]}
+          onPress={() => onCycleRepeatMode()}
+          accessibilityRole="button"
+          accessibilityLabel={repeatAccessibilityLabel}
+          accessibilityHint="Cycles repeat off, repeat chapter, and repeat book"
+        >
+          {renderRepeatModeIcon()}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -277,6 +318,32 @@ const styles = StyleSheet.create({
   utilityText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  repeatUtilityButton: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  repeatIconWrapper: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repeatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 1,
+  },
+  repeatBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    lineHeight: 10,
   },
   disabledButton: {
     opacity: 0.45,

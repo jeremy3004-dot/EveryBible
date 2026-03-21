@@ -34,6 +34,7 @@ export function AudioFirstChapterCard({
     duration,
     error,
     playbackRate,
+    repeatMode,
     sleepTimerRemaining,
     playChapter,
     togglePlayPause,
@@ -43,6 +44,7 @@ export function AudioFirstChapterCard({
     skipBackward,
     skipForward,
     changePlaybackRate,
+    cycleRepeatMode,
     startSleepTimer,
   } = useAudioPlayer(currentTranslation);
 
@@ -191,6 +193,7 @@ export function AudioFirstChapterCard({
           variant="chapter-only"
           status={isCurrentChapter ? status : 'idle'}
           playbackRate={playbackRate}
+          repeatMode={repeatMode}
           sleepTimerRemaining={sleepTimerRemaining}
           hasPreviousChapter={hasPreviousChapter}
           hasNextChapter={hasNextChapter}
@@ -200,6 +203,7 @@ export function AudioFirstChapterCard({
           onSkipBackward={skipBackward}
           onSkipForward={skipForward}
           onChangePlaybackRate={changePlaybackRate}
+          onCycleRepeatMode={cycleRepeatMode}
           onSetSleepTimer={startSleepTimer}
         />
 
