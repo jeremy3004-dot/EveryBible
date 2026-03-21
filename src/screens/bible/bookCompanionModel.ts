@@ -34,6 +34,7 @@ const companionSectionOrder: BibleCompanionModuleKind[] = [
   'playlists',
   'figures',
 ];
+const hiddenCompanionSectionKinds: BibleCompanionModuleKind[] = ['passages', 'figures'];
 
 export function buildBookCompanionSections(bookId: string): BookCompanionSectionModel[] {
   const content = getBibleBookExperienceContent(bookId);
@@ -42,6 +43,7 @@ export function buildBookCompanionSections(bookId: string): BookCompanionSection
   }
 
   return [...content.modules]
+    .filter((module) => !hiddenCompanionSectionKinds.includes(module.kind))
     .filter((module) => module.items.length > 0)
     .sort(
       (left, right) =>
