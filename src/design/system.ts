@@ -25,6 +25,12 @@ const uiFontFamily = Platform.select({
   default: 'System',
 });
 
+const readingFontFamily = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'serif',
+});
+
 export const typography = {
   screenTitle: {
     fontFamily: uiFontFamily,
@@ -101,6 +107,34 @@ export const typography = {
     lineHeight: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
+  } satisfies TextStyle,
+  readingDisplay: {
+    fontFamily: readingFontFamily,
+    fontSize: 28,
+    lineHeight: 34,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    letterSpacing: -0.3,
+  } satisfies TextStyle,
+  readingHeading: {
+    fontFamily: readingFontFamily,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  } satisfies TextStyle,
+  readingBody: {
+    fontFamily: readingFontFamily,
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: '400',
+    letterSpacing: -0.1,
+  } satisfies TextStyle,
+  readingVerseNumber: {
+    fontFamily: readingFontFamily,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
   } satisfies TextStyle,
 } as const;
 

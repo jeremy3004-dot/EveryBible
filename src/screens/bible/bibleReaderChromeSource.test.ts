@@ -99,3 +99,47 @@ test('switching the chapter session into listen mode starts playback for the dis
     'BibleReaderScreen should start chapter playback when the user switches from read into listen mode'
   );
 });
+
+test('premium read mode uses animated overlay chrome with blur-backed glass surfaces', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /Animated\.ScrollView/,
+    'BibleReaderScreen should switch the read canvas to an animated scroll view so chrome can collapse with scroll progress'
+  );
+
+  assert.match(
+    source,
+    /Animated\.event\(/,
+    'BibleReaderScreen should derive the premium reader motion from scroll-driven Animated events'
+  );
+
+  assert.match(
+    source,
+    /BlurView/,
+    'BibleReaderScreen should use blur-backed glass surfaces instead of opaque reader chrome'
+  );
+});
+
+test('premium read mode removes the old bottom audio bar and uses dedicated floating reader controls instead', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.equal(
+    source.includes('AudioPlayerBar'),
+    false,
+    'BibleReaderScreen should no longer render the old AudioPlayerBar inside read mode'
+  );
+
+  assert.match(
+    source,
+    /styles\.floatingReaderBottomBar/,
+    'BibleReaderScreen should define a dedicated floating bottom reader bar for the premium read layout'
+  );
+
+  assert.match(
+    source,
+    /styles\.collapsedReaderChapterPill/,
+    'BibleReaderScreen should define the compact collapsed chapter pill used after scrolling'
+  );
+});

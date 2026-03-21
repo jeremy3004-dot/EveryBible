@@ -9,6 +9,10 @@ export type FontSizeSheetAction =
 export type TranslationSheetAction = 'toggleChip' | 'selectTranslation' | 'dismiss';
 export type ChapterSessionMode = 'listen' | 'read';
 
+export const READER_HERO_COLLAPSE_DISTANCE = 72;
+export const READER_TOP_CHROME_DISMISS_DISTANCE = 148;
+export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
+
 interface InitialChapterSessionModeInput {
   audioEnabled: boolean;
   hasText: boolean;
@@ -84,6 +88,21 @@ export const getNextTranslationSheetVisibility = (
 
   return false;
 };
+
+export const getReaderChromeAnimationProgress = (
+  offsetY: number,
+  collapseDistance: number
+): number => {
+  if (collapseDistance <= 0) {
+    return 1;
+  }
+
+  const clampedOffset = Math.max(offsetY, 0);
+  return Math.max(0, Math.min(clampedOffset / collapseDistance, 1));
+};
+
+export const isReaderChromeCollapsed = (offsetY: number): boolean =>
+  getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE) >= 1;
 
 export const getInitialChapterSessionMode = ({
   audioEnabled,
@@ -193,8 +212,7 @@ export const shouldAutoplayChapterAudio = ({
 export const shouldTransferActiveAudioOnChapterChange = ({
   audioEnabled,
   isCurrentAudioChapter,
-}: ShouldTransferActiveAudioOnChapterChangeInput): boolean =>
-  audioEnabled && isCurrentAudioChapter;
+}: ShouldTransferActiveAudioOnChapterChangeInput): boolean => audioEnabled && isCurrentAudioChapter;
 
 export const shouldSyncReaderToActiveAudioChapter = ({
   audioEnabled,

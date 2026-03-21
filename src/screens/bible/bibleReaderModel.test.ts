@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getReaderChromeAnimationProgress,
+  isReaderChromeCollapsed,
+  READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
   getNextChapterSessionMode,
   getNextFontSizeSheetVisibility,
@@ -10,6 +13,19 @@ import {
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
 } from './bibleReaderModel';
+
+test('clamps reader chrome animation progress for premium scroll collapse', () => {
+  assert.equal(getReaderChromeAnimationProgress(-24, 120), 0);
+  assert.equal(getReaderChromeAnimationProgress(0, 120), 0);
+  assert.equal(getReaderChromeAnimationProgress(60, 120), 0.5);
+  assert.equal(getReaderChromeAnimationProgress(180, 120), 1);
+});
+
+test('only treats the reader chrome as collapsed once the bottom controls have crossed the compact-pill threshold', () => {
+  assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE - 1), false);
+  assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE), true);
+  assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE + 80), true);
+});
 
 test('toggles the font sheet from the font button', () => {
   assert.equal(getNextFontSizeSheetVisibility(false, 'toggleButton'), true);

@@ -10,15 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 12.1 (Premium liquid-glass reader chrome and scroll-collapse motion)
-Plan: 0 of 3 in current phase
-Status: Context and execution planning in progress
-Last activity: 2026-03-21 — Inserted urgent Phase 12.1 after reviewing the supplied reader video and mapping the premium read-mode collapse behavior into the roadmap
+Plan: 2 of 3 in current phase
+Status: Core implementation complete; release packaging in progress
+Last activity: 2026-03-21 — Rebuilt the read-mode BibleReader around blur-backed floating chrome, serif typography, and scroll-collapse motion; next step is TestFlight release packaging
 
 Progress: [██████████] 99%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 30
 - Current phase plans remaining: 0
 - Average duration: n/a
@@ -26,25 +27,26 @@ Progress: [██████████] 99%
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Startup And Backend Hardening | 2 | n/a | n/a |
-| 2. Onboarding And Preference Cohesion | 2 | n/a | n/a |
-| 3. Core Reading And Audio Polish | 2 | n/a | n/a |
-| 4. Discipleship And Group Rollout | 3 | n/a | n/a |
-| 5. Release Hardening And Distribution | 2 | n/a | n/a |
-| 05.1 Audio-only downloadable Bible experience | 1 | n/a | n/a |
-| 6. Discovery, Retention, And Responsiveness | 3 | n/a | n/a |
-| 7. Premium Reader And Personal Study | 3 | n/a | n/a |
-| 8. Bible Book Hub And Chapter Launch Experience | 3 | n/a | n/a |
-| 9. Saved Library And Audio Personalization | 3 | n/a | n/a |
-| 10. Book Companion Content And Ecosystem Surfaces | 3 | n/a | n/a |
+| Phase                                             | Plans | Total | Avg/Plan |
+| ------------------------------------------------- | ----- | ----- | -------- |
+| 1. Startup And Backend Hardening                  | 2     | n/a   | n/a      |
+| 2. Onboarding And Preference Cohesion             | 2     | n/a   | n/a      |
+| 3. Core Reading And Audio Polish                  | 2     | n/a   | n/a      |
+| 4. Discipleship And Group Rollout                 | 3     | n/a   | n/a      |
+| 5. Release Hardening And Distribution             | 2     | n/a   | n/a      |
+| 05.1 Audio-only downloadable Bible experience     | 1     | n/a   | n/a      |
+| 6. Discovery, Retention, And Responsiveness       | 3     | n/a   | n/a      |
+| 7. Premium Reader And Personal Study              | 3     | n/a   | n/a      |
+| 8. Bible Book Hub And Chapter Launch Experience   | 3     | n/a   | n/a      |
+| 9. Saved Library And Audio Personalization        | 3     | n/a   | n/a      |
+| 10. Book Companion Content And Ecosystem Surfaces | 3     | n/a   | n/a      |
 
 **Recent Trend:**
+
 - Last 5 plans: 10-02, 10-03, 11-01, 11-02, 11-03
 - Trend: Milestone 2 had shifted into QA/release mode, but the new premium-reader reference created a high-priority design-and-motion follow-up that now sits ahead of the next release
 
-*Updated after each plan completion*
+_Updated after each plan completion_
 
 ## Accumulated Context
 
