@@ -93,7 +93,17 @@ export async function initDatabase(
   minimumReadyVerseCount = DEFAULT_MINIMUM_READY_VERSE_COUNT
 ): Promise<void> {
   if (db) {
-    return;
+    try {
+      const existingStatus = await inspectOpenDatabase(db);
+
+      if (isBundledBibleDatabaseReady(existingStatus, minimumReadyVerseCount)) {
+        return;
+      }
+
+      console.warn('[Bible] Open bundled database is stale, reloading from asset:', existingStatus);
+    } catch (error) {
+      console.warn('[Bible] Failed to inspect open bundled database, reloading from asset:', error);
+    }
   }
 
   await ensureBundledDatabaseReady(minimumReadyVerseCount);

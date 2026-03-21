@@ -358,6 +358,19 @@ export function BibleReaderScreen() {
     setPreferredChapterLaunchMode(nextMode);
     if (nextMode === 'read') {
       setShowFollowAlongText(false);
+      return;
+    }
+
+    if (chapterPresentationMode === 'text') {
+      setShowPlayer(true);
+    }
+
+    if (nextMode === 'listen' && !isCurrentAudioChapter) {
+      void playChapter(
+        bookId,
+        chapter,
+        currentTranslationInfo?.audioGranularity === 'verse' ? focusVerse : undefined
+      );
     }
   };
 

@@ -89,3 +89,13 @@ test('listen mode no longer renders the extra eyebrow and play-CTA card copy abo
     'BibleReaderScreen should remove the redundant play-chapter CTA from the listen-mode hero'
   );
 });
+
+test('switching the chapter session into listen mode starts playback for the displayed chapter', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*if \(nextMode === 'listen' && !isCurrentAudioChapter\) \{[\s\S]*void playChapter\(bookId, chapter\);[\s\S]*\}/,
+    'BibleReaderScreen should start chapter playback when the user switches from read into listen mode'
+  );
+});
