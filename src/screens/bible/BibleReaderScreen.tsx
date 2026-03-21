@@ -283,7 +283,10 @@ export function BibleReaderScreen() {
   useEffect(() => {
     verseOffsetsRef.current = {};
     followAlongOffsetsRef.current = {};
-  }, [bookId, chapter]);
+    if (focusVerse == null) {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [bookId, chapter, focusVerse]);
 
   useEffect(() => {
     if (isLoading) {
