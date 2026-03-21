@@ -14,20 +14,24 @@ interface MiniPlayerProps {
 export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setCurrentTrack = useAudioStore((state) => state.setCurrentTrack);
   const clearQueue = useAudioStore((state) => state.clearQueue);
   const {
     status,
+    currentTranslationId,
     currentBookId,
     currentChapter,
     currentPosition,
     duration,
+    lastPlayedTranslationId,
     lastPlayedBookId,
     lastPlayedChapter,
     togglePlayPause,
     stop,
   } = useAudioPlayer(currentTranslation);
 
+  const displayTranslationId = currentTranslationId ?? lastPlayedTranslationId;
   const displayBookId = currentBookId ?? lastPlayedBookId;
   const displayChapter = currentChapter ?? lastPlayedChapter;
   const book = displayBookId ? getBookById(displayBookId) : null;
@@ -52,6 +56,10 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
         onPress={() => {
           if (!rootNavigationRef.isReady()) {
             return;
+          }
+
+          if (displayTranslationId && displayTranslationId !== currentTranslation) {
+            setCurrentTranslation(displayTranslationId);
           }
 
           rootNavigationRef.navigate('Bible', {
@@ -85,7 +93,7 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
             style={styles.iconButton}
             onPress={() => {
               clearQueue();
-              setCurrentTrack(null, null);
+              setCurrentTrack(null, null, null);
               void stop();
             }}
           >

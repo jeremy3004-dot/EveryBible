@@ -145,10 +145,11 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
     autoAdvanceChapter: 'yes',
     sleepTimerMinutes: 999,
     queue: [
-      { id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 },
+      { id: 'bsb:MAT:5', translationId: 'bsb', bookId: 'MAT', chapter: 5, addedAt: 1 },
       { id: 'oops', bookId: 'BAD', chapter: 1, addedAt: 2 },
     ],
     queueIndex: 9,
+    lastPlayedTranslationId: 'bsb',
     lastPlayedBookId: 'MAT',
     lastPlayedChapter: 5,
     lastPosition: 3200,
@@ -157,8 +158,11 @@ test('sanitizePersistedAudioState keeps only supported playback settings', () =>
   assert.equal(sanitized.playbackRate, 1.0);
   assert.equal(sanitized.autoAdvanceChapter, true);
   assert.equal(sanitized.sleepTimerMinutes, null);
-  assert.deepEqual(sanitized.queue, [{ id: 'MAT:5', bookId: 'MAT', chapter: 5, addedAt: 1 }]);
+  assert.deepEqual(sanitized.queue, [
+    { id: 'bsb:MAT:5', translationId: 'bsb', bookId: 'MAT', chapter: 5, addedAt: 1 },
+  ]);
   assert.equal(sanitized.queueIndex, 0);
+  assert.equal(sanitized.lastPlayedTranslationId, 'bsb');
   assert.equal(sanitized.lastPlayedBookId, 'MAT');
   assert.equal(sanitized.lastPlayedChapter, 5);
   assert.equal(sanitized.lastPosition, 3200);

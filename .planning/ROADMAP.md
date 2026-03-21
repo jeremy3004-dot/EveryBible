@@ -263,7 +263,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 11. Audio reader chrome simplification and Dwell-style listen layout polish   | 3/3            | Automated verification complete; needs device visual QA            | 2026-03-20 |
 | 12. Professional Design System Unification                                    | 3/3            | Automated verification complete; needs device visual QA            | 2026-03-20 |
 | 12.1 Premium liquid-glass reader chrome and scroll-collapse motion            | 3/3            | TestFlight build 100 distributed; needs device visual QA           | 2026-03-21 |
-| 13. Public-domain Berean Standard Bible sourcing and direct audio integration | 1/2            | Plan 01 complete; official text refresh pipeline pending           | 2026-03-21 |
+| 13. Public-domain Berean Standard Bible sourcing and direct audio integration | 1/2            | Plan 01 complete; translation-aware audio handoff fixed; plan 02 pending | 2026-03-21 |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
 
@@ -308,7 +308,8 @@ Plans:
 
 1. The app's built-in BSB translation points at official Berean public-domain terms for text and direct public MP3 chapter audio for playback/downloads.
 2. BSB chapter audio can stream and download without `EXPO_PUBLIC_BIBLE_IS_API_KEY`, matching the app's existing public-source WEB approach.
-3. The repo documents a clean follow-up path for refreshing bundled BSB text artifacts from official Berean downloads instead of opaque local source files.
+3. Switching from one playable translation to another on the same chapter hands off the active audio session correctly instead of reusing stale playback state.
+4. The repo documents a clean follow-up path for refreshing bundled BSB text artifacts from official Berean downloads instead of opaque local source files.
    **Plans:** 2 plans
 
 Plans:

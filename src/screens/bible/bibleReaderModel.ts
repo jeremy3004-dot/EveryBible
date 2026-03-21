@@ -14,12 +14,14 @@ export const READER_TOP_CHROME_DISMISS_DISTANCE = 148;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
 
 interface InitialChapterSessionModeInput {
+  translationId?: string | null;
   audioEnabled: boolean;
   hasText: boolean;
   autoplayAudio: boolean;
   preferredMode: ChapterSessionMode | null;
   bookId: string;
   chapter: number;
+  activeAudioTranslationId?: string | null;
   activeAudioBookId: string | null;
   activeAudioChapter: number | null;
 }
@@ -38,11 +40,33 @@ interface EstimatedFollowAlongVerseInput {
 }
 
 interface ShouldAutoplayChapterAudioInput {
+  translationId?: string | null;
   autoplayAudio: boolean;
   audioEnabled: boolean;
   isLoading: boolean;
   bookId: string;
   chapter: number;
+  activeAudioTranslationId?: string | null;
+  activeAudioBookId: string | null;
+  activeAudioChapter: number | null;
+}
+
+interface ActiveAudioTrackMatchInput {
+  translationId?: string | null;
+  bookId: string;
+  chapter: number;
+  activeAudioTranslationId?: string | null;
+  activeAudioBookId: string | null;
+  activeAudioChapter: number | null;
+}
+
+interface ShouldReplayActiveAudioForTranslationChangeInput {
+  currentTranslationId: string;
+  nextTranslationId: string;
+  audioEnabled: boolean;
+  bookId: string;
+  chapter: number;
+  activeAudioTranslationId?: string | null;
   activeAudioBookId: string | null;
   activeAudioChapter: number | null;
 }
@@ -104,13 +128,34 @@ export const getReaderChromeAnimationProgress = (
 export const isReaderChromeCollapsed = (offsetY: number): boolean =>
   getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE) >= 1;
 
+export const isActiveAudioTrackMatch = ({
+  translationId,
+  bookId,
+  chapter,
+  activeAudioTranslationId,
+  activeAudioBookId,
+  activeAudioChapter,
+}: ActiveAudioTrackMatchInput): boolean => {
+  if (activeAudioBookId !== bookId || activeAudioChapter !== chapter) {
+    return false;
+  }
+
+  if (translationId == null || activeAudioTranslationId == null) {
+    return true;
+  }
+
+  return activeAudioTranslationId === translationId;
+};
+
 export const getInitialChapterSessionMode = ({
+  translationId,
   audioEnabled,
   hasText,
   autoplayAudio,
   preferredMode,
   bookId,
   chapter,
+  activeAudioTranslationId,
   activeAudioBookId,
   activeAudioChapter,
 }: InitialChapterSessionModeInput): ChapterSessionMode => {
@@ -134,7 +179,16 @@ export const getInitialChapterSessionMode = ({
     return 'listen';
   }
 
-  if (activeAudioBookId === bookId && activeAudioChapter === chapter) {
+  if (
+    isActiveAudioTrackMatch({
+      translationId,
+      bookId,
+      chapter,
+      activeAudioTranslationId,
+      activeAudioBookId,
+      activeAudioChapter,
+    })
+  ) {
     return 'listen';
   }
 
@@ -194,11 +248,13 @@ export const getEstimatedFollowAlongVerse = ({
 };
 
 export const shouldAutoplayChapterAudio = ({
+  translationId,
   autoplayAudio,
   audioEnabled,
   isLoading,
   bookId,
   chapter,
+  activeAudioTranslationId,
   activeAudioBookId,
   activeAudioChapter,
 }: ShouldAutoplayChapterAudioInput): boolean => {
@@ -206,7 +262,38 @@ export const shouldAutoplayChapterAudio = ({
     return false;
   }
 
-  return !(activeAudioBookId === bookId && activeAudioChapter === chapter);
+  return !isActiveAudioTrackMatch({
+    translationId,
+    bookId,
+    chapter,
+    activeAudioTranslationId,
+    activeAudioBookId,
+    activeAudioChapter,
+  });
+};
+
+export const shouldReplayActiveAudioForTranslationChange = ({
+  currentTranslationId,
+  nextTranslationId,
+  audioEnabled,
+  bookId,
+  chapter,
+  activeAudioTranslationId,
+  activeAudioBookId,
+  activeAudioChapter,
+}: ShouldReplayActiveAudioForTranslationChangeInput): boolean => {
+  if (!audioEnabled || currentTranslationId === nextTranslationId) {
+    return false;
+  }
+
+  return isActiveAudioTrackMatch({
+    translationId: currentTranslationId,
+    bookId,
+    chapter,
+    activeAudioTranslationId,
+    activeAudioBookId,
+    activeAudioChapter,
+  });
 };
 
 export const shouldTransferActiveAudioOnChapterChange = ({

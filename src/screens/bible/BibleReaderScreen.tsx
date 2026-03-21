@@ -40,10 +40,12 @@ import {
   READER_TOP_CHROME_DISMISS_DISTANCE,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
+  isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
   shouldAutoplayChapterAudio,
+  shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
 import { getTranslationSelectionState } from './bibleTranslationModel';
@@ -149,6 +151,7 @@ export function BibleReaderScreen() {
   const { fontSize, scaleValue, setSize } = useFontSize();
   const {
     status,
+    currentTranslationId: activeAudioTranslationId,
     currentBookId: activeAudioBookId,
     currentChapter: activeAudioChapter,
     currentPosition,
@@ -156,6 +159,7 @@ export function BibleReaderScreen() {
     playbackRate,
     sleepTimerRemaining,
     playChapter,
+    playChapterForTranslation,
     addToQueue,
     togglePlayPause,
     previousChapter,
@@ -197,7 +201,14 @@ export function BibleReaderScreen() {
     duration,
     fallbackVerse: focusVerse,
   });
-  const isCurrentAudioChapter = activeAudioBookId === bookId && activeAudioChapter === chapter;
+  const isCurrentAudioChapter = isActiveAudioTrackMatch({
+    translationId: currentTranslation,
+    bookId,
+    chapter,
+    activeAudioTranslationId,
+    activeAudioBookId,
+    activeAudioChapter,
+  });
   const showPremiumReadMode =
     chapterPresentationMode === 'text' &&
     chapterSessionMode === 'read' &&
@@ -298,17 +309,20 @@ export function BibleReaderScreen() {
     setShowFollowAlongText(false);
     setChapterSessionMode(
       getInitialChapterSessionMode({
+        translationId: currentTranslation,
         audioEnabled,
         hasText: verses.length > 0,
         autoplayAudio: Boolean(autoplayAudio),
         preferredMode: preferredMode ?? null,
         bookId,
         chapter,
+        activeAudioTranslationId,
         activeAudioBookId,
         activeAudioChapter,
       })
     );
   }, [
+    activeAudioTranslationId,
     activeAudioBookId,
     activeAudioChapter,
     audioEnabled,
@@ -356,11 +370,13 @@ export function BibleReaderScreen() {
   useEffect(() => {
     if (
       !shouldAutoplayChapterAudio({
+        translationId: currentTranslation,
         autoplayAudio: Boolean(autoplayAudio),
         audioEnabled,
         isLoading,
         bookId,
         chapter,
+        activeAudioTranslationId,
         activeAudioBookId,
         activeAudioChapter,
       })
@@ -368,7 +384,7 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const autoplayKey = `${bookId}:${chapter}:${focusVerse ?? 'chapter'}:${chapterPresentationMode}`;
+    const autoplayKey = `${currentTranslation}:${bookId}:${chapter}:${focusVerse ?? 'chapter'}:${chapterPresentationMode}`;
     if (autoplayKeyRef.current === autoplayKey) {
       return;
     }
@@ -381,6 +397,7 @@ export function BibleReaderScreen() {
       currentTranslationInfo?.audioGranularity === 'verse' ? focusVerse : undefined
     );
   }, [
+    activeAudioTranslationId,
     activeAudioBookId,
     activeAudioChapter,
     autoplayAudio,
@@ -388,6 +405,7 @@ export function BibleReaderScreen() {
     bookId,
     chapter,
     chapterPresentationMode,
+    currentTranslation,
     currentTranslationInfo,
     focusVerse,
     isLoading,
@@ -507,7 +525,28 @@ export function BibleReaderScreen() {
     });
 
     if (selectionState.isSelectable) {
+      const shouldReplayAudio = shouldReplayActiveAudioForTranslationChange({
+        currentTranslationId: currentTranslation,
+        nextTranslationId: translation.id,
+        audioEnabled: audioAvailability.canPlayAudio,
+        bookId,
+        chapter,
+        activeAudioTranslationId,
+        activeAudioBookId,
+        activeAudioChapter,
+      });
+
       setCurrentTranslation(translation.id);
+
+      if (shouldReplayAudio) {
+        void playChapterForTranslation(
+          translation.id,
+          bookId,
+          chapter,
+          translation.audioGranularity === 'verse' ? focusVerse : undefined
+        );
+      }
+
       return;
     }
 

@@ -2,6 +2,7 @@ import { bibleTranslations } from '../constants/translations';
 import { getBookById } from '../constants/books';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../types/audio';
+import { getAudioTrackId } from './audioQueueModel';
 import type {
   BibleTranslation,
   PlaybackRate,
@@ -10,6 +11,7 @@ import type {
   UserPreferences,
 } from '../types';
 
+const supportedBibleTranslationIds = new Set(bibleTranslations.map((translation) => translation.id));
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
 const validFontSizes = new Set<UserPreferences['fontSize']>(['small', 'medium', 'large']);
 const validThemes = new Set<UserPreferences['theme']>(['dark', 'light']);
@@ -21,6 +23,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const sanitizeOptionalString = (value: unknown): string | null =>
   typeof value === 'string' && value.length > 0 ? value : null;
+
+const sanitizeTranslationId = (value: unknown): string | null =>
+  typeof value === 'string' && supportedBibleTranslationIds.has(value) ? value : null;
 
 const sanitizeBookId = (value: unknown): string | null =>
   typeof value === 'string' && getBookById(value) ? value : null;
@@ -228,18 +233,34 @@ export const sanitizePersistedProgressState = (value: unknown) => {
 export const sanitizePersistedAudioState = (value: unknown) => {
   const persisted = isRecord(value) ? value : {};
   const queue = Array.isArray(persisted.queue)
-    ? persisted.queue.filter(
-        (entry): entry is { id: string; bookId: string; chapter: number; addedAt: number } =>
-          isRecord(entry) &&
-          typeof entry.id === 'string' &&
-          typeof entry.bookId === 'string' &&
-          Boolean(getBookById(entry.bookId)) &&
-          typeof entry.chapter === 'number' &&
-          Number.isInteger(entry.chapter) &&
-          entry.chapter > 0 &&
-          typeof entry.addedAt === 'number' &&
-          Number.isFinite(entry.addedAt)
-      )
+    ? persisted.queue.flatMap((entry) => {
+        if (!isRecord(entry)) {
+          return [];
+        }
+
+        const translationId = sanitizeTranslationId(entry.translationId);
+        const bookId = sanitizeBookId(entry.bookId);
+        const chapter =
+          typeof entry.chapter === 'number' && Number.isInteger(entry.chapter) && entry.chapter > 0
+            ? entry.chapter
+            : null;
+        const addedAt =
+          typeof entry.addedAt === 'number' && Number.isFinite(entry.addedAt) ? entry.addedAt : null;
+
+        if (!translationId || !bookId || chapter == null || addedAt == null) {
+          return [];
+        }
+
+        return [
+          {
+            id: getAudioTrackId(translationId, bookId, chapter),
+            translationId,
+            bookId,
+            chapter,
+            addedAt,
+          },
+        ];
+      })
     : [];
 
   return {
@@ -261,6 +282,7 @@ export const sanitizePersistedAudioState = (value: unknown) => {
       persisted.queueIndex < Math.max(queue.length, 1)
         ? persisted.queueIndex
         : 0,
+    lastPlayedTranslationId: sanitizeTranslationId(persisted.lastPlayedTranslationId),
     lastPlayedBookId: sanitizeBookId(persisted.lastPlayedBookId),
     lastPlayedChapter:
       typeof persisted.lastPlayedChapter === 'number' &&
