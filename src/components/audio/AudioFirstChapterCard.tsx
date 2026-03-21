@@ -23,6 +23,7 @@ export function AudioFirstChapterCard({
 
   const {
     status,
+    currentTranslationId,
     currentBookId,
     currentChapter,
     currentPosition,
@@ -42,8 +43,13 @@ export function AudioFirstChapterCard({
   } = useAudioPlayer(currentTranslation);
 
   const book = getBookById(bookId);
-  const isCurrentChapter = currentBookId === bookId && currentChapter === chapter;
-  const progress = duration > 0 ? (currentPosition / duration) * 100 : 0;
+  const isCurrentChapter =
+    currentTranslationId === currentTranslation &&
+    currentBookId === bookId &&
+    currentChapter === chapter;
+  const displayPosition = isCurrentChapter ? currentPosition : 0;
+  const displayDuration = isCurrentChapter ? duration : 0;
+  const progress = displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0;
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -62,13 +68,13 @@ export function AudioFirstChapterCard({
   };
 
   const handleSeek = (locationX: number, width: number) => {
-    if (duration <= 0 || width <= 0) {
+    if (!isCurrentChapter || displayDuration <= 0 || width <= 0) {
       return;
     }
 
     const percentage = locationX / width;
-    const newPosition = percentage * duration;
-    void seekTo(Math.max(0, Math.min(duration, newPosition)));
+    const newPosition = percentage * displayDuration;
+    void seekTo(Math.max(0, Math.min(displayDuration, newPosition)));
   };
 
   const handlePreviousChapter = async () => {
@@ -104,7 +110,7 @@ export function AudioFirstChapterCard({
   const hasPreviousChapter = currentChapter ? currentChapter > 1 : chapter > 1;
   const hasNextChapter =
     currentChapter && book ? currentChapter < book.chapters : chapter < (book?.chapters ?? 1);
-  const remainingDuration = Math.max(duration - currentPosition, 0);
+  const remainingDuration = Math.max(displayDuration - displayPosition, 0);
 
   return (
     <View style={styles.card}>
@@ -152,7 +158,7 @@ export function AudioFirstChapterCard({
 
         <View style={styles.timeRow}>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-            {formatTime(currentPosition)}
+            {formatTime(displayPosition)}
           </Text>
           <Text style={[styles.timeCenterText, { color: colors.bibleSecondaryText }]}>
             {book?.name} {chapter}

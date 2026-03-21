@@ -2,12 +2,17 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../types';
-import type { AudioQueueEntry } from './audioQueueModel';
+import {
+  getAudioTrackId,
+  syncAudioQueueToTrack,
+  type AudioQueueEntry,
+} from './audioQueueModel';
 import { sanitizePersistedAudioState } from './persistedStateSanitizers';
 
 interface AudioState {
   // Playback state (not persisted)
   status: AudioStatus;
+  currentTranslationId: string | null;
   currentBookId: string | null;
   currentChapter: number | null;
   currentPosition: number; // milliseconds
@@ -20,6 +25,7 @@ interface AudioState {
   // Queue and resume state
   queue: AudioQueueEntry[];
   queueIndex: number;
+  lastPlayedTranslationId: string | null;
   lastPlayedBookId: string | null;
   lastPlayedChapter: number | null;
   lastPosition: number;
@@ -34,12 +40,16 @@ interface AudioState {
 
   // Playback actions
   setStatus: (status: AudioStatus) => void;
-  setCurrentTrack: (bookId: string | null, chapter: number | null) => void;
+  setCurrentTrack: (
+    translationId: string | null,
+    bookId: string | null,
+    chapter: number | null
+  ) => void;
   setPosition: (position: number) => void;
   setDuration: (duration: number) => void;
   setError: (error: string | null) => void;
-  syncQueueToTrack: (bookId: string, chapter: number) => void;
-  addToQueue: (bookId: string, chapter: number) => void;
+  syncQueueToTrack: (translationId: string, bookId: string, chapter: number) => void;
+  addToQueue: (translationId: string, bookId: string, chapter: number) => void;
   removeFromQueue: (entryId: string) => void;
   clearQueue: () => void;
   setQueueIndex: (queueIndex: number) => void;
@@ -63,6 +73,7 @@ export const useAudioStore = create<AudioState>()(
     (set) => ({
       // Initial playback state
       status: 'idle',
+      currentTranslationId: null,
       currentBookId: null,
       currentChapter: null,
       currentPosition: 0,
@@ -71,6 +82,7 @@ export const useAudioStore = create<AudioState>()(
       showPlayer: false,
       queue: [],
       queueIndex: 0,
+      lastPlayedTranslationId: null,
       lastPlayedBookId: null,
       lastPlayedChapter: null,
       lastPosition: 0,
@@ -84,12 +96,14 @@ export const useAudioStore = create<AudioState>()(
       // Playback actions
       setStatus: (status) => set({ status, error: status === 'error' ? 'Playback error' : null }),
 
-      setCurrentTrack: (bookId, chapter) =>
+      setCurrentTrack: (translationId, bookId, chapter) =>
         set({
+          currentTranslationId: translationId,
           currentBookId: bookId,
           currentChapter: chapter,
           currentPosition: 0,
           duration: 0,
+          lastPlayedTranslationId: translationId,
           lastPlayedBookId: bookId,
           lastPlayedChapter: chapter,
           lastPosition: 0,
@@ -105,30 +119,30 @@ export const useAudioStore = create<AudioState>()(
 
       setError: (error) => set({ error, status: error ? 'error' : 'idle' }),
 
-      syncQueueToTrack: (bookId, chapter) =>
+      syncQueueToTrack: (translationId, bookId, chapter) =>
         set((state) => {
-          const queueId = `${bookId}:${chapter}`;
-          const existingIndex = state.queue.findIndex((entry) => entry.id === queueId);
+          const nextQueueState = syncAudioQueueToTrack(state.queue, {
+            translationId,
+            bookId,
+            chapter,
+            addedAt: Date.now(),
+          });
 
-          if (existingIndex >= 0) {
-            return { queueIndex: existingIndex };
-          }
-
-          return {
-            queue: [{ id: queueId, bookId, chapter, addedAt: Date.now() }],
-            queueIndex: 0,
-          };
+          return nextQueueState;
         }),
 
-      addToQueue: (bookId, chapter) =>
+      addToQueue: (translationId, bookId, chapter) =>
         set((state) => {
-          const queueId = `${bookId}:${chapter}`;
+          const queueId = getAudioTrackId(translationId, bookId, chapter);
           if (state.queue.some((entry) => entry.id === queueId)) {
             return state;
           }
 
           return {
-            queue: [...state.queue, { id: queueId, bookId, chapter, addedAt: Date.now() }],
+            queue: [
+              ...state.queue,
+              { id: queueId, translationId, bookId, chapter, addedAt: Date.now() },
+            ],
           };
         }),
 
@@ -171,6 +185,7 @@ export const useAudioStore = create<AudioState>()(
       resetPlayback: () =>
         set({
           status: 'idle',
+          currentTranslationId: null,
           currentBookId: null,
           currentChapter: null,
           currentPosition: 0,
@@ -188,6 +203,7 @@ export const useAudioStore = create<AudioState>()(
         sleepTimerMinutes: state.sleepTimerMinutes,
         queue: state.queue,
         queueIndex: state.queueIndex,
+        lastPlayedTranslationId: state.lastPlayedTranslationId,
         lastPlayedBookId: state.lastPlayedBookId,
         lastPlayedChapter: state.lastPlayedChapter,
         lastPosition: state.lastPosition,

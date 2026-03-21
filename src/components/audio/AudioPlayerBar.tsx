@@ -18,6 +18,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
 
   const {
     status,
+    currentTranslationId,
     currentBookId,
     currentChapter,
     currentPosition,
@@ -39,8 +40,13 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
 
   const book = getBookById(bookId);
   const currentBook = currentBookId ? getBookById(currentBookId) : null;
-  const isCurrentChapter = currentBookId === bookId && currentChapter === chapter;
-  const progress = duration > 0 ? (currentPosition / duration) * 100 : 0;
+  const isCurrentChapter =
+    currentTranslationId === currentTranslation &&
+    currentBookId === bookId &&
+    currentChapter === chapter;
+  const displayPosition = isCurrentChapter ? currentPosition : 0;
+  const displayDuration = isCurrentChapter ? duration : 0;
+  const progress = displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0;
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -58,12 +64,12 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
   };
 
   const handleSeek = (locationX: number, width: number) => {
-    if (duration <= 0 || width <= 0) {
+    if (!isCurrentChapter || displayDuration <= 0 || width <= 0) {
       return;
     }
     const percentage = locationX / width;
-    const newPosition = percentage * duration;
-    void seekTo(Math.max(0, Math.min(duration, newPosition)));
+    const newPosition = percentage * displayDuration;
+    void seekTo(Math.max(0, Math.min(displayDuration, newPosition)));
   };
 
   const handlePreviousChapter = async () => {
@@ -142,10 +148,10 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
 
       <View style={styles.timeRow}>
         <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(currentPosition)}
+          {formatTime(displayPosition)}
         </Text>
         <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(duration)}
+          {formatTime(displayDuration)}
         </Text>
       </View>
 

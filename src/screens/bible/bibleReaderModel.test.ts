@@ -5,10 +5,12 @@ import {
   isReaderChromeCollapsed,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
+  isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFontSizeSheetVisibility,
   getInitialChapterSessionMode,
   getNextTranslationSheetVisibility,
+  shouldReplayActiveAudioForTranslationChange,
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
@@ -76,12 +78,14 @@ test('prefers listen mode when autoplay starts the chapter session', () => {
 test('prefers listen mode when the active audio chapter already matches the session', () => {
   assert.equal(
     getInitialChapterSessionMode({
+      translationId: 'bsb',
       audioEnabled: true,
       hasText: true,
       autoplayAudio: false,
       preferredMode: null,
       bookId: 'MAT',
       chapter: 1,
+      activeAudioTranslationId: 'bsb',
       activeAudioBookId: 'MAT',
       activeAudioChapter: 1,
     }),
@@ -92,12 +96,14 @@ test('prefers listen mode when the active audio chapter already matches the sess
 test('falls back to read mode when the chapter has text and no active audio context', () => {
   assert.equal(
     getInitialChapterSessionMode({
+      translationId: 'bsb',
       audioEnabled: true,
       hasText: true,
       autoplayAudio: false,
       preferredMode: null,
       bookId: 'MAT',
       chapter: 1,
+      activeAudioTranslationId: 'web',
       activeAudioBookId: 'MRK',
       activeAudioChapter: 2,
     }),
@@ -135,12 +141,14 @@ test('forces the session into a supported mode when toggling between listen and 
 test('respects an explicit preferred launch mode from the book hub when that mode is supported', () => {
   assert.equal(
     getInitialChapterSessionMode({
+      translationId: 'bsb',
       audioEnabled: true,
       hasText: true,
       autoplayAudio: false,
       preferredMode: 'read',
       bookId: 'MAT',
       chapter: 1,
+      activeAudioTranslationId: 'bsb',
       activeAudioBookId: 'MAT',
       activeAudioChapter: 1,
     }),
@@ -149,16 +157,44 @@ test('respects an explicit preferred launch mode from the book hub when that mod
 
   assert.equal(
     getInitialChapterSessionMode({
+      translationId: 'bsb',
       audioEnabled: true,
       hasText: true,
       autoplayAudio: false,
       preferredMode: 'listen',
       bookId: 'MAT',
       chapter: 1,
+      activeAudioTranslationId: null,
       activeAudioBookId: null,
       activeAudioChapter: null,
     }),
     'listen'
+  );
+});
+
+test('does not treat a chapter as the active session when only the translation differs', () => {
+  assert.equal(
+    isActiveAudioTrackMatch({
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      activeAudioTranslationId: 'web',
+      activeAudioBookId: 'JHN',
+      activeAudioChapter: 3,
+    }),
+    false
+  );
+
+  assert.equal(
+    isActiveAudioTrackMatch({
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      activeAudioTranslationId: 'bsb',
+      activeAudioBookId: 'JHN',
+      activeAudioChapter: 3,
+    }),
+    true
   );
 });
 
@@ -230,11 +266,13 @@ test('uses the focused verse as a graceful follow-along fallback when timing is 
 test('does not autoplay a chapter again when that chapter is already the active audio session', () => {
   assert.equal(
     shouldAutoplayChapterAudio({
+      translationId: 'bsb',
       autoplayAudio: true,
       audioEnabled: true,
       isLoading: false,
       bookId: 'ROM',
       chapter: 8,
+      activeAudioTranslationId: 'bsb',
       activeAudioBookId: 'ROM',
       activeAudioChapter: 8,
     }),
@@ -243,15 +281,47 @@ test('does not autoplay a chapter again when that chapter is already the active 
 
   assert.equal(
     shouldAutoplayChapterAudio({
+      translationId: 'bsb',
       autoplayAudio: true,
       audioEnabled: true,
       isLoading: false,
       bookId: 'ROM',
       chapter: 8,
+      activeAudioTranslationId: 'web',
       activeAudioBookId: 'ROM',
-      activeAudioChapter: 7,
+      activeAudioChapter: 8,
     }),
     true
+  );
+});
+
+test('replays the displayed chapter when the user switches translations away from the active audio voice', () => {
+  assert.equal(
+    shouldReplayActiveAudioForTranslationChange({
+      currentTranslationId: 'web',
+      nextTranslationId: 'bsb',
+      audioEnabled: true,
+      bookId: 'JHN',
+      chapter: 3,
+      activeAudioTranslationId: 'web',
+      activeAudioBookId: 'JHN',
+      activeAudioChapter: 3,
+    }),
+    true
+  );
+
+  assert.equal(
+    shouldReplayActiveAudioForTranslationChange({
+      currentTranslationId: 'web',
+      nextTranslationId: 'bsb',
+      audioEnabled: true,
+      bookId: 'JHN',
+      chapter: 3,
+      activeAudioTranslationId: 'web',
+      activeAudioBookId: 'JHN',
+      activeAudioChapter: 4,
+    }),
+    false
   );
 });
 
