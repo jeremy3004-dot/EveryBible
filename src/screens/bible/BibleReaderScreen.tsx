@@ -465,7 +465,12 @@ export function BibleReaderScreen() {
   }, [bookId, chapter, isAuthenticated]);
 
   const loadChapter = async () => {
-    setIsLoading(true);
+    // Only show loading skeleton on the very first load (no verses yet).
+    // For chapter-to-chapter transitions, keep the old content visible to
+    // avoid a layout flash / button jump.
+    if (verses.length === 0) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data = await getChapter(currentTranslation, bookId, chapter);
@@ -2515,8 +2520,8 @@ const styles = StyleSheet.create({
   followAlongVerseCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     gap: 8,
   },
   followAlongHeading: {
@@ -2524,12 +2529,12 @@ const styles = StyleSheet.create({
   },
   followAlongVerseText: {
     ...typography.readingBody,
-    fontSize: 28,
-    lineHeight: 40,
+    fontSize: 22,
+    lineHeight: 34,
   },
   followAlongVerseNumber: {
     ...typography.readingVerseNumber,
-    fontSize: 18,
+    fontSize: 14,
   },
   fontSheet: {
     borderTopWidth: 1,
