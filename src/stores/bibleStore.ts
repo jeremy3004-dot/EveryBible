@@ -350,7 +350,9 @@ export const useBibleStore = create<BibleState>()(
       downloadTranslation: async (_translationId: string, _bookId?: string) => {
         // Translation downloads are not yet implemented
         // Only BSB is currently bundled with the app
-        throw new Error('Translation downloads coming soon! Currently only BSB is available.');
+        set({
+          error: 'Translation downloads coming soon! Currently only BSB is available.',
+        });
       },
 
       downloadAllBooks: async (translationId: string) => {
@@ -464,6 +466,18 @@ export const useBibleStore = create<BibleState>()(
       },
 
       cancelDownload: () => {
+        const progress = get().downloadProgress;
+        if (progress) {
+          // Attempt to cancel the background download transport
+          createBackgroundAudioDownloadTransport()
+            .then((transport) => {
+              if (transport.cancelJob && progress.translationId) {
+                const jobId = `${progress.translationId}:${progress.bookId ?? 'all'}`;
+                transport.cancelJob(jobId).catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
         set({ downloadProgress: null });
       },
 

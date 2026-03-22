@@ -48,7 +48,7 @@ export function AnnotationsScreen() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    loadAnnotations();
+    loadAnnotations(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [loadAnnotations]);
 
   const onRefresh = async () => {
@@ -95,6 +95,7 @@ export function AnnotationsScreen() {
       <View style={styles.cardHeader}>
         <View style={styles.cardIconRow}>
           <Ionicons
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             name={getAnnotationIcon(item.type) as any}
             size={18}
             color={item.color ?? colors.accentPrimary}
@@ -156,14 +157,15 @@ export function AnnotationsScreen() {
             onPress={() => setFilter(fb.key)}
           >
             <Ionicons
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               name={fb.icon as any}
               size={14}
-              color={filter === fb.key ? '#fff' : colors.secondaryText}
+              color={filter === fb.key ? colors.cardBackground : colors.secondaryText}
             />
             <Text
               style={[
                 styles.filterLabel,
-                { color: filter === fb.key ? '#fff' : colors.secondaryText },
+                { color: filter === fb.key ? colors.cardBackground : colors.secondaryText },
               ]}
             >
               {fb.label}

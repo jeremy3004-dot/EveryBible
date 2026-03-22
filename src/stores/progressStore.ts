@@ -4,6 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncProgress } from '../services/sync';
 import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSyncProgress() {
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    syncProgress().catch(() => {});
+    syncDebounceTimer = null;
+  }, 2000);
+}
+
 interface ProgressState {
   chaptersRead: Record<string, number>; // { "GEN_1": timestamp, ... }
   streakDays: number;
@@ -95,8 +104,8 @@ export const useProgressStore = create<ProgressState>()(
           },
         }));
         get().updateStreak();
-        // Trigger background sync (fire and forget)
-        syncProgress().catch(() => {});
+        // Trigger debounced background sync to avoid flooding during rapid navigation
+        debouncedSyncProgress();
       },
 
       isChapterRead: (bookId, chapter) => {

@@ -11,7 +11,7 @@ export const colors = {
 
   // Accent colors
   accent: '#C0392B',
-  accentGreen: '#C0392B',
+  accentGreen: '#C0392B', // Legacy name — actual brand color is Tibetan Maroon
   accentPrimary: '#C0392B',
   accentSecondary: '#d0c2af',
   accentTertiary: '#868b95',

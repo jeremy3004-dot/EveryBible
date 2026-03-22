@@ -90,7 +90,10 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
       },
       reattachJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
-        tasks.find((task) => task.id === jobId);
+        const task = tasks.find((task) => task.id === jobId);
+        if (task) {
+          task.resume();
+        }
       },
       cancelJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();

@@ -76,7 +76,11 @@ export function MoreScreen() {
           text: t('more.signOut'),
           style: 'destructive',
           onPress: async () => {
-            await signOut();
+            try {
+              await signOut();
+            } catch {
+              // Sign-out failure is non-fatal; the user stays signed in
+            }
           },
         },
       ]

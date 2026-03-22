@@ -146,16 +146,18 @@ export function GroupDetailScreen() {
 
     let cancelled = false;
 
-    listPrayerRequests(groupId).then((result) => {
-      if (cancelled) return;
-      if (result.success && result.data) {
-        const active = result.data.filter((r) => !r.is_answered);
-        setPrayerPreview({
-          count: active.length,
-          latestContent: active[0]?.content ?? null,
-        });
-      }
-    });
+    listPrayerRequests(groupId)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.data) {
+          const active = result.data.filter((r) => !r.is_answered);
+          setPrayerPreview({
+            count: active.length,
+            latestContent: active[0]?.content ?? null,
+          });
+        }
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;

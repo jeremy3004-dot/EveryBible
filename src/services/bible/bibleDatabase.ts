@@ -203,7 +203,10 @@ export async function getDatabase(
       await initDatabase();
     }
 
-    return db!;
+    if (!db) {
+      throw new Error('[Bible] Bundled database failed to initialize');
+    }
+    return db;
   }
 
   const cacheKey = getSourceCacheKey(source);
@@ -328,7 +331,7 @@ export async function insertVerse(
   translationId: string,
   verse: Omit<Verse, 'id'>
 ): Promise<void> {
-  const database = await getDatabase();
+  const database = await getDatabase(translationId);
   await database.runAsync(
     `
       INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading)
@@ -342,7 +345,7 @@ export async function insertVerses(
   translationId: string,
   verses: Omit<Verse, 'id'>[]
 ): Promise<void> {
-  const database = await getDatabase();
+  const database = await getDatabase(translationId);
 
   await database.withTransactionAsync(async () => {
     for (const verse of verses) {

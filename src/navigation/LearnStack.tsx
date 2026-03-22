@@ -32,6 +32,42 @@ export function LearnStack() {
           require('../screens/learn/ReadingPlanDetailScreen').ReadingPlanDetailScreen
         }
       />
+      <Stack.Screen
+        name="CourseDetail"
+        getComponent={() => require('../screens/learn/CourseDetailScreen').CourseDetailScreen}
+      />
+      <Stack.Screen
+        name="LessonView"
+        getComponent={() => require('../screens/learn/LessonViewScreen').LessonViewScreen}
+      />
+      <Stack.Screen
+        name="FourFieldsJourney"
+        getComponent={() =>
+          require('../screens/learn/FourFieldsJourneyScreen').FourFieldsJourneyScreen
+        }
+      />
+      <Stack.Screen
+        name="FieldOverview"
+        getComponent={() => require('../screens/learn/FieldOverviewScreen').FieldOverviewScreen}
+      />
+      <Stack.Screen
+        name="FourFieldsLessonView"
+        getComponent={() =>
+          require('../screens/learn/FourFieldsLessonViewScreen').FourFieldsLessonViewScreen
+        }
+      />
+      <Stack.Screen
+        name="GroupList"
+        getComponent={() => require('../screens/learn/GroupListScreen').GroupListScreen}
+      />
+      <Stack.Screen
+        name="GroupDetail"
+        getComponent={() => require('../screens/learn/GroupDetailScreen').GroupDetailScreen}
+      />
+      <Stack.Screen
+        name="GroupSession"
+        getComponent={() => require('../screens/learn/GroupSessionScreen').GroupSessionScreen}
+      />
     </Stack.Navigator>
   );
 }

@@ -9,6 +9,7 @@ export const useSync = () => {
   const isInitialized = useAuthStore((state) => state.isInitialized);
   const appState = useRef(AppState.currentState);
   const isSyncing = useRef(false);
+  const hasInitialSynced = useRef(false);
 
   const performSync = useCallback(async () => {
     if (!isInitialized || !isAuthenticated || isSyncing.current) return;
@@ -16,8 +17,8 @@ export const useSync = () => {
     isSyncing.current = true;
     try {
       await syncAll();
-    } catch (error) {
-      console.error('Sync error:', error);
+    } catch {
+      // Sync failure is non-fatal
     } finally {
       isSyncing.current = false;
     }
@@ -37,9 +38,14 @@ export const useSync = () => {
     };
   }, [performSync]);
 
-  // Sync on network reconnect
+  // Sync on network reconnect (skip the initial state callback from NetInfo)
   useEffect(() => {
+    let isFirstCallback = true;
     const unsubscribe = NetInfo.addEventListener((state) => {
+      if (isFirstCallback) {
+        isFirstCallback = false;
+        return;
+      }
       if (state.isConnected && state.isInternetReachable) {
         performSync();
       }
@@ -50,17 +56,22 @@ export const useSync = () => {
     };
   }, [performSync]);
 
-  // Initial sync when auth changes
+  // Initial sync when auth changes (runs once per auth state change)
   useEffect(() => {
-    if (isInitialized && isAuthenticated) {
+    if (isInitialized && isAuthenticated && !hasInitialSynced.current) {
+      hasInitialSynced.current = true;
       void (async () => {
         try {
           await pullFromCloud();
           await performSync();
-        } catch (error) {
-          console.error('Initial cloud sync error:', error);
+        } catch {
+          // Initial cloud sync failure is non-fatal
         }
       })();
+    }
+
+    if (!isAuthenticated) {
+      hasInitialSynced.current = false;
     }
   }, [isAuthenticated, isInitialized, performSync]);
 

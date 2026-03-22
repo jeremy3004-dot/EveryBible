@@ -19,74 +19,7 @@ const AUDIO_TEMPLATE_PLACEHOLDERS = new Set([
   '{versePadded}',
 ]);
 
-const BOOK_ID_MAP: Record<string, string> = {
-  GEN: 'GEN',
-  EXO: 'EXO',
-  LEV: 'LEV',
-  NUM: 'NUM',
-  DEU: 'DEU',
-  JOS: 'JOS',
-  JDG: 'JDG',
-  RUT: 'RUT',
-  '1SA': '1SA',
-  '2SA': '2SA',
-  '1KI': '1KI',
-  '2KI': '2KI',
-  '1CH': '1CH',
-  '2CH': '2CH',
-  EZR: 'EZR',
-  NEH: 'NEH',
-  EST: 'EST',
-  JOB: 'JOB',
-  PSA: 'PSA',
-  PRO: 'PRO',
-  ECC: 'ECC',
-  SNG: 'SNG',
-  ISA: 'ISA',
-  JER: 'JER',
-  LAM: 'LAM',
-  EZK: 'EZK',
-  DAN: 'DAN',
-  HOS: 'HOS',
-  JOL: 'JOL',
-  AMO: 'AMO',
-  OBA: 'OBA',
-  JON: 'JON',
-  MIC: 'MIC',
-  NAM: 'NAM',
-  HAB: 'HAB',
-  ZEP: 'ZEP',
-  HAG: 'HAG',
-  ZEC: 'ZEC',
-  MAL: 'MAL',
-  MAT: 'MAT',
-  MRK: 'MRK',
-  LUK: 'LUK',
-  JHN: 'JHN',
-  ACT: 'ACT',
-  ROM: 'ROM',
-  '1CO': '1CO',
-  '2CO': '2CO',
-  GAL: 'GAL',
-  EPH: 'EPH',
-  PHP: 'PHP',
-  COL: 'COL',
-  '1TH': '1TH',
-  '2TH': '2TH',
-  '1TI': '1TI',
-  '2TI': '2TI',
-  TIT: 'TIT',
-  PHM: 'PHM',
-  HEB: 'HEB',
-  JAS: 'JAS',
-  '1PE': '1PE',
-  '2PE': '2PE',
-  '1JN': '1JN',
-  '2JN': '2JN',
-  '3JN': '3JN',
-  JUD: 'JUD',
-  REV: 'REV',
-};
+// Bible.is uses the same 3-letter book IDs as our internal IDs
 
 const EBIBLE_WEBBE_BOOK_PREFIXES: Record<string, string> = {
   GEN: '002_GEN',
@@ -157,6 +90,7 @@ const EBIBLE_WEBBE_BOOK_PREFIXES: Record<string, string> = {
   REV: '096_REV',
 };
 
+const MAX_AUDIO_CACHE_SIZE = 300;
 const audioUrlCache = new Map<string, RemoteAudioAsset>();
 
 type RemoteAudioMetadata = {
@@ -330,15 +264,19 @@ async function fetchBibleIsChapterAudio(
   }
 
   try {
-    const bibleIsBookId = BOOK_ID_MAP[bookId] || bookId;
+    const bibleIsBookId = bookId;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(
       `${BIBLE_IS_API_BASE}/bibles/filesets/${filesetId}/${bibleIsBookId}/${chapter}?v=4&key=${BIBLE_IS_API_KEY}`,
       {
         headers: {
           Accept: 'application/json',
         },
+        signal: controller.signal,
       }
     );
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -375,6 +313,14 @@ export async function fetchRemoteChapterAudio(
   const cached = audioUrlCache.get(cacheKey);
   if (cached) {
     return cached;
+  }
+
+  // Evict oldest entries when cache is full
+  if (audioUrlCache.size >= MAX_AUDIO_CACHE_SIZE) {
+    const firstKey = audioUrlCache.keys().next().value;
+    if (firstKey !== undefined) {
+      audioUrlCache.delete(firstKey);
+    }
   }
 
   const translation = resolveRemoteAudioMetadata(translationId);

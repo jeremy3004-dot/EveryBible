@@ -461,7 +461,7 @@ export function ReadingPlanDetailScreen() {
   }, [planId, t]);
 
   useEffect(() => {
-    load();
+    load(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [load]);
 
   const handleRefresh = useCallback(async () => {

@@ -4,3 +4,4 @@ export * from './authStore';
 export * from './audioStore';
 export * from './libraryStore';
 export * from './privacyStore';
+export * from './fourFieldsStore';

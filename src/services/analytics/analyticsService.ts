@@ -30,6 +30,7 @@ export interface QueuedEvent {
 const eventQueue: QueuedEvent[] = [];
 
 const AUTO_FLUSH_SIZE = 20;
+const MAX_QUEUE_SIZE = 500;
 
 // Session state — null until startSession() is called.
 let currentSessionId: string | null = null;
@@ -40,8 +41,10 @@ let currentSessionId: string | null = null;
 
 // Uses the Crypto API available in Hermes / React Native's polyfill.
 function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+  // eslint-disable-next-line no-undef
+  if (typeof crypto !== 'undefined' && typeof (crypto as Crypto).randomUUID === 'function') {
+    // eslint-disable-next-line no-undef
+    return (crypto as Crypto).randomUUID();
   }
 
   // Fallback: manual v4 UUID construction via Math.random()
@@ -56,7 +59,6 @@ function generateUUID(): string {
 // app.json so the import stays side-effect-free in tests.
 function getAppVersion(): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Constants = require('expo-constants').default;
     return (
       Constants?.expoConfig?.version ??
@@ -136,15 +138,21 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
     const { error } = await supabase.rpc('batch_track_events', { events: payload });
 
     if (error) {
-      // Re-queue the snapshot so events are not silently dropped.
-      eventQueue.unshift(...snapshot);
+      // Re-queue the snapshot so events are not silently dropped, but cap total size.
+      const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
+      if (spaceLeft > 0) {
+        eventQueue.unshift(...snapshot.slice(0, spaceLeft));
+      }
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (error) {
-    // Re-queue on unexpected failure so events survive the error.
-    eventQueue.unshift(...snapshot);
+    // Re-queue on unexpected failure so events survive the error, but cap total size.
+    const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
+    if (spaceLeft > 0) {
+      eventQueue.unshift(...snapshot.slice(0, spaceLeft));
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

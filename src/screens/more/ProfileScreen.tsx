@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -54,11 +54,17 @@ export function ProfileScreen() {
   // Fetch engagement summary once on mount when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
-    getEngagementSummary().then((result) => {
-      if (result.success && result.data) {
-        setEngagement(result.data);
-      }
-    });
+    let cancelled = false;
+    getEngagementSummary()
+      .then((result) => {
+        if (!cancelled && result.success && result.data) {
+          setEngagement(result.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   // Keep local avatar in sync with auth store

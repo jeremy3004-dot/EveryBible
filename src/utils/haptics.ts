@@ -3,14 +3,21 @@ import { Platform } from 'react-native';
 
 const isHapticsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
+function safeHaptic(fn: () => Promise<void>): void {
+  if (!isHapticsSupported) return;
+  try {
+    fn().catch(() => {});
+  } catch {
+    // Silently ignore haptic failures on unsupported devices
+  }
+}
+
 /**
  * Light haptic feedback for subtle interactions
  * Use for: toggles, minor selections, swipes
  */
 export const lightHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
+  safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 };
 
 /**
@@ -18,9 +25,7 @@ export const lightHaptic = () => {
  * Use for: button taps, page changes, confirming actions
  */
 export const mediumHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }
+  safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
 };
 
 /**
@@ -28,9 +33,7 @@ export const mediumHaptic = () => {
  * Use for: completing tasks, significant state changes
  */
 export const heavyHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  }
+  safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
 };
 
 /**
@@ -38,9 +41,7 @@ export const heavyHaptic = () => {
  * Use for: successful completion of actions
  */
 export const successHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }
+  safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 };
 
 /**
@@ -48,9 +49,7 @@ export const successHaptic = () => {
  * Use for: warnings, confirmations needed
  */
 export const warningHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-  }
+  safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
 };
 
 /**
@@ -58,9 +57,7 @@ export const warningHaptic = () => {
  * Use for: errors, failed actions
  */
 export const errorHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  }
+  safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
 };
 
 /**
@@ -68,7 +65,5 @@ export const errorHaptic = () => {
  * Use for: picker selections, segment controls
  */
 export const selectionHaptic = () => {
-  if (isHapticsSupported) {
-    Haptics.selectionAsync();
-  }
+  safeHaptic(() => Haptics.selectionAsync());
 };

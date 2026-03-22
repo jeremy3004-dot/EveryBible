@@ -71,11 +71,17 @@ export function ReadingActivityScreen() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    getEngagementSummary().then((result) => {
-      if (result.success && result.data) {
-        setEngagement(result.data);
-      }
-    });
+    let cancelled = false;
+    getEngagementSummary()
+      .then((result) => {
+        if (!cancelled && result.success && result.data) {
+          setEngagement(result.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   const activitySummary = summarizeReadingActivity(chaptersRead);

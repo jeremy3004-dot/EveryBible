@@ -13,9 +13,13 @@ export interface BibleExperienceEvent {
   detail?: string;
 }
 
+const MAX_TRACKED_EVENTS = 200;
 const trackedBibleExperienceEvents: BibleExperienceEvent[] = [];
 
 export function trackBibleExperienceEvent(event: BibleExperienceEvent) {
+  if (trackedBibleExperienceEvents.length >= MAX_TRACKED_EVENTS) {
+    trackedBibleExperienceEvents.splice(0, trackedBibleExperienceEvents.length - MAX_TRACKED_EVENTS + 1);
+  }
   trackedBibleExperienceEvents.push(event);
 }
 
