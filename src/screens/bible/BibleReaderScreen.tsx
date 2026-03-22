@@ -465,7 +465,12 @@ export function BibleReaderScreen() {
   }, [bookId, chapter, isAuthenticated]);
 
   const loadChapter = async () => {
-    setIsLoading(true);
+    // Only show loading skeleton on the very first load (no verses yet).
+    // For chapter-to-chapter transitions, keep the old content visible to
+    // avoid a layout flash / button jump.
+    if (verses.length === 0) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data = await getChapter(currentTranslation, bookId, chapter);
@@ -979,8 +984,8 @@ export function BibleReaderScreen() {
       ? scaleValue(typography.readingBody.fontSize)
       : scaleValue(20);
     const verseLineHeight = usePremiumTypography
-      ? scaleValue(typography.readingBody.lineHeight)
-      : scaleValue(30);
+      ? scaleValue(typography.readingBody.lineHeight * 1.15)
+      : scaleValue(34);
     const verseNumberSize = usePremiumTypography
       ? scaleValue(typography.readingVerseNumber.fontSize)
       : scaleValue(12);
@@ -988,109 +993,114 @@ export function BibleReaderScreen() {
       ? scaleValue(typography.readingHeading.fontSize)
       : scaleValue(15);
 
+    // Group verses into paragraphs split by section headings
+    const paragraphs: { heading: string | null; verses: typeof verses }[] = [];
+    let currentParagraph: { heading: string | null; verses: typeof verses } = {
+      heading: null,
+      verses: [],
+    };
+
+    for (const verse of verses) {
+      const shouldRenderHeading =
+        Boolean(verse.heading) && (!usePremiumTypography || verse.id !== firstHeadingVerseId);
+
+      if (shouldRenderHeading && currentParagraph.verses.length > 0) {
+        paragraphs.push(currentParagraph);
+        currentParagraph = { heading: verse.heading ?? null, verses: [verse] };
+      } else {
+        if (shouldRenderHeading) {
+          currentParagraph.heading = verse.heading ?? null;
+        }
+        currentParagraph.verses.push(verse);
+      }
+    }
+    if (currentParagraph.verses.length > 0) {
+      paragraphs.push(currentParagraph);
+    }
+
+    const textStyle = [
+      styles.verseText,
+      usePremiumTypography ? styles.premiumVerseText : null,
+      { fontSize: verseFontSize, lineHeight: verseLineHeight, color: colors.biblePrimaryText },
+    ];
+
     return (
       <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
-        {verses.map((verse) => {
-          const shouldRenderHeading =
-            Boolean(verse.heading) && (!usePremiumTypography || verse.id !== firstHeadingVerseId);
-
-          const verseAnnotations = annotations.filter(
-            (a) => a.verse_start === verse.verse && !a.deleted_at
-          );
-          const highlightAnnotation = verseAnnotations.find((a) => a.type === 'highlight');
-          const hasBookmark = verseAnnotations.some((a) => a.type === 'bookmark');
-          const hasNote = verseAnnotations.some((a) => a.type === 'note');
-
-          return (
-            <TouchableOpacity
-              key={verse.id}
-              activeOpacity={0.85}
-              delayLongPress={400}
-              onLongPress={
-                isAuthenticated
-                  ? () => {
-                      setSelectedVerse(verse.verse);
-                      setShowAnnotationSheet(true);
-                    }
-                  : undefined
+        {paragraphs.map((paragraph, pIndex) => (
+          <View
+            key={pIndex}
+            style={[
+              styles.readerBlock,
+              usePremiumTypography ? styles.premiumReaderBlock : null,
+            ]}
+            onLayout={(event) => {
+              const y = event.nativeEvent.layout.y;
+              for (const v of paragraph.verses) {
+                verseOffsetsRef.current[v.verse] = y;
               }
-              style={[
-                styles.readerBlock,
-                usePremiumTypography ? styles.premiumReaderBlock : null,
-                verse.verse === focusVerse
-                  ? {
-                      backgroundColor: colors.bibleSurface,
-                      borderColor: colors.bibleAccent,
-                    }
-                  : null,
-                highlightAnnotation?.color
-                  ? { backgroundColor: highlightAnnotation.color + '25' }
-                  : null,
-              ]}
-              onLayout={(event) => {
-                verseOffsetsRef.current[verse.verse] = event.nativeEvent.layout.y;
-              }}
-            >
-              {shouldRenderHeading ? (
-                <Text
-                  style={[
-                    styles.sectionHeading,
-                    usePremiumTypography ? styles.premiumSectionHeading : null,
-                    {
-                      fontSize: headingFontSize,
-                      color: colors.bibleSecondaryText,
-                    },
-                  ]}
-                >
-                  {verse.heading}
-                </Text>
-              ) : null}
-              <View style={styles.verseRow}>
-                <Text
-                  style={[
-                    styles.verseText,
-                    usePremiumTypography ? styles.premiumVerseText : null,
-                    { flex: 1, fontSize: verseFontSize, lineHeight: verseLineHeight, color: colors.biblePrimaryText },
-                  ]}
-                >
+            }}
+          >
+            {paragraph.heading ? (
+              <Text
+                style={[
+                  styles.sectionHeading,
+                  usePremiumTypography ? styles.premiumSectionHeading : null,
+                  {
+                    fontSize: headingFontSize,
+                    color: colors.bibleSecondaryText,
+                  },
+                ]}
+              >
+                {paragraph.heading}
+              </Text>
+            ) : null}
+            <Text style={textStyle}>
+              {paragraph.verses.map((verse, vIndex) => {
+                const verseAnnotations = annotations.filter(
+                  (a) => a.verse_start === verse.verse && !a.deleted_at
+                );
+                const highlightAnnotation = verseAnnotations.find((a) => a.type === 'highlight');
+                const isFocused = verse.verse === focusVerse;
+
+                return (
                   <Text
+                    key={verse.id}
+                    onLongPress={
+                      isAuthenticated
+                        ? () => {
+                            setSelectedVerse(verse.verse);
+                            setShowAnnotationSheet(true);
+                          }
+                        : undefined
+                    }
                     style={[
-                      styles.inlineVerseNumber,
-                      usePremiumTypography ? styles.premiumVerseNumber : null,
-                      {
-                        fontSize: verseNumberSize,
-                        color: colors.bibleAccent,
-                      },
+                      isFocused
+                        ? { backgroundColor: colors.bibleAccent + '30' }
+                        : null,
+                      highlightAnnotation?.color
+                        ? { backgroundColor: highlightAnnotation.color + '25' }
+                        : null,
                     ]}
                   >
-                    {verse.verse}{' '}
+                    <Text
+                      style={[
+                        styles.inlineVerseNumber,
+                        usePremiumTypography ? styles.premiumVerseNumber : null,
+                        {
+                          fontSize: verseNumberSize,
+                          color: colors.bibleAccent,
+                        },
+                      ]}
+                    >
+                      {verse.verse}
+                    </Text>
+                    {'\u00A0'}{verse.text}{vIndex < paragraph.verses.length - 1 ? ' ' : ''}
                   </Text>
-                  {verse.text}
-                </Text>
-                {(hasBookmark || hasNote) ? (
-                  <View style={styles.verseAnnotationIcons}>
-                    {hasBookmark ? (
-                      <Ionicons
-                        name="bookmark"
-                        size={12}
-                        color={colors.bibleAccent}
-                        style={styles.verseAnnotationIcon}
-                      />
-                    ) : null}
-                    {hasNote ? (
-                      <Ionicons
-                        name="create"
-                        size={12}
-                        color={colors.bibleSecondaryText}
-                        style={styles.verseAnnotationIcon}
-                      />
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+                );
+              })}
+            </Text>
+          </View>
+        ))}
       </View>
     );
   };
@@ -1658,7 +1668,7 @@ export function BibleReaderScreen() {
                 ? [
                     {
                       key: 'translation',
-                      icon: 'language-outline',
+                      icon: 'book-outline',
                       label: t('bible.selectTranslation'),
                       onPress: handleOpenTranslationOptions,
                     },
@@ -2165,10 +2175,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   readerColumn: {
-    gap: 10,
+    gap: 4,
   },
   premiumReaderColumn: {
-    gap: 4,
+    gap: 2,
   },
   listenColumn: {
     flex: 1,
@@ -2234,32 +2244,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   readerBlock: {
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    borderColor: 'transparent',
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  verseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  verseAnnotationIcons: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-    paddingTop: 4,
-    paddingLeft: 4,
-  },
-  verseAnnotationIcon: {
-    opacity: 0.75,
   },
   premiumReaderBlock: {
-    gap: 0,
+    gap: 4,
     paddingHorizontal: 0,
-    paddingVertical: 6,
-    borderRadius: radius.md,
   },
   sectionHeading: {
     fontWeight: '700',
@@ -2530,8 +2520,8 @@ const styles = StyleSheet.create({
   followAlongVerseCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     gap: 8,
   },
   followAlongHeading: {
@@ -2539,12 +2529,12 @@ const styles = StyleSheet.create({
   },
   followAlongVerseText: {
     ...typography.readingBody,
-    fontSize: 28,
-    lineHeight: 40,
+    fontSize: 18,
+    lineHeight: 30,
   },
   followAlongVerseNumber: {
     ...typography.readingVerseNumber,
-    fontSize: 18,
+    fontSize: 12,
   },
   fontSheet: {
     borderTopWidth: 1,

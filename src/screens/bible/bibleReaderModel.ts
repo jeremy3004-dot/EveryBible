@@ -339,8 +339,14 @@ export const shouldSyncReaderToActiveAudioChapter = ({
   return previousActiveAudioBookId === bookId && previousActiveAudioChapter === chapter;
 };
 
+function countWords(text: string): number {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return 0;
+  return trimmed.split(/\s+/).length;
+}
+
 function getVerseWeight(verse: Verse): number {
-  const headingWeight = verse.heading?.trim().length ?? 0;
-  const textWeight = verse.text.trim().length;
-  return Math.max(textWeight + headingWeight, 1);
+  const headingWords = verse.heading ? countWords(verse.heading) : 0;
+  const textWords = countWords(verse.text);
+  return Math.max(textWords + headingWords, 1);
 }

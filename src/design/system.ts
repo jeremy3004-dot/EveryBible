@@ -25,8 +25,16 @@ const uiFontFamily = Platform.select({
   default: 'System',
 });
 
-const readingFontFamily = 'Lora-Regular';
-const readingFontFamilyItalic = 'Lora-Italic';
+const readingFontFamily = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'Georgia',
+});
+const readingFontFamilyItalic = Platform.select({
+  ios: 'Georgia-Italic',
+  android: 'serif',
+  default: 'Georgia-Italic',
+});
 
 export const typography = {
   screenTitle: {
