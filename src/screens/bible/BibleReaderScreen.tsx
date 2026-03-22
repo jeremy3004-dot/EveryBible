@@ -1668,7 +1668,7 @@ export function BibleReaderScreen() {
                 ? [
                     {
                       key: 'translation',
-                      icon: 'language-outline',
+                      icon: 'book-outline',
                       label: t('bible.selectTranslation'),
                       onPress: handleOpenTranslationOptions,
                     },

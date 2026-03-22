@@ -40,7 +40,7 @@ const menuItems: MenuItem[] = [
   {
     id: 'translations',
     titleKey: 'translations.title',
-    icon: 'language-outline',
+    icon: 'book-outline',
     screen: 'TranslationBrowser',
   },
   { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
