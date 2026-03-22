@@ -5,6 +5,12 @@ import type { RemoteAudioAsset } from './audioDownloadService';
 
 const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
 const BIBLE_IS_API_KEY = process.env.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
+
+// Supabase Storage audio: set EXPO_PUBLIC_SUPABASE_URL in .env
+// Upload audio to: bible-audio/{translationId}/{bookId}/{chapter}.mp3
+const SUPABASE_AUDIO_BUCKET_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL
+  ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
+  : null;
 const EBIBLE_WEBBE_AUDIO_BASE = 'https://ebible.org/eng-webbe/mp3';
 const OPENBIBLE_BSB_SOUER_AUDIO_BASE = 'https://openbible.com/audio/souer';
 const AUDIO_TEMPLATE_PLACEHOLDERS = new Set([
@@ -173,6 +179,11 @@ type RemoteAudioMetadata = {
     | {
         strategy: 'audio-pack';
         downloadUrl: string;
+      }
+    | {
+        // Self-hosted in Supabase Storage bucket "bible-audio"
+        // Path: {translationId}/{bookId}/{chapter}.mp3
+        strategy: 'supabase-storage';
       };
 };
 
@@ -410,6 +421,16 @@ export async function fetchRemoteChapterAudio(
     return result;
   }
 
+  if (audio.strategy === 'supabase-storage') {
+    if (!SUPABASE_AUDIO_BUCKET_BASE) {
+      return null;
+    }
+    const url = `${SUPABASE_AUDIO_BUCKET_BASE}/${translationId}/${bookId}/${chapter}.mp3`;
+    const result = { url, duration: 0 };
+    audioUrlCache.set(cacheKey, result);
+    return result;
+  }
+
   const providerUrl = buildProviderChapterAudioUrl(audio.provider, bookId, chapter);
   if (providerUrl) {
     const result = { url: providerUrl, duration: 0 };
@@ -442,6 +463,10 @@ export function isRemoteAudioAvailable(translationId: string): boolean {
 
   if (audio.strategy === 'audio-pack') {
     return Boolean(audio.downloadUrl);
+  }
+
+  if (audio.strategy === 'supabase-storage') {
+    return Boolean(SUPABASE_AUDIO_BUCKET_BASE);
   }
 
   if (audio.provider === 'ebible-webbe' || audio.provider === 'openbible-bsb-souer') {
