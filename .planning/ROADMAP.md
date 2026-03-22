@@ -336,3 +336,13 @@ Plans:
 - [ ] 14-02: Build the versioned SQLite text-pack registry, install flow, and rollback-safe query routing
 - [ ] 14-03: Replace hardcoded audio providers with backend-driven sources and resilient offline/background audio downloads
 - [ ] 14-04: Ship translation install/update UX, verification coverage, and release/device QA for the new content platform
+
+### Phase 15: Reverential Theme & Typography
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 14
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15 to break down)
