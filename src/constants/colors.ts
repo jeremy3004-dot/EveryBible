@@ -10,15 +10,15 @@ export const colors = {
   secondaryText: '#a09b93',
 
   // Accent colors
-  accent: '#e35d5b',
-  accentGreen: '#e35d5b',
-  accentPrimary: '#e35d5b',
+  accent: '#C0392B',
+  accentGreen: '#C0392B',
+  accentPrimary: '#C0392B',
   accentSecondary: '#d0c2af',
   accentTertiary: '#868b95',
 
   // Named aliases kept for backward compatibility
-  tibetanMaroon: '#e35d5b',
-  tibetanMaroonLight: '#d55b57',
+  tibetanMaroon: '#C0392B',
+  tibetanMaroonLight: '#A03025',
   saffronGold: '#d0c2af',
   saffronGoldLight: '#8c7558',
   skyBlue: '#868b95',
@@ -43,7 +43,7 @@ export const colors = {
   bibleDivider: '#2a2f37',
   biblePrimaryText: '#f5f2ea',
   bibleSecondaryText: '#a09b93',
-  bibleAccent: '#e35d5b',
+  bibleAccent: '#C0392B',
   bibleControlBackground: '#f5f2ea',
 } as const;
 

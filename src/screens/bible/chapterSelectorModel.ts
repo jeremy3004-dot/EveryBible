@@ -4,7 +4,7 @@ import { getBibleBookExperienceContent } from '../../data/bibleBookExperience';
 export const CHAPTER_GRID_COLUMNS = 5;
 export const CHAPTER_GRID_HORIZONTAL_PADDING = 72;
 export const CHAPTER_GRID_ROW_GAP = 8;
-const BOOK_HUB_ACCENT_COLOR = '#e35d5b';
+const BOOK_HUB_ACCENT_COLOR = '#C0392B';
 const BOOK_HUB_ICON_TINT = '#f5f2ea';
 export type ChapterLaunchMode = 'listen' | 'read';
 

@@ -62,8 +62,8 @@ test('buildBookHubPresentation uses the shared accent banner palette for every b
     currentChapter: 1,
   });
 
-  assert.deepEqual(genesisPresentation.palette.gradient, ['#e35d5b', '#e35d5b']);
-  assert.deepEqual(micahPresentation.palette.gradient, ['#e35d5b', '#e35d5b']);
+  assert.deepEqual(genesisPresentation.palette.gradient, ['#C0392B', '#C0392B']);
+  assert.deepEqual(micahPresentation.palette.gradient, ['#C0392B', '#C0392B']);
   assert.deepEqual(genesisPresentation.palette.gradient, micahPresentation.palette.gradient);
 });
 
