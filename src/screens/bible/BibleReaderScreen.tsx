@@ -197,11 +197,18 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
-  const chapterPresentationMode = getChapterPresentationMode({
+  const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
     audioAvailable: audioEnabled,
   });
+  const lastStablePresentationModeRef = useRef(rawPresentationMode);
+  if (!isLoading) {
+    lastStablePresentationModeRef.current = rawPresentationMode;
+  }
+  const chapterPresentationMode = isLoading
+    ? lastStablePresentationModeRef.current
+    : rawPresentationMode;
   const canReadDisplayedChapter = chapterPresentationMode === 'text' && verses.length > 0;
   const canAdjustFontSize = canReadDisplayedChapter;
   const canShowTranslationSheet = config.features.multipleTranslations;
