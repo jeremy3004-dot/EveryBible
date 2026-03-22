@@ -2529,12 +2529,12 @@ const styles = StyleSheet.create({
   },
   followAlongVerseText: {
     ...typography.readingBody,
-    fontSize: 22,
-    lineHeight: 34,
+    fontSize: 18,
+    lineHeight: 30,
   },
   followAlongVerseNumber: {
     ...typography.readingVerseNumber,
-    fontSize: 14,
+    fontSize: 12,
   },
   fontSheet: {
     borderTopWidth: 1,

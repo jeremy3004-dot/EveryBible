@@ -233,6 +233,32 @@ export function BibleBrowserScreen() {
     }
   };
 
+  const handleDownloadTestamentAudio = async (testament: 'OT' | 'NT') => {
+    if (!audioManagerTranslation || !audioManagerAvailability?.canDownloadAudio) {
+      return;
+    }
+
+    setActiveAudioDownloadKey(`testament:${testament}`);
+
+    try {
+      const books = bibleBooks.filter((b) => b.testament === testament);
+      for (const book of books) {
+        const alreadyDownloaded = isAudioBookDownloaded(
+          audioManagerTranslation.downloadedAudioBooks,
+          book.id
+        );
+        if (!alreadyDownloaded) {
+          await downloadAudioForBook(audioManagerTranslation.id, book.id);
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
+    } finally {
+      setActiveAudioDownloadKey(null);
+    }
+  };
+
   const handleDownloadBookAudio = async (bookId: string) => {
     if (!audioManagerTranslation || !audioManagerAvailability?.canDownloadAudio) {
       return;
@@ -769,6 +795,55 @@ export function BibleBrowserScreen() {
                   )}
                 </TouchableOpacity>
 
+                {(['OT', 'NT'] as const).map((testament) => {
+                  const testamentBooks = bibleBooks.filter((b) => b.testament === testament);
+                  const downloadedCount = testamentBooks.filter((b) =>
+                    isAudioBookDownloaded(audioManagerTranslation.downloadedAudioBooks, b.id)
+                  ).length;
+                  const allDownloaded = downloadedCount === testamentBooks.length;
+                  const isDownloading = activeAudioDownloadKey === `testament:${testament}`;
+                  const label = testament === 'OT' ? t('bible.oldTestament') : t('bible.newTestament');
+
+                  return (
+                    <TouchableOpacity
+                      key={testament}
+                      style={[
+                        styles.downloadAllCard,
+                        {
+                          backgroundColor: colors.bibleElevatedSurface,
+                          borderColor: colors.bibleDivider,
+                          marginTop: 8,
+                        },
+                      ]}
+                      onPress={
+                        allDownloaded || !audioManagerAvailability?.canDownloadAudio
+                          ? undefined
+                          : () => void handleDownloadTestamentAudio(testament)
+                      }
+                      activeOpacity={allDownloaded || !audioManagerAvailability?.canDownloadAudio ? 1 : 0.85}
+                      disabled={allDownloaded || activeAudioDownloadKey !== null || !audioManagerAvailability?.canDownloadAudio}
+                    >
+                      <View style={styles.downloadAllInfo}>
+                        <Text style={[styles.downloadAllTitle, { color: colors.biblePrimaryText }]}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.downloadAllDescription, { color: colors.bibleSecondaryText }]}>
+                          {downloadedCount}/{testamentBooks.length}
+                        </Text>
+                      </View>
+                      {isDownloading ? (
+                        <ActivityIndicator color={colors.bibleAccent} />
+                      ) : (
+                        <Ionicons
+                          name={allDownloaded ? 'checkmark-circle' : audioManagerAvailability?.canDownloadAudio ? 'download-outline' : 'cloud-offline-outline'}
+                          size={22}
+                          color={allDownloaded ? colors.success : audioManagerAvailability?.canDownloadAudio ? colors.bibleAccent : colors.bibleSecondaryText}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
                 {bibleBooks.map((book) => {
                   const bookAudioDownloaded = isAudioBookDownloaded(
                     audioManagerTranslation.downloadedAudioBooks,
@@ -969,8 +1044,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 54,
-    paddingVertical: 12,
+    minHeight: 60,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   bookRowLeft: {
@@ -979,9 +1054,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bookIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#00000010',
   },
   bookName: {
     fontSize: 19,
