@@ -20,6 +20,7 @@ import {
 export function useAudioPlayer(translationId: string = 'bsb') {
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
+  const isChapterTransitioningRef = useRef(false);
   const playChapterForTranslationRef = useRef<
     ((translationId: string, bookId: string, chapter: number, verse?: number) => Promise<void>) | null
   >(null);
@@ -269,12 +270,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   }, [handleStatusUpdate, handlePlaybackFinished, setError]);
 
   useEffect(() => {
-    // Keep background music running through chapter transitions (loading/paused).
-    // It only stops when the user explicitly calls stop(), which calls
-    // backgroundMusicPlayer.stop() directly. This prevents the music from
-    // cutting out every time a new chapter loads between chapters.
+    if (status === 'playing') {
+      // Chapter finished transitioning
+      isChapterTransitioningRef.current = false;
+    }
+
+    // Keep music playing during chapter transitions (isChapterTransitioningRef).
+    // Pause it when the user explicitly pauses (status==='paused' and not transitioning).
     const shouldPlayBackgroundMusic =
-      status === 'playing' || status === 'loading' || status === 'paused';
+      status === 'playing' ||
+      status === 'loading' ||
+      isChapterTransitioningRef.current;
 
     void backgroundMusicPlayer.sync(backgroundMusicChoice, shouldPlayBackgroundMusic);
   }, [backgroundMusicChoice, status]);
@@ -419,6 +425,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Navigate to previous chapter
   const previousChapter = useCallback(async (): Promise<AudioPlaybackSequenceEntry | null> => {
+    isChapterTransitioningRef.current = true;
     const previousQueuedEntry = queue[queueIndex - 1];
     if (previousQueuedEntry) {
       setQueueIndex(queueIndex - 1);
@@ -467,6 +474,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Navigate to next chapter
   const nextChapter = useCallback(async (): Promise<AudioPlaybackSequenceEntry | null> => {
+    isChapterTransitioningRef.current = true;
     const nextQueuedEntry = queue[queueIndex + 1];
     if (nextQueuedEntry) {
       setQueueIndex(queueIndex + 1);
