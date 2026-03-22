@@ -12,7 +12,7 @@ import {
   harvestStudySections,
   type HarvestStudyEntry,
 } from './harvestStudies';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 export function CourseListScreen() {
   const { colors } = useTheme();
@@ -161,7 +161,7 @@ export function CourseListScreen() {
                             <Text
                               style={[
                                 styles.indexBadgeText,
-                                { color: isActive ? '#fff' : colors.secondaryText },
+                                { color: isActive ? colors.cardBackground : colors.secondaryText },
                               ]}
                             >
                               {index + 1}
@@ -223,7 +223,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   heroCard: {
-    ...shadows.card,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: layout.denseCardPadding,
@@ -259,7 +258,6 @@ const styles = StyleSheet.create({
     paddingBottom: layout.cardPadding,
   },
   sectionCard: {
-    ...shadows.card,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: 14,
@@ -285,7 +283,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   playlistRow: {
-    ...shadows.card,
     borderWidth: 1,
     borderRadius: radius.md,
     padding: 12,

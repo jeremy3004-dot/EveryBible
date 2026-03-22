@@ -23,6 +23,7 @@ import { syncPreferences } from '../../services/sync';
 import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
 import type { PrivacyAppIconMode } from '../../types';
 import { getLocaleSetupSteps, type SetupMode, type SetupStep } from './localeSetupModel';
+import { radius } from '../../design/system';
 
 type InitialAccessMode = 'guest' | 'signIn' | 'signUp';
 
@@ -931,7 +932,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
@@ -948,7 +949,7 @@ const styles = StyleSheet.create({
   },
   optionCard: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -958,13 +959,13 @@ const styles = StyleSheet.create({
   },
   privacyOptionCard: {
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: radius.lg,
     padding: 16,
     gap: 16,
   },
   privacyPreviewShell: {
     height: 136,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -972,19 +973,19 @@ const styles = StyleSheet.create({
   standardPreview: {
     width: 96,
     height: 96,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
   },
   discreetPreview: {
     width: 132,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 14,
     gap: 12,
   },
   discreetDisplay: {
     height: 22,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
   discreetGrid: {
@@ -995,7 +996,7 @@ const styles = StyleSheet.create({
   discreetGridKey: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
   optionCopy: {
@@ -1005,7 +1006,7 @@ const styles = StyleSheet.create({
   accessOptionIconShell: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1064,7 +1065,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     marginTop: 20,
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: radius.lg,
     padding: 20,
     gap: 8,
   },
@@ -1079,7 +1080,7 @@ const styles = StyleSheet.create({
   privacySetupCard: {
     marginTop: 20,
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: radius.lg,
     padding: 20,
   },
   privacyBodyText: {
@@ -1115,7 +1116,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
@@ -1126,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1.35,
-    borderRadius: 18,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,

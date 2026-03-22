@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import {
   buildGroupRepositorySnapshot,
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    borderRadius: 20,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 20,
     gap: 16,
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
   heroIcon: {
     width: 52,
     height: 52,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 14,
   },
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   localCard: {
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 18,
     gap: 14,
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   groupRow: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 14,
     flexDirection: 'row',
@@ -422,7 +423,7 @@ const styles = StyleSheet.create({
   groupIcon: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -449,7 +450,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   emptyState: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 20,
     gap: 8,

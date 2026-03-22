@@ -14,7 +14,7 @@ import { useBibleStore, useProgressStore } from '../../stores';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
 import type { BookCompanionCardModel } from './bookCompanionModel';
 import { buildBookCompanionSections } from './bookCompanionModel';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 import {
   CHAPTER_GRID_ROW_GAP,
   buildChapterGridRows,
@@ -227,7 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroCard: {
-    ...shadows.card,
     borderRadius: radius.lg,
     padding: layout.cardPadding,
     overflow: 'hidden',

@@ -22,7 +22,7 @@ import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/aud
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -304,7 +304,6 @@ const styles = StyleSheet.create({
     marginBottom: layout.sectionGap,
   },
   card: {
-    ...shadows.card,
     borderRadius: radius.lg,
     padding: layout.cardPadding,
     marginBottom: spacing.lg,
@@ -315,11 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   verseText: {
-    fontSize: 20,
-    lineHeight: 30,
-    fontWeight: '400',
-    letterSpacing: -0.2,
-    fontStyle: 'italic',
+    ...typography.readingDisplay,
     marginBottom: spacing.md,
   },
   reference: {

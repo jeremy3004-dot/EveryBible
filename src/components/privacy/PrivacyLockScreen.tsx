@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePrivacyStore } from '../../stores';
 import { validatePrivacyPin } from '../../services/privacy';
+import { radius, spacing, typography } from '../../design/system';
 
 const keypadRows = [
   ['1', '2', '3', '+'],
@@ -167,7 +168,7 @@ export function PrivacyLockScreen() {
           onPress={handleUnlock}
           activeOpacity={0.92}
         >
-          <Text style={styles.unlockButtonText}>{t('privacy.unlock')}</Text>
+          <Text style={[styles.unlockButtonText, { color: colors.background }]}>{t('privacy.unlock')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -178,58 +179,55 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
   },
   card: {
-    borderRadius: 28,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 24,
+    padding: spacing.xl,
   },
   iconBadge: {
     width: 64,
     height: 64,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
+    ...typography.pageTitle,
+    marginBottom: spacing.sm,
   },
   body: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 20,
+    ...typography.body,
+    marginBottom: spacing.xl,
   },
   pinDisplay: {
-    borderRadius: 20,
+    borderRadius: radius.lg,
     borderWidth: 1,
     minHeight: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   pinDisplayText: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...typography.sectionTitle,
     letterSpacing: 4,
   },
   pinHint: {
-    fontSize: 13,
-    marginBottom: 12,
+    ...typography.micro,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   errorText: {
-    fontSize: 13,
+    ...typography.micro,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   keypad: {
     gap: 10,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   keypadRow: {
     flexDirection: 'row',
@@ -238,7 +236,7 @@ const styles = StyleSheet.create({
   keypadKey: {
     flex: 1,
     minHeight: 62,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -249,13 +247,11 @@ const styles = StyleSheet.create({
   },
   unlockButton: {
     minHeight: 54,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   unlockButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.button,
   },
 });

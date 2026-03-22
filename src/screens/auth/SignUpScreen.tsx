@@ -28,6 +28,7 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import { syncAll } from '../../services/sync';
 import type { AuthStackParamList } from '../../navigation/types';
+import { radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 
@@ -321,45 +322,43 @@ const createStyles = (colors: ThemeColors) =>
     },
     header: {
       flexDirection: 'row',
-      padding: 16,
+      padding: spacing.lg,
     },
     backButton: {
-      padding: 4,
+      padding: spacing.xs,
     },
     content: {
       flex: 1,
-      padding: 24,
+      padding: spacing.xl,
       paddingTop: 0,
     },
     title: {
-      fontSize: 32,
-      fontWeight: '700',
+      ...typography.screenTitle,
       color: colors.primaryText,
-      marginBottom: 8,
+      marginBottom: spacing.sm,
     },
     subtitle: {
-      fontSize: 16,
+      ...typography.body,
       color: colors.secondaryText,
-      marginBottom: 32,
+      marginBottom: spacing.xxl,
     },
     form: {
       gap: 20,
     },
     inputContainer: {
-      gap: 8,
+      gap: spacing.sm,
     },
     label: {
-      fontSize: 14,
-      fontWeight: '600',
+      ...typography.label,
       color: colors.primaryText,
     },
     input: {
       backgroundColor: colors.cardBackground,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      borderRadius: 12,
-      padding: 16,
-      fontSize: 16,
+      borderRadius: radius.sm,
+      padding: spacing.lg,
+      ...typography.body,
       color: colors.primaryText,
     },
     inputError: {
@@ -373,32 +372,31 @@ const createStyles = (colors: ThemeColors) =>
     },
     eyeButton: {
       position: 'absolute',
-      right: 16,
-      top: 16,
+      right: spacing.lg,
+      top: spacing.lg,
     },
     errorText: {
-      fontSize: 12,
+      ...typography.micro,
       color: colors.error,
     },
     signUpButton: {
       backgroundColor: colors.accentPrimary,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: radius.sm,
+      padding: spacing.lg,
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: spacing.sm,
     },
     buttonDisabled: {
       opacity: 0.7,
     },
     signUpButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
+      ...typography.button,
       color: colors.primaryText,
     },
     divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginVertical: 24,
+      marginVertical: spacing.xl,
     },
     dividerLine: {
       flex: 1,
@@ -406,9 +404,9 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.cardBorder,
     },
     dividerText: {
-      fontSize: 14,
+      ...typography.label,
       color: colors.secondaryText,
-      marginHorizontal: 16,
+      marginHorizontal: spacing.lg,
     },
     appleButton: {
       height: 50,
@@ -419,29 +417,28 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.cardBackground,
-      borderRadius: 12,
+      borderRadius: radius.sm,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       padding: 14,
-      marginTop: 12,
+      marginTop: spacing.md,
       gap: 10,
     },
     googleButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
+      ...typography.button,
       color: colors.primaryText,
     },
     footer: {
       flexDirection: 'row',
       justifyContent: 'center',
-      marginTop: 24,
+      marginTop: spacing.xl,
     },
     footerText: {
-      fontSize: 14,
+      ...typography.label,
       color: colors.secondaryText,
     },
     footerLink: {
-      fontSize: 14,
+      ...typography.label,
       color: colors.accentPrimary,
       fontWeight: '600',
     },

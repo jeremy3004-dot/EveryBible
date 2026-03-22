@@ -1,7 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants';
+import { darkColors } from '../contexts/ThemeContext';
+import { radius, spacing, typography } from '../design/system';
 
 interface Props {
   children: ReactNode;
@@ -41,14 +42,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.content}>
             <View style={styles.iconContainer}>
-              <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
+              <Ionicons name="alert-circle-outline" size={64} color={darkColors.error} />
             </View>
             <Text style={styles.title}>Something went wrong</Text>
             <Text style={styles.message}>
               {"We're sorry, but something unexpected happened. Please try again."}
             </Text>
             <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
-              <Ionicons name="refresh" size={20} color={colors.primaryText} />
+              <Ionicons name="refresh" size={20} color={darkColors.primaryText} />
               <Text style={styles.retryText}>Try Again</Text>
             </TouchableOpacity>
           </View>
@@ -63,44 +64,41 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: darkColors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxl,
   },
   content: {
     alignItems: 'center',
     maxWidth: 300,
   },
   iconContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: 12,
+    ...typography.sectionTitle,
+    color: darkColors.primaryText,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
-    color: colors.secondaryText,
+    ...typography.body,
+    color: darkColors.secondaryText,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.accentGreen,
+    backgroundColor: darkColors.accentGreen,
     paddingVertical: 14,
     paddingHorizontal: 28,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: radius.sm,
+    gap: spacing.sm,
   },
   retryText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primaryText,
+    ...typography.button,
+    color: darkColors.primaryText,
   },
 });

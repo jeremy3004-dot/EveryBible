@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import { LessonSection } from '../../types/course';
 
 interface LessonSectionRendererProps {
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   scriptureContainer: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
     borderLeftWidth: 3,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   discussionContainer: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
   },
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   activityContainer: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
   },
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   prayerContainer: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
   },

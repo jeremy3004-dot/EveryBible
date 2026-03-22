@@ -12,7 +12,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../../constants';
+import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
@@ -29,6 +30,7 @@ export function FourFieldsLessonViewScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const { courseId, lessonId } = route.params;
 
   const {
@@ -105,11 +107,11 @@ export function FourFieldsLessonViewScreen() {
 
   if (!course || !lesson || !currentFieldInfo) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Lesson not found</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>Lesson not found</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.errorLink}>Go back</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>Go back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -117,9 +119,9 @@ export function FourFieldsLessonViewScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -127,8 +129,8 @@ export function FourFieldsLessonViewScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerSubtitle}>{course.title}</Text>
-          <Text style={styles.headerProgress}>
+          <Text style={[styles.headerSubtitle, { color: colors.primaryText }]}>{course.title}</Text>
+          <Text style={[styles.headerProgress, { color: colors.secondaryText }]}>
             Lesson {lessonIndex + 1} of {course.lessons.length}
           </Text>
         </View>
@@ -150,22 +152,28 @@ export function FourFieldsLessonViewScreen() {
               {currentFieldInfo.title}
             </Text>
           </View>
-          <Text style={styles.lessonTitle}>{lesson.title}</Text>
+          <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lesson.title}</Text>
         </View>
 
         {/* Key Verse */}
         {lesson.keyVerse && (
           <TouchableOpacity
-            style={styles.keyVerseCard}
+            style={[
+              styles.keyVerseCard,
+              {
+                backgroundColor: colors.accentGreen + '12',
+                borderLeftColor: colors.accentGreen,
+              },
+            ]}
             onPress={() => handleScripturePress(lesson.keyVerse!.reference)}
             activeOpacity={0.7}
           >
             <View style={styles.keyVerseHeader}>
               <Ionicons name="bookmark" size={16} color={colors.accentGreen} />
-              <Text style={styles.keyVerseLabel}>Key Verse</Text>
+              <Text style={[styles.keyVerseLabel, { color: colors.accentGreen }]}>Key Verse</Text>
             </View>
-            <Text style={styles.keyVerseText}>{`"${lesson.keyVerse.text}"`}</Text>
-            <Text style={styles.keyVerseReference}>{lesson.keyVerse.reference}</Text>
+            <Text style={[styles.keyVerseText, { color: colors.primaryText }]}>{`"${lesson.keyVerse.text}"`}</Text>
+            <Text style={[styles.keyVerseReference, { color: colors.accentGreen }]}>{lesson.keyVerse.reference}</Text>
           </TouchableOpacity>
         )}
 
@@ -182,15 +190,20 @@ export function FourFieldsLessonViewScreen() {
 
         {/* Discussion Questions */}
         {lesson.discussionQuestions && lesson.discussionQuestions.length > 0 && (
-          <View style={styles.discussionSection}>
+          <View
+            style={[
+              styles.discussionSection,
+              { backgroundColor: colors.warning + '10' },
+            ]}
+          >
             <View style={styles.discussionHeader}>
-              <Ionicons name="chatbubbles-outline" size={20} color="#FFD700" />
-              <Text style={styles.discussionTitle}>Discussion Questions</Text>
+              <Ionicons name="chatbubbles-outline" size={20} color={colors.warning} />
+              <Text style={[styles.discussionTitle, { color: colors.primaryText }]}>Discussion Questions</Text>
             </View>
             {lesson.discussionQuestions.map((question, index) => (
               <View key={index} style={styles.questionItem}>
-                <Text style={styles.questionNumber}>{index + 1}.</Text>
-                <Text style={styles.questionText}>{question}</Text>
+                <Text style={[styles.questionNumber, { color: colors.secondaryText }]}>{index + 1}.</Text>
+                <Text style={[styles.questionText, { color: colors.primaryText }]}>{question}</Text>
               </View>
             ))}
           </View>
@@ -219,7 +232,7 @@ export function FourFieldsLessonViewScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="arrow-back" size={18} color={colors.secondaryText} />
-              <Text style={styles.navButtonText}>Previous</Text>
+              <Text style={[styles.navButtonText, { color: colors.secondaryText }]}>Previous</Text>
             </TouchableOpacity>
           )}
           <View style={styles.navSpacer} />
@@ -229,7 +242,7 @@ export function FourFieldsLessonViewScreen() {
               onPress={handleNext}
               activeOpacity={0.7}
             >
-              <Text style={styles.navButtonText}>Next</Text>
+              <Text style={[styles.navButtonText, { color: colors.secondaryText }]}>Next</Text>
               <Ionicons
                 name="arrow-forward"
                 size={18}
@@ -242,14 +255,19 @@ export function FourFieldsLessonViewScreen() {
 
       {/* Complete Button */}
       {!lessonComplete && (
-        <View style={styles.footer}>
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: colors.background, borderTopColor: colors.cardBorder },
+          ]}
+        >
           <TouchableOpacity
-            style={styles.completeButton}
+            style={[styles.completeButton, { backgroundColor: colors.accentGreen }]}
             onPress={handleMarkComplete}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={22} color="#fff" />
-            <Text style={styles.completeButtonText}>
+            <Ionicons name="checkmark-circle" size={22} color={colors.cardBackground} />
+            <Text style={[styles.completeButtonText, { color: colors.cardBackground }]}>
               {nextLesson ? 'Complete & Continue' : 'Complete Lesson'}
             </Text>
           </TouchableOpacity>
@@ -262,7 +280,6 @@ export function FourFieldsLessonViewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -271,7 +288,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
   },
   backButton: {
     padding: 4,
@@ -282,11 +298,9 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.primaryText,
   },
   headerProgress: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   headerRight: {
     width: 32,
@@ -305,12 +319,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: colors.secondaryText,
     marginBottom: 12,
   },
   errorLink: {
     fontSize: 16,
-    color: colors.accentGreen,
     fontWeight: '500',
   },
   lessonHeader: {
@@ -320,7 +332,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: radius.md,
     marginBottom: 12,
   },
   fieldBadgeText: {
@@ -330,16 +342,13 @@ const styles = StyleSheet.create({
   lessonTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: colors.primaryText,
     lineHeight: 32,
   },
   keyVerseCard: {
-    backgroundColor: colors.accentGreen + '12',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 3,
-    borderLeftColor: colors.accentGreen,
   },
   keyVerseHeader: {
     flexDirection: 'row',
@@ -350,28 +359,24 @@ const styles = StyleSheet.create({
   keyVerseLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.accentGreen,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   keyVerseText: {
     fontSize: 16,
     fontStyle: 'italic',
-    color: colors.primaryText,
     lineHeight: 24,
     marginBottom: 8,
   },
   keyVerseReference: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.accentGreen,
   },
   sectionsContainer: {
     marginBottom: 8,
   },
   discussionSection: {
-    backgroundColor: '#FFD70010',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
   },
@@ -384,7 +389,6 @@ const styles = StyleSheet.create({
   discussionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   questionItem: {
     flexDirection: 'row',
@@ -393,7 +397,6 @@ const styles = StyleSheet.create({
   questionNumber: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.secondaryText,
     marginRight: 8,
     width: 20,
   },
@@ -401,7 +404,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
-    color: colors.primaryText,
   },
   navigationButtons: {
     flexDirection: 'row',
@@ -417,7 +419,6 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     fontSize: 14,
-    color: colors.secondaryText,
     fontWeight: '500',
   },
   navSpacer: {
@@ -428,9 +429,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
     padding: 16,
     paddingBottom: 32,
   },
@@ -438,14 +437,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accentGreen,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     paddingVertical: 16,
     gap: 8,
   },
   completeButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
 });

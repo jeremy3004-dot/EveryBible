@@ -15,7 +15,7 @@ import {
   parseLocalDateKey,
   summarizeReadingActivity,
 } from '../../services/progress/readingActivity';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -69,7 +69,7 @@ export function ReadingActivityScreen() {
         dotColor: colors.accentPrimary,
         selected: isSelected,
         selectedColor: colors.accentPrimary,
-        selectedTextColor: '#ffffff',
+        selectedTextColor: colors.background,
       };
       return acc;
     },
@@ -136,7 +136,7 @@ export function ReadingActivityScreen() {
               textMonthFontWeight: '700',
               textDayHeaderFontWeight: '600',
               selectedDayBackgroundColor: colors.accentPrimary,
-              selectedDayTextColor: '#ffffff',
+              selectedDayTextColor: colors.background,
               todayTextColor: colors.accentPrimary,
               arrowColor: colors.primaryText,
               dotColor: colors.accentPrimary,
@@ -220,7 +220,6 @@ const createStyles = (colors: ThemeColors) =>
       gap: layout.cardGap,
     },
     heroCard: {
-      ...shadows.card,
       borderRadius: radius.lg,
       padding: layout.cardPadding,
       borderWidth: 1,
@@ -264,7 +263,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     calendarCard: {
-      ...shadows.card,
       borderRadius: radius.lg,
       padding: spacing.sm,
       borderWidth: 1,
@@ -272,7 +270,6 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.cardBackground,
     },
     detailCard: {
-      ...shadows.card,
       borderRadius: radius.lg,
       padding: layout.denseCardPadding,
       borderWidth: 1,

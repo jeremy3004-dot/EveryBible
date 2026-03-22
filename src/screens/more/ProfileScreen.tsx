@@ -8,7 +8,7 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { useProgressStore } from '../../stores/progressStore';
 import type { MoreStackParamList } from '../../navigation/types';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -161,7 +161,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     statsCard: {
-      ...shadows.card,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       padding: layout.cardPadding,
@@ -190,7 +189,6 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: 'center',
     },
     activityCard: {
-      ...shadows.card,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.lg,
@@ -222,7 +220,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     signInCard: {
-      ...shadows.card,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       padding: layout.cardPadding,

@@ -11,7 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, config } from '../../constants';
+import { config } from '../../constants';
+import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -43,6 +45,7 @@ export function GroupSessionScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
+  const { colors } = useTheme();
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -146,9 +149,9 @@ export function GroupSessionScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Loading group...</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>Loading group...</Text>
         </View>
       </SafeAreaView>
     );
@@ -156,11 +159,11 @@ export function GroupSessionScreen() {
 
   if (!group) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{loadError ?? 'Group not found'}</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? 'Group not found'}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.errorLink}>Go back</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>Go back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -239,9 +242,9 @@ export function GroupSessionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -249,14 +252,14 @@ export function GroupSessionScreen() {
           <Ionicons name="close" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Group Session</Text>
-          <Text style={styles.headerSubtitle}>{group.name}</Text>
+          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>Group Session</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]}>{group.name}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
 
       {/* Phase Tabs */}
-      <View style={styles.phaseTabs}>
+      <View style={[styles.phaseTabs, { backgroundColor: colors.cardBackground }]}>
         {PHASES.map((phase, index) => {
           const isActive = phase.id === currentPhase;
           const isCompleted = index < currentPhaseIndex;
@@ -265,24 +268,26 @@ export function GroupSessionScreen() {
               key={phase.id}
               style={[
                 styles.phaseTab,
-                isActive && styles.phaseTabActive,
+                isActive && { backgroundColor: colors.accentGreen + '20' },
               ]}
               onPress={() => setCurrentPhase(phase.id)}
             >
               <View
                 style={[
                   styles.phaseIndicator,
-                  isActive && styles.phaseIndicatorActive,
-                  isCompleted && styles.phaseIndicatorCompleted,
+                  { backgroundColor: colors.cardBorder },
+                  isActive && { backgroundColor: colors.accentGreen },
+                  isCompleted && { backgroundColor: colors.accentGreen },
                 ]}
               >
                 {isCompleted ? (
-                  <Ionicons name="checkmark" size={14} color="#fff" />
+                  <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
                 ) : (
                   <Text
                     style={[
                       styles.phaseNumber,
-                      isActive && styles.phaseNumberActive,
+                      { color: colors.secondaryText },
+                      isActive && { color: colors.cardBackground },
                     ]}
                   >
                     {index + 1}
@@ -292,7 +297,8 @@ export function GroupSessionScreen() {
               <Text
                 style={[
                   styles.phaseTitle,
-                  isActive && styles.phaseTitleActive,
+                  { color: colors.secondaryText },
+                  isActive && { color: colors.accentGreen, fontWeight: '600' },
                 ]}
               >
                 {phase.title}
@@ -318,14 +324,14 @@ export function GroupSessionScreen() {
                 {currentFieldInfo.title}
               </Text>
             </View>
-            <Text style={styles.lessonTitle}>{currentLesson.title}</Text>
+            <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{currentLesson.title}</Text>
           </View>
         )}
 
         {isSyncedGroup ? (
-          <View style={styles.syncedNoticeCard}>
+          <View style={[styles.syncedNoticeCard, { backgroundColor: colors.cardBackground }]}>
             <Ionicons name="cloud-done-outline" size={18} color={colors.accentGreen} />
-            <Text style={styles.syncedNoticeText}>
+            <Text style={[styles.syncedNoticeText, { color: colors.primaryText }]}>
               Completing this session will save a synced record for your signed-in group.
             </Text>
           </View>
@@ -335,44 +341,44 @@ export function GroupSessionScreen() {
         {currentPhase === 'look-back' && (
           <View style={styles.phaseContent}>
             <View style={styles.phaseHeader}>
-              <Ionicons name="arrow-back-circle" size={24} color="#4169E1" />
+              <Ionicons name="arrow-back-circle" size={24} color={colors.accentPrimary} />
               <View>
-                <Text style={styles.phaseContentTitle}>Look Back</Text>
-                <Text style={styles.phaseDuration}>~5 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Back</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~5 minutes</Text>
               </View>
             </View>
 
-            <Text style={styles.phaseDescription}>
+            <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
               {"Start by checking in on how everyone applied last week's lesson. This builds accountability and celebrates obedience."}
             </Text>
 
-            <View style={styles.discussionCard}>
-              <Text style={styles.discussionLabel}>Discuss Together:</Text>
+            <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Discuss Together:</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>1.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     How did you obey what you learned last time?
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>2.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     Who did you share it with? What happened?
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>3.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>3.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     What challenges did you face?
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.tipCard}>
-              <Ionicons name="bulb-outline" size={18} color="#FFD700" />
-              <Text style={styles.tipText}>
+            <View style={[styles.tipCard, { backgroundColor: colors.warning + '15' }]}>
+              <Ionicons name="bulb-outline" size={18} color={colors.warning} />
+              <Text style={[styles.tipText, { color: colors.primaryText }]}>
                 {"Celebrate wins! Encourage those who obeyed. Gently encourage those who didn't to try again this week."}
               </Text>
             </View>
@@ -384,22 +390,30 @@ export function GroupSessionScreen() {
             <View style={styles.phaseHeader}>
               <Ionicons name="arrow-up-circle" size={24} color={colors.accentGreen} />
               <View>
-                <Text style={styles.phaseContentTitle}>Look Up</Text>
-                <Text style={styles.phaseDuration}>~10 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Up</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~10 minutes</Text>
               </View>
             </View>
 
-            <Text style={styles.phaseDescription}>
+            <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
               Read the Scripture together and discover what God is teaching.
             </Text>
 
             {/* Key Verse */}
             {currentLesson.keyVerse && (
-              <View style={styles.scriptureCard}>
-                <Text style={styles.scriptureReference}>
+              <View
+                style={[
+                  styles.scriptureCard,
+                  {
+                    backgroundColor: colors.accentGreen + '15',
+                    borderLeftColor: colors.accentGreen,
+                  },
+                ]}
+              >
+                <Text style={[styles.scriptureReference, { color: colors.accentGreen }]}>
                   {currentLesson.keyVerse.reference}
                 </Text>
-                <Text style={styles.scriptureText}>
+                <Text style={[styles.scriptureText, { color: colors.primaryText }]}>
                   {`"${currentLesson.keyVerse.text}"`}
                 </Text>
               </View>
@@ -412,30 +426,30 @@ export function GroupSessionScreen() {
                 <LessonSectionRenderer key={index} section={section} />
               ))}
 
-            <View style={styles.discussionCard}>
-              <Text style={styles.discussionLabel}>Discovery Questions:</Text>
+            <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Discovery Questions:</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>1.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     What does this passage teach about God?
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>2.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     What does it teach about people?
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>3.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>3.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     Is there an example to follow or avoid?
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>4.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>4.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     Is there a command to obey?
                   </Text>
                 </View>
@@ -444,12 +458,12 @@ export function GroupSessionScreen() {
 
             {/* Discussion questions from lesson */}
             {currentLesson.discussionQuestions && currentLesson.discussionQuestions.length > 0 && (
-              <View style={styles.lessonQuestionsCard}>
-                <Text style={styles.discussionLabel}>Lesson Questions:</Text>
+              <View style={[styles.lessonQuestionsCard, { backgroundColor: colors.cardBackground }]}>
+                <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Lesson Questions:</Text>
                 {currentLesson.discussionQuestions.map((q, i) => (
                   <View key={i} style={styles.questionItem}>
-                    <Text style={styles.questionBullet}>{i + 1}.</Text>
-                    <Text style={styles.questionText}>{q}</Text>
+                    <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>{i + 1}.</Text>
+                    <Text style={[styles.questionText, { color: colors.primaryText }]}>{q}</Text>
                   </View>
                 ))}
               </View>
@@ -460,50 +474,50 @@ export function GroupSessionScreen() {
         {currentPhase === 'look-forward' && currentLesson && (
           <View style={styles.phaseContent}>
             <View style={styles.phaseHeader}>
-              <Ionicons name="arrow-forward-circle" size={24} color="#9932CC" />
+              <Ionicons name="arrow-forward-circle" size={24} color={colors.accentPrimary} />
               <View>
-                <Text style={styles.phaseContentTitle}>Look Forward</Text>
-                <Text style={styles.phaseDuration}>~10 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Forward</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~10 minutes</Text>
               </View>
             </View>
 
-            <Text style={styles.phaseDescription}>
+            <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
               Commit to obeying what you learned and sharing it with someone else.
             </Text>
 
-            <View style={styles.takeawayCard}>
-              <Text style={styles.takeawayLabel}>Key Takeaway:</Text>
-              <Text style={styles.takeawayText}>{currentLesson.takeaway}</Text>
+            <View style={[styles.takeawayCard, { backgroundColor: colors.warning + '15' }]}>
+              <Text style={[styles.takeawayLabel, { color: colors.warning }]}>Key Takeaway:</Text>
+              <Text style={[styles.takeawayText, { color: colors.primaryText }]}>{currentLesson.takeaway}</Text>
             </View>
 
             {currentLesson.practiceActivity && (
-              <View style={styles.practiceCard}>
-                <Text style={styles.practiceLabel}>{"This Week's Practice:"}</Text>
-                <Text style={styles.practiceText}>{currentLesson.practiceActivity}</Text>
+              <View style={[styles.practiceCard, { backgroundColor: colors.accentPrimary + '15' }]}>
+                <Text style={[styles.practiceLabel, { color: colors.primaryText }]}>{"This Week's Practice:"}</Text>
+                <Text style={[styles.practiceText, { color: colors.primaryText }]}>{currentLesson.practiceActivity}</Text>
               </View>
             )}
 
-            <View style={styles.discussionCard}>
-              <Text style={styles.discussionLabel}>Commit Together:</Text>
+            <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Commit Together:</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>1.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     {'"I will..." - How will you obey this teaching?'}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
-                  <Text style={styles.questionBullet}>2.</Text>
-                  <Text style={styles.questionText}>
+                  <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
+                  <Text style={[styles.questionText, { color: colors.primaryText }]}>
                     {'"I will share with..." - Who will you teach this to?'}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.prayerCard}>
-              <Ionicons name="heart-outline" size={18} color="#9932CC" />
-              <Text style={styles.prayerText}>
+            <View style={[styles.prayerCard, { backgroundColor: colors.accentPrimary + '15' }]}>
+              <Ionicons name="heart-outline" size={18} color={colors.accentPrimary} />
+              <Text style={[styles.prayerText, { color: colors.primaryText }]}>
                 {"Close in prayer. Ask God to help each person obey and share what they've learned. Pray for the people they'll share with."}
               </Text>
             </View>
@@ -512,7 +526,12 @@ export function GroupSessionScreen() {
       </ScrollView>
 
       {/* Footer Navigation */}
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: colors.background, borderTopColor: colors.cardBorder },
+        ]}
+      >
         <View style={styles.footerButtons}>
           {currentPhaseIndex > 0 && (
             <TouchableOpacity
@@ -520,28 +539,32 @@ export function GroupSessionScreen() {
               onPress={handlePreviousPhase}
             >
               <Ionicons name="arrow-back" size={20} color={colors.secondaryText} />
-              <Text style={styles.footerButtonSecondaryText}>Previous</Text>
+              <Text style={[styles.footerButtonSecondaryText, { color: colors.secondaryText }]}>Previous</Text>
             </TouchableOpacity>
           )}
           <View style={styles.footerSpacer} />
           {currentPhaseIndex < PHASES.length - 1 ? (
             <TouchableOpacity
-              style={styles.footerButtonPrimary}
+              style={[styles.footerButtonPrimary, { backgroundColor: colors.accentGreen }]}
               onPress={handleNextPhase}
             >
-              <Text style={styles.footerButtonPrimaryText}>Next</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>Next</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.cardBackground} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.footerButtonPrimary, isSavingSynced && styles.footerButtonPrimaryDisabled]}
+              style={[
+                styles.footerButtonPrimary,
+                { backgroundColor: colors.accentGreen },
+                isSavingSynced && styles.footerButtonPrimaryDisabled,
+              ]}
               onPress={() => {
                 void handleComplete();
               }}
               disabled={isSavingSynced}
             >
-              <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.footerButtonPrimaryText}>
+              <Ionicons name="checkmark" size={20} color={colors.cardBackground} />
+              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>
                 {isSavingSynced
                   ? 'Saving...'
                   : isSyncedGroup
@@ -559,7 +582,6 @@ export function GroupSessionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -568,7 +590,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
   },
   backButton: {
     padding: 4,
@@ -579,11 +600,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   headerRight: {
     width: 32,
@@ -595,17 +614,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: colors.secondaryText,
     marginBottom: 12,
   },
   errorLink: {
     fontSize: 16,
-    color: colors.accentGreen,
     fontWeight: '500',
   },
   phaseTabs: {
     flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
     paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 8,
@@ -616,42 +632,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: radius.md,
     gap: 6,
-  },
-  phaseTabActive: {
-    backgroundColor: colors.accentGreen + '20',
   },
   phaseIndicator: {
     width: 22,
     height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.cardBorder,
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  phaseIndicatorActive: {
-    backgroundColor: colors.accentGreen,
-  },
-  phaseIndicatorCompleted: {
-    backgroundColor: colors.accentGreen,
   },
   phaseNumber: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.secondaryText,
-  },
-  phaseNumberActive: {
-    color: '#fff',
   },
   phaseTitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.secondaryText,
-  },
-  phaseTitleActive: {
-    color: colors.accentGreen,
-    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
@@ -665,8 +662,7 @@ const styles = StyleSheet.create({
   },
   syncedNoticeCard: {
     flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 14,
     gap: 10,
     alignItems: 'center',
@@ -676,13 +672,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.primaryText,
   },
   fieldBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radius.md,
     marginBottom: 8,
   },
   fieldBadgeText: {
@@ -692,7 +687,6 @@ const styles = StyleSheet.create({
   lessonTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.primaryText,
   },
   phaseContent: {
     gap: 16,
@@ -706,26 +700,21 @@ const styles = StyleSheet.create({
   phaseContentTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.primaryText,
   },
   phaseDuration: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   phaseDescription: {
     fontSize: 15,
     lineHeight: 22,
-    color: colors.secondaryText,
   },
   discussionCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
   },
   discussionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primaryText,
     marginBottom: 12,
   },
   questionList: {
@@ -737,24 +726,20 @@ const styles = StyleSheet.create({
   questionBullet: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.secondaryText,
     width: 24,
   },
   questionText: {
     flex: 1,
     fontSize: 14,
     lineHeight: 21,
-    color: colors.primaryText,
   },
   lessonQuestionsCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
   },
   tipCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFD70015',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 14,
     gap: 12,
     alignItems: 'flex-start',
@@ -763,36 +748,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.primaryText,
   },
   scriptureCard: {
-    backgroundColor: colors.accentGreen + '15',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     borderLeftWidth: 3,
-    borderLeftColor: colors.accentGreen,
   },
   scriptureReference: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.accentGreen,
     marginBottom: 8,
   },
   scriptureText: {
     fontSize: 16,
     fontStyle: 'italic',
     lineHeight: 24,
-    color: colors.primaryText,
   },
   takeawayCard: {
-    backgroundColor: '#FFD70015',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
   },
   takeawayLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFD700',
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -800,28 +778,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     lineHeight: 24,
-    color: colors.primaryText,
   },
   practiceCard: {
-    backgroundColor: '#4169E115',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
   },
   practiceLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primaryText,
     marginBottom: 8,
   },
   practiceText: {
     fontSize: 15,
     lineHeight: 22,
-    color: colors.primaryText,
   },
   prayerCard: {
     flexDirection: 'row',
-    backgroundColor: '#9932CC15',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 14,
     gap: 12,
     alignItems: 'flex-start',
@@ -830,7 +803,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.primaryText,
     fontStyle: 'italic',
   },
   footer: {
@@ -838,9 +810,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
     padding: 16,
     paddingBottom: 32,
   },
@@ -857,7 +827,6 @@ const styles = StyleSheet.create({
   },
   footerButtonSecondaryText: {
     fontSize: 15,
-    color: colors.secondaryText,
     fontWeight: '500',
   },
   footerSpacer: {
@@ -866,10 +835,9 @@ const styles = StyleSheet.create({
   footerButtonPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.accentGreen,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     gap: 8,
   },
   footerButtonPrimaryDisabled: {
@@ -878,6 +846,5 @@ const styles = StyleSheet.create({
   footerButtonPrimaryText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
   },
 });

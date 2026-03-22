@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import { FieldType } from '../../types/course';
 import { FIELD_ORDER, fieldInfo } from '../../data/fourFieldsCourses';
 import { FieldCard } from './FieldCard';
@@ -108,7 +109,7 @@ export function JourneyPath({
                 onPress={() => onFieldPress(fieldKey)}
               />
               {/* Field number indicator */}
-              <View style={styles.fieldNumber}>
+              <View style={[styles.fieldNumber, { backgroundColor: colors.cardBackground }]}>
                 <Text style={[styles.fieldNumberText, { color: colors.secondaryText }]}>
                   {index + 1}
                 </Text>
@@ -126,7 +127,7 @@ export function JourneyPath({
             {t('harvest.active')}
           </Text>
         </View>
-        <View style={styles.legendDivider} />
+        <View style={[styles.legendDivider, { backgroundColor: colors.cardBorder }]} />
         <View style={styles.legendItem}>
           <View style={[styles.legendIndicator, { backgroundColor: colors.success }]} />
           <Text style={[styles.legendText, { color: colors.secondaryText }]}>
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   progressCard: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     padding: 14,
     minWidth: 90,
     alignItems: 'center',
@@ -225,8 +226,7 @@ const styles = StyleSheet.create({
     marginLeft: -10,
     width: 20,
     height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(26,31,46,0.9)',
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -258,7 +258,6 @@ const styles = StyleSheet.create({
   legendDivider: {
     width: 1,
     height: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     marginHorizontal: 16,
   },
 });

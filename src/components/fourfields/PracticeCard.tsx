@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 
 interface PracticeCardProps {
   activity: string;
@@ -55,7 +56,7 @@ export function PracticeCard({
             ]}
           >
             {practiceCompleted ? (
-              <Ionicons name="checkmark" size={16} color="#fff" />
+              <Ionicons name="checkmark" size={16} color={colors.cardBackground} />
             ) : (
               <View style={[styles.checkCircleEmpty, { backgroundColor: colors.secondaryText }]} />
             )}
@@ -103,7 +104,7 @@ export function PracticeCard({
             ]}
           >
             {taughtCompleted ? (
-              <Ionicons name="checkmark" size={16} color="#fff" />
+              <Ionicons name="checkmark" size={16} color={colors.cardBackground} />
             ) : (
               <Ionicons name="people-outline" size={16} color={colors.accentSecondary} />
             )}
@@ -142,7 +143,7 @@ export function PracticeCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     padding: 20,
     marginTop: 8,
     marginBottom: 24,
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     borderWidth: 1,
     gap: 12,
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: radius.md,
     gap: 10,
   },
   encouragementText: {

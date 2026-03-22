@@ -111,7 +111,7 @@ export function BibleReaderScreen() {
     focusVerse,
     playbackSequenceEntries = [],
   } = route.params;
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const autoplayKeyRef = useRef<string | null>(null);
@@ -1062,9 +1062,7 @@ export function BibleReaderScreen() {
                       {
                         color: isSelected
                           ? colors.bibleBackground
-                          : isDark
-                            ? 'rgba(244,246,248,0.72)'
-                            : colors.bibleSecondaryText,
+                          : colors.bibleSecondaryText,
                       },
                     ]}
                   >
@@ -1785,7 +1783,7 @@ const styles = StyleSheet.create({
   glassSurface: {
     overflow: 'hidden',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(18, 24, 31, 0.22)',
+    backgroundColor: 'transparent',
   },
   glassStroke: {
     ...StyleSheet.absoluteFillObject,
@@ -1915,7 +1913,7 @@ const styles = StyleSheet.create({
   },
   secondaryIconButton: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: radius.lg,
   },
   disabledIconButton: {
     opacity: 0.45,
@@ -1933,13 +1931,13 @@ const styles = StyleSheet.create({
   sessionModeRail: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     padding: 4,
     gap: 4,
   },
   sessionModeButton: {
     minWidth: 88,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingVertical: 9,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -1960,7 +1958,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
@@ -2005,7 +2003,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 28,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -2035,12 +2033,12 @@ const styles = StyleSheet.create({
   },
   listenProgressTrack: {
     height: 5,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   listenProgressFill: {
     height: '100%',
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   listenTimeRow: {
     flexDirection: 'row',
@@ -2062,7 +2060,7 @@ const styles = StyleSheet.create({
   readerBlock: {
     gap: 6,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderColor: 'transparent',
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2138,7 +2136,7 @@ const styles = StyleSheet.create({
   },
   feedbackCard: {
     borderWidth: 1,
-    borderRadius: 24,
+    borderRadius: radius.lg,
     padding: 24,
     gap: 14,
     minHeight: 220,
@@ -2154,7 +2152,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   feedbackButton: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
@@ -2169,7 +2167,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   actionSheet: {
-    borderRadius: 24,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 18,
     gap: 8,
@@ -2181,7 +2179,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -2200,8 +2198,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalContent: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
     paddingTop: 20,
     maxHeight: '78%',
@@ -2224,7 +2222,7 @@ const styles = StyleSheet.create({
   },
   audioOptionCard: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     padding: 16,
     gap: 8,
   },
@@ -2244,7 +2242,7 @@ const styles = StyleSheet.create({
   },
   translationCard: {
     marginBottom: 12,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
   },
   translationItem: {
@@ -2319,7 +2317,7 @@ const styles = StyleSheet.create({
   followAlongCloseButton: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -2341,25 +2339,22 @@ const styles = StyleSheet.create({
   },
   followAlongVerseCard: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 8,
   },
   followAlongHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
+    ...typography.readingHeading,
   },
   followAlongVerseText: {
+    ...typography.readingBody,
     fontSize: 28,
     lineHeight: 40,
-    fontWeight: '400',
   },
   followAlongVerseNumber: {
+    ...typography.readingVerseNumber,
     fontSize: 18,
-    fontWeight: '700',
   },
   fontSheet: {
     borderTopWidth: 1,
@@ -2371,7 +2366,7 @@ const styles = StyleSheet.create({
   fontSheetHandle: {
     width: 44,
     height: 4,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     alignSelf: 'center',
   },
   fontSheetTitle: {
@@ -2387,7 +2382,7 @@ const styles = StyleSheet.create({
   fontOptionButton: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
     gap: 8,

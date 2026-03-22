@@ -12,7 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, config } from '../../constants';
+import { config } from '../../constants';
+import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -33,6 +35,7 @@ export function GroupDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
+  const { colors } = useTheme();
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -132,9 +135,9 @@ export function GroupDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Loading group...</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>Loading group...</Text>
         </View>
       </SafeAreaView>
     );
@@ -142,11 +145,11 @@ export function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{loadError ?? 'Group not found'}</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? 'Group not found'}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.errorLink}>Go back</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>Go back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -201,16 +204,16 @@ export function GroupDetailScreen() {
   const completedCount = group.completedLessonCount;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{group.name}</Text>
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{group.name}</Text>
         <TouchableOpacity style={styles.moreButton} onPress={handleShareCode}>
           <Ionicons name="share-outline" size={24} color={colors.primaryText} />
         </TouchableOpacity>
@@ -218,20 +221,23 @@ export function GroupDetailScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Join Code Card */}
-        <TouchableOpacity style={styles.codeCard} onPress={handleShareCode}>
+        <TouchableOpacity
+          style={[styles.codeCard, { backgroundColor: colors.cardBackground }]}
+          onPress={handleShareCode}
+        >
           <View style={styles.codeCardLeft}>
-            <Text style={styles.codeLabel}>Join Code</Text>
-            <Text style={styles.codeValue}>{group.joinCode}</Text>
+            <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>Join Code</Text>
+            <Text style={[styles.codeValue, { color: colors.primaryText }]}>{group.joinCode}</Text>
           </View>
           <View style={styles.codeCardRight}>
             <Ionicons name="share-social-outline" size={20} color={colors.accentGreen} />
-            <Text style={styles.shareText}>Share</Text>
+            <Text style={[styles.shareText, { color: colors.accentGreen }]}>Share</Text>
           </View>
         </TouchableOpacity>
 
         {/* Current Lesson Card */}
         {currentCourse && currentLesson && currentFieldInfo && (
-          <View style={styles.currentCard}>
+          <View style={[styles.currentCard, { backgroundColor: colors.cardBackground }]}>
             <View style={styles.currentCardHeader}>
               <View
                 style={[
@@ -245,33 +251,33 @@ export function GroupDetailScreen() {
                   {currentFieldInfo.title}
                 </Text>
               </View>
-              <Text style={styles.progressText}>
+              <Text style={[styles.progressText, { color: colors.secondaryText }]}>
                 {completedCount === null
                   ? 'Synced progress will appear after session rollout is enabled.'
                   : `${completedCount} lessons completed`}
               </Text>
             </View>
-            <Text style={styles.currentTitle}>{currentCourse.title}</Text>
-            <Text style={styles.currentLesson}>
+            <Text style={[styles.currentTitle, { color: colors.primaryText }]}>{currentCourse.title}</Text>
+            <Text style={[styles.currentLesson, { color: colors.secondaryText }]}>
               Next: {currentLesson.title}
             </Text>
             {canStartSession ? (
               <TouchableOpacity
-                style={styles.startButton}
+                style={[styles.startButton, { backgroundColor: colors.accentGreen }]}
                 onPress={handleStartSession}
               >
-                <Ionicons name="play" size={20} color="#fff" />
-                <Text style={styles.startButtonText}>
+                <Ionicons name="play" size={20} color={colors.cardBackground} />
+                <Text style={[styles.startButtonText, { color: colors.cardBackground }]}>
                   {isLocalGroup ? 'Start Group Session' : 'Save Synced Session'}
                 </Text>
               </TouchableOpacity>
             ) : (
-              <View style={styles.readOnlyCard}>
+              <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
                 <View style={styles.readOnlyHeader}>
                   <Ionicons name="lock-closed-outline" size={18} color={colors.accentGreen} />
-                  <Text style={styles.readOnlyTitle}>Synced group preview</Text>
+                  <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>Synced group preview</Text>
                 </View>
-                <Text style={styles.readOnlyBody}>
+                <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
                   Secure synced session recording is not available until backend configuration and
                   signed-in access are both ready for this build.
                 </Text>
@@ -281,7 +287,7 @@ export function GroupDetailScreen() {
         )}
 
         {/* Members Section */}
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
           Members ({group.memberCount})
         </Text>
         {isLocalGroup ? (
@@ -289,25 +295,25 @@ export function GroupDetailScreen() {
             const isCurrentUser = member.id === userId;
 
             return (
-              <View key={member.id} style={styles.memberCard}>
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberInitial}>
+              <View key={member.id} style={[styles.memberCard, { backgroundColor: colors.cardBackground }]}>
+                <View style={[styles.memberAvatar, { backgroundColor: colors.accentGreen + '30' }]}>
+                  <Text style={[styles.memberInitial, { color: colors.accentGreen }]}>
                     {(member.name ?? '?').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.memberInfo}>
                   <View style={styles.memberNameRow}>
-                    <Text style={styles.memberName}>
+                    <Text style={[styles.memberName, { color: colors.primaryText }]}>
                       {member.name}
                       {isCurrentUser && ' (you)'}
                     </Text>
                     {member.role === 'leader' && (
-                      <View style={styles.leaderBadge}>
-                        <Text style={styles.leaderBadgeText}>Leader</Text>
+                      <View style={[styles.leaderBadge, { backgroundColor: colors.accentGreen + '30' }]}>
+                        <Text style={[styles.leaderBadgeText, { color: colors.accentGreen }]}>Leader</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.memberJoined}>
+                  <Text style={[styles.memberJoined, { color: colors.secondaryText }]}>
                     {member.joinedAt == null
                       ? 'Joined recently'
                       : `Joined ${new Date(member.joinedAt).toLocaleDateString()}`}
@@ -317,12 +323,12 @@ export function GroupDetailScreen() {
             );
           })
         ) : (
-          <View style={styles.readOnlyCard}>
+          <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
             <View style={styles.readOnlyHeader}>
               <Ionicons name="people-outline" size={18} color={colors.accentGreen} />
-              <Text style={styles.readOnlyTitle}>Read-only synced membership</Text>
+              <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>Read-only synced membership</Text>
             </View>
-            <Text style={styles.readOnlyBody}>
+            <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
               This synced group came from your signed-in account. Member names and synced lesson
               history will appear here as rollout continues.
             </Text>
@@ -330,23 +336,23 @@ export function GroupDetailScreen() {
         )}
 
         {/* About the 3/3rds Format */}
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: colors.cardBackground }]}>
           <View style={styles.infoHeader}>
             <Ionicons name="information-circle-outline" size={20} color={colors.accentGreen} />
-            <Text style={styles.infoTitle}>About Group Sessions</Text>
+            <Text style={[styles.infoTitle, { color: colors.primaryText }]}>About Group Sessions</Text>
           </View>
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, { color: colors.secondaryText }]}>
             Group sessions use the 3/3rds format used in disciple-making movements worldwide:
           </Text>
           <View style={styles.infoList}>
-            <Text style={styles.infoItem}>
-              <Text style={styles.infoItemBold}>1. Look Back</Text> - How did you obey? Who did you share with?
+            <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>1. Look Back</Text> - How did you obey? Who did you share with?
             </Text>
-            <Text style={styles.infoItem}>
-              <Text style={styles.infoItemBold}>2. Look Up</Text> - Read Scripture together and discuss
+            <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>2. Look Up</Text> - Read Scripture together and discuss
             </Text>
-            <Text style={styles.infoItem}>
-              <Text style={styles.infoItemBold}>3. Look Forward</Text> - How will you obey? Who will you tell?
+            <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>3. Look Forward</Text> - How will you obey? Who will you tell?
             </Text>
           </View>
         </View>
@@ -358,7 +364,7 @@ export function GroupDetailScreen() {
             onPress={handleLeaveGroup}
           >
             <Ionicons name="exit-outline" size={20} color={colors.error} />
-            <Text style={styles.leaveButtonText}>Leave Group</Text>
+            <Text style={[styles.leaveButtonText, { color: colors.error }]}>Leave Group</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
@@ -369,7 +375,6 @@ export function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -378,7 +383,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
   },
   backButton: {
     padding: 4,
@@ -386,7 +390,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   moreButton: {
     padding: 4,
@@ -404,33 +407,28 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: colors.secondaryText,
     marginBottom: 12,
   },
   errorLink: {
     fontSize: 16,
-    color: colors.accentGreen,
     fontWeight: '500',
   },
   codeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 20,
   },
   codeCardLeft: {},
   codeLabel: {
     fontSize: 12,
-    color: colors.secondaryText,
     marginBottom: 4,
   },
   codeValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.primaryText,
     letterSpacing: 2,
   },
   codeCardRight: {
@@ -439,12 +437,10 @@ const styles = StyleSheet.create({
   },
   shareText: {
     fontSize: 12,
-    color: colors.accentGreen,
     fontWeight: '500',
   },
   currentCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     padding: 20,
     marginBottom: 24,
   },
@@ -457,7 +453,7 @@ const styles = StyleSheet.create({
   fieldBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radius.md,
   },
   fieldBadgeText: {
     fontSize: 12,
@@ -465,36 +461,30 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   currentTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primaryText,
     marginBottom: 4,
   },
   currentLesson: {
     fontSize: 14,
-    color: colors.secondaryText,
     marginBottom: 16,
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accentGreen,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     gap: 8,
   },
   startButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   readOnlyCard: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 14,
     gap: 8,
   },
@@ -506,24 +496,20 @@ const styles = StyleSheet.create({
   readOnlyTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   readOnlyBody: {
     fontSize: 13,
     lineHeight: 20,
-    color: colors.secondaryText,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primaryText,
     marginBottom: 12,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 14,
     marginBottom: 8,
     gap: 12,
@@ -531,15 +517,13 @@ const styles = StyleSheet.create({
   memberAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accentGreen + '30',
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },
   memberInitial: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.accentGreen,
   },
   memberInfo: {
     flex: 1,
@@ -553,27 +537,22 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.primaryText,
   },
   leaderBadge: {
-    backgroundColor: colors.accentGreen + '30',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: radius.sm,
   },
   leaderBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.accentGreen,
     textTransform: 'uppercase',
   },
   memberJoined: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   infoCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginTop: 16,
     marginBottom: 24,
@@ -587,11 +566,9 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   infoText: {
     fontSize: 14,
-    color: colors.secondaryText,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -600,12 +577,10 @@ const styles = StyleSheet.create({
   },
   infoItem: {
     fontSize: 14,
-    color: colors.secondaryText,
     lineHeight: 20,
   },
   infoItemBold: {
     fontWeight: '600',
-    color: colors.primaryText,
   },
   leaveButton: {
     flexDirection: 'row',
@@ -616,7 +591,6 @@ const styles = StyleSheet.create({
   },
   leaveButtonText: {
     fontSize: 16,
-    color: colors.error,
     fontWeight: '500',
   },
 });

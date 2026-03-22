@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 
 interface TakeawayCardProps {
   text: string;
@@ -55,7 +56,7 @@ export function TakeawayCard({ text, lessonTitle }: TakeawayCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     padding: 20,
     marginVertical: 16,
     borderWidth: 1,

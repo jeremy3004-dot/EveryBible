@@ -3,11 +3,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { colors, config } from '../../constants';
+import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { config } from '../../constants';
+import { radius, layout, spacing, typography } from '../../design/system';
 
 export function AboutScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const handleLink = (url: string) => {
     Linking.openURL(url);
@@ -95,125 +99,120 @@ export function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryText,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  appSection: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  appIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
-    backgroundColor: colors.cardBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: 4,
-  },
-  appVersion: {
-    fontSize: 14,
-    color: colors.secondaryText,
-  },
-  descriptionCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  description: {
-    fontSize: 16,
-    color: colors.primaryText,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.secondaryText,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  infoCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  infoLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: 8,
-  },
-  infoDescription: {
-    fontSize: 14,
-    color: colors.secondaryText,
-    lineHeight: 20,
-  },
-  linksCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    marginBottom: 24,
-  },
-  linkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  linkItemLast: {
-    borderBottomWidth: 0,
-  },
-  linkText: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.primaryText,
-    marginLeft: 12,
-  },
-  copyright: {
-    fontSize: 12,
-    color: colors.secondaryText,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: layout.screenPadding,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    backButton: {
+      padding: spacing.xs,
+    },
+    headerTitle: {
+      ...typography.cardTitle,
+      color: colors.primaryText,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      padding: layout.screenPadding,
+    },
+    appSection: {
+      alignItems: 'center',
+      marginBottom: spacing.xl,
+    },
+    appIcon: {
+      width: 100,
+      height: 100,
+      borderRadius: radius.lg,
+      backgroundColor: colors.cardBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    appName: {
+      ...typography.sectionTitle,
+      color: colors.primaryText,
+      marginBottom: spacing.xs,
+    },
+    appVersion: {
+      ...typography.body,
+      color: colors.secondaryText,
+    },
+    descriptionCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: radius.lg,
+      padding: layout.cardPadding,
+      marginBottom: spacing.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    description: {
+      ...typography.body,
+      color: colors.primaryText,
+      textAlign: 'center',
+    },
+    sectionTitle: {
+      ...typography.label,
+      color: colors.secondaryText,
+      textTransform: 'uppercase',
+      marginBottom: spacing.md,
+    },
+    infoCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: radius.lg,
+      padding: layout.cardPadding,
+      marginBottom: spacing.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    infoLabel: {
+      ...typography.cardTitle,
+      color: colors.primaryText,
+      marginBottom: spacing.sm,
+    },
+    infoDescription: {
+      ...typography.label,
+      color: colors.secondaryText,
+    },
+    linksCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      marginBottom: spacing.xl,
+    },
+    linkItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    linkItemLast: {
+      borderBottomWidth: 0,
+    },
+    linkText: {
+      flex: 1,
+      ...typography.body,
+      color: colors.primaryText,
+      marginLeft: spacing.md,
+    },
+    copyright: {
+      ...typography.micro,
+      color: colors.secondaryText,
+      textAlign: 'center',
+      fontStyle: 'italic',
+    },
+  });

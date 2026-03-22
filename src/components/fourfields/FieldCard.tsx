@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import { FieldInfo } from '../../types/course';
 
 interface FieldCardProps {
@@ -231,7 +232,7 @@ export function FieldCard({
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Ionicons name={iconName} size={24} color="#fff" />
+                    <Ionicons name={iconName} size={24} color={colors.cardBackground} />
                   </LinearGradient>
                 </View>
               </LinearGradient>
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
   container: {
     width: 140,
     height: 195,
-    borderRadius: 24,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   glassOverlay: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-    borderRadius: 24,
+    borderRadius: radius.lg,
   },
   glassGradient: {
     flex: 1,
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: 80,
     overflow: 'hidden',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
   },
   accentGlow: {
     flex: 1,
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
   },
   statusIcon: {
@@ -431,7 +432,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   bottomAccentFill: {
     height: '100%',

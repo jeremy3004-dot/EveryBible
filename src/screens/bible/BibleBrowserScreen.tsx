@@ -47,7 +47,7 @@ import {
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
 import { getTranslationSelectionState } from './bibleTranslationModel';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
@@ -890,7 +890,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   searchResultCard: {
-    ...shadows.card,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: 18,
@@ -914,7 +913,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   searchFeedbackCard: {
-    ...shadows.card,
     marginHorizontal: layout.screenPadding,
     marginTop: spacing.sm,
     borderWidth: 1,
@@ -925,7 +923,6 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
   },
   referenceActionCard: {
-    ...shadows.card,
     marginHorizontal: layout.screenPadding,
     marginTop: spacing.sm,
     borderWidth: 1,
@@ -942,7 +939,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   bookCard: {
-    ...shadows.card,
     width: CARD_WIDTH,
     minHeight: 136,
     borderRadius: radius.lg,
@@ -1010,7 +1006,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
   },
   translationCard: {
-    ...shadows.card,
     marginBottom: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -1073,7 +1068,7 @@ const styles = StyleSheet.create({
   },
   manageAudioButton: {
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     minHeight: 36,
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -1094,7 +1089,7 @@ const styles = StyleSheet.create({
   },
   downloadAllCard: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1130,7 +1125,7 @@ const styles = StyleSheet.create({
   audioBookAction: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

@@ -9,7 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
-import { layout, radius, spacing, shadows, typography } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -102,7 +102,7 @@ export function MoreScreen() {
         {/* Auth Buttons */}
         {!isAuthenticated ? (
           <TouchableOpacity style={[styles.signInButton, { backgroundColor: colors.accentGreen }]} onPress={handleSignIn}>
-            <Text style={[styles.signInText, { color: '#ffffff' }]}>{t('more.signInOrCreate')}</Text>
+            <Text style={[styles.signInText, { color: colors.primaryText }]}>{t('more.signInOrCreate')}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -159,7 +159,6 @@ const styles = StyleSheet.create({
     marginBottom: layout.sectionGap,
   },
   profileCard: {
-    ...shadows.card,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: radius.lg,
@@ -199,7 +198,6 @@ const styles = StyleSheet.create({
   },
   signInText: {
     ...typography.button,
-    color: '#ffffff',
   },
   signOutButton: {
     flexDirection: 'row',
@@ -215,7 +213,6 @@ const styles = StyleSheet.create({
     ...typography.button,
   },
   menuSection: {
-    ...shadows.card,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginBottom: layout.sectionGap,

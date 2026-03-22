@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants';
+import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { fieldInfo, getCoursesByField } from '../../data/fourFieldsCourses';
@@ -21,6 +22,7 @@ export function FieldOverviewScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { field } = route.params;
+  const { colors } = useTheme();
 
   const { isLessonComplete, getCourseProgress, getFieldProgress } = useFourFieldsStore();
 
@@ -33,16 +35,16 @@ export function FieldOverviewScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{currentFieldInfo.title}</Text>
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{currentFieldInfo.title}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -51,38 +53,38 @@ export function FieldOverviewScreen() {
         <View
           style={[
             styles.fieldHeader,
-            { backgroundColor: currentFieldInfo.color + '15' },
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
           ]}
         >
           <View
             style={[
               styles.iconContainer,
-              { backgroundColor: currentFieldInfo.color + '30' },
+              { backgroundColor: colors.accentPrimary + '20' },
             ]}
           >
             <Ionicons
               name={getIconName(currentFieldInfo.icon)}
               size={32}
-              color={currentFieldInfo.color}
+              color={colors.accentPrimary}
             />
           </View>
-          <Text style={styles.fieldTitle}>{currentFieldInfo.title}</Text>
-          <Text style={styles.fieldSubtitle}>{currentFieldInfo.subtitle}</Text>
-          <Text style={styles.fieldDescription}>{currentFieldInfo.description}</Text>
+          <Text style={[styles.fieldTitle, { color: colors.primaryText }]}>{currentFieldInfo.title}</Text>
+          <Text style={[styles.fieldSubtitle, { color: colors.secondaryText }]}>{currentFieldInfo.subtitle}</Text>
+          <Text style={[styles.fieldDescription, { color: colors.secondaryText }]}>{currentFieldInfo.description}</Text>
 
           <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
+            <View style={[styles.progressBar, { backgroundColor: colors.cardBorder }]}>
               <View
                 style={[
                   styles.progressFill,
                   {
                     width: `${progress}%`,
-                    backgroundColor: currentFieldInfo.color,
+                    backgroundColor: colors.accentPrimary,
                   },
                 ]}
               />
             </View>
-            <Text style={styles.progressText}>{progress}% complete</Text>
+            <Text style={[styles.progressText, { color: colors.secondaryText }]}>{progress}% complete</Text>
           </View>
         </View>
 
@@ -93,16 +95,16 @@ export function FieldOverviewScreen() {
           return (
             <View key={course.id} style={styles.courseSection}>
               <View style={styles.courseHeader}>
-                <Text style={styles.courseTitle}>{course.title}</Text>
-                <Text style={styles.courseDescription}>{course.description}</Text>
+                <Text style={[styles.courseTitle, { color: colors.primaryText }]}>{course.title}</Text>
+                <Text style={[styles.courseDescription, { color: colors.secondaryText }]}>{course.description}</Text>
                 <View style={styles.courseMeta}>
                   <View style={styles.metaItem}>
                     <Ionicons
                       name="checkmark-circle-outline"
                       size={14}
-                      color={currentFieldInfo.color}
+                      color={colors.accentPrimary}
                     />
-                    <Text style={[styles.metaText, { color: currentFieldInfo.color }]}>
+                    <Text style={[styles.metaText, { color: colors.accentPrimary }]}>
                       {courseProgress}% complete
                     </Text>
                   </View>
@@ -112,7 +114,7 @@ export function FieldOverviewScreen() {
                       size={14}
                       color={colors.secondaryText}
                     />
-                    <Text style={styles.metaText}>
+                    <Text style={[styles.metaText, { color: colors.secondaryText }]}>
                       ~{course.estimatedMinutes} min
                     </Text>
                   </View>
@@ -122,7 +124,7 @@ export function FieldOverviewScreen() {
                       size={14}
                       color={colors.secondaryText}
                     />
-                    <Text style={styles.metaText}>
+                    <Text style={[styles.metaText, { color: colors.secondaryText }]}>
                       {course.lessons.length} lessons
                     </Text>
                   </View>
@@ -130,15 +132,20 @@ export function FieldOverviewScreen() {
               </View>
 
               {/* Key Verse */}
-              <View style={styles.keyVerseCard}>
+              <View
+                style={[
+                  styles.keyVerseCard,
+                  { backgroundColor: colors.cardBackground },
+                ]}
+              >
                 <Ionicons
                   name="bookmark"
                   size={16}
-                  color={currentFieldInfo.color}
+                  color={colors.accentPrimary}
                 />
                 <View style={styles.keyVerseContent}>
-                  <Text style={styles.keyVerseText}>{`"${course.keyVerse.text}"`}</Text>
-                  <Text style={styles.keyVerseReference}>
+                  <Text style={[styles.keyVerseText, { color: colors.primaryText }]}>{`"${course.keyVerse.text}"`}</Text>
+                  <Text style={[styles.keyVerseReference, { color: colors.secondaryText }]}>
                     {course.keyVerse.reference}
                   </Text>
                 </View>
@@ -151,32 +158,36 @@ export function FieldOverviewScreen() {
                   return (
                     <TouchableOpacity
                       key={lesson.id}
-                      style={styles.lessonCard}
+                      style={[
+                        styles.lessonCard,
+                        { backgroundColor: colors.cardBackground },
+                      ]}
                       onPress={() => handleLessonPress(course.id, lesson.id)}
                       activeOpacity={0.7}
                     >
                       <View
                         style={[
                           styles.lessonNumber,
-                          isComplete && styles.lessonNumberComplete,
+                          { backgroundColor: colors.cardBorder },
+                          isComplete && { backgroundColor: colors.accentGreen },
                         ]}
                       >
                         {isComplete ? (
-                          <Ionicons name="checkmark" size={16} color="#fff" />
+                          <Ionicons name="checkmark" size={16} color={colors.cardBackground} />
                         ) : (
-                          <Text style={styles.lessonNumberText}>{index + 1}</Text>
+                          <Text style={[styles.lessonNumberText, { color: colors.secondaryText }]}>{index + 1}</Text>
                         )}
                       </View>
                       <View style={styles.lessonContent}>
                         <Text
                           style={[
                             styles.lessonTitle,
-                            isComplete && styles.lessonTitleComplete,
+                            { color: isComplete ? colors.accentGreen : colors.primaryText },
                           ]}
                         >
                           {lesson.title}
                         </Text>
-                        <Text style={styles.lessonTakeaway} numberOfLines={1}>
+                        <Text style={[styles.lessonTakeaway, { color: colors.secondaryText }]} numberOfLines={1}>
                           {lesson.takeaway}
                         </Text>
                       </View>
@@ -211,7 +222,6 @@ function getIconName(icon: string): keyof typeof Ionicons.glyphMap {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -220,7 +230,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
   },
   backButton: {
     padding: 4,
@@ -228,7 +237,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.primaryText,
   },
   headerRight: {
     width: 32,
@@ -240,7 +248,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   fieldHeader: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
@@ -248,7 +257,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -256,17 +265,14 @@ const styles = StyleSheet.create({
   fieldTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.primaryText,
     marginBottom: 4,
   },
   fieldSubtitle: {
     fontSize: 14,
-    color: colors.secondaryText,
     marginBottom: 8,
   },
   fieldDescription: {
     fontSize: 14,
-    color: colors.secondaryText,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -275,18 +281,16 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: colors.cardBorder,
-    borderRadius: 3,
+    borderRadius: radius.xs,
     overflow: 'hidden',
     marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: radius.xs,
   },
   progressText: {
     fontSize: 12,
-    color: colors.secondaryText,
     textAlign: 'center',
   },
   courseSection: {
@@ -298,12 +302,10 @@ const styles = StyleSheet.create({
   courseTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.primaryText,
     marginBottom: 4,
   },
   courseDescription: {
     fontSize: 14,
-    color: colors.secondaryText,
     marginBottom: 8,
   },
   courseMeta: {
@@ -317,12 +319,10 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: colors.secondaryText,
   },
   keyVerseCard: {
     flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
     gap: 12,
@@ -333,14 +333,12 @@ const styles = StyleSheet.create({
   keyVerseText: {
     fontSize: 14,
     fontStyle: 'italic',
-    color: colors.primaryText,
     lineHeight: 20,
     marginBottom: 4,
   },
   keyVerseReference: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.secondaryText,
   },
   lessonsList: {
     gap: 8,
@@ -348,26 +346,20 @@ const styles = StyleSheet.create({
   lessonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     gap: 12,
   },
   lessonNumber: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.cardBorder,
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  lessonNumberComplete: {
-    backgroundColor: colors.accentGreen,
   },
   lessonNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.secondaryText,
   },
   lessonContent: {
     flex: 1,
@@ -375,14 +367,9 @@ const styles = StyleSheet.create({
   lessonTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primaryText,
     marginBottom: 2,
-  },
-  lessonTitleComplete: {
-    color: colors.accentGreen,
   },
   lessonTakeaway: {
     fontSize: 13,
-    color: colors.secondaryText,
   },
 });

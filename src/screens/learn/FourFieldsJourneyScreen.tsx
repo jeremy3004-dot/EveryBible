@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
+import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { FIELD_ORDER, fieldInfo, fourFieldsCourses } from '../../data/fourFieldsCourses';
 import { JourneyPath } from '../../components/fourfields';
@@ -171,8 +172,8 @@ export function FourFieldsJourneyScreen() {
               style={[styles.primaryButton, { backgroundColor: colors.accentPrimary }]}
               onPress={handleContinue}
             >
-              <Text style={styles.primaryButtonText}>{t('harvest.continueJourney')}</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
+              <Text style={[styles.primaryButtonText, { color: colors.cardBackground }]}>{t('harvest.continueJourney')}</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.cardBackground} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     marginHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 20,
     gap: 18,
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
   },
   summaryChip: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 14,
     gap: 6,
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   },
   nextCard: {
     marginHorizontal: 20,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 18,
     gap: 12,
@@ -337,18 +338,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#fff',
     fontSize: 15,
     fontWeight: '700',
   },
   completeCard: {
     marginHorizontal: 20,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 20,
     alignItems: 'center',
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   groupsCard: {
     marginHorizontal: 20,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     padding: 18,
     gap: 12,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   groupsIcon: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },

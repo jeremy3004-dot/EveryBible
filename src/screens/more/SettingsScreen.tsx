@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { radius } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,7 +37,7 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, themeMode, setTheme } = useTheme();
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
@@ -75,8 +76,8 @@ export function SettingsScreen() {
     setShowTimePicker(true);
   };
 
-  const handleThemeToggle = () => {
-    toggleTheme();
+  const handleThemeChange = (mode: 'dark' | 'light' | 'low-light') => {
+    setTheme(mode);
     syncPreferences().catch(() => {});
   };
 
@@ -302,15 +303,47 @@ export function SettingsScreen() {
             <View style={styles.settingLeft}>
               <Ionicons name="moon-outline" size={24} color={colors.secondaryText} />
               <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.darkMode')}
+                {t('settings.themeMode')}
               </Text>
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={handleThemeToggle}
-              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
-              thumbColor="#ffffff"
-            />
+            <View style={styles.themeSelectorRow}>
+              {(['dark', 'light', 'low-light'] as const).map((mode) => {
+                const isActive = themeMode === mode;
+                const label =
+                  mode === 'dark'
+                    ? t('settings.themeDark')
+                    : mode === 'light'
+                      ? t('settings.themeLight')
+                      : t('settings.themeLowLight');
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.themeSelectorButton,
+                      {
+                        backgroundColor: isActive
+                          ? colors.accentPrimary
+                          : colors.cardBackground,
+                      },
+                    ]}
+                    onPress={() => handleThemeChange(mode)}
+                  >
+                    <Text
+                      style={[
+                        styles.themeSelectorLabel,
+                        {
+                          color: isActive
+                            ? colors.cardBackground
+                            : colors.secondaryText,
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <TouchableOpacity
@@ -404,7 +437,7 @@ export function SettingsScreen() {
               value={preferences.notificationsEnabled}
               onValueChange={handleNotificationToggle}
               trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
-              thumbColor="#ffffff"
+              thumbColor={colors.cardBackground}
             />
           </View>
 
@@ -529,7 +562,7 @@ export function SettingsScreen() {
                       style={[
                         styles.timeOptionText,
                         { color: colors.secondaryText },
-                        selectedHour === hour && { color: '#ffffff', fontWeight: '700' },
+                        selectedHour === hour && { color: colors.cardBackground, fontWeight: '700' },
                       ]}
                     >
                       {hour.toString().padStart(2, '0')}
@@ -561,7 +594,7 @@ export function SettingsScreen() {
                       style={[
                         styles.timeOptionText,
                         { color: colors.secondaryText },
-                        selectedMinute === minute && { color: '#ffffff', fontWeight: '700' },
+                        selectedMinute === minute && { color: colors.cardBackground, fontWeight: '700' },
                       ]}
                     >
                       {minute}
@@ -588,7 +621,7 @@ export function SettingsScreen() {
                 ]}
                 onPress={handleTimeSelect}
               >
-                <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+                <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
                   {t('settings.setTime')}
                 </Text>
               </TouchableOpacity>
@@ -698,7 +731,7 @@ export function SettingsScreen() {
                   style={[styles.modalButton, { backgroundColor: colors.error }]}
                   onPress={handleDeleteAccount}
                 >
-                  <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+                  <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
                     {t('settings.delete')}
                   </Text>
                 </TouchableOpacity>
@@ -743,7 +776,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   settingsGroup: {
-    borderRadius: 16,
+    borderRadius: radius.md,
     borderWidth: 1,
     marginBottom: 24,
   },
@@ -789,7 +822,7 @@ const styles = StyleSheet.create({
   },
   fontSizeButton: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   fontSizeButtonDisabled: {
     borderWidth: 1,
@@ -811,7 +844,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    borderRadius: 20,
+    borderRadius: radius.md,
     padding: 24,
     width: '80%',
     maxWidth: 320,
@@ -840,7 +873,7 @@ const styles = StyleSheet.create({
   timeOption: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     marginVertical: 2,
   },
   timeOptionSelected: {},
@@ -861,7 +894,7 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     alignItems: 'center',
   },
   modalButtonPrimary: {},
@@ -887,7 +920,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     marginBottom: 4,
   },
   languageInfo: {
@@ -910,5 +943,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
+  },
+  themeSelectorRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  themeSelectorButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
+  },
+  themeSelectorLabel: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
