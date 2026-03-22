@@ -269,7 +269,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   }, [handleStatusUpdate, handlePlaybackFinished, setError]);
 
   useEffect(() => {
-    const shouldPlayBackgroundMusic = status === 'playing' || status === 'loading';
+    // Keep background music running through chapter transitions (loading/paused).
+    // It only stops when the user explicitly calls stop(), which calls
+    // backgroundMusicPlayer.stop() directly. This prevents the music from
+    // cutting out every time a new chapter loads between chapters.
+    const shouldPlayBackgroundMusic =
+      status === 'playing' || status === 'loading' || status === 'paused';
 
     void backgroundMusicPlayer.sync(backgroundMusicChoice, shouldPlayBackgroundMusic);
   }, [backgroundMusicChoice, status]);
