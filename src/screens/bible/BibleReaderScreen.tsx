@@ -132,6 +132,7 @@ export function BibleReaderScreen() {
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
+  const lastStableSessionModeRef = useRef(chapterSessionMode);
 
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
@@ -205,6 +206,7 @@ export function BibleReaderScreen() {
   const lastStablePresentationModeRef = useRef(rawPresentationMode);
   if (!isLoading) {
     lastStablePresentationModeRef.current = rawPresentationMode;
+    lastStableSessionModeRef.current = chapterSessionMode;
   }
   const chapterPresentationMode = isLoading
     ? lastStablePresentationModeRef.current
@@ -217,8 +219,9 @@ export function BibleReaderScreen() {
     chapterPresentationMode === 'text' ||
     canToggleSessionMode ||
     chapterPresentationMode === 'audio-first';
+  const stableSessionMode = isLoading ? lastStableSessionModeRef.current : chapterSessionMode;
   const showMinimalListenChrome =
-    chapterSessionMode === 'listen' || chapterPresentationMode === 'audio-first';
+    stableSessionMode === 'listen' || chapterPresentationMode === 'audio-first';
   const activeFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,
