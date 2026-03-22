@@ -27,6 +27,7 @@ import {
 } from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
+import { listPrayerRequests } from '../../services/prayer/prayerService';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'GroupDetail'>;
@@ -132,6 +133,34 @@ export function GroupDetailScreen() {
       ? remoteGroupState.error
       : null;
   const isLoading = localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
+
+  const [prayerPreview, setPrayerPreview] = useState<{
+    count: number;
+    latestContent: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!syncFeatureEnabled || !backendConfigured || !isSignedIn) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    listPrayerRequests(groupId).then((result) => {
+      if (cancelled) return;
+      if (result.success && result.data) {
+        const active = result.data.filter((r) => !r.is_answered);
+        setPrayerPreview({
+          count: active.length,
+          latestContent: active[0]?.content ?? null,
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendConfigured, groupId, isSignedIn, syncFeatureEnabled]);
 
   if (isLoading) {
     return (
@@ -333,6 +362,49 @@ export function GroupDetailScreen() {
               history will appear here as rollout continues.
             </Text>
           </View>
+        )}
+
+        {/* Prayer Wall Card — only shown for synced groups (requires Supabase) */}
+        {!isLocalGroup && prayerPreview !== null && (
+          <TouchableOpacity
+            style={[styles.prayerCard, { backgroundColor: colors.cardBackground }]}
+            onPress={() =>
+              navigation.navigate('PrayerWall', { groupId, groupName: group.name })
+            }
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <View style={styles.prayerCardHeader}>
+              <View style={styles.prayerCardLeft}>
+                <Ionicons name="hand-left-outline" size={20} color={colors.accentGreen} />
+                <Text style={[styles.prayerCardTitle, { color: colors.primaryText }]}>
+                  Prayer Wall
+                </Text>
+              </View>
+              <View style={styles.prayerCardRight}>
+                {prayerPreview.count > 0 && (
+                  <View style={[styles.prayerCountBadge, { backgroundColor: colors.accentGreen + '20' }]}>
+                    <Text style={[styles.prayerCountText, { color: colors.accentGreen }]}>
+                      {prayerPreview.count} active
+                    </Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={18} color={colors.secondaryText} />
+              </View>
+            </View>
+            {prayerPreview.latestContent ? (
+              <Text
+                style={[styles.prayerPreviewText, { color: colors.secondaryText }]}
+                numberOfLines={2}
+              >
+                {prayerPreview.latestContent}
+              </Text>
+            ) : (
+              <Text style={[styles.prayerPreviewText, { color: colors.secondaryText }]}>
+                No prayer requests yet. Be the first to share.
+              </Text>
+            )}
+          </TouchableOpacity>
         )}
 
         {/* About the 3/3rds Format */}
@@ -592,5 +664,43 @@ const styles = StyleSheet.create({
   leaveButtonText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  prayerCard: {
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  prayerCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  prayerCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  prayerCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  prayerCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  prayerCountBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  prayerCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  prayerPreviewText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

@@ -50,6 +50,15 @@ export type LearnStackParamList = {
   GroupSession: {
     groupId: string;
   };
+  PrayerWall: {
+    groupId: string;
+    groupName: string;
+  };
+  // Reading Plans screens
+  ReadingPlanList: undefined;
+  ReadingPlanDetail: {
+    planId: string;
+  };
 };
 
 // More Stack
@@ -60,6 +69,8 @@ export type MoreStackParamList = {
   PrivacyPreferences: undefined;
   Profile: undefined;
   ReadingActivity: undefined;
+  Annotations: undefined;
+  TranslationBrowser: undefined;
   About: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
 };
@@ -105,6 +116,9 @@ export type FourFieldsLessonViewScreenProps = NativeStackScreenProps<
 export type GroupListScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupList'>;
 export type GroupDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupDetail'>;
 export type GroupSessionScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupSession'>;
+export type PrayerWallScreenProps = NativeStackScreenProps<LearnStackParamList, 'PrayerWall'>;
+export type ReadingPlanListScreenProps = NativeStackScreenProps<LearnStackParamList, 'ReadingPlanList'>;
+export type ReadingPlanDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'ReadingPlanDetail'>;
 
 export type MoreScreenProps = NativeStackScreenProps<MoreStackParamList, 'MoreScreen'>;
 export type SettingsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Settings'>;
@@ -117,6 +131,8 @@ export type ReadingActivityScreenProps = NativeStackScreenProps<
   MoreStackParamList,
   'ReadingActivity'
 >;
+export type AnnotationsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Annotations'>;
+export type TranslationBrowserScreenProps = NativeStackScreenProps<MoreStackParamList, 'TranslationBrowser'>;
 export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About'>;
 
 // Tab screen props

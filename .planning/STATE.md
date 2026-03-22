@@ -122,6 +122,12 @@ Recent decisions affecting current work:
 - Phase 13 added: Public-domain Berean Standard Bible sourcing and direct audio integration
 - Phase 14 added: Backend-driven Bible content sync and offline pack delivery
 - Phase 15 added: Reverential Theme & Typography
+- Phase 16 added: Backend Foundation & Theme Fix (low-light sync bug, storage buckets, push tokens)
+- Phase 17 added: Bookmarks, Highlights & Notes (verse-level annotations with offline-first sync)
+- Phase 18 added: Reading Plans (pre-seeded plans with enrollment, group assignments)
+- Phase 19 added: Prayer Community (group-scoped prayer walls with interactions)
+- Phase 20 added: Analytics & Engagement Metrics (lightweight PG event tracking + Edge Function aggregation)
+- Phase 21 added: Content Versioning & Multiple Translations (version tracking, preferences, scrollmapper data sourcing)
 
 ### Blockers/Concerns
 

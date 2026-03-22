@@ -27,6 +27,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: Book Companion Content And Ecosystem Surfaces** - Populate each book hub with figures, passages, plans, devotionals, and playlists without breaking the core Bible loop
 - [x] **Phase 11: Audio reader chrome simplification and Dwell-style listen layout polish** - Strip the audio-first Bible screen down to the essential Dwell-style listen chrome while keeping EveryBible's current palette
 - [x] **Phase 12: Professional Design System Unification** - Replace ad hoc styling with one disciplined, professional visual system across the main app shell and highest-traffic screens
+- [ ] **Phase 16: Backend Foundation & Theme Fix** - Fix low-light theme sync bug, create storage buckets, add push token table
+- [ ] **Phase 17: Bookmarks, Highlights & Notes** - Verse-level annotations with offline-first sync
+- [ ] **Phase 18: Reading Plans** - Pre-seeded multi-day reading plans with enrollment and group assignments
+- [ ] **Phase 19: Prayer Community** - Group-scoped prayer request walls with interactions
+- [ ] **Phase 20: Analytics & Engagement Metrics** - Lightweight event tracking with server-side aggregation
+- [ ] **Phase 21: Content Versioning & Multiple Translations** - Translation version tracking, preferences, and expanded content sourcing
 
 ## Phase Details
 
@@ -245,7 +251,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21
 
 | Phase                                                                         | Plans Complete | Status                                                             | Completed  |
 | ----------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------ | ---------- |
@@ -266,6 +272,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 13. Public-domain Berean Standard Bible sourcing and direct audio integration | 1/2            | Plan 01 complete; translation-aware audio handoff fixed; plan 02 pending | 2026-03-21 |
 | 14. Backend-driven Bible content sync and offline pack delivery               | 2/4            | Plans 01-02 complete; plan 03 in progress                         | -          |
 | 15. Reverential Theme & Typography                                            | 0/3            | Planned                                                            | -          |
+| 16. Backend Foundation & Theme Fix                                             | 3/3            | Complete                                                           | 2026-03-22 |
+| 17. Bookmarks, Highlights & Notes                                              | 2/2            | Backend + frontend complete (reader integration + list screen)     | 2026-03-22 |
+| 18. Reading Plans                                                              | 2/2            | Backend + frontend complete (plan browser + detail + nav wiring)   | 2026-03-22 |
+| 19. Prayer Community                                                           | 2/2            | Backend + frontend complete (prayer wall + group integration)      | 2026-03-22 |
+| 20. Analytics & Engagement Metrics                                             | 2/2            | Backend + frontend complete (profile engagement + Edge Function)   | 2026-03-22 |
+| 21. Content Versioning & Multiple Translations                                 | 2/2            | Backend + frontend complete (translation browser + preferences)    | 2026-03-22 |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
 
@@ -357,3 +369,93 @@ Plans:
 - [ ] 15-01-PLAN.md — Build reverential design foundation: three warm palettes, bundled Lora serif, print-editorial tokens, three-way theme selector
 - [ ] 15-02-PLAN.md — Apply reverential visual language to Home, Bible browser/reader, audio components, and tab bar
 - [ ] 15-03-PLAN.md — Complete screen sweep across Learn, More, auth, onboarding, and visual verification
+
+### Phase 16: Backend Foundation & Theme Fix
+
+**Goal:** Fix the low-light theme sync bug, create Supabase storage buckets (avatars, group-images, study-materials) with RLS policies, and add a user_devices table for push notification token storage. Quick backend wins that unblock subsequent feature phases.
+**Requirements**: SYNC-01, PREF-01, INFRA-01
+**Depends on:** Phase 15
+**Success Criteria** (what must be TRUE):
+
+1. The `user_preferences.theme` CHECK constraint allows `'low-light'` so the reverential theme syncs correctly without silent data loss.
+2. Storage buckets exist for avatars, group images, and study materials with user-scoped and group-scoped RLS policies.
+3. A `user_devices` table stores push notification tokens per device, ready for notification delivery in a future phase.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
+### Phase 17: Bookmarks, Highlights & Notes
+
+**Goal:** Add verse-level annotations (bookmarks, highlights with color, freeform notes) with offline-first storage and bidirectional Supabase sync, enabling the core Bible study features users expect from a scripture app.
+**Requirements**: STUDY-01, SYNC-01
+**Depends on:** Phase 16
+**Success Criteria** (what must be TRUE):
+
+1. Users can bookmark, highlight (with color selection), and add notes to individual verses or verse ranges in the Bible reader.
+2. Annotations persist locally (offline-first) and sync bidirectionally with Supabase using additive merge (never losing annotations from either side).
+3. Users can view, filter, and search their annotations from a dedicated annotations list screen.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17 to break down)
+
+### Phase 18: Reading Plans
+
+**Goal:** Add structured multi-day Bible reading plans with pre-seeded plan data, user enrollment, daily completion tracking, streak management, and group plan assignments so leaders can guide their groups through coordinated reading.
+**Requirements**: ENG-01, GROUP-01
+**Depends on:** Phase 17
+**Success Criteria** (what must be TRUE):
+
+1. Users can browse available reading plans, enroll in a plan, and track daily completion with streak and progress indicators.
+2. Pre-seeded plans (M'Cheyne, Chronological Bible, Gospels & Epistles, etc.) are available from first launch, sourced from open-source plan data.
+3. Group leaders can assign a reading plan to their group, and group members see shared progress.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 18 to break down)
+
+### Phase 19: Prayer Community
+
+**Goal:** Add group-scoped prayer request walls where members can submit prayer requests, mark prayers as answered, and interact with "prayed" and "encouraged" responses, building community within existing study groups.
+**Requirements**: GROUP-01, COMMUNITY-01
+**Depends on:** Phase 18
+**Success Criteria** (what must be TRUE):
+
+1. Group members can submit prayer requests (max 500 chars) visible to all members of that group.
+2. Members can interact with requests via "prayed" and "encouraged" actions, with counts visible on each request.
+3. Request creators can mark prayers as answered, and only creators or group leaders can delete requests.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 19 to break down)
+
+### Phase 20: Analytics & Engagement Metrics
+
+**Goal:** Add lightweight client-side event tracking with server-side aggregation via Supabase Edge Functions, providing user-facing engagement metrics (reading stats, streaks, listening time, engagement score) and a foundation for admin insights.
+**Requirements**: ENG-01, INFRA-01
+**Depends on:** Phase 19
+**Success Criteria** (what must be TRUE):
+
+1. The app emits standardized analytics events (chapter_opened, audio_played, plan_day_completed, etc.) that batch locally and flush to Supabase on sync intervals.
+2. A daily Edge Function cron aggregates events into per-user engagement summaries (chapters read, listening minutes, streak, engagement score 0-100).
+3. Users can see their engagement metrics in an enhanced profile/stats surface with meaningful reading and listening insights.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 20 to break down)
+
+### Phase 21: Content Versioning & Multiple Translations
+
+**Goal:** Extend Phase 14's translation catalog with version tracking, user translation preferences (primary, secondary, audio), and a data sourcing pipeline from scrollmapper/bible_databases (MIT, 140+ translations) to expand the app's available Bible translations beyond BSB and WEB.
+**Requirements**: MULTI-01, READ-01
+**Depends on:** Phase 20
+**Success Criteria** (what must be TRUE):
+
+1. Translation content has version tracking so updates can be delivered and applied without breaking existing installed packs.
+2. Users can set primary, secondary (for future comparison mode), and audio translation preferences that sync across devices.
+3. At least 5 additional public-domain translations (ASV, KJV, YLT, BBE + one non-English) are importable through the Phase 14 pack system using scrollmapper data.
+   **Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 21 to break down)

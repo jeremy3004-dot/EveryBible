@@ -18,6 +18,20 @@ export function LearnStack() {
         name="CourseList"
         getComponent={() => require('../screens/learn/CourseListScreen').CourseListScreen}
       />
+      <Stack.Screen
+        name="PrayerWall"
+        getComponent={() => require('../screens/learn/PrayerWallScreen').PrayerWallScreen}
+      />
+      <Stack.Screen
+        name="ReadingPlanList"
+        getComponent={() => require('../screens/learn/ReadingPlanListScreen').ReadingPlanListScreen}
+      />
+      <Stack.Screen
+        name="ReadingPlanDetail"
+        getComponent={() =>
+          require('../screens/learn/ReadingPlanDetailScreen').ReadingPlanDetailScreen
+        }
+      />
     </Stack.Navigator>
   );
 }

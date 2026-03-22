@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Calendar } from 'react-native-calendars';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useProgressStore } from '../../stores/progressStore';
+import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import {
   buildReadingActivityMonthView,
@@ -15,6 +16,8 @@ import {
   parseLocalDateKey,
   summarizeReadingActivity,
 } from '../../services/progress/readingActivity';
+import { getEngagementSummary } from '../../services/analytics/analyticsService';
+import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
@@ -47,6 +50,13 @@ const formatTime = (timestamp: number): string => {
   });
 };
 
+const formatListeningTime = (minutes: number): string => {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
+
 export function ReadingActivityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
@@ -54,8 +64,19 @@ export function ReadingActivityScreen() {
   const styles = createStyles(colors);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const streakDays = useProgressStore((state) => state.streakDays);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getEngagementSummary().then((result) => {
+      if (result.success && result.data) {
+        setEngagement(result.data);
+      }
+    });
+  }, [isAuthenticated]);
 
   const activitySummary = summarizeReadingActivity(chaptersRead);
   const effectiveSelectedDateKey =
@@ -98,6 +119,26 @@ export function ReadingActivityScreen() {
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>{t('profile.readingActivity')}</Text>
           <Text style={styles.heroBody}>{t('profile.readingActivitySubtitle')}</Text>
+
+          {engagement && (
+            <View style={styles.engagementRow}>
+              <View style={styles.engagementChip}>
+                <Ionicons name="book-outline" size={14} color={colors.accentPrimary} />
+                <Text style={styles.engagementChipValue}>
+                  {engagement.total_chapters_read}
+                </Text>
+                <Text style={styles.engagementChipLabel}>{t('engagement.totalChapters')}</Text>
+              </View>
+              <View style={styles.engagementDivider} />
+              <View style={styles.engagementChip}>
+                <Ionicons name="headset-outline" size={14} color={colors.accentPrimary} />
+                <Text style={styles.engagementChipValue}>
+                  {formatListeningTime(engagement.total_listening_minutes)}
+                </Text>
+                <Text style={styles.engagementChipLabel}>{t('engagement.totalListening')}</Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.statsRow}>
             <View style={styles.statChip}>
@@ -235,6 +276,37 @@ const createStyles = (colors: ThemeColors) =>
       ...typography.body,
       lineHeight: 21,
       color: colors.secondaryText,
+    },
+    engagementRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    engagementChip: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    engagementChipValue: {
+      ...typography.label,
+      color: colors.primaryText,
+    },
+    engagementChipLabel: {
+      ...typography.micro,
+      color: colors.secondaryText,
+      flexShrink: 1,
+    },
+    engagementDivider: {
+      width: 1,
+      height: 20,
+      backgroundColor: colors.cardBorder,
+      marginHorizontal: spacing.md,
     },
     statsRow: {
       flexDirection: 'row',

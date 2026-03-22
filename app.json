@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "119",
+      "buildNumber": "120",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
@@ -65,6 +65,7 @@
           "color": "#8B2635"
         }
       ],
+      "expo-image-picker",
       "expo-localization",
       "./plugins/withBrandedSplashAsset",
       "@react-native-google-signin/google-signin"

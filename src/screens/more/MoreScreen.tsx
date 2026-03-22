@@ -30,7 +30,19 @@ const menuItems: MenuItem[] = [
     icon: 'calendar-outline',
     screen: 'ReadingActivity',
   },
+  {
+    id: 'annotations',
+    titleKey: 'annotations.title',
+    icon: 'bookmarks-outline',
+    screen: 'Annotations',
+  },
   { id: 'settings', titleKey: 'more.settings', icon: 'settings-outline', screen: 'Settings' },
+  {
+    id: 'translations',
+    titleKey: 'translations.title',
+    icon: 'language-outline',
+    screen: 'TranslationBrowser',
+  },
   { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
 ];
 

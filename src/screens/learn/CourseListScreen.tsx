@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBookById } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -13,10 +15,14 @@ import {
   type HarvestStudyEntry,
 } from './harvestStudies';
 import { layout, radius, spacing, typography } from '../../design/system';
+import type { LearnStackParamList } from '../../navigation/types';
+
+type NavProp = NativeStackNavigationProp<LearnStackParamList, 'CourseList'>;
 
 export function CourseListScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const navigation = useNavigation<NavProp>();
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
 
@@ -53,6 +59,31 @@ export function CourseListScreen() {
               'Topical chapter studies designed for full-context reading and listening across the Bible.',
           })}
         </Text>
+
+        {/* Reading Plans entry card */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ReadingPlanList')}
+          activeOpacity={0.85}
+          style={[
+            styles.readingPlansCard,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('readingPlans.title')}
+        >
+          <View style={styles.readingPlansIcon}>
+            <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
+          </View>
+          <View style={styles.readingPlansContent}>
+            <Text style={[styles.readingPlansTitle, { color: colors.primaryText }]}>
+              {t('readingPlans.title')}
+            </Text>
+            <Text style={[styles.readingPlansSubtitle, { color: colors.secondaryText }]}>
+              {t('readingPlans.browsePlans')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.secondaryText} />
+        </TouchableOpacity>
 
         <View
           style={[
@@ -314,5 +345,30 @@ const styles = StyleSheet.create({
     width: 26,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  readingPlansCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: layout.denseCardPadding,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: layout.minTouchTarget + spacing.md,
+  },
+  readingPlansIcon: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readingPlansContent: {
+    flex: 1,
+    gap: 2,
+  },
+  readingPlansTitle: {
+    ...typography.bodyStrong,
+  },
+  readingPlansSubtitle: {
+    ...typography.micro,
   },
 });
