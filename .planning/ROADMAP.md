@@ -33,6 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 19: Prayer Community** - Group-scoped prayer request walls with interactions
 - [ ] **Phase 20: Analytics & Engagement Metrics** - Lightweight event tracking with server-side aggregation
 - [ ] **Phase 21: Content Versioning & Multiple Translations** - Translation version tracking, preferences, and expanded content sourcing
+- [ ] **Phase 22: Gather Tab — Waha-style Foundations, Topics & Meeting Format** - Replace Harvest tab with Waha-style Gather tab featuring DBS meeting format
 
 ## Phase Details
 
@@ -167,7 +168,7 @@ Plans:
 
 1. Tapping a book from the Bible browser opens a dedicated book hub instead of dropping directly into a plain chapter grid.
 2. The book hub can show art, synopsis, intro audio when available, chapter entry points, and resilient empty/loading states when supporting metadata is missing.
-3. Launching a chapter from the hub preserves the user’s preferred mode and hands off to the shared chapter session cleanly.
+3. Launching a chapter from the hub preserves the user's preferred mode and hands off to the shared chapter session cleanly.
    **Plans**: 3 plans
 
 Plans:
@@ -251,7 +252,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22
 
 | Phase                                                                         | Plans Complete | Status                                                             | Completed  |
 | ----------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------ | ---------- |
@@ -278,6 +279,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 19. Prayer Community                                                           | 2/2            | Backend + frontend complete (prayer wall + group integration)      | 2026-03-22 |
 | 20. Analytics & Engagement Metrics                                             | 2/2            | Backend + frontend complete (profile engagement + Edge Function)   | 2026-03-22 |
 | 21. Content Versioning & Multiple Translations                                 | 2/2            | Backend + frontend complete (translation browser + preferences)    | 2026-03-22 |
+| 22. Gather Tab — Waha-style Foundations, Topics & Meeting Format               | 0/4            | Planned                                                            | -          |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
 
@@ -459,3 +461,24 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 21 to break down)
+
+### Phase 22: Gather Tab — Waha-style Foundations, Topics & Meeting Format
+
+**Goal:** Replace the current Harvest tab with a Waha-inspired Gather tab featuring Discovery Bible Study foundations, topical studies, and a meeting-format lesson viewer with Fellowship/Story/Application sections and integrated audio playback.
+**Requirements**: GATHER-01, GATHER-02, GATHER-03, GATHER-04, GATHER-05
+**Depends on:** Phase 21
+**Success Criteria** (what must be TRUE):
+
+1. The Harvest tab is renamed to Gather across all 4 locales with updated icon, and the old Four Fields course/harvest study content is replaced.
+2. Users can browse 9 foundation sets and topic categories, drill into a foundation to see numbered lessons with progress, and share invitations.
+3. Users can open a lesson in the Discovery Bible Study meeting format with Fellowship questions, Bible passage text from BSB, and Application questions.
+4. The Story section pulls live verse text from the BSB SQLite database and the audio player plays the referenced chapter audio.
+5. Users can mark lessons complete, share lesson content, and see progress tracked persistently.
+   **Plans:** 4 plans
+
+Plans:
+
+- [ ] 22-01-PLAN.md — Define Gather types, Foundation/Topic data, standardized question templates, and gatherStore
+- [ ] 22-02-PLAN.md — Rename tab to Gather, rewire navigation, build GatherScreen with Foundations/Topics sub-tabs
+- [ ] 22-03-PLAN.md — Build FoundationDetailScreen with lesson list, share invitation, and LessonBottomSheet
+- [ ] 22-04-PLAN.md — Build LessonDetailScreen with meeting format, Bible text rendering, and audio playback

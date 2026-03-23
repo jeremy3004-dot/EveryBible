@@ -70,6 +70,14 @@
 - **M2-CONTENT-01**: Book hubs can surface companion modules such as passages, devotionals, figures, plans, and playlists with graceful fallbacks
 - **M2-DESIGN-01**: User experiences a unified, professional visual system across the main app surfaces with consistent typography, spacing, color tokens, and component chrome
 
+### Gather Tab (Waha-style Discovery Bible Study)
+
+- [ ] **GATHER-01**: User sees a Gather tab (replacing Harvest) with Foundations and Topics sub-tabs across all 4 locales
+- [ ] **GATHER-02**: User can browse 9 foundation sets with progress tracking, drill into a foundation to see numbered lessons, and share invitations
+- [ ] **GATHER-03**: User can open a lesson in Discovery Bible Study meeting format with Fellowship, Story, and Application section tabs
+- [ ] **GATHER-04**: User can access lesson actions via bottom sheet: mark complete/incomplete, share audio/text/link, and download
+- [ ] **GATHER-05**: Story section renders live Bible text from BSB database and audio player plays the referenced passage chapter audio
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -115,12 +123,18 @@
 | M2-LIB-01 | Phase 9 | In verification |
 | M2-CONTENT-01 | Phase 10 | In verification |
 | M2-DESIGN-01 | Phase 12 | Planned |
+| GATHER-01 | Phase 22 | Planned |
+| GATHER-02 | Phase 22 | Planned |
+| GATHER-03 | Phase 22 | Planned |
+| GATHER-04 | Phase 22 | Planned |
+| GATHER-05 | Phase 22 | Planned |
 
 **Coverage:**
 - v1 requirements: 25 total
 - Mapped to phases: 25
-- Unmapped: 0 ✓
+- Unmapped: 0
+- Gather requirements: 5 total (Phase 22)
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-20 after executing Phase 11 and moving Milestone 2 Bible-experience requirements into verification*
+*Last updated: 2026-03-23 after adding Phase 22 Gather Tab requirements (GATHER-01 through GATHER-05)*
