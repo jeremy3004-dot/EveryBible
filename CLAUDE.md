@@ -596,6 +596,21 @@ eas submit --platform android --profile production
 6. Submit to stores
 7. Monitor crash reports
 
+### ⛔ TestFlight Distribution — MANDATORY 4-Step Flow
+
+`eas submit` only uploads the binary. **Build is invisible to ALL testers until these 4 steps are done.**
+This mistake has been made 4 times (builds 113, 115, 138, 142). Do not skip.
+
+**Step 1 — Poll until `processingState=VALID`** (~5-10 min after upload)
+**Step 2 — Attach to BOTH beta groups** via POST `/v1/builds/<id>/relationships/betaGroups`
+  - Internal: `3a75b4d5-cae0-4c9a-8880-890f486f605a`
+  - External: `f32e3138-d64b-4d40-9337-18a3a9096010`
+**Step 3 — Submit for external review** via POST `/v1/betaAppReviewSubmissions`
+**Step 4 — Verify** `internalBuildState=IN_BETA_TESTING` before telling user anything
+
+Use the Python JWT script in `~/.claude/projects/-Users-dev-Projects-EveryBible/memory/feedback_testflight_distribution.md`.
+ASC key: `~/.asc/AuthKey_766CTDMG96.p8` | App ID: `6758254335`
+
 ---
 
 ## Troubleshooting
