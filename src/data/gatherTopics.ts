@@ -669,6 +669,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-reconciliation',
         title: 'Reconciliation',
         iconName: 'git-merge-outline',
+        iconImage: 'topic-reconciliation',
         lessonCount: 8,
         lessons: [
           {

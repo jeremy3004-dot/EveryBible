@@ -34,14 +34,14 @@ export const gatherIconImages: Record<string, ImageSourcePropType> = {
   'topic-love': require('../../assets/icons/gather/topic-love.png'),
   'topic-obedience': require('../../assets/icons/gather/topic-obedience.png'),
 
-  // ── Topics: Challenge (6, minus reconciliation which uses Ionicon fallback) ──
+  // ── Topics: Challenge (7) ────────────────────────────────────────────────────
   'topic-anger': require('../../assets/icons/gather/topic-anger.png'),
   'topic-crisis': require('../../assets/icons/gather/topic-crisis.png'),
   'topic-grief': require('../../assets/icons/gather/topic-grief.png'),
   'topic-hurt': require('../../assets/icons/gather/topic-hurt.png'),
   'topic-known-and-loved': require('../../assets/icons/gather/topic-known-and-loved.png'),
   'topic-stress': require('../../assets/icons/gather/topic-stress.png'),
-  // NOTE: topic-reconciliation intentionally omitted — uses Ionicon fallback
+  'topic-reconciliation': require('../../assets/icons/gather/topic-reconciliation.png'),
 
   // ── Topics: Money (4) ────────────────────────────────────────────
   'topic-money-and-god': require('../../assets/icons/gather/topic-money-and-god.png'),
