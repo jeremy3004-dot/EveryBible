@@ -6,11 +6,13 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
   {
     id: 'category-truth',
     name: 'The Inner Life',
+    iconImage: 'category-inner-life',
     topics: [
       {
         id: 'topic-courage',
         title: 'Courage',
         iconName: 'shield-outline',
+        iconImage: 'topic-courage',
         lessonCount: 8,
         lessons: [
           {
@@ -75,6 +77,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-faith',
         title: 'Faith',
         iconName: 'flame-outline',
+        iconImage: 'topic-faith',
         lessonCount: 8,
         lessons: [
           {
@@ -139,6 +142,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-hope',
         title: 'Hope',
         iconName: 'sunny-outline',
+        iconImage: 'topic-hope',
         lessonCount: 8,
         lessons: [
           {
@@ -203,6 +207,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-justice',
         title: 'Justice',
         iconName: 'scales-outline',
+        iconImage: 'topic-justice',
         lessonCount: 8,
         lessons: [
           {
@@ -267,6 +272,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-love',
         title: 'Love',
         iconName: 'heart-outline',
+        iconImage: 'topic-love',
         lessonCount: 8,
         lessons: [
           {
@@ -331,6 +337,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-obedience',
         title: 'Obedience',
         iconName: 'checkmark-circle-outline',
+        iconImage: 'topic-obedience',
         lessonCount: 8,
         lessons: [
           {
@@ -396,11 +403,13 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
   {
     id: 'category-challenge',
     name: 'Challenge',
+    iconImage: 'category-challenge',
     topics: [
       {
         id: 'topic-anger',
         title: 'Anger',
         iconName: 'flash-outline',
+        iconImage: 'topic-anger',
         lessonCount: 8,
         lessons: [
           {
@@ -465,6 +474,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-crisis',
         title: 'Crisis',
         iconName: 'thunderstorm-outline',
+        iconImage: 'topic-crisis',
         lessonCount: 8,
         lessons: [
           {
@@ -529,6 +539,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-grief',
         title: 'Grief',
         iconName: 'sad-outline',
+        iconImage: 'topic-grief',
         lessonCount: 8,
         lessons: [
           {
@@ -593,6 +604,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-hurt',
         title: 'Hurt',
         iconName: 'bandage-outline',
+        iconImage: 'topic-hurt',
         lessonCount: 8,
         lessons: [
           {
@@ -721,6 +733,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-self-esteem',
         title: 'Known and Loved',
         iconName: 'happy-outline',
+        iconImage: 'topic-known-and-loved',
         lessonCount: 8,
         lessons: [
           {
@@ -785,6 +798,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-stress',
         title: 'Stress',
         iconName: 'pulse-outline',
+        iconImage: 'topic-stress',
         lessonCount: 8,
         lessons: [
           {
@@ -850,11 +864,13 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
   {
     id: 'category-money',
     name: 'Money',
+    iconImage: 'category-money',
     topics: [
       {
         id: 'topic-money-and-god',
         title: 'Money and God',
         iconName: 'cash-outline',
+        iconImage: 'topic-money-and-god',
         lessonCount: 8,
         lessons: [
           {
@@ -919,6 +935,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-money-advice',
         title: 'Money Advice',
         iconName: 'bulb-outline',
+        iconImage: 'topic-money-advice',
         lessonCount: 8,
         lessons: [
           {
@@ -983,6 +1000,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-giving',
         title: 'Giving',
         iconName: 'gift-outline',
+        iconImage: 'topic-giving',
         lessonCount: 8,
         lessons: [
           {
@@ -1047,6 +1065,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-marketplace',
         title: 'Faithful at Work',
         iconName: 'storefront-outline',
+        iconImage: 'topic-marketplace',
         lessonCount: 8,
         lessons: [
           {
@@ -1112,11 +1131,13 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
   {
     id: 'category-people',
     name: 'People',
+    iconImage: 'category-people',
     topics: [
       {
         id: 'topic-marriage',
         title: 'Marriage',
         iconName: 'ring-outline',
+        iconImage: 'topic-marriage',
         lessonCount: 8,
         lessons: [
           {
@@ -1181,6 +1202,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-men',
         title: 'Men',
         iconName: 'man-outline',
+        iconImage: 'topic-men',
         lessonCount: 8,
         lessons: [
           {
@@ -1245,6 +1267,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-parenting',
         title: 'Parenting',
         iconName: 'school-outline',
+        iconImage: 'topic-parenting',
         lessonCount: 8,
         lessons: [
           {
@@ -1309,6 +1332,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-singles',
         title: 'Singles',
         iconName: 'person-outline',
+        iconImage: 'topic-singles',
         lessonCount: 8,
         lessons: [
           {
@@ -1373,6 +1397,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-women',
         title: 'Women',
         iconName: 'woman-outline',
+        iconImage: 'topic-women',
         lessonCount: 8,
         lessons: [
           {
@@ -1437,6 +1462,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-youth',
         title: 'Youth',
         iconName: 'fitness-outline',
+        iconImage: 'topic-youth',
         lessonCount: 8,
         lessons: [
           {
@@ -1502,11 +1528,13 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
   {
     id: 'category-god',
     name: 'Knowing God',
+    iconImage: 'category-knowing-god',
     topics: [
       {
         id: 'topic-character-of-god',
         title: 'Character of God',
         iconName: 'ribbon-outline',
+        iconImage: 'topic-character-of-god',
         lessonCount: 8,
         lessons: [
           {
@@ -1571,6 +1599,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-promises-of-god',
         title: 'Promises of God',
         iconName: 'sparkles-outline',
+        iconImage: 'topic-promises-of-god',
         lessonCount: 8,
         lessons: [
           {
@@ -1635,6 +1664,7 @@ export const gatherTopicCategories: GatherTopicCategory[] = [
         id: 'topic-names-of-god',
         title: 'Names of God',
         iconName: 'bookmark-outline',
+        iconImage: 'topic-names-of-god',
         lessonCount: 8,
         lessons: [
           {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -16,6 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations } from '../../data/gatherFoundations';
 import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import type { LearnStackParamList } from '../../navigation/types';
 
@@ -161,14 +163,23 @@ export function GatherScreen() {
                   <View
                     style={[
                       styles.foundationIconContainer,
-                      { backgroundColor: colors.accentPrimary + '18' },
+                      foundation.iconImage && gatherIconImages[foundation.iconImage]
+                        ? undefined
+                        : { backgroundColor: colors.accentPrimary + '18' },
                     ]}
                   >
-                    <Ionicons
-                      name={foundation.iconName as React.ComponentProps<typeof Ionicons>['name']}
-                      size={24}
-                      color={colors.accentPrimary}
-                    />
+                    {foundation.iconImage && gatherIconImages[foundation.iconImage] ? (
+                      <Image
+                        source={gatherIconImages[foundation.iconImage]}
+                        style={styles.foundationIconImage}
+                      />
+                    ) : (
+                      <Ionicons
+                        name={foundation.iconName as React.ComponentProps<typeof Ionicons>['name']}
+                        size={24}
+                        color={colors.accentPrimary}
+                      />
+                    )}
                   </View>
 
                   {/* Content */}
@@ -229,9 +240,17 @@ export function GatherScreen() {
           {/* Category sections */}
           {gatherTopicCategories.map((category) => (
             <View key={category.id}>
-              <Text style={[styles.categoryHeader, { color: colors.primaryText }]}>
-                {category.name}
-              </Text>
+              <View style={styles.categoryHeaderRow}>
+                {category.iconImage && gatherIconImages[category.iconImage] && (
+                  <Image
+                    source={gatherIconImages[category.iconImage]}
+                    style={styles.categoryIconImage}
+                  />
+                )}
+                <Text style={[styles.categoryHeader, { color: colors.primaryText }]}>
+                  {category.name}
+                </Text>
+              </View>
               <View style={styles.topicsGrid}>
                 {category.topics.map((topic) => {
                   const completedCount = getCompletedCount(topic.id);
@@ -256,14 +275,23 @@ export function GatherScreen() {
                       <View
                         style={[
                           styles.topicIconContainer,
-                          { backgroundColor: colors.accentPrimary + '18' },
+                          topic.iconImage && gatherIconImages[topic.iconImage]
+                            ? undefined
+                            : { backgroundColor: colors.accentPrimary + '18' },
                         ]}
                       >
-                        <Ionicons
-                          name={topic.iconName as React.ComponentProps<typeof Ionicons>['name']}
-                          size={20}
-                          color={colors.accentPrimary}
-                        />
+                        {topic.iconImage && gatherIconImages[topic.iconImage] ? (
+                          <Image
+                            source={gatherIconImages[topic.iconImage]}
+                            style={styles.topicIconImage}
+                          />
+                        ) : (
+                          <Ionicons
+                            name={topic.iconName as React.ComponentProps<typeof Ionicons>['name']}
+                            size={20}
+                            color={colors.accentPrimary}
+                          />
+                        )}
                       </View>
                       <Text
                         style={[styles.topicTitle, { color: colors.primaryText }]}
@@ -356,6 +384,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  foundationIconImage: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
   },
   foundationCardContent: {
     flex: 1,
@@ -371,9 +405,19 @@ const styles = StyleSheet.create({
     ...typography.label,
   },
   // Topics
+  categoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  categoryIconImage: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+  },
   categoryHeader: {
     ...typography.cardTitle,
-    marginBottom: spacing.sm,
   },
   topicsGrid: {
     flexDirection: 'row',
@@ -393,6 +437,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  topicIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
   },
   topicTitle: {
     ...typography.label,

@@ -20,14 +20,16 @@ export interface GatherFoundation {
   number: number; // 1-7
   title: string;
   description: string;
-  iconName: string; // Ionicons name
+  iconName: string; // Ionicons name (fallback when iconImage absent)
+  iconImage?: string; // key into gatherIconImages registry
   lessons: GatherLesson[];
 }
 
 export interface GatherTopic {
   id: string; // e.g. 'topic-courage'
   title: string;
-  iconName: string;
+  iconName: string; // Ionicons name (fallback when iconImage absent)
+  iconImage?: string; // key into gatherIconImages registry
   lessonCount: number; // declared count (lessons may be stubs)
   lessons: GatherLesson[];
 }
@@ -37,5 +39,6 @@ export type GatherTopicCategoryName = 'The Inner Life' | 'Challenge' | 'Money' |
 export interface GatherTopicCategory {
   id: string;
   name: GatherTopicCategoryName;
+  iconImage?: string; // key into gatherIconImages registry
   topics: GatherTopic[];
 }
