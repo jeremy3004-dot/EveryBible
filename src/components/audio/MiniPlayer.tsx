@@ -1,4 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById } from '../../constants';
@@ -13,6 +14,8 @@ interface MiniPlayerProps {
 
 export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = layout.tabBarBaseHeight + insets.bottom;
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setCurrentTrack = useAudioStore((state) => state.setCurrentTrack);
@@ -45,7 +48,7 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   }
 
   return (
-    <View pointerEvents="box-none" style={styles.shell}>
+    <View pointerEvents="box-none" style={[styles.shell, { bottom: tabBarHeight + spacing.sm }]}>
       <TouchableOpacity
         style={[
           styles.container,
@@ -127,7 +130,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 74,
     paddingHorizontal: layout.screenPadding,
   },
   container: {
