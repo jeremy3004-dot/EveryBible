@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 Phase: 14 (Backend-driven Bible content sync and offline pack delivery)
 Plan: 2 of 4 complete in current phase
 Status: Plans 01 and 02 complete with runtime catalog, signed manifest verification, durable download-job seams, and translation-aware SQLite pack routing; plan 03 is in progress
-Last activity: 2026-03-21 — Completed the Phase 14 text-pack lifecycle and DB resolver seam, and moved on to backend-driven audio routing/offline download integration
+Last activity: 2026-03-23 - Completed quick task 260323: Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment
 
 Progress: [█████░░░░░] 50%
 
@@ -146,6 +146,12 @@ Recent decisions affecting current work:
 - Phase 12.1 depends on a credible React Native approximation of Apple's liquid-glass feel; Expo blur and motion tuning must improve the experience without making controls unreadable or brittle on device
 - Phase 12.1 is now in TestFlight as App Store Connect build `100` (`aa288850-2023-4ff4-817f-a071af783fd1`), with `processingState=VALID`, `group_has_build=true`, and `tester_has_build=true` for `curryj@protonmail.com`
 - Phase 13 still needs device QA for BSB translation-switch handoff, download, and offline playback after the direct-source provider swap, and plan 02 still needs to replace the older local BSB text refresh path with official Berean downloads
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260323 | Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment | 2026-03-23 | 954569f | [260323-fix-4-bible-reader-bugs-back-navigation-](./quick/260323-fix-4-bible-reader-bugs-back-navigation-/) |
 
 ## Session Continuity
 
