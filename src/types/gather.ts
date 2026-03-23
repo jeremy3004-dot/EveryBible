@@ -32,7 +32,7 @@ export interface GatherTopic {
   lessons: GatherLesson[];
 }
 
-export type GatherTopicCategoryName = 'Truth' | 'Challenge' | 'Money' | 'People' | 'God';
+export type GatherTopicCategoryName = 'The Inner Life' | 'Challenge' | 'Money' | 'People' | 'Knowing God';
 
 export interface GatherTopicCategory {
   id: string;
