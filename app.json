@@ -21,7 +21,8 @@
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
         "UIBackgroundModes": [
-          "audio"
+          "audio",
+          "fetch"
         ],
         "ITSAppUsesNonExemptEncryption": false
       }

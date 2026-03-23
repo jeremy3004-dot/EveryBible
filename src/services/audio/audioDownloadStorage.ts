@@ -42,6 +42,10 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
   },
 };
 
+// Background audio downloads require UIBackgroundModes: ["audio", "fetch"] in app.json (iOS).
+// Without "fetch", native OS download tasks may be suspended when the app moves to the background
+// mid-download, even though @kesha-antonov/react-native-background-downloader uses native
+// URLSession download tasks that are designed to survive navigation away from any screen.
 export async function createBackgroundAudioDownloadTransport(): Promise<AudioDownloadTransport> {
   try {
     const backgroundDownloader = await import(
