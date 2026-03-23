@@ -2085,7 +2085,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: spacing.md,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
@@ -2479,7 +2479,7 @@ const styles = StyleSheet.create({
   },
   followAlongHeader: {
     paddingHorizontal: 18,
-    paddingTop: 6,
+    paddingTop: spacing.md,
     paddingBottom: 16,
     borderBottomWidth: 1,
     gap: 14,
