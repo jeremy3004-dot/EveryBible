@@ -26,22 +26,14 @@ export type BibleStackParamList = {
 
 // Learn Stack
 export type LearnStackParamList = {
-  CourseList: undefined;
-  CourseDetail: {
-    courseId: string;
+  GatherHome: undefined;
+  FoundationDetail: {
+    foundationId: string;
   };
-  LessonView: {
-    courseId: string;
+  LessonDetail: {
+    parentId: string;
     lessonId: string;
-  };
-  // Four Fields screens
-  FourFieldsJourney: undefined;
-  FieldOverview: {
-    field: 'entry' | 'gospel' | 'discipleship' | 'church' | 'multiplication';
-  };
-  FourFieldsLessonView: {
-    courseId: string;
-    lessonId: string;
+    parentType: 'foundation' | 'topic';
   };
   GroupList: undefined;
   GroupDetail: {
@@ -99,20 +91,12 @@ export type ChapterSelectorScreenProps = NativeStackScreenProps<
   'ChapterSelector'
 >;
 
-export type CourseListScreenProps = NativeStackScreenProps<LearnStackParamList, 'CourseList'>;
-export type CourseDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'CourseDetail'>;
-export type LessonViewScreenProps = NativeStackScreenProps<LearnStackParamList, 'LessonView'>;
-
-// Four Fields screen props
-export type FourFieldsJourneyScreenProps = NativeStackScreenProps<
+export type GatherHomeScreenProps = NativeStackScreenProps<LearnStackParamList, 'GatherHome'>;
+export type FoundationDetailScreenProps = NativeStackScreenProps<
   LearnStackParamList,
-  'FourFieldsJourney'
+  'FoundationDetail'
 >;
-export type FieldOverviewScreenProps = NativeStackScreenProps<LearnStackParamList, 'FieldOverview'>;
-export type FourFieldsLessonViewScreenProps = NativeStackScreenProps<
-  LearnStackParamList,
-  'FourFieldsLessonView'
->;
+export type LessonDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'LessonDetail'>;
 export type GroupListScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupList'>;
 export type GroupDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupDetail'>;
 export type GroupSessionScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupSession'>;

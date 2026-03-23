@@ -17,7 +17,7 @@ import {
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 
-type NavProp = NativeStackNavigationProp<LearnStackParamList, 'CourseList'>;
+type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
 export function CourseListScreen() {
   const { colors } = useTheme();

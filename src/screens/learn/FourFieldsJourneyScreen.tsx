@@ -61,14 +61,13 @@ export function FourFieldsJourneyScreen() {
       return;
     }
 
-    navigation.navigate('FourFieldsLessonView', {
-      courseId: nextLesson.courseId,
-      lessonId: nextLesson.lessonId,
-    });
+    // FourFieldsLessonView removed — orphaned screen pending migration
+    void nextLesson;
   };
 
   const handleFieldPress = (field: FieldType) => {
-    navigation.navigate('FieldOverview', { field });
+    // FieldOverview removed — orphaned screen pending migration
+    void field;
   };
 
   return (

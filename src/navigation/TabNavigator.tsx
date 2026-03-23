@@ -59,7 +59,7 @@ export function TabNavigator() {
       <Tab.Screen
         name="Learn"
         component={LearnStack}
-        options={{ tabBarLabel: t('tabs.harvest') }}
+        options={{ tabBarLabel: t('tabs.gather') }}
       />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
     </Tab.Navigator>

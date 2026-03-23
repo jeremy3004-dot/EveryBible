@@ -24,6 +24,7 @@ export const hi = {
     home: 'घर',
     bible: 'बाइबिल',
     harvest: 'फसल',
+    gather: 'इकट्ठा',
     more: 'अधिक',
   },
   home: {
@@ -367,5 +368,13 @@ export const hi = {
     days: 'दिन',
     totalChapters: 'कुल अध्याय',
     totalListening: 'कुल सुनना',
+  },
+  gather: {
+    title: 'इकट्ठा',
+    foundations: 'आधार',
+    topics: 'विषय',
+    fellowship: 'संगति',
+    story: 'कहानी',
+    application: 'अनुप्रयोग',
   },
 } as const;

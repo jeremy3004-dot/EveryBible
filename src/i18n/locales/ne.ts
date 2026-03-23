@@ -24,6 +24,7 @@ export const ne = {
     home: 'घर',
     bible: 'बाइबल',
     harvest: 'फसल',
+    gather: 'भेला',
     more: 'थप',
   },
   home: {
@@ -368,5 +369,13 @@ export const ne = {
     days: 'दिन',
     totalChapters: 'कुल अध्यायहरू',
     totalListening: 'कुल सुन्ने',
+  },
+  gather: {
+    title: 'भेला',
+    foundations: 'आधारहरू',
+    topics: 'विषयहरू',
+    fellowship: 'सङ्गति',
+    story: 'कथा',
+    application: 'प्रयोग',
   },
 } as const;

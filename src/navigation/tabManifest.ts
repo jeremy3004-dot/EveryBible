@@ -26,9 +26,9 @@ export const rootTabManifest: RootTabManifestEntry[] = [
   },
   {
     name: 'Learn',
-    labelKey: 'tabs.harvest',
-    focusedIcon: 'leaf',
-    unfocusedIcon: 'leaf-outline',
+    labelKey: 'tabs.gather',
+    focusedIcon: 'people',
+    unfocusedIcon: 'people-outline',
   },
   {
     name: 'More',

@@ -5,9 +5,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
-import type { LearnStackParamList, LessonViewScreenProps } from '../../navigation/types';
+import type { LearnStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LessonViewScreenProps = { route: any };
 
 export function LessonViewScreen() {
   const navigation = useNavigation<NavigationProp>();

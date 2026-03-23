@@ -15,8 +15,18 @@ export function LearnStack() {
       }}
     >
       <Stack.Screen
-        name="CourseList"
-        getComponent={() => require('../screens/learn/CourseListScreen').CourseListScreen}
+        name="GatherHome"
+        getComponent={() => require('../screens/learn/GatherScreen').GatherScreen}
+      />
+      <Stack.Screen
+        name="FoundationDetail"
+        getComponent={() =>
+          require('../screens/learn/FoundationDetailScreen').FoundationDetailScreen
+        }
+      />
+      <Stack.Screen
+        name="LessonDetail"
+        getComponent={() => require('../screens/learn/LessonDetailScreen').LessonDetailScreen}
       />
       <Stack.Screen
         name="PrayerWall"
@@ -30,30 +40,6 @@ export function LearnStack() {
         name="ReadingPlanDetail"
         getComponent={() =>
           require('../screens/learn/ReadingPlanDetailScreen').ReadingPlanDetailScreen
-        }
-      />
-      <Stack.Screen
-        name="CourseDetail"
-        getComponent={() => require('../screens/learn/CourseDetailScreen').CourseDetailScreen}
-      />
-      <Stack.Screen
-        name="LessonView"
-        getComponent={() => require('../screens/learn/LessonViewScreen').LessonViewScreen}
-      />
-      <Stack.Screen
-        name="FourFieldsJourney"
-        getComponent={() =>
-          require('../screens/learn/FourFieldsJourneyScreen').FourFieldsJourneyScreen
-        }
-      />
-      <Stack.Screen
-        name="FieldOverview"
-        getComponent={() => require('../screens/learn/FieldOverviewScreen').FieldOverviewScreen}
-      />
-      <Stack.Screen
-        name="FourFieldsLessonView"
-        getComponent={() =>
-          require('../screens/learn/FourFieldsLessonViewScreen').FourFieldsLessonViewScreen
         }
       />
       <Stack.Screen

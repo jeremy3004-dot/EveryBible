@@ -1,3 +1,3 @@
-export * from './CourseListScreen';
-export * from './CourseDetailScreen';
-export * from './LessonViewScreen';
+export * from './GatherScreen';
+export * from './FoundationDetailScreen';
+export * from './LessonDetailScreen';

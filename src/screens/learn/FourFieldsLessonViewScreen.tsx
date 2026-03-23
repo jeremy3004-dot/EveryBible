@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -24,14 +24,14 @@ import {
 } from '../../components/fourfields';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
-type ScreenRouteProp = RouteProp<LearnStackParamList, 'FourFieldsLessonView'>;
 
 export function FourFieldsLessonViewScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<ScreenRouteProp>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const route = useRoute<any>();
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { courseId, lessonId } = route.params;
+  const { courseId, lessonId } = route.params as { courseId: string; lessonId: string };
 
   const {
     markLessonComplete,
@@ -77,33 +77,23 @@ export function FourFieldsLessonViewScreen() {
 
   const handleMarkComplete = useCallback(() => {
     markLessonComplete(courseId, lessonId);
-    if (nextLesson) {
-      navigation.replace('FourFieldsLessonView', {
-        courseId,
-        lessonId: nextLesson.id,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [markLessonComplete, courseId, lessonId, navigation, nextLesson]);
+    // FourFieldsLessonView removed — navigate back for now
+    navigation.goBack();
+  }, [markLessonComplete, courseId, lessonId, navigation]);
 
   const handlePrevious = useCallback(() => {
+    // FourFieldsLessonView removed — navigate back for now
     if (prevLesson) {
-      navigation.replace('FourFieldsLessonView', {
-        courseId,
-        lessonId: prevLesson.id,
-      });
+      navigation.goBack();
     }
-  }, [navigation, courseId, prevLesson]);
+  }, [navigation, prevLesson]);
 
   const handleNext = useCallback(() => {
+    // FourFieldsLessonView removed — navigate back for now
     if (nextLesson) {
-      navigation.replace('FourFieldsLessonView', {
-        courseId,
-        lessonId: nextLesson.id,
-      });
+      navigation.goBack();
     }
-  }, [navigation, courseId, nextLesson]);
+  }, [navigation, nextLesson]);
 
   if (!course || !lesson || !currentFieldInfo) {
     return (

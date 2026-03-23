@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,12 +16,13 @@ import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { fieldInfo, getCoursesByField } from '../../data/fourFieldsCourses';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
-type ScreenRouteProp = RouteProp<LearnStackParamList, 'FieldOverview'>;
+type FieldType = 'entry' | 'gospel' | 'discipleship' | 'church' | 'multiplication';
 
 export function FieldOverviewScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<ScreenRouteProp>();
-  const { field } = route.params;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const route = useRoute<any>();
+  const { field } = route.params as { field: FieldType };
   const { colors } = useTheme();
 
   const { isLessonComplete, getCourseProgress, getFieldProgress } = useFourFieldsStore();
@@ -31,7 +32,8 @@ export function FieldOverviewScreen() {
   const progress = getFieldProgress(field);
 
   const handleLessonPress = (courseId: string, lessonId: string) => {
-    navigation.navigate('FourFieldsLessonView', { courseId, lessonId });
+    // FourFieldsLessonView removed — navigation deprecated with this screen
+    void courseId; void lessonId;
   };
 
   return (
