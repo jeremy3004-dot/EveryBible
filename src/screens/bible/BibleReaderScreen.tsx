@@ -1193,7 +1193,7 @@ export function BibleReaderScreen() {
         <TouchableOpacity
           style={styles.touchableGlassButton}
           activeOpacity={0.9}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('BibleBrowser')}
         >
           <GlassSurface style={styles.glassIconButton} intensity={44}>
             <Ionicons name="arrow-back" size={20} color={colors.biblePrimaryText} />
@@ -1422,7 +1422,7 @@ export function BibleReaderScreen() {
           },
         ]}
       >
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('BibleBrowser')}>
           <Ionicons name="chevron-back" size={24} color={colors.biblePrimaryText} />
         </TouchableOpacity>
 
