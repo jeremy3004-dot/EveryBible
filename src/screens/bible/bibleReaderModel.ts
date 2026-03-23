@@ -252,7 +252,9 @@ export const getEstimatedFollowAlongVerse = ({
   }
 
   const progressRatio = Math.max(0, Math.min(currentPosition / duration, 0.999999));
-  const weightedProgress = progressRatio * totalWeight;
+  // Apply a small lag (8% of total duration) so text does not advance ahead of audio.
+  const laggedProgress = Math.max(0, progressRatio - 0.08);
+  const weightedProgress = laggedProgress * totalWeight;
 
   let cumulativeWeight = 0;
   for (const verse of verses) {
