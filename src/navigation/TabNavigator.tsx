@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootTabParamList } from './types';
 import { HomeStack } from './HomeStack';
 import { BibleStack } from './BibleStack';
@@ -18,13 +19,15 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = layout.tabBarBaseHeight + insets.bottom;
   const defaultTabBarStyle = {
     backgroundColor: colors.cardBackground,
     borderTopColor: colors.cardBorder,
     borderTopWidth: 1,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    height: layout.tabBarHeight,
+    paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm,
+    height: tabBarHeight,
   } as const;
 
   return (

@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     width: 32,
   },
   listContent: {
-    paddingBottom: layout.tabBarHeight + spacing.xl,
+    paddingBottom: layout.tabBarBaseHeight + spacing.xl,
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.xl,
   },
