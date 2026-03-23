@@ -17,7 +17,7 @@ export interface GatherLesson {
 
 export interface GatherFoundation {
   id: string; // e.g. 'foundation-1'
-  number: number; // 1-9
+  number: number; // 1-7
   title: string;
   description: string;
   iconName: string; // Ionicons name
