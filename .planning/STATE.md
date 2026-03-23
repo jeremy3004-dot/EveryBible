@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-23T07:42:28.445Z"
+progress:
+  total_phases: 26
+  completed_phases: 17
+  total_plans: 50
+  completed_plans: 46
+---
+
 # Project State
 
 ## Project Reference
@@ -5,16 +19,12 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Execute Phase 14's backend-driven Bible content sync and offline pack delivery, with text-pack routing landed and audio/catalog integration next
+**Current focus:** Phase 23 — foundations-content-restructure
 
 ## Current Position
 
-Phase: 14 (Backend-driven Bible content sync and offline pack delivery)
-Plan: 2 of 4 complete in current phase
-Status: Plans 01 and 02 complete with runtime catalog, signed manifest verification, durable download-job seams, and translation-aware SQLite pack routing; plan 03 is in progress
-Last activity: 2026-03-23 - Completed quick task 260323: Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment
-
-Progress: [█████░░░░░] 50%
+Phase: 23
+Plan: Not started
 
 ## Performance Metrics
 
@@ -47,6 +57,7 @@ Progress: [█████░░░░░] 50%
 - Trend: Phase 14 is now actively executing, with the runtime content foundation and text-pack routing landed before the audio-metadata/UI waves
 
 _Updated after each plan completion_
+| Phase 23 P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +93,8 @@ Recent decisions affecting current work:
 - Phase 11: Reuse the existing playback/session model, but give audio-first chapters a dedicated chapter-only transport and art-led layout instead of stacking extra shells and explanatory copy
 - Phase 12: Prefer a disciplined mobile system built around structured native sans typography, 4-point spacing rhythm, and semantic surfaces rather than adding more decorative treatments or screen-specific visual experiments
 - Phase 13 hardening: Treat translation identity as part of audio track identity so BSB and WEB playback, queue entries, and resume state cannot collide on the same chapter
+- [Phase 23]: Replace placeholder 9-foundation gatherFoundations with authoritative 7-foundation curriculum; remove foundations 8 and 9 entirely
+- [Phase 23]: Each lesson uses a single full-chapter reference (no startVerse/endVerse) — simplifies audio/text routing and matches DBS meeting format
 
 ### Pending Todos
 
@@ -156,6 +169,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-21 13:10 +0545
-Stopped at: Phase 13 plan 01 is hardened against cross-translation audio collisions; next step is device QA for WEB->BSB switching plus offline playback, then Phase 13 plan 02
-Resume file: .planning/phases/13-public-domain-berean-standard-bible-sourcing-and-direct-audio-integration/13-01-SUMMARY.md
+Last session: 2026-03-23T07:39:25.813Z
+Stopped at: Completed 23-01-PLAN.md
+Resume file: None
