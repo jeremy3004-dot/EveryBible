@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -13,6 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations } from '../../data/gatherFoundations';
 import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
 import type { GatherLesson } from '../../types/gather';
@@ -128,17 +130,26 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           <View
             style={[
               styles.heroIconContainer,
-              { backgroundColor: colors.accentPrimary + '18' },
+              foundation.iconImage && gatherIconImages[foundation.iconImage]
+                ? undefined
+                : { backgroundColor: colors.accentPrimary + '18' },
             ]}
           >
-            <Ionicons
-              name={
-                (foundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
-                'book-outline'
-              }
-              size={40}
-              color={colors.accentPrimary}
-            />
+            {foundation.iconImage && gatherIconImages[foundation.iconImage] ? (
+              <Image
+                source={gatherIconImages[foundation.iconImage]}
+                style={styles.heroIconImage}
+              />
+            ) : (
+              <Ionicons
+                name={
+                  (foundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
+                  'book-outline'
+                }
+                size={40}
+                color={colors.accentPrimary}
+              />
+            )}
           </View>
 
           {/* Progress text */}
@@ -284,17 +295,26 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             <View
               style={[
                 styles.upNextIconContainer,
-                { backgroundColor: colors.accentPrimary + '18' },
+                nextFoundation.iconImage && gatherIconImages[nextFoundation.iconImage]
+                  ? undefined
+                  : { backgroundColor: colors.accentPrimary + '18' },
               ]}
             >
-              <Ionicons
-                name={
-                  (nextFoundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
-                  'book-outline'
-                }
-                size={20}
-                color={colors.accentPrimary}
-              />
+              {nextFoundation.iconImage && gatherIconImages[nextFoundation.iconImage] ? (
+                <Image
+                  source={gatherIconImages[nextFoundation.iconImage]}
+                  style={styles.upNextIconImage}
+                />
+              ) : (
+                <Ionicons
+                  name={
+                    (nextFoundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
+                    'book-outline'
+                  }
+                  size={20}
+                  color={colors.accentPrimary}
+                />
+              )}
             </View>
 
             <View style={styles.upNextContent}>
@@ -365,6 +385,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroIconImage: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.pill,
   },
   progressText: {
     ...typography.label,
@@ -466,6 +492,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  upNextIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
   },
   upNextContent: {
     flex: 1,

@@ -26,6 +26,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'The Story of God',
     description: 'Creation to the birth of Jesus',
     iconName: 'earth-outline',
+    iconImage: 'foundation-1',
     lessons: [
       {
         id: 'f1-01',
@@ -98,6 +99,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'The Life and Ministry of Jesus',
     description: 'From his first days to resurrection and ascension',
     iconName: 'person-outline',
+    iconImage: 'foundation-2',
     lessons: [
       {
         id: 'f2-01',
@@ -170,6 +172,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'The Gospel Invitation',
     description: 'Who Jesus is, what he offers, and how to respond',
     iconName: 'hand-right-outline',
+    iconImage: 'foundation-3',
     lessons: [
       {
         id: 'f3-01',
@@ -249,6 +252,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'Life as a Disciple',
     description: 'Being and growing in personal discipleship',
     iconName: 'footsteps-outline',
+    iconImage: 'foundation-4',
     lessons: [
       {
         id: 'f4-01',
@@ -328,6 +332,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'Life as a Jesus Community',
     description: 'Being and growing as the church together',
     iconName: 'people-outline',
+    iconImage: 'foundation-5',
     lessons: [
       {
         id: 'f5-01',
@@ -407,6 +412,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'Life as a Leader',
     description: 'Being and growing as servant leaders',
     iconName: 'flag-outline',
+    iconImage: 'foundation-6',
     lessons: [
       {
         id: 'f6-01',
@@ -486,6 +492,7 @@ export const gatherFoundations: GatherFoundation[] = [
     title: 'Sharing the Good News',
     description: 'Called and sent to every people and nation',
     iconName: 'megaphone-outline',
+    iconImage: 'foundation-7',
     lessons: [
       {
         id: 'f7-01',
