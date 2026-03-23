@@ -142,6 +142,7 @@ Recent decisions affecting current work:
 - Phase 20 added: Analytics & Engagement Metrics (lightweight PG event tracking + Edge Function aggregation)
 - Phase 21 added: Content Versioning & Multiple Translations (version tracking, preferences, scrollmapper data sourcing)
 - Phase 22 added: Gather Tab: Waha-style Foundations, Topics & Meeting Format
+- Phase 23 added: Foundations content restructure (7 foundations, 67 lessons, single-chapter-per-lesson)
 
 ### Blockers/Concerns
 
