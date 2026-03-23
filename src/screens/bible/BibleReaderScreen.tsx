@@ -985,7 +985,7 @@ export function BibleReaderScreen() {
       : scaleValue(20);
     const verseLineHeight = usePremiumTypography
       ? scaleValue(typography.readingBody.lineHeight * 1.15)
-      : scaleValue(40);
+      : scaleValue(50);
     const verseNumberSize = usePremiumTypography
       ? scaleValue(typography.readingVerseNumber.fontSize)
       : scaleValue(12);
@@ -2176,10 +2176,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   readerColumn: {
-    gap: 4,
+    gap: 20,
   },
   premiumReaderColumn: {
-    gap: 2,
+    gap: 16,
   },
   listenColumn: {
     flex: 1,
@@ -2245,25 +2245,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   readerBlock: {
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 12,
   },
   premiumReaderBlock: {
-    gap: 4,
+    gap: 6,
     paddingHorizontal: 0,
   },
   sectionHeading: {
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1.1,
-    marginTop: 14,
+    marginTop: 8,
   },
   premiumSectionHeading: {
     ...typography.readingHeading,
     textTransform: 'none',
     letterSpacing: -0.1,
-    marginTop: 22,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 4,
   },
   verseText: {
     fontWeight: '400',
