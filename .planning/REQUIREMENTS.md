@@ -72,8 +72,8 @@
 
 ### Gather Tab (Waha-style Discovery Bible Study)
 
-- [ ] **GATHER-01**: User sees a Gather tab (replacing Harvest) with Foundations and Topics sub-tabs across all 4 locales
-- [ ] **GATHER-02**: User can browse 9 foundation sets with progress tracking, drill into a foundation to see numbered lessons, and share invitations
+- [x] **GATHER-01**: User sees a Gather tab (replacing Harvest) with Foundations and Topics sub-tabs across all 4 locales
+- [x] **GATHER-02**: User can browse 9 foundation sets with progress tracking, drill into a foundation to see numbered lessons, and share invitations
 - [ ] **GATHER-03**: User can open a lesson in Discovery Bible Study meeting format with Fellowship, Story, and Application section tabs
 - [ ] **GATHER-04**: User can access lesson actions via bottom sheet: mark complete/incomplete, share audio/text/link, and download
 - [ ] **GATHER-05**: Story section renders live Bible text from BSB database and audio player plays the referenced passage chapter audio

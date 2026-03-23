@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-03-23T07:42:28.445Z"
+stopped_at: Completed 24-01-PLAN.md
+last_updated: "2026-03-23T07:53:51.736Z"
 progress:
-  total_phases: 26
-  completed_phases: 17
-  total_plans: 50
-  completed_plans: 46
+  total_phases: 27
+  completed_phases: 18
+  total_plans: 51
+  completed_plans: 47
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 23 — foundations-content-restructure
+**Current focus:** Phase 24 — topics-content-populate
 
 ## Current Position
 
-Phase: 23
+Phase: 24
 Plan: Not started
 
 ## Performance Metrics
@@ -58,6 +58,7 @@ Plan: Not started
 
 _Updated after each plan completion_
 | Phase 23 P01 | 2 | 2 tasks | 2 files |
+| Phase 24 P01 | 8 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - Phase 13 hardening: Treat translation identity as part of audio track identity so BSB and WEB playback, queue entries, and resume state cannot collide on the same chapter
 - [Phase 23]: Replace placeholder 9-foundation gatherFoundations with authoritative 7-foundation curriculum; remove foundations 8 and 9 entirely
 - [Phase 23]: Each lesson uses a single full-chapter reference (no startVerse/endVerse) — simplifies audio/text routing and matches DBS meeting format
+- [Phase 24]: Spec stated 22 topics but content block enumerated 26 — implemented all 26 as written
+- [Phase 24]: Category names updated: Truth -> The Inner Life, God -> Knowing God; topic IDs for self-esteem and marketplace preserved to protect user progress state
 
 ### Pending Todos
 
@@ -170,6 +173,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-23T07:39:25.813Z
-Stopped at: Completed 23-01-PLAN.md
+Last session: 2026-03-23T07:53:10.320Z
+Stopped at: Completed 24-01-PLAN.md
 Resume file: None

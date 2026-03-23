@@ -501,3 +501,13 @@ Plans:
 Plans:
 
 - [ ] 23-01-PLAN.md — Replace gatherFoundations data with authoritative 7-foundation, 67-lesson content and update type comments
+
+### Phase 24: topics-content-populate
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 23
+**Plans:** 0/0 plans complete
+
+Plans:
+- [x] TBD (run /gsd:plan-phase 24 to break down) (completed 2026-03-23)
