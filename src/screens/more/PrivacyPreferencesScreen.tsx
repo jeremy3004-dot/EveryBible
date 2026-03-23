@@ -156,8 +156,8 @@ export function PrivacyPreferencesScreen() {
                 placeholder={t('onboarding.pinPlaceholder')}
                 placeholderTextColor={colors.secondaryText}
                 style={styles.input}
-                autoCapitalize="none"
-                autoCorrect={false}
+                keyboardType="number-pad"
+                secureTextEntry
               />
 
               <TextInput
@@ -169,8 +169,8 @@ export function PrivacyPreferencesScreen() {
                 placeholder={t('onboarding.pinConfirmPlaceholder')}
                 placeholderTextColor={colors.secondaryText}
                 style={styles.input}
-                autoCapitalize="none"
-                autoCorrect={false}
+                keyboardType="number-pad"
+                secureTextEntry
               />
 
               <Text style={styles.pinLegend}>{t('onboarding.pinLegend')}</Text>
