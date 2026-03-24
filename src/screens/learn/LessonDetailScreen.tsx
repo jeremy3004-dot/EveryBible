@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -26,6 +27,7 @@ import {
   gatherFoundations,
 } from '../../data/gatherFoundations';
 import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherIconImages } from '../../data/gatherIcons';
 import {
   getPassageText,
   getPrimaryAudioReference,
@@ -427,7 +429,23 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               { backgroundColor: colors.accentPrimary + '18' },
             ]}
           >
-            <Ionicons name="book-outline" size={32} color={colors.accentPrimary} />
+            {parent?.iconImage && gatherIconImages[parent.iconImage] ? (
+              <Image
+                source={gatherIconImages[parent.iconImage]}
+                style={styles.heroIconImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <Ionicons
+                name={
+                  parent?.iconName
+                    ? (parent.iconName as React.ComponentProps<typeof Ionicons>['name'])
+                    : 'book-outline'
+                }
+                size={32}
+                color={colors.accentPrimary}
+              />
+            )}
           </View>
           <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>
             {lesson.title}
@@ -1011,6 +1029,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  heroIconImage: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
   },
   heroLessonTitle: {
     ...typography.pageTitle,
