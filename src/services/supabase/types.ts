@@ -189,6 +189,17 @@ export interface UserEngagementSummary {
   updated_at: string;
 }
 
+// Phase 28: Cloud Bible verses
+export interface BibleVerseRow {
+  id: number;
+  translation_id: string;
+  book_id: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  heading: string | null;
+}
+
 // Phase 21: Content Versioning
 export interface TranslationCatalogEntry {
   id: string;
@@ -381,6 +392,12 @@ export interface Database {
         Row: UserTranslationPreferences;
         Insert: Omit<UserTranslationPreferences, 'id' | 'synced_at'>;
         Update: Partial<Omit<UserTranslationPreferences, 'id' | 'user_id'>>;
+        Relationships: [];
+      };
+      bible_verses: {
+        Row: BibleVerseRow;
+        Insert: Omit<BibleVerseRow, 'id'>;
+        Update: Partial<Omit<BibleVerseRow, 'id'>>;
         Relationships: [];
       };
     };
