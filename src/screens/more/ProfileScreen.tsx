@@ -17,7 +17,10 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../services/supabase';
 import { uploadAvatar } from '../../services/storage/storageService';
-import { getEngagementSummary } from '../../services/analytics/analyticsService';
+import {
+  getEngagementSummary,
+  refreshEngagement,
+} from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
@@ -51,13 +54,19 @@ export function ProfileScreen() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
 
-  // Fetch engagement summary once on mount when authenticated
+  // Refresh then fetch engagement summary once on mount when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
-    getEngagementSummary()
+    // Fire-and-forget refresh so the summary row is up-to-date before we read it
+    refreshEngagement()
+      .catch(() => {})
+      .then(() => {
+        if (cancelled) return;
+        return getEngagementSummary();
+      })
       .then((result) => {
-        if (!cancelled && result.success && result.data) {
+        if (!cancelled && result?.success && result.data) {
           setEngagement(result.data);
         }
       })

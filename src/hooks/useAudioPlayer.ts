@@ -8,6 +8,7 @@ import {
   isAudioAvailable,
   prefetchChapterAudio,
 } from '../services/audio';
+import { trackEvent } from '../services/analytics';
 import { getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
@@ -188,11 +189,23 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       repeatMode: activeRepeatMode,
       currentBookId: bookId,
       currentChapter: chapterNum,
+      currentTranslationId: finishedTranslationId,
+      duration: finishedDuration,
       queue,
       queueIndex,
       setQueueIndex,
       playbackSequence,
     } = store;
+
+    // Fire analytics event for the chapter that just finished
+    if (bookId && chapterNum) {
+      trackEvent('audio_completed', {
+        duration_ms: finishedDuration,
+        book: bookId,
+        chapter: chapterNum,
+        translation_id: finishedTranslationId ?? translationId,
+      });
+    }
 
     const currentBook = bookId ? getBookById(bookId) : null;
     const repeatTarget = resolveRepeatPlaybackTarget({

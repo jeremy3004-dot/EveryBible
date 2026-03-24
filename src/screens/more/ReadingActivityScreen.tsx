@@ -16,7 +16,10 @@ import {
   parseLocalDateKey,
   summarizeReadingActivity,
 } from '../../services/progress/readingActivity';
-import { getEngagementSummary } from '../../services/analytics/analyticsService';
+import {
+  getEngagementSummary,
+  refreshEngagement,
+} from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 
@@ -72,9 +75,15 @@ export function ReadingActivityScreen() {
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
-    getEngagementSummary()
+    // Fire-and-forget refresh so the summary row is up-to-date before we read it
+    refreshEngagement()
+      .catch(() => {})
+      .then(() => {
+        if (cancelled) return;
+        return getEngagementSummary();
+      })
       .then((result) => {
-        if (!cancelled && result.success && result.data) {
+        if (!cancelled && result?.success && result.data) {
           setEngagement(result.data);
         }
       })
