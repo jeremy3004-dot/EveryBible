@@ -9,7 +9,7 @@ import type {
   TranslationTextCatalog,
 } from '../../types';
 
-export const BUNDLED_BIBLE_SCHEMA_VERSION = 3;
+export const BUNDLED_BIBLE_SCHEMA_VERSION = 4;
 
 const validAudioGranularities = new Set<AudioGranularity>(['none', 'chapter', 'verse']);
 const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([

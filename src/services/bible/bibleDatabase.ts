@@ -8,7 +8,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
-const DEFAULT_MINIMUM_READY_VERSE_COUNT = 60000;
+const DEFAULT_MINIMUM_READY_VERSE_COUNT = 90000;
 
 export type BibleDatabaseSource =
   | {
