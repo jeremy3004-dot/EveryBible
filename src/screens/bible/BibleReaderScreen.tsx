@@ -1866,15 +1866,7 @@ export function BibleReaderScreen() {
               { borderBottomColor: colors.bibleDivider, backgroundColor: colors.bibleBackground },
             ]}
           >
-            <View>
-              <Text style={[styles.followAlongEyebrow, { color: colors.bibleAccent }]}>
-                {translationLabel}
-              </Text>
-              <Text style={[styles.followAlongTitle, { color: colors.biblePrimaryText }]}>
-                {book.name} {chapter}
-              </Text>
-            </View>
-
+            {/* Back to player — left */}
             <TouchableOpacity
               style={[
                 styles.followAlongCloseButton,
@@ -1887,6 +1879,16 @@ export function BibleReaderScreen() {
                 Back to player
               </Text>
             </TouchableOpacity>
+
+            {/* Centered title */}
+            <View style={styles.followAlongTitleCenter} pointerEvents="none">
+              <Text style={[styles.followAlongEyebrow, { color: colors.bibleAccent }]}>
+                {translationLabel}
+              </Text>
+              <Text style={[styles.followAlongTitle, { color: colors.biblePrimaryText }]}>
+                {book.name} {chapter}
+              </Text>
+            </View>
           </View>
 
           <ScrollView
@@ -2484,21 +2486,27 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    gap: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  followAlongTitleCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
   followAlongEyebrow: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   followAlongTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
   },
   followAlongCloseButton: {
-    alignSelf: 'flex-start',
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: 14,
@@ -2506,6 +2514,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    zIndex: 1,
   },
   followAlongCloseLabel: {
     fontSize: 13,
