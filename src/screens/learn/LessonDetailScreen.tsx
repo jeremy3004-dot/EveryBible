@@ -22,6 +22,7 @@ import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
   gatherFoundations,
+  FOUNDATION_LESSON_TITLE_KEYS,
 } from '../../data/gatherFoundations';
 import { gatherTopicCategories } from '../../data/gatherTopics';
 import { gatherIconImages } from '../../data/gatherIcons';
@@ -83,6 +84,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const lesson = parent?.lessons.find((l) => l.id === lessonId);
 
+  // Translate lesson title when an i18n key is available (foundation lessons)
+  const lessonTitleKey = lesson ? FOUNDATION_LESSON_TITLE_KEYS[lesson.id] : undefined;
+  const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : (lesson?.title ?? '');
+
   // -------------------------------------------------------------------------
   // State
   // -------------------------------------------------------------------------
@@ -92,7 +97,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const isComplete = useGatherStore((s) => s.isLessonComplete(parentId, lessonId));
 
   const [activeSection, setActiveSection] = useState<MeetingSectionType>('fellowship');
-  const [headerTitle, setHeaderTitle] = useState<string>(lesson?.title ?? '');
+  const [headerTitle, setHeaderTitle] = useState<string>(lessonTitle);
   const [passageBlocks, setPassageBlocks] = useState<PassageBlock[]>([]);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -178,9 +183,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Sync header title when lesson changes
   useEffect(() => {
     if (lesson) {
-      setHeaderTitle(lesson.title);
+      setHeaderTitle(lessonTitle);
     }
-  }, [lesson]);
+  }, [lesson, lessonTitle]);
 
   // -------------------------------------------------------------------------
   // Audio controls
@@ -297,10 +302,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       } else if (y + 120 >= story) {
         setHeaderTitle(lesson.referenceLabel);
       } else {
-        setHeaderTitle(lesson.title);
+        setHeaderTitle(lessonTitle);
       }
     },
-    [lesson, t]
+    [lesson, lessonTitle, t]
   );
 
   // -------------------------------------------------------------------------
@@ -469,7 +474,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             )}
           </View>
           <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>
-            {lesson.title}
+            {lessonTitle}
           </Text>
           <Text style={[styles.heroReference, { color: colors.secondaryText }]}>
             {lesson.referenceLabel}

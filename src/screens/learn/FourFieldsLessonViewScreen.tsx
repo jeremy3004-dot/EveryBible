@@ -16,7 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
-import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
+import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS, FOUR_FIELDS_LESSON_TITLE_KEYS } from '../../data/fourFieldsCourses';
 import {
   LessonSectionRenderer,
   TakeawayCard,
@@ -47,6 +47,10 @@ export function FourFieldsLessonViewScreen() {
   const lesson = course?.lessons.find((l) => l.id === lessonId);
   const lessonIndex = course?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
   const currentFieldInfo = course ? fieldInfo[course.field] : null;
+
+  // Translate lesson title when an i18n key is available
+  const lessonTitleKey = lesson ? FOUR_FIELDS_LESSON_TITLE_KEYS[lesson.id] : undefined;
+  const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : (lesson?.title ?? '');
 
   // Check completion states
   const lessonComplete = isLessonComplete(courseId, lessonId);
@@ -142,7 +146,7 @@ export function FourFieldsLessonViewScreen() {
               {course ? t(FIELD_TITLE_KEYS[course.field]) : currentFieldInfo.title}
             </Text>
           </View>
-          <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lesson.title}</Text>
+          <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
         </View>
 
         {/* Key Verse */}
@@ -200,7 +204,7 @@ export function FourFieldsLessonViewScreen() {
         )}
 
         {/* Takeaway Card */}
-        <TakeawayCard text={lesson.takeaway} lessonTitle={lesson.title} />
+        <TakeawayCard text={lesson.takeaway} lessonTitle={lessonTitle} />
 
         {/* Practice Card */}
         {lesson.practiceActivity && (

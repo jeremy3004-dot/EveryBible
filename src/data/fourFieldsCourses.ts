@@ -29,6 +29,34 @@ export const FIELD_DESC_KEYS: Record<FieldType, string> = {
 
 export const FIELD_ORDER: FieldType[] = ['entry', 'gospel', 'discipleship', 'church', 'multiplication'];
 
+// Maps Four Fields lesson ID to its i18n title key in the harvest.lessons.* namespace
+export const FOUR_FIELDS_LESSON_TITLE_KEYS: Record<string, string> = {
+  'entry-1': 'harvest.lessons.entry1',
+  'entry-2': 'harvest.lessons.entry2',
+  'entry-3': 'harvest.lessons.entry3',
+  'entry-4': 'harvest.lessons.entry4',
+  'gospel-1': 'harvest.lessons.gospel1',
+  'gospel-2': 'harvest.lessons.gospel2',
+  'gospel-3': 'harvest.lessons.gospel3',
+  'gospel-4': 'harvest.lessons.gospel4',
+  'gospel-5': 'harvest.lessons.gospel5',
+  'disc-1': 'harvest.lessons.disc1',
+  'disc-2': 'harvest.lessons.disc2',
+  'disc-3': 'harvest.lessons.disc3',
+  'disc-4': 'harvest.lessons.disc4',
+  'disc-5': 'harvest.lessons.disc5',
+  'disc-6': 'harvest.lessons.disc6',
+  'disc-7': 'harvest.lessons.disc7',
+  'church-1': 'harvest.lessons.church1',
+  'church-2': 'harvest.lessons.church2',
+  'church-3': 'harvest.lessons.church3',
+  'church-4': 'harvest.lessons.church4',
+  'mult-1': 'harvest.lessons.mult1',
+  'mult-2': 'harvest.lessons.mult2',
+  'mult-3': 'harvest.lessons.mult3',
+  'mult-4': 'harvest.lessons.mult4',
+};
+
 // Field Information - Updated with Tibetan color palette
 export const fieldInfo: Record<FieldType, FieldInfo> = {
   entry: {
