@@ -347,11 +347,24 @@ export const useBibleStore = create<BibleState>()(
         return get().translations.find((t) => t.id === get().currentTranslation);
       },
 
-      downloadTranslation: async (_translationId: string, _bookId?: string) => {
-        // Translation downloads are not yet implemented
-        // Only BSB is currently bundled with the app
+      downloadTranslation: async (translationId: string, _bookId?: string) => {
+        const translation = get().translations.find((t) => t.id === translationId);
+
+        // Translations bundled in the main database (hasText: true at seed time) are
+        // immediately available — no download needed. Mark as downloaded and clear error.
+        if (translation?.hasText) {
+          set((state) => ({
+            error: null,
+            translations: state.translations.map((t) =>
+              t.id === translationId ? { ...t, isDownloaded: true, installState: 'seeded' as const } : t
+            ),
+          }));
+          return;
+        }
+
+        // Remote text-pack downloads are not yet implemented for other translations.
         set({
-          error: 'Translation downloads coming soon! Currently only BSB is available.',
+          error: 'Translation downloads coming soon! Currently only BSB, WEB, and ASV are available.',
         });
       },
 

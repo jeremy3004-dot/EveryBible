@@ -22,6 +22,7 @@ import {
 } from '../../services/translations/translationService';
 import type { TranslationCatalogEntry, UserTranslationPreferences } from '../../services/supabase/types';
 import type { MoreStackParamList } from '../../navigation/types';
+import { useBibleStore } from '../../stores/bibleStore';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'TranslationBrowser'>;
 
@@ -60,12 +61,23 @@ export function TranslationBrowserScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
+  const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
+
   const [translations, setTranslations] = useState<TranslationCatalogEntry[]>([]);
   const [preferences, setPreferences] = useState<UserTranslationPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savingField, setSavingField] = useState<PreferenceField | null>(null);
 
   const sections = groupByLanguage(translations);
+
+  // Returns true if a translation ID is available to read locally (bundled text or installed pack).
+  // Uses getState() so it is not a reactive dependency and won't re-run the load callback.
+  const isLocallyAvailable = useCallback((translationId: string): boolean => {
+    const local = useBibleStore
+      .getState()
+      .translations.find((tr) => tr.id === translationId.toLowerCase());
+    return Boolean(local?.hasText || local?.isDownloaded);
+  }, []);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -75,8 +87,32 @@ export function TranslationBrowserScreen() {
         getUserTranslationPreferences(),
       ]);
 
-      if (catalogResult.success && catalogResult.data) {
+      if (catalogResult.success && catalogResult.data && catalogResult.data.length > 0) {
         setTranslations(catalogResult.data);
+      } else {
+        // Offline or empty catalog: surface locally-available translations as a fallback.
+        const localState = useBibleStore.getState().translations;
+        const fallback: TranslationCatalogEntry[] = localState
+          .filter((tr) => tr.hasText || tr.isDownloaded)
+          .map((tr) => ({
+            id: tr.id,
+            translation_id: tr.id.toUpperCase(),
+            name: tr.name,
+            abbreviation: tr.abbreviation,
+            language_code: 'en',
+            language_name: tr.language,
+            license_type: tr.copyright ?? null,
+            license_url: null,
+            source_url: null,
+            has_text: tr.hasText,
+            has_audio: tr.hasAudio,
+            is_bundled: true,
+            is_available: true,
+            sort_order: 0,
+            created_at: '',
+            updated_at: '',
+          }));
+        setTranslations(fallback);
       }
       if (prefsResult.success) {
         setPreferences(prefsResult.data ?? null);
@@ -99,6 +135,10 @@ export function TranslationBrowserScreen() {
           ...(prev ?? { id: '', user_id: '', secondary_translation: null, audio_translation: null, synced_at: '' }),
           primary_translation: translation.translation_id,
         }));
+        // Also update the local active reading translation when the selection is locally available.
+        if (isLocallyAvailable(translation.translation_id)) {
+          setCurrentTranslation(translation.translation_id.toLowerCase());
+        }
       } else {
         Alert.alert(t('common.error'), result.error ?? t('common.error'));
       }
@@ -130,6 +170,10 @@ export function TranslationBrowserScreen() {
               ...(field === 'secondary' ? { secondary_translation: tr.translation_id } : {}),
               ...(field === 'audio' ? { audio_translation: tr.translation_id } : {}),
             }));
+            // For primary, also update the local active reading translation when available locally.
+            if (field === 'primary' && isLocallyAvailable(tr.translation_id)) {
+              setCurrentTranslation(tr.translation_id.toLowerCase());
+            }
           } else {
             Alert.alert(t('common.error'), result.error ?? t('common.error'));
           }

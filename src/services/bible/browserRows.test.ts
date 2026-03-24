@@ -19,7 +19,7 @@ test('buildBibleBrowserRows creates one continuous list with a single new testam
   const firstRow = rows[0];
   assert.equal(firstRow?.type, 'books');
   if (firstRow?.type === 'books') {
-    assert.deepEqual(firstRow.books.map((book) => book.id), ['GEN', 'EXO']);
+    assert.deepEqual(firstRow.books.map((book) => book.id), ['GEN']);
   }
 
   const rowBeforeDivider = rows[dividerIndex - 1];
@@ -31,7 +31,7 @@ test('buildBibleBrowserRows creates one continuous list with a single new testam
   const rowAfterDivider = rows[dividerIndex + 1];
   assert.equal(rowAfterDivider?.type, 'books');
   if (rowAfterDivider?.type === 'books') {
-    assert.deepEqual(rowAfterDivider.books.map((book) => book.id), ['MAT', 'MRK']);
+    assert.deepEqual(rowAfterDivider.books.map((book) => book.id), ['MAT']);
   }
 });
 

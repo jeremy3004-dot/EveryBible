@@ -17,7 +17,9 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "eas-build-pre-install": "bash scripts/eas-preinstall.sh"
+    "eas-build-pre-install": "bash scripts/eas-preinstall.sh",
+    "build:bible-db": "python3 scripts/build_bible_db.py",
+    "verify:bible-db": "python3 scripts/build_bible_db.py --verify"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
