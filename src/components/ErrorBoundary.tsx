@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { darkColors } from '../contexts/ThemeContext';
 import { radius, spacing, typography } from '../design/system';
 
@@ -12,6 +13,25 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+function ErrorFallback({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={darkColors.error} />
+        </View>
+        <Text style={styles.title}>{t('common.somethingWentWrong')}</Text>
+        <Text style={styles.message}>{t('common.unexpectedError')}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+          <Ionicons name="refresh" size={20} color={darkColors.primaryText} />
+          <Text style={styles.retryText}>{t('common.tryAgain')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -38,23 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      return (
-        <View style={styles.container}>
-          <View style={styles.content}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="alert-circle-outline" size={64} color={darkColors.error} />
-            </View>
-            <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.message}>
-              {"We're sorry, but something unexpected happened. Please try again."}
-            </Text>
-            <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
-              <Ionicons name="refresh" size={20} color={darkColors.primaryText} />
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
+      return <ErrorFallback onRetry={this.handleRetry} />;
     }
 
     return this.props.children;

@@ -78,10 +78,10 @@ export function PlaybackControls({
     : colors.biblePrimaryText;
   const repeatAccessibilityLabel =
     repeatMode === 'chapter'
-      ? 'Repeat chapter'
+      ? t('audio.repeatChapter')
       : repeatMode === 'book'
-        ? 'Repeat book'
-        : 'Repeat off';
+        ? t('audio.repeatBook')
+        : t('audio.repeatOff');
 
   const renderRepeatModeIcon = () => (
     <View style={styles.repeatIconWrapper}>

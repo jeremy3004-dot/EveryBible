@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
@@ -37,6 +38,7 @@ export function GroupDetailScreen() {
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -103,7 +105,7 @@ export function GroupDetailScreen() {
         setRemoteGroupState({
           key: remoteRequestKey,
           group: null,
-          error: error instanceof Error ? error.message : 'Unable to load group.',
+          error: error instanceof Error ? error.message : t('groups.unableToLoadGroup'),
         });
       });
 
@@ -168,7 +170,7 @@ export function GroupDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>Loading group...</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{t('groups.loadingGroup')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -178,9 +180,9 @@ export function GroupDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? 'Group not found'}</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? t('groups.groupNotFound')}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>Go back</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>{t('groups.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -214,14 +216,14 @@ export function GroupDetailScreen() {
     }
 
     Alert.alert(
-      'Leave Group',
+      t('groups.leaveGroup'),
       group.isLeader
-        ? 'As the leader, leaving will transfer leadership to the next oldest member. Are you sure?'
-        : 'Are you sure you want to leave this group?',
+        ? t('groups.leaveGroupLeaderMessage')
+        : t('groups.leaveGroupMemberMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Leave',
+          text: t('groups.leave'),
           style: 'destructive',
           onPress: () => {
             leaveGroup(groupId, userId);
@@ -257,12 +259,12 @@ export function GroupDetailScreen() {
           onPress={handleShareCode}
         >
           <View style={styles.codeCardLeft}>
-            <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>Join Code</Text>
+            <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>{t('groups.joinCode')}</Text>
             <Text style={[styles.codeValue, { color: colors.primaryText }]}>{group.joinCode}</Text>
           </View>
           <View style={styles.codeCardRight}>
             <Ionicons name="share-social-outline" size={20} color={colors.accentGreen} />
-            <Text style={[styles.shareText, { color: colors.accentGreen }]}>Share</Text>
+            <Text style={[styles.shareText, { color: colors.accentGreen }]}>{t('groups.share')}</Text>
           </View>
         </TouchableOpacity>
 
@@ -284,13 +286,13 @@ export function GroupDetailScreen() {
               </View>
               <Text style={[styles.progressText, { color: colors.secondaryText }]}>
                 {completedCount === null
-                  ? 'Synced progress will appear after session rollout is enabled.'
-                  : `${completedCount} lessons completed`}
+                  ? t('groups.syncedProgress')
+                  : t('groups.lessonsCompleted', { count: completedCount })}
               </Text>
             </View>
             <Text style={[styles.currentTitle, { color: colors.primaryText }]}>{currentCourse.title}</Text>
             <Text style={[styles.currentLesson, { color: colors.secondaryText }]}>
-              Next: {currentLesson.title}
+              {t('groups.nextLesson', { title: currentLesson.title })}
             </Text>
             {canStartSession ? (
               <TouchableOpacity
@@ -299,18 +301,17 @@ export function GroupDetailScreen() {
               >
                 <Ionicons name="play" size={20} color={colors.cardBackground} />
                 <Text style={[styles.startButtonText, { color: colors.cardBackground }]}>
-                  {isLocalGroup ? 'Start Group Session' : 'Save Synced Session'}
+                  {isLocalGroup ? t('groups.startGroupSession') : t('groups.saveSyncedSession')}
                 </Text>
               </TouchableOpacity>
             ) : (
               <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
                 <View style={styles.readOnlyHeader}>
                   <Ionicons name="lock-closed-outline" size={18} color={colors.accentGreen} />
-                  <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>Synced group preview</Text>
+                  <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>{t('groups.syncedGroupPreview')}</Text>
                 </View>
                 <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
-                  Secure synced session recording is not available until backend configuration and
-                  signed-in access are both ready for this build.
+                  {t('groups.syncedGroupPreviewBody')}
                 </Text>
               </View>
             )}
@@ -319,7 +320,7 @@ export function GroupDetailScreen() {
 
         {/* Members Section */}
         <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
-          Members ({group.memberCount})
+          {t('groups.members', { count: group.memberCount })}
         </Text>
         {isLocalGroup ? (
           group.members.map((member) => {
@@ -336,18 +337,18 @@ export function GroupDetailScreen() {
                   <View style={styles.memberNameRow}>
                     <Text style={[styles.memberName, { color: colors.primaryText }]}>
                       {member.name}
-                      {isCurrentUser && ' (you)'}
+                      {isCurrentUser && t('groups.you')}
                     </Text>
                     {member.role === 'leader' && (
                       <View style={[styles.leaderBadge, { backgroundColor: colors.accentGreen + '30' }]}>
-                        <Text style={[styles.leaderBadgeText, { color: colors.accentGreen }]}>Leader</Text>
+                        <Text style={[styles.leaderBadgeText, { color: colors.accentGreen }]}>{t('groups.leader')}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.memberJoined, { color: colors.secondaryText }]}>
                     {member.joinedAt == null
-                      ? 'Joined recently'
-                      : `Joined ${new Date(member.joinedAt).toLocaleDateString()}`}
+                      ? t('groups.joinedRecently')
+                      : t('groups.joinedDate', { date: new Date(member.joinedAt).toLocaleDateString() })}
                   </Text>
                 </View>
               </View>
@@ -357,11 +358,10 @@ export function GroupDetailScreen() {
           <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
             <View style={styles.readOnlyHeader}>
               <Ionicons name="people-outline" size={18} color={colors.accentGreen} />
-              <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>Read-only synced membership</Text>
+              <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>{t('groups.readOnlySyncedMembership')}</Text>
             </View>
             <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
-              This synced group came from your signed-in account. Member names and synced lesson
-              history will appear here as rollout continues.
+              {t('groups.readOnlySyncedMembershipBody')}
             </Text>
           </View>
         )}

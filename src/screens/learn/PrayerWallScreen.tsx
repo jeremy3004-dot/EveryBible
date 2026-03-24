@@ -273,7 +273,7 @@ export function PrayerWallScreen() {
             </View>
             <View style={styles.cardMeta}>
               <Text style={[styles.displayName, { color: colors.primaryText }]}>
-                {isOwner ? (user?.displayName ?? 'You') : 'Group member'}
+                {isOwner ? (user?.displayName ?? t('prayer.you')) : t('prayer.groupMember')}
               </Text>
               <Text style={[styles.timestamp, { color: colors.secondaryText }]}>
                 {formatRelativeTime(item.created_at)}

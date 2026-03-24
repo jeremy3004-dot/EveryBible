@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
@@ -35,17 +36,19 @@ type ScreenRouteProp = RouteProp<LearnStackParamList, 'GroupSession'>;
 
 type SessionPhase = 'look-back' | 'look-up' | 'look-forward';
 
-const PHASES: { id: SessionPhase; title: string; duration: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'look-back', title: 'Look Back', duration: '~5 min', icon: 'arrow-back-circle-outline' },
-  { id: 'look-up', title: 'Look Up', duration: '~10 min', icon: 'arrow-up-circle-outline' },
-  { id: 'look-forward', title: 'Look Forward', duration: '~10 min', icon: 'arrow-forward-circle-outline' },
-];
 
 export function GroupSessionScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
   const { colors } = useTheme();
+  const { t } = useTranslation();
+
+  const PHASES = [
+    { id: 'look-back' as SessionPhase, title: t('groups.session.lookBack'), duration: t('groups.session.duration5min'), icon: 'arrow-back-circle-outline' as keyof typeof Ionicons.glyphMap },
+    { id: 'look-up' as SessionPhase, title: t('groups.session.lookUp'), duration: t('groups.session.duration10min'), icon: 'arrow-up-circle-outline' as keyof typeof Ionicons.glyphMap },
+    { id: 'look-forward' as SessionPhase, title: t('groups.session.lookForward'), duration: t('groups.session.duration10min'), icon: 'arrow-forward-circle-outline' as keyof typeof Ionicons.glyphMap },
+];
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -115,7 +118,7 @@ export function GroupSessionScreen() {
         setRemoteGroupState({
           key: remoteRequestKey,
           group: null,
-          error: error instanceof Error ? error.message : 'Unable to load group.',
+          error: error instanceof Error ? error.message : t('groups.unableToLoadGroup'),
         });
       });
 
@@ -151,7 +154,7 @@ export function GroupSessionScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>Loading group...</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{t('groups.loadingGroup')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -161,9 +164,9 @@ export function GroupSessionScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? 'Group not found'}</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? t('groups.groupNotFound')}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>Go back</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>{t('groups.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -210,10 +213,10 @@ export function GroupSessionScreen() {
 
     if (syncedServiceAvailability !== 'ready') {
       Alert.alert(
-        'Synced session unavailable',
+        t('groups.syncSession.unavailableTitle'),
         syncedServiceAvailability === 'backend-unavailable'
-          ? 'This build is not configured for synced group recording yet.'
-          : 'You must be signed in before you can save a synced group session.'
+          ? t('groups.syncSession.backendUnavailable')
+          : t('groups.syncSession.signInRequired')
       );
       return;
     }
@@ -234,8 +237,8 @@ export function GroupSessionScreen() {
       navigation.goBack();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Synced group session could not be saved.';
-      Alert.alert('Unable to save synced session', message);
+        error instanceof Error ? error.message : t('groups.syncSession.saveFailedDefault');
+      Alert.alert(t('groups.syncSession.saveFailedTitle'), message);
     } finally {
       setIsSavingSynced(false);
     }
@@ -252,7 +255,7 @@ export function GroupSessionScreen() {
           <Ionicons name="close" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>Group Session</Text>
+          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{t('groups.session.title')}</Text>
           <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]}>{group.name}</Text>
         </View>
         <View style={styles.headerRight} />
@@ -332,7 +335,7 @@ export function GroupSessionScreen() {
           <View style={[styles.syncedNoticeCard, { backgroundColor: colors.cardBackground }]}>
             <Ionicons name="cloud-done-outline" size={18} color={colors.accentGreen} />
             <Text style={[styles.syncedNoticeText, { color: colors.primaryText }]}>
-              Completing this session will save a synced record for your signed-in group.
+              {t('groups.session.syncedNotice')}
             </Text>
           </View>
         ) : null}
@@ -343,34 +346,34 @@ export function GroupSessionScreen() {
             <View style={styles.phaseHeader}>
               <Ionicons name="arrow-back-circle" size={24} color={colors.accentPrimary} />
               <View>
-                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Back</Text>
-                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~5 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>{t('groups.session.lookBack')}</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>{t('groups.session.duration5min')}</Text>
               </View>
             </View>
 
             <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
-              {"Start by checking in on how everyone applied last week's lesson. This builds accountability and celebrates obedience."}
+              {t('groups.session.lookBackDescription')}
             </Text>
 
             <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Discuss Together:</Text>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>{t('groups.session.discussTogether')}</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    How did you obey what you learned last time?
+                    {t('groups.session.lookBackQ1')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    Who did you share it with? What happened?
+                    {t('groups.session.lookBackQ2')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>3.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    What challenges did you face?
+                    {t('groups.session.lookBackQ3')}
                   </Text>
                 </View>
               </View>
@@ -379,7 +382,7 @@ export function GroupSessionScreen() {
             <View style={[styles.tipCard, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="bulb-outline" size={18} color={colors.warning} />
               <Text style={[styles.tipText, { color: colors.primaryText }]}>
-                {"Celebrate wins! Encourage those who obeyed. Gently encourage those who didn't to try again this week."}
+                {t('groups.session.lookBackTip')}
               </Text>
             </View>
           </View>
@@ -390,13 +393,13 @@ export function GroupSessionScreen() {
             <View style={styles.phaseHeader}>
               <Ionicons name="arrow-up-circle" size={24} color={colors.accentGreen} />
               <View>
-                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Up</Text>
-                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~10 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>{t('groups.session.lookUp')}</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>{t('groups.session.duration10min')}</Text>
               </View>
             </View>
 
             <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
-              Read the Scripture together and discover what God is teaching.
+              {t('groups.session.lookUpDescription')}
             </Text>
 
             {/* Key Verse */}
@@ -427,30 +430,30 @@ export function GroupSessionScreen() {
               ))}
 
             <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Discovery Questions:</Text>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>{t('groups.session.discoveryQuestions')}</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    What does this passage teach about God?
+                    {t('groups.session.lookUpQ1')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    What does it teach about people?
+                    {t('groups.session.lookUpQ2')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>3.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    Is there an example to follow or avoid?
+                    {t('groups.session.lookUpQ3')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>4.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    Is there a command to obey?
+                    {t('groups.session.lookUpQ4')}
                   </Text>
                 </View>
               </View>
@@ -459,7 +462,7 @@ export function GroupSessionScreen() {
             {/* Discussion questions from lesson */}
             {currentLesson.discussionQuestions && currentLesson.discussionQuestions.length > 0 && (
               <View style={[styles.lessonQuestionsCard, { backgroundColor: colors.cardBackground }]}>
-                <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Lesson Questions:</Text>
+                <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>{t('groups.session.lessonQuestions')}</Text>
                 {currentLesson.discussionQuestions.map((q, i) => (
                   <View key={i} style={styles.questionItem}>
                     <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>{i + 1}.</Text>
@@ -476,40 +479,40 @@ export function GroupSessionScreen() {
             <View style={styles.phaseHeader}>
               <Ionicons name="arrow-forward-circle" size={24} color={colors.accentPrimary} />
               <View>
-                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>Look Forward</Text>
-                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>~10 minutes</Text>
+                <Text style={[styles.phaseContentTitle, { color: colors.primaryText }]}>{t('groups.session.lookForward')}</Text>
+                <Text style={[styles.phaseDuration, { color: colors.secondaryText }]}>{t('groups.session.duration10min')}</Text>
               </View>
             </View>
 
             <Text style={[styles.phaseDescription, { color: colors.secondaryText }]}>
-              Commit to obeying what you learned and sharing it with someone else.
+              {t('groups.session.lookForwardDescription')}
             </Text>
 
             <View style={[styles.takeawayCard, { backgroundColor: colors.warning + '15' }]}>
-              <Text style={[styles.takeawayLabel, { color: colors.warning }]}>Key Takeaway:</Text>
+              <Text style={[styles.takeawayLabel, { color: colors.warning }]}>{t('groups.session.keyTakeaway')}</Text>
               <Text style={[styles.takeawayText, { color: colors.primaryText }]}>{currentLesson.takeaway}</Text>
             </View>
 
             {currentLesson.practiceActivity && (
               <View style={[styles.practiceCard, { backgroundColor: colors.accentPrimary + '15' }]}>
-                <Text style={[styles.practiceLabel, { color: colors.primaryText }]}>{"This Week's Practice:"}</Text>
+                <Text style={[styles.practiceLabel, { color: colors.primaryText }]}>{t('groups.session.thisWeeksPractice')}</Text>
                 <Text style={[styles.practiceText, { color: colors.primaryText }]}>{currentLesson.practiceActivity}</Text>
               </View>
             )}
 
             <View style={[styles.discussionCard, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>Commit Together:</Text>
+              <Text style={[styles.discussionLabel, { color: colors.primaryText }]}>{t('groups.session.commitTogether')}</Text>
               <View style={styles.questionList}>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>1.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    {'"I will..." - How will you obey this teaching?'}
+                    {t('groups.session.lookForwardQ1')}
                   </Text>
                 </View>
                 <View style={styles.questionItem}>
                   <Text style={[styles.questionBullet, { color: colors.secondaryText }]}>2.</Text>
                   <Text style={[styles.questionText, { color: colors.primaryText }]}>
-                    {'"I will share with..." - Who will you teach this to?'}
+                    {t('groups.session.lookForwardQ2')}
                   </Text>
                 </View>
               </View>
@@ -518,7 +521,7 @@ export function GroupSessionScreen() {
             <View style={[styles.prayerCard, { backgroundColor: colors.accentPrimary + '15' }]}>
               <Ionicons name="heart-outline" size={18} color={colors.accentPrimary} />
               <Text style={[styles.prayerText, { color: colors.primaryText }]}>
-                {"Close in prayer. Ask God to help each person obey and share what they've learned. Pray for the people they'll share with."}
+                {t('groups.session.closingPrayer')}
               </Text>
             </View>
           </View>
@@ -539,7 +542,7 @@ export function GroupSessionScreen() {
               onPress={handlePreviousPhase}
             >
               <Ionicons name="arrow-back" size={20} color={colors.secondaryText} />
-              <Text style={[styles.footerButtonSecondaryText, { color: colors.secondaryText }]}>Previous</Text>
+              <Text style={[styles.footerButtonSecondaryText, { color: colors.secondaryText }]}>{t('common.previous')}</Text>
             </TouchableOpacity>
           )}
           <View style={styles.footerSpacer} />
@@ -548,7 +551,7 @@ export function GroupSessionScreen() {
               style={[styles.footerButtonPrimary, { backgroundColor: colors.accentGreen }]}
               onPress={handleNextPhase}
             >
-              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>Next</Text>
+              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>{t('common.next')}</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.cardBackground} />
             </TouchableOpacity>
           ) : (
@@ -566,10 +569,10 @@ export function GroupSessionScreen() {
               <Ionicons name="checkmark" size={20} color={colors.cardBackground} />
               <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>
                 {isSavingSynced
-                  ? 'Saving...'
+                  ? t('groups.session.saving')
                   : isSyncedGroup
-                    ? 'Save Synced Session'
-                    : 'Complete Session'}
+                    ? t('groups.saveSyncedSession')
+                    : t('groups.session.completeSession')}
               </Text>
             </TouchableOpacity>
           )}

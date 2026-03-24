@@ -341,7 +341,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // -------------------------------------------------------------------------
 
   const handleShare = useCallback(() => {
-    Share.share({ message: 'Check out EveryBible!' }).catch(() => undefined);
+    Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
   }, []);
 
   // -------------------------------------------------------------------------
@@ -359,7 +359,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
           </TouchableOpacity>
           <Text style={[styles.notFoundText, { color: colors.secondaryText }]}>
-            Lesson not found
+            {t('harvest.lessonNotFound')}
           </Text>
         </View>
       </SafeAreaView>
@@ -514,7 +514,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               playAudio();
             }}
             onShareApp={() => {
-              Share.share({ message: 'Check out EveryBible!' }).catch(() => undefined);
+              Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
             }}
           />
         </View>

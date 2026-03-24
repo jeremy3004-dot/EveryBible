@@ -258,7 +258,7 @@ export function FourFieldsLessonViewScreen() {
           >
             <Ionicons name="checkmark-circle" size={22} color={colors.cardBackground} />
             <Text style={[styles.completeButtonText, { color: colors.cardBackground }]}>
-              {nextLesson ? 'Complete & Continue' : 'Complete Lesson'}
+              {nextLesson ? t('harvest.completeAndContinue') : t('harvest.completeLesson')}
             </Text>
           </TouchableOpacity>
         </View>

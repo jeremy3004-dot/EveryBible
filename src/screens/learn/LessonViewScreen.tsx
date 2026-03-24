@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
@@ -16,6 +17,7 @@ export function LessonViewScreen() {
   const route = useRoute<LessonViewScreenProps['route']>();
   const { lessonId } = route.params;
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -82,7 +84,7 @@ export function LessonViewScreen() {
         <TouchableOpacity
           style={[styles.completeButton, { backgroundColor: colors.accentGreen }]}
         >
-          <Text style={[styles.completeButtonText, { color: colors.cardBackground }]}>Mark as Complete</Text>
+          <Text style={[styles.completeButtonText, { color: colors.cardBackground }]}>{t('gather.markComplete')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

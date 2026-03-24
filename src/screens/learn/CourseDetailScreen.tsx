@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
@@ -26,6 +27,7 @@ export function CourseDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CourseDetailScreenProps['route']>();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { courseId } = route.params;
 
   const handleLessonPress = (lessonId: string) => {
@@ -42,7 +44,7 @@ export function CourseDetailScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.secondaryText }]}>Course</Text>
+        <Text style={[styles.headerTitle, { color: colors.secondaryText }]}>{t('harvest.fourFieldsJourney')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -61,7 +63,7 @@ export function CourseDetailScreen() {
           ]}
         >
           <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, { color: colors.secondaryText }]}>Your Progress</Text>
+            <Text style={[styles.progressLabel, { color: colors.secondaryText }]}>{t('harvest.progressLabel')}</Text>
             <Text style={[styles.progressPercent, { color: colors.accentGreen }]}>
               {Math.round(progress)}%
             </Text>
@@ -72,11 +74,11 @@ export function CourseDetailScreen() {
             />
           </View>
           <Text style={[styles.progressText, { color: colors.secondaryText }]}>
-            {completedCount} of {sampleLessons.length} lessons completed
+            {t('harvest.lessonsCompleted', { completed: completedCount, total: sampleLessons.length })}
           </Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>Lessons</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>{t('harvest.nextLesson')}</Text>
         {sampleLessons.map((lesson, index) => (
           <TouchableOpacity
             key={lesson.id}

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById } from '../../constants';
 import { useAudioPlayer } from '../../hooks';
@@ -14,6 +15,7 @@ interface MiniPlayerProps {
 
 export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBarHeight = layout.tabBarBaseHeight + insets.bottom;
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
@@ -84,7 +86,7 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
             {book.name} {displayChapter}
           </Text>
           <Text style={[styles.subtitle, { color: colors.secondaryText }]} numberOfLines={1}>
-            {status === 'playing' ? 'Now playing' : 'Ready to resume'}
+            {status === 'playing' ? t('audio.nowPlaying') : t('audio.readyToResume')}
           </Text>
         </View>
 

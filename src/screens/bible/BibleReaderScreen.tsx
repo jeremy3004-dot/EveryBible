@@ -915,7 +915,7 @@ export function BibleReaderScreen() {
             {book.name} {chapter}
           </Text>
           <Text style={[styles.listenChapterMeta, { color: colors.bibleSecondaryText }]}>
-            {verses.length} {verses.length === 1 ? 'Verse' : 'Verses'}
+            {t('bible.verseCount', { count: verses.length })}
           </Text>
         </View>
 
@@ -972,7 +972,7 @@ export function BibleReaderScreen() {
             onSetSleepTimer={startSleepTimer}
             onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
             onShowText={() => setShowFollowAlongText(true)}
-            showTextLabel="Text"
+            showTextLabel={t('audio.showText')}
           />
         </View>
       </View>
@@ -1232,7 +1232,7 @@ export function BibleReaderScreen() {
                       },
                     ]}
                   >
-                    {mode === 'listen' ? 'Listen' : 'Read'}
+                    {mode === 'listen' ? t('bible.listen') : t('bible.read')}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1463,7 +1463,7 @@ export function BibleReaderScreen() {
                         },
                       ]}
                     >
-                      {mode === 'listen' ? 'Listen' : 'Read'}
+                      {mode === 'listen' ? t('bible.listen') : t('bible.read')}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1680,31 +1680,31 @@ export function BibleReaderScreen() {
               {
                 key: 'favorite',
                 icon: isFavorite ? 'heart' : 'heart-outline',
-                label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                label: isFavorite ? t('bible.removeFromFavorites') : t('bible.addToFavorites'),
                 onPress: handleToggleFavorite,
               },
               {
                 key: 'playlist',
                 icon: 'list-outline',
-                label: 'Add to saved playlist',
+                label: t('bible.addToSavedPlaylist'),
                 onPress: handleAddToPlaylist,
               },
               {
                 key: 'queue',
                 icon: 'play-forward-outline',
-                label: 'Add to queue',
+                label: t('bible.addToQueue'),
                 onPress: handleAddToQueue,
               },
               {
                 key: 'download',
                 icon: 'download-outline',
-                label: 'Download book audio',
+                label: t('bible.downloadBookAudio'),
                 onPress: handleDownloadCurrentBookAudio,
               },
               {
                 key: 'share',
                 icon: 'share-social-outline',
-                label: 'Share chapter reference',
+                label: t('bible.shareChapterReference'),
                 onPress: () => {
                   void handleShareChapter();
                 },

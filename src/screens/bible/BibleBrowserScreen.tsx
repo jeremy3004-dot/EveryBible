@@ -402,7 +402,7 @@ export function BibleBrowserScreen() {
           <View>
             <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('bible.title')}</Text>
             <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-              {currentTranslationInfo?.name || 'Berean Standard Bible'}
+              {currentTranslationInfo?.name || t('about.bereanBible')}
             </Text>
           </View>
 
@@ -819,7 +819,7 @@ export function BibleBrowserScreen() {
                                           { color: allDone ? colors.success : colors.biblePrimaryText },
                                         ]}
                                       >
-                                        {testament === 'OT' ? 'Old Testament' : 'New Testament'}
+                                        {testament === 'OT' ? t('bible.oldTestament') : t('bible.newTestament')}
                                       </Text>
                                     </>
                                   )}
