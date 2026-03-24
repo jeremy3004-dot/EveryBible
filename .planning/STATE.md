@@ -1,17 +1,3 @@
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-03-23T07:53:51.736Z"
-progress:
-  total_phases: 27
-  completed_phases: 18
-  total_plans: 51
-  completed_plans: 47
----
-
 # Project State
 
 ## Project Reference
@@ -19,18 +5,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 24 — topics-content-populate
+**Current focus:** Phase 27 complete — WEB and ASV translations are now fully readable in-app via the bundled database; TranslationBrowserScreen wired to bibleStore for immediate translation switching
 
 ## Current Position
 
-Phase: 24
-Plan: Not started
+Phase: 14 (Backend-driven Bible content sync and offline pack delivery)
+Plan: 2 of 4 complete in current phase
+Status: Plans 01 and 02 complete with runtime catalog, signed manifest verification, durable download-job seams, and translation-aware SQLite pack routing; plan 03 is in progress
+Last activity: 2026-03-23 - Completed quick task 260323: Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment
+
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 31
+- Total plans completed: 32
 - Current phase plans remaining: 2
 - Average duration: n/a
 - Total execution time: n/a
@@ -53,12 +43,10 @@ Plan: Not started
 
 **Recent Trend:**
 
-- Last 5 plans: 12.1-02, 12.1-03, 13-01, 14-01, 14-02
-- Trend: Phase 14 is now actively executing, with the runtime content foundation and text-pack routing landed before the audio-metadata/UI waves
+- Last 5 plans: 13-01, 14-01, 14-02, 26-01, 27-01
+- Trend: Quick phases (25, 26, 27) now complete; all three phases addressed analytics tracking, navigation gaps, and translation availability
 
 _Updated after each plan completion_
-| Phase 23 P01 | 2 | 2 tasks | 2 files |
-| Phase 24 P01 | 8 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -94,10 +82,7 @@ Recent decisions affecting current work:
 - Phase 11: Reuse the existing playback/session model, but give audio-first chapters a dedicated chapter-only transport and art-led layout instead of stacking extra shells and explanatory copy
 - Phase 12: Prefer a disciplined mobile system built around structured native sans typography, 4-point spacing rhythm, and semantic surfaces rather than adding more decorative treatments or screen-specific visual experiments
 - Phase 13 hardening: Treat translation identity as part of audio track identity so BSB and WEB playback, queue entries, and resume state cannot collide on the same chapter
-- [Phase 23]: Replace placeholder 9-foundation gatherFoundations with authoritative 7-foundation curriculum; remove foundations 8 and 9 entirely
-- [Phase 23]: Each lesson uses a single full-chapter reference (no startVerse/endVerse) — simplifies audio/text routing and matches DBS meeting format
-- [Phase 24]: Spec stated 22 topics but content block enumerated 26 — implemented all 26 as written
-- [Phase 24]: Category names updated: Truth -> The Inner Life, God -> Knowing God; topic IDs for self-esteem and marketplace preserved to protect user progress state
+- Phase 27: Co-locate all bundled translations in a single bible-bsb-v2.db asset rather than per-translation files; downloadTranslation resolves silently for hasText translations; TranslationBrowserScreen uses useBibleStore.getState() inside callbacks to avoid reactive re-trigger loops
 
 ### Pending Todos
 
@@ -175,5 +160,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed quick task 260324: Fix 5 UI bugs — dynamic tab bar height, PIN number-pad, reader header padding, AnnotationsScreen safe area, MiniPlayer overlap
-Resume file: .planning/phases/13-public-domain-berean-standard-bible-sourcing-and-direct-audio-integration/13-01-SUMMARY.md
+Stopped at: Completed Phase 27 Plan 01 — WEB and ASV translations wired for in-app reading
+Resume file: .planning/phases/27-translation-downloads-web-asv/27-01-SUMMARY.md
