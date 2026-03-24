@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-stopped_at: Completed Phase 28 Plan 01 — Supabase bible_verses table, anon RLS, and eBible VPL import script
-last_updated: "2026-03-24T11:55:01.679Z"
+status: Phase complete — ready for verification
+stopped_at: Completed Phase 28 Plan 02 — Cloud translation download service and TranslationBrowserScreen UI
+last_updated: "2026-03-24T12:05:32.417Z"
 progress:
   total_phases: 30
-  completed_phases: 19
+  completed_phases: 20
   total_plans: 54
-  completed_plans: 51
+  completed_plans: 52
 ---
 
 # Project State
@@ -58,6 +58,7 @@ Plan: 2 of 2
 
 _Updated after each plan completion_
 | Phase 28-multi-translation-supabase-library P01 | 4 | 2 tasks | 4 files |
+| Phase 28 P02 | 7m | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,9 @@ Recent decisions affecting current work:
 - [Phase 28-multi-translation-supabase-library]: bible_verses schema mirrors bundled SQLite verses table 1:1 so download data maps cleanly to local DB format
 - [Phase 28-multi-translation-supabase-library]: anon RLS policies added to all three translation tables so unauthenticated users can browse without requiring login
 - [Phase 28-multi-translation-supabase-library]: Import script uses service_role key (bypasses RLS) and is a dev/ops tool only — not called from the app
+- [Phase 28]: Use expo-file-system/legacy for cloudTranslationService filesystem ops; new v2 API does not expose documentDirectory on its top-level namespace
+- [Phase 28]: Fetch Supabase bible_verses in pages of 5000 to respect free-tier response size limits
+- [Phase 28]: Dynamic import() of cloudTranslationService in bibleStore to keep bundled-only app startup lean
 
 ### Pending Todos
 
@@ -178,6 +182,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-24T11:55:01.676Z
-Stopped at: Completed Phase 28 Plan 01 — Supabase bible_verses table, anon RLS, and eBible VPL import script
+Last session: 2026-03-24T12:05:32.414Z
+Stopped at: Completed Phase 28 Plan 02 — Cloud translation download service and TranslationBrowserScreen UI
 Resume file: None
