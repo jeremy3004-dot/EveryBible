@@ -179,6 +179,39 @@ function parseCsv(raw: string): Record<string, string>[] {
   });
 }
 
+/** Maps ISO 639-3 codes to a canonical English language name for the catalog display. */
+const LANGUAGE_NAME_MAP: Record<string, string> = {
+  eng: 'English',
+  spa: 'Spanish',
+  hin: 'Hindi',
+  npi: 'Nepali',
+  fra: 'French',
+  deu: 'German',
+  por: 'Portuguese',
+  rus: 'Russian',
+  arb: 'Arabic',
+  zho: 'Chinese',
+  jpn: 'Japanese',
+  kor: 'Korean',
+  vie: 'Vietnamese',
+  urd: 'Urdu',
+  ben: 'Bengali',
+};
+
+/**
+ * Return a consistent English language name for the catalog.
+ * Falls back to the raw CSV value if the code is unknown.
+ * Prevents native-script names (e.g. "नेपाली") from leaking in via eBible data quality issues.
+ */
+function normalizeLanguageName(code: string, raw: string): string {
+  const canonical = LANGUAGE_NAME_MAP[code];
+  if (canonical) return canonical;
+  // If the raw name contains non-ASCII characters, it's likely a native-script name
+  // that slipped into the "languageNameInEnglish" column — use code as fallback.
+  if (/[^\x00-\x7F]/.test(raw)) return code;
+  return raw;
+}
+
 function parseTranslationsCsv(csvText: string): TranslationCsvRow[] {
   const rows = parseCsv(csvText);
   return rows
@@ -186,7 +219,10 @@ function parseTranslationsCsv(csvText: string): TranslationCsvRow[] {
       translationId: row['translationId'] ?? '',
       shortTitle: row['shortTitle'] ?? row['title'] ?? '',
       languageCode: row['languageCode'] ?? row['Language'] ?? '',
-      languageNameInEnglish: row['languageNameInEnglish'] ?? row['LanguageName'] ?? '',
+      languageNameInEnglish: normalizeLanguageName(
+        row['languageCode'] ?? '',
+        row['languageNameInEnglish'] ?? row['LanguageName'] ?? '',
+      ),
       otBooks: parseInt(row['OTbooks'] ?? row['OT'] ?? '0', 10),
       ntBooks: parseInt(row['NTbooks'] ?? row['NT'] ?? '0', 10),
       redistributable: (row['Redistributable'] ?? '').toLowerCase() === 'true',
