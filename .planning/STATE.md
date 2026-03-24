@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: Ready to execute
+stopped_at: Completed Phase 28 Plan 01 — Supabase bible_verses table, anon RLS, and eBible VPL import script
+last_updated: "2026-03-24T11:55:01.679Z"
+progress:
+  total_phases: 30
+  completed_phases: 19
+  total_plans: 54
+  completed_plans: 51
+---
+
 # Project State
 
 ## Project Reference
@@ -5,16 +19,12 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 27 complete — WEB and ASV translations are now fully readable in-app via the bundled database; TranslationBrowserScreen wired to bibleStore for immediate translation switching
+**Current focus:** Phase 28 — multi-translation-supabase-library
 
 ## Current Position
 
-Phase: 14 (Backend-driven Bible content sync and offline pack delivery)
-Plan: 2 of 4 complete in current phase
-Status: Plans 01 and 02 complete with runtime catalog, signed manifest verification, durable download-job seams, and translation-aware SQLite pack routing; plan 03 is in progress
-Last activity: 2026-03-24 - Completed quick task 260324-lvw: Comprehensive i18n audit and fix
-
-Progress: [█████░░░░░] 50%
+Phase: 28 (multi-translation-supabase-library) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -47,6 +57,7 @@ Progress: [█████░░░░░] 50%
 - Trend: Quick phases (25, 26, 27) now complete; all three phases addressed analytics tracking, navigation gaps, and translation availability
 
 _Updated after each plan completion_
+| Phase 28-multi-translation-supabase-library P01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -83,6 +94,9 @@ Recent decisions affecting current work:
 - Phase 12: Prefer a disciplined mobile system built around structured native sans typography, 4-point spacing rhythm, and semantic surfaces rather than adding more decorative treatments or screen-specific visual experiments
 - Phase 13 hardening: Treat translation identity as part of audio track identity so BSB and WEB playback, queue entries, and resume state cannot collide on the same chapter
 - Phase 27: Co-locate all bundled translations in a single bible-bsb-v2.db asset rather than per-translation files; downloadTranslation resolves silently for hasText translations; TranslationBrowserScreen uses useBibleStore.getState() inside callbacks to avoid reactive re-trigger loops
+- [Phase 28-multi-translation-supabase-library]: bible_verses schema mirrors bundled SQLite verses table 1:1 so download data maps cleanly to local DB format
+- [Phase 28-multi-translation-supabase-library]: anon RLS policies added to all three translation tables so unauthenticated users can browse without requiring login
+- [Phase 28-multi-translation-supabase-library]: Import script uses service_role key (bypasses RLS) and is a dev/ops tool only — not called from the app
 
 ### Pending Todos
 
@@ -164,6 +178,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-24
-Stopped at: Completed Phase 27 Plan 01 — WEB and ASV translations wired for in-app reading
-Resume file: .planning/phases/27-translation-downloads-web-asv/27-01-SUMMARY.md
+Last session: 2026-03-24T11:55:01.676Z
+Stopped at: Completed Phase 28 Plan 01 — Supabase bible_verses table, anon RLS, and eBible VPL import script
+Resume file: None
