@@ -131,6 +131,9 @@ Recent decisions affecting current work:
 - Phase 21 added: Content Versioning & Multiple Translations (version tracking, preferences, scrollmapper data sourcing)
 - Phase 22 added: Gather Tab: Waha-style Foundations, Topics & Meeting Format
 - Phase 23 added: Foundations content restructure (7 foundations, 67 lessons, single-chapter-per-lesson)
+- Phase 26 completed: UX completeness — navigation stubs removed (AnnotationsScreen, LessonDetailScreen note button)
+- Phase 27 completed: Translation downloads WEB & ASV — bundled in bible-bsb-v2.db, TranslationBrowserScreen wired
+- Phase 28 added: Multi-Translation Supabase Library — 211 public-domain full Bibles (OT+NT) from eBible.org into Supabase, download-on-demand in app
 
 ### Blockers/Concerns
 

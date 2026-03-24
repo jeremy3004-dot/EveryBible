@@ -511,3 +511,30 @@ Plans:
 
 Plans:
 - [x] TBD (run /gsd:plan-phase 24 to break down) (completed 2026-03-23)
+
+### Phase 26: UX Completeness — Navigation Gaps
+
+**Goal:** Remove broken navigation stubs and dead-end screens so every tappable element leads somewhere intentional.
+**Depends on:** Phase 24
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 26-01-PLAN.md — Fix navigation stubs: AnnotationsScreen placeholder, LessonDetailScreen note button removal
+
+### Phase 27: Translation Downloads — WEB & ASV
+
+**Goal:** Wire WEB and ASV translations (already bundled in bible-bsb-v2.db) so they are selectable and immediately readable in the Translation Browser with offline catalog fallback.
+**Depends on:** Phase 26
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 27-01-PLAN.md — Fix downloadTranslation stub, wire TranslationBrowserScreen to bibleStore, add offline catalog fallback
+
+### Phase 28: Multi-Translation Supabase Library
+
+**Goal:** Build a Supabase-backed multi-translation Bible library: import 211 full public-domain Bibles (OT+NT) from eBible.org and scrollmapper/bible_databases into Supabase Postgres, add download-on-demand flow in the app so users can browse and install any translation offline.
+**Depends on:** Phase 27
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 28 to break down)
