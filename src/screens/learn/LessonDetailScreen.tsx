@@ -21,8 +21,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
-  FELLOWSHIP_QUESTIONS,
-  APPLICATION_QUESTIONS,
   gatherFoundations,
 } from '../../data/gatherFoundations';
 import { gatherTopicCategories } from '../../data/gatherTopics';
@@ -359,7 +357,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const handleShare = useCallback(() => {
     Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
-  }, []);
+  }, [t]);
 
   // -------------------------------------------------------------------------
   // Lesson not found
