@@ -23,6 +23,7 @@ export const ne = {
     somethingWentWrong: 'केही गलत भयो',
     tryAgain: 'फेरि प्रयास गर्नुहोस्',
     shareMessage: 'EveryBible हेर्नुहोस्!',
+    all: 'सबै',
   },
   tabs: {
     home: 'घर',

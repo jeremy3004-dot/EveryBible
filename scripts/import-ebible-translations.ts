@@ -130,73 +130,53 @@ function fetchUrl(url: string): Promise<Buffer> {
 const TRANSLATIONS_CSV_URL = 'https://ebible.org/Scriptures/translations.csv';
 
 /**
- * Minimal RFC-4180 CSV parser that handles quoted fields with embedded commas/newlines.
- * Returns an array of objects keyed by the header row.
+ * Single-pass RFC-4180 CSV parser. Handles quoted fields with embedded
+ * commas, newlines, and escaped quotes. Strips UTF-8 BOM if present.
  */
 function parseCsv(raw: string): Record<string, string>[] {
-  const lines: string[] = [];
-  let current = '';
+  // Strip BOM
+  if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
   let inQuote = false;
 
   for (let i = 0; i < raw.length; i++) {
     const ch = raw[i];
     if (ch === '"') {
       if (inQuote && raw[i + 1] === '"') {
-        // Escaped quote
-        current += '"';
+        field += '"';
         i++;
       } else {
         inQuote = !inQuote;
       }
+    } else if (ch === ',' && !inQuote) {
+      row.push(field);
+      field = '';
     } else if ((ch === '\n' || ch === '\r') && !inQuote) {
       if (ch === '\r' && raw[i + 1] === '\n') i++;
-      if (current.trim()) lines.push(current);
-      current = '';
+      row.push(field);
+      if (row.some((f) => f.trim())) rows.push(row);
+      row = [];
+      field = '';
     } else {
-      current += ch;
+      field += ch;
     }
   }
-  if (current.trim()) lines.push(current);
+  row.push(field);
+  if (row.some((f) => f.trim())) rows.push(row);
 
-  if (lines.length < 2) return [];
+  if (rows.length < 2) return [];
 
-  const splitLine = (line: string): string[] => {
-    const fields: string[] = [];
-    let field = '';
-    let q = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        if (q && line[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          q = !q;
-        }
-      } else if (c === ',' && !q) {
-        fields.push(field);
-        field = '';
-      } else {
-        field += c;
-      }
-    }
-    fields.push(field);
-    return fields;
-  };
-
-  const headers = splitLine(lines[0]);
-  const rows: Record<string, string>[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = splitLine(lines[i]);
-    const row: Record<string, string> = {};
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((vals) => {
+    const obj: Record<string, string> = {};
     headers.forEach((h, idx) => {
-      row[h.trim()] = (values[idx] ?? '').trim();
+      obj[h] = (vals[idx] ?? '').trim();
     });
-    rows.push(row);
-  }
-
-  return rows;
+    return obj;
+  });
 }
 
 function parseTranslationsCsv(csvText: string): TranslationCsvRow[] {

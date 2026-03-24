@@ -23,6 +23,7 @@ export const es = {
     somethingWentWrong: 'Algo salió mal',
     tryAgain: 'Intentar de nuevo',
     shareMessage: '¡Descubre EveryBible!',
+    all: 'Todos',
   },
   tabs: {
     home: 'Hogar',

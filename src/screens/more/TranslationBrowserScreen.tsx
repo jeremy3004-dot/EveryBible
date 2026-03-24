@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   SectionList,
+  ScrollView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -27,6 +28,11 @@ import { useBibleStore } from '../../stores/bibleStore';
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'TranslationBrowser'>;
 
 type PreferenceField = 'primary' | 'secondary' | 'audio';
+
+interface LanguageFilter {
+  code: string; // 'all' | ISO 639-3 code
+  label: string; // Display name
+}
 
 interface TranslationSection {
   title: string;
@@ -84,6 +90,7 @@ export function TranslationBrowserScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [savingField, setSavingField] = useState<PreferenceField | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
 
   // Returns true if a translation ID is available to read locally (bundled text or installed pack).
   // Uses getState() so it is not a reactive dependency and won't re-run the load callback.
@@ -96,8 +103,33 @@ export function TranslationBrowserScreen() {
     [storeTranslations]
   );
 
+  // Build unique language filter list from catalog, deduplicating by language_name
+  // so 'en' and 'eng' both labeled 'English' collapse into one pill.
+  const languageFilters = useMemo<LanguageFilter[]>(() => {
+    const seen = new Set<string>();
+    const langs: LanguageFilter[] = [];
+    for (const entry of catalogEntries) {
+      const label = entry.language_name;
+      if (!seen.has(label)) {
+        seen.add(label);
+        langs.push({ code: label, label });
+      }
+    }
+    langs.sort((a, b) => {
+      if (a.label === 'English') return -1;
+      if (b.label === 'English') return 1;
+      return a.label.localeCompare(b.label);
+    });
+    return langs;
+  }, [catalogEntries]);
+
+  const filteredEntries = useMemo<TranslationCatalogEntry[]>(() => {
+    if (selectedLanguage === 'all') return catalogEntries;
+    return catalogEntries.filter((e) => e.language_name === selectedLanguage);
+  }, [catalogEntries, selectedLanguage]);
+
   const sections = groupTranslationsByInstallState(
-    catalogEntries,
+    filteredEntries,
     isLocallyAvailable,
     t('translations.installed'),
     t('translations.available')
@@ -566,6 +598,62 @@ export function TranslationBrowserScreen() {
               {t('translations.cloudLibrary')}
             </Text>
 
+            {/* Language filter tabs */}
+            {!isLoading && languageFilters.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.languageFilterBar}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.languagePill,
+                    { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+                    selectedLanguage === 'all' && {
+                      backgroundColor: colors.accentPrimary,
+                      borderColor: colors.accentPrimary,
+                    },
+                  ]}
+                  onPress={() => setSelectedLanguage('all')}
+                >
+                  <Text
+                    style={[
+                      styles.languagePillText,
+                      { color: selectedLanguage === 'all' ? colors.background : colors.primaryText },
+                    ]}
+                  >
+                    {t('common.all')}
+                  </Text>
+                </TouchableOpacity>
+                {languageFilters.map((lang) => (
+                  <TouchableOpacity
+                    key={lang.code}
+                    style={[
+                      styles.languagePill,
+                      { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+                      selectedLanguage === lang.code && {
+                        backgroundColor: colors.accentPrimary,
+                        borderColor: colors.accentPrimary,
+                      },
+                    ]}
+                    onPress={() => setSelectedLanguage(lang.code)}
+                  >
+                    <Text
+                      style={[
+                        styles.languagePillText,
+                        {
+                          color:
+                            selectedLanguage === lang.code ? colors.background : colors.primaryText,
+                        },
+                      ]}
+                    >
+                      {lang.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : null}
+
             {isLoading ? (
               <ActivityIndicator
                 size="large"
@@ -722,5 +810,21 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
+  },
+  languageFilterBar: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  languagePill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  languagePillText: {
+    ...typography.label,
+    fontWeight: '600',
   },
 });

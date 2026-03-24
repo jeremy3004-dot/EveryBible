@@ -23,6 +23,7 @@ export const hi = {
     somethingWentWrong: 'कुछ गलत हो गया',
     tryAgain: 'पुनः प्रयास करें',
     shareMessage: 'EveryBible देखें!',
+    all: 'सभी',
   },
   tabs: {
     home: 'घर',

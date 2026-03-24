@@ -23,6 +23,7 @@ export const en = {
     somethingWentWrong: 'Something went wrong',
     tryAgain: 'Try Again',
     shareMessage: 'Check out EveryBible!',
+    all: 'All',
   },
   tabs: {
     home: 'Home',
