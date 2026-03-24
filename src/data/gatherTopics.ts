@@ -1,5 +1,44 @@
 import type { GatherTopicCategory } from '../types/gather';
 
+// Maps category ID to its i18n key
+export const CATEGORY_NAME_KEYS: Record<string, string> = {
+  'category-truth': 'gather.categoryInnerLife',
+  'category-challenge': 'gather.categoryChallenge',
+  'category-money': 'gather.categoryMoney',
+  'category-people': 'gather.categoryPeople',
+  'category-god': 'gather.categoryKnowingGod',
+};
+
+// Maps topic ID to its i18n key
+export const TOPIC_TITLE_KEYS: Record<string, string> = {
+  'topic-courage': 'gather.topicCourage',
+  'topic-faith': 'gather.topicFaith',
+  'topic-hope': 'gather.topicHope',
+  'topic-justice': 'gather.topicJustice',
+  'topic-love': 'gather.topicLove',
+  'topic-obedience': 'gather.topicObedience',
+  'topic-anger': 'gather.topicAnger',
+  'topic-crisis': 'gather.topicCrisis',
+  'topic-grief': 'gather.topicGrief',
+  'topic-hurt': 'gather.topicHurt',
+  'topic-reconciliation': 'gather.topicReconciliation',
+  'topic-known-loved': 'gather.topicKnownAndLoved',
+  'topic-stress': 'gather.topicStress',
+  'topic-money-god': 'gather.topicMoneyAndGod',
+  'topic-money-advice': 'gather.topicMoneyAdvice',
+  'topic-giving': 'gather.topicGiving',
+  'topic-faithful-work': 'gather.topicFaithfulAtWork',
+  'topic-marriage': 'gather.topicMarriage',
+  'topic-men': 'gather.topicMen',
+  'topic-parenting': 'gather.topicParenting',
+  'topic-singles': 'gather.topicSingles',
+  'topic-women': 'gather.topicWomen',
+  'topic-youth': 'gather.topicYouth',
+  'topic-character-god': 'gather.topicCharacterOfGod',
+  'topic-promises-god': 'gather.topicPromisesOfGod',
+  'topic-names-god': 'gather.topicNamesOfGod',
+};
+
 // Topic categories organized by theme.
 // 5 categories, 22 topics, 8 lessons each = 176 lessons total.
 export const gatherTopicCategories: GatherTopicCategory[] = [

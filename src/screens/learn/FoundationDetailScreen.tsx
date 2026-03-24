@@ -13,8 +13,8 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { gatherFoundations } from '../../data/gatherFoundations';
-import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherFoundations, FOUNDATION_TITLE_KEYS, FOUNDATION_DESC_KEYS } from '../../data/gatherFoundations';
+import { gatherTopicCategories, TOPIC_TITLE_KEYS } from '../../data/gatherTopics';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
@@ -111,7 +111,11 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           style={[styles.headerTitle, { color: colors.primaryText }]}
           numberOfLines={1}
         >
-          {foundation.title}
+          {FOUNDATION_TITLE_KEYS[foundation.id]
+            ? t(FOUNDATION_TITLE_KEYS[foundation.id])
+            : TOPIC_TITLE_KEYS[foundation.id]
+              ? t(TOPIC_TITLE_KEYS[foundation.id])
+              : foundation.title}
         </Text>
 
         <Ionicons name="download-outline" size={22} color={colors.secondaryText} />
@@ -170,7 +174,11 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
 
           {/* Title */}
           <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-            {foundation.title}
+            {FOUNDATION_TITLE_KEYS[foundation.id]
+              ? t(FOUNDATION_TITLE_KEYS[foundation.id])
+              : TOPIC_TITLE_KEYS[foundation.id]
+                ? t(TOPIC_TITLE_KEYS[foundation.id])
+                : foundation.title}
           </Text>
         </View>
 
@@ -181,7 +189,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
               style={[styles.descriptionText, { color: colors.secondaryText }]}
               numberOfLines={descriptionExpanded ? undefined : 3}
             >
-              {foundation.description}
+              {FOUNDATION_DESC_KEYS[foundation.id] ? t(FOUNDATION_DESC_KEYS[foundation.id]) : foundation.description}
             </Text>
             <TouchableOpacity
               onPress={() => setDescriptionExpanded((prev) => !prev)}
@@ -324,7 +332,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                 {t('gather.upNext')}
               </Text>
               <Text style={[styles.upNextTitle, { color: colors.primaryText }]}>
-                {nextFoundation.title}
+                {FOUNDATION_TITLE_KEYS[nextFoundation.id]
+                  ? t(FOUNDATION_TITLE_KEYS[nextFoundation.id])
+                  : nextFoundation.title}
               </Text>
             </View>
 

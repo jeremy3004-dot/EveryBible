@@ -19,7 +19,7 @@ import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
-import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
+import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
 import {
   buildGroupDetailSnapshot,
   getSyncedGroup,
@@ -281,7 +281,7 @@ export function GroupDetailScreen() {
                 <Text
                   style={[styles.fieldBadgeText, { color: currentFieldInfo.color }]}
                 >
-                  {currentFieldInfo.title}
+                  {t(FIELD_TITLE_KEYS[currentCourse.field])}
                 </Text>
               </View>
               <Text style={[styles.progressText, { color: colors.secondaryText }]}>

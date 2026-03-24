@@ -9,7 +9,7 @@ import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
-import { FIELD_ORDER, fieldInfo, fourFieldsCourses } from '../../data/fourFieldsCourses';
+import { FIELD_ORDER, fieldInfo, fourFieldsCourses, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
 import { JourneyPath } from '../../components/fourfields';
 import { isSupabaseConfigured } from '../../services/supabase';
 import { useAuthStore } from '../../stores/authStore';
@@ -156,7 +156,7 @@ export function FourFieldsJourneyScreen() {
               ]}
             >
               <Text style={[styles.fieldPillText, { color: fieldInfo[nextCourse.field].color }]}>
-                {fieldInfo[nextCourse.field].title}
+                {t(FIELD_TITLE_KEYS[nextCourse.field])}
               </Text>
             </View>
 

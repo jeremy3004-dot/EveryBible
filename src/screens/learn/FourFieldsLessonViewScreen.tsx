@@ -16,7 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
-import { fourFieldsCourses, fieldInfo } from '../../data/fourFieldsCourses';
+import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
 import {
   LessonSectionRenderer,
   TakeawayCard,
@@ -139,7 +139,7 @@ export function FourFieldsLessonViewScreen() {
             <Text
               style={[styles.fieldBadgeText, { color: currentFieldInfo.color }]}
             >
-              {currentFieldInfo.title}
+              {course ? t(FIELD_TITLE_KEYS[course.field]) : currentFieldInfo.title}
             </Text>
           </View>
           <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lesson.title}</Text>

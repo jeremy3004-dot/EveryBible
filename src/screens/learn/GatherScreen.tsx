@@ -15,8 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { gatherFoundations } from '../../data/gatherFoundations';
-import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherFoundations, FOUNDATION_TITLE_KEYS } from '../../data/gatherFoundations';
+import { gatherTopicCategories, CATEGORY_NAME_KEYS, TOPIC_TITLE_KEYS } from '../../data/gatherTopics';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import type { LearnStackParamList } from '../../navigation/types';
@@ -24,6 +24,7 @@ import type { LearnStackParamList } from '../../navigation/types';
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
 type ActiveTab = 'foundations' | 'topics';
+
 
 export function GatherScreen() {
   const { colors } = useTheme();
@@ -130,7 +131,7 @@ export function GatherScreen() {
                         },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={foundation.title}
+                  accessibilityLabel={FOUNDATION_TITLE_KEYS[foundation.id] ? t(FOUNDATION_TITLE_KEYS[foundation.id]) : foundation.title}
                 >
                   {/* Icon */}
                   <View
@@ -158,10 +159,10 @@ export function GatherScreen() {
                   {/* Content */}
                   <View style={styles.foundationCardContent}>
                     <Text style={[styles.foundationNumber, { color: colors.secondaryText }]}>
-                      {`Foundations ${foundation.number}`}
+                      {t('gather.foundationLabel', { number: foundation.number })}
                     </Text>
                     <Text style={[styles.foundationTitle, { color: colors.primaryText }]}>
-                      {foundation.title}
+                      {FOUNDATION_TITLE_KEYS[foundation.id] ? t(FOUNDATION_TITLE_KEYS[foundation.id]) : foundation.title}
                     </Text>
                   </View>
 
@@ -196,7 +197,7 @@ export function GatherScreen() {
                   />
                 )}
                 <Text style={[styles.categoryHeader, { color: colors.primaryText }]}>
-                  {category.name}
+                  {CATEGORY_NAME_KEYS[category.id] ? t(CATEGORY_NAME_KEYS[category.id]) : category.name}
                 </Text>
               </View>
               <View style={styles.topicsGrid}>
@@ -218,7 +219,7 @@ export function GatherScreen() {
                         },
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel={topic.title}
+                      accessibilityLabel={TOPIC_TITLE_KEYS[topic.id] ? t(TOPIC_TITLE_KEYS[topic.id]) : topic.title}
                     >
                       <View
                         style={[
@@ -245,7 +246,7 @@ export function GatherScreen() {
                         style={[styles.topicTitle, { color: colors.primaryText }]}
                         numberOfLines={2}
                       >
-                        {topic.title}
+                        {TOPIC_TITLE_KEYS[topic.id] ? t(TOPIC_TITLE_KEYS[topic.id]) : topic.title}
                       </Text>
                       <Text style={[styles.topicProgress, { color: colors.secondaryText }]}>
                         {`${completedCount}/${topic.lessonCount}`}

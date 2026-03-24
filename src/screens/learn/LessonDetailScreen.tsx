@@ -57,6 +57,23 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
+  const translatedFellowshipQuestions = [
+    t('gather.fellowshipQ1'),
+    t('gather.fellowshipQ2'),
+    t('gather.fellowshipQ3'),
+    t('gather.fellowshipQ4'),
+  ];
+
+  const translatedApplicationQuestions = [
+    t('gather.applicationQ1'),
+    t('gather.applicationQ2'),
+    t('gather.applicationQ3'),
+    t('gather.applicationQ4'),
+    t('gather.applicationQ5'),
+    t('gather.applicationQ6'),
+    t('gather.applicationQ7'),
+  ];
+
   // -------------------------------------------------------------------------
   // Lesson resolution
   // -------------------------------------------------------------------------
@@ -471,7 +488,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             {t('gather.fellowship')}
           </Text>
           <FellowshipSection
-            questions={FELLOWSHIP_QUESTIONS}
+            questions={translatedFellowshipQuestions}
             colors={colors}
             onReadStory={() => {
               scrollToSection('story');
@@ -507,7 +524,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             {t('gather.application')}
           </Text>
           <ApplicationSection
-            questions={APPLICATION_QUESTIONS}
+            questions={translatedApplicationQuestions}
             colors={colors}
             onListenAgain={() => {
               scrollToSection('story');
@@ -821,6 +838,7 @@ interface FellowshipSectionProps {
 }
 
 function FellowshipSection({ questions, colors, onReadStory }: FellowshipSectionProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.sectionContainer}>
       {questions.map((q, idx) => {
@@ -833,7 +851,7 @@ function FellowshipSection({ questions, colors, onReadStory }: FellowshipSection
             activeOpacity={0.7}
           >
             <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-              Read the Story →
+              {t('gather.readTheStory')}
             </Text>
           </TouchableOpacity>
         ) : undefined;

@@ -1,5 +1,27 @@
 import type { GatherFoundation } from '../types/gather';
 
+// Maps foundation ID to its i18n title key in the gather.* namespace
+export const FOUNDATION_TITLE_KEYS: Record<string, string> = {
+  'foundation-1': 'gather.foundation1Title',
+  'foundation-2': 'gather.foundation2Title',
+  'foundation-3': 'gather.foundation3Title',
+  'foundation-4': 'gather.foundation4Title',
+  'foundation-5': 'gather.foundation5Title',
+  'foundation-6': 'gather.foundation6Title',
+  'foundation-7': 'gather.foundation7Title',
+};
+
+// Maps foundation ID to its i18n description key
+export const FOUNDATION_DESC_KEYS: Record<string, string> = {
+  'foundation-1': 'gather.foundation1Desc',
+  'foundation-2': 'gather.foundation2Desc',
+  'foundation-3': 'gather.foundation3Desc',
+  'foundation-4': 'gather.foundation4Desc',
+  'foundation-5': 'gather.foundation5Desc',
+  'foundation-6': 'gather.foundation6Desc',
+  'foundation-7': 'gather.foundation7Desc',
+};
+
 // Standardized fellowship questions — same for every foundation lesson (Discovery Bible Study pattern)
 export const FELLOWSHIP_QUESTIONS: string[] = [
   'Based on what has happened with you since the last time we met, what is something you are thankful for?',

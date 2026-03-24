@@ -1,5 +1,32 @@
 import { ExtendedLesson, FourFieldsCourse, FieldInfo, FieldType } from '../types/course';
 
+// Maps field type to i18n key for title
+export const FIELD_TITLE_KEYS: Record<FieldType, string> = {
+  entry: 'fields.entryTitle',
+  gospel: 'fields.gospelTitle',
+  discipleship: 'fields.discipleshipTitle',
+  church: 'fields.churchTitle',
+  multiplication: 'fields.multiplicationTitle',
+};
+
+// Maps field type to i18n key for subtitle
+export const FIELD_SUBTITLE_KEYS: Record<FieldType, string> = {
+  entry: 'fields.entrySubtitle',
+  gospel: 'fields.gospelSubtitle',
+  discipleship: 'fields.discipleshipSubtitle',
+  church: 'fields.churchSubtitle',
+  multiplication: 'fields.multiplicationSubtitle',
+};
+
+// Maps field type to i18n key for description
+export const FIELD_DESC_KEYS: Record<FieldType, string> = {
+  entry: 'fields.entryDesc',
+  gospel: 'fields.gospelDesc',
+  discipleship: 'fields.discipleshipDesc',
+  church: 'fields.churchDesc',
+  multiplication: 'fields.multiplicationDesc',
+};
+
 export const FIELD_ORDER: FieldType[] = ['entry', 'gospel', 'discipleship', 'church', 'multiplication'];
 
 // Field Information - Updated with Tibetan color palette

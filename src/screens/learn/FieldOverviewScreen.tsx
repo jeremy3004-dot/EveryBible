@@ -9,11 +9,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
-import { fieldInfo, getCoursesByField } from '../../data/fourFieldsCourses';
+import { fieldInfo, getCoursesByField, FIELD_TITLE_KEYS, FIELD_SUBTITLE_KEYS, FIELD_DESC_KEYS } from '../../data/fourFieldsCourses';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type FieldType = 'entry' | 'gospel' | 'discipleship' | 'church' | 'multiplication';
@@ -23,6 +24,7 @@ export function FieldOverviewScreen() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const route = useRoute<any>();
   const { field } = route.params as { field: FieldType };
+  const { t } = useTranslation();
   const { colors } = useTheme();
 
   const { isLessonComplete, getCourseProgress, getFieldProgress } = useFourFieldsStore();
@@ -46,7 +48,7 @@ export function FieldOverviewScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{currentFieldInfo.title}</Text>
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{t(FIELD_TITLE_KEYS[field])}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -70,9 +72,9 @@ export function FieldOverviewScreen() {
               color={colors.accentPrimary}
             />
           </View>
-          <Text style={[styles.fieldTitle, { color: colors.primaryText }]}>{currentFieldInfo.title}</Text>
-          <Text style={[styles.fieldSubtitle, { color: colors.secondaryText }]}>{currentFieldInfo.subtitle}</Text>
-          <Text style={[styles.fieldDescription, { color: colors.secondaryText }]}>{currentFieldInfo.description}</Text>
+          <Text style={[styles.fieldTitle, { color: colors.primaryText }]}>{t(FIELD_TITLE_KEYS[field])}</Text>
+          <Text style={[styles.fieldSubtitle, { color: colors.secondaryText }]}>{t(FIELD_SUBTITLE_KEYS[field])}</Text>
+          <Text style={[styles.fieldDescription, { color: colors.secondaryText }]}>{t(FIELD_DESC_KEYS[field])}</Text>
 
           <View style={styles.progressContainer}>
             <View style={[styles.progressBar, { backgroundColor: colors.cardBorder }]}>
