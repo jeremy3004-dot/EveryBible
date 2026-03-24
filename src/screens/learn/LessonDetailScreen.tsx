@@ -24,7 +24,7 @@ import {
   gatherFoundations,
   FOUNDATION_LESSON_TITLE_KEYS,
 } from '../../data/gatherFoundations';
-import { gatherTopicCategories } from '../../data/gatherTopics';
+import { gatherTopicCategories, TOPIC_LESSON_TITLE_KEYS } from '../../data/gatherTopics';
 import { gatherIconImages } from '../../data/gatherIcons';
 import {
   getPassageText,
@@ -84,8 +84,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const lesson = parent?.lessons.find((l) => l.id === lessonId);
 
-  // Translate lesson title when an i18n key is available (foundation lessons)
-  const lessonTitleKey = lesson ? FOUNDATION_LESSON_TITLE_KEYS[lesson.id] : undefined;
+  // Translate lesson title when an i18n key is available (foundation or topic lessons)
+  const lessonTitleKey = lesson
+    ? (FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? TOPIC_LESSON_TITLE_KEYS[lesson.id])
+    : undefined;
   const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : (lesson?.title ?? '');
 
   // -------------------------------------------------------------------------
