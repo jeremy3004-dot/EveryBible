@@ -12,7 +12,7 @@ test('book-grid rows assign stable keys to rendered book cards', () => {
 
   assert.match(
     source,
-    /const renderBookCard = \(\{ item \}: \{ item: BibleBook \}\) => \(\s*<TouchableOpacity[\s\S]*key=\{item\.id\}/,
-    'BibleBrowserScreen should give each rendered book card a stable key so the grid does not emit React key warnings'
+    /keyExtractor=\{\(item\) => item\.id\}/,
+    'BibleBrowserScreen should give each rendered row a stable key via keyExtractor so the list does not emit React key warnings'
   );
 });

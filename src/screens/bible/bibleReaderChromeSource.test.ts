@@ -51,7 +51,7 @@ test('BibleReaderScreen uses minimal listen chrome instead of repeating chapter 
 
   assert.match(
     source,
-    /const showMinimalListenChrome =[\s\S]*chapterSessionMode === 'listen' \|\| chapterPresentationMode === 'audio-first';/,
+    /const showMinimalListenChrome =[\s\S]*(stableSessionMode|chapterSessionMode) === 'listen' \|\| chapterPresentationMode === 'audio-first';/,
     'BibleReaderScreen should compute a dedicated minimal-header mode for listen and audio-first chapters'
   );
 
@@ -295,8 +295,8 @@ test('premium read mode uses a left-facing back arrow in the top-left control', 
 
   assert.match(
     source,
-    /onPress=\{\(\) => navigation\.goBack\(\)\}[\s\S]*?<GlassSurface style=\{styles\.glassIconButton\} intensity=\{44\}>[\s\S]*?name="arrow-back"/s,
-    'BibleReaderScreen should use a left-facing back arrow for the top-left reader control'
+    /onPress=\{\(\) => navigation\.navigate\('BibleBrowser'\)\}[\s\S]*?<GlassSurface style=\{styles\.glassIconButton\} intensity=\{44\}>[\s\S]*?name="arrow-back"/s,
+    'BibleReaderScreen should use a left-facing back arrow for the top-left reader control that navigates to BibleBrowser'
   );
 });
 

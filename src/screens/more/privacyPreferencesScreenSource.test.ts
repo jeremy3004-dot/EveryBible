@@ -29,7 +29,7 @@ test('PrivacyPreferencesScreen keeps the discreet secure-code form above the key
   );
 
   assert.equal(
-    source.includes('paddingBottom: 32'),
+    source.includes('paddingBottom: spacing.xxl') || source.includes('paddingBottom: 32'),
     true,
     'PrivacyPreferencesScreen should keep extra bottom breathing room so the secure-code card can scroll fully above the keyboard'
   );

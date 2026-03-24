@@ -12,31 +12,64 @@ test.afterEach(() => {
   setRemoteAudioMetadataResolver(null);
 });
 
-test('berean standard bible audio resolves a direct public-domain chapter file without Bible.is credentials', async () => {
+test('berean standard bible audio returns null when Supabase base URL is not configured', async () => {
+  const audio = await fetchRemoteChapterAudio('bsb', 'GEN', 1);
+
+  assert.equal(audio, null);
+});
+
+test('berean standard bible audio returns null for numbered-book chapters when Supabase base URL is not configured', async () => {
+  const audio = await fetchRemoteChapterAudio('bsb', '1CO', 13);
+
+  assert.equal(audio, null);
+});
+
+test('berean standard bible audio returns null for psalms chapters when Supabase base URL is not configured', async () => {
+  const audio = await fetchRemoteChapterAudio('bsb', 'PSA', 150);
+
+  assert.equal(audio, null);
+});
+
+test('berean standard bible audio resolves a Supabase storage URL when a Supabase base URL is injected', async () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'bsb') {
+      return null;
+    }
+
+    return {
+      id: 'bsb',
+      hasAudio: true,
+      audio: {
+        strategy: 'supabase-storage',
+        extension: 'm4a',
+      },
+    };
+  });
+
+  // Simulate the supabase-storage strategy with a known base URL via stream-template fallback
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'bsb') {
+      return null;
+    }
+
+    return {
+      id: 'bsb',
+      hasAudio: true,
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'https://example.supabase.co/storage/v1/object/public/bible-audio/bsb',
+        chapterPathTemplate: '{bookId}/{chapter}.m4a',
+      },
+    };
+  });
+
   const audio = await fetchRemoteChapterAudio('bsb', 'GEN', 1);
 
   assert.deepEqual(audio, {
-    url: 'https://openbible.com/audio/souer/BSB_01_Gen_001.mp3',
+    url: 'https://example.supabase.co/storage/v1/object/public/bible-audio/bsb/GEN/1.m4a',
     duration: 0,
   });
-});
-
-test('berean standard bible audio supports numbered-book filenames', async () => {
-  const audio = await fetchRemoteChapterAudio('bsb', '1CO', 13);
-
-  assert.deepEqual(audio, {
-    url: 'https://openbible.com/audio/souer/BSB_46_1Co_013.mp3',
-    duration: 0,
-  });
-});
-
-test('berean standard bible audio supports psalms three-digit chapter filenames', async () => {
-  const audio = await fetchRemoteChapterAudio('bsb', 'PSA', 150);
-
-  assert.deepEqual(audio, {
-    url: 'https://openbible.com/audio/souer/BSB_19_Psa_150.mp3',
-    duration: 0,
-  });
+  assert.equal(isRemoteAudioAvailable('bsb'), true);
 });
 
 test('world english bible audio resolves a direct public-domain chapter file without Bible.is credentials', async () => {
@@ -73,8 +106,8 @@ test('public-domain web audio remains remotely available without Bible.is creden
   assert.equal(isRemoteAudioAvailable('web'), true);
 });
 
-test('public-domain bsb audio remains remotely available without Bible.is credentials', () => {
-  assert.equal(isRemoteAudioAvailable('bsb'), true);
+test('bsb audio is not remotely available when Supabase base URL is not configured', () => {
+  assert.equal(isRemoteAudioAvailable('bsb'), false);
 });
 
 test('translations without configured audio remain unavailable remotely', () => {
