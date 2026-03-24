@@ -14,7 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
-import { fieldInfo, getCoursesByField, FIELD_TITLE_KEYS, FIELD_SUBTITLE_KEYS, FIELD_DESC_KEYS } from '../../data/fourFieldsCourses';
+import { fieldInfo, getCoursesByField, FIELD_TITLE_KEYS, FIELD_SUBTITLE_KEYS, FIELD_DESC_KEYS, FOUR_FIELDS_LESSON_TITLE_KEYS } from '../../data/fourFieldsCourses';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type FieldType = 'entry' | 'gospel' | 'discipleship' | 'church' | 'multiplication';
@@ -159,6 +159,8 @@ export function FieldOverviewScreen() {
               <View style={styles.lessonsList}>
                 {course.lessons.map((lesson, index) => {
                   const isComplete = isLessonComplete(course.id, lesson.id);
+                  const lessonTitleKey = FOUR_FIELDS_LESSON_TITLE_KEYS[lesson.id];
+                  const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : lesson.title;
                   return (
                     <TouchableOpacity
                       key={lesson.id}
@@ -189,7 +191,7 @@ export function FieldOverviewScreen() {
                             { color: isComplete ? colors.accentGreen : colors.primaryText },
                           ]}
                         >
-                          {lesson.title}
+                          {lessonTitle}
                         </Text>
                         <Text style={[styles.lessonTakeaway, { color: colors.secondaryText }]} numberOfLines={1}>
                           {lesson.takeaway}

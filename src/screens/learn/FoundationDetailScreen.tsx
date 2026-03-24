@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { gatherFoundations, FOUNDATION_TITLE_KEYS, FOUNDATION_DESC_KEYS } from '../../data/gatherFoundations';
+import { gatherFoundations, FOUNDATION_TITLE_KEYS, FOUNDATION_DESC_KEYS, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
 import { gatherTopicCategories, TOPIC_TITLE_KEYS } from '../../data/gatherTopics';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -232,6 +232,8 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         {/* Lesson list */}
         {foundation.lessons.map((lesson) => {
           const complete = isLessonComplete(foundationId, lesson.id);
+          const lessonTitleKey = FOUNDATION_LESSON_TITLE_KEYS[lesson.id];
+          const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : lesson.title;
           return (
             <TouchableOpacity
               key={lesson.id}
@@ -248,7 +250,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
               }
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={lesson.title}
+              accessibilityLabel={lessonTitle}
             >
               {/* Number badge */}
               <View
@@ -272,7 +274,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
               {/* Lesson content */}
               <View style={styles.lessonContent}>
                 <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>
-                  {lesson.title}
+                  {lessonTitle}
                 </Text>
                 <Text style={[styles.lessonReference, { color: colors.secondaryText }]}>
                   {lesson.referenceLabel}
