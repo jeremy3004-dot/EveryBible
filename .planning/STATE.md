@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 Phase: 14 (Backend-driven Bible content sync and offline pack delivery)
 Plan: 2 of 4 complete in current phase
 Status: Plans 01 and 02 complete with runtime catalog, signed manifest verification, durable download-job seams, and translation-aware SQLite pack routing; plan 03 is in progress
-Last activity: 2026-03-23 - Completed quick task 260323: Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment
+Last activity: 2026-03-24 - Completed quick task 260324-lvw: Comprehensive i18n audit and fix across all screens, components, and data files
 
 Progress: [█████░░░░░] 50%
 
@@ -156,6 +156,7 @@ Recent decisions affecting current work:
 |---|-------------|------|--------|-----------|
 | 260323 | Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment | 2026-03-23 | 954569f | [260323-fix-4-bible-reader-bugs-back-navigation-](./quick/260323-fix-4-bible-reader-bugs-back-navigation-/) |
 | 260324 | Fix 5 UI bugs: tab bar padding, secure-code keyboard, reader header, back button safe area, mini player overlap | 2026-03-24 | 7bc941b | [260324-fix-5-ui-bugs-tab-bar-padding-secure-cod](./quick/260324-fix-5-ui-bugs-tab-bar-padding-secure-cod/) |
+| 260324-lvw | Comprehensive i18n audit and fix: locale parity es/ne/hi, hardcoded strings in screens/components, static data file keys | 2026-03-24 | 26680a5 | [260324-lvw-comprehensive-i18n-audit-and-fix-across-](./quick/260324-lvw-comprehensive-i18n-audit-and-fix-across-/) |
 
 ## Session Continuity
 
