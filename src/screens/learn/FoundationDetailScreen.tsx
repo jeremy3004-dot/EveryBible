@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations } from '../../data/gatherFoundations';
@@ -24,6 +25,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const { foundationId } = route.params;
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<GatherLesson | null>(null);
@@ -43,7 +45,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={[styles.headerBar, { borderBottomColor: colors.cardBorder }]}
+          style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
@@ -95,7 +97,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header bar */}
-      <View style={[styles.headerBar, { borderBottomColor: colors.cardBorder }]}>
+      <View style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
