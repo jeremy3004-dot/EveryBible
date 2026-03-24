@@ -51,6 +51,22 @@ async function deleteFileIfExists(path: string): Promise<void> {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
+ * Resolve the exact Supabase translation_id for a given store ID.
+ * The store uses lowercase IDs (e.g. 'sparv1909') but Supabase may store
+ * the original case from eBible (e.g. 'spaRV1909'). This looks up the
+ * canonical ID from translation_catalog using a case-insensitive match.
+ */
+async function resolveSupabaseTranslationId(storeId: string): Promise<string> {
+  const { data } = await supabase
+    .from('translation_catalog')
+    .select('translation_id')
+    .ilike('translation_id', storeId)
+    .limit(1)
+    .maybeSingle();
+  return (data as { translation_id: string } | null)?.translation_id ?? storeId;
+}
+
+/**
  * Get the total verse count for a translation from Supabase.
  * Used to show progress and to validate the download.
  */
@@ -59,10 +75,12 @@ export async function getCloudTranslationVerseCount(translationId: string): Prom
     throw new Error('Supabase not configured');
   }
 
+  const resolvedId = await resolveSupabaseTranslationId(translationId);
+
   const { count, error } = await supabase
     .from('bible_verses')
     .select('*', { count: 'exact', head: true })
-    .eq('translation_id', translationId);
+    .eq('translation_id', resolvedId);
 
   if (error) {
     throw new Error(`Failed to get verse count: ${error.message}`);
@@ -98,6 +116,9 @@ export async function downloadCloudTranslation(
   const dbPath = getTranslationDbPath(translationId);
 
   try {
+    // ── 0. Resolve canonical Supabase ID (handles case mismatches) ─────────
+    const supabaseId = await resolveSupabaseTranslationId(translationId);
+
     // ── 1. Get total verse count ───────────────────────────────────────────
     const totalVerses = await getCloudTranslationVerseCount(translationId);
 
@@ -117,7 +138,7 @@ export async function downloadCloudTranslation(
       const { data, error } = await supabase
         .from('bible_verses')
         .select('*')
-        .eq('translation_id', translationId)
+        .eq('translation_id', supabaseId)
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
 
