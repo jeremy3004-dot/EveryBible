@@ -21,6 +21,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 8. **Test on both iOS and Android** - Why: Platform-specific issues with audio, notifications, OAuth
 9. **Use Expo's native modules** - Why: Custom native modules require ejecting from managed workflow
 10. **Follow React Navigation v7 patterns** - Why: Stack/Tab navigators have specific type requirements
+11. **Bump all three DB version constants when rebuilding bible-bsb-v2.db** - Why: The upgrade gate in `ensureBundledDatabaseReady()` will silently skip re-importing the DB on existing devices if the thresholds aren't raised. Every rebuild of `bible-bsb-v2.db` MUST update in the same commit: (a) `PRAGMA user_version` in the DB file, (b) `BUNDLED_BIBLE_SCHEMA_VERSION` in `bibleDataModel.ts`, (c) `DEFAULT_MINIMUM_READY_VERSE_COUNT` in `bibleDatabase.ts`. Failing this caused ASV to be invisible on existing installs even though the bundled DB had the data.
 
 ---
 
