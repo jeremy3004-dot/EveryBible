@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { openAuthFlow, type PendingAuthMode } from './src/navigation/rootNavigation';
 import { initBibleData } from './src/services/bible/bibleService';
+import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
 import { useAuthStore } from './src/stores/authStore';
 import { usePrivacyStore } from './src/stores/privacyStore';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -46,6 +47,7 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
         initializeAuth,
         initializePrivacy,
         preloadBibleData: initBibleData,
+        migrateStorage: migrateFromAsyncStorage,
         scheduleTask: (task) => {
           const handle = InteractionManager.runAfterInteractions(() => {
             void task();
@@ -165,7 +167,8 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
     return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
   }
 
-  const { RootNavigator } = require('./src/navigation/RootNavigator') as typeof import('./src/navigation/RootNavigator');
+  const { RootNavigator } =
+    require('./src/navigation/RootNavigator') as typeof import('./src/navigation/RootNavigator');
 
   return <RootNavigator />;
 }

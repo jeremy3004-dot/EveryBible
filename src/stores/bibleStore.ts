@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import { bibleBooks, config, getBookById } from '../constants';
 import type {
   Verse,
@@ -605,7 +605,7 @@ export const useBibleStore = create<BibleState>()(
     }),
     {
       name: 'bible-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,

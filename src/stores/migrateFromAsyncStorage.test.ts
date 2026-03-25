@@ -23,8 +23,9 @@ test('STORE_KEYS contains all required store keys', () => {
     'gather-storage',
     'library-storage',
   ];
+  const keysAsStrings = STORE_KEYS as readonly string[];
   for (const key of expected) {
-    assert.ok(STORE_KEYS.includes(key), `Missing key: ${key}`);
+    assert.ok(keysAsStrings.includes(key), `Missing key: ${key}`);
   }
 });
 

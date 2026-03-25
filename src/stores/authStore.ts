@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
@@ -156,7 +156,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       version: 3,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       migrate: (persistedState: unknown, version) => {
         if (!persistedState || typeof persistedState !== 'object') {
           return persistedState as AuthState;

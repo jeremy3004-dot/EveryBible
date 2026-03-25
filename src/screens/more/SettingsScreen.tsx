@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
+import { mmkvInstance } from '../../stores';
 import { usePrivacyStore } from '../../stores/privacyStore';
 import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
@@ -164,16 +165,22 @@ export function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            // Get all keys
+            // Clear AsyncStorage (handles any legacy keys from before MMKV migration)
             const allKeys = await AsyncStorage.getAllKeys();
-            // Filter out keys we want to preserve (auth state, user progress)
+            // Preserve auth state and progress on both storage backends
             const keysToPreserve = ['auth-storage', 'progress-storage', 'user-preferences'];
             const keysToRemove = allKeys.filter(
               (key) => !keysToPreserve.some((preserve) => key.includes(preserve))
             );
-            // Remove cached keys
             if (keysToRemove.length > 0) {
               await AsyncStorage.multiRemove(keysToRemove);
+            }
+            // Clear MMKV — delete all keys that are not in the preserve list
+            const mmkvKeys = mmkvInstance.getAllKeys();
+            for (const key of mmkvKeys) {
+              if (!keysToPreserve.some((preserve) => key.includes(preserve))) {
+                mmkvInstance.delete(key);
+              }
             }
             Alert.alert(t('common.done'), t('settings.cacheClearedSuccess'));
           } catch {
@@ -200,6 +207,7 @@ export function SettingsScreen() {
       }
 
       await AsyncStorage.clear();
+      mmkvInstance.clearAll();
       await signOut();
 
       setShowDeleteConfirm(false);
@@ -213,7 +221,9 @@ export function SettingsScreen() {
   };
 
   const privacyModeLabel =
-    privacyMode === 'discreet' ? t('onboarding.discreetIconTitle') : t('onboarding.standardIconTitle');
+    privacyMode === 'discreet'
+      ? t('onboarding.discreetIconTitle')
+      : t('onboarding.standardIconTitle');
 
   return (
     <SafeAreaView
@@ -321,9 +331,7 @@ export function SettingsScreen() {
                     style={[
                       styles.themeSelectorButton,
                       {
-                        backgroundColor: isActive
-                          ? colors.accentPrimary
-                          : colors.cardBackground,
+                        backgroundColor: isActive ? colors.accentPrimary : colors.cardBackground,
                       },
                     ]}
                     onPress={() => handleThemeChange(mode)}
@@ -332,9 +340,7 @@ export function SettingsScreen() {
                       style={[
                         styles.themeSelectorLabel,
                         {
-                          color: isActive
-                            ? colors.cardBackground
-                            : colors.secondaryText,
+                          color: isActive ? colors.cardBackground : colors.secondaryText,
                         },
                       ]}
                     >
@@ -399,7 +405,13 @@ export function SettingsScreen() {
             <View style={styles.settingLeft}>
               <Ionicons name="calculator-outline" size={24} color={colors.secondaryText} />
               <View style={styles.settingCopy}>
-                <Text style={[styles.settingLabel, styles.settingLabelNoMargin, { color: colors.primaryText }]}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    styles.settingLabelNoMargin,
+                    { color: colors.primaryText },
+                  ]}
+                >
                   {t('onboarding.privacyTitle')}
                 </Text>
                 <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
@@ -562,7 +574,10 @@ export function SettingsScreen() {
                       style={[
                         styles.timeOptionText,
                         { color: colors.secondaryText },
-                        selectedHour === hour && { color: colors.cardBackground, fontWeight: '700' },
+                        selectedHour === hour && {
+                          color: colors.cardBackground,
+                          fontWeight: '700',
+                        },
                       ]}
                     >
                       {hour.toString().padStart(2, '0')}
@@ -594,7 +609,10 @@ export function SettingsScreen() {
                       style={[
                         styles.timeOptionText,
                         { color: colors.secondaryText },
-                        selectedMinute === minute && { color: colors.cardBackground, fontWeight: '700' },
+                        selectedMinute === minute && {
+                          color: colors.cardBackground,
+                          fontWeight: '700',
+                        },
                       ]}
                     >
                       {minute}

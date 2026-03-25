@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import type {
   AudioPlaybackSequenceEntry,
   AudioStatus,
@@ -225,7 +225,7 @@ export const useAudioStore = create<AudioState>()(
     }),
     {
       name: 'audio-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       // Only persist settings, not playback state
       partialize: (state) => ({
         playbackRate: state.playbackRate,

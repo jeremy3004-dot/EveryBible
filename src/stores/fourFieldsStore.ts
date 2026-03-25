@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import { FieldType, Group, GroupProgress } from '../types/course';
 import { fourFieldsCourses } from '../data/fourFieldsCourses';
 
@@ -413,7 +413,7 @@ export const useFourFieldsStore = create<FourFieldsState>()(
     }),
     {
       name: 'four-fields-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       version: 1, // Increment version to trigger migration
       migrate: (persistedState: unknown, _version: number) => {
         return normalizePersistedState((persistedState ?? {}) as PersistedFourFieldsState);

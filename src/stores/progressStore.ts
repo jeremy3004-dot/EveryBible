@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import { syncProgress } from '../services/sync';
 import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
@@ -156,7 +156,7 @@ export const useProgressStore = create<ProgressState>()(
     }),
     {
       name: 'progress-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedProgressState(persistedState),

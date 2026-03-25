@@ -2,6 +2,7 @@ interface StartupCoordinatorDependencies {
   initializeAuth: () => Promise<void>;
   initializePrivacy: () => Promise<void>;
   preloadBibleData: () => Promise<void>;
+  migrateStorage?: () => Promise<void>;
   scheduleTask?: (task: () => Promise<void> | void) => () => void;
   onWarmupError?: (error: unknown) => void;
   criticalTaskTimeoutMs?: number;
@@ -24,12 +25,23 @@ export const createStartupCoordinator = ({
   initializeAuth,
   initializePrivacy,
   preloadBibleData,
+  migrateStorage,
   scheduleTask = defaultScheduleTask,
   onWarmupError,
   criticalTaskTimeoutMs = DEFAULT_CRITICAL_TASK_TIMEOUT_MS,
   onCriticalTimeout,
 }: StartupCoordinatorDependencies) => ({
   initializeCritical: async () => {
+    // Run storage migration before auth/privacy so MMKV keys are populated
+    // before stores attempt to rehydrate. Failure is non-fatal.
+    if (migrateStorage) {
+      try {
+        await migrateStorage();
+      } catch (error) {
+        // Migration failure is non-fatal — stores will use initial defaults
+        console.warn('[Startup] Storage migration failed:', error);
+      }
+    }
     await runCriticalTask({
       taskName: 'auth',
       task: initializeAuth,

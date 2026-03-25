@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 
 interface GatherState {
   // Completion tracking: parentId (foundation-1, topic-courage) -> lessonId[]
@@ -72,7 +72,7 @@ export const useGatherStore = create<GatherState>()(
     }),
     {
       name: 'gather-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       // Only persist completion data and UI state, not action functions
       partialize: (state) => ({
         completedLessons: state.completedLessons,

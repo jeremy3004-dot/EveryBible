@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { zustandStorage } from './mmkvStorage';
 import {
   addChapterToPlaylist,
   appendListeningHistoryEntry,
@@ -122,7 +122,7 @@ export const useLibraryStore = create<LibraryState>()(
     }),
     {
       name: 'library-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedLibraryState(persistedState),
