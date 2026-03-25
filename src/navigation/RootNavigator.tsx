@@ -5,11 +5,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import { flushQueuedAuthFlow, rootNavigationRef } from './rootNavigation';
 import { useAudioStore } from '../stores/audioStore';
 import { navigationTypography } from '../design/system';
+import { linkingConfig } from './linkingConfig';
 
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
   const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
-  const getCurrentRouteName = useCallback(() => rootNavigationRef.getCurrentRoute()?.name ?? null, []);
+  const getCurrentRouteName = useCallback(
+    () => rootNavigationRef.getCurrentRoute()?.name ?? null,
+    []
+  );
   const handleReady = useCallback(() => {
     flushQueuedAuthFlow();
     setCurrentRouteName(getCurrentRouteName());
@@ -18,6 +22,7 @@ export function RootNavigator() {
   return (
     <NavigationContainer
       ref={rootNavigationRef}
+      linking={linkingConfig}
       onReady={handleReady}
       onStateChange={() => setCurrentRouteName(getCurrentRouteName())}
       theme={{
@@ -43,7 +48,7 @@ function MiniPlayerHost({ currentRouteName }: { currentRouteName: string | null 
   const hasPlayableSession = useAudioStore((state) =>
     Boolean(
       (state.currentBookId && state.currentChapter) ||
-        (state.lastPlayedBookId && state.lastPlayedChapter)
+      (state.lastPlayedBookId && state.lastPlayedChapter)
     )
   );
 
@@ -51,7 +56,8 @@ function MiniPlayerHost({ currentRouteName }: { currentRouteName: string | null 
     return null;
   }
 
-  const { MiniPlayer } = require('../components/audio/MiniPlayer') as typeof import('../components/audio/MiniPlayer');
+  const { MiniPlayer } =
+    require('../components/audio/MiniPlayer') as typeof import('../components/audio/MiniPlayer');
 
   return <MiniPlayer currentRouteName={currentRouteName} />;
 }

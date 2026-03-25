@@ -6,3 +6,4 @@ export * from './HomeStack';
 export * from './BibleStack';
 export * from './LearnStack';
 export * from './MoreStack';
+export * from './linkingConfig';
