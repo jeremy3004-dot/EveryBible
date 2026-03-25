@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { openAuthFlow, type PendingAuthMode } from './src/navigation/rootNavigation';
 import { initBibleData } from './src/services/bible/bibleService';
@@ -21,11 +22,16 @@ import i18n, { changeLanguage } from './src/i18n';
 import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
+import { setupNotificationHandler, setupAndroidChannels } from './src/services/notifications';
 
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch((error) => {
   console.error('Failed to keep splash screen visible:', error);
 });
+
+// Must be called at module scope BEFORE any component renders so that
+// foreground notifications display a banner instead of being silently dropped.
+setupNotificationHandler();
 
 interface LoadingScreenProps {
   onInitialAuthRequest: (mode: PendingAuthMode | null) => void;
@@ -199,6 +205,30 @@ function AppContent() {
   const onboardingCompletedRef = useRef(onboardingCompleted);
   useSync();
   usePrivacyLock();
+
+  // Set up Android notification channels on mount (idempotent, no-op on iOS).
+  useEffect(() => {
+    void setupAndroidChannels();
+  }, []);
+
+  // Listen for notification taps — used for future navigate-to-screen support.
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      // Future: navigate based on data.screen, data.groupId, etc.
+      console.log('[Notifications] Tapped notification:', data);
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // Listen for push token refreshes so Plan 02 can re-register the device token.
+  useEffect(() => {
+    const subscription = Notifications.addPushTokenListener((token) => {
+      console.log('[Notifications] Push token refreshed:', token.data);
+      // Plan 02 will add: registerPushToken(userId) here
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     onboardingCompletedRef.current = onboardingCompleted;

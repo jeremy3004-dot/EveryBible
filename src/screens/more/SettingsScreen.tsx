@@ -16,7 +16,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { mmkvInstance } from '../../stores';
@@ -30,6 +29,11 @@ import {
   getReminderEnablePlan,
   getReminderPickerState,
 } from '../../services/preferences/reminderPreferences';
+import {
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  requestNotificationPermissions,
+} from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -53,23 +57,6 @@ export function SettingsScreen() {
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
 
-  const scheduleDailyReminder = async (hour: number, minute: number) => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: t('settings.notificationTitle'),
-        body: t('settings.notificationBody'),
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
-      },
-    });
-  };
-
   const openTimePicker = () => {
     const pickerState = getReminderPickerState(preferences.reminderTime, MINUTES);
     setSelectedHour(pickerState.hour);
@@ -85,15 +72,9 @@ export function SettingsScreen() {
   const handleNotificationToggle = async () => {
     if (!preferences.notificationsEnabled) {
       // Request permission when enabling
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
+      const granted = await requestNotificationPermissions();
 
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
+      if (!granted) {
         Alert.alert(t('settings.permissionRequired'), t('settings.enableNotificationsMessage'), [
           { text: t('common.ok') },
         ]);
@@ -114,7 +95,7 @@ export function SettingsScreen() {
     }
 
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      await cancelDailyReminder();
       setPreferences({ notificationsEnabled: false });
     } finally {
       syncPreferences().catch(() => {});
