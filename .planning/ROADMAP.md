@@ -284,7 +284,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 23. Foundations Content Restructure                                            | 0/1            | Planned                                                            | -          |
 | 28. Multi-Translation Supabase Library                                         | 2/2 | Complete    | 2026-03-24 |
 | 29. MMKV State Persistence Upgrade                                             | 2/2 | Complete    | 2026-03-25 |
-| 30. Animated Chapter Swipe and Reader Gestures                                 | 0/3 | Planned     | -          |
+| 30. Animated Chapter Swipe and Reader Gestures                                 | 3/3 | Complete    | 2026-03-25 |
+| 31. Push Notification Implementation                                           | 0/2 | Planned     | -          |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
 
@@ -570,12 +571,13 @@ Plans:
 ### Phase 31: Push Notification Implementation
 
 **Goal:** Complete the scaffolded push notification system with APNs/FCM credentials, token registration, daily reading reminders, and group session alerts using expo-push-notifications patterns.
-**Requirements**: TBD
+**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05
 **Depends on:** Phase 30
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 31 to break down)
+- [ ] 31-01-PLAN.md — Extract notification service, add foreground handler in App.tsx, fix daily reminder scheduling, set up Android channels
+- [ ] 31-02-PLAN.md — Push token registration to user_devices, send-group-notification Edge Function, group session alert trigger
 
 ### Phase 32: Bible Verse Deep Linking
 
