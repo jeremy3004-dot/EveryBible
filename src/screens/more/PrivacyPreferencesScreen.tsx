@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -127,7 +128,7 @@ export function PrivacyPreferencesScreen() {
             <PrivacyModeOption
               body={t('onboarding.standardIconBody')}
               colors={colors}
-              icon="book-outline"
+              image={require('../../../assets/icon.png')}
               isSelected={selectedMode === 'standard'}
               onPress={() => selectMode('standard')}
               styles={styles}
@@ -136,7 +137,7 @@ export function PrivacyPreferencesScreen() {
             <PrivacyModeOption
               body={t('onboarding.discreetIconBody')}
               colors={colors}
-              icon="calculator-outline"
+              image={require('../../../assets/icon-discreet.png')}
               isSelected={selectedMode === 'discreet'}
               onPress={() => selectMode('discreet')}
               styles={styles}
@@ -189,7 +190,7 @@ export function PrivacyPreferencesScreen() {
 interface PrivacyModeOptionProps {
   body: string;
   colors: ThemeColors;
-  icon: keyof typeof Ionicons.glyphMap;
+  image: ReturnType<typeof require>;
   isSelected: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
@@ -199,7 +200,7 @@ interface PrivacyModeOptionProps {
 function PrivacyModeOption({
   body,
   colors,
-  icon,
+  image,
   isSelected,
   onPress,
   styles,
@@ -216,9 +217,7 @@ function PrivacyModeOption({
       onPress={onPress}
       activeOpacity={0.92}
     >
-      <View style={styles.optionIconShell}>
-        <Ionicons name={icon} size={20} color={colors.accentPrimary} />
-      </View>
+      <Image source={image} style={styles.optionAppIcon} />
       <View style={styles.optionCopy}>
         <Text style={styles.optionTitle}>{title}</Text>
         <Text style={styles.optionBody}>{body}</Text>
@@ -308,13 +307,10 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: radius.lg,
       padding: layout.denseCardPadding,
     },
-    optionIconShell: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.accentPrimary + '12',
+    optionAppIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 11,
     },
     optionCopy: {
       flex: 1,
