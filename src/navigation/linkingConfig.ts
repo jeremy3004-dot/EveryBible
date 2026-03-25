@@ -4,7 +4,7 @@ import { getStateFromPath as defaultGetStateFromPath } from '@react-navigation/n
 import type { RootTabParamList } from './types';
 import { buildBibleNavState } from './buildBibleNavState';
 
-export { buildBibleNavState } from './buildBibleNavState';
+export { buildBibleNavState, resolveTextReferenceNavState } from './buildBibleNavState';
 
 const prefix = Linking.createURL('/');
 

@@ -1,37 +1,88 @@
-// expo-av audio player wrapper for Bible audio playback
-import { Audio, AVPlaybackStatus } from 'expo-av';
+/**
+ * AudioPlayer singleton — thin facade over the track-player wrapper.
+ *
+ * Every consumer (useAudioPlayer, backgroundMusicPlayer) imports this module.
+ * Internally it delegates to `./trackPlayer.ts` which currently uses expo-av
+ * but can be swapped for the real react-native-track-player package when the
+ * app ejects from Expo managed workflow.
+ *
+ * The public surface is intentionally narrow:
+ *   configure / setCallbacks / loadAndPlay / play / pause / resume /
+ *   stop / seekTo / setRate / getStatus / isLoaded
+ *
+ * configureAudioMode is re-exported so backgroundMusicPlayer can call it.
+ */
+
+import TrackPlayer, {
+  Event,
+  State,
+  type PlaybackProgressEvent,
+  type PlaybackStateEvent,
+  type PlaybackErrorEvent,
+  type Subscription,
+} from './trackPlayer';
 import type { PlaybackRate } from '../../types';
 
-// Configure audio mode for background playback
+// ---------------------------------------------------------------------------
+// Audio-mode configuration (re-exported for backgroundMusicPlayer)
+// ---------------------------------------------------------------------------
+
+/**
+ * Configure the global audio session for background playback.
+ * Delegates to TrackPlayer.setupPlayer which calls Audio.setAudioModeAsync.
+ */
 export async function configureAudioMode(): Promise<void> {
   try {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    await TrackPlayer.setupPlayer();
   } catch (error) {
     console.error('Error configuring audio mode:', error);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Callback interface (unchanged from original)
+// ---------------------------------------------------------------------------
+
+/**
+ * AVPlaybackStatus is kept here temporarily for backward-compatibility with
+ * consumers that reference it. New code should use the track-player event
+ * types instead.
+ */
 export interface AudioPlayerCallbacks {
-  onStatusUpdate?: (status: AVPlaybackStatus) => void;
+  onStatusUpdate?: (status: TrackPlayerProgressSnapshot) => void;
   onPlaybackFinished?: () => void;
   onError?: (error: string) => void;
 }
 
+/**
+ * Snapshot that onStatusUpdate receives. It mirrors the subset of
+ * AVPlaybackStatus that useAudioPlayer actually reads. Using our own type
+ * decouples the hook from expo-av.
+ */
+export interface TrackPlayerProgressSnapshot {
+  isLoaded: true;
+  positionMillis: number;
+  durationMillis: number;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  didJustFinish: false;
+  error?: string;
+}
+
+// ---------------------------------------------------------------------------
+// AudioPlayer class
+// ---------------------------------------------------------------------------
+
 class AudioPlayer {
-  private sound: Audio.Sound | null = null;
   private callbacks: AudioPlayerCallbacks = {};
   private isConfigured = false;
-  private loadRequestId = 0;
+  private subscriptions: Subscription[] = [];
+  private loaded = false;
 
   async configure(): Promise<void> {
     if (this.isConfigured) return;
     await configureAudioMode();
+    this.wireSubscriptions();
     this.isConfigured = true;
   }
 
@@ -39,67 +90,70 @@ class AudioPlayer {
     this.callbacks = callbacks;
   }
 
-  private handleStatusUpdate = (status: AVPlaybackStatus): void => {
-    this.callbacks.onStatusUpdate?.(status);
+  // -- event wiring --------------------------------------------------------
 
-    if (status.isLoaded && status.didJustFinish) {
-      this.callbacks.onPlaybackFinished?.();
+  private wireSubscriptions(): void {
+    // Clean up any previous subscriptions
+    for (const sub of this.subscriptions) {
+      sub.remove();
     }
-  };
+    this.subscriptions = [];
 
-  private async unloadCurrentSound(): Promise<void> {
-    if (!this.sound) {
-      return;
-    }
+    this.subscriptions.push(
+      TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (data: PlaybackProgressEvent) => {
+        this.callbacks.onStatusUpdate?.({
+          isLoaded: true,
+          positionMillis: data.position * 1000,
+          durationMillis: data.duration * 1000,
+          isPlaying: false, // overridden by state listener below
+          isBuffering: false,
+          didJustFinish: false,
+        });
+      })
+    );
 
-    const sound = this.sound;
-    this.sound = null;
+    this.subscriptions.push(
+      TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
+        const isPlaying = data.state === State.Playing;
+        const isBuffering =
+          data.state === State.Buffering || data.state === State.Loading;
 
-    try {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-    } catch {
-      // Sound may already be unloaded, ignore errors
-    }
+        this.callbacks.onStatusUpdate?.({
+          isLoaded: true,
+          positionMillis: 0, // Will be filled by progress events
+          durationMillis: 0,
+          isPlaying,
+          isBuffering,
+          didJustFinish: false,
+        });
+      })
+    );
+
+    this.subscriptions.push(
+      TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
+        this.callbacks.onPlaybackFinished?.();
+      })
+    );
+
+    this.subscriptions.push(
+      TrackPlayer.addEventListener(Event.PlaybackError, (data: PlaybackErrorEvent) => {
+        this.callbacks.onError?.(data.message);
+      })
+    );
   }
+
+  // -- playback controls ---------------------------------------------------
 
   async loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
     await this.configure();
-    const requestId = ++this.loadRequestId;
-
-    await this.unloadCurrentSound();
-
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        {
-          shouldPlay: true,
-          rate,
-          shouldCorrectPitch: true,
-          progressUpdateIntervalMillis: 500,
-        },
-        this.handleStatusUpdate
-      );
-
-      if (requestId !== this.loadRequestId) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-        return;
-      }
-
-      this.sound = sound;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load audio';
-      this.callbacks.onError?.(message);
-      throw error;
-    }
+    await TrackPlayer.loadAndPlay(url, rate);
+    this.loaded = true;
   }
 
   async play(): Promise<void> {
-    if (!this.sound) return;
-
+    if (!this.loaded) return;
     try {
-      await this.sound.playAsync();
+      await TrackPlayer.play();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to play audio';
       this.callbacks.onError?.(message);
@@ -107,10 +161,9 @@ class AudioPlayer {
   }
 
   async pause(): Promise<void> {
-    if (!this.sound) return;
-
+    if (!this.loaded) return;
     try {
-      await this.sound.pauseAsync();
+      await TrackPlayer.pause();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to pause audio';
       this.callbacks.onError?.(message);
@@ -122,15 +175,14 @@ class AudioPlayer {
   }
 
   async stop(): Promise<void> {
-    this.loadRequestId += 1;
-    await this.unloadCurrentSound();
+    await TrackPlayer.stop();
+    this.loaded = false;
   }
 
   async seekTo(positionMs: number): Promise<void> {
-    if (!this.sound) return;
-
+    if (!this.loaded) return;
     try {
-      await this.sound.setPositionAsync(positionMs);
+      await TrackPlayer.seekTo(positionMs / 1000);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to seek';
       this.callbacks.onError?.(message);
@@ -138,28 +190,37 @@ class AudioPlayer {
   }
 
   async setRate(rate: PlaybackRate): Promise<void> {
-    if (!this.sound) return;
-
+    if (!this.loaded) return;
     try {
-      await this.sound.setRateAsync(rate, true);
+      await TrackPlayer.setRate(rate);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to set playback rate';
       this.callbacks.onError?.(message);
     }
   }
 
-  async getStatus(): Promise<AVPlaybackStatus | null> {
-    if (!this.sound) return null;
+  async getStatus(): Promise<TrackPlayerProgressSnapshot | null> {
+    if (!this.loaded) return null;
 
     try {
-      return await this.sound.getStatusAsync();
+      const progress = await TrackPlayer.getProgress();
+      const { state } = await TrackPlayer.getPlaybackState();
+
+      return {
+        isLoaded: true,
+        positionMillis: progress.position * 1000,
+        durationMillis: progress.duration * 1000,
+        isPlaying: state === State.Playing,
+        isBuffering: state === State.Buffering || state === State.Loading,
+        didJustFinish: false,
+      };
     } catch {
       return null;
     }
   }
 
   isLoaded(): boolean {
-    return this.sound !== null;
+    return this.loaded;
   }
 }
 

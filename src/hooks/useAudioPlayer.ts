@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AVPlaybackStatus } from 'expo-av';
 import { useAudioStore, useLibraryStore } from '../stores';
 import {
   audioPlayer,
@@ -8,6 +7,7 @@ import {
   isAudioAvailable,
   prefetchChapterAudio,
 } from '../services/audio';
+import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackEvent } from '../services/analytics';
 import { getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
@@ -157,28 +157,21 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     playChapterForTranslationRef.current = playChapterForTranslation;
   }, [playChapterForTranslation]);
 
-  // Handle playback status updates from expo-av
+  // Handle playback status updates from track-player wrapper
   const handleStatusUpdate = useCallback(
-    (playbackStatus: AVPlaybackStatus) => {
-      if (!playbackStatus.isLoaded) {
-        if (playbackStatus.error) {
-          setError(playbackStatus.error);
-        }
-        return;
-      }
+    (snapshot: TrackPlayerProgressSnapshot) => {
+      setPosition(snapshot.positionMillis);
+      setDuration(snapshot.durationMillis || 0);
 
-      setPosition(playbackStatus.positionMillis);
-      setDuration(playbackStatus.durationMillis || 0);
-
-      if (playbackStatus.isPlaying) {
+      if (snapshot.isPlaying) {
         setStatus('playing');
-      } else if (playbackStatus.isBuffering) {
+      } else if (snapshot.isBuffering) {
         setStatus('loading');
       } else {
         setStatus('paused');
       }
     },
-    [setPosition, setDuration, setStatus, setError]
+    [setPosition, setDuration, setStatus]
   );
 
   // Handle playback finished - auto-advance to next chapter

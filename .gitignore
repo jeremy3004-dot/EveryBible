@@ -59,3 +59,31 @@ every-bible-485319-82e2f287e3f8.json
 *.ipa
 *.apk
 *.aab
+
+# Verse timestamp generation (generated offline, uploaded to Supabase)
+data/timestamps/
+.venv-timestamps/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+.env.*
+!.env.example
+.next/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+vendor/
+*.log
+coverage/
+.cache/
+tmp/

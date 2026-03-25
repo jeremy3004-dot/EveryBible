@@ -23,25 +23,25 @@ test('playChapter stops the active sound before resolving the next chapter sourc
   );
 });
 
-test('audio player invalidates stale async loads before mounting the next sound', () => {
-  const audioPlayerSource = readRelativeSource('./audioPlayer.ts');
+test('track-player wrapper invalidates stale async loads before mounting the next sound', () => {
+  const trackPlayerSource = readRelativeSource('./trackPlayer.ts');
 
   assert.match(
-    audioPlayerSource,
-    /private loadRequestId = 0;/,
-    'AudioPlayer should track load requests so overlapping chapter loads cannot both attach sounds'
+    trackPlayerSource,
+    /let loadRequestId = 0;/,
+    'TrackPlayer should track load requests so overlapping chapter loads cannot both attach sounds'
   );
 
   assert.match(
-    audioPlayerSource,
-    /const requestId = \+\+this\.loadRequestId;/,
-    'AudioPlayer should create a fresh request token for each load'
+    trackPlayerSource,
+    /const requestId = \+\+loadRequestId;/,
+    'TrackPlayer should create a fresh request token for each load'
   );
 
   assert.match(
-    audioPlayerSource,
-    /if \(requestId !== this\.loadRequestId\) \{\s+await sound\.stopAsync\(\);\s+await sound\.unloadAsync\(\);\s+return;\s+\}/,
-    'AudioPlayer should discard stale sounds when a newer chapter load wins the race'
+    trackPlayerSource,
+    /if \(requestId !== loadRequestId\) \{\s+await newSound\.stopAsync\(\);\s+await newSound\.unloadAsync\(\);\s+return;\s+\}/,
+    'TrackPlayer should discard stale sounds when a newer chapter load wins the race'
   );
 });
 

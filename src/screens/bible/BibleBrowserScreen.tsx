@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
 import {
   buildBibleBrowserRows,
-  parsePassageReference,
+  parsePassageReferenceLocale,
   searchBible,
   type BibleBrowserRow,
   type PassageReferenceTarget,
@@ -65,7 +65,7 @@ if (Platform.OS === 'android') {
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
-  const { t } = useI18n();
+  const { t, currentLanguage } = useI18n();
   const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
@@ -103,7 +103,11 @@ export function BibleBrowserScreen() {
   const audioManagerAvailability = audioManagerTranslation
     ? getTranslationAudioAvailability(audioManagerTranslation)
     : null;
-  const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parsePassageReference);
+  const parseRef = useCallback(
+    (q: string) => parsePassageReferenceLocale(q, currentLanguage),
+    [currentLanguage],
+  );
+  const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
 
   useEffect(() => {
     let isCancelled = false;
@@ -111,7 +115,7 @@ export function BibleBrowserScreen() {
     const runSearch = async () => {
       const deferredSearchIntent = resolveBibleSearchIntent(
         deferredSearchQuery,
-        parsePassageReference
+        parseRef
       );
 
       if (deferredSearchIntent.kind !== 'full-text') {
@@ -148,7 +152,7 @@ export function BibleBrowserScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [currentTranslation, deferredSearchQuery, t]);
+  }, [currentTranslation, deferredSearchQuery, parseRef, t]);
 
   const handleBookPress = (book: BibleBook) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -176,7 +180,7 @@ export function BibleBrowserScreen() {
   };
 
   const handleSearchSubmit = () => {
-    const submitIntent = resolveBibleSearchIntent(searchQuery, parsePassageReference);
+    const submitIntent = resolveBibleSearchIntent(searchQuery, parseRef);
     if (submitIntent.kind === 'reference') {
       handleReferencePress(submitIntent.target);
     }
