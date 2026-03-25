@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "158",
+      "buildNumber": "159",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
