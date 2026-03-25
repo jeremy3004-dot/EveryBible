@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -18,6 +19,7 @@ import { useSync } from './src/hooks/useSync';
 import i18n, { changeLanguage } from './src/i18n';
 import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
+import { queryClient } from './src/services/queryClient';
 
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -175,13 +177,15 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
 
 export default function App() {
   return (
-    <I18nextProvider i18n={i18n}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AppContent />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </I18nextProvider>
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </I18nextProvider>
+    </QueryClientProvider>
   );
 }
 
