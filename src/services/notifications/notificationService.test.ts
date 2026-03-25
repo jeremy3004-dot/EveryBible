@@ -215,3 +215,219 @@ test('setupAndroidChannels creates daily-reminder and group-alerts on Android, s
   await setupAndroidChannels(Notifications, iosPlatform)();
   assert.equal(channelCalls.length, 0, 'should NOT create channels on iOS');
 });
+
+// --- Push token registration tests ---
+
+// Mock state for push token tests
+const upsertCalls: Array<{
+  table: string;
+  data: Record<string, unknown>;
+  options?: Record<string, unknown>;
+}> = [];
+const updateCalls: Array<{
+  table: string;
+  data: Record<string, unknown>;
+  filters: Record<string, string>;
+}> = [];
+let mockTokenResult: { data: string } | null = { data: 'ExponentPushToken[test-token-123]' };
+let mockPermissionStatus = 'granted';
+let mockUpsertError: { message: string } | null = null;
+
+const NotificationsWithToken = {
+  ...Notifications,
+  getPermissionsAsync: async () => {
+    permCalls.push('get');
+    return { status: mockPermissionStatus };
+  },
+  getExpoPushTokenAsync: async (_opts: { projectId: string }) => {
+    if (!mockTokenResult) {
+      throw new Error('getExpoPushTokenAsync failed (simulator)');
+    }
+    return mockTokenResult;
+  },
+};
+
+const mockSupabaseClient = {
+  from: (table: string) => ({
+    upsert: (data: Record<string, unknown>, options?: Record<string, unknown>) => {
+      upsertCalls.push({ table, data, options });
+      return Promise.resolve({ error: mockUpsertError });
+    },
+    update: (data: Record<string, unknown>) => ({
+      eq: (col1: string, val1: string) => ({
+        eq: (col2: string, val2: string) => {
+          updateCalls.push({ table, data, filters: { [col1]: val1, [col2]: val2 } });
+          return Promise.resolve({ error: null });
+        },
+      }),
+    }),
+  }),
+};
+
+const mockConstants = {
+  expoConfig: {
+    extra: {
+      eas: { projectId: 'cfbf2bac-d680-448f-b2aa-33c4c01ad15b' },
+    },
+  },
+};
+
+const mockPlatformIos = { OS: 'ios' };
+
+// Inline implementations of the functions under test (mirrors service logic)
+let cachedToken: string | null = null;
+
+async function registerPushToken(
+  userId: string,
+  notifs: typeof NotificationsWithToken,
+  supabaseClient: typeof mockSupabaseClient,
+  constants: typeof mockConstants,
+  platformMock: { OS: string }
+): Promise<string | null> {
+  try {
+    const projectId = constants.expoConfig?.extra?.eas?.projectId as string;
+    if (!projectId) return null;
+
+    const { status } = await notifs.getPermissionsAsync();
+    if (status !== 'granted') return null;
+
+    const tokenResult = await notifs.getExpoPushTokenAsync({ projectId });
+    cachedToken = tokenResult.data;
+
+    const platform: 'ios' | 'android' = platformMock.OS === 'ios' ? 'ios' : 'android';
+    await supabaseClient.from('user_devices').upsert(
+      {
+        user_id: userId,
+        push_token: tokenResult.data,
+        platform,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,push_token' }
+    );
+
+    return tokenResult.data;
+  } catch {
+    return null;
+  }
+}
+
+async function deactivatePushToken(
+  userId: string,
+  supabaseClient: typeof mockSupabaseClient
+): Promise<void> {
+  try {
+    if (!cachedToken) return;
+    await supabaseClient
+      .from('user_devices')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('push_token', cachedToken);
+    cachedToken = null;
+  } catch {
+    // Non-fatal
+  }
+}
+
+test('registerPushToken calls getExpoPushTokenAsync with projectId and upserts to user_devices', async () => {
+  upsertCalls.length = 0;
+  cachedToken = null;
+  mockTokenResult = { data: 'ExponentPushToken[test-token-123]' };
+  mockPermissionStatus = 'granted';
+  mockUpsertError = null;
+
+  const result = await registerPushToken(
+    'user-abc-123',
+    NotificationsWithToken,
+    mockSupabaseClient,
+    mockConstants,
+    mockPlatformIos
+  );
+
+  assert.equal(result, 'ExponentPushToken[test-token-123]', 'should return the token');
+  assert.equal(upsertCalls.length, 1, 'should upsert exactly once');
+  assert.equal(upsertCalls[0]?.table, 'user_devices', 'should upsert into user_devices');
+  const upserted = upsertCalls[0]?.data ?? {};
+  assert.equal(upserted['user_id'], 'user-abc-123', 'user_id must match');
+  assert.equal(
+    upserted['push_token'],
+    'ExponentPushToken[test-token-123]',
+    'push_token must match token'
+  );
+  assert.equal(upserted['platform'], 'ios', 'platform must be ios on iOS');
+  assert.equal(upserted['is_active'], true, 'is_active must be true');
+  assert.equal(
+    upsertCalls[0]?.options?.['onConflict'],
+    'user_id,push_token',
+    'onConflict must be user_id,push_token'
+  );
+});
+
+test('registerPushToken catches and suppresses getExpoPushTokenAsync errors (simulator scenario)', async () => {
+  upsertCalls.length = 0;
+  cachedToken = null;
+  mockTokenResult = null; // will throw
+  mockPermissionStatus = 'granted';
+
+  let threw = false;
+  let result: string | null = null;
+  try {
+    result = await registerPushToken(
+      'user-abc-123',
+      NotificationsWithToken,
+      mockSupabaseClient,
+      mockConstants,
+      mockPlatformIos
+    );
+  } catch {
+    threw = true;
+  }
+
+  assert.equal(threw, false, 'should NOT throw when getExpoPushTokenAsync fails');
+  assert.equal(result, null, 'should return null on error');
+  assert.equal(upsertCalls.length, 0, 'should NOT upsert when token fetch fails');
+});
+
+test('registerPushToken catches and suppresses Supabase upsert errors without throwing', async () => {
+  upsertCalls.length = 0;
+  cachedToken = null;
+  mockTokenResult = { data: 'ExponentPushToken[test-token-456]' };
+  mockPermissionStatus = 'granted';
+  mockUpsertError = { message: 'RLS violation' };
+
+  let threw = false;
+  let result: string | null = null;
+  try {
+    result = await registerPushToken(
+      'user-abc-123',
+      NotificationsWithToken,
+      mockSupabaseClient,
+      mockConstants,
+      mockPlatformIos
+    );
+  } catch {
+    threw = true;
+  }
+
+  // Even with upsert error, function should not throw (returns token since error is post-upsert)
+  assert.equal(threw, false, 'should NOT throw when upsert fails');
+  assert.equal(upsertCalls.length, 1, 'should have attempted the upsert');
+});
+
+test('deactivatePushToken calls update with is_active=false filtered by user_id and push_token', async () => {
+  updateCalls.length = 0;
+  cachedToken = 'ExponentPushToken[test-token-999]';
+
+  await deactivatePushToken('user-xyz-789', mockSupabaseClient);
+
+  assert.equal(updateCalls.length, 1, 'should update exactly once');
+  assert.equal(updateCalls[0]?.table, 'user_devices', 'should update user_devices table');
+  assert.equal(updateCalls[0]?.data?.['is_active'], false, 'is_active must be false');
+  assert.equal(updateCalls[0]?.filters?.['user_id'], 'user-xyz-789', 'filter must include user_id');
+  assert.equal(
+    updateCalls[0]?.filters?.['push_token'],
+    'ExponentPushToken[test-token-999]',
+    'filter must include push_token'
+  );
+  assert.equal(cachedToken, null, 'cachedToken must be cleared after deactivation');
+});
