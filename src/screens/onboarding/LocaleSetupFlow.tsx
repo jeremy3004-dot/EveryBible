@@ -34,6 +34,7 @@ interface LocaleSetupFlowProps {
 }
 
 const standardIconPreview = require('../../../assets/icon.png');
+const discreetIconPreview = require('../../../assets/icon-discreet.png');
 
 const getFlagEmoji = (countryCode: string): string => {
   if (!/^[A-Z]{2}$/.test(countryCode)) {
@@ -388,41 +389,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             },
           ]}
         >
-          {isDiscreet ? (
-            <View
-              style={[
-                styles.discreetPreview,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.cardBorder,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.discreetDisplay,
-                  { backgroundColor: colors.bibleSurface, borderColor: colors.cardBorder },
-                ]}
-              />
-              <View style={styles.discreetGrid}>
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.discreetGridKey,
-                      { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : (
-            <Image
-              source={standardIconPreview}
-              style={[styles.standardPreview, { borderColor: colors.cardBorder }]}
-              resizeMode="contain"
-            />
-          )}
+          <Image
+            source={isDiscreet ? discreetIconPreview : standardIconPreview}
+            style={[styles.standardPreview, { borderColor: colors.cardBorder }]}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.optionCopy}>
@@ -974,29 +945,6 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  discreetPreview: {
-    width: 132,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 14,
-    gap: 12,
-  },
-  discreetDisplay: {
-    height: 22,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  discreetGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  discreetGridKey: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.md,
     borderWidth: 1,
   },
   optionCopy: {

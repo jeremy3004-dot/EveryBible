@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,6 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+const standardIconImage = require('../../../assets/icon.png');
+const discreetIconImage = require('../../../assets/icon-discreet.png');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -127,7 +131,7 @@ export function PrivacyPreferencesScreen() {
             <PrivacyModeOption
               body={t('onboarding.standardIconBody')}
               colors={colors}
-              icon="book-outline"
+              iconSource={standardIconImage}
               isSelected={selectedMode === 'standard'}
               onPress={() => selectMode('standard')}
               title={t('onboarding.standardIconTitle')}
@@ -135,7 +139,7 @@ export function PrivacyPreferencesScreen() {
             <PrivacyModeOption
               body={t('onboarding.discreetIconBody')}
               colors={colors}
-              icon="calculator-outline"
+              iconSource={discreetIconImage}
               isSelected={selectedMode === 'discreet'}
               onPress={() => selectMode('discreet')}
               title={t('onboarding.discreetIconTitle')}
@@ -187,7 +191,7 @@ export function PrivacyPreferencesScreen() {
 interface PrivacyModeOptionProps {
   body: string;
   colors: ThemeColors;
-  icon: keyof typeof Ionicons.glyphMap;
+  iconSource: ReturnType<typeof require>;
   isSelected: boolean;
   onPress: () => void;
   title: string;
@@ -196,7 +200,7 @@ interface PrivacyModeOptionProps {
 function PrivacyModeOption({
   body,
   colors,
-  icon,
+  iconSource,
   isSelected,
   onPress,
   title,
@@ -214,9 +218,7 @@ function PrivacyModeOption({
       onPress={onPress}
       activeOpacity={0.92}
     >
-      <View style={styles.optionIconShell}>
-        <Ionicons name={icon} size={20} color={colors.accentPrimary} />
-      </View>
+      <Image source={iconSource} style={styles.optionIconImage} resizeMode="cover" />
       <View style={styles.optionCopy}>
         <Text style={styles.optionTitle}>{title}</Text>
         <Text style={styles.optionBody}>{body}</Text>
@@ -306,13 +308,10 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: radius.lg,
       padding: layout.denseCardPadding,
     },
-    optionIconShell: {
+    optionIconImage: {
       width: 40,
       height: 40,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.accentPrimary + '12',
+      borderRadius: radius.md,
     },
     optionCopy: {
       flex: 1,
