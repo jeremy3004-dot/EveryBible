@@ -4,4 +4,7 @@ export {
   requestNotificationPermissions,
   scheduleDailyReminder,
   cancelDailyReminder,
+  registerPushToken,
+  deactivatePushToken,
+  getCachedPushToken,
 } from './notificationService';

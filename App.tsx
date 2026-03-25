@@ -22,7 +22,12 @@ import i18n, { changeLanguage } from './src/i18n';
 import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
-import { setupNotificationHandler, setupAndroidChannels } from './src/services/notifications';
+import {
+  setupNotificationHandler,
+  setupAndroidChannels,
+  registerPushToken,
+  deactivatePushToken,
+} from './src/services/notifications';
 
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -201,8 +206,12 @@ export default function App() {
 function AppContent() {
   const { isDark } = useTheme();
   const onboardingCompleted = useAuthStore((state) => state.preferences.onboardingCompleted);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const pendingInitialAuthModeRef = useRef<PendingAuthMode | null>(null);
   const onboardingCompletedRef = useRef(onboardingCompleted);
+  const prevAuthRef = useRef(isAuthenticated);
+  const prevUserUidRef = useRef(user?.uid ?? null);
   useSync();
   usePrivacyLock();
 
@@ -210,6 +219,26 @@ function AppContent() {
   useEffect(() => {
     void setupAndroidChannels();
   }, []);
+
+  // Register push token after authentication. Re-runs whenever the user changes.
+  useEffect(() => {
+    if (isAuthenticated && user?.uid) {
+      void registerPushToken(user.uid);
+    }
+  }, [isAuthenticated, user?.uid]);
+
+  // Deactivate push token when the user signs out (auth state transitions from
+  // authenticated to unauthenticated).
+  useEffect(() => {
+    const wasAuthenticated = prevAuthRef.current;
+    const prevUid = prevUserUidRef.current;
+    prevAuthRef.current = isAuthenticated;
+    prevUserUidRef.current = user?.uid ?? null;
+
+    if (wasAuthenticated && !isAuthenticated && prevUid) {
+      void deactivatePushToken(prevUid);
+    }
+  }, [isAuthenticated, user?.uid]);
 
   // Listen for notification taps — used for future navigate-to-screen support.
   useEffect(() => {
@@ -221,11 +250,13 @@ function AppContent() {
     return () => subscription.remove();
   }, []);
 
-  // Listen for push token refreshes so Plan 02 can re-register the device token.
+  // Listen for push token refreshes and re-register with the updated token.
   useEffect(() => {
-    const subscription = Notifications.addPushTokenListener((token) => {
-      console.log('[Notifications] Push token refreshed:', token.data);
-      // Plan 02 will add: registerPushToken(userId) here
+    const subscription = Notifications.addPushTokenListener(() => {
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser?.uid) {
+        void registerPushToken(currentUser.uid);
+      }
     });
     return () => subscription.remove();
   }, []);

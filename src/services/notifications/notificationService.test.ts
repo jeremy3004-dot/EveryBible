@@ -396,9 +396,8 @@ test('registerPushToken catches and suppresses Supabase upsert errors without th
   mockUpsertError = { message: 'RLS violation' };
 
   let threw = false;
-  let result: string | null = null;
   try {
-    result = await registerPushToken(
+    await registerPushToken(
       'user-abc-123',
       NotificationsWithToken,
       mockSupabaseClient,
