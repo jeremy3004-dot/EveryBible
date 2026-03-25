@@ -581,10 +581,10 @@ Plans:
 
 ### Phase 32: Bible Verse Deep Linking
 
-**Goal:** Implement deep link scheme (everybible://bible/john/3/16) and universal links so users can share and open specific Bible verses from external apps, messages, and the web.
-**Requirements**: TBD
+**Goal:** Implement deep link scheme (com.everybible.app://bible/john/3/16) so users can share and open specific Bible verses from external apps, messages, and other apps.
+**Requirements**: DEEP-01, DEEP-02, DEEP-03
 **Depends on:** Phase 31
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 32 to break down)
+- [ ] 32-01-PLAN.md — Deep link parser service + tests, linking config in RootNavigator, share button URL upgrade
