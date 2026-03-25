@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import {
   Alert,
-  Animated,
   Image,
   Modal,
   ScrollView,
@@ -13,6 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,8 +38,16 @@ import {
 } from '../../services/annotations/annotationService';
 import { getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
+import { getChapterTimestamps } from '../../services/bible/verseTimestamps';
+import type { VerseTimestamps } from '../../services/bible/verseTimestamps';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
-import { useAudioStore, useAuthStore, useBibleStore, useLibraryStore, useProgressStore } from '../../stores';
+import {
+  useAudioStore,
+  useAuthStore,
+  useBibleStore,
+  useLibraryStore,
+  useProgressStore,
+} from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useFontSize, useAudioPlayer } from '../../hooks';
 import {
@@ -125,11 +139,11 @@ export function BibleReaderScreen() {
   const sessionKeyRef = useRef<string | null>(null);
   const previousActiveAudioBookIdRef = useRef<string | null>(null);
   const previousActiveAudioChapterRef = useRef<number | null>(null);
-  const scrollViewRef = useRef<ScrollView | null>(null);
+  const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
-  const readerScrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useSharedValue(0);
 
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -137,6 +151,7 @@ export function BibleReaderScreen() {
   const [showFontSizeSheet, setShowFontSizeSheet] = useState(false);
   const [showTranslationSheet, setShowTranslationSheet] = useState(false);
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
+  const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
@@ -239,6 +254,7 @@ export function BibleReaderScreen() {
     currentPosition,
     duration,
     fallbackVerse: focusVerse,
+    timestamps: chapterTimestamps,
   });
   const isCurrentAudioChapter = isActiveAudioTrackMatch({
     translationId: currentTranslation,
@@ -259,30 +275,50 @@ export function BibleReaderScreen() {
   const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
   const premiumTopInset = 12;
   const premiumBottomInset = 18;
-  const topChromeOpacity = readerScrollY.interpolate({
-    inputRange: [0, READER_TOP_CHROME_DISMISS_DISTANCE * 0.7, READER_TOP_CHROME_DISMISS_DISTANCE],
-    outputRange: [1, 0.88, 0],
-    extrapolate: 'clamp',
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      'worklet';
+      scrollY.value = event.contentOffset.y;
+    },
   });
-  const topChromeTranslateY = readerScrollY.interpolate({
-    inputRange: [0, READER_TOP_CHROME_DISMISS_DISTANCE],
-    outputRange: [0, -36],
-    extrapolate: 'clamp',
-  });
-  const heroOpacity = readerScrollY.interpolate({
-    inputRange: [0, READER_HERO_COLLAPSE_DISTANCE * 0.45, READER_HERO_COLLAPSE_DISTANCE],
-    outputRange: [1, 0.45, 0],
-    extrapolate: 'clamp',
-  });
-  const heroTranslateY = readerScrollY.interpolate({
-    inputRange: [0, READER_HERO_COLLAPSE_DISTANCE],
-    outputRange: [0, -52],
-    extrapolate: 'clamp',
-  });
-  const readerScrollHandler = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: readerScrollY } } }],
-    { useNativeDriver: true }
-  );
+
+  const topChromeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [0, READER_TOP_CHROME_DISMISS_DISTANCE * 0.7, READER_TOP_CHROME_DISMISS_DISTANCE],
+      [1, 0.88, 0],
+      Extrapolation.CLAMP
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [0, READER_TOP_CHROME_DISMISS_DISTANCE],
+          [0, -36],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+  }));
+
+  const heroAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [0, READER_HERO_COLLAPSE_DISTANCE * 0.45, READER_HERO_COLLAPSE_DISTANCE],
+      [1, 0.45, 0],
+      Extrapolation.CLAMP
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [0, READER_HERO_COLLAPSE_DISTANCE],
+          [0, -52],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+  }));
 
   useEffect(() => {
     setCurrentBook(bookId);
@@ -381,6 +417,13 @@ export function BibleReaderScreen() {
       animated: true,
     });
   }, [activeFollowAlongVerse, showFollowAlongText]);
+
+  // Fetch verse timestamps when Follow Along opens; clear when chapter changes.
+  useEffect(() => {
+    if (!showFollowAlongText) return;
+    setChapterTimestamps(null);
+    getChapterTimestamps(currentTranslation, bookId, chapter).then(setChapterTimestamps);
+  }, [showFollowAlongText, currentTranslation, bookId, chapter]);
 
   useEffect(() => {
     if (
@@ -784,7 +827,9 @@ export function BibleReaderScreen() {
     syncReaderReference(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
   };
 
-  const handleReadChapterNavigation = async (target: { bookId: string; chapter: number } | null) => {
+  const handleReadChapterNavigation = async (
+    target: { bookId: string; chapter: number } | null
+  ) => {
     if (!target) {
       return;
     }
@@ -1048,10 +1093,7 @@ export function BibleReaderScreen() {
         {paragraphs.map((paragraph, pIndex) => (
           <View
             key={pIndex}
-            style={[
-              styles.readerBlock,
-              usePremiumTypography ? styles.premiumReaderBlock : null,
-            ]}
+            style={[styles.readerBlock, usePremiumTypography ? styles.premiumReaderBlock : null]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
               for (const v of paragraph.verses) {
@@ -1094,9 +1136,7 @@ export function BibleReaderScreen() {
                     }
                     style={[
                       { lineHeight: verseLineHeight },
-                      isFocused
-                        ? { backgroundColor: colors.bibleAccent + '30' }
-                        : null,
+                      isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
                       highlightAnnotation?.color
                         ? { backgroundColor: highlightAnnotation.color + '25' }
                         : null,
@@ -1115,7 +1155,9 @@ export function BibleReaderScreen() {
                     >
                       {verse.verse}
                     </Text>
-                    {'\u00A0'}{verse.text}{vIndex < paragraph.verses.length - 1 ? ' ' : ''}
+                    {'\u00A0'}
+                    {verse.text}
+                    {vIndex < paragraph.verses.length - 1 ? ' ' : ''}
                   </Text>
                 );
               })}
@@ -1202,14 +1244,7 @@ export function BibleReaderScreen() {
   const renderPremiumReadLayout = () => (
     <View style={styles.premiumReaderLayout}>
       <Animated.View
-        style={[
-          styles.floatingReaderTopBar,
-          {
-            top: premiumTopInset,
-            opacity: topChromeOpacity,
-            transform: [{ translateY: topChromeTranslateY }],
-          },
-        ]}
+        style={[styles.floatingReaderTopBar, { top: premiumTopInset }, topChromeAnimatedStyle]}
       >
         <TouchableOpacity
           style={styles.touchableGlassButton}
@@ -1245,9 +1280,7 @@ export function BibleReaderScreen() {
                     style={[
                       styles.floatingReaderModeLabel,
                       {
-                        color: isSelected
-                          ? colors.bibleBackground
-                          : colors.bibleSecondaryText,
+                        color: isSelected ? colors.bibleBackground : colors.bibleSecondaryText,
                       },
                     ]}
                   >
@@ -1279,11 +1312,8 @@ export function BibleReaderScreen() {
       <Animated.View
         style={[
           styles.floatingReaderTranslationDock,
-          {
-            top: premiumTopInset + 62,
-            opacity: topChromeOpacity,
-            transform: [{ translateY: topChromeTranslateY }],
-          },
+          { top: premiumTopInset + 62 },
+          topChromeAnimatedStyle,
         ]}
       >
         <TouchableOpacity
@@ -1316,14 +1346,7 @@ export function BibleReaderScreen() {
 
       <Animated.View
         pointerEvents="none"
-        style={[
-          styles.floatingReaderHero,
-          {
-            top: premiumTopInset + 124,
-            opacity: heroOpacity,
-            transform: [{ translateY: heroTranslateY }],
-          },
-        ]}
+        style={[styles.floatingReaderHero, { top: premiumTopInset + 124 }, heroAnimatedStyle]}
       >
         <Text
           style={[
@@ -1358,7 +1381,7 @@ export function BibleReaderScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={readerScrollHandler}
+        onScroll={scrollHandler}
         onScrollBeginDrag={() => {
           setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
           setShowTranslationSheet((current) =>
@@ -1444,7 +1467,10 @@ export function BibleReaderScreen() {
           },
         ]}
       >
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('BibleBrowser')}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate('BibleBrowser')}
+        >
           <Ionicons name="chevron-back" size={24} color={colors.biblePrimaryText} />
         </TouchableOpacity>
 
@@ -1579,7 +1605,14 @@ export function BibleReaderScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: colors.bibleBackground, paddingTop: safeInsets.top, paddingBottom: safeInsets.bottom }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.bibleBackground,
+          paddingTop: safeInsets.top,
+          paddingBottom: safeInsets.bottom,
+        },
+      ]}
     >
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
 
@@ -1852,7 +1885,8 @@ export function BibleReaderScreen() {
                               >
                                 {selectionState.isSelectable
                                   ? t('bible.available')
-                                  : (translation.installState === 'remote-only' || translation.source === 'runtime')
+                                  : translation.installState === 'remote-only' ||
+                                      translation.source === 'runtime'
                                     ? t('translations.download')
                                     : t('common.comingSoon')}
                               </Text>
@@ -1877,14 +1911,15 @@ export function BibleReaderScreen() {
         animationType="slide"
         onRequestClose={() => setShowFollowAlongText(false)}
       >
-        <SafeAreaView
-          style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}
-          edges={['top']}
-        >
+        <View style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}>
           <View
             style={[
               styles.followAlongHeader,
-              { borderBottomColor: colors.bibleDivider, backgroundColor: colors.bibleBackground },
+              {
+                borderBottomColor: colors.bibleDivider,
+                backgroundColor: colors.bibleBackground,
+                paddingTop: safeInsets.top + spacing.md,
+              },
             ]}
           >
             {/* Back to player — left */}
@@ -1957,7 +1992,7 @@ export function BibleReaderScreen() {
               );
             })}
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       <AnnotationActionSheet
@@ -2504,7 +2539,6 @@ const styles = StyleSheet.create({
   },
   followAlongHeader: {
     paddingHorizontal: 18,
-    paddingTop: spacing.md,
     paddingBottom: 16,
     borderBottomWidth: 1,
     flexDirection: 'row',
