@@ -310,17 +310,10 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: radius.lg,
       padding: layout.denseCardPadding,
     },
-<<<<<<< HEAD
     optionIconImage: {
       width: 40,
       height: 40,
       borderRadius: radius.md,
-=======
-    optionAppIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 11,
->>>>>>> origin/jeremy3004-dot/check-skills-access
     },
     optionCopy: {
       flex: 1,
