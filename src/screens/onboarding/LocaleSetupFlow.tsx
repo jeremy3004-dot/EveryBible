@@ -34,6 +34,7 @@ interface LocaleSetupFlowProps {
 }
 
 const standardIconPreview = require('../../../assets/icon.png');
+const discreetIconPreview = require('../../../assets/icon-discreet.png');
 
 const getFlagEmoji = (countryCode: string): string => {
   if (!/^[A-Z]{2}$/.test(countryCode)) {
@@ -388,41 +389,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             },
           ]}
         >
-          {isDiscreet ? (
-            <View
-              style={[
-                styles.discreetPreview,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.cardBorder,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.discreetDisplay,
-                  { backgroundColor: colors.bibleSurface, borderColor: colors.cardBorder },
-                ]}
-              />
-              <View style={styles.discreetGrid}>
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.discreetGridKey,
-                      { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : (
-            <Image
-              source={standardIconPreview}
-              style={[styles.standardPreview, { borderColor: colors.cardBorder }]}
-              resizeMode="contain"
-            />
-          )}
+          <Image
+            source={isDiscreet ? discreetIconPreview : standardIconPreview}
+            style={[styles.standardPreview, { borderColor: colors.cardBorder }]}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.optionCopy}>
