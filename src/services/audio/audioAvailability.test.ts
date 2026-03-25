@@ -95,3 +95,53 @@ test('translation-level capability still exposes saved offline audio without ena
     }
   );
 });
+
+test('translations without audio support cannot play even when remote audio exists', () => {
+  assert.deepEqual(
+    getAudioAvailability({
+      featureEnabled: true,
+      translationHasAudio: false,
+      remoteAudioAvailable: true,
+      downloadedAudioBooks: [],
+      bookId: 'GEN',
+    }),
+    {
+      canPlayAudio: false,
+      canDownloadAudio: false,
+      canManageAudio: false,
+      canStreamAudio: false,
+      hasOfflineAudio: false,
+    }
+  );
+});
+
+test('fully available translation with both remote and offline audio enables all capabilities', () => {
+  assert.deepEqual(
+    getAudioAvailability({
+      featureEnabled: true,
+      translationHasAudio: true,
+      remoteAudioAvailable: true,
+      downloadedAudioBooks: ['GEN'],
+      bookId: 'GEN',
+    }),
+    {
+      canPlayAudio: true,
+      canDownloadAudio: true,
+      canManageAudio: true,
+      canStreamAudio: true,
+      hasOfflineAudio: true,
+    }
+  );
+});
+
+test('translation-level check detects any downloaded book without requiring a specific bookId', () => {
+  const result = getAudioAvailability({
+    featureEnabled: true,
+    translationHasAudio: true,
+    remoteAudioAvailable: false,
+    downloadedAudioBooks: ['MAT', 'ROM'],
+  });
+
+  assert.equal(result.hasOfflineAudio, true);
+  assert.equal(result.canPlayAudio, true);
+});

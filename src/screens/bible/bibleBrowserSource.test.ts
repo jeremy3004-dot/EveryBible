@@ -16,3 +16,63 @@ test('book-grid rows assign stable keys to rendered book cards', () => {
     'BibleBrowserScreen should give each rendered row a stable key via keyExtractor so the list does not emit React key warnings'
   );
 });
+
+test('Bible browser exposes a search input that drives the deferred query', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes('TextInput'),
+    true,
+    'BibleBrowserScreen must render a TextInput for search'
+  );
+
+  assert.equal(
+    source.includes('useDeferredValue'),
+    true,
+    'BibleBrowserScreen should defer the search query to avoid blocking the UI thread'
+  );
+
+  assert.equal(
+    source.includes('searchBible'),
+    true,
+    'BibleBrowserScreen should call the searchBible service for full-text search'
+  );
+});
+
+test('Bible browser handles all three search intent kinds in the render tree', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes("searchIntent.kind === 'full-text'"),
+    true,
+    'BibleBrowserScreen should branch on full-text search intent'
+  );
+
+  assert.equal(
+    source.includes("searchIntent.kind === 'reference'"),
+    true,
+    'BibleBrowserScreen should branch on reference search intent'
+  );
+});
+
+test('Bible browser gates audio controls behind getAudioAvailability', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes('getAudioAvailability'),
+    true,
+    'BibleBrowserScreen must use getAudioAvailability to resolve audio state'
+  );
+
+  assert.equal(
+    source.includes('canManageAudio'),
+    true,
+    'BibleBrowserScreen should only render audio management controls when canManageAudio is true'
+  );
+
+  assert.equal(
+    source.includes('canDownloadAudio'),
+    true,
+    'BibleBrowserScreen should check canDownloadAudio before enabling download actions'
+  );
+});
