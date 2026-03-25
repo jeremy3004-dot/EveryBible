@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: In Progress
-stopped_at: Completed 30-01-PLAN.md (gesture foundation, 2 tasks, reanimated+gesture-handler installed, 71 tests pass)
-last_updated: "2026-03-25T06:00:00.000Z"
+stopped_at: Completed 30-02-PLAN.md (Reanimated scroll handler + swipe gesture, 2 tasks, 1 file, phase 30 complete)
+last_updated: "2026-03-25T02:29:24Z"
 progress:
   total_phases: 34
-  completed_phases: 21
+  completed_phases: 22
   total_plans: 56
-  completed_plans: 55
+  completed_plans: 56
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 30 — animated-chapter-swipe-and-reader-gestures
+**Current focus:** Phase 31 — push-notification-implementation (Phase 30 complete)
 
 ## Current Position
 
-Phase: 30
-Phase: 30 (animated-chapter-swipe-and-reader-gestures) — NEXT
+Phase: 30 (animated-chapter-swipe-and-reader-gestures) — COMPLETE
+Phase: 31 (push-notification-implementation) — NEXT
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ _Updated after each plan completion_
 | Phase 29-mmkv-state-persistence-upgrade P01 | 7 | 3 tasks | 18 files |
 | Phase 29-mmkv-state-persistence-upgrade P02 | 2m | 2 tasks | 4 files |
 | Phase 30-animated-chapter-swipe P01 | 3m | 2 tasks | 5 files |
+| Phase 30-animated-chapter-swipe P02 | 4m | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 29-mmkv-state-persistence-upgrade P02]: No Supabase calls migrated in this plan — additive foundation only; existing fetch patterns untouched
 - [Phase 30-animated-chapter-swipe P01]: Pin react-native-reanimated to ~3.19.5 explicitly — npx expo install without a pin resolves to 4.x which requires New Architecture and crashes on newArchEnabled=false builds
 - [Phase 30-animated-chapter-swipe P01]: Place swipe threshold constants and resolveSwipeChapterNavigation in bibleReaderModel.ts alongside existing reader model constants — keeps the model surface cohesive and avoids a new file for a small addition
+- [Phase 30-animated-chapter-swipe P02]: Use inline threshold logic in .onEnd worklet (not resolveSwipeChapterNavigation import) to avoid potential Reanimated Babel plugin bundling issues with imported functions in worklet context
+- [Phase 30-animated-chapter-swipe P02]: persistentReaderBottomBar stays outside GestureDetector so bottom nav buttons do not translate during swipe
 
 ### Pending Todos
 
@@ -135,6 +138,7 @@ Recent decisions affecting current work:
 - Manual device verification for the new Phase 12.1 premium read-mode chrome, especially scroll-collapse timing, glass legibility, and safe-area fit on smaller iPhones
 - Manual device verification that built-in BSB audio still streams, downloads, switches cleanly from an already-playing WEB chapter, and plays offline correctly after the direct-source swap away from Bible.is
 - Plan 13-02: replace the older local BSB text refresh path with an official Berean download/import pipeline and regenerate bundled BSB artifacts from first-party files
+- Manual device verification for Phase 30 swipe gesture: left swipe goes to next chapter, right swipe goes to previous chapter, vertical scroll is not affected, rapid swipes do not stack audio
 
 ### Roadmap Evolution
 
@@ -195,6 +199,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-25T06:00:00Z
-Stopped at: Completed 30-01-PLAN.md (gesture foundation, 2 tasks, reanimated+gesture-handler installed, 71 tests pass)
+Last session: 2026-03-25T02:29:24Z
+Stopped at: Completed 30-02-PLAN.md (Reanimated scroll handler + swipe gesture, phase 30 complete)
 Resume file: None
