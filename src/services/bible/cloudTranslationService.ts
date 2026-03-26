@@ -2,6 +2,12 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { BibleVerseRow } from '../supabase/types';
+import {
+  assertCompleteCloudTranslationFetch,
+  buildUnavailableCloudTranslationMessage,
+  resolveCloudTextTranslationId,
+  shouldContinueCloudTranslationFetch,
+} from './cloudTranslationModel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +35,10 @@ function getTranslationDbPath(translationId: string): string {
   return `${getTranslationsDirectory()}/${translationId}.db`;
 }
 
+function getStagingTranslationDbPath(translationId: string): string {
+  return `${getTranslationsDirectory()}/${translationId}.staging.db`;
+}
+
 async function ensureTranslationsDirectoryExists(): Promise<void> {
   const dir = getTranslationsDirectory();
   const info = await FileSystem.getInfoAsync(dir);
@@ -37,11 +47,15 @@ async function ensureTranslationsDirectoryExists(): Promise<void> {
   }
 }
 
-async function deleteFileIfExists(path: string): Promise<void> {
+async function deleteDatabaseArtifactsIfExists(path: string): Promise<void> {
+  const cleanupPaths = [path, `${path}-journal`, `${path}-shm`, `${path}-wal`];
+
   try {
-    const info = await FileSystem.getInfoAsync(path);
-    if (info.exists) {
-      await FileSystem.deleteAsync(path, { idempotent: true });
+    for (const cleanupPath of cleanupPaths) {
+      const info = await FileSystem.getInfoAsync(cleanupPath);
+      if (info.exists) {
+        await FileSystem.deleteAsync(cleanupPath, { idempotent: true });
+      }
     }
   } catch {
     // Cleanup failure is non-fatal — best effort
@@ -63,7 +77,10 @@ async function resolveSupabaseTranslationId(storeId: string): Promise<string> {
     .ilike('translation_id', storeId)
     .limit(1)
     .maybeSingle();
-  return (data as { translation_id: string } | null)?.translation_id ?? storeId;
+  const catalogTranslationId =
+    (data as { translation_id: string } | null)?.translation_id ?? storeId;
+
+  return resolveCloudTextTranslationId(storeId, catalogTranslationId);
 }
 
 /**
@@ -95,11 +112,14 @@ export async function getCloudTranslationVerseCount(translationId: string): Prom
  *
  * Returns the absolute path to the created SQLite file.
  *
- * The SQLite file uses the same schema as the bundled bible-bsb-v2.db:
+ * The SQLite file uses the same base verses schema as the bundled bible-bsb-v2.db:
  * - verses(id, translation_id, book_id, chapter, verse, text, heading)
  * - idx_verses_unique ON verses(translation_id, book_id, chapter, verse)
  * - idx_verses_lookup ON verses(translation_id, book_id, chapter)
- * - verses_fts USING fts5(text, content='verses', content_rowid='id')
+ *
+ * Downloaded translations intentionally omit verses_fts. iOS release builds were
+ * crashing inside expo-sqlite native closeDatabase after FTS rebuild on these
+ * freshly written databases, and search already has a safe LIKE fallback.
  *
  * @param translationId - The translation_id from the catalog (e.g., 'engwebp')
  * @param onProgress - Optional progress callback
@@ -113,7 +133,8 @@ export async function downloadCloudTranslation(
     throw new Error('Supabase not configured');
   }
 
-  const dbPath = getTranslationDbPath(translationId);
+  const finalDbPath = getTranslationDbPath(translationId);
+  const stagingDbPath = getStagingTranslationDbPath(translationId);
 
   try {
     // ── 0. Resolve canonical Supabase ID (handles case mismatches) ─────────
@@ -160,17 +181,29 @@ export async function downloadCloudTranslation(
         totalVerses,
       });
 
-      if (page.length < PAGE_SIZE) {
-        // Last page — no more data
+      if (
+        !shouldContinueCloudTranslationFetch({
+          totalVerses,
+          fetchedVerses: allVerses.length,
+          lastPageLength: page.length,
+        })
+      ) {
         break;
       }
     }
 
+    if (allVerses.length === 0) {
+      throw new Error(buildUnavailableCloudTranslationMessage(translationId.toUpperCase()));
+    }
+
+    assertCompleteCloudTranslationFetch(translationId.toUpperCase(), totalVerses, allVerses.length);
+
     // ── 3. Create per-translation SQLite file ─────────────────────────────
     await ensureTranslationsDirectoryExists();
+    await deleteDatabaseArtifactsIfExists(stagingDbPath);
 
     const directory = getTranslationsDirectory();
-    const databaseName = `${translationId}.db`;
+    const stagingDatabaseName = `${translationId}.staging.db`;
 
     onProgress?.({
       phase: 'writing',
@@ -179,7 +212,14 @@ export async function downloadCloudTranslation(
     });
 
     // ── 4. Open the SQLite database ───────────────────────────────────────
-    const database = await SQLite.openDatabaseAsync(databaseName, undefined, directory);
+    // Expo tracks an iOS AsyncQueue close crash here unless statement auto-finalization is disabled.
+    const database = await SQLite.openDatabaseAsync(
+      stagingDatabaseName,
+      {
+        finalizeUnusedStatementsBeforeClosing: false,
+      },
+      directory
+    );
 
     // ── 5. Create the schema matching the bundled db ─────────────────────
     await database.execAsync(`
@@ -222,23 +262,20 @@ export async function downloadCloudTranslation(
       });
     }
 
-    // ── 7. Build FTS index ─────────────────────────────────────────────────
+    // ── 7. Finalize and activate the database ──────────────────────────────
     onProgress?.({
       phase: 'indexing',
       versesDownloaded: allVerses.length,
       totalVerses: allVerses.length,
     });
 
-    await database.execAsync(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5(text, content='verses', content_rowid='id');
-      INSERT INTO verses_fts(verses_fts) VALUES('rebuild');
-    `);
-
-    // ── 8. Set PRAGMA user_version to 3 (matches BUNDLED_BIBLE_SCHEMA_VERSION) ─
+    // Keep schema version aligned with the bundled bible database contract.
     await database.execAsync('PRAGMA user_version = 3');
 
-    // ── 9. Close the database ─────────────────────────────────────────────
+    // Closing before activation avoids exposing a partially-written file.
     await database.closeAsync();
+    await deleteDatabaseArtifactsIfExists(finalDbPath);
+    await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
 
     onProgress?.({
       phase: 'complete',
@@ -246,10 +283,10 @@ export async function downloadCloudTranslation(
       totalVerses: allVerses.length,
     });
 
-    return dbPath;
+    return finalDbPath;
   } catch (err) {
-    // ── 10. Clean up partial file on error ────────────────────────────────
-    await deleteFileIfExists(dbPath);
+    // ── 8. Clean up partial file on error ─────────────────────────────────
+    await deleteDatabaseArtifactsIfExists(stagingDbPath);
 
     const message = err instanceof Error ? err.message : 'Unknown download error';
 

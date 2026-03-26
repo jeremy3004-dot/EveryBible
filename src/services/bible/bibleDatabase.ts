@@ -109,6 +109,14 @@ async function inspectOpenDatabase(database: SQLite.SQLiteDatabase): Promise<Bib
   };
 }
 
+async function hasSearchIndexTable(database: SQLite.SQLiteDatabase): Promise<boolean> {
+  const result = await database.getFirstAsync<{ present: number }>(
+    "SELECT COUNT(*) as present FROM sqlite_master WHERE type = 'table' AND name = 'verses_fts'"
+  );
+
+  return (result?.present ?? 0) > 0;
+}
+
 async function ensureBundledDatabaseReady(
   minimumReadyVerseCount: number
 ): Promise<SQLite.SQLiteDatabase> {
@@ -263,7 +271,7 @@ export async function searchVerses(
   const database = await getDatabase(translationId);
   const ftsQuery = buildBibleSearchQuery(query.trim());
 
-  if (ftsQuery) {
+  if (ftsQuery && (await hasSearchIndexTable(database))) {
     try {
       const indexedResults = await database.getAllAsync<{
         id: number;

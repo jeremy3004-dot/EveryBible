@@ -4,7 +4,18 @@ import type {
   TranslationVersion,
   UserTranslationPreferences,
 } from '../supabase/types';
-import type { BibleTranslation } from '../../types';
+import {
+  buildCatalogLanguageFilters,
+  filterCatalogEntriesByLanguage,
+  mapCatalogEntryToBibleTranslation,
+  normalizeCatalogEntries,
+} from './translationCatalogModel';
+
+export {
+  buildCatalogLanguageFilters,
+  filterCatalogEntriesByLanguage,
+  mapCatalogEntryToBibleTranslation,
+} from './translationCatalogModel';
 
 export interface TranslationServiceResult<T = void> {
   success: boolean;
@@ -16,64 +27,6 @@ export interface TranslationPreferencesInput {
   primary?: string;
   secondary?: string | null;
   audio?: string | null;
-}
-
-function normalizeCatalogTranslationId(translationId: string): string {
-  return translationId.trim().toLowerCase();
-}
-
-function normalizeCatalogEntries(entries: TranslationCatalogEntry[]): TranslationCatalogEntry[] {
-  const normalizedById = new Map<string, TranslationCatalogEntry>();
-
-  for (const entry of entries) {
-    const normalizedId = normalizeCatalogTranslationId(entry.translation_id);
-    const existing = normalizedById.get(normalizedId);
-
-    if (!existing || (existing.sort_order ?? Number.MAX_SAFE_INTEGER) > (entry.sort_order ?? Number.MAX_SAFE_INTEGER)) {
-      normalizedById.set(normalizedId, {
-        ...entry,
-        translation_id: normalizedId,
-      });
-    }
-  }
-
-  return Array.from(normalizedById.values());
-}
-
-export function mapCatalogEntryToBibleTranslation(
-  entry: TranslationCatalogEntry,
-  existing?: BibleTranslation
-): BibleTranslation {
-  const translationId = normalizeCatalogTranslationId(entry.translation_id);
-
-  return {
-    id: translationId,
-    name: entry.name,
-    abbreviation: entry.abbreviation,
-    language: entry.language_name,
-    description: existing?.description ?? entry.license_type ?? '',
-    copyright: existing?.copyright ?? entry.license_type ?? 'Unknown',
-    isDownloaded: existing?.isDownloaded ?? false,
-    downloadedBooks: existing?.downloadedBooks ?? [],
-    downloadedAudioBooks: existing?.downloadedAudioBooks ?? [],
-    totalBooks: existing?.totalBooks ?? 66,
-    sizeInMB: existing?.sizeInMB ?? 5,
-    hasText: existing?.hasText ?? entry.has_text,
-    hasAudio: existing?.hasAudio ?? entry.has_audio,
-    audioGranularity: existing?.audioGranularity ?? 'none',
-    source: entry.is_bundled ? existing?.source : 'runtime',
-    installState:
-      existing?.installState ??
-      (entry.is_bundled ? 'seeded' : entry.has_text ? 'remote-only' : 'remote-only'),
-    textPackLocalPath: existing?.textPackLocalPath,
-    activeTextPackVersion: existing?.activeTextPackVersion,
-    pendingTextPackVersion: existing?.pendingTextPackVersion,
-    pendingTextPackLocalPath: existing?.pendingTextPackLocalPath,
-    rollbackTextPackVersion: existing?.rollbackTextPackVersion,
-    rollbackTextPackLocalPath: existing?.rollbackTextPackLocalPath,
-    lastInstallError: existing?.lastInstallError,
-    activeDownloadJob: existing?.activeDownloadJob ?? null,
-  };
 }
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────

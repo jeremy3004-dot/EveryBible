@@ -737,7 +737,13 @@ export function BibleReaderScreen() {
           {
             text: t('translations.download'),
             onPress: () => {
-              void downloadTranslation(translation.id);
+              void downloadTranslation(translation.id).catch((error) => {
+                Alert.alert(
+                  t('common.error'),
+                  error instanceof Error ? error.message : t('bible.failedToLoad'),
+                  [{ text: t('common.ok') }]
+                );
+              });
             },
           },
         ]

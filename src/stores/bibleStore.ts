@@ -32,6 +32,7 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
+import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
 
 interface BibleState {
   currentBook: string;
@@ -224,43 +225,41 @@ export const useBibleStore = create<BibleState>()(
           const existingTranslationsById = new Map(
             state.translations.map((translation) => [translation.id, translation])
           );
-          const seededTranslations = state.translations.filter(
-            (translation) => translation.source !== 'runtime'
-          );
-          const nextTranslations = [
-            ...seededTranslations,
-            ...runtimeTranslations
-              .filter((translation) => translation.source === 'runtime')
-              .map((translation) => {
-                const existing = existingTranslationsById.get(translation.id);
+          const nextRuntimeTranslations = runtimeTranslations
+            .filter((translation) => translation.source === 'runtime')
+            .map((translation) => {
+              const existing = existingTranslationsById.get(translation.id);
 
-                return {
-                  ...translation,
-                  isDownloaded: translation.isDownloaded || existing?.isDownloaded === true,
-                  downloadedBooks:
-                    translation.downloadedBooks.length > 0
-                      ? translation.downloadedBooks
-                      : existing?.downloadedBooks ?? [],
-                  downloadedAudioBooks:
-                    translation.downloadedAudioBooks.length > 0
-                      ? translation.downloadedAudioBooks
-                      : existing?.downloadedAudioBooks ?? [],
-                  installState: existing?.installState ?? translation.installState,
-                  activeTextPackVersion:
-                    existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
-                  pendingTextPackVersion:
-                    existing?.pendingTextPackVersion ?? translation.pendingTextPackVersion,
-                  pendingTextPackLocalPath:
-                    existing?.pendingTextPackLocalPath ?? translation.pendingTextPackLocalPath,
-                  textPackLocalPath: existing?.textPackLocalPath ?? translation.textPackLocalPath,
-                  rollbackTextPackVersion:
-                    existing?.rollbackTextPackVersion ?? translation.rollbackTextPackVersion,
-                  rollbackTextPackLocalPath:
-                    existing?.rollbackTextPackLocalPath ?? translation.rollbackTextPackLocalPath,
-                  lastInstallError: existing?.lastInstallError ?? translation.lastInstallError,
-                };
-              }),
-          ];
+              return {
+                ...translation,
+                isDownloaded: translation.isDownloaded || existing?.isDownloaded === true,
+                downloadedBooks:
+                  translation.downloadedBooks.length > 0
+                    ? translation.downloadedBooks
+                    : existing?.downloadedBooks ?? [],
+                downloadedAudioBooks:
+                  translation.downloadedAudioBooks.length > 0
+                    ? translation.downloadedAudioBooks
+                    : existing?.downloadedAudioBooks ?? [],
+                installState: existing?.installState ?? translation.installState,
+                activeTextPackVersion:
+                  existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
+                pendingTextPackVersion:
+                  existing?.pendingTextPackVersion ?? translation.pendingTextPackVersion,
+                pendingTextPackLocalPath:
+                  existing?.pendingTextPackLocalPath ?? translation.pendingTextPackLocalPath,
+                textPackLocalPath: existing?.textPackLocalPath ?? translation.textPackLocalPath,
+                rollbackTextPackVersion:
+                  existing?.rollbackTextPackVersion ?? translation.rollbackTextPackVersion,
+                rollbackTextPackLocalPath:
+                  existing?.rollbackTextPackLocalPath ?? translation.rollbackTextPackLocalPath,
+                lastInstallError: existing?.lastInstallError ?? translation.lastInstallError,
+              };
+            });
+          const nextTranslations = mergeRuntimeCatalogTranslations(
+            state.translations,
+            nextRuntimeTranslations
+          );
           const nextTranslationIds = new Set(
             nextTranslations.map((translation) => translation.id)
           );
@@ -442,6 +441,7 @@ export const useBibleStore = create<BibleState>()(
                 : t
             ),
           }));
+          throw err instanceof Error ? err : new Error(message);
         }
       },
 

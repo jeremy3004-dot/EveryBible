@@ -56,51 +56,50 @@ test('Bible browser handles all three search intent kinds in the render tree', (
 });
 
 test('Bible browser gates audio controls behind getAudioAvailability', () => {
-  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+  const source = readRelativeSource('./TranslationPickerList.tsx');
 
   assert.equal(
     source.includes('getAudioAvailability'),
     true,
-    'BibleBrowserScreen must use getAudioAvailability to resolve audio state'
+    'TranslationPickerList must use getAudioAvailability to resolve shared audio state'
   );
 
   assert.equal(
     source.includes('canManageAudio'),
     true,
-    'BibleBrowserScreen should only render audio management controls when canManageAudio is true'
+    'TranslationPickerList should only render audio management controls when canManageAudio is true'
   );
 
   assert.equal(
     source.includes('canDownloadAudio'),
     true,
-    'BibleBrowserScreen should check canDownloadAudio before enabling download actions'
+    'TranslationPickerList should check canDownloadAudio before enabling download actions'
   );
 });
 
-test('Bible browser translation selector can download runtime translations and filter by language', () => {
+test('Bible browser translation selector is delegated to the shared picker', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 
   assert.equal(
-    source.includes('downloadTranslation'),
+    source.includes('TranslationPickerList'),
     true,
-    'BibleBrowserScreen should wire the main translation selector to the store download action'
+    'BibleBrowserScreen should delegate the selector UI to TranslationPickerList so Bible and Settings stay aligned'
+  );
+});
+
+test('Bible browser and settings translation screens share the same picker implementation', () => {
+  const bibleSource = readRelativeSource('./BibleBrowserScreen.tsx');
+  const settingsSource = readRelativeSource('../more/TranslationBrowserScreen.tsx');
+
+  assert.equal(
+    bibleSource.includes('TranslationPickerList'),
+    true,
+    'BibleBrowserScreen should render the shared TranslationPickerList so its behavior stays aligned with Settings'
   );
 
   assert.equal(
-    source.includes("reason === 'download-required'"),
+    settingsSource.includes('TranslationPickerList'),
     true,
-    'BibleBrowserScreen should detect when a translation needs to be downloaded instead of treating it as coming soon'
-  );
-
-  assert.equal(
-    source.includes('buildTranslationLanguageFilters'),
-    true,
-    'BibleBrowserScreen should build language filters for the translation selector'
-  );
-
-  assert.equal(
-    source.includes('horizontal'),
-    true,
-    'BibleBrowserScreen should render the language picker as a horizontal scroller'
+    'TranslationBrowserScreen should render the shared TranslationPickerList so its behavior stays aligned with Bible'
   );
 });
