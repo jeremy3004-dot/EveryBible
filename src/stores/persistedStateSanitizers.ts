@@ -170,6 +170,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
     return {
       strategy,
       provider: value.provider as NonNullable<BibleTranslation['audioProvider']>,
+      fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+      mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,
     };
   }
@@ -185,6 +187,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
       strategy,
       baseUrl,
       chapterPathTemplate,
+      fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+      mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,
     };
   }
@@ -199,6 +203,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
     strategy,
     downloadUrl,
     sha256,
+    fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+    mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
     signature: sanitizeOptionalString(value.signature) ?? undefined,
   };
 };

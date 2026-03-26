@@ -1,5 +1,9 @@
 import type { BibleTranslation } from '../types';
 
+const SUPABASE_AUDIO_BUCKET_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL
+  ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
+  : null;
+
 export const bibleTranslations: BibleTranslation[] = [
   {
     id: 'bsb',
@@ -16,6 +20,19 @@ export const bibleTranslations: BibleTranslation[] = [
     hasText: true,
     hasAudio: true,
     audioGranularity: 'chapter',
+    catalog: SUPABASE_AUDIO_BUCKET_BASE
+      ? {
+          version: '2026.03.26',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: `${SUPABASE_AUDIO_BUCKET_BASE}/bsb`,
+            chapterPathTemplate: '{bookId}/{chapter}.m4a',
+            fileExtension: 'm4a',
+            mimeType: 'audio/mp4',
+          },
+        }
+      : undefined,
   },
   {
     id: 'web',
@@ -33,6 +50,16 @@ export const bibleTranslations: BibleTranslation[] = [
     hasAudio: true,
     audioGranularity: 'chapter',
     audioProvider: 'ebible-webbe',
+    catalog: {
+      version: '2026.03.26',
+      updatedAt: '2026-03-26T00:00:00.000Z',
+      audio: {
+        strategy: 'provider',
+        provider: 'ebible-webbe',
+        fileExtension: 'mp3',
+        mimeType: 'audio/mpeg',
+      },
+    },
   },
   {
     id: 'kjv',

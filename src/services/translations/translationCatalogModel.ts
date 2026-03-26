@@ -98,6 +98,7 @@ export function mapCatalogEntryToBibleTranslation(
   existing?: BibleTranslation
 ): BibleTranslation {
   const translationId = normalizeCatalogTranslationId(entry.translation_id);
+  const hasCatalogAudio = Boolean(entry.catalog?.audio);
 
   return {
     id: translationId,
@@ -112,8 +113,13 @@ export function mapCatalogEntryToBibleTranslation(
     totalBooks: existing?.totalBooks ?? 66,
     sizeInMB: existing?.sizeInMB ?? 5,
     hasText: Boolean(existing?.hasText || entry.has_text),
-    hasAudio: Boolean(existing?.hasAudio || entry.has_audio),
-    audioGranularity: existing?.audioGranularity ?? 'none',
+    hasAudio: Boolean(existing?.hasAudio || entry.has_audio || hasCatalogAudio),
+    audioGranularity:
+      existing?.audioGranularity ??
+      (entry.has_audio || hasCatalogAudio ? 'chapter' : 'none'),
+    audioProvider:
+      existing?.audioProvider ??
+      (entry.catalog?.audio?.strategy === 'provider' ? entry.catalog.audio.provider : undefined),
     source: entry.is_bundled ? existing?.source : 'runtime',
     installState:
       existing?.installState ??
@@ -125,6 +131,7 @@ export function mapCatalogEntryToBibleTranslation(
     rollbackTextPackVersion: existing?.rollbackTextPackVersion,
     rollbackTextPackLocalPath: existing?.rollbackTextPackLocalPath,
     lastInstallError: existing?.lastInstallError,
+    catalog: entry.catalog ?? existing?.catalog,
     activeDownloadJob: existing?.activeDownloadJob ?? null,
   };
 }

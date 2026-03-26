@@ -1,8 +1,11 @@
-import { getTranslationById } from '../../constants';
 import {
   getDownloadedChapterAudioUri,
   type RemoteAudioAsset,
 } from './audioDownloadService';
+import {
+  getConfiguredAudioGranularity,
+  hasConfiguredTranslationAudio,
+} from './audioRemote';
 import { AUDIO_DOWNLOAD_ROOT_URI, expoAudioFileSystemAdapter } from './audioDownloadStorage';
 import {
   clearRemoteAudioCache,
@@ -17,8 +20,8 @@ export async function getChapterAudioUrl(
   chapter: number,
   verse?: number
 ): Promise<RemoteAudioAsset | null> {
-  const translation = getTranslationById(translationId);
-  const canUseLocalChapterAudio = verse == null || translation?.audioGranularity === 'chapter';
+  const canUseLocalChapterAudio =
+    verse == null || getConfiguredAudioGranularity(translationId) !== 'verse';
 
   const localUri = canUseLocalChapterAudio
     ? await getDownloadedChapterAudioUri(
@@ -39,8 +42,7 @@ export async function getChapterAudioUrl(
 }
 
 export function isAudioAvailable(translationId: string): boolean {
-  const translation = getTranslationById(translationId);
-  return Boolean(translation?.hasAudio);
+  return hasConfiguredTranslationAudio(translationId);
 }
 
 export function clearAudioCache(): void {

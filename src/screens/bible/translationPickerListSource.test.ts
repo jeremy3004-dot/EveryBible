@@ -51,4 +51,10 @@ test('shared translation picker can filter by language and download runtime tran
     true,
     'TranslationPickerList should render the language pills in a horizontal scroller'
   );
+
+  assert.equal(
+    source.includes('downloadAudioForBooks'),
+    true,
+    'TranslationPickerList should route testament audio downloads through the batched store action instead of per-book serial loops'
+  );
 });

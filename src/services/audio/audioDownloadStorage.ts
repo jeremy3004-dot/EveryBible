@@ -55,8 +55,9 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
     return {
       downloadFile: async (from, to, options) => {
         const jobId = options?.jobId;
+        const taskId = options?.taskId ?? jobId;
 
-        if (!jobId) {
+        if (!taskId) {
           await expoAudioFileSystemAdapter.downloadFile(from, to, options);
           return;
         }
@@ -64,7 +65,7 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
         try {
           await new Promise<void>((resolve, reject) => {
             const task = backgroundDownloader.createDownloadTask({
-              id: jobId,
+              id: taskId,
               url: from,
               destination: to,
               metadata: {
@@ -76,7 +77,7 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
 
             task
               .done(() => {
-                backgroundDownloader.completeHandler(jobId);
+                backgroundDownloader.completeHandler(taskId);
                 resolve();
               })
               .error(({ error }) => {
@@ -94,15 +95,18 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
       },
       reattachJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
-        const task = tasks.find((task) => task.id === jobId);
-        if (task) {
-          task.resume();
-        }
+        tasks
+          .filter((task) => task.id === jobId || task.id.startsWith(`${jobId}:`))
+          .forEach((task) => {
+            task.resume();
+          });
       },
       cancelJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
-        const task = tasks.find((candidate) => candidate.id === jobId);
-        if (task) {
+        const matchingTasks = tasks.filter(
+          (candidate) => candidate.id === jobId || candidate.id.startsWith(`${jobId}:`)
+        );
+        for (const task of matchingTasks) {
           await task.stop();
         }
       },

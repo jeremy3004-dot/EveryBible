@@ -1,7 +1,10 @@
 import type { BibleBook } from '../../constants/books';
 import { buildAudioChapterTargets } from './audioDownloads';
+import { getRemoteAudioFileExtension } from './audioRemote';
 
 const DEFAULT_AUDIO_ROOT_URI = 'file:///everybible-audio/';
+const DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY = 4;
+const DEFAULT_BOOK_DOWNLOAD_CONCURRENCY = 2;
 
 export type AudioDownloadJobScope = 'book' | 'translation';
 export type AudioDownloadJobStatus = 'queued' | 'downloading' | 'completed' | 'failed';
@@ -38,7 +41,13 @@ export interface AudioFileSystemAdapter {
   downloadFile: (
     from: string,
     to: string,
-    options?: { jobId?: string; translationId?: string; bookId?: string; chapter?: number }
+    options?: {
+      jobId?: string;
+      taskId?: string;
+      translationId?: string;
+      bookId?: string;
+      chapter?: number;
+    }
   ) => Promise<void>;
   readTextFile?: (fileUri: string) => Promise<string | null>;
   writeTextFile?: (fileUri: string, contents: string) => Promise<void>;
@@ -318,6 +327,17 @@ export function getChapterAudioFileUri(
   chapter: number,
   rootUri: string = DEFAULT_AUDIO_ROOT_URI
 ): string {
+  return `${getBookAudioDirectoryUri(translationId, bookId, rootUri)}${chapter}.${getRemoteAudioFileExtension(
+    translationId
+  )}`;
+}
+
+function getLegacyChapterAudioFileUri(
+  translationId: string,
+  bookId: string,
+  chapter: number,
+  rootUri: string = DEFAULT_AUDIO_ROOT_URI
+): string {
   return `${getBookAudioDirectoryUri(translationId, bookId, rootUri)}${chapter}.mp3`;
 }
 
@@ -329,7 +349,58 @@ export async function getDownloadedChapterAudioUri(
   rootUri?: string
 ): Promise<string | null> {
   const fileUri = getChapterAudioFileUri(translationId, bookId, chapter, rootUri);
-  return (await fileSystem.fileExists(fileUri)) ? fileUri : null;
+  if (await fileSystem.fileExists(fileUri)) {
+    return fileUri;
+  }
+
+  const legacyFileUri = getLegacyChapterAudioFileUri(translationId, bookId, chapter, rootUri);
+  if (legacyFileUri !== fileUri && (await fileSystem.fileExists(legacyFileUri))) {
+    return legacyFileUri;
+  }
+
+  return null;
+}
+
+function createAudioDownloadTaskId(jobId: string, bookId: string, chapter: number): string {
+  return `${jobId}:${bookId}:${chapter}`;
+}
+
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> {
+  if (items.length === 0) {
+    return;
+  }
+
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  let nextIndex = 0;
+  let firstError: Error | null = null;
+
+  const runners = Array.from({ length: limit }, async () => {
+    while (firstError == null) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      if (currentIndex >= items.length) {
+        return;
+      }
+
+      try {
+        await worker(items[currentIndex] as T);
+      } catch (error) {
+        firstError = error instanceof Error ? error : new Error(String(error));
+        return;
+      }
+    }
+  });
+
+  await Promise.all(runners);
+
+  if (firstError) {
+    throw firstError;
+  }
 }
 
 export async function downloadAudioBook({
@@ -358,7 +429,7 @@ export async function downloadAudioBook({
   await fileSystem.ensureDirectory(directoryUri);
 
   try {
-    for (const target of chapterTargets) {
+    await runWithConcurrency(chapterTargets, DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY, async (target) => {
       const fileUri = getChapterAudioFileUri(
         translationId,
         target.bookId,
@@ -366,7 +437,7 @@ export async function downloadAudioBook({
         resolvedRootUri
       );
       if (await fileSystem.fileExists(fileUri)) {
-        continue;
+        return;
       }
 
       const remoteAudio = await resolveRemoteAudio(translationId, target.bookId, target.chapter);
@@ -376,11 +447,12 @@ export async function downloadAudioBook({
 
       await activeTransport.downloadFile(remoteAudio.url, fileUri, {
         jobId: job.id,
+        taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
         translationId,
         bookId: target.bookId,
         chapter: target.chapter,
       });
-    }
+    });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
     await failAudioDownloadJob({
@@ -423,7 +495,7 @@ export async function downloadAudioTranslation({
   });
 
   try {
-    for (const book of books) {
+    await runWithConcurrency(books, DEFAULT_BOOK_DOWNLOAD_CONCURRENCY, async (book) => {
       const result = await downloadAudioBook({
         rootUri: resolvedRootUri,
         translationId,
@@ -435,7 +507,7 @@ export async function downloadAudioTranslation({
         transport: activeTransport,
       });
       downloadedBookIds.push(result.bookId);
-    }
+    });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
     await failAudioDownloadJob({

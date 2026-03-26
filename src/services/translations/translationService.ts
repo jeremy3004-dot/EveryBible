@@ -4,7 +4,12 @@ import type {
   TranslationVersion,
   UserTranslationPreferences,
 } from '../supabase/types';
-import { filterInstallableCatalogEntries } from './translationCatalogModel';
+import {
+  buildCatalogLanguageFilters,
+  filterInstallableCatalogEntries,
+  filterCatalogEntriesByLanguage,
+  mapCatalogEntryToBibleTranslation,
+} from './translationCatalogModel';
 
 export {
   buildCatalogLanguageFilters,

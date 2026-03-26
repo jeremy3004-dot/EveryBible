@@ -22,7 +22,8 @@
     "verify:bible-db": "python3 scripts/build_bible_db.py --verify",
     "generate-timestamps": "python3 scripts/batch_timestamps.py",
     "codegen-timestamps": "node scripts/codegen-timestamps.mjs",
-    "extract-verse-text": "python3 scripts/extract_verse_text.py"
+    "extract-verse-text": "python3 scripts/extract_verse_text.py",
+    "catalog:translation": "tsx scripts/upsert-translation-catalog.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

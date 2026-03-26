@@ -1,4 +1,5 @@
 import type { LanguageCode } from '../../constants/languages';
+import type { TranslationCatalog } from '../../types';
 
 // Database types for Supabase
 
@@ -216,6 +217,8 @@ export interface TranslationCatalogEntry {
   is_bundled: boolean;
   is_available: boolean;
   sort_order: number;
+  catalog: TranslationCatalog | null;
+  text_direction?: string | null;
   created_at: string;
   updated_at: string;
 }

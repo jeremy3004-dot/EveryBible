@@ -50,6 +50,7 @@ export function TranslationPickerList({
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
+  const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
 
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
@@ -234,16 +235,14 @@ export function TranslationPickerList({
     setActiveAudioDownloadKey(`testament:${testament}`);
 
     try {
-      const books = bibleBooks.filter((book) => book.testament === testament);
-      for (const book of books) {
-        const alreadyDownloaded = isAudioBookDownloaded(
-          audioManagerTranslation.downloadedAudioBooks,
-          book.id
-        );
-        if (!alreadyDownloaded) {
-          await downloadAudioForBook(audioManagerTranslation.id, book.id);
-        }
-      }
+      const books = bibleBooks
+        .filter((book) => book.testament === testament)
+        .filter(
+          (book) =>
+            !isAudioBookDownloaded(audioManagerTranslation.downloadedAudioBooks, book.id)
+        )
+        .map((book) => book.id);
+      await downloadAudioForBooks(audioManagerTranslation.id, books);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
@@ -550,16 +549,18 @@ export function TranslationPickerList({
                               `testament-inline:${testament}:${translation.id}`
                             );
                             try {
-                              for (const book of testamentBooks) {
-                                if (
-                                  !isAudioBookDownloaded(
-                                    translation.downloadedAudioBooks,
-                                    book.id
+                              await downloadAudioForBooks(
+                                translation.id,
+                                testamentBooks
+                                  .filter(
+                                    (book) =>
+                                      !isAudioBookDownloaded(
+                                        translation.downloadedAudioBooks,
+                                        book.id
+                                      )
                                   )
-                                ) {
-                                  await downloadAudioForBook(translation.id, book.id);
-                                }
-                              }
+                                  .map((book) => book.id)
+                              );
                             } catch (error) {
                               Alert.alert(
                                 t('common.error'),

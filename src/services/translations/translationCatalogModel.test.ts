@@ -27,6 +27,7 @@ const baseEntry: TranslationCatalogEntry = {
   is_bundled: false,
   is_available: true,
   sort_order: 3,
+  catalog: null,
   created_at: '2026-03-26T00:00:00.000Z',
   updated_at: '2026-03-26T00:00:00.000Z',
 };
@@ -94,6 +95,35 @@ test('mapCatalogEntryToBibleTranslation preserves existing downloaded state and 
   assert.equal(mapped.isDownloaded, true);
   assert.deepEqual(mapped.downloadedBooks, ['GEN']);
   assert.equal(mapped.audioGranularity, 'chapter');
+});
+
+test('mapCatalogEntryToBibleTranslation carries backend catalog delivery metadata into the app model', () => {
+  const entry: TranslationCatalogEntry = {
+    ...baseEntry,
+    translation_id: 'BSB',
+    abbreviation: 'BSB',
+    name: 'Berean Standard Bible',
+    has_audio: true,
+    catalog: {
+      version: '2026.03.26',
+      updatedAt: '2026-03-26T12:00:00.000Z',
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'https://media.everybible.app/audio/bsb/v2026-03-26-1',
+        chapterPathTemplate: 'chapters/{bookId}/{chapter}.m4a',
+        fileExtension: 'm4a',
+        mimeType: 'audio/mp4',
+      },
+    },
+  };
+
+  const mapped = mapCatalogEntryToBibleTranslation(entry);
+
+  assert.equal(mapped.hasAudio, true);
+  assert.equal(mapped.audioGranularity, 'chapter');
+  assert.equal(mapped.catalog?.audio?.strategy, 'stream-template');
+  assert.equal(mapped.catalog?.audio?.fileExtension, 'm4a');
+  assert.equal(mapped.catalog?.audio?.mimeType, 'audio/mp4');
 });
 
 test('normalizeCatalogEntries lowercases ids and keeps the best-ranked duplicate', () => {

@@ -94,6 +94,12 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
     return {
       strategy,
       provider: value.provider as AudioProvider,
+      ...(sanitizeRequiredString(value.fileExtension)
+        ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
+        : {}),
+      ...(sanitizeRequiredString(value.mimeType)
+        ? { mimeType: sanitizeRequiredString(value.mimeType) ?? undefined }
+        : {}),
       ...(sanitizeRequiredString(value.signature)
         ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
         : {}),
@@ -111,6 +117,12 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       strategy,
       baseUrl,
       chapterPathTemplate,
+      ...(sanitizeRequiredString(value.fileExtension)
+        ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
+        : {}),
+      ...(sanitizeRequiredString(value.mimeType)
+        ? { mimeType: sanitizeRequiredString(value.mimeType) ?? undefined }
+        : {}),
       ...(sanitizeRequiredString(value.signature)
         ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
         : {}),
@@ -127,6 +139,12 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
     strategy,
     downloadUrl,
     sha256,
+    ...(sanitizeRequiredString(value.fileExtension)
+      ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
+      : {}),
+    ...(sanitizeRequiredString(value.mimeType)
+      ? { mimeType: sanitizeRequiredString(value.mimeType) ?? undefined }
+      : {}),
     ...(sanitizeRequiredString(value.signature)
       ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
       : {}),

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   clearRemoteAudioCache,
   fetchRemoteChapterAudio,
+  getRemoteAudioFileExtension,
   isRemoteAudioAvailable,
   setRemoteAudioMetadataResolver,
 } from './audioRemote';
@@ -138,6 +139,27 @@ test('runtime stream-template audio resolves through the injected metadata resol
     duration: 0,
   });
   assert.equal(isRemoteAudioAvailable('niv'), true);
+});
+
+test('runtime stream-template audio exposes its configured file extension for local downloads', () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'niv') {
+      return null;
+    }
+
+    return {
+      id: 'niv',
+      hasAudio: true,
+      fileExtension: 'm4a',
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'https://cdn.example.com/audio/niv',
+        chapterPathTemplate: '{bookId}/{chapter}.m4a',
+      },
+    };
+  });
+
+  assert.equal(getRemoteAudioFileExtension('niv'), 'm4a');
 });
 
 test('runtime provider audio resolves through the injected metadata resolver', async () => {
