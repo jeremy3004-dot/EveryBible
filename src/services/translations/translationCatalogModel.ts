@@ -1,13 +1,25 @@
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry } from '../supabase/types';
+import { resolveCloudTextTranslationId } from '../bible/cloudTranslationModel';
 
 export interface CatalogLanguageFilter {
   code: string;
   label: string;
 }
 
+const CATALOG_TRANSLATION_ID_ALIASES: Record<string, string> = {
+  'eng-asv': 'asv',
+  engbbe: 'bbe',
+  engbsb: 'bsb',
+  engwebp: 'web',
+  engwebpb: 'web',
+  engylt: 'ylt',
+  rvr: 'sparv1909',
+};
+
 export function normalizeCatalogTranslationId(translationId: string): string {
-  return translationId.trim().toLowerCase();
+  const normalizedId = translationId.trim().toLowerCase();
+  return CATALOG_TRANSLATION_ID_ALIASES[normalizedId] ?? normalizedId;
 }
 
 function normalizeCatalogLanguageName(languageName: string | null | undefined): string {
@@ -36,6 +48,20 @@ export function normalizeCatalogEntries(
   }
 
   return Array.from(normalizedById.values());
+}
+
+export function filterInstallableCatalogEntries(
+  entries: TranslationCatalogEntry[],
+  currentVersionIds: Set<string>
+): TranslationCatalogEntry[] {
+  return normalizeCatalogEntries(entries).filter((entry) => {
+    const resolvedBackendId = resolveCloudTextTranslationId(
+      entry.translation_id,
+      entry.translation_id
+    );
+
+    return currentVersionIds.has(resolvedBackendId);
+  });
 }
 
 export function buildCatalogLanguageFilters(

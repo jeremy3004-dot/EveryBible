@@ -17,6 +17,11 @@ export interface TranslationLanguageFilter {
   label: string;
 }
 
+interface TranslationPickerVisibilityOptions {
+  isHydratingRuntimeCatalog: boolean;
+  hasHydratedRuntimeCatalog: boolean;
+}
+
 function normalizeTranslationLanguage(language: string | null | undefined): string {
   return language?.trim() || 'Other';
 }
@@ -63,6 +68,28 @@ export const filterTranslationsByLanguage = <T extends { language: string | null
 
   return translations.filter(
     (translation) => normalizeTranslationLanguage(translation.language) === selectedLanguage
+  );
+};
+
+export const getVisibleTranslationsForPicker = <
+  T extends Pick<TranslationSelectionOptions, 'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'>
+>(
+  translations: T[],
+  { isHydratingRuntimeCatalog, hasHydratedRuntimeCatalog }: TranslationPickerVisibilityOptions
+): T[] => {
+  if (!isHydratingRuntimeCatalog || hasHydratedRuntimeCatalog) {
+    return translations;
+  }
+
+  return translations.filter((translation) =>
+    translation.source !== 'runtime'
+      ? true
+      : isTranslationReadableLocally({
+          isDownloaded: translation.isDownloaded,
+          hasText: translation.hasText,
+          source: translation.source,
+          textPackLocalPath: translation.textPackLocalPath,
+        })
   );
 };
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getVisibleTranslationsForPicker,
   getTranslationSelectionState,
   isTranslationReadableLocally,
 } from './bibleTranslationModel';
@@ -111,4 +112,41 @@ test('runtime text translations become selectable once the local pack exists', (
     isSelectable: true,
     reason: null,
   });
+});
+
+test('picker hides unreadable runtime placeholders while the runtime catalog is still hydrating', () => {
+  const visible = getVisibleTranslationsForPicker(
+    [
+      {
+        id: 'bsb',
+        isDownloaded: true,
+        hasText: true,
+        source: 'bundled' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'hincv',
+        isDownloaded: false,
+        hasText: false,
+        source: 'runtime' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'npiulb',
+        isDownloaded: false,
+        hasText: true,
+        source: 'runtime' as const,
+        textPackLocalPath: null,
+      },
+    ],
+    {
+      isHydratingRuntimeCatalog: true,
+      hasHydratedRuntimeCatalog: false,
+    }
+  );
+
+  assert.deepEqual(
+    visible.map((translation) => translation.id),
+    ['bsb']
+  );
 });

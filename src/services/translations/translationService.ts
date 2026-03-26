@@ -4,12 +4,7 @@ import type {
   TranslationVersion,
   UserTranslationPreferences,
 } from '../supabase/types';
-import {
-  buildCatalogLanguageFilters,
-  filterCatalogEntriesByLanguage,
-  mapCatalogEntryToBibleTranslation,
-  normalizeCatalogEntries,
-} from './translationCatalogModel';
+import { filterInstallableCatalogEntries } from './translationCatalogModel';
 
 export {
   buildCatalogLanguageFilters,
@@ -54,7 +49,26 @@ export const listAvailableTranslations = async (): Promise<
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: normalizeCatalogEntries((data as TranslationCatalogEntry[]) ?? []) };
+    const catalogEntries = (data as TranslationCatalogEntry[]) ?? [];
+    const { data: currentVersions, error: versionError } = await supabase
+      .from('translation_versions')
+      .select('translation_id,total_verses')
+      .eq('is_current', true);
+
+    if (versionError) {
+      return { success: false, error: versionError.message };
+    }
+
+    const currentVersionIds = new Set(
+      ((currentVersions as Pick<TranslationVersion, 'translation_id' | 'total_verses'>[]) ?? [])
+        .filter((version) => (version.total_verses ?? 0) > 0)
+        .map((version) => version.translation_id)
+    );
+
+    return {
+      success: true,
+      data: filterInstallableCatalogEntries(catalogEntries, currentVersionIds),
+    };
   } catch (err) {
     return {
       success: false,

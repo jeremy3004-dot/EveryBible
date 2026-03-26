@@ -267,24 +267,64 @@ const hydrateSeededTranslation = (
   defaultTranslation: BibleTranslation,
   persisted?: Record<string, unknown>
 ): BibleTranslation => {
+  const isRuntimeSeed = defaultTranslation.source === 'runtime';
   const downloadedBooks = sanitizeBookIds(persisted?.downloadedBooks, defaultTranslation.downloadedBooks);
   const downloadedAudioBooks = sanitizeBookIds(
     persisted?.downloadedAudioBooks,
     defaultTranslation.downloadedAudioBooks
   );
   const textPackLocalPath = sanitizeOptionalString(persisted?.textPackLocalPath);
+  const totalBooks = sanitizeOptionalFiniteNumber(persisted?.totalBooks);
+  const sizeInMB = sanitizeOptionalFiniteNumber(persisted?.sizeInMB);
   const installState = validInstallStates.has(persisted?.installState as TranslationInstallState)
     ? (persisted?.installState as TranslationInstallState)
     : getDefaultInstallState(defaultTranslation);
   const hydrated: BibleTranslation = {
     ...defaultTranslation,
+    name:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.name) : null) ?? defaultTranslation.name,
+    abbreviation:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.abbreviation) : null) ??
+      defaultTranslation.abbreviation,
+    language:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.language) : null) ??
+      defaultTranslation.language,
+    description:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.description) : null) ??
+      defaultTranslation.description,
+    copyright:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.copyright) : null) ??
+      defaultTranslation.copyright,
     isDownloaded:
       typeof persisted?.isDownloaded === 'boolean'
         ? persisted.isDownloaded
         : defaultTranslation.isDownloaded,
     downloadedBooks,
     downloadedAudioBooks,
-    source: 'bundled',
+    totalBooks:
+      isRuntimeSeed && totalBooks !== null && Number.isInteger(totalBooks) && totalBooks > 0
+        ? totalBooks
+        : defaultTranslation.totalBooks,
+    sizeInMB: isRuntimeSeed && sizeInMB !== null && sizeInMB >= 0 ? sizeInMB : defaultTranslation.sizeInMB,
+    hasText:
+      isRuntimeSeed && typeof persisted?.hasText === 'boolean'
+        ? persisted.hasText
+        : defaultTranslation.hasText,
+    hasAudio:
+      isRuntimeSeed && typeof persisted?.hasAudio === 'boolean'
+        ? persisted.hasAudio
+        : defaultTranslation.hasAudio,
+    audioGranularity:
+      isRuntimeSeed &&
+      validAudioGranularities.has(persisted?.audioGranularity as BibleTranslation['audioGranularity'])
+        ? (persisted?.audioGranularity as BibleTranslation['audioGranularity'])
+        : defaultTranslation.audioGranularity,
+    audioProvider:
+      isRuntimeSeed &&
+      validAudioProviders.has(persisted?.audioProvider as NonNullable<BibleTranslation['audioProvider']>)
+        ? (persisted?.audioProvider as NonNullable<BibleTranslation['audioProvider']>)
+        : defaultTranslation.audioProvider,
+    source: isRuntimeSeed ? 'runtime' : 'bundled',
     installState,
     activeTextPackVersion: sanitizeOptionalString(persisted?.activeTextPackVersion),
     pendingTextPackVersion: sanitizeOptionalString(persisted?.pendingTextPackVersion),
@@ -302,6 +342,11 @@ const hydrateSeededTranslation = (
     if (hydrated.installState === 'remote-only') {
       hydrated.installState = 'seeded';
     }
+  }
+
+  if (hydrated.source === 'runtime' && !hydrated.textPackLocalPath && hydrated.installState === 'installed') {
+    hydrated.isDownloaded = false;
+    hydrated.installState = 'remote-only';
   }
 
   return hydrated;

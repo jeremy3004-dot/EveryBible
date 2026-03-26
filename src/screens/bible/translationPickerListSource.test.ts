@@ -35,6 +35,18 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes('ensureRuntimeCatalogLoaded'),
+    true,
+    'TranslationPickerList should hydrate the runtime catalog on mount so fresh installs do not leave cloud translations stuck as coming soon'
+  );
+
+  assert.equal(
+    source.includes('getVisibleTranslationsForPicker'),
+    true,
+    'TranslationPickerList should hide unreadable runtime placeholders while the runtime catalog is still hydrating'
+  );
+
+  assert.equal(
     source.includes('horizontal'),
     true,
     'TranslationPickerList should render the language pills in a horizontal scroller'

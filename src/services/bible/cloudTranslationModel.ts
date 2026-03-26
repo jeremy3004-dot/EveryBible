@@ -3,6 +3,7 @@ const CLOUD_TEXT_TRANSLATION_ID_ALIASES: Record<string, string> = {
   bbe: 'engBBE',
   bsb: 'engbsb',
   rvr: 'spaRV1909',
+  sparv1909: 'spaRV1909',
   web: 'engwebp',
   ylt: 'engylt',
 };

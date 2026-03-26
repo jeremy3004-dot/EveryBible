@@ -134,6 +134,39 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
+test('sanitizePersistedBibleState keeps seeded runtime translations aligned with persisted runtime metadata', () => {
+  const sanitized = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'hincv',
+        name: 'Hindi Contemporary Version Bible',
+        abbreviation: 'HCV',
+        language: 'Hindi',
+        description: 'Hindi remote catalog entry',
+        copyright: 'Public Domain',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 4.5,
+        hasText: true,
+        hasAudio: false,
+        audioGranularity: 'none',
+        source: 'runtime',
+        installState: 'remote-only',
+      },
+    ],
+  });
+
+  const hincv = sanitized.translations.find((translation) => translation.id === 'hincv');
+
+  assert.ok(hincv);
+  assert.equal(hincv.source, 'runtime');
+  assert.equal(hincv.hasText, true);
+  assert.equal(hincv.description, 'Hindi remote catalog entry');
+  assert.equal(hincv.installState, 'remote-only');
+});
+
 test('sanitizePersistedBibleState falls back when runtime translation is not locally readable', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'NIV',

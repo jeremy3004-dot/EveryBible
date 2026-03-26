@@ -23,8 +23,13 @@ import {
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { BibleTranslation } from '../../types';
 import {
+  ensureRuntimeCatalogLoaded,
+  hasRuntimeCatalogTranslations,
+} from '../../services/translations';
+import {
   buildTranslationLanguageFilters,
   filterTranslationsByLanguage,
+  getVisibleTranslationsForPicker,
   getTranslationSelectionState,
 } from './bibleTranslationModel';
 
@@ -50,6 +55,11 @@ export function TranslationPickerList({
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
   const [activeAudioDownloadKey, setActiveAudioDownloadKey] = useState<string | null>(null);
+  const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(false);
+  const hasHydratedRuntimeCatalog = useMemo(
+    () => hasRuntimeCatalogTranslations(translations),
+    [translations]
+  );
 
   const audioManagerTranslation = translations.find(
     (translation) => translation.id === audioManagerTranslationId
@@ -82,6 +92,14 @@ export function TranslationPickerList({
     () => filterTranslationsByLanguage(translations, selectedLanguage),
     [translations, selectedLanguage]
   );
+  const visibleTranslations = useMemo(
+    () =>
+      getVisibleTranslationsForPicker(filteredTranslations, {
+        isHydratingRuntimeCatalog,
+        hasHydratedRuntimeCatalog,
+      }),
+    [filteredTranslations, hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog]
+  );
 
   useEffect(() => {
     if (
@@ -92,21 +110,66 @@ export function TranslationPickerList({
     }
   }, [languageFilters, selectedLanguage]);
 
-  const handleTranslationSelect = (translation: BibleTranslation) => {
+  useEffect(() => {
+    let isMounted = true;
+
+    if (hasHydratedRuntimeCatalog) {
+      setIsHydratingRuntimeCatalog(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsHydratingRuntimeCatalog(true);
+    void ensureRuntimeCatalogLoaded()
+      .catch((error) => {
+        console.warn('[Bible] Failed to hydrate runtime translation catalog:', error);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsHydratingRuntimeCatalog(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasHydratedRuntimeCatalog]);
+
+  const handleTranslationSelect = async (translation: BibleTranslation) => {
+    let nextTranslation = translation;
+
+    if (!hasHydratedRuntimeCatalog && !translation.isDownloaded) {
+      setIsHydratingRuntimeCatalog(true);
+
+      try {
+        await ensureRuntimeCatalogLoaded();
+      } catch (error) {
+        console.warn('[Bible] Failed to refresh translation catalog before selection:', error);
+      } finally {
+        setIsHydratingRuntimeCatalog(false);
+      }
+
+      nextTranslation =
+        useBibleStore
+          .getState()
+          .translations.find((candidate) => candidate.id === translation.id) ?? translation;
+    }
+
     onRequestClose?.();
 
-    const audioAvailability = getTranslationAudioAvailability(translation);
+    const audioAvailability = getTranslationAudioAvailability(nextTranslation);
     const selectionState = getTranslationSelectionState({
-      isDownloaded: translation.isDownloaded,
-      hasText: translation.hasText,
-      hasAudio: translation.hasAudio,
+      isDownloaded: nextTranslation.isDownloaded,
+      hasText: nextTranslation.hasText,
+      hasAudio: nextTranslation.hasAudio,
       canPlayAudio: audioAvailability.canPlayAudio,
-      source: translation.source,
-      textPackLocalPath: translation.textPackLocalPath,
+      source: nextTranslation.source,
+      textPackLocalPath: nextTranslation.textPackLocalPath,
     });
 
     if (selectionState.isSelectable) {
-      setCurrentTranslation(translation.id);
+      setCurrentTranslation(nextTranslation.id);
       onTranslationActivated?.();
       return;
     }
@@ -118,14 +181,14 @@ export function TranslationPickerList({
 
     if (selectionState.reason === 'download-required') {
       Alert.alert(
-        translation.name,
-        t('translations.downloadPrompt', { name: translation.name, size: translation.sizeInMB }),
+        nextTranslation.name,
+        t('translations.downloadPrompt', { name: nextTranslation.name, size: nextTranslation.sizeInMB }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
             text: t('translations.download'),
             onPress: () => {
-              void downloadTranslation(translation.id).catch((error) => {
+              void downloadTranslation(nextTranslation.id).catch((error) => {
                 Alert.alert(
                   t('common.error'),
                   error instanceof Error ? error.message : t('bible.failedToLoad'),
@@ -141,7 +204,7 @@ export function TranslationPickerList({
 
     Alert.alert(
       t('common.comingSoon'),
-      t('bible.translationComingSoon', { name: translation.name }),
+      t('bible.translationComingSoon', { name: nextTranslation.name }),
       [{ text: t('common.ok') }]
     );
   };
@@ -247,8 +310,17 @@ export function TranslationPickerList({
         </ScrollView>
       ) : null}
 
+      {isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog ? (
+        <View style={styles.catalogHydrationRow}>
+          <ActivityIndicator size="small" color={colors.bibleAccent} />
+          <Text style={[styles.catalogHydrationText, { color: colors.bibleSecondaryText }]}>
+            {t('common.loading')}
+          </Text>
+        </View>
+      ) : null}
+
       <ScrollView style={styles.translationList} showsVerticalScrollIndicator={false}>
-        {filteredTranslations.map((translation) => {
+        {visibleTranslations.map((translation) => {
           const isSelected = currentTranslation === translation.id;
           const audioAvailability = getTranslationAudioAvailability(translation);
           const selectionState = getTranslationSelectionState({
@@ -275,6 +347,7 @@ export function TranslationPickerList({
                 style={[styles.translationItem, { borderBottomColor: colors.bibleDivider }]}
                 onPress={() => handleTranslationSelect(translation)}
                 activeOpacity={0.85}
+                disabled={isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog}
               >
                 <View style={styles.translationInfo}>
                   <View style={styles.translationNameRow}>
@@ -925,6 +998,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
     gap: spacing.sm,
     paddingBottom: spacing.xs,
+  },
+  catalogHydrationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.sm,
+  },
+  catalogHydrationText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   translationLanguageChip: {
     borderRadius: radius.pill,
