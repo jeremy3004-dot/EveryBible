@@ -46,7 +46,7 @@ async function collectEntries() {
       if (!file.endsWith('.json') || file === 'manifest.json') continue;
       const stem = file.replace('.json', ''); // e.g. GEN_001
       const key = `${translation}/${stem}`; // e.g. WEB/GEN_001
-      const requirePath = `../../assets/timestamps/${translation}/${file}`;
+      const requirePath = `../../../assets/timestamps/${translation}/${file}`;
       entries.push({ key, requirePath });
     }
   }

@@ -4,7 +4,10 @@
  */
 
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 // We test the parsing logic directly by monkey-patching the require map via
 // the module's internal behaviour — since the module uses a plain object map,
@@ -112,5 +115,27 @@ describe('verseTimestamps — getChapterTimestamps', () => {
   it('reports generated WEB timestamp coverage for common chapters', async () => {
     const { hasTimestampsForTranslation } = await import('./verseTimestamps.js');
     assert.equal(hasTimestampsForTranslation('web'), true);
+  });
+});
+
+describe('verseTimestamps — generated asset paths', () => {
+  it('points every generated require path at a real bundled timestamp file', () => {
+    const testDir = path.dirname(fileURLToPath(import.meta.url));
+    const sourcePath = path.join(testDir, 'verseTimestamps.ts');
+    const source = readFileSync(sourcePath, 'utf8');
+    const requirePaths = [...source.matchAll(/require\('([^']+\/assets\/timestamps\/[^']+\.json)'\)/g)].map(
+      (match) => match[1],
+    );
+
+    assert.ok(requirePaths.length > 0, 'expected generated timestamp require paths');
+
+    for (const requirePath of requirePaths) {
+      const resolvedPath = path.resolve(path.dirname(sourcePath), requirePath);
+      assert.equal(
+        existsSync(resolvedPath),
+        true,
+        `generated timestamp path should exist: ${requirePath} -> ${resolvedPath}`,
+      );
+    }
   });
 });
