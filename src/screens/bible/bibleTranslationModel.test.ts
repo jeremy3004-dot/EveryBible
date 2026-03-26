@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getTranslationSelectionState,
-  isAudioOnlyTranslation,
   isTranslationReadableLocally,
 } from './bibleTranslationModel';
 
@@ -82,7 +81,7 @@ test('audio-only translations are blocked when no audio source is available', ()
   });
 });
 
-test('runtime text translations without an installed local pack are not selectable yet', () => {
+test('runtime text translations without an installed local pack require download instead of looking unavailable', () => {
   const state = getTranslationSelectionState({
     isDownloaded: false,
     hasText: true,
@@ -94,7 +93,7 @@ test('runtime text translations without an installed local pack are not selectab
 
   assert.deepEqual(state, {
     isSelectable: false,
-    reason: 'coming-soon',
+    reason: 'download-required',
   });
 });
 
@@ -113,4 +112,3 @@ test('runtime text translations become selectable once the local pack exists', (
     reason: null,
   });
 });
-

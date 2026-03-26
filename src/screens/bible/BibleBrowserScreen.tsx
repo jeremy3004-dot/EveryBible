@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
   bibleBooks,
   type BibleBook,
   config,
-  getBookById,
   getTranslatedBookName,
 } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -48,7 +47,11 @@ import {
   formatBibleSearchReference,
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
-import { getTranslationSelectionState } from './bibleTranslationModel';
+import {
+  buildTranslationLanguageFilters,
+  filterTranslationsByLanguage,
+  getTranslationSelectionState,
+} from './bibleTranslationModel';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getBookIcon } from '../../constants/bookIcons';
 
@@ -70,6 +73,7 @@ export function BibleBrowserScreen() {
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
   const [activeAudioDownloadKey, setActiveAudioDownloadKey] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -79,6 +83,7 @@ export function BibleBrowserScreen() {
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
+  const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
 
@@ -103,11 +108,28 @@ export function BibleBrowserScreen() {
   const audioManagerAvailability = audioManagerTranslation
     ? getTranslationAudioAvailability(audioManagerTranslation)
     : null;
+  const languageFilters = useMemo(
+    () => buildTranslationLanguageFilters(translations),
+    [translations]
+  );
+  const filteredTranslations = useMemo(
+    () => filterTranslationsByLanguage(translations, selectedLanguage),
+    [translations, selectedLanguage]
+  );
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
     [currentLanguage],
   );
   const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
+
+  useEffect(() => {
+    if (
+      selectedLanguage !== 'all' &&
+      !languageFilters.some((filter) => filter.value === selectedLanguage)
+    ) {
+      setSelectedLanguage('all');
+    }
+  }, [languageFilters, selectedLanguage]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -206,6 +228,29 @@ export function BibleBrowserScreen() {
 
     if (selectionState.reason === 'audio-unavailable') {
       Alert.alert(t('common.error'), t('bible.audioDownloadFailed'), [{ text: t('common.ok') }]);
+      return;
+    }
+
+    if (selectionState.reason === 'download-required') {
+      Alert.alert(
+        translation.name,
+        t('translations.downloadPrompt', { name: translation.name, size: translation.sizeInMB }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('translations.download'),
+            onPress: () => {
+              void downloadTranslation(translation.id).catch((error) => {
+                Alert.alert(
+                  t('common.error'),
+                  error instanceof Error ? error.message : t('bible.failedToLoad'),
+                  [{ text: t('common.ok') }]
+                );
+              });
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -547,8 +592,54 @@ export function BibleBrowserScreen() {
                 </TouchableOpacity>
               </View>
 
+              {languageFilters.length > 1 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.translationLanguageFilters}
+                  style={styles.translationLanguageScroller}
+                >
+                  {[
+                    { value: 'all', label: 'All' },
+                    ...languageFilters,
+                  ].map((filter) => {
+                    const isSelected = selectedLanguage === filter.value;
+                    return (
+                      <TouchableOpacity
+                        key={filter.value}
+                        style={[
+                          styles.translationLanguageChip,
+                          {
+                            backgroundColor: isSelected
+                              ? colors.bibleAccent
+                              : colors.bibleElevatedSurface,
+                            borderColor: isSelected ? colors.bibleAccent : colors.bibleDivider,
+                          },
+                        ]}
+                        onPress={() => setSelectedLanguage(filter.value)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
+                        accessibilityLabel={filter.label}
+                      >
+                        <Text
+                          style={[
+                            styles.translationLanguageChipText,
+                            {
+                              color: isSelected ? '#FFFFFF' : colors.biblePrimaryText,
+                            },
+                          ]}
+                        >
+                          {filter.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+
               <ScrollView style={styles.translationList} showsVerticalScrollIndicator={false}>
-                {translations.map((translation) => {
+                {filteredTranslations.map((translation) => {
                   const isSelected = currentTranslation === translation.id;
                   const audioAvailability = getTranslationAudioAvailability(translation);
                   const selectionState = getTranslationSelectionState({
@@ -641,8 +732,7 @@ export function BibleBrowserScreen() {
                                     { color: colors.bibleSecondaryText },
                                   ]}
                                 >
-                                  {translation.installState === 'remote-only' ||
-                                  translation.source === 'runtime'
+                                  {selectionState.reason === 'download-required'
                                     ? t('translations.download')
                                     : t('common.comingSoon')}
                                 </Text>
@@ -1321,6 +1411,24 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.cardTitle,
+  },
+  translationLanguageScroller: {
+    marginBottom: spacing.sm,
+  },
+  translationLanguageFilters: {
+    paddingHorizontal: layout.screenPadding,
+    gap: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  translationLanguageChip: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  translationLanguageChipText: {
+    ...typography.label,
+    fontWeight: '600',
   },
   translationList: {
     paddingHorizontal: layout.screenPadding,

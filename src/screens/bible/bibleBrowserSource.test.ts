@@ -76,3 +76,31 @@ test('Bible browser gates audio controls behind getAudioAvailability', () => {
     'BibleBrowserScreen should check canDownloadAudio before enabling download actions'
   );
 });
+
+test('Bible browser translation selector can download runtime translations and filter by language', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes('downloadTranslation'),
+    true,
+    'BibleBrowserScreen should wire the main translation selector to the store download action'
+  );
+
+  assert.equal(
+    source.includes("reason === 'download-required'"),
+    true,
+    'BibleBrowserScreen should detect when a translation needs to be downloaded instead of treating it as coming soon'
+  );
+
+  assert.equal(
+    source.includes('buildTranslationLanguageFilters'),
+    true,
+    'BibleBrowserScreen should build language filters for the translation selector'
+  );
+
+  assert.equal(
+    source.includes('horizontal'),
+    true,
+    'BibleBrowserScreen should render the language picker as a horizontal scroller'
+  );
+});
