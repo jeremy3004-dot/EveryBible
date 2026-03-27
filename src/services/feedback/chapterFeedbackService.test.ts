@@ -149,3 +149,77 @@ test('submitChapterFeedback returns a failure result when the function invoke er
     },
   ]);
 });
+
+test('submitChapterFeedback forwards the current bearer token to the edge function', async () => {
+  resetTrackedBibleExperienceEvents();
+  const calls: Array<{
+    functionName: string;
+    body: ChapterFeedbackSubmissionInput;
+    headers?: Record<string, string>;
+  }> = [];
+
+  await submitChapterFeedback(
+    baseInput,
+    {
+      invoke: async (functionName, { body, headers }) => {
+        calls.push({ functionName, body, headers });
+        return {
+          data: {
+            success: true,
+            saved: true,
+            exported: true,
+            feedbackId: 'feedback-4',
+          },
+          error: null,
+        };
+      },
+    },
+    {
+      resolveAccessToken: async () => 'session-token-123',
+    }
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.functionName, 'submit-chapter-feedback');
+  assert.deepEqual(calls[0]?.headers, {
+    Authorization: 'Bearer session-token-123',
+  });
+});
+
+test('submitChapterFeedback fails fast with a sign-in message when no auth token is available', async () => {
+  resetTrackedBibleExperienceEvents();
+  let invokeCalled = false;
+
+  const result = await submitChapterFeedback(
+    baseInput,
+    {
+      invoke: async () => {
+        invokeCalled = true;
+        return {
+          data: null,
+          error: null,
+        };
+      },
+    },
+    {
+      resolveAccessToken: async () => null,
+    }
+  );
+
+  assert.equal(invokeCalled, false);
+  assert.equal(result.success, false);
+  assert.equal(result.saved, false);
+  assert.equal(result.exported, false);
+  assert.equal(result.error, 'Please sign in before sending chapter feedback.');
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_failed',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'up',
+      source: 'reader-feedback',
+      detail: 'missing-auth-token',
+    },
+  ]);
+});
