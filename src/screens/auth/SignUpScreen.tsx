@@ -19,6 +19,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import {
+  getCurrentSession,
   isSilentAuthError,
   signInWithApple,
   signInWithGoogle,
@@ -37,7 +38,7 @@ export function SignUpScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const setUser = useAuthStore((state) => state.setUser);
+  const setSession = useAuthStore((state) => state.setSession);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,8 +53,23 @@ export function SignUpScreen() {
     confirmPassword?: string;
   }>({});
 
-  const completeProviderSignIn = async (user: NonNullable<AuthResult['user']>) => {
-    setUser(user);
+  const hydrateLiveSession = async (): Promise<boolean> => {
+    const { session } = await getCurrentSession();
+
+    if (!session) {
+      return false;
+    }
+
+    setSession(session);
+    return true;
+  };
+
+  const completeProviderSignIn = async () => {
+    if (!(await hydrateLiveSession())) {
+      Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
+      return;
+    }
+
     await syncAll();
     navigation.getParent()?.goBack();
   };
@@ -100,8 +116,9 @@ export function SignUpScreen() {
     try {
       const result = await signUpWithEmail(email, password, name);
       if (result.success && result.user) {
-        setUser(result.user);
-        await syncAll();
+        if (await hydrateLiveSession()) {
+          await syncAll();
+        }
         Alert.alert(t('auth.accountCreated'), t('auth.verifyEmailMessage'), [
           { text: t('common.ok'), onPress: () => navigation.getParent()?.goBack() },
         ]);
@@ -120,7 +137,7 @@ export function SignUpScreen() {
     try {
       const result = await signInWithApple();
       if (result.success && result.user) {
-        await completeProviderSignIn(result.user);
+        await completeProviderSignIn();
       } else {
         showAuthFailure(result, t('auth.appleSignInFailed'));
       }
@@ -136,7 +153,7 @@ export function SignUpScreen() {
     try {
       const result = await signInWithGoogle();
       if (result.success && result.user) {
-        await completeProviderSignIn(result.user);
+        await completeProviderSignIn();
       } else {
         showAuthFailure(result, t('auth.googleSignInFailed'));
       }

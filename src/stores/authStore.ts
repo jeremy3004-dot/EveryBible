@@ -5,7 +5,7 @@ import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
-import { resolveInitializedAuthState } from './authSessionState';
+import { resolveInitializedAuthState, resolveUserStateUpdate } from './authSessionState';
 import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
 
 interface AuthState {
@@ -57,10 +57,12 @@ export const useAuthStore = create<AuthState>()(
       preferencesUpdatedAt: null,
 
       setUser: (user) =>
-        set({
-          user,
-          isAuthenticated: user !== null,
-        }),
+        set((state) =>
+          resolveUserStateUpdate({
+            session: state.session,
+            user,
+          })
+        ),
 
       setSession: (session) =>
         set({
