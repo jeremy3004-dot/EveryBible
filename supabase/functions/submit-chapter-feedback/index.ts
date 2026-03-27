@@ -364,7 +364,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = getRequiredSecret('SUPABASE_URL');
     const serviceRoleKey = getRequiredSecret('SUPABASE_SERVICE_ROLE_KEY');
-    const spreadsheetId = getRequiredSecret('GOOGLE_SHEETS_SPREADSHEET_ID');
     const authorization = req.headers.get('Authorization');
 
     if (!authorization?.startsWith('Bearer ')) {
@@ -412,6 +411,7 @@ Deno.serve(async (req) => {
     const feedbackRow = insertedRow as ChapterFeedbackRow;
 
     try {
+      const spreadsheetId = getRequiredSecret('GOOGLE_SHEETS_SPREADSHEET_ID');
       const googleAccessToken = await createGoogleAccessToken();
       await appendSheetRow(googleAccessToken, spreadsheetId, feedbackRow);
 

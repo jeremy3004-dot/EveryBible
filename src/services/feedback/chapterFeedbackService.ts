@@ -35,12 +35,13 @@ interface ChapterFeedbackFunctionClient {
     }
   ) => Promise<{
     data: ChapterFeedbackFunctionResponse | null;
-    error: { message?: string } | null;
+    error: { message?: string; context?: Response } | null;
   }>;
 }
 
 interface SubmitChapterFeedbackDependencies {
   resolveAccessToken?: () => Promise<string | null>;
+  refreshAccessToken?: () => Promise<string | null>;
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -67,6 +68,25 @@ async function resolveDefaultAccessToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+async function refreshDefaultAccessToken(): Promise<string | null> {
+  const { isSupabaseConfigured, supabase } = await import('../supabase');
+
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.refreshSession();
+
+  if (error) {
+    return null;
+  }
+
+  return session?.access_token ?? null;
+}
+
 function normalizeComment(comment: string | null): string | null {
   const trimmed = comment?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
@@ -84,6 +104,31 @@ function buildPayload(
     appPlatform: input.appPlatform ?? process.env.EXPO_OS ?? 'unknown',
     appVersion: input.appVersion ?? config.version,
   };
+}
+
+function isUnauthorizedFunctionError(error: { message?: string; context?: Response } | null): boolean {
+  return error?.context?.status === 401;
+}
+
+async function resolveFunctionErrorMessage(
+  error: { message?: string; context?: Response } | null
+): Promise<string> {
+  if (isUnauthorizedFunctionError(error)) {
+    return 'Please sign in again before sending chapter feedback.';
+  }
+
+  if (error?.context) {
+    try {
+      const payload = (await error.context.clone().json()) as { error?: string };
+      if (typeof payload.error === 'string' && payload.error.trim().length > 0) {
+        return payload.error.trim();
+      }
+    } catch {
+      // Fall through to the generic message.
+    }
+  }
+
+  return error?.message ?? 'Unable to submit chapter feedback right now.';
 }
 
 export async function submitChapterFeedback(
@@ -139,16 +184,30 @@ export async function submitChapterFeedback(
   }
 
   try {
-    const { data, error } = await resolvedClient.invoke('submit-chapter-feedback', {
-      body: payload,
-      headers: accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : undefined,
-    });
+    const invokeWithAccessToken = async (token: string | null) =>
+      resolvedClient.invoke('submit-chapter-feedback', {
+        body: payload,
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
+      });
+
+    let { data, error } = await invokeWithAccessToken(accessToken);
+
+    if (isUnauthorizedFunctionError(error) && shouldResolveAccessToken) {
+      const refreshedAccessToken = await (
+        dependencies?.refreshAccessToken ?? refreshDefaultAccessToken
+      )();
+
+      if (refreshedAccessToken) {
+        ({ data, error } = await invokeWithAccessToken(refreshedAccessToken));
+      }
+    }
 
     if (error) {
+      const resolvedErrorMessage = await resolveFunctionErrorMessage(error);
       trackBibleExperienceEvent({
         name: 'chapter_feedback_failed',
         translationId: payload.translationId,
@@ -156,13 +215,13 @@ export async function submitChapterFeedback(
         chapter: payload.chapter,
         sentiment: payload.sentiment,
         source: 'reader-feedback',
-        detail: error.message ?? 'invoke-error',
+        detail: resolvedErrorMessage,
       });
       return {
         success: false,
         saved: false,
         exported: false,
-        error: error.message ?? 'Unable to submit chapter feedback right now.',
+        error: resolvedErrorMessage,
       };
     }
 

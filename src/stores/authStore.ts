@@ -197,9 +197,8 @@ export const useAuthStore = create<AuthState>()(
         };
       },
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
         preferences: state.preferences,
+        preferencesUpdatedAt: state.preferencesUpdatedAt,
       }),
       merge: (persistedState, currentState) => {
         const sanitized = sanitizePersistedAuthState(persistedState);

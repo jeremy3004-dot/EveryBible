@@ -295,9 +295,16 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
     },
   });
 
-  assert.equal(sanitized.user?.uid, 'user-1');
-  assert.equal(sanitized.user?.email, null);
-  assert.equal(sanitized.isAuthenticated, true);
+  assert.equal(
+    sanitized.user,
+    null,
+    'Persisted auth identity should not be restored without a live Supabase session'
+  );
+  assert.equal(
+    sanitized.isAuthenticated,
+    false,
+    'Persisted auth flags should stay signed out until the live session is rehydrated'
+  );
   assert.equal(sanitized.preferences.fontSize, defaultAuthPreferences.fontSize);
   assert.equal(sanitized.preferences.theme, defaultAuthPreferences.theme);
   assert.equal(sanitized.preferences.language, defaultAuthPreferences.language);

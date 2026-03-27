@@ -223,3 +223,100 @@ test('submitChapterFeedback fails fast with a sign-in message when no auth token
     },
   ]);
 });
+
+test('submitChapterFeedback refreshes the auth token and retries once after a 401 response', async () => {
+  resetTrackedBibleExperienceEvents();
+  const calls: Array<Record<string, string> | undefined> = [];
+
+  const result = await submitChapterFeedback(
+    baseInput,
+    {
+      invoke: async (_functionName, { headers }) => {
+        calls.push(headers);
+
+        if (calls.length === 1) {
+          return {
+            data: null,
+            error: {
+              message: 'Edge Function returned a non-2xx status code',
+              context: new Response(JSON.stringify({ error: 'Not authenticated' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' },
+              }),
+            },
+          };
+        }
+
+        return {
+          data: {
+            success: true,
+            saved: true,
+            exported: true,
+            feedbackId: 'feedback-5',
+          },
+          error: null,
+        };
+      },
+    },
+    {
+      resolveAccessToken: async () => 'expired-token',
+      refreshAccessToken: async () => 'fresh-token',
+    }
+  );
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], { Authorization: 'Bearer expired-token' });
+  assert.deepEqual(calls[1], { Authorization: 'Bearer fresh-token' });
+  assert.equal(result.success, true);
+  assert.equal(result.feedbackId, 'feedback-5');
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_submitted',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'up',
+      source: 'reader-feedback',
+      detail: 'exported',
+    },
+  ]);
+});
+
+test('submitChapterFeedback maps a repeated 401 response into a sign-in retry message', async () => {
+  resetTrackedBibleExperienceEvents();
+  const result = await submitChapterFeedback(
+    baseInput,
+    {
+      invoke: async () => ({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(JSON.stringify({ error: 'Not authenticated' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        },
+      }),
+    },
+    {
+      resolveAccessToken: async () => 'expired-token',
+      refreshAccessToken: async () => null,
+    }
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(result.saved, false);
+  assert.equal(result.exported, false);
+  assert.equal(result.error, 'Please sign in again before sending chapter feedback.');
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_failed',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'up',
+      source: 'reader-feedback',
+      detail: 'Please sign in again before sending chapter feedback.',
+    },
+  ]);
+});

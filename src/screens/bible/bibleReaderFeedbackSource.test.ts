@@ -17,6 +17,21 @@ test('BibleReaderScreen gates the chapter feedback action behind the settings pr
   );
 });
 
+test('BibleReaderScreen requires a live auth session before opening the chapter feedback modal', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /useAuthStore\(\(state\) => state\.session(?:\s*!==\s*null)?\)/,
+    'BibleReaderScreen should read the live auth session from the auth store'
+  );
+  assert.match(
+    source,
+    /if\s*\(!hasLiveAuthSession\)/,
+    'BibleReaderScreen should block feedback submission paths when no live auth session is available'
+  );
+});
+
 test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an optional multiline comment', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

@@ -185,6 +185,7 @@ export function BibleReaderScreen() {
   const lastStableSessionModeRef = useRef(chapterSessionMode);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
   const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
@@ -900,7 +901,7 @@ export function BibleReaderScreen() {
   const handleOpenChapterFeedback = () => {
     setShowChapterActionsSheet(false);
 
-    if (!isAuthenticated) {
+    if (!hasLiveAuthSession) {
       Alert.alert(t('common.error'), t('bible.chapterFeedbackSignInRequired'));
       return;
     }
@@ -918,6 +919,11 @@ export function BibleReaderScreen() {
 
   const handleSubmitChapterFeedback = async () => {
     if (!feedbackSentiment || isSubmittingFeedback) {
+      return;
+    }
+
+    if (!hasLiveAuthSession) {
+      setFeedbackSubmitError(t('bible.chapterFeedbackSignInRequired'));
       return;
     }
 

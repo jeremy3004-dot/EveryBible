@@ -539,28 +539,11 @@ export const sanitizePersistedAuthState = (
   preferencesUpdatedAt: string | null;
 } => {
   const persisted = isRecord(value) ? value : {};
-  const userValue = persisted.user;
-  const user =
-    isRecord(userValue) && typeof userValue.uid === 'string'
-      ? {
-          uid: userValue.uid,
-          email: typeof userValue.email === 'string' ? userValue.email : null,
-          displayName: sanitizeOptionalString(userValue.displayName),
-          photoURL: sanitizeOptionalString(userValue.photoURL),
-          createdAt:
-            typeof userValue.createdAt === 'number' && Number.isFinite(userValue.createdAt)
-              ? userValue.createdAt
-              : Date.now(),
-          lastActive:
-            typeof userValue.lastActive === 'number' && Number.isFinite(userValue.lastActive)
-              ? userValue.lastActive
-              : Date.now(),
-        }
-      : null;
 
   return {
-    user,
-    isAuthenticated: user !== null && persisted.isAuthenticated === true,
+    // Persisted auth UI state must never outrank the live Supabase session.
+    user: null,
+    isAuthenticated: false,
     preferences: sanitizeUserPreferences(persisted.preferences),
     preferencesUpdatedAt:
       typeof persisted.preferencesUpdatedAt === 'string' && persisted.preferencesUpdatedAt.length > 0

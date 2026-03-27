@@ -109,3 +109,26 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
     'Expected the ops doc to describe how operators find failed exports'
   );
 });
+
+test('chapter feedback function defers spreadsheet secret lookup until after the feedback row is saved', () => {
+  const functionSource = readRepoFile('supabase/functions/submit-chapter-feedback/index.ts');
+  const spreadsheetSecretLookup = functionSource.indexOf(
+    "getRequiredSecret('GOOGLE_SHEETS_SPREADSHEET_ID')"
+  );
+  const insertStart = functionSource.indexOf(".from('chapter_feedback_submissions')");
+
+  assert.notEqual(
+    spreadsheetSecretLookup,
+    -1,
+    'Expected the Edge Function to resolve GOOGLE_SHEETS_SPREADSHEET_ID during export'
+  );
+  assert.notEqual(
+    insertStart,
+    -1,
+    'Expected the Edge Function to insert into chapter_feedback_submissions'
+  );
+  assert.ok(
+    spreadsheetSecretLookup > insertStart,
+    'Spreadsheet export secrets should be resolved only after the feedback row is durably saved'
+  );
+});
