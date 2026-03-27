@@ -29,11 +29,18 @@ export interface ChapterFeedbackFunctionResponse {
 interface ChapterFeedbackFunctionClient {
   invoke: (
     functionName: string,
-    options: { body: ChapterFeedbackSubmissionInput }
+    options: {
+      body: ChapterFeedbackSubmissionInput;
+      headers?: Record<string, string>;
+    }
   ) => Promise<{
     data: ChapterFeedbackFunctionResponse | null;
     error: { message?: string } | null;
   }>;
+}
+
+interface SubmitChapterFeedbackDependencies {
+  resolveAccessToken?: () => Promise<string | null>;
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -44,6 +51,20 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | n
   }
 
   return supabase.functions as ChapterFeedbackFunctionClient;
+}
+
+async function resolveDefaultAccessToken(): Promise<string | null> {
+  const { isSupabaseConfigured, supabase } = await import('../supabase');
+
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }
 
 function normalizeComment(comment: string | null): string | null {
@@ -70,7 +91,8 @@ export async function submitChapterFeedback(
     appPlatform?: string;
     appVersion?: string;
   },
-  client?: ChapterFeedbackFunctionClient
+  client?: ChapterFeedbackFunctionClient,
+  dependencies?: SubmitChapterFeedbackDependencies
 ): Promise<ChapterFeedbackFunctionResponse> {
   const resolvedClient = client ?? (await resolveDefaultClient());
   const payload = buildPayload(input);
@@ -93,9 +115,37 @@ export async function submitChapterFeedback(
     };
   }
 
+  const shouldResolveAccessToken = !client || Boolean(dependencies?.resolveAccessToken);
+  const accessToken = shouldResolveAccessToken
+    ? await (dependencies?.resolveAccessToken ?? resolveDefaultAccessToken)()
+    : null;
+
+  if (shouldResolveAccessToken && !accessToken) {
+    trackBibleExperienceEvent({
+      name: 'chapter_feedback_failed',
+      translationId: payload.translationId,
+      bookId: payload.bookId,
+      chapter: payload.chapter,
+      sentiment: payload.sentiment,
+      source: 'reader-feedback',
+      detail: 'missing-auth-token',
+    });
+    return {
+      success: false,
+      saved: false,
+      exported: false,
+      error: 'Please sign in before sending chapter feedback.',
+    };
+  }
+
   try {
     const { data, error } = await resolvedClient.invoke('submit-chapter-feedback', {
       body: payload,
+      headers: accessToken
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : undefined,
     });
 
     if (error) {
