@@ -19,6 +19,7 @@ export interface UserPreferences {
   contentLanguageName: string | null;
   contentLanguageNativeName: string | null;
   onboardingCompleted: boolean;
+  chapterFeedbackEnabled: boolean;
   notificationsEnabled: boolean;
   reminderTime: string | null; // HH:mm format, e.g., "09:00"
 }

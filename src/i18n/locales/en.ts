@@ -128,6 +128,18 @@ export const en = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    chapterFeedback: 'Chapter feedback',
+    chapterFeedbackTitle: 'Share feedback about this chapter',
+    chapterFeedbackBody:
+      'Tell us if this chapter was helpful or what could be improved. Comments are optional.',
+    chapterFeedbackThumbsUp: 'Helpful',
+    chapterFeedbackThumbsDown: 'Needs work',
+    chapterFeedbackPlaceholder: 'Optional comment about this chapter',
+    chapterFeedbackSubmit: 'Send feedback',
+    chapterFeedbackSuccess: 'Thanks. Your feedback was sent.',
+    chapterFeedbackSavedFallback:
+      'Thanks. Your feedback was saved and will be exported for review shortly.',
+    chapterFeedbackSignInRequired: 'Please sign in before sending chapter feedback.',
     books: {
       GEN: 'Genesis',
       EXO: 'Exodus',
@@ -238,6 +250,9 @@ export const en = {
     notifications: 'Notifications',
     dailyReminder: 'Daily Reminder',
     reminderTime: 'Reminder Time',
+    chapterFeedback: 'Chapter feedback',
+    chapterFeedbackSummaryOn: 'Optional chapter feedback is on',
+    chapterFeedbackSummaryOff: 'Optional chapter feedback is off',
     notSet: 'Not set',
     data: 'Data',
     downloadOffline: 'Download for Offline',

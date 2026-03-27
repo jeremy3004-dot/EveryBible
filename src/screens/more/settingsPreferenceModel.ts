@@ -58,3 +58,15 @@ export function formatReminderTimeDisplay({
 export function isReminderTimeEditable(notificationsEnabled: boolean): boolean {
   return notificationsEnabled;
 }
+
+export interface ChapterFeedbackPreferenceSummaryInput {
+  enabledLabel: string;
+  disabledLabel: string;
+}
+
+export function getChapterFeedbackPreferenceSummary(
+  chapterFeedbackEnabled: boolean,
+  { enabledLabel, disabledLabel }: ChapterFeedbackPreferenceSummaryInput
+): string {
+  return chapterFeedbackEnabled ? enabledLabel : disabledLabel;
+}

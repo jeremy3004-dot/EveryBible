@@ -2,14 +2,19 @@ export type BibleExperienceEventName =
   | 'book_hub_chapter_opened'
   | 'book_companion_opened'
   | 'library_action'
-  | 'library_reopened';
+  | 'library_reopened'
+  | 'chapter_feedback_opened'
+  | 'chapter_feedback_submitted'
+  | 'chapter_feedback_failed';
 
 export interface BibleExperienceEvent {
   name: BibleExperienceEventName;
   bookId: string;
   chapter?: number;
-  source: 'book-hub' | 'companion' | 'reader-actions' | 'saved-library';
+  source: 'book-hub' | 'companion' | 'reader-actions' | 'saved-library' | 'reader-feedback';
   mode?: 'listen' | 'read';
+  translationId?: string;
+  sentiment?: 'up' | 'down';
   detail?: string;
 }
 
