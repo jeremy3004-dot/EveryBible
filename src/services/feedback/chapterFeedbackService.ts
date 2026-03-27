@@ -26,22 +26,24 @@ export interface ChapterFeedbackFunctionResponse {
   error?: string;
 }
 
+interface ChapterFeedbackFunctionError {
+  message?: string;
+  context?: Response | { status?: number; json?: () => Promise<unknown>; text?: () => Promise<string> };
+}
+
 interface ChapterFeedbackFunctionClient {
   invoke: (
     functionName: string,
-    options: {
-      body: ChapterFeedbackSubmissionInput;
-      headers?: Record<string, string>;
-    }
+    options: { body: ChapterFeedbackSubmissionInput; headers?: Record<string, string> }
   ) => Promise<{
     data: ChapterFeedbackFunctionResponse | null;
-    error: { message?: string; context?: Response } | null;
+    error: ChapterFeedbackFunctionError | null;
   }>;
 }
 
-interface SubmitChapterFeedbackDependencies {
-  resolveAccessToken?: () => Promise<string | null>;
-  refreshAccessToken?: () => Promise<string | null>;
+interface ChapterFeedbackAuthClient {
+  getAccessToken: () => Promise<string | null>;
+  refreshAccessToken: () => Promise<string | null>;
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -54,37 +56,29 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | n
   return supabase.functions as ChapterFeedbackFunctionClient;
 }
 
-async function resolveDefaultAccessToken(): Promise<string | null> {
+async function resolveDefaultAuthClient(): Promise<ChapterFeedbackAuthClient | null> {
   const { isSupabaseConfigured, supabase } = await import('../supabase');
 
   if (!isSupabaseConfigured()) {
     return null;
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  return {
+    getAccessToken: async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return session?.access_token ?? null;
+    },
+    refreshAccessToken: async () => {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        return null;
+      }
 
-  return session?.access_token ?? null;
-}
-
-async function refreshDefaultAccessToken(): Promise<string | null> {
-  const { isSupabaseConfigured, supabase } = await import('../supabase');
-
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.refreshSession();
-
-  if (error) {
-    return null;
-  }
-
-  return session?.access_token ?? null;
+      return data.session?.access_token ?? null;
+    },
+  };
 }
 
 function normalizeComment(comment: string | null): string | null {
@@ -106,29 +100,73 @@ function buildPayload(
   };
 }
 
-function isUnauthorizedFunctionError(error: { message?: string; context?: Response } | null): boolean {
-  return error?.context?.status === 401;
+function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): number | null {
+  if (!error) {
+    return null;
+  }
+
+  const response = error.context;
+  return response && typeof response === 'object' && 'status' in response && typeof response.status === 'number'
+    ? response.status
+    : null;
 }
 
 async function resolveFunctionErrorMessage(
-  error: { message?: string; context?: Response } | null
+  error: ChapterFeedbackFunctionError | null
 ): Promise<string> {
-  if (isUnauthorizedFunctionError(error)) {
+  if (!error) {
+    return 'Unable to submit chapter feedback right now.';
+  }
+
+  const status = getFunctionErrorStatus(error);
+  const response = error.context;
+
+  if (status === 401) {
     return 'Please sign in again before sending chapter feedback.';
   }
 
-  if (error?.context) {
+  if (response && typeof response === 'object') {
     try {
-      const payload = (await error.context.clone().json()) as { error?: string };
-      if (typeof payload.error === 'string' && payload.error.trim().length > 0) {
-        return payload.error.trim();
+      if (typeof response.json === 'function') {
+        const json = await response.json();
+        if (
+          json &&
+          typeof json === 'object' &&
+          'error' in json &&
+          typeof json.error === 'string' &&
+          json.error.trim().length > 0
+        ) {
+          return json.error.trim();
+        }
       }
     } catch {
-      // Fall through to the generic message.
+      // Fall through to other response parsing.
+    }
+
+    try {
+      if (typeof response.text === 'function') {
+        const text = await response.text();
+        if (typeof text === 'string' && text.trim().length > 0) {
+          return text.trim();
+        }
+      }
+    } catch {
+      // Fall through to the generic error message.
     }
   }
 
-  return error?.message ?? 'Unable to submit chapter feedback right now.';
+  return error.message ?? 'Unable to submit chapter feedback right now.';
+}
+
+async function invokeChapterFeedbackFunction(
+  client: ChapterFeedbackFunctionClient,
+  payload: ChapterFeedbackSubmissionInput,
+  accessToken: string | null
+) {
+  return client.invoke('submit-chapter-feedback', {
+    body: payload,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
 }
 
 export async function submitChapterFeedback(
@@ -137,9 +175,10 @@ export async function submitChapterFeedback(
     appVersion?: string;
   },
   client?: ChapterFeedbackFunctionClient,
-  dependencies?: SubmitChapterFeedbackDependencies
+  authClient?: ChapterFeedbackAuthClient
 ): Promise<ChapterFeedbackFunctionResponse> {
   const resolvedClient = client ?? (await resolveDefaultClient());
+  const resolvedAuthClient = authClient ?? (client ? null : await resolveDefaultAuthClient());
   const payload = buildPayload(input);
 
   if (!resolvedClient) {
@@ -160,49 +199,23 @@ export async function submitChapterFeedback(
     };
   }
 
-  const shouldResolveAccessToken = !client || Boolean(dependencies?.resolveAccessToken);
-  const accessToken = shouldResolveAccessToken
-    ? await (dependencies?.resolveAccessToken ?? resolveDefaultAccessToken)()
-    : null;
-
-  if (shouldResolveAccessToken && !accessToken) {
-    trackBibleExperienceEvent({
-      name: 'chapter_feedback_failed',
-      translationId: payload.translationId,
-      bookId: payload.bookId,
-      chapter: payload.chapter,
-      sentiment: payload.sentiment,
-      source: 'reader-feedback',
-      detail: 'missing-auth-token',
-    });
-    return {
-      success: false,
-      saved: false,
-      exported: false,
-      error: 'Please sign in before sending chapter feedback.',
-    };
-  }
-
   try {
-    const invokeWithAccessToken = async (token: string | null) =>
-      resolvedClient.invoke('submit-chapter-feedback', {
-        body: payload,
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined,
-      });
+    const accessToken = await resolvedAuthClient?.getAccessToken();
+    let { data, error } = await invokeChapterFeedbackFunction(
+      resolvedClient,
+      payload,
+      accessToken ?? null
+    );
 
-    let { data, error } = await invokeWithAccessToken(accessToken);
-
-    if (isUnauthorizedFunctionError(error) && shouldResolveAccessToken) {
-      const refreshedAccessToken = await (
-        dependencies?.refreshAccessToken ?? refreshDefaultAccessToken
-      )();
+    if (getFunctionErrorStatus(error) === 401) {
+      const refreshedAccessToken = await resolvedAuthClient?.refreshAccessToken();
 
       if (refreshedAccessToken) {
-        ({ data, error } = await invokeWithAccessToken(refreshedAccessToken));
+        ({ data, error } = await invokeChapterFeedbackFunction(
+          resolvedClient,
+          payload,
+          refreshedAccessToken
+        ));
       }
     }
 

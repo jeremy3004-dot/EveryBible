@@ -27,11 +27,15 @@ const baseInput: ChapterFeedbackSubmissionInput = {
 
 test('submitChapterFeedback calls the edge function with a trimmed payload', async () => {
   resetTrackedBibleExperienceEvents();
-  const calls: Array<{ functionName: string; body: ChapterFeedbackSubmissionInput }> = [];
+  const calls: Array<{
+    functionName: string;
+    body: ChapterFeedbackSubmissionInput;
+    headers?: Record<string, string>;
+  }> = [];
 
   const result = await submitChapterFeedback(baseInput, {
-    invoke: async (functionName, { body }) => {
-      calls.push({ functionName, body });
+    invoke: async (functionName, { body, headers }) => {
+      calls.push({ functionName, body, headers });
       return {
         data: {
           success: true,
@@ -60,6 +64,42 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
       sentiment: 'up',
       source: 'reader-feedback',
       detail: 'exported',
+    },
+  ]);
+});
+
+test('submitChapterFeedback sends the live access token explicitly when one is available', async () => {
+  resetTrackedBibleExperienceEvents();
+  const calls: Array<{ headers?: Record<string, string> }> = [];
+
+  const result = await submitChapterFeedback(
+    baseInput,
+    {
+      invoke: async (_functionName, options) => {
+        calls.push({ headers: options.headers });
+        return {
+          data: {
+            success: true,
+            saved: true,
+            exported: true,
+            feedbackId: 'feedback-auth-header',
+          },
+          error: null,
+        };
+      },
+    },
+    {
+      getAccessToken: async () => 'live-access-token',
+      refreshAccessToken: async () => null,
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(calls, [
+    {
+      headers: {
+        Authorization: 'Bearer live-access-token',
+      },
     },
   ]);
 });
@@ -150,67 +190,25 @@ test('submitChapterFeedback returns a failure result when the function invoke er
   ]);
 });
 
-test('submitChapterFeedback forwards the current bearer token to the edge function', async () => {
+test('submitChapterFeedback maps a 401 edge-function response into a sign-in retry message', async () => {
   resetTrackedBibleExperienceEvents();
-  const calls: Array<{
-    functionName: string;
-    body: ChapterFeedbackSubmissionInput;
-    headers?: Record<string, string>;
-  }> = [];
-
-  await submitChapterFeedback(
-    baseInput,
-    {
-      invoke: async (functionName, { body, headers }) => {
-        calls.push({ functionName, body, headers });
-        return {
-          data: {
-            success: true,
-            saved: true,
-            exported: true,
-            feedbackId: 'feedback-4',
-          },
-          error: null,
-        };
-      },
-    },
-    {
-      resolveAccessToken: async () => 'session-token-123',
-    }
-  );
-
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0]?.functionName, 'submit-chapter-feedback');
-  assert.deepEqual(calls[0]?.headers, {
-    Authorization: 'Bearer session-token-123',
+  const result = await submitChapterFeedback(baseInput, {
+    invoke: async () => ({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: new Response(JSON.stringify({ error: 'Not authenticated' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      } as { message?: string; context?: Response },
+    }),
   });
-});
 
-test('submitChapterFeedback fails fast with a sign-in message when no auth token is available', async () => {
-  resetTrackedBibleExperienceEvents();
-  let invokeCalled = false;
-
-  const result = await submitChapterFeedback(
-    baseInput,
-    {
-      invoke: async () => {
-        invokeCalled = true;
-        return {
-          data: null,
-          error: null,
-        };
-      },
-    },
-    {
-      resolveAccessToken: async () => null,
-    }
-  );
-
-  assert.equal(invokeCalled, false);
   assert.equal(result.success, false);
   assert.equal(result.saved, false);
   assert.equal(result.exported, false);
-  assert.equal(result.error, 'Please sign in before sending chapter feedback.');
+  assert.equal(result.error, 'Please sign in again before sending chapter feedback.');
   assert.deepEqual(getTrackedBibleExperienceEvents(), [
     {
       name: 'chapter_feedback_failed',
@@ -219,20 +217,20 @@ test('submitChapterFeedback fails fast with a sign-in message when no auth token
       chapter: 3,
       sentiment: 'up',
       source: 'reader-feedback',
-      detail: 'missing-auth-token',
+      detail: 'Please sign in again before sending chapter feedback.',
     },
   ]);
 });
 
-test('submitChapterFeedback refreshes the auth token and retries once after a 401 response', async () => {
+test('submitChapterFeedback refreshes the session and retries once after a 401 edge-function response', async () => {
   resetTrackedBibleExperienceEvents();
-  const calls: Array<Record<string, string> | undefined> = [];
+  const calls: Array<{ headers?: Record<string, string> }> = [];
 
   const result = await submitChapterFeedback(
     baseInput,
     {
-      invoke: async (_functionName, { headers }) => {
-        calls.push(headers);
+      invoke: async (_functionName, options) => {
+        calls.push({ headers: options.headers });
 
         if (calls.length === 1) {
           return {
@@ -252,23 +250,32 @@ test('submitChapterFeedback refreshes the auth token and retries once after a 40
             success: true,
             saved: true,
             exported: true,
-            feedbackId: 'feedback-5',
+            feedbackId: 'feedback-retried',
           },
           error: null,
         };
       },
     },
     {
-      resolveAccessToken: async () => 'expired-token',
-      refreshAccessToken: async () => 'fresh-token',
+      getAccessToken: async () => 'stale-access-token',
+      refreshAccessToken: async () => 'fresh-access-token',
     }
   );
 
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0], { Authorization: 'Bearer expired-token' });
-  assert.deepEqual(calls[1], { Authorization: 'Bearer fresh-token' });
   assert.equal(result.success, true);
-  assert.equal(result.feedbackId, 'feedback-5');
+  assert.equal(result.feedbackId, 'feedback-retried');
+  assert.deepEqual(calls, [
+    {
+      headers: {
+        Authorization: 'Bearer stale-access-token',
+      },
+    },
+    {
+      headers: {
+        Authorization: 'Bearer fresh-access-token',
+      },
+    },
+  ]);
   assert.deepEqual(getTrackedBibleExperienceEvents(), [
     {
       name: 'chapter_feedback_submitted',
@@ -278,45 +285,6 @@ test('submitChapterFeedback refreshes the auth token and retries once after a 40
       sentiment: 'up',
       source: 'reader-feedback',
       detail: 'exported',
-    },
-  ]);
-});
-
-test('submitChapterFeedback maps a repeated 401 response into a sign-in retry message', async () => {
-  resetTrackedBibleExperienceEvents();
-  const result = await submitChapterFeedback(
-    baseInput,
-    {
-      invoke: async () => ({
-        data: null,
-        error: {
-          message: 'Edge Function returned a non-2xx status code',
-          context: new Response(JSON.stringify({ error: 'Not authenticated' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        },
-      }),
-    },
-    {
-      resolveAccessToken: async () => 'expired-token',
-      refreshAccessToken: async () => null,
-    }
-  );
-
-  assert.equal(result.success, false);
-  assert.equal(result.saved, false);
-  assert.equal(result.exported, false);
-  assert.equal(result.error, 'Please sign in again before sending chapter feedback.');
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_failed',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'Please sign in again before sending chapter feedback.',
     },
   ]);
 });
