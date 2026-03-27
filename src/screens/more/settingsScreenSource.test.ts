@@ -34,3 +34,23 @@ test('SettingsScreen keeps the calculator disguise shortcut visible from More se
     'SettingsScreen should not hide the disguise shortcut behind a generic lock icon'
   );
 });
+
+test('SettingsScreen exposes an opt-in chapter feedback toggle that syncs preferences', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.match(
+    source,
+    /chapterFeedbackEnabled/,
+    'SettingsScreen should read the chapterFeedbackEnabled preference'
+  );
+  assert.match(
+    source,
+    /setPreferences\(\{\s*chapterFeedbackEnabled:/,
+    'SettingsScreen should update chapterFeedbackEnabled from the settings toggle'
+  );
+  assert.match(
+    source,
+    /syncPreferences\(\)\.catch\(\(\) => \{\}\)/,
+    'SettingsScreen should keep syncing preferences after the chapter feedback toggle changes'
+  );
+});

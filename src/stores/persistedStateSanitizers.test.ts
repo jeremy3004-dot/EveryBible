@@ -289,6 +289,7 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
       contentLanguageName: 'English',
       contentLanguageNativeName: '',
       onboardingCompleted: 'yes',
+      chapterFeedbackEnabled: 'sometimes',
       notificationsEnabled: true,
       reminderTime: '9am',
     },
@@ -306,8 +307,34 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.contentLanguageName, 'English');
   assert.equal(sanitized.preferences.contentLanguageNativeName, null);
   assert.equal(sanitized.preferences.onboardingCompleted, false);
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
   assert.equal(sanitized.preferences.notificationsEnabled, true);
   assert.equal(sanitized.preferences.reminderTime, null);
+});
+
+test('sanitizePersistedAuthState defaults chapter feedback to false when the key is absent', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      fontSize: 'medium',
+      theme: 'dark',
+      language: 'en',
+      onboardingCompleted: true,
+      notificationsEnabled: false,
+      reminderTime: null,
+    },
+  });
+
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
+});
+
+test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      chapterFeedbackEnabled: true,
+    },
+  });
+
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, true);
 });
 
 test('sanitizePersistedAudioState keeps only supported playback settings', () => {

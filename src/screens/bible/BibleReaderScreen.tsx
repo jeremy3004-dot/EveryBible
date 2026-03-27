@@ -2,14 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -27,7 +30,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +50,7 @@ import { getChapterPresentationMode } from '../../services/bible/presentation';
 import { getChapterTimestamps } from '../../services/bible/verseTimestamps';
 import type { VerseTimestamps } from '../../services/bible/verseTimestamps';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
+import { submitChapterFeedback } from '../../services/feedback';
 import {
   useAudioStore,
   useAuthStore,
@@ -83,6 +87,11 @@ import {
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
 } from './bibleReaderModel';
+import {
+  getChapterFeedbackResultVariant,
+  normalizeChapterFeedbackComment,
+  shouldEnableChapterFeedbackSubmit,
+} from './bibleReaderFeedbackModel';
 import { getTranslationSelectionState } from './bibleTranslationModel';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
@@ -141,7 +150,7 @@ export function BibleReaderScreen() {
     playbackSequenceEntries = [],
   } = route.params;
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
@@ -164,6 +173,11 @@ export function BibleReaderScreen() {
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
   const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
@@ -171,6 +185,9 @@ export function BibleReaderScreen() {
   const lastStableSessionModeRef = useRef(chapterSessionMode);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
+  const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
+  const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
   const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
@@ -236,6 +253,10 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const canSubmitFeedback = shouldEnableChapterFeedbackSubmit({
+    sentiment: feedbackSentiment,
+    isSubmitting: isSubmittingFeedback,
+  });
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -859,6 +880,83 @@ export function BibleReaderScreen() {
     }
 
     setShowTranslationSheet(true);
+  };
+
+  const resetFeedbackDraft = () => {
+    setFeedbackSentiment(null);
+    setFeedbackComment('');
+    setFeedbackSubmitError(null);
+  };
+
+  const handleCloseFeedbackModal = () => {
+    if (isSubmittingFeedback) {
+      return;
+    }
+
+    setShowFeedbackModal(false);
+    resetFeedbackDraft();
+  };
+
+  const handleOpenChapterFeedback = () => {
+    setShowChapterActionsSheet(false);
+
+    if (!isAuthenticated) {
+      Alert.alert(t('common.error'), t('bible.chapterFeedbackSignInRequired'));
+      return;
+    }
+
+    trackBibleExperienceEvent({
+      name: 'chapter_feedback_opened',
+      translationId: currentTranslation,
+      bookId,
+      chapter,
+      source: 'reader-feedback',
+    });
+    setFeedbackSubmitError(null);
+    setShowFeedbackModal(true);
+  };
+
+  const handleSubmitChapterFeedback = async () => {
+    if (!feedbackSentiment || isSubmittingFeedback) {
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    setFeedbackSubmitError(null);
+
+    const result = await submitChapterFeedback({
+      translationId: currentTranslation,
+      translationLanguage: currentTranslationInfo?.language ?? translationLabel,
+      bookId,
+      chapter,
+      sentiment: feedbackSentiment,
+      comment: normalizeChapterFeedbackComment(feedbackComment),
+      interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
+      contentLanguageCode,
+      contentLanguageName,
+      sourceScreen: 'reader',
+      appPlatform: Platform.OS,
+      appVersion: config.version,
+    });
+
+    setIsSubmittingFeedback(false);
+
+    if (result.success) {
+      const resultVariant = getChapterFeedbackResultVariant(result);
+
+      setShowFeedbackModal(false);
+      resetFeedbackDraft();
+
+      Alert.alert(
+        t('common.ok'),
+        resultVariant === 'saved-not-exported'
+          ? t('bible.chapterFeedbackSavedFallback')
+          : t('bible.chapterFeedbackSuccess')
+      );
+      return;
+    }
+
+    setFeedbackSubmitError(result.error ?? t('common.unexpectedError'));
   };
 
   const handlePlayDisplayedChapter = () => {
@@ -1802,6 +1900,16 @@ export function BibleReaderScreen() {
             </Text>
 
             {[
+              ...(chapterFeedbackEnabled
+                ? [
+                    {
+                      key: 'chapter-feedback',
+                      icon: 'thumbs-up-outline',
+                      label: t('bible.chapterFeedback'),
+                      onPress: handleOpenChapterFeedback,
+                    },
+                  ]
+                : []),
               ...(canAdjustFontSize
                 ? [
                     {
@@ -1868,6 +1976,203 @@ export function BibleReaderScreen() {
             ))}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={showFeedbackModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseFeedbackModal}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={safeInsets.top}
+          style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
+        >
+          <TouchableOpacity
+            style={styles.feedbackModalBackdrop}
+            activeOpacity={1}
+            onPress={handleCloseFeedbackModal}
+          />
+          <View
+            style={[
+              styles.feedbackModalCard,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <ScrollView
+              style={styles.feedbackModalScrollView}
+              contentContainerStyle={styles.feedbackModalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
+                {t('bible.chapterFeedbackTitle')}
+              </Text>
+              <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
+                {getTranslatedBookName(bookId, t)} {chapter}
+              </Text>
+              <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
+                {t('bible.chapterFeedbackBody')}
+              </Text>
+
+              <View style={styles.feedbackSentimentRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackSentimentButton,
+                    {
+                      backgroundColor:
+                        feedbackSentiment === 'up'
+                          ? colors.accentGreen
+                          : colors.bibleElevatedSurface,
+                      borderColor:
+                        feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => setFeedbackSentiment('up')}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Ionicons
+                    name="thumbs-up-outline"
+                    size={18}
+                    color={
+                      feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.feedbackSentimentLabel,
+                      {
+                        color:
+                          feedbackSentiment === 'up'
+                            ? colors.cardBackground
+                            : colors.biblePrimaryText,
+                      },
+                    ]}
+                  >
+                    {t('bible.chapterFeedbackThumbsUp')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackSentimentButton,
+                    {
+                      backgroundColor:
+                        feedbackSentiment === 'down'
+                          ? colors.accentPrimary
+                          : colors.bibleElevatedSurface,
+                      borderColor:
+                        feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => setFeedbackSentiment('down')}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Ionicons
+                    name="thumbs-down-outline"
+                    size={18}
+                    color={
+                      feedbackSentiment === 'down' ? colors.cardBackground : colors.biblePrimaryText
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.feedbackSentimentLabel,
+                      {
+                        color:
+                          feedbackSentiment === 'down'
+                            ? colors.cardBackground
+                            : colors.biblePrimaryText,
+                      },
+                    ]}
+                  >
+                    {t('bible.chapterFeedbackThumbsDown')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                value={feedbackComment}
+                onChangeText={setFeedbackComment}
+                editable={!isSubmittingFeedback}
+                multiline
+                numberOfLines={4}
+                maxLength={2000}
+                placeholder={t('bible.chapterFeedbackPlaceholder')}
+                placeholderTextColor={colors.bibleSecondaryText}
+                style={[
+                  styles.feedbackCommentInput,
+                  {
+                    color: colors.biblePrimaryText,
+                    borderColor: colors.bibleDivider,
+                    backgroundColor: colors.bibleElevatedSurface,
+                  },
+                ]}
+              />
+
+              {feedbackSubmitError ? (
+                <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+                  {feedbackSubmitError}
+                </Text>
+              ) : null}
+
+              <View style={styles.feedbackActionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackActionButton,
+                    {
+                      borderColor: colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                    },
+                  ]}
+                  onPress={handleCloseFeedbackModal}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackActionButton,
+                    styles.feedbackSubmitButton,
+                    {
+                      backgroundColor: canSubmitFeedback
+                        ? colors.accentPrimary
+                        : colors.bibleDivider,
+                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    void handleSubmitChapterFeedback();
+                  }}
+                  disabled={!canSubmitFeedback}
+                >
+                  {isSubmittingFeedback ? (
+                    <ActivityIndicator size="small" color={colors.cardBackground} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.feedbackActionLabel,
+                        {
+                          color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText,
+                        },
+                      ]}
+                    >
+                      {t('bible.chapterFeedbackSubmit')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {canShowTranslationSheet ? (
@@ -2527,6 +2832,95 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 15,
+    fontWeight: '700',
+  },
+  feedbackModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  feedbackModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  feedbackModalCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    maxHeight: '82%',
+    overflow: 'hidden',
+  },
+  feedbackModalScrollView: {
+    flexGrow: 0,
+  },
+  feedbackModalContent: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  feedbackModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  feedbackModalReference: {
+    ...typography.label,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  feedbackModalBody: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  feedbackSentimentRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  feedbackSentimentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  feedbackSentimentLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedbackCommentInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
+  feedbackErrorText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  feedbackActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  feedbackActionButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  feedbackSubmitButton: {
+    minWidth: 132,
+  },
+  feedbackActionLabel: {
+    fontSize: 14,
     fontWeight: '700',
   },
   modalOverlay: {
