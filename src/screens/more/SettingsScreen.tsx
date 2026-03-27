@@ -29,6 +29,7 @@ import {
   getReminderEnablePlan,
   getReminderPickerState,
 } from '../../services/preferences/reminderPreferences';
+import { getChapterFeedbackPreferenceSummary } from './settingsPreferenceModel';
 import {
   scheduleDailyReminder,
   cancelDailyReminder,
@@ -48,6 +49,7 @@ export function SettingsScreen() {
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const privacyMode = usePrivacyStore((state) => state.mode);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
+  const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -105,6 +107,11 @@ export function SettingsScreen() {
   const handleLanguageSelect = async (languageCode: LanguageCode) => {
     await setLanguage(languageCode);
     setShowLanguagePicker(false);
+  };
+
+  const handleChapterFeedbackToggle = (enabled: boolean) => {
+    setPreferences({ chapterFeedbackEnabled: enabled });
+    syncPreferences().catch(() => {});
   };
 
   const localeSummary = (() => {
@@ -205,6 +212,10 @@ export function SettingsScreen() {
     privacyMode === 'discreet'
       ? t('onboarding.discreetIconTitle')
       : t('onboarding.standardIconTitle');
+  const chapterFeedbackSummary = getChapterFeedbackPreferenceSummary(chapterFeedbackEnabled, {
+    enabledLabel: t('settings.chapterFeedbackSummaryOn'),
+    disabledLabel: t('settings.chapterFeedbackSummaryOff'),
+  });
 
   return (
     <SafeAreaView
@@ -352,7 +363,7 @@ export function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.settingItem, styles.lastItem]}
+            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('LocalePreferences')}
           >
             <View style={styles.settingLeft}>
@@ -371,6 +382,32 @@ export function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
             </View>
           </TouchableOpacity>
+
+          <View style={[styles.settingItem, styles.lastItem]}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="chatbox-ellipses-outline" size={24} color={colors.secondaryText} />
+              <View style={styles.settingCopy}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    styles.settingLabelNoMargin,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  {t('settings.chapterFeedback')}
+                </Text>
+                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
+                  {chapterFeedbackSummary}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={chapterFeedbackEnabled}
+              onValueChange={handleChapterFeedbackToggle}
+              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
+              thumbColor={colors.cardBackground}
+            />
+          </View>
         </View>
 
         <View
@@ -796,6 +833,8 @@ const styles = StyleSheet.create({
   settingCopy: {
     marginLeft: 12,
     gap: 2,
+    flexShrink: 1,
+    paddingRight: 12,
   },
   settingRight: {
     flexDirection: 'row',

@@ -117,6 +117,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
     content_language_name: 'Spanish',
     content_language_native_name: 'Español',
     onboarding_completed: true,
+    chapter_feedback_enabled: true,
     notifications_enabled: true,
     reminder_time: '08:00',
     synced_at: '2026-03-09T06:00:00.000Z',
@@ -128,6 +129,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
   assert.equal(merged.updatedAt, '2026-03-09T06:00:00.000Z');
   assert.equal(merged.preferences.theme, 'light');
   assert.equal(merged.preferences.language, 'es');
+  assert.equal(merged.preferences.chapterFeedbackEnabled, true);
   assert.equal(merged.preferences.reminderTime, '08:00');
 });
 
@@ -155,6 +157,7 @@ test('mergePreferences keeps the newer local preferences snapshot', () => {
     content_language_name: null,
     content_language_native_name: null,
     onboarding_completed: true,
+    chapter_feedback_enabled: false,
     notifications_enabled: false,
     reminder_time: null,
     synced_at: '2026-03-09T06:00:00.000Z',
@@ -196,6 +199,7 @@ test('mergePreferences does not let a newer incomplete remote snapshot reopen on
     content_language_name: null,
     content_language_native_name: null,
     onboarding_completed: false,
+    chapter_feedback_enabled: false,
     notifications_enabled: false,
     reminder_time: null,
     synced_at: '2026-03-10T09:00:00.000Z',

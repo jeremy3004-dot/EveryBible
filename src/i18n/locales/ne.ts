@@ -128,6 +128,18 @@ export const ne = {
     addToQueue: 'कतारमा थप्नुहोस्',
     downloadBookAudio: 'पुस्तक अडियो डाउनलोड गर्नुहोस्',
     shareChapterReference: 'अध्याय सन्दर्भ साझा गर्नुहोस्',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackTitle: 'यस अध्यायबारे प्रतिक्रिया साझा गर्नुहोस्',
+    chapterFeedbackBody:
+      'यो अध्याय उपयोगी थियो कि सुधार गर्नुपर्ने छ भने हामीलाई बताउनुहोस्। टिप्पणी वैकल्पिक छ।',
+    chapterFeedbackThumbsUp: 'उपयोगी',
+    chapterFeedbackThumbsDown: 'सुधार चाहिन्छ',
+    chapterFeedbackPlaceholder: 'यस अध्यायबारे वैकल्पिक टिप्पणी',
+    chapterFeedbackSubmit: 'प्रतिक्रिया पठाउनुहोस्',
+    chapterFeedbackSuccess: 'धन्यवाद। तपाईंको प्रतिक्रिया पठाइयो।',
+    chapterFeedbackSavedFallback:
+      'धन्यवाद। तपाईंको प्रतिक्रिया सुरक्षित भयो र चाँडै समीक्षा लागि निर्यात गरिनेछ।',
+    chapterFeedbackSignInRequired: 'अध्याय प्रतिक्रिया पठाउनुअघि कृपया साइन इन गर्नुहोस्।',
     books: {
       GEN: 'उत्पत्ति',
       EXO: 'प्रस्थान',
@@ -238,6 +250,9 @@ export const ne = {
     notifications: 'सूचनाहरू',
     dailyReminder: 'दैनिक रिमाइन्डर',
     reminderTime: 'रिमाइन्डर समय',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackSummaryOn: 'वैकल्पिक अध्याय प्रतिक्रिया सुरु गरिएको छ',
+    chapterFeedbackSummaryOff: 'वैकल्पिक अध्याय प्रतिक्रिया बन्द छ',
     notSet: 'सेट गरिएको छैन',
     data: 'डाटा',
     downloadOffline: 'अफलाइनको लागि डाउनलोड गर्नुहोस्',

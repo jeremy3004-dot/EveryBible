@@ -482,6 +482,7 @@ export const defaultAuthPreferences: UserPreferences = {
   contentLanguageName: null,
   contentLanguageNativeName: null,
   onboardingCompleted: false,
+  chapterFeedbackEnabled: false,
   notificationsEnabled: false,
   reminderTime: null,
 };
@@ -523,6 +524,7 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
     contentLanguageName: sanitizeOptionalString(value.contentLanguageName),
     contentLanguageNativeName: sanitizeOptionalString(value.contentLanguageNativeName),
     onboardingCompleted: value.onboardingCompleted === true,
+    chapterFeedbackEnabled: value.chapterFeedbackEnabled === true,
     notificationsEnabled: value.notificationsEnabled === true,
     reminderTime,
   };

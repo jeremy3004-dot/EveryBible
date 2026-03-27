@@ -163,6 +163,7 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
   contentLanguageName: remotePreferences.content_language_name,
   contentLanguageNativeName: remotePreferences.content_language_native_name,
   onboardingCompleted: remotePreferences.onboarding_completed,
+  chapterFeedbackEnabled: remotePreferences.chapter_feedback_enabled,
   notificationsEnabled: remotePreferences.notifications_enabled,
   reminderTime: remotePreferences.reminder_time,
 });
@@ -177,6 +178,7 @@ const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolea
   left.contentLanguageName === right.contentLanguageName &&
   left.contentLanguageNativeName === right.contentLanguageNativeName &&
   left.onboardingCompleted === right.onboardingCompleted &&
+  left.chapterFeedbackEnabled === right.chapterFeedbackEnabled &&
   left.notificationsEnabled === right.notificationsEnabled &&
   left.reminderTime === right.reminderTime;
 

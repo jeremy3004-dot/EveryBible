@@ -138,6 +138,22 @@ test('switching the chapter session into listen mode starts playback for the dis
   );
 });
 
+test('chapter feedback stays inside the chapter overflow flow instead of becoming persistent reader chrome', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /showChapterActionsSheet[\s\S]*key:\s*'chapter-feedback'[\s\S]*handleOpenChapterFeedback/s,
+    'BibleReaderScreen should keep chapter feedback inside the existing chapter actions sheet'
+  );
+
+  assert.equal(
+    source.includes('persistentReaderFeedbackButton'),
+    false,
+    'BibleReaderScreen should not introduce a persistent reader feedback button into the main chrome'
+  );
+});
+
 test('premium read mode uses animated overlay chrome with blur-backed glass surfaces', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
