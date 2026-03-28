@@ -388,10 +388,7 @@ async function importTranslation(
     `[import] Importing ${translationId} (${translation.languageNameInEnglish} — ${translation.shortTitle})...`,
   );
 
-  // 1. Upsert catalog row
-  await upsertCatalogRow(supabase, translation);
-
-  // 2. Download VPL zip
+  // 1. Download VPL zip
   const zipUrl = `https://ebible.org/Scriptures/${translationId}_vpl.zip`;
   let zipBuffer: Buffer;
   try {
@@ -402,7 +399,7 @@ async function importTranslation(
     return;
   }
 
-  // 3. Extract VPL XML (or txt fallback)
+  // 2. Extract VPL XML (or txt fallback)
   let vplContent: string;
   try {
     const zip = new AdmZip(zipBuffer);
@@ -424,14 +421,14 @@ async function importTranslation(
     return;
   }
 
-  // 4. Parse VPL XML into verse rows
+  // 3. Parse VPL XML into verse rows
   const verseRows = parseVplXml(vplContent, translationId);
   if (verseRows.length === 0) {
     console.warn(`[import] WARNING: No verses parsed for ${translationId}. Skipping upsert.`);
     return;
   }
 
-  // 5. Bulk upsert in batches of BATCH_SIZE
+  // 4. Bulk upsert in batches of BATCH_SIZE
   let inserted = 0;
   for (let i = 0; i < verseRows.length; i += BATCH_SIZE) {
     const batch = verseRows.slice(i, i + BATCH_SIZE);
@@ -441,8 +438,11 @@ async function importTranslation(
   }
   process.stdout.write('\n');
 
-  // 6. Upsert translation_versions row
+  // 5. Upsert translation_versions row
   await upsertVersionRow(supabase, translationId, verseRows.length);
+
+  // 6. Only advertise the translation after the backend content is fully installable.
+  await upsertCatalogRow(supabase, translation);
 
   console.log(`[import] ${translationId}: ${verseRows.length} verses imported successfully.`);
 }

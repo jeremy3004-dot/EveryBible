@@ -103,6 +103,7 @@ export const ar = {
     available: 'متاح',
     translationComingSoon: 'سيكون {{name}} متاحًا للتنزيل في التحديث المستقبلي.',
     failedToLoad: 'لم نتمكن من تحميل هذا الفصل الآن.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} ليس لديه نص مكتوب بعد.',
     fullBibleComingSoon: 'هذا الفصل غير متوفر في النص الآن. إذا كان الصوت متاحًا، فسيقوم Every Bible بفتح تجربة الاستماع بدلاً من ذلك.',
     audioOnlyTitle: 'الصوت-الفصل الأول',

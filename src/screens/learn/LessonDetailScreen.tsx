@@ -33,6 +33,7 @@ import {
 } from '../../services/gather/gatherBibleService';
 import { getChapterAudioUrl } from '../../services/audio/audioService';
 import type { MeetingSectionType } from '../../types/gather';
+import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 
 // ---------------------------------------------------------------------------
@@ -97,6 +98,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const markLessonComplete = useGatherStore((s) => s.markLessonComplete);
   const unmarkLessonComplete = useGatherStore((s) => s.unmarkLessonComplete);
   const isComplete = useGatherStore((s) => s.isLessonComplete(parentId, lessonId));
+  const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const [activeSection, setActiveSection] = useState<MeetingSectionType>('fellowship');
   const [headerTitle, setHeaderTitle] = useState<string>(lessonTitle);
@@ -117,6 +119,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     story: 0,
     application: 0,
   });
+  const resetAudioPlaybackState = useCallback(() => {
+    setAudioUrl(null);
+    setAudioPosition(0);
+    setAudioDuration(0);
+    setIsAudioPlaying(false);
+  }, []);
 
   // -------------------------------------------------------------------------
   // Effects
@@ -131,7 +139,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     setIsLoadingPassage(true);
     setPassageBlocks([]);
 
-    getPassageText(lesson.references)
+    getPassageText(lesson.references, currentTranslation)
       .then((blocks) => {
         if (!cancelled) {
           setPassageBlocks(blocks);
@@ -151,20 +159,29 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [lesson]);
+  }, [currentTranslation, lesson]);
 
   // Resolve audio URL
   useEffect(() => {
     if (!lesson) return;
 
     const primaryRef = getPrimaryAudioReference(lesson.references);
-    if (!primaryRef) return;
-
     let cancelled = false;
-    getChapterAudioUrl('bsb', primaryRef.bookId, primaryRef.chapter)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetAudioPlaybackState();
+    void soundRef.current?.unloadAsync().catch(() => undefined);
+    soundRef.current = null;
+
+    if (!primaryRef) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)
       .then((asset) => {
-        if (!cancelled && asset) {
-          setAudioUrl(asset.url);
+        if (!cancelled) {
+          setAudioUrl(asset?.url ?? null);
         }
       })
       .catch(() => {
@@ -174,7 +191,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [lesson]);
+  }, [currentTranslation, lesson, resetAudioPlaybackState]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -286,7 +303,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
-      const { fellowship, story, application } = sectionYRef.current;
+      const { story, application } = sectionYRef.current;
 
       let newSection: MeetingSectionType;
       if (y + 120 >= application) {

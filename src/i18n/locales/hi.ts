@@ -112,6 +112,7 @@ export const hi = {
     available: 'उपलब्ध',
     translationComingSoon: '{{name}} भविष्य के अपडेट में डाउनलोड के लिए उपलब्ध होगा।',
     failedToLoad: 'हम अभी इस अध्याय को लोड नहीं कर सके.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} में अभी तक लिखित पाठ नहीं है।',
     fullBibleComingSoon:
       'यह अध्याय अभी पाठ में उपलब्ध नहीं है. यदि ऑडियो उपलब्ध है, तो Every Bible इसके बजाय सुनने का अनुभव खोलेगा।',
@@ -128,6 +129,18 @@ export const hi = {
     addToQueue: 'कतार में जोड़ें',
     downloadBookAudio: 'पुस्तक ऑडियो डाउनलोड करें',
     shareChapterReference: 'अध्याय संदर्भ साझा करें',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackTitle: 'इस अध्याय पर अपनी प्रतिक्रिया साझा करें',
+    chapterFeedbackBody:
+      'हमें बताएं कि यह अध्याय उपयोगी था या इसे कैसे बेहतर बनाया जा सकता है। टिप्पणी वैकल्पिक है।',
+    chapterFeedbackThumbsUp: 'उपयोगी',
+    chapterFeedbackThumbsDown: 'सुधार चाहिए',
+    chapterFeedbackPlaceholder: 'इस अध्याय पर वैकल्पिक टिप्पणी',
+    chapterFeedbackSubmit: 'प्रतिक्रिया भेजें',
+    chapterFeedbackSuccess: 'धन्यवाद। आपकी प्रतिक्रिया भेज दी गई है।',
+    chapterFeedbackSavedFallback:
+      'धन्यवाद। आपकी प्रतिक्रिया सुरक्षित हो गई है और जल्द समीक्षा के लिए निर्यात की जाएगी।',
+    chapterFeedbackSignInRequired: 'अध्याय प्रतिक्रिया भेजने से पहले कृपया साइन इन करें।',
     books: {
       GEN: 'उत्पत्ति',
       EXO: 'निर्गमन',
@@ -238,6 +251,9 @@ export const hi = {
     notifications: 'सूचनाएं',
     dailyReminder: 'दैनिक अनुस्मारक',
     reminderTime: 'अनुस्मारक समय',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackSummaryOn: 'वैकल्पिक अध्याय प्रतिक्रिया चालू है',
+    chapterFeedbackSummaryOff: 'वैकल्पिक अध्याय प्रतिक्रिया बंद है',
     notSet: 'सेट नहीं',
     data: 'डेटा',
     downloadOffline: 'ऑफ़लाइन के लिए डाउनलोड करें',

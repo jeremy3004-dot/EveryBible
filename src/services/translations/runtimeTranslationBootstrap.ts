@@ -1,9 +1,16 @@
+import type { BibleTranslation } from '../../types';
 import { useBibleStore } from '../../stores/bibleStore';
 import {
   getUserTranslationPreferences,
   listAvailableTranslations,
   mapCatalogEntryToBibleTranslation,
 } from './translationService';
+
+let runtimeCatalogHydrationPromise: Promise<void> | null = null;
+
+export function hasRuntimeCatalogTranslations(translations: BibleTranslation[]): boolean {
+  return translations.some((translation) => translation.source === 'runtime');
+}
 
 function isReadableLocally(translation: {
   isDownloaded: boolean;
@@ -37,6 +44,20 @@ export async function bootstrapRuntimeTranslations(): Promise<void> {
   );
 
   useBibleStore.getState().applyRuntimeCatalog(runtimeTranslations);
+}
+
+export async function ensureRuntimeCatalogLoaded(): Promise<void> {
+  if (hasRuntimeCatalogTranslations(useBibleStore.getState().translations)) {
+    return;
+  }
+
+  if (!runtimeCatalogHydrationPromise) {
+    runtimeCatalogHydrationPromise = bootstrapRuntimeTranslations().finally(() => {
+      runtimeCatalogHydrationPromise = null;
+    });
+  }
+
+  await runtimeCatalogHydrationPromise;
 }
 
 export async function reconcilePrimaryTranslationPreference(): Promise<void> {

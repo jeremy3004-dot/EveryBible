@@ -103,6 +103,7 @@ export const ru = {
     available: 'Доступный',
     translationComingSoon: '{{name}} будет доступен для загрузки в будущем обновлении.',
     failedToLoad: 'Не удалось загрузить эту главу прямо сейчас.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} еще не написал текст.',
     fullBibleComingSoon: 'Эта глава сейчас недоступна в текстовом виде. Если звук доступен, Every Bible вместо этого откроет режим прослушивания.',
     audioOnlyTitle: 'Аудио-первая глава',

@@ -25,6 +25,12 @@ const readOptionalRootFile = (relativePathFromRepoRoot: string): string | null =
 const readExpoConfig = (): { expo: { newArchEnabled?: boolean; scheme?: string } } =>
   JSON.parse(readRootFile('app.json')) as { expo: { newArchEnabled?: boolean; scheme?: string } };
 
+const readPlistStringArray = (contents: string, key: string): string[] => {
+  const match = contents.match(new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`));
+  assert.ok(match, `Expected ${key} array in plist`);
+  return Array.from(match[1].matchAll(/<string>([^<]+)<\/string>/g)).map((item) => item[1]);
+};
+
 const readGradleProperty = (contents: string, propertyName: string): string | null => {
   const match = contents.match(
     new RegExp(`^${propertyName}=(.+)$`, 'm')
@@ -75,4 +81,22 @@ test('local xcode node override points to an installed executable when present',
     existsSync(configuredValue),
     `ios/.xcode.env.local points to a missing NODE_BINARY path: ${configuredValue}`
   );
+});
+
+test('ios background modes stay aligned with notification delivery requirements', () => {
+  const appConfig = JSON.parse(readRootFile('app.json')) as {
+    expo: {
+      ios?: {
+        infoPlist?: {
+          UIBackgroundModes?: string[];
+        };
+      };
+    };
+  };
+  const expectedModes = ['audio', 'fetch', 'remote-notification'];
+  const configuredModes = appConfig.expo.ios?.infoPlist?.UIBackgroundModes ?? [];
+  const infoPlistModes = readPlistStringArray(readRootFile('ios/EveryBible/Info.plist'), 'UIBackgroundModes');
+
+  assert.deepEqual(configuredModes, expectedModes);
+  assert.deepEqual(infoPlistModes, expectedModes);
 });

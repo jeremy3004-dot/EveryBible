@@ -170,6 +170,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
     return {
       strategy,
       provider: value.provider as NonNullable<BibleTranslation['audioProvider']>,
+      fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+      mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,
     };
   }
@@ -185,6 +187,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
       strategy,
       baseUrl,
       chapterPathTemplate,
+      fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+      mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,
     };
   }
@@ -199,6 +203,8 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
     strategy,
     downloadUrl,
     sha256,
+    fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+    mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
     signature: sanitizeOptionalString(value.signature) ?? undefined,
   };
 };
@@ -267,24 +273,64 @@ const hydrateSeededTranslation = (
   defaultTranslation: BibleTranslation,
   persisted?: Record<string, unknown>
 ): BibleTranslation => {
+  const isRuntimeSeed = defaultTranslation.source === 'runtime';
   const downloadedBooks = sanitizeBookIds(persisted?.downloadedBooks, defaultTranslation.downloadedBooks);
   const downloadedAudioBooks = sanitizeBookIds(
     persisted?.downloadedAudioBooks,
     defaultTranslation.downloadedAudioBooks
   );
   const textPackLocalPath = sanitizeOptionalString(persisted?.textPackLocalPath);
+  const totalBooks = sanitizeOptionalFiniteNumber(persisted?.totalBooks);
+  const sizeInMB = sanitizeOptionalFiniteNumber(persisted?.sizeInMB);
   const installState = validInstallStates.has(persisted?.installState as TranslationInstallState)
     ? (persisted?.installState as TranslationInstallState)
     : getDefaultInstallState(defaultTranslation);
   const hydrated: BibleTranslation = {
     ...defaultTranslation,
+    name:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.name) : null) ?? defaultTranslation.name,
+    abbreviation:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.abbreviation) : null) ??
+      defaultTranslation.abbreviation,
+    language:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.language) : null) ??
+      defaultTranslation.language,
+    description:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.description) : null) ??
+      defaultTranslation.description,
+    copyright:
+      (isRuntimeSeed ? sanitizeRequiredString(persisted?.copyright) : null) ??
+      defaultTranslation.copyright,
     isDownloaded:
       typeof persisted?.isDownloaded === 'boolean'
         ? persisted.isDownloaded
         : defaultTranslation.isDownloaded,
     downloadedBooks,
     downloadedAudioBooks,
-    source: 'bundled',
+    totalBooks:
+      isRuntimeSeed && totalBooks !== null && Number.isInteger(totalBooks) && totalBooks > 0
+        ? totalBooks
+        : defaultTranslation.totalBooks,
+    sizeInMB: isRuntimeSeed && sizeInMB !== null && sizeInMB >= 0 ? sizeInMB : defaultTranslation.sizeInMB,
+    hasText:
+      isRuntimeSeed && typeof persisted?.hasText === 'boolean'
+        ? persisted.hasText
+        : defaultTranslation.hasText,
+    hasAudio:
+      isRuntimeSeed && typeof persisted?.hasAudio === 'boolean'
+        ? persisted.hasAudio
+        : defaultTranslation.hasAudio,
+    audioGranularity:
+      isRuntimeSeed &&
+      validAudioGranularities.has(persisted?.audioGranularity as BibleTranslation['audioGranularity'])
+        ? (persisted?.audioGranularity as BibleTranslation['audioGranularity'])
+        : defaultTranslation.audioGranularity,
+    audioProvider:
+      isRuntimeSeed &&
+      validAudioProviders.has(persisted?.audioProvider as NonNullable<BibleTranslation['audioProvider']>)
+        ? (persisted?.audioProvider as NonNullable<BibleTranslation['audioProvider']>)
+        : defaultTranslation.audioProvider,
+    source: isRuntimeSeed ? 'runtime' : 'bundled',
     installState,
     activeTextPackVersion: sanitizeOptionalString(persisted?.activeTextPackVersion),
     pendingTextPackVersion: sanitizeOptionalString(persisted?.pendingTextPackVersion),
@@ -302,6 +348,11 @@ const hydrateSeededTranslation = (
     if (hydrated.installState === 'remote-only') {
       hydrated.installState = 'seeded';
     }
+  }
+
+  if (hydrated.source === 'runtime' && !hydrated.textPackLocalPath && hydrated.installState === 'installed') {
+    hydrated.isDownloaded = false;
+    hydrated.installState = 'remote-only';
   }
 
   return hydrated;
@@ -431,6 +482,7 @@ export const defaultAuthPreferences: UserPreferences = {
   contentLanguageName: null,
   contentLanguageNativeName: null,
   onboardingCompleted: false,
+  chapterFeedbackEnabled: false,
   notificationsEnabled: false,
   reminderTime: null,
 };
@@ -472,6 +524,7 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
     contentLanguageName: sanitizeOptionalString(value.contentLanguageName),
     contentLanguageNativeName: sanitizeOptionalString(value.contentLanguageNativeName),
     onboardingCompleted: value.onboardingCompleted === true,
+    chapterFeedbackEnabled: value.chapterFeedbackEnabled === true,
     notificationsEnabled: value.notificationsEnabled === true,
     reminderTime,
   };
@@ -486,28 +539,13 @@ export const sanitizePersistedAuthState = (
   preferencesUpdatedAt: string | null;
 } => {
   const persisted = isRecord(value) ? value : {};
-  const userValue = persisted.user;
-  const user =
-    isRecord(userValue) && typeof userValue.uid === 'string'
-      ? {
-          uid: userValue.uid,
-          email: typeof userValue.email === 'string' ? userValue.email : null,
-          displayName: sanitizeOptionalString(userValue.displayName),
-          photoURL: sanitizeOptionalString(userValue.photoURL),
-          createdAt:
-            typeof userValue.createdAt === 'number' && Number.isFinite(userValue.createdAt)
-              ? userValue.createdAt
-              : Date.now(),
-          lastActive:
-            typeof userValue.lastActive === 'number' && Number.isFinite(userValue.lastActive)
-              ? userValue.lastActive
-              : Date.now(),
-        }
-      : null;
 
   return {
-    user,
-    isAuthenticated: user !== null && persisted.isAuthenticated === true,
+    // A persisted auth flag is not proof of a valid Supabase session token.
+    // The live session restored by Supabase SecureStore remains the only source
+    // of truth for signed-in state.
+    user: null,
+    isAuthenticated: false,
     preferences: sanitizeUserPreferences(persisted.preferences),
     preferencesUpdatedAt:
       typeof persisted.preferencesUpdatedAt === 'string' && persisted.preferencesUpdatedAt.length > 0

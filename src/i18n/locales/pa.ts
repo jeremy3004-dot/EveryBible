@@ -103,6 +103,7 @@ export const pa = {
     available: 'ਉਪਲਬਧ ਹੈ',
     translationComingSoon: '{{name}} ਭਵਿੱਖ ਦੇ ਅੱਪਡੇਟ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਉਪਲਬਧ ਹੋਵੇਗਾ।',
     failedToLoad: 'ਅਸੀਂ ਇਸ ਚੈਪਟਰ ਨੂੰ ਹੁਣੇ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕੇ।',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} ਕੋਲ ਅਜੇ ਤੱਕ ਕੋਈ ਲਿਖਤੀ ਟੈਕਸਟ ਨਹੀਂ ਹੈ।',
     fullBibleComingSoon: 'ਇਹ ਅਧਿਆਇ ਇਸ ਸਮੇਂ ਟੈਕਸਟ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਜੇਕਰ ਆਡੀਓ ਉਪਲਬਧ ਹੈ, ਤਾਂ Every Bible ਇਸਦੀ ਬਜਾਏ ਸੁਣਨ ਦਾ ਅਨੁਭਵ ਖੋਲ੍ਹੇਗਾ।',
     audioOnlyTitle: 'ਆਡੀਓ-ਪਹਿਲਾ ਅਧਿਆਇ',

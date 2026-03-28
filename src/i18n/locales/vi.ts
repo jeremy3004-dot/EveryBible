@@ -103,6 +103,7 @@ export const vi = {
     available: 'Có sẵn',
     translationComingSoon: '{{name}} sẽ có sẵn để tải xuống trong bản cập nhật trong tương lai.',
     failedToLoad: 'Chúng tôi không thể tải chương này ngay bây giờ.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} chưa có văn bản nào được viết.',
     fullBibleComingSoon: 'Chương này hiện không có sẵn trong văn bản. Nếu có âm thanh, Every Bible sẽ mở trải nghiệm nghe thay thế.',
     audioOnlyTitle: 'Chương đầu tiên có âm thanh',

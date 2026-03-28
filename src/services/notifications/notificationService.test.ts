@@ -224,6 +224,8 @@ const upsertCalls: Array<{
   data: Record<string, unknown>;
   options?: Record<string, unknown>;
 }> = [];
+const autoServerRegistrationCalls: boolean[] = [];
+const getExpoPushTokenCalls: Array<Record<string, unknown>> = [];
 const updateCalls: Array<{
   table: string;
   data: Record<string, unknown>;
@@ -232,6 +234,7 @@ const updateCalls: Array<{
 let mockTokenResult: { data: string } | null = { data: 'ExponentPushToken[test-token-123]' };
 let mockPermissionStatus = 'granted';
 let mockUpsertError: { message: string } | null = null;
+type DevicePushToken = { type: string; data: string | Record<string, unknown> };
 
 const NotificationsWithToken = {
   ...Notifications,
@@ -239,7 +242,15 @@ const NotificationsWithToken = {
     permCalls.push('get');
     return { status: mockPermissionStatus };
   },
-  getExpoPushTokenAsync: async (_opts: { projectId: string }) => {
+  setAutoServerRegistrationEnabledAsync: async (enabled: boolean) => {
+    autoServerRegistrationCalls.push(enabled);
+  },
+  getExpoPushTokenAsync: async (opts: {
+    projectId: string;
+    baseUrl: string;
+    devicePushToken?: DevicePushToken;
+  }) => {
+    getExpoPushTokenCalls.push(opts);
     if (!mockTokenResult) {
       throw new Error('getExpoPushTokenAsync failed (simulator)');
     }
@@ -276,40 +287,85 @@ const mockPlatformIos = { OS: 'ios' };
 
 // Inline implementations of the functions under test (mirrors service logic)
 let cachedToken: string | null = null;
+let registerPushTokenInFlight: Promise<string | null> | null = null;
+let lastRegisteredUserId: string | null = null;
+let lastRegisteredDevicePushTokenKey: string | null = null;
+const EXPO_NOTIFICATIONS_BASE_URL = 'https://exp.host/--/api/v2/';
+
+function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null {
+  if (!devicePushToken) {
+    return null;
+  }
+
+  return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
+}
 
 async function registerPushToken(
   userId: string,
   notifs: typeof NotificationsWithToken,
   supabaseClient: typeof mockSupabaseClient,
   constants: typeof mockConstants,
-  platformMock: { OS: string }
+  platformMock: { OS: string },
+  devicePushToken?: DevicePushToken
 ): Promise<string | null> {
-  try {
-    const projectId = constants.expoConfig?.extra?.eas?.projectId as string;
-    if (!projectId) return null;
+  const devicePushTokenKey = getDevicePushTokenKey(devicePushToken);
+  const canReuseCachedRegistration =
+    cachedToken &&
+    lastRegisteredUserId === userId &&
+    (!devicePushToken || lastRegisteredDevicePushTokenKey === devicePushTokenKey);
 
-    const { status } = await notifs.getPermissionsAsync();
-    if (status !== 'granted') return null;
-
-    const tokenResult = await notifs.getExpoPushTokenAsync({ projectId });
-    cachedToken = tokenResult.data;
-
-    const platform: 'ios' | 'android' = platformMock.OS === 'ios' ? 'ios' : 'android';
-    await supabaseClient.from('user_devices').upsert(
-      {
-        user_id: userId,
-        push_token: tokenResult.data,
-        platform,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,push_token' }
-    );
-
-    return tokenResult.data;
-  } catch {
-    return null;
+  if (canReuseCachedRegistration) {
+    return cachedToken;
   }
+
+  if (registerPushTokenInFlight) {
+    return registerPushTokenInFlight;
+  }
+
+  registerPushTokenInFlight = (async () => {
+    try {
+      const projectId = constants.expoConfig?.extra?.eas?.projectId as string;
+      if (!projectId) return null;
+
+      const { status } = await notifs.getPermissionsAsync();
+      if (status !== 'granted') return null;
+
+      await notifs.setAutoServerRegistrationEnabledAsync(false);
+
+      const tokenResult = await notifs.getExpoPushTokenAsync({
+        projectId,
+        baseUrl: EXPO_NOTIFICATIONS_BASE_URL,
+        devicePushToken,
+      });
+
+      const platform: 'ios' | 'android' = platformMock.OS === 'ios' ? 'ios' : 'android';
+      const { error } = await supabaseClient.from('user_devices').upsert(
+        {
+          user_id: userId,
+          push_token: tokenResult.data,
+          platform,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,push_token' }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      cachedToken = tokenResult.data;
+      lastRegisteredUserId = userId;
+      lastRegisteredDevicePushTokenKey = devicePushTokenKey;
+      return tokenResult.data;
+    } catch {
+      return null;
+    } finally {
+      registerPushTokenInFlight = null;
+    }
+  })();
+
+  return registerPushTokenInFlight;
 }
 
 async function deactivatePushToken(
@@ -324,6 +380,8 @@ async function deactivatePushToken(
       .eq('user_id', userId)
       .eq('push_token', cachedToken);
     cachedToken = null;
+    lastRegisteredUserId = null;
+    lastRegisteredDevicePushTokenKey = null;
   } catch {
     // Non-fatal
   }
@@ -331,7 +389,12 @@ async function deactivatePushToken(
 
 test('registerPushToken calls getExpoPushTokenAsync with projectId and upserts to user_devices', async () => {
   upsertCalls.length = 0;
+  autoServerRegistrationCalls.length = 0;
+  getExpoPushTokenCalls.length = 0;
   cachedToken = null;
+  registerPushTokenInFlight = null;
+  lastRegisteredUserId = null;
+  lastRegisteredDevicePushTokenKey = null;
   mockTokenResult = { data: 'ExponentPushToken[test-token-123]' };
   mockPermissionStatus = 'granted';
   mockUpsertError = null;
@@ -345,6 +408,17 @@ test('registerPushToken calls getExpoPushTokenAsync with projectId and upserts t
   );
 
   assert.equal(result, 'ExponentPushToken[test-token-123]', 'should return the token');
+  assert.deepEqual(
+    autoServerRegistrationCalls,
+    [false],
+    'should disable Expo auto server registration before syncing the token'
+  );
+  assert.equal(getExpoPushTokenCalls.length, 1, 'should fetch an Expo push token exactly once');
+  assert.equal(
+    getExpoPushTokenCalls[0]?.['baseUrl'],
+    EXPO_NOTIFICATIONS_BASE_URL,
+    'should pass an explicit Expo notifications baseUrl'
+  );
   assert.equal(upsertCalls.length, 1, 'should upsert exactly once');
   assert.equal(upsertCalls[0]?.table, 'user_devices', 'should upsert into user_devices');
   const upserted = upsertCalls[0]?.data ?? {};
@@ -365,7 +439,12 @@ test('registerPushToken calls getExpoPushTokenAsync with projectId and upserts t
 
 test('registerPushToken catches and suppresses getExpoPushTokenAsync errors (simulator scenario)', async () => {
   upsertCalls.length = 0;
+  autoServerRegistrationCalls.length = 0;
+  getExpoPushTokenCalls.length = 0;
   cachedToken = null;
+  registerPushTokenInFlight = null;
+  lastRegisteredUserId = null;
+  lastRegisteredDevicePushTokenKey = null;
   mockTokenResult = null; // will throw
   mockPermissionStatus = 'granted';
 
@@ -390,14 +469,20 @@ test('registerPushToken catches and suppresses getExpoPushTokenAsync errors (sim
 
 test('registerPushToken catches and suppresses Supabase upsert errors without throwing', async () => {
   upsertCalls.length = 0;
+  autoServerRegistrationCalls.length = 0;
+  getExpoPushTokenCalls.length = 0;
   cachedToken = null;
+  registerPushTokenInFlight = null;
+  lastRegisteredUserId = null;
+  lastRegisteredDevicePushTokenKey = null;
   mockTokenResult = { data: 'ExponentPushToken[test-token-456]' };
   mockPermissionStatus = 'granted';
   mockUpsertError = { message: 'RLS violation' };
 
   let threw = false;
+  let result: string | null = null;
   try {
-    await registerPushToken(
+    result = await registerPushToken(
       'user-abc-123',
       NotificationsWithToken,
       mockSupabaseClient,
@@ -408,9 +493,73 @@ test('registerPushToken catches and suppresses Supabase upsert errors without th
     threw = true;
   }
 
-  // Even with upsert error, function should not throw (returns token since error is post-upsert)
   assert.equal(threw, false, 'should NOT throw when upsert fails');
+  assert.equal(result, null, 'should return null when the backend upsert fails');
   assert.equal(upsertCalls.length, 1, 'should have attempted the upsert');
+  assert.equal(cachedToken, null, 'should not cache a token that failed to sync');
+});
+
+test('registerPushToken forwards a listener-provided devicePushToken to Expo', async () => {
+  upsertCalls.length = 0;
+  autoServerRegistrationCalls.length = 0;
+  getExpoPushTokenCalls.length = 0;
+  cachedToken = null;
+  registerPushTokenInFlight = null;
+  lastRegisteredUserId = null;
+  lastRegisteredDevicePushTokenKey = null;
+  mockTokenResult = { data: 'ExponentPushToken[test-token-789]' };
+  mockPermissionStatus = 'granted';
+  mockUpsertError = null;
+  const devicePushToken = { type: 'ios', data: 'apns-device-token-1' };
+
+  const result = await registerPushToken(
+    'user-abc-123',
+    NotificationsWithToken,
+    mockSupabaseClient,
+    mockConstants,
+    mockPlatformIos,
+    devicePushToken
+  );
+
+  assert.equal(result, 'ExponentPushToken[test-token-789]', 'should return the synced Expo token');
+  assert.deepEqual(
+    getExpoPushTokenCalls[0]?.['devicePushToken'],
+    devicePushToken,
+    'should pass the refreshed devicePushToken through to Expo'
+  );
+});
+
+test('registerPushToken reuses the cached token for the same user after a successful sync', async () => {
+  upsertCalls.length = 0;
+  autoServerRegistrationCalls.length = 0;
+  getExpoPushTokenCalls.length = 0;
+  cachedToken = null;
+  registerPushTokenInFlight = null;
+  lastRegisteredUserId = null;
+  lastRegisteredDevicePushTokenKey = null;
+  mockTokenResult = { data: 'ExponentPushToken[test-token-repeat]' };
+  mockPermissionStatus = 'granted';
+  mockUpsertError = null;
+
+  const first = await registerPushToken(
+    'user-repeat',
+    NotificationsWithToken,
+    mockSupabaseClient,
+    mockConstants,
+    mockPlatformIos
+  );
+  const second = await registerPushToken(
+    'user-repeat',
+    NotificationsWithToken,
+    mockSupabaseClient,
+    mockConstants,
+    mockPlatformIos
+  );
+
+  assert.equal(first, 'ExponentPushToken[test-token-repeat]', 'first registration should succeed');
+  assert.equal(second, 'ExponentPushToken[test-token-repeat]', 'second registration should reuse the cached token');
+  assert.equal(getExpoPushTokenCalls.length, 1, 'should not fetch a second Expo token for the same user');
+  assert.equal(upsertCalls.length, 1, 'should not upsert the same token twice for the same user');
 });
 
 test('deactivatePushToken calls update with is_active=false filtered by user_id and push_token', async () => {

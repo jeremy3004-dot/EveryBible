@@ -12,6 +12,16 @@ interface InitializedAuthState {
   isAuthenticated: boolean;
 }
 
+interface UserStateUpdateInput {
+  session: Session | null;
+  user: User | null;
+}
+
+interface UserStateUpdate {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
 export const resolveInitializedAuthState = ({
   session,
   user,
@@ -30,3 +40,11 @@ export const resolveInitializedAuthState = ({
     isAuthenticated: true,
   };
 };
+
+export const resolveUserStateUpdate = ({
+  session,
+  user,
+}: UserStateUpdateInput): UserStateUpdate => ({
+  user,
+  isAuthenticated: session !== null,
+});

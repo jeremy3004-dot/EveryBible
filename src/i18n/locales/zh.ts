@@ -103,6 +103,7 @@ export const zh = {
     available: '可用的',
     translationComingSoon: '{{name}} 将在未来的更新中提供下载。',
     failedToLoad: '我们现在无法加载本章。',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} 还没有文字。',
     fullBibleComingSoon: '本章目前没有文本版本。如果音频可用，Every Bible 将打开聆听体验。',
     audioOnlyTitle: '音频第一章',

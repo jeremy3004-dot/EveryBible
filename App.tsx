@@ -57,6 +57,7 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
+  const reconcileTranslationPacks = useBibleStore((state) => state.reconcileTranslationPacks);
   const reattachAudioDownloads = useBibleStore((state) => state.reattachAudioDownloads);
   const startupCoordinator = useMemo(
     () =>
@@ -65,7 +66,10 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
         initializePrivacy,
         preloadBibleData: initBibleData,
         preloadRuntimeTranslations: bootstrapRuntimeTranslationsAndPreferences,
-        migrateStorage: migrateFromAsyncStorage,
+        migrateStorage: async () => {
+          await migrateFromAsyncStorage();
+          await reconcileTranslationPacks();
+        },
         scheduleTask: (task) => {
           const handle = InteractionManager.runAfterInteractions(() => {
             void task();
@@ -84,7 +88,7 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
           );
         },
       }),
-    [initializeAuth, initializePrivacy]
+    [initializeAuth, initializePrivacy, reconcileTranslationPacks]
   );
 
   useEffect(() => {
@@ -266,10 +270,10 @@ function AppContent() {
 
   // Listen for push token refreshes and re-register with the updated token.
   useEffect(() => {
-    const subscription = Notifications.addPushTokenListener(() => {
+    const subscription = Notifications.addPushTokenListener((devicePushToken) => {
       const currentUser = useAuthStore.getState().user;
       if (currentUser?.uid) {
-        void registerPushToken(currentUser.uid);
+        void registerPushToken(currentUser.uid, devicePushToken);
       }
     });
     return () => subscription.remove();

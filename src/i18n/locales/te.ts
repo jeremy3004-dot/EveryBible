@@ -103,6 +103,7 @@ export const te = {
     available: 'అందుబాటులో ఉంది',
     translationComingSoon: '{{name}} భవిష్యత్ నవీకరణలో డౌన్‌లోడ్ చేసుకోవడానికి అందుబాటులో ఉంటుంది.',
     failedToLoad: 'మేము ప్రస్తుతం ఈ అధ్యాయాన్ని లోడ్ చేయలేకపోయాము.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}}కి ఇంకా వ్రాసిన వచనం లేదు.',
     fullBibleComingSoon: 'ఈ అధ్యాయం ప్రస్తుతం వచనంలో అందుబాటులో లేదు. ఆడియో అందుబాటులో ఉంటే, బదులుగా Every Bible శ్రవణ అనుభవాన్ని తెరుస్తుంది.',
     audioOnlyTitle: 'ఆడియో-మొదటి అధ్యాయం',

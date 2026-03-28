@@ -1,4 +1,5 @@
 import type { LanguageCode } from '../../constants/languages';
+import type { TranslationCatalog } from '../../types';
 
 // Database types for Supabase
 
@@ -34,9 +35,32 @@ export interface UserPreferences {
   content_language_name: string | null;
   content_language_native_name: string | null;
   onboarding_completed: boolean;
+  chapter_feedback_enabled: boolean;
   notifications_enabled: boolean;
   reminder_time: string | null;
   synced_at: string;
+}
+
+export interface ChapterFeedbackSubmission {
+  id: string;
+  user_id: string | null;
+  translation_id: string;
+  translation_language: string;
+  interface_language: string;
+  content_language_code: string | null;
+  content_language_name: string | null;
+  book_id: string;
+  chapter: number;
+  sentiment: 'up' | 'down';
+  comment: string | null;
+  source_screen: string;
+  app_platform: string | null;
+  app_version: string | null;
+  export_status: 'pending' | 'exported' | 'failed';
+  exported_at: string | null;
+  export_error: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface GroupRecord {
@@ -216,6 +240,8 @@ export interface TranslationCatalogEntry {
   is_bundled: boolean;
   is_available: boolean;
   sort_order: number;
+  catalog: TranslationCatalog | null;
+  text_direction?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -314,6 +340,15 @@ export interface Database {
         Row: UserPreferences;
         Insert: Omit<UserPreferences, 'id' | 'synced_at'>;
         Update: Partial<Omit<UserPreferences, 'id' | 'user_id'>>;
+        Relationships: [];
+      };
+      chapter_feedback_submissions: {
+        Row: ChapterFeedbackSubmission;
+        Insert: Omit<ChapterFeedbackSubmission, 'id' | 'created_at' | 'updated_at'> & {
+          export_status?: ChapterFeedbackSubmission['export_status'];
+          source_screen?: string;
+        };
+        Update: Partial<Omit<ChapterFeedbackSubmission, 'id' | 'created_at'>>;
         Relationships: [];
       };
       user_devices: {

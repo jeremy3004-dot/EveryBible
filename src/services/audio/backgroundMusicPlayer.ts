@@ -184,30 +184,51 @@ class BackgroundMusicPlayer {
       return;
     }
 
+    const option = getBackgroundMusicOption(choice);
+    if (option) {
+      this.targetVolume = option.defaultVolume;
+    }
+
+    if (!shouldPlay) {
+      this.shouldBePlaying = false;
+
+      if (!this.sound) {
+        this.currentChoice = choice;
+        return;
+      }
+
+      const choiceChanged = this.currentChoice !== choice;
+      this.currentChoice = choice;
+
+      if (choiceChanged) {
+        this.loadRequestId += 1;
+        await this.unloadCurrentSound();
+        return;
+      }
+
+      try {
+        this.fadeVolume(this.sound, this.targetVolume, 0, () => {
+          this.sound?.pauseAsync().catch(() => {});
+        });
+      } catch {
+        // Ignore pause races; the next sync pass will reconcile.
+      }
+      return;
+    }
+
     await this.ensureLoaded(choice);
 
     if (!this.sound) {
       return;
     }
 
-    this.shouldBePlaying = shouldPlay;
-
-    if (shouldPlay) {
-      try {
-        await this.sound.playAsync();
-        this.fadeVolume(this.sound, 0, this.targetVolume);
-      } catch {
-        // Ignore play races; the next sync pass will reconcile.
-      }
-      return;
-    }
+    this.shouldBePlaying = true;
 
     try {
-      this.fadeVolume(this.sound, this.targetVolume, 0, () => {
-        this.sound?.pauseAsync().catch(() => {});
-      });
+      await this.sound.playAsync();
+      this.fadeVolume(this.sound, 0, this.targetVolume);
     } catch {
-      // Ignore pause races; the next sync pass will reconcile.
+      // Ignore play races; the next sync pass will reconcile.
     }
   }
 

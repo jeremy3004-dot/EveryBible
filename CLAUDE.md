@@ -89,9 +89,9 @@ npm run format:check   # Check code formatting
 
 ### EAS Build & Deploy
 ```bash
-eas build --platform ios --profile development    # Dev build with dev client
-eas build --platform ios --profile preview        # Internal distribution build
-eas build --platform ios --profile production     # Store/TestFlight submission build
+eas build --platform ios --profile development    # Dev build with dev client (launches via Metro)
+eas build --platform ios --profile preview        # Internal distribution build with embedded JS bundle
+eas build --platform ios --profile production     # Store/TestFlight submission build with embedded JS bundle
 eas build --platform android --profile production # Android production build
 eas submit --platform ios --profile production    # Submit iOS to App Store/TestFlight
 eas submit --platform android --profile production # Submit Android to Play Store
@@ -556,9 +556,9 @@ const {
 
 ### EAS Configuration
 See `eas.json` for build profiles:
-- **development:** Dev client, internal distribution
-- **preview:** Internal distribution builds (not TestFlight)
-- **production:** App Store/Play Store builds
+- **development:** Dev client, internal distribution, expects Metro on launch
+- **preview:** Internal distribution builds (not TestFlight) with embedded JS bundle
+- **production:** App Store/Play Store builds with embedded JS bundle
 
 ### Build Process
 ```bash

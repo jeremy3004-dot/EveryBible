@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import type { DevicePushToken } from 'expo-notifications';
 import Constants from 'expo-constants';
 import i18n from '../../i18n';
 import { supabase } from '../supabase';
@@ -9,6 +10,26 @@ import { supabase } from '../supabase';
  * Used by deactivatePushToken to identify which row to mark inactive on sign-out.
  */
 let cachedPushToken: string | null = null;
+let registerPushTokenInFlight: Promise<string | null> | null = null;
+let lastRegisteredUserId: string | null = null;
+let lastRegisteredDevicePushTokenKey: string | null = null;
+const EXPO_NOTIFICATIONS_BASE_URL = 'https://exp.host/--/api/v2/';
+
+async function disableExpoAutoServerRegistration(): Promise<void> {
+  try {
+    await Notifications.setAutoServerRegistrationEnabledAsync(false);
+  } catch {
+    // Best-effort only; continue with manual token sync.
+  }
+}
+
+function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null {
+  if (!devicePushToken) {
+    return null;
+  }
+
+  return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
+}
 
 /**
  * Register the foreground notification handler so banners are shown instead
@@ -114,34 +135,70 @@ export async function cancelDailyReminder(): Promise<void> {
  *
  * Returns the token string on success, or null if unavailable.
  */
-export async function registerPushToken(userId: string): Promise<string | null> {
-  try {
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-    if (!projectId) return null;
+export async function registerPushToken(
+  userId: string,
+  devicePushToken?: DevicePushToken
+): Promise<string | null> {
+  const devicePushTokenKey = getDevicePushTokenKey(devicePushToken);
+  const canReuseCachedRegistration =
+    cachedPushToken &&
+    lastRegisteredUserId === userId &&
+    (!devicePushToken || lastRegisteredDevicePushTokenKey === devicePushTokenKey);
 
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return null;
-
-    const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId });
-    cachedPushToken = tokenResult.data;
-
-    const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
-    await supabase.from('user_devices').upsert(
-      {
-        user_id: userId,
-        push_token: tokenResult.data,
-        platform,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,push_token' }
-    );
-
-    return tokenResult.data;
-  } catch {
-    // Non-fatal: simulator, offline, or RLS error — do not crash sign-in or startup
-    return null;
+  if (canReuseCachedRegistration) {
+    return cachedPushToken;
   }
+
+  if (registerPushTokenInFlight) {
+    return registerPushTokenInFlight;
+  }
+
+  registerPushTokenInFlight = (async () => {
+    try {
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+      if (!projectId) return null;
+
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') return null;
+
+      // Keep Expo token registration explicit and app-driven.
+      await disableExpoAutoServerRegistration();
+
+      const tokenResult = await Notifications.getExpoPushTokenAsync({
+        projectId,
+        baseUrl: EXPO_NOTIFICATIONS_BASE_URL,
+        devicePushToken,
+      });
+
+      const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
+      const { error } = await supabase.from('user_devices').upsert(
+        {
+          user_id: userId,
+          push_token: tokenResult.data,
+          platform,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,push_token' }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      cachedPushToken = tokenResult.data;
+      lastRegisteredUserId = userId;
+      lastRegisteredDevicePushTokenKey = devicePushTokenKey;
+      return tokenResult.data;
+    } catch {
+      // Non-fatal: simulator, offline, or RLS error — do not crash sign-in or startup
+      return null;
+    } finally {
+      registerPushTokenInFlight = null;
+    }
+  })();
+
+  return registerPushTokenInFlight;
 }
 
 /**
@@ -159,6 +216,8 @@ export async function deactivatePushToken(userId: string): Promise<void> {
       .eq('user_id', userId)
       .eq('push_token', cachedPushToken);
     cachedPushToken = null;
+    lastRegisteredUserId = null;
+    lastRegisteredDevicePushTokenKey = null;
   } catch {
     // Non-fatal
   }

@@ -39,6 +39,50 @@ test('Bible browser exposes a search input that drives the deferred query', () =
   );
 });
 
+test('Bible browser debounces full-text search requests and ignores stale completions', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /BIBLE_SEARCH_DEBOUNCE_MS/,
+    'BibleBrowserScreen should use a shared debounce window before issuing SQLite-backed full-text searches'
+  );
+
+  assert.match(
+    source,
+    /setTimeout\(/,
+    'BibleBrowserScreen should debounce full-text search requests instead of starting a database query on every keystroke'
+  );
+
+  assert.match(
+    source,
+    /searchRequestIdRef/,
+    'BibleBrowserScreen should track the latest search request so stale async completions do not overwrite newer results'
+  );
+
+  assert.match(
+    source,
+    /requestId === searchRequestIdRef\.current/,
+    'BibleBrowserScreen should ignore outdated async search completions once a newer query has started'
+  );
+});
+
+test('Bible browser shows a dedicated message when the selected translation does not support full-text search', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /BibleSearchUnavailableError/,
+    'BibleBrowserScreen should distinguish unsupported full-text search from generic load failures'
+  );
+
+  assert.match(
+    source,
+    /t\('bible\.searchUnavailable'\)/,
+    'BibleBrowserScreen should show a dedicated unsupported-search message when the current translation lacks full-text search'
+  );
+});
+
 test('Bible browser handles all three search intent kinds in the render tree', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 
@@ -56,23 +100,50 @@ test('Bible browser handles all three search intent kinds in the render tree', (
 });
 
 test('Bible browser gates audio controls behind getAudioAvailability', () => {
-  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+  const source = readRelativeSource('./TranslationPickerList.tsx');
 
   assert.equal(
     source.includes('getAudioAvailability'),
     true,
-    'BibleBrowserScreen must use getAudioAvailability to resolve audio state'
+    'TranslationPickerList must use getAudioAvailability to resolve shared audio state'
   );
 
   assert.equal(
     source.includes('canManageAudio'),
     true,
-    'BibleBrowserScreen should only render audio management controls when canManageAudio is true'
+    'TranslationPickerList should only render audio management controls when canManageAudio is true'
   );
 
   assert.equal(
     source.includes('canDownloadAudio'),
     true,
-    'BibleBrowserScreen should check canDownloadAudio before enabling download actions'
+    'TranslationPickerList should check canDownloadAudio before enabling download actions'
+  );
+});
+
+test('Bible browser translation selector is delegated to the shared picker', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes('TranslationPickerList'),
+    true,
+    'BibleBrowserScreen should delegate the selector UI to TranslationPickerList so Bible and Settings stay aligned'
+  );
+});
+
+test('Bible browser and settings translation screens share the same picker implementation', () => {
+  const bibleSource = readRelativeSource('./BibleBrowserScreen.tsx');
+  const settingsSource = readRelativeSource('../more/TranslationBrowserScreen.tsx');
+
+  assert.equal(
+    bibleSource.includes('TranslationPickerList'),
+    true,
+    'BibleBrowserScreen should render the shared TranslationPickerList so its behavior stays aligned with Settings'
+  );
+
+  assert.equal(
+    settingsSource.includes('TranslationPickerList'),
+    true,
+    'TranslationBrowserScreen should render the shared TranslationPickerList so its behavior stays aligned with Bible'
   );
 });

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import * as FileSystem from 'expo-file-system/legacy';
 import { zustandStorage } from './mmkvStorage';
 import { bibleBooks, config, getBookById } from '../constants';
 import type {
@@ -18,6 +19,7 @@ import {
   fetchRemoteChapterAudio,
   getAudioAvailability,
   isRemoteAudioAvailable,
+  syncRemoteAudioMetadataResolverWithTranslations,
   type AudioDownloadJobRecord,
 } from '../services/audio';
 import { setBibleDatabaseSourceResolver } from '../services/bible/bibleDatabase';
@@ -32,6 +34,10 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
+import {
+  mergeRuntimeCatalogTranslations,
+  reconcileMissingRuntimeTranslationPacks,
+} from './bibleStoreModel';
 
 interface BibleState {
   currentBook: string;
@@ -58,6 +64,7 @@ interface BibleState {
   // Translation actions
   setCurrentTranslation: (translationId: string) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
+  reconcileTranslationPacks: () => Promise<void>;
   reattachAudioDownloads: () => Promise<void>;
   stageTranslationPack: (
     translationId: string,
@@ -71,6 +78,7 @@ interface BibleState {
   downloadTranslation: (translationId: string, bookId?: string) => Promise<void>;
   downloadAllBooks: (translationId: string) => Promise<void>;
   downloadAudioForBook: (translationId: string, bookId: string) => Promise<void>;
+  downloadAudioForBooks: (translationId: string, bookIds: string[]) => Promise<void>;
   downloadAudioForTranslation: (translationId: string) => Promise<void>;
   cancelDownload: () => void;
   deleteTranslation: (translationId: string) => void;
@@ -220,47 +228,48 @@ export const useBibleStore = create<BibleState>()(
       },
 
       applyRuntimeCatalog: (runtimeTranslations) => {
+        let nextTranslationsSnapshot: BibleTranslation[] = [];
+
         set((state) => {
           const existingTranslationsById = new Map(
             state.translations.map((translation) => [translation.id, translation])
           );
-          const seededTranslations = state.translations.filter(
-            (translation) => translation.source !== 'runtime'
-          );
-          const nextTranslations = [
-            ...seededTranslations,
-            ...runtimeTranslations
-              .filter((translation) => translation.source === 'runtime')
-              .map((translation) => {
-                const existing = existingTranslationsById.get(translation.id);
+          const nextRuntimeTranslations = runtimeTranslations
+            .filter((translation) => translation.source === 'runtime')
+            .map((translation) => {
+              const existing = existingTranslationsById.get(translation.id);
 
-                return {
-                  ...translation,
-                  isDownloaded: translation.isDownloaded || existing?.isDownloaded === true,
-                  downloadedBooks:
-                    translation.downloadedBooks.length > 0
-                      ? translation.downloadedBooks
-                      : existing?.downloadedBooks ?? [],
-                  downloadedAudioBooks:
-                    translation.downloadedAudioBooks.length > 0
-                      ? translation.downloadedAudioBooks
-                      : existing?.downloadedAudioBooks ?? [],
-                  installState: existing?.installState ?? translation.installState,
-                  activeTextPackVersion:
-                    existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
-                  pendingTextPackVersion:
-                    existing?.pendingTextPackVersion ?? translation.pendingTextPackVersion,
-                  pendingTextPackLocalPath:
-                    existing?.pendingTextPackLocalPath ?? translation.pendingTextPackLocalPath,
-                  textPackLocalPath: existing?.textPackLocalPath ?? translation.textPackLocalPath,
-                  rollbackTextPackVersion:
-                    existing?.rollbackTextPackVersion ?? translation.rollbackTextPackVersion,
-                  rollbackTextPackLocalPath:
-                    existing?.rollbackTextPackLocalPath ?? translation.rollbackTextPackLocalPath,
-                  lastInstallError: existing?.lastInstallError ?? translation.lastInstallError,
-                };
-              }),
-          ];
+              return {
+                ...translation,
+                isDownloaded: translation.isDownloaded || existing?.isDownloaded === true,
+                downloadedBooks:
+                  translation.downloadedBooks.length > 0
+                    ? translation.downloadedBooks
+                    : existing?.downloadedBooks ?? [],
+                downloadedAudioBooks:
+                  translation.downloadedAudioBooks.length > 0
+                    ? translation.downloadedAudioBooks
+                    : existing?.downloadedAudioBooks ?? [],
+                installState: existing?.installState ?? translation.installState,
+                activeTextPackVersion:
+                  existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
+                pendingTextPackVersion:
+                  existing?.pendingTextPackVersion ?? translation.pendingTextPackVersion,
+                pendingTextPackLocalPath:
+                  existing?.pendingTextPackLocalPath ?? translation.pendingTextPackLocalPath,
+                textPackLocalPath: existing?.textPackLocalPath ?? translation.textPackLocalPath,
+                rollbackTextPackVersion:
+                  existing?.rollbackTextPackVersion ?? translation.rollbackTextPackVersion,
+                rollbackTextPackLocalPath:
+                  existing?.rollbackTextPackLocalPath ?? translation.rollbackTextPackLocalPath,
+                lastInstallError: existing?.lastInstallError ?? translation.lastInstallError,
+              };
+            });
+          const nextTranslations = mergeRuntimeCatalogTranslations(
+            state.translations,
+            nextRuntimeTranslations
+          );
+          nextTranslationsSnapshot = nextTranslations;
           const nextTranslationIds = new Set(
             nextTranslations.map((translation) => translation.id)
           );
@@ -272,6 +281,46 @@ export const useBibleStore = create<BibleState>()(
               : 'bsb',
           };
         });
+
+        syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
+      },
+
+      reconcileTranslationPacks: async () => {
+        const runtimeTranslations = get().translations.filter(
+          (translation) => translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
+        );
+
+        if (runtimeTranslations.length === 0) {
+          return;
+        }
+
+        const missingTranslationIds = new Set<string>();
+
+        await Promise.all(
+          runtimeTranslations.map(async (translation) => {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(translation.textPackLocalPath ?? '');
+
+              if (!fileInfo.exists) {
+                missingTranslationIds.add(translation.id);
+              }
+            } catch {
+              missingTranslationIds.add(translation.id);
+            }
+          })
+        );
+
+        if (missingTranslationIds.size === 0) {
+          return;
+        }
+
+        set((state) =>
+          reconcileMissingRuntimeTranslationPacks(
+            state.translations,
+            state.currentTranslation,
+            missingTranslationIds
+          )
+        );
       },
 
       reattachAudioDownloads: async () => {
@@ -442,6 +491,7 @@ export const useBibleStore = create<BibleState>()(
                 : t
             ),
           }));
+          throw err instanceof Error ? err : new Error(message);
         }
       },
 
@@ -503,10 +553,15 @@ export const useBibleStore = create<BibleState>()(
         }));
       },
 
-      downloadAudioForTranslation: async (translationId: string) => {
+      downloadAudioForBooks: async (translationId: string, bookIds: string[]) => {
         const translation = get().translations.find((item) => item.id === translationId);
         if (!translation?.hasAudio) {
           throw new Error('Audio downloads are not available for this translation.');
+        }
+
+        const selectedBooks = bibleBooks.filter((book) => bookIds.includes(book.id));
+        if (selectedBooks.length === 0) {
+          throw new Error('Audio downloads are not available for the selected books.');
         }
 
         const jobStore = await createAudioDownloadJobStore({
@@ -526,7 +581,7 @@ export const useBibleStore = create<BibleState>()(
         const result = await downloadAudioTranslation({
           rootUri: AUDIO_DOWNLOAD_ROOT_URI,
           translationId,
-          books: bibleBooks,
+          books: selectedBooks,
           fileSystem: expoAudioFileSystemAdapter,
           resolveRemoteAudio: fetchRemoteChapterAudio,
           jobStore,
@@ -553,6 +608,13 @@ export const useBibleStore = create<BibleState>()(
           ),
           downloadProgress: null,
         }));
+      },
+
+      downloadAudioForTranslation: async (translationId: string) => {
+        await get().downloadAudioForBooks(
+          translationId,
+          bibleBooks.map((book) => book.id)
+        );
       },
 
       cancelDownload: () => {
@@ -642,3 +704,5 @@ setBibleDatabaseSourceResolver((translationId) => {
 
   return buildInstalledBibleDatabaseSource(translation.id, translation.textPackLocalPath);
 });
+
+syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);

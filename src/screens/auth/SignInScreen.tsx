@@ -19,6 +19,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import {
+  getCurrentSession,
   isSilentAuthError,
   resetPassword,
   signInWithApple,
@@ -38,7 +39,7 @@ export function SignInScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const setUser = useAuthStore((state) => state.setUser);
+  const setSession = useAuthStore((state) => state.setSession);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,8 +47,15 @@ export function SignInScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const finishSignIn = async (user: NonNullable<AuthResult['user']>) => {
-    setUser(user);
+  const finishSignIn = async () => {
+    const { session } = await getCurrentSession();
+
+    if (!session) {
+      Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
+      return;
+    }
+
+    setSession(session);
     await pullFromCloud();
     navigation.getParent()?.goBack();
   };
@@ -86,7 +94,7 @@ export function SignInScreen() {
     try {
       const result = await signInWithEmail(email, password);
       if (result.success && result.user) {
-        await finishSignIn(result.user);
+        await finishSignIn();
       } else {
         showAuthFailure(result, t('auth.checkCredentials'));
       }
@@ -102,7 +110,7 @@ export function SignInScreen() {
     try {
       const result = await signInWithApple();
       if (result.success && result.user) {
-        await finishSignIn(result.user);
+        await finishSignIn();
       } else {
         showAuthFailure(result, t('auth.appleSignInFailed'));
       }
@@ -118,7 +126,7 @@ export function SignInScreen() {
     try {
       const result = await signInWithGoogle();
       if (result.success && result.user) {
-        await finishSignIn(result.user);
+        await finishSignIn();
       } else {
         showAuthFailure(result, t('auth.googleSignInFailed'));
       }

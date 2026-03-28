@@ -112,6 +112,7 @@ export const es = {
     available: 'Disponible',
     translationComingSoon: '{{name}} estará disponible para descargar en una actualización futura.',
     failedToLoad: 'No pudimos cargar este capítulo en este momento.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} aún no tiene texto escrito.',
     fullBibleComingSoon:
       'Este capítulo no está disponible en texto en este momento. Si hay audio disponible, Every Bible abrirá la experiencia auditiva.',
@@ -128,6 +129,18 @@ export const es = {
     addToQueue: 'Agregar a la cola',
     downloadBookAudio: 'Descargar audio del libro',
     shareChapterReference: 'Compartir referencia del capítulo',
+    chapterFeedback: 'Comentarios del capítulo',
+    chapterFeedbackTitle: 'Comparte comentarios sobre este capítulo',
+    chapterFeedbackBody:
+      'Cuéntanos si este capítulo fue útil o qué podría mejorar. Los comentarios son opcionales.',
+    chapterFeedbackThumbsUp: 'Útil',
+    chapterFeedbackThumbsDown: 'Necesita mejoras',
+    chapterFeedbackPlaceholder: 'Comentario opcional sobre este capítulo',
+    chapterFeedbackSubmit: 'Enviar comentario',
+    chapterFeedbackSuccess: 'Gracias. Tus comentarios se enviaron.',
+    chapterFeedbackSavedFallback:
+      'Gracias. Tus comentarios se guardaron y se exportarán para revisión pronto.',
+    chapterFeedbackSignInRequired: 'Inicia sesión antes de enviar comentarios sobre el capítulo.',
     books: {
       GEN: 'Génesis',
       EXO: 'Éxodo',
@@ -238,6 +251,9 @@ export const es = {
     notifications: 'Notificaciones',
     dailyReminder: 'Recordatorio diario',
     reminderTime: 'Hora del recordatorio',
+    chapterFeedback: 'Comentarios del capítulo',
+    chapterFeedbackSummaryOn: 'Los comentarios opcionales del capítulo están activados',
+    chapterFeedbackSummaryOff: 'Los comentarios opcionales del capítulo están desactivados',
     notSet: 'No establecido',
     data: 'Datos',
     downloadOffline: 'Descargar sin conexión',

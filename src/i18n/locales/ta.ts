@@ -103,6 +103,7 @@ export const ta = {
     available: 'கிடைக்கும்',
     translationComingSoon: 'எதிர்கால புதுப்பிப்பில் {{name}} பதிவிறக்கம் செய்யப்படும்.',
     failedToLoad: 'எங்களால் இந்த அத்தியாயத்தை இப்போது ஏற்ற முடியவில்லை.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} இல் இன்னும் எழுதப்பட்ட உரை இல்லை.',
     fullBibleComingSoon: 'இந்த அத்தியாயம் இப்போது உரையில் இல்லை. ஆடியோ இருந்தால், Every Bible கேட்கும் அனுபவத்தைத் திறக்கும்.',
     audioOnlyTitle: 'ஆடியோ-முதல் அத்தியாயம்',

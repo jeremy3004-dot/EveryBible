@@ -112,6 +112,7 @@ export const en = {
     available: 'Available',
     translationComingSoon: '{{name}} will be available for download in a future update.',
     failedToLoad: 'We could not load this chapter right now.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon:
       'This chapter is not available in text right now. If audio is available, Every Bible will open the listening experience instead.',
@@ -128,6 +129,18 @@ export const en = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    chapterFeedback: 'Chapter feedback',
+    chapterFeedbackTitle: 'Share feedback about this chapter',
+    chapterFeedbackBody:
+      'Tell us if this chapter was helpful or what could be improved. Comments are optional.',
+    chapterFeedbackThumbsUp: 'Helpful',
+    chapterFeedbackThumbsDown: 'Needs work',
+    chapterFeedbackPlaceholder: 'Optional comment about this chapter',
+    chapterFeedbackSubmit: 'Send feedback',
+    chapterFeedbackSuccess: 'Thanks. Your feedback was sent.',
+    chapterFeedbackSavedFallback:
+      'Thanks. Your feedback was saved and will be exported for review shortly.',
+    chapterFeedbackSignInRequired: 'Please sign in before sending chapter feedback.',
     books: {
       GEN: 'Genesis',
       EXO: 'Exodus',
@@ -238,6 +251,9 @@ export const en = {
     notifications: 'Notifications',
     dailyReminder: 'Daily Reminder',
     reminderTime: 'Reminder Time',
+    chapterFeedback: 'Chapter feedback',
+    chapterFeedbackSummaryOn: 'Optional chapter feedback is on',
+    chapterFeedbackSummaryOff: 'Optional chapter feedback is off',
     notSet: 'Not set',
     data: 'Data',
     downloadOffline: 'Download for Offline',

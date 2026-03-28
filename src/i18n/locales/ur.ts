@@ -103,6 +103,7 @@ export const ur = {
     available: 'دستیاب ہے۔',
     translationComingSoon: '{{name}} مستقبل کے اپ ڈیٹ میں ڈاؤن لوڈ کے لیے دستیاب ہوگا۔',
     failedToLoad: 'ہم ابھی اس باب کو لوڈ نہیں کر سکے۔',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} کے پاس ابھی تک کوئی تحریری متن موجود نہیں ہے۔',
     fullBibleComingSoon: 'یہ باب ابھی متن میں دستیاب نہیں ہے۔ اگر آڈیو دستیاب ہے تو اس کی بجائے Every Bible سننے کا تجربہ کھول دے گا۔',
     audioOnlyTitle: 'آڈیو پہلا باب',

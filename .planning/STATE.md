@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: In Progress
-stopped_at: Completed 32-01-PLAN.md (Deep link parser, linking config, share action upgrade, 3 tasks, 10 files)
-last_updated: "2026-03-25T03:37:00Z"
+stopped_at: Phase 33 backend secrets/migration/function deployed; release/push now blocked on Google Sheets API enablement and share confirmation
+last_updated: "2026-03-27T08:55:12Z"
 progress:
   total_phases: 34
   completed_phases: 23
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 31 — push-notification-implementation (Phase 30 all 3 plans complete)
+**Current focus:** Phase 33 — chapter-feedback-and-review-pipeline (plans 01-03 complete, plan 04 pending release/push prerequisites)
 
 ## Current Position
 
-Phase: 30 (animated-chapter-swipe-and-reader-gestures) — COMPLETE (all 3 plans)
-Phase: 31 (push-notification-implementation) — NEXT
+Phase: 32 (bible-verse-deep-linking) — COMPLETE
+Phase: 33 (chapter-feedback-and-review-pipeline) — IN PROGRESS (plans 01-03 complete, 04 pending)
 
 ## Performance Metrics
 
@@ -109,6 +109,11 @@ Recent decisions affecting current work:
 - [Phase 28]: Use expo-file-system/legacy for cloudTranslationService filesystem ops; new v2 API does not expose documentDirectory on its top-level namespace
 - [Phase 28]: Fetch Supabase bible_verses in pages of 5000 to respect free-tier response size limits
 - [Phase 28]: Dynamic import() of cloudTranslationService in bibleStore to keep bundled-only app startup lean
+- [Phase 28 regression hardening]: Do not expose runtime translations from `translation_catalog` unless the normalized translation ID resolves to a current `translation_versions` row with real verse coverage
+- [Phase 28 regression hardening]: Only mark `translation_catalog.is_available` true after verse rows and `translation_versions` upsert successfully; failed imports must not leave picker-visible orphan rows
+- [Phase 28 regression hardening]: Preserve seeded runtime translations as `source: runtime` and merge persisted remote metadata on rehydrate so valid cloud-backed Hindi/Nepali entries do not fall back to bundled placeholders after restart
+- [Phase 28 regression hardening]: Hide unreadable runtime placeholder rows while the picker is hydrating the runtime catalog so fresh launches do not briefly label installable translations as coming soon
+- [Phase 28 regression hardening]: Resolve Expo's Babel preset through the installed Expo package path so Reanimated-enabled release bundles succeed in `expo export:embed` and Release iOS builds
 - [Phase 29-mmkv-state-persistence-upgrade]: Pin react-native-mmkv to 2.12.2 (no caret) — prevents accidental v3 install which requires New Architecture and crashes on newArchEnabled=false builds
 - [Phase 29-mmkv-state-persistence-upgrade]: Use dynamic require() in migrateFromAsyncStorage for native deps so STORE_KEYS and migrateStoreKeys can be imported in Node test runner without native module resolution
 - [Phase 29-mmkv-state-persistence-upgrade P02]: QueryClientProvider placed as outermost provider in App() — wraps all other providers so future useQuery hooks work regardless of which provider tree they sit in
@@ -124,13 +129,26 @@ Recent decisions affecting current work:
 - [Phase 31-push-notification-implementation P02]: Cache push token in module-level cachedPushToken variable — avoids async Supabase read in sign-out path and keeps deactivatePushToken gate-able without a round-trip
 - [Phase 31-push-notification-implementation P02]: Fire-and-forget group notification uses void IIFE with internal try/catch — enables awaiting getCurrentUserId() inside without leaking an async promise to recordSyncedGroupSession's caller
 - [Phase 31-push-notification-implementation P02]: Edge Function fetches group name from groups table internally — keeps recordSyncedGroupSession API stable (no groupName param added), avoids a breaking API change
+- [Phase 31 crash sweep 2026-03-27]: Forward the `addPushTokenListener` device token into `registerPushToken` and reuse the cached registration for the same signed-in user after a successful sync — avoids re-entering Expo's device-token lookup from the refresh callback while keeping auth-time registration and sign-out deactivation intact
+- [Phase 31 crash sweep 2026-03-27]: Stop forcing bundled BSB SQLite opens through a cached Expo directory path and probe the bundled asset through SQLite directly — fixes the connected-iPhone `Could not open database` startup/search failure and keeps verse-of-the-day reads on the live device
+- [Phase 3 crash sweep 2026-03-27]: BibleBrowserScreen full-text search now waits 250ms and ignores stale async completions — reduces rapid-typing SQLite churn on device and guards against search-screen freezes after the bundled DB repair
+- [Phase 3/28 crash sweep 2026-03-27]: Non-FTS downloaded translations now throw `BibleSearchUnavailableError` instead of scanning `verses.text LIKE '%query%'`, and BibleBrowserScreen surfaces `bible.searchUnavailable` for that path — removes the last known CPU-heavy search fallback tied to the historical build 176 `cpu_resource` report while preserving reference navigation and bundled-FTS search
+- [Phase 29/31 crash sweep 2026-03-27]: syncService now lazy-loads progressStore and bibleStore inside async sync paths — removes the Metro `progressStore -> syncService` require-cycle warning on connected-iPhone relaunch smoke without changing sync behavior
+- [Phase 30/reader regression hardening 2026-03-27]: Reader session-mode persistence and live-transcript retention regressions are now covered by `bibleReaderModel.test.ts` and `bibleReaderChromeSource.test.ts`, and both suites are included in `npm run test:release`
+- [Phase 28 translation picker regression 2026-03-27]: TranslationPickerList now dismisses the sheet only after a translation is actually activated; runtime translations that still need a text-pack download keep the picker open so install progress remains visible and the user can leave manually later
+- [Phase 28 translation download rollback fix 2026-03-27]: Cloud text-pack installs now write verse batches through `withExclusiveTransactionAsync(txn)` instead of the non-exclusive Expo `withTransactionAsync` helper — avoids the iOS/native `execAsync -> cannot rollback - no transaction is active` failure that surfaced while selecting a runtime translation to download
 - [Phase 32-bible-verse-deep-linking P01]: Extract buildBibleNavState as pure function separate from linkingConfig so Node.js test runner can test routing logic without expo-linking/react-native dependency
 - [Phase 32-bible-verse-deep-linking P01]: Derive SLUG_TO_BOOK_ID from bibleBooks array at module scope — single source of truth, no hardcoded slug map
 - [Phase 32-bible-verse-deep-linking P01]: Add psalm alias to SLUG_TO_BOOK_ID (Psalms canonical name but users expect singular form)
+- [Phase 33-chapter-feedback-and-review-pipeline]: Keep chapter feedback opt-in and route it through the existing chapter overflow instead of adding persistent thumbs to the reader chrome
+- [Phase 33-chapter-feedback-and-review-pipeline]: Emit `chapter_feedback_opened`, `chapter_feedback_submitted`, and `chapter_feedback_failed` analytics events with translation/chapter context so the funnel is observable
+- [Phase 33-chapter-feedback-and-review-pipeline]: Save feedback rows in Supabase first and treat Google Sheets export as a recoverable operator sink with degraded-success support
 
 ### Pending Todos
 
 - Manual device verification for Phase 05.1 WEB audio translation selection, download, and offline playback behavior
+- Manual device verification that Select Translation stays open while a runtime Bible text pack downloads and still dismisses normally after an actual translation activation
+- Manual device verification that runtime text-pack downloads no longer surface the SQLite rollback alert during install on the connected iPhone
 - Manual verification for typed references like `John 3:16`, `1 Cor 13`, and `Luke 10:5-7, 10-11` from the Bible surface
 - Manual verification for ChapterSelector and BibleBrowser FlashList behavior on device, especially scroll feel and layout stability
 - Manual verification for the Reading Activity screen from More/Profile, including marked days and selected-day detail behavior
@@ -151,6 +169,7 @@ Recent decisions affecting current work:
 - Manual device verification for the new Phase 12 professional design system, especially tab-bar fit, card density, and title hierarchy across Home, Bible, Learn, More, Profile, and Reading Activity
 - Manual device verification for the new Phase 12.1 premium read-mode chrome, especially scroll-collapse timing, glass legibility, and safe-area fit on smaller iPhones
 - Manual device verification that built-in BSB audio still streams, downloads, switches cleanly from an already-playing WEB chapter, and plays offline correctly after the direct-source swap away from Bible.is
+- Longer on-device soak for the Phase 31 notification registration path across sign-in, relaunch, and token-refresh conditions; 2026-03-27 smoke coverage found no new EveryBible crash reports after the listener/device-token fix
 - Plan 13-02: replace the older local BSB text refresh path with an official Berean download/import pipeline and regenerate bundled BSB artifacts from first-party files
 - Phase 30 all manual device verifications COMPLETE (swipe left/right, scroll-collapse, gesture conflict, audio sync, Follow Along spring modal — all 7 checks passed)
 
@@ -183,6 +202,7 @@ Recent decisions affecting current work:
 - Phase 30 added: Animated Chapter Swipe and Reader Gestures — swipe navigation + scroll-driven header collapse using rn-reanimated
 - Phase 31 added: Push Notification Implementation — complete APNs/FCM setup, token registration, daily reading reminders, group alerts
 - Phase 32 added: Bible Verse Deep Linking — everybible://bible/john/3/16 deep link scheme + share verse functionality
+- Phase 33 added: Chapter Feedback And Review Pipeline — opt-in thumbs up/down plus optional written chapter feedback routed into Supabase and spreadsheet review ops
 
 ### Blockers/Concerns
 
@@ -192,6 +212,8 @@ Recent decisions affecting current work:
 - Phase 4 still needs manual device validation for Harvest-tab navigation, local-vs-synced group flows, and synced session completion
 - Signed builds, device checks, and distribution attachment still need manual verification before the milestone can be called shipped
 - Phase 05.1 now uses direct eBible.org WEB audio and still needs manual device verification for in-app download/offline playback behavior
+- Phase 28 regression hardening passed warm-state simulator smoke, clean-install Maestro smoke, and local iOS production/TestFlight release verification. App Store Connect now shows build `175` (`6dc62699-0c6d-4bd0-8eb6-264ca8eda9e9`) as `VALID`, attached to the `Internal Testers` group and directly to `curryj@protonmail.com`. Remaining manual work is the end-to-end on-device download/install/offline reopen check on TestFlight hardware.
+- 2026-03-27 connected-iPhone crash sweep has now fixed three concrete regressions: Expo notification token refresh re-registration, bundled BSB SQLite opens using a forced directory path, and the non-FTS downloaded-translation `%query%` search scan. Current smoke runs show no new EveryBible crash reports, no recurring `Could not open database` startup failure, and no remaining known CPU-heavy full-text fallback; remaining confidence gaps are longer real-device soak coverage plus manual device confirmation of the new unsupported-search message on installed translations.
 - Phase 6 adds new dependencies (`@shopify/flash-list`, `react-native-calendars`, `bible-passage-reference-parser`) that need verification against current Expo / React Native runtime behavior
 - Dwell-style follow-along text currently uses weighted progress estimation because the current audio layer does not expose uniform verse-level timing metadata
 - Phases 8 to 10 ship with local-first seeded metadata and companion content; any future backend source now needs only to implement the existing contracts rather than redefining the UI layer
@@ -201,6 +223,8 @@ Recent decisions affecting current work:
 - Phase 12.1 depends on a credible React Native approximation of Apple's liquid-glass feel; Expo blur and motion tuning must improve the experience without making controls unreadable or brittle on device
 - Phase 12.1 is now in TestFlight as App Store Connect build `100` (`aa288850-2023-4ff4-817f-a071af783fd1`), with `processingState=VALID`, `group_has_build=true`, and `tester_has_build=true` for `curryj@protonmail.com`
 - Phase 13 still needs device QA for BSB translation-switch handoff, download, and offline playback after the direct-source provider swap, and plan 02 still needs to replace the older local BSB text refresh path with official Berean downloads
+- Supabase evidence sweep confirms `bible-audio` objects are present and publicly readable, but the live bucket still serves BSB `.m4a` files with `Cache-Control: no-cache`, and the bucket config has drifted from the migration's MIME/size guardrails. This looks like backend performance debt, not the current iPhone crash root cause.
+- Phase 33 plans 01-03 are complete locally and the remote backend has now been provisioned: the secrets were set on Supabase, migration `create_chapter_feedback_pipeline` was applied to project `ganmududzdzpruvdulkg`, and the `submit-chapter-feedback` Edge Function was deployed. The remaining blocker before plan 04 ship work is Google-side: the Sheets API is still disabled for project `every-bible-485319`, and spreadsheet sharing to `sheets-writer@every-bible-485319.iam.gserviceaccount.com` still needs confirmation once the API is enabled
 
 ### Quick Tasks Completed
 
@@ -213,6 +237,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-25T03:37:00Z
-Stopped at: Completed 32-01-PLAN.md (Deep link parser, linking config, share action upgrade, 3 tasks, 10 files)
+Last session: 2026-03-26T13:20:00Z
+Stopped at: Phase 28 regression hardening follow-up complete (catalog integrity, runtime placeholder persistence, release bundle verification)
 Resume file: None

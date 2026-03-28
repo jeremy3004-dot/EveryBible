@@ -134,6 +134,39 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
+test('sanitizePersistedBibleState keeps seeded runtime translations aligned with persisted runtime metadata', () => {
+  const sanitized = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'hincv',
+        name: 'Hindi Contemporary Version Bible',
+        abbreviation: 'HCV',
+        language: 'Hindi',
+        description: 'Hindi remote catalog entry',
+        copyright: 'Public Domain',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 4.5,
+        hasText: true,
+        hasAudio: false,
+        audioGranularity: 'none',
+        source: 'runtime',
+        installState: 'remote-only',
+      },
+    ],
+  });
+
+  const hincv = sanitized.translations.find((translation) => translation.id === 'hincv');
+
+  assert.ok(hincv);
+  assert.equal(hincv.source, 'runtime');
+  assert.equal(hincv.hasText, true);
+  assert.equal(hincv.description, 'Hindi remote catalog entry');
+  assert.equal(hincv.installState, 'remote-only');
+});
+
 test('sanitizePersistedBibleState falls back when runtime translation is not locally readable', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'NIV',
@@ -256,14 +289,22 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
       contentLanguageName: 'English',
       contentLanguageNativeName: '',
       onboardingCompleted: 'yes',
+      chapterFeedbackEnabled: 'sometimes',
       notificationsEnabled: true,
       reminderTime: '9am',
     },
   });
 
-  assert.equal(sanitized.user?.uid, 'user-1');
-  assert.equal(sanitized.user?.email, null);
-  assert.equal(sanitized.isAuthenticated, true);
+  assert.equal(
+    sanitized.user,
+    null,
+    'Persisted auth identity should not be restored without a live Supabase session'
+  );
+  assert.equal(
+    sanitized.isAuthenticated,
+    false,
+    'Persisted auth flags should stay signed out until the live session is rehydrated'
+  );
   assert.equal(sanitized.preferences.fontSize, defaultAuthPreferences.fontSize);
   assert.equal(sanitized.preferences.theme, defaultAuthPreferences.theme);
   assert.equal(sanitized.preferences.language, defaultAuthPreferences.language);
@@ -273,8 +314,34 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.contentLanguageName, 'English');
   assert.equal(sanitized.preferences.contentLanguageNativeName, null);
   assert.equal(sanitized.preferences.onboardingCompleted, false);
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
   assert.equal(sanitized.preferences.notificationsEnabled, true);
   assert.equal(sanitized.preferences.reminderTime, null);
+});
+
+test('sanitizePersistedAuthState defaults chapter feedback to false when the key is absent', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      fontSize: 'medium',
+      theme: 'dark',
+      language: 'en',
+      onboardingCompleted: true,
+      notificationsEnabled: false,
+      reminderTime: null,
+    },
+  });
+
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
+});
+
+test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      chapterFeedbackEnabled: true,
+    },
+  });
+
+  assert.equal(sanitized.preferences.chapterFeedbackEnabled, true);
 });
 
 test('sanitizePersistedAudioState keeps only supported playback settings', () => {

@@ -28,3 +28,13 @@ test('TabNavigator keeps the bottom tab bar flat instead of rounding its top cor
     'TabNavigator should not reintroduce a generic border radius on the shared bottom tab bar'
   );
 });
+
+test('TabNavigator freezes inactive tabs so Home, Bible, and Gather do not keep repainting off-screen', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /freezeOnBlur:\s*true/,
+    'TabNavigator should freeze inactive tabs to reduce lag while switching between Home, Bible, and Gather'
+  );
+});

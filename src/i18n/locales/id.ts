@@ -103,6 +103,7 @@ export const id = {
     available: 'Tersedia',
     translationComingSoon: '{{name}} akan tersedia untuk diunduh pada pembaruan mendatang.',
     failedToLoad: 'Kami tidak dapat memuat bab ini sekarang.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} belum memiliki teks tertulis.',
     fullBibleComingSoon: 'Bab ini tidak tersedia dalam bentuk teks saat ini. Jika audio tersedia, Every Bible akan membuka pengalaman mendengarkan.',
     audioOnlyTitle: 'Bab audio pertama',

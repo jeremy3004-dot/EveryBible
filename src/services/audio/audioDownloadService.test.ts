@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getBookById } from '../../constants/books';
+import { setRemoteAudioMetadataResolver } from './audioRemote';
 import {
   createAudioDownloadJobId,
   createAudioDownloadJobStore,
@@ -53,6 +54,10 @@ const createPersistentFileSystemDouble = () => {
 
   return { fileSystem, files };
 };
+
+test.afterEach(() => {
+  setRemoteAudioMetadataResolver(null);
+});
 
 test('createAudioDownloadJobId keeps book and translation download jobs distinct', () => {
   assert.equal(
@@ -162,6 +167,56 @@ test('getDownloadedChapterAudioUri returns a local file when it has been downloa
   assert.equal(localUri, fileUri);
 });
 
+test('getChapterAudioFileUri uses the configured remote audio file extension', () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'bsb') {
+      return null;
+    }
+
+    return {
+      id: 'bsb',
+      hasAudio: true,
+      fileExtension: 'm4a',
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'https://media.everybible.app/audio/bsb',
+        chapterPathTemplate: '{bookId}/{chapter}.m4a',
+      },
+    };
+  });
+
+  assert.equal(
+    getChapterAudioFileUri('bsb', 'JHN', 3),
+    'file:///everybible-audio/bsb/JHN/3.m4a'
+  );
+});
+
+test('getDownloadedChapterAudioUri falls back to legacy mp3 file names for existing downloads', async () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'bsb') {
+      return null;
+    }
+
+    return {
+      id: 'bsb',
+      hasAudio: true,
+      fileExtension: 'm4a',
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'https://media.everybible.app/audio/bsb',
+        chapterPathTemplate: '{bookId}/{chapter}.m4a',
+      },
+    };
+  });
+
+  const { fileSystem, files } = createFileSystemDouble();
+  files.add('file:///everybible-audio/bsb/JHN/3.mp3');
+
+  const localUri = await getDownloadedChapterAudioUri('bsb', 'JHN', 3, fileSystem);
+
+  assert.equal(localUri, 'file:///everybible-audio/bsb/JHN/3.mp3');
+});
+
 test('downloadAudioBook downloads each chapter once and creates the book directory', async () => {
   const { fileSystem, directories, downloads } = createFileSystemDouble();
   const philemon = getBookById('PHM');
@@ -185,6 +240,41 @@ test('downloadAudioBook downloads each chapter once and creates the book directo
     from: 'https://audio.test/PHM/1.mp3',
     to: getChapterAudioFileUri('bsb', 'PHM', 1),
   });
+});
+
+test('downloadAudioBook uses bounded concurrency instead of downloading chapters strictly serially', async () => {
+  const activeDownloads = new Set<string>();
+  let peakConcurrency = 0;
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => undefined,
+    fileExists: async () => false,
+    downloadFile: async (_from, to) => {
+      activeDownloads.add(to);
+      peakConcurrency = Math.max(peakConcurrency, activeDownloads.size);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeDownloads.delete(to);
+    },
+  };
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: {
+      id: 'TST',
+      name: 'Test Book',
+      abbreviation: 'Test',
+      testament: 'NT',
+      chapters: 6,
+      order: 999,
+    },
+    fileSystem,
+    resolveRemoteAudio: async (_translationId, bookId, chapter) => ({
+      url: `https://audio.test/${bookId}/${chapter}.m4a`,
+      duration: 1000,
+    }),
+  });
+
+  assert.ok(peakConcurrency > 1);
+  assert.ok(peakConcurrency <= 4);
 });
 
 test('downloadAudioTranslation returns every fully-downloaded book id in order', async () => {

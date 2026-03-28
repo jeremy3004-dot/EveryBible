@@ -112,6 +112,7 @@ export const ne = {
     available: 'उपलब्ध छ',
     translationComingSoon: '{{name}} भविष्यको अद्यावधिकमा डाउनलोडको लागि उपलब्ध हुनेछ।',
     failedToLoad: 'हामीले अहिले यो अध्याय लोड गर्न सकेनौं।',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} सँग अझै लेखिएको पाठ छैन।',
     fullBibleComingSoon:
       'यो अध्याय अहिले पाठमा उपलब्ध छैन। यदि अडियो उपलब्ध छ भने, Every Bible ले सुन्ने अनुभव खोल्नेछ।',
@@ -128,6 +129,18 @@ export const ne = {
     addToQueue: 'कतारमा थप्नुहोस्',
     downloadBookAudio: 'पुस्तक अडियो डाउनलोड गर्नुहोस्',
     shareChapterReference: 'अध्याय सन्दर्भ साझा गर्नुहोस्',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackTitle: 'यस अध्यायबारे प्रतिक्रिया साझा गर्नुहोस्',
+    chapterFeedbackBody:
+      'यो अध्याय उपयोगी थियो कि सुधार गर्नुपर्ने छ भने हामीलाई बताउनुहोस्। टिप्पणी वैकल्पिक छ।',
+    chapterFeedbackThumbsUp: 'उपयोगी',
+    chapterFeedbackThumbsDown: 'सुधार चाहिन्छ',
+    chapterFeedbackPlaceholder: 'यस अध्यायबारे वैकल्पिक टिप्पणी',
+    chapterFeedbackSubmit: 'प्रतिक्रिया पठाउनुहोस्',
+    chapterFeedbackSuccess: 'धन्यवाद। तपाईंको प्रतिक्रिया पठाइयो।',
+    chapterFeedbackSavedFallback:
+      'धन्यवाद। तपाईंको प्रतिक्रिया सुरक्षित भयो र चाँडै समीक्षा लागि निर्यात गरिनेछ।',
+    chapterFeedbackSignInRequired: 'अध्याय प्रतिक्रिया पठाउनुअघि कृपया साइन इन गर्नुहोस्।',
     books: {
       GEN: 'उत्पत्ति',
       EXO: 'प्रस्थान',
@@ -238,6 +251,9 @@ export const ne = {
     notifications: 'सूचनाहरू',
     dailyReminder: 'दैनिक रिमाइन्डर',
     reminderTime: 'रिमाइन्डर समय',
+    chapterFeedback: 'अध्याय प्रतिक्रिया',
+    chapterFeedbackSummaryOn: 'वैकल्पिक अध्याय प्रतिक्रिया सुरु गरिएको छ',
+    chapterFeedbackSummaryOff: 'वैकल्पिक अध्याय प्रतिक्रिया बन्द छ',
     notSet: 'सेट गरिएको छैन',
     data: 'डाटा',
     downloadOffline: 'अफलाइनको लागि डाउनलोड गर्नुहोस्',

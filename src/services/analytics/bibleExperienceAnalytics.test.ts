@@ -27,3 +27,29 @@ test('trackBibleExperienceEvent records events through the local-first analytics
     },
   ]);
 });
+
+test('trackBibleExperienceEvent keeps chapter feedback analytics payloads intact', () => {
+  resetTrackedBibleExperienceEvents();
+
+  trackBibleExperienceEvent({
+    name: 'chapter_feedback_submitted',
+    translationId: 'bsb',
+    bookId: 'JHN',
+    chapter: 3,
+    sentiment: 'down',
+    source: 'reader-feedback',
+    detail: 'saved-not-exported',
+  });
+
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_submitted',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'down',
+      source: 'reader-feedback',
+      detail: 'saved-not-exported',
+    },
+  ]);
+});

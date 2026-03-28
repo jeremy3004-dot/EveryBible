@@ -11,6 +11,8 @@ export {
 } from './translationService';
 export {
   bootstrapRuntimeTranslations,
+  ensureRuntimeCatalogLoaded,
+  hasRuntimeCatalogTranslations,
   reconcilePrimaryTranslationPreference,
   bootstrapRuntimeTranslationsAndPreferences,
 } from './runtimeTranslationBootstrap';

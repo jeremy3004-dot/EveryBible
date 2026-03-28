@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatReminderTimeDisplay,
+  getChapterFeedbackPreferenceSummary,
   isReminderTimeEditable,
   resolvePrivacyModeLabel,
 } from './settingsPreferenceModel';
@@ -69,4 +70,24 @@ test('reminder time row is not editable when notifications are disabled', () => 
 
 test('reminder time row is editable when notifications are enabled', () => {
   assert.equal(isReminderTimeEditable(true), true);
+});
+
+test('chapter feedback summary resolves the enabled copy when the setting is on', () => {
+  assert.equal(
+    getChapterFeedbackPreferenceSummary(true, {
+      enabledLabel: 'Optional chapter feedback is on',
+      disabledLabel: 'Optional chapter feedback is off',
+    }),
+    'Optional chapter feedback is on'
+  );
+});
+
+test('chapter feedback summary resolves the disabled copy when the setting is off', () => {
+  assert.equal(
+    getChapterFeedbackPreferenceSummary(false, {
+      enabledLabel: 'Optional chapter feedback is on',
+      disabledLabel: 'Optional chapter feedback is off',
+    }),
+    'Optional chapter feedback is off'
+  );
 });

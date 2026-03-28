@@ -70,6 +70,13 @@
 - **M2-CONTENT-01**: Book hubs can surface companion modules such as passages, devotionals, figures, plans, and playlists with graceful fallbacks
 - **M2-DESIGN-01**: User experiences a unified, professional visual system across the main app surfaces with consistent typography, spacing, color tokens, and component chrome
 
+### Content Quality Feedback
+
+- **FDBK-01**: User can enable or disable chapter feedback from Settings, and the feature is off by default for both new and existing installs
+- **FDBK-02**: When chapter feedback is enabled, user can send a thumbs up or thumbs down for the currently open chapter from the Bible reader
+- **FDBK-03**: User can optionally include written feedback about content issues or suggested improvements when submitting chapter feedback
+- **FDBK-04**: Each submission is stored with translation language, book, chapter, sentiment, and comment metadata, then mirrored into an ops-visible spreadsheet without losing the database source of truth
+
 ### Gather Tab (Waha-style Discovery Bible Study)
 
 - [x] **GATHER-01**: User sees a Gather tab (replacing Harvest) with Foundations and Topics sub-tabs across all 4 locales
@@ -123,6 +130,10 @@
 | M2-LIB-01 | Phase 9 | In verification |
 | M2-CONTENT-01 | Phase 10 | In verification |
 | M2-DESIGN-01 | Phase 12 | Planned |
+| FDBK-01 | Phase 33 | Planned |
+| FDBK-02 | Phase 33 | Planned |
+| FDBK-03 | Phase 33 | Planned |
+| FDBK-04 | Phase 33 | Planned |
 | GATHER-01 | Phase 22 | Planned |
 | GATHER-02 | Phase 22 | Planned |
 | GATHER-03 | Phase 22 | Planned |
@@ -133,8 +144,9 @@
 - v1 requirements: 25 total
 - Mapped to phases: 25
 - Unmapped: 0
+- Chapter feedback requirements: 4 total (Phase 33)
 - Gather requirements: 5 total (Phase 22)
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-23 after adding Phase 22 Gather Tab requirements (GATHER-01 through GATHER-05)*
+*Last updated: 2026-03-27 after adding Phase 33 chapter feedback requirements (FDBK-01 through FDBK-04)*

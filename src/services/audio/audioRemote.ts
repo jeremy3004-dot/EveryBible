@@ -97,6 +97,7 @@ type RemoteAudioMetadata = {
   id: string;
   hasAudio: boolean;
   audioGranularity?: BibleTranslation['audioGranularity'];
+  fileExtension?: string;
   audio?:
     | {
         strategy: 'provider';
@@ -122,8 +123,35 @@ type RemoteAudioMetadata = {
 
 export type RemoteAudioMetadataResolver = (translationId: string) => RemoteAudioMetadata | null;
 
-const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (translationId) => {
-  const translation = getTranslationById(translationId);
+function normalizeFileExtension(extension: string | null | undefined): string | undefined {
+  if (!extension) {
+    return undefined;
+  }
+
+  const normalized = extension.trim().replace(/^\./, '').toLowerCase();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function inferFileExtensionFromPath(path: string | null | undefined): string | undefined {
+  if (!path) {
+    return undefined;
+  }
+
+  const match = path.match(/\.([a-z0-9]+)(?:\?.*)?$/i);
+  return normalizeFileExtension(match?.[1]);
+}
+
+function buildRemoteAudioMetadataFromTranslation(
+  translation: Pick<
+    BibleTranslation,
+    | 'id'
+    | 'hasAudio'
+    | 'audioGranularity'
+    | 'audioProvider'
+    | 'audioFilesetId'
+    | 'catalog'
+  > | null
+): RemoteAudioMetadata | null {
   if (!translation) {
     return null;
   }
@@ -136,11 +164,62 @@ const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (transla
     };
   }
 
+  const catalogAudio = translation.catalog?.audio;
+  if (catalogAudio) {
+    if (catalogAudio.strategy === 'stream-template') {
+      return {
+        id: translation.id,
+        hasAudio: true,
+        audioGranularity: translation.audioGranularity,
+        fileExtension:
+          normalizeFileExtension(catalogAudio.fileExtension) ??
+          inferFileExtensionFromPath(catalogAudio.chapterPathTemplate),
+        audio: {
+          strategy: 'stream-template',
+          baseUrl: catalogAudio.baseUrl ?? '',
+          chapterPathTemplate: catalogAudio.chapterPathTemplate ?? '',
+        },
+      };
+    }
+
+    if (catalogAudio.strategy === 'provider') {
+      return {
+        id: translation.id,
+        hasAudio: true,
+        audioGranularity: translation.audioGranularity,
+        fileExtension:
+          normalizeFileExtension(catalogAudio.fileExtension) ??
+          (catalogAudio.provider === 'ebible-webbe' ? 'mp3' : undefined),
+        audio: {
+          strategy: 'provider',
+          provider: catalogAudio.provider,
+          filesetId: translation.audioFilesetId ?? undefined,
+        },
+      };
+    }
+
+    if (catalogAudio.strategy === 'audio-pack') {
+      return {
+        id: translation.id,
+        hasAudio: true,
+        audioGranularity: translation.audioGranularity,
+        fileExtension:
+          normalizeFileExtension(catalogAudio.fileExtension) ??
+          inferFileExtensionFromPath(catalogAudio.downloadUrl),
+        audio: {
+          strategy: 'audio-pack',
+          downloadUrl: catalogAudio.downloadUrl ?? '',
+        },
+      };
+    }
+  }
+
   if (translation.audioProvider) {
     return {
       id: translation.id,
       hasAudio: true,
       audioGranularity: translation.audioGranularity,
+      fileExtension: translation.audioProvider === 'ebible-webbe' ? 'mp3' : undefined,
       audio: {
         strategy: 'provider',
         provider: translation.audioProvider,
@@ -156,6 +235,7 @@ const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (transla
       id: translation.id,
       hasAudio: true,
       audioGranularity: translation.audioGranularity,
+      fileExtension: 'm4a',
       audio: {
         strategy: 'supabase-storage',
         extension: 'm4a',
@@ -168,7 +248,21 @@ const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (transla
     hasAudio: translation.hasAudio,
     audioGranularity: translation.audioGranularity,
   };
-};
+}
+
+export function createRemoteAudioMetadataResolverFromTranslations(
+  translations: readonly BibleTranslation[]
+): RemoteAudioMetadataResolver {
+  const translationsById = new Map(translations.map((translation) => [translation.id, translation]));
+
+  return (translationId) =>
+    buildRemoteAudioMetadataFromTranslation(
+      translationsById.get(translationId) ?? getTranslationById(translationId) ?? null
+    );
+}
+
+const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (translationId) =>
+  buildRemoteAudioMetadataFromTranslation(getTranslationById(translationId) ?? null);
 
 let remoteAudioMetadataResolver: RemoteAudioMetadataResolver = defaultRemoteAudioMetadataResolver;
 
@@ -177,6 +271,12 @@ export function setRemoteAudioMetadataResolver(
 ): void {
   remoteAudioMetadataResolver = resolver ?? defaultRemoteAudioMetadataResolver;
   audioUrlCache.clear();
+}
+
+export function syncRemoteAudioMetadataResolverWithTranslations(
+  translations: readonly BibleTranslation[]
+): void {
+  setRemoteAudioMetadataResolver(createRemoteAudioMetadataResolverFromTranslations(translations));
 }
 
 function getCacheKey(
@@ -195,6 +295,20 @@ function resolveRemoteAudioMetadata(translationId: string): RemoteAudioMetadata 
     console.warn('[Audio] Failed to resolve remote audio metadata:', error);
     return null;
   }
+}
+
+export function hasConfiguredTranslationAudio(translationId: string): boolean {
+  return Boolean(resolveRemoteAudioMetadata(translationId)?.hasAudio);
+}
+
+export function getConfiguredAudioGranularity(
+  translationId: string
+): NonNullable<BibleTranslation['audioGranularity']> {
+  return resolveRemoteAudioMetadata(translationId)?.audioGranularity ?? 'chapter';
+}
+
+export function getRemoteAudioFileExtension(translationId: string): string {
+  return resolveRemoteAudioMetadata(translationId)?.fileExtension ?? 'mp3';
 }
 
 function buildStreamTemplateAudioUrl(

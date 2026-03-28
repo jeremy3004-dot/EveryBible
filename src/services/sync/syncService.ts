@@ -1,7 +1,5 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
-import { useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
-import { useBibleStore } from '../../stores/bibleStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
 import {
   mergePreferences,
@@ -16,7 +14,11 @@ export interface SyncResult {
   merged?: boolean;
 }
 
-const getLocalReadingSnapshot = (): LocalReadingSnapshot => {
+const getLocalReadingSnapshot = async (): Promise<LocalReadingSnapshot> => {
+  const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
+    import('../../stores/progressStore'),
+    import('../../stores/bibleStore'),
+  ]);
   const progressState = useProgressStore.getState();
   const bibleState = useBibleStore.getState();
 
@@ -38,9 +40,14 @@ const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
   };
 };
 
-const applyMergedReadingState = (
+const applyMergedReadingState = async (
   mergedReading: ReturnType<typeof mergeReadingSnapshot>
-): void => {
+): Promise<void> => {
+  const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
+    import('../../stores/progressStore'),
+    import('../../stores/bibleStore'),
+  ]);
+
   useProgressStore.getState().applySyncedProgress(mergedReading.progress);
   useBibleStore.getState().applySyncedReadingPosition({
     bookId: mergedReading.readingPosition.bookId,
@@ -99,7 +106,7 @@ export const syncProgress = async (): Promise<SyncResult> => {
     return profileResult;
   }
 
-  const localState = getLocalReadingSnapshot();
+  const localState = await getLocalReadingSnapshot();
 
   try {
     const { data, error: fetchError } = await supabase
@@ -116,7 +123,7 @@ export const syncProgress = async (): Promise<SyncResult> => {
     const mergedReading = mergeReadingSnapshot(localState, remoteData);
 
     if (mergedReading.changed) {
-      applyMergedReadingState(mergedReading);
+      await applyMergedReadingState(mergedReading);
     }
 
     const { error: upsertError } = await supabase.from('user_progress').upsert(
@@ -199,6 +206,7 @@ export const syncPreferences = async (): Promise<SyncResult> => {
         content_language_name: mergedPreferences.preferences.contentLanguageName,
         content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
         onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
+        chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
         notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
         reminder_time: mergedPreferences.preferences.reminderTime,
         synced_at: syncedAt,
@@ -271,10 +279,10 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
     }
 
     const progressData = progressDataRaw as UserProgress | null;
-    const localState = getLocalReadingSnapshot();
+    const localState = await getLocalReadingSnapshot();
 
     if (progressData) {
-      applyMergedReadingState(mergeReadingSnapshot(localState, progressData));
+      await applyMergedReadingState(mergeReadingSnapshot(localState, progressData));
     }
 
     const { data: prefsDataRaw, error: prefsError } = await supabase

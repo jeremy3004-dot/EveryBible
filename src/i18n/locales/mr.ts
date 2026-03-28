@@ -103,6 +103,7 @@ export const mr = {
     available: 'उपलब्ध',
     translationComingSoon: '{{name}} भविष्यातील अपडेटमध्ये डाउनलोडसाठी उपलब्ध असेल.',
     failedToLoad: 'आम्ही आत्ता हा अध्याय लोड करू शकत नाही.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} कडे अद्याप लिखित मजकूर नाही.',
     fullBibleComingSoon: 'हा धडा सध्या मजकुरात उपलब्ध नाही. ऑडिओ उपलब्ध असल्यास, त्याऐवजी Every Bible ऐकण्याचा अनुभव उघडेल.',
     audioOnlyTitle: 'ऑडिओ-पहिला अध्याय',

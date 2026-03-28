@@ -103,6 +103,7 @@ export const de = {
     available: 'Verfügbar',
     translationComingSoon: '{{name}} wird in einem zukünftigen Update zum Download verfügbar sein.',
     failedToLoad: 'Dieses Kapitel konnte derzeit nicht geladen werden.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} hat noch keinen geschriebenen Text.',
     fullBibleComingSoon: 'Dieses Kapitel ist derzeit nicht im Text verfügbar. Wenn Audio verfügbar ist, öffnet Every Bible stattdessen das Hörerlebnis.',
     audioOnlyTitle: 'Audio-erstes Kapitel',

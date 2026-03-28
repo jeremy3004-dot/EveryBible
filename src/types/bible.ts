@@ -66,6 +66,8 @@ export interface TranslationAudioCatalog {
   provider?: AudioProvider;
   baseUrl?: string;
   chapterPathTemplate?: string;
+  fileExtension?: string;
+  mimeType?: string;
   downloadUrl?: string;
   sha256?: string;
   signature?: string;
