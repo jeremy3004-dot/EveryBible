@@ -52,6 +52,17 @@ test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an 
   );
 });
 
+test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen mode and the modal', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const keyboardInsetMatches = source.match(/automaticallyAdjustKeyboardInsets/g) ?? [];
+
+  assert.equal(
+    keyboardInsetMatches.length,
+    2,
+    'BibleReaderScreen should adjust keyboard insets for the listen-mode reader scroll view and the feedback modal scroll view'
+  );
+});
+
 test('BibleReaderScreen submits chapter feedback through the dedicated service and preserves retry state on failure', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

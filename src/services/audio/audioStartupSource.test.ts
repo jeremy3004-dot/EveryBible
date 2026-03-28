@@ -33,13 +33,13 @@ test('useAudioPlayer avoids subscribing to the entire audio store on every playb
   );
 });
 
-test('useAudioPlayer keeps playback position monotonic while the chapter is playing', () => {
+test('useAudioPlayer keeps playback position monotonic across status snapshots', () => {
   const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
 
   assert.match(
     source,
-    /const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*Math\.max\(currentPosition, snapshot\.positionMillis\)[\s\S]*setPosition\(nextPosition\);/s,
-    'useAudioPlayer should refuse to move the visible playback position backwards when a stale status snapshot arrives'
+    /const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*const nextPosition = Math\.max\(currentPosition, snapshot\.positionMillis\);[\s\S]*setPosition\(nextPosition\);/s,
+    'useAudioPlayer should refuse to move the visible playback position backwards when a stop-like status snapshot arrives'
   );
 
   assert.match(

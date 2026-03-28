@@ -214,10 +214,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
       const currentPosition = useAudioStore.getState().currentPosition;
-      const shouldPreserveProgress = snapshot.isPlaying || snapshot.isBuffering;
-      const nextPosition = shouldPreserveProgress
-        ? Math.max(currentPosition, snapshot.positionMillis)
-        : snapshot.positionMillis;
+      // Keep the visible position monotonic so stop-like snapshots from
+      // background-music teardown cannot pull the Bible progress bar backward.
+      const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
 
       setPosition(nextPosition);
       setDuration(snapshot.durationMillis || 0);

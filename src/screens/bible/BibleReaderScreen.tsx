@@ -1999,13 +1999,15 @@ export function BibleReaderScreen() {
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={() => {
-          setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
-        }}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+            onScrollBeginDrag={() => {
+              setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
+            }}
         contentContainerStyle={[
           styles.content,
           shouldFillReaderCanvas ? styles.immersiveContent : null,
@@ -2242,6 +2244,7 @@ export function BibleReaderScreen() {
               style={styles.feedbackModalScroll}
               contentContainerStyle={styles.feedbackModalScrollContent}
               keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
