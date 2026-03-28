@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -48,6 +49,8 @@ import { buildBibleDeepLink, getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { submitChapterFeedback } from '../../services/feedback';
+import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
+import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
 import {
   useAudioStore,
   useAuthStore,
@@ -186,6 +189,8 @@ export function BibleReaderScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
   const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
+  const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
+  const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
@@ -253,10 +258,14 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
+    name: chapterFeedbackName ?? '',
+    role: chapterFeedbackRole ?? '',
+  });
   const canSubmitFeedback = shouldEnableChapterFeedbackSubmit({
     sentiment: feedbackSentiment,
     isSubmitting: isSubmittingFeedback,
-  });
+  }) && savedChapterFeedbackIdentity != null;
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -281,6 +290,12 @@ export function BibleReaderScreen() {
   const stableSessionMode = isLoading ? lastStableSessionModeRef.current : chapterSessionMode;
   const showMinimalListenChrome =
     stableSessionMode === 'listen' || chapterPresentationMode === 'audio-first';
+  const showInlineChapterFeedbackComposer =
+    config.features.chapterFeedbackInlineComposer &&
+    chapterFeedbackEnabled &&
+    hasLiveAuthSession &&
+    savedChapterFeedbackIdentity != null &&
+    stableSessionMode === 'listen';
   const rawFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,
@@ -955,13 +970,18 @@ export function BibleReaderScreen() {
     setShowFeedbackModal(true);
   };
 
-  const handleSubmitChapterFeedback = async () => {
+  const handleSubmitChapterFeedback = async (sourceScreen: ChapterFeedbackSourceScreen) => {
     if (!feedbackSentiment || isSubmittingFeedback) {
       return;
     }
 
     if (!hasLiveAuthSession) {
       setFeedbackSubmitError(t('bible.chapterFeedbackSignInRequired'));
+      return;
+    }
+
+    if (!savedChapterFeedbackIdentity) {
+      setFeedbackSubmitError(t('settings.chapterFeedbackIdentityRequired'));
       return;
     }
 
@@ -978,7 +998,9 @@ export function BibleReaderScreen() {
       interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
       contentLanguageCode,
       contentLanguageName,
-      sourceScreen: 'reader',
+      participantName: savedChapterFeedbackIdentity.name,
+      participantRole: savedChapterFeedbackIdentity.role,
+      sourceScreen,
       appPlatform: Platform.OS,
       appVersion: config.version,
     });
@@ -988,7 +1010,9 @@ export function BibleReaderScreen() {
     if (result.success) {
       const resultVariant = getChapterFeedbackResultVariant(result);
 
-      setShowFeedbackModal(false);
+      if (sourceScreen === 'reader') {
+        setShowFeedbackModal(false);
+      }
       resetFeedbackDraft();
 
       Alert.alert(
@@ -1268,6 +1292,173 @@ export function BibleReaderScreen() {
             showTextLabel={t('audio.showText')}
           />
         </View>
+
+        {showInlineChapterFeedbackComposer ? (
+          <View
+            style={[
+              styles.listenFeedbackCard,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <View style={styles.listenFeedbackHeader}>
+              <View style={styles.listenFeedbackCopy}>
+                <Text style={[styles.listenFeedbackTitle, { color: colors.biblePrimaryText }]}>
+                  {t('bible.chapterFeedbackTitle')}
+                </Text>
+                <Text style={[styles.listenFeedbackBody, { color: colors.bibleSecondaryText }]}>
+                  {t('bible.chapterFeedbackBody')}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.listenFeedbackIdentityPill,
+                  {
+                    backgroundColor: colors.bibleElevatedSurface,
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+              >
+                <Ionicons name="person-outline" size={14} color={colors.bibleSecondaryText} />
+                <Text
+                  style={[styles.listenFeedbackIdentityText, { color: colors.bibleSecondaryText }]}
+                  numberOfLines={1}
+                >
+                  {savedChapterFeedbackIdentity
+                    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
+                    : t('common.notSet')}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.feedbackSentimentRow}>
+              <TouchableOpacity
+                accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
+                style={[
+                  styles.listenSentimentButton,
+                  {
+                    backgroundColor:
+                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleElevatedSurface,
+                    borderColor:
+                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
+                  },
+                ]}
+                onPress={() => {
+                  setFeedbackSentiment('up');
+                  if (feedbackSubmitError) {
+                    setFeedbackSubmitError(null);
+                  }
+                }}
+                disabled={isSubmittingFeedback}
+              >
+                <Ionicons
+                  name="thumbs-up-outline"
+                  size={22}
+                  color={
+                    feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
+                  }
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
+                style={[
+                  styles.listenSentimentButton,
+                  {
+                    backgroundColor:
+                      feedbackSentiment === 'down'
+                        ? colors.accentPrimary
+                        : colors.bibleElevatedSurface,
+                    borderColor:
+                      feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
+                  },
+                ]}
+                onPress={() => {
+                  setFeedbackSentiment('down');
+                  if (feedbackSubmitError) {
+                    setFeedbackSubmitError(null);
+                  }
+                }}
+                disabled={isSubmittingFeedback}
+              >
+                <Ionicons
+                  name="thumbs-down-outline"
+                  size={22}
+                  color={
+                    feedbackSentiment === 'down' ? colors.cardBackground : colors.biblePrimaryText
+                  }
+                />
+              </TouchableOpacity>
+            </View>
+
+            {feedbackSentiment ? (
+              <>
+                <TextInput
+                  value={feedbackComment}
+                  onChangeText={(value) => {
+                    setFeedbackComment(value);
+                    if (feedbackSubmitError) {
+                      setFeedbackSubmitError(null);
+                    }
+                  }}
+                  editable={!isSubmittingFeedback}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={2000}
+                  placeholder={t('bible.chapterFeedbackPlaceholder')}
+                  placeholderTextColor={colors.bibleSecondaryText}
+                  style={[
+                    styles.listenFeedbackInput,
+                    {
+                      color: colors.biblePrimaryText,
+                      borderColor: colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                    },
+                  ]}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackActionButton,
+                    styles.listenFeedbackSubmitButton,
+                    {
+                      backgroundColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
+                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    void handleSubmitChapterFeedback('listener');
+                  }}
+                  disabled={!canSubmitFeedback}
+                >
+                  {isSubmittingFeedback ? (
+                    <ActivityIndicator size="small" color={colors.cardBackground} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.feedbackActionLabel,
+                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
+                      ]}
+                    >
+                      {t('bible.chapterFeedbackSubmit')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={[styles.listenFeedbackHint, { color: colors.bibleSecondaryText }]}>
+                {t('bible.chapterFeedbackSelectionHint')}
+              </Text>
+            )}
+
+            {feedbackSubmitError ? (
+              <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+                {feedbackSubmitError}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -1944,7 +2135,7 @@ export function BibleReaderScreen() {
             </Text>
 
             {[
-              ...(chapterFeedbackEnabled
+              ...(chapterFeedbackEnabled && !showInlineChapterFeedbackComposer
                 ? [
                     {
                       key: 'chapter-feedback',
@@ -2028,7 +2219,11 @@ export function BibleReaderScreen() {
         animationType="fade"
         onRequestClose={handleCloseFeedbackModal}
       >
-        <View style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={safeInsets.top + spacing.lg}
+          style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
+        >
           <TouchableOpacity
             style={styles.feedbackModalBackdrop}
             activeOpacity={1}
@@ -2043,162 +2238,184 @@ export function BibleReaderScreen() {
               },
             ]}
           >
-            <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
-              {t('bible.chapterFeedbackTitle')}
-            </Text>
-            <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
-              {getTranslatedBookName(bookId, t)} {chapter}
-            </Text>
-            <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
-              {t('bible.chapterFeedbackBody')}
-            </Text>
-
-            <View style={styles.feedbackSentimentRow}>
-              <TouchableOpacity
-                style={[
-                  styles.feedbackSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleElevatedSurface,
-                    borderColor:
-                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => setFeedbackSentiment('up')}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="thumbs-up-outline"
-                  size={18}
-                  color={
-                    feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
-                  }
-                />
-                <Text
-                  style={[
-                    styles.feedbackSentimentLabel,
-                    {
-                      color:
-                        feedbackSentiment === 'up'
-                          ? colors.cardBackground
-                          : colors.biblePrimaryText,
-                    },
-                  ]}
-                >
-                  {t('bible.chapterFeedbackThumbsUp')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.feedbackSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'down'
-                        ? colors.accentPrimary
-                        : colors.bibleElevatedSurface,
-                    borderColor:
-                      feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => setFeedbackSentiment('down')}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="thumbs-down-outline"
-                  size={18}
-                  color={
-                    feedbackSentiment === 'down' ? colors.cardBackground : colors.biblePrimaryText
-                  }
-                />
-                <Text
-                  style={[
-                    styles.feedbackSentimentLabel,
-                    {
-                      color:
-                        feedbackSentiment === 'down'
-                          ? colors.cardBackground
-                          : colors.biblePrimaryText,
-                    },
-                  ]}
-                >
-                  {t('bible.chapterFeedbackThumbsDown')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              value={feedbackComment}
-              onChangeText={setFeedbackComment}
-              editable={!isSubmittingFeedback}
-              multiline
-              numberOfLines={4}
-              maxLength={2000}
-              placeholder={t('bible.chapterFeedbackPlaceholder')}
-              placeholderTextColor={colors.bibleSecondaryText}
-              style={[
-                styles.feedbackCommentInput,
-                {
-                  color: colors.biblePrimaryText,
-                  borderColor: colors.bibleDivider,
-                  backgroundColor: colors.bibleElevatedSurface,
-                },
-              ]}
-            />
-
-            {feedbackSubmitError ? (
-              <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
-                {feedbackSubmitError}
+            <ScrollView
+              style={styles.feedbackModalScroll}
+              contentContainerStyle={styles.feedbackModalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
+                {t('bible.chapterFeedbackTitle')}
               </Text>
-            ) : null}
+              <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
+                {getTranslatedBookName(bookId, t)} {chapter}
+              </Text>
+              <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
+                {t('bible.chapterFeedbackBody')}
+              </Text>
 
-            <View style={styles.feedbackActionRow}>
-              <TouchableOpacity
+              <View style={styles.feedbackSentimentRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackSentimentButton,
+                    {
+                      backgroundColor:
+                        feedbackSentiment === 'up'
+                          ? colors.accentGreen
+                          : colors.bibleElevatedSurface,
+                      borderColor:
+                        feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    setFeedbackSentiment('up');
+                    if (feedbackSubmitError) {
+                      setFeedbackSubmitError(null);
+                    }
+                  }}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Ionicons
+                    name="thumbs-up-outline"
+                    size={18}
+                    color={
+                      feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.feedbackSentimentLabel,
+                      {
+                        color:
+                          feedbackSentiment === 'up'
+                            ? colors.cardBackground
+                            : colors.biblePrimaryText,
+                      },
+                    ]}
+                  >
+                    {t('bible.chapterFeedbackThumbsUp')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackSentimentButton,
+                    {
+                      backgroundColor:
+                        feedbackSentiment === 'down'
+                          ? colors.accentPrimary
+                          : colors.bibleElevatedSurface,
+                      borderColor:
+                        feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    setFeedbackSentiment('down');
+                    if (feedbackSubmitError) {
+                      setFeedbackSubmitError(null);
+                    }
+                  }}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Ionicons
+                    name="thumbs-down-outline"
+                    size={18}
+                    color={
+                      feedbackSentiment === 'down'
+                        ? colors.cardBackground
+                        : colors.biblePrimaryText
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.feedbackSentimentLabel,
+                      {
+                        color:
+                          feedbackSentiment === 'down'
+                            ? colors.cardBackground
+                            : colors.biblePrimaryText,
+                      },
+                    ]}
+                  >
+                    {t('bible.chapterFeedbackThumbsDown')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                value={feedbackComment}
+                onChangeText={setFeedbackComment}
+                editable={!isSubmittingFeedback}
+                multiline
+                numberOfLines={4}
+                maxLength={2000}
+                placeholder={t('bible.chapterFeedbackPlaceholder')}
+                placeholderTextColor={colors.bibleSecondaryText}
                 style={[
-                  styles.feedbackActionButton,
+                  styles.feedbackCommentInput,
                   {
+                    color: colors.biblePrimaryText,
                     borderColor: colors.bibleDivider,
                     backgroundColor: colors.bibleElevatedSurface,
                   },
                 ]}
-                onPress={handleCloseFeedbackModal}
-                disabled={isSubmittingFeedback}
-              >
-                <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
+              />
 
-              <TouchableOpacity
-                style={[
-                  styles.feedbackActionButton,
-                  styles.feedbackSubmitButton,
-                  {
-                    backgroundColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                    borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => {
-                  void handleSubmitChapterFeedback();
-                }}
-                disabled={!canSubmitFeedback}
-              >
-                {isSubmittingFeedback ? (
-                  <ActivityIndicator size="small" color={colors.cardBackground} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.feedbackActionLabel,
-                      { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
-                    ]}
-                  >
-                    {t('bible.chapterFeedbackSubmit')}
+              {feedbackSubmitError ? (
+                <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+                  {feedbackSubmitError}
+                </Text>
+              ) : null}
+
+              <View style={styles.feedbackActionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackActionButton,
+                    {
+                      borderColor: colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                    },
+                  ]}
+                  onPress={handleCloseFeedbackModal}
+                  disabled={isSubmittingFeedback}
+                >
+                  <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
+                    {t('common.cancel')}
                   </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackActionButton,
+                    styles.feedbackSubmitButton,
+                    {
+                      backgroundColor:
+                        canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
+                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    void handleSubmitChapterFeedback('reader');
+                  }}
+                  disabled={!canSubmitFeedback}
+                >
+                  {isSubmittingFeedback ? (
+                    <ActivityIndicator size="small" color={colors.cardBackground} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.feedbackActionLabel,
+                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
+                      ]}
+                    >
+                      {t('bible.chapterFeedbackSubmit')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {canShowTranslationSheet ? (
@@ -2733,6 +2950,69 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  listenFeedbackCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: 16,
+    gap: 14,
+  },
+  listenFeedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  listenFeedbackCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  listenFeedbackTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  listenFeedbackBody: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  listenFeedbackIdentityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  listenFeedbackIdentityText: {
+    maxWidth: 110,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  listenSentimentButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listenFeedbackInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
+  listenFeedbackHint: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  listenFeedbackSubmitButton: {
+    minWidth: 0,
+  },
   readerBlock: {
     gap: 10,
     paddingHorizontal: 12,
@@ -2871,8 +3151,15 @@ const styles = StyleSheet.create({
   feedbackModalCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: spacing.lg,
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  feedbackModalScroll: {
+    maxHeight: '100%',
+  },
+  feedbackModalScrollContent: {
     gap: spacing.md,
+    padding: spacing.lg,
   },
   feedbackModalTitle: {
     fontSize: 18,

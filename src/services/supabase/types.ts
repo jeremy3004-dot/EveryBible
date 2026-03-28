@@ -34,6 +34,9 @@ export interface UserPreferences {
   content_language_code: string | null;
   content_language_name: string | null;
   content_language_native_name: string | null;
+  chapter_feedback_name: string | null;
+  chapter_feedback_role: string | null;
+  chapter_feedback_id_number: string | null;
   onboarding_completed: boolean;
   chapter_feedback_enabled: boolean;
   notifications_enabled: boolean;
@@ -49,6 +52,9 @@ export interface ChapterFeedbackSubmission {
   interface_language: string;
   content_language_code: string | null;
   content_language_name: string | null;
+  participant_name: string | null;
+  participant_role: string | null;
+  participant_id_number: string | null;
   book_id: string;
   chapter: number;
   sentiment: 'up' | 'down';

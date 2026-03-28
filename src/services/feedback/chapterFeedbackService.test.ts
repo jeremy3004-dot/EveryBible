@@ -20,6 +20,8 @@ const baseInput: ChapterFeedbackSubmissionInput = {
   interfaceLanguage: 'en',
   contentLanguageCode: 'en',
   contentLanguageName: 'English',
+  participantName: '  Miriam  ',
+  participantRole: '  Church leader  ',
   sourceScreen: 'reader',
   appPlatform: 'ios',
   appVersion: '1.0.0',
@@ -51,6 +53,13 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.functionName, 'submit-chapter-feedback');
   assert.equal(calls[0]?.body.comment, 'Great chapter');
+  assert.equal(calls[0]?.body.participantName, 'Miriam');
+  assert.equal(calls[0]?.body.participantRole, 'Church leader');
+  assert.equal(
+    Object.hasOwn(calls[0]?.body ?? {}, 'participantIdNumber'),
+    false,
+    'submitChapterFeedback should not send a reviewer-entered participantIdNumber'
+  );
   assert.equal(result.success, true);
   assert.equal(result.saved, true);
   assert.equal(result.exported, true);
@@ -160,6 +169,41 @@ test('submitChapterFeedback preserves degraded success when the row was saved bu
       sentiment: 'up',
       source: 'reader-feedback',
       detail: 'saved-not-exported',
+    },
+  ]);
+});
+
+test('submitChapterFeedback tracks listener feedback with a listener source tag', async () => {
+  resetTrackedBibleExperienceEvents();
+
+  const result = await submitChapterFeedback(
+    {
+      ...baseInput,
+      sourceScreen: 'listener',
+    },
+    {
+      invoke: async () => ({
+        data: {
+          success: true,
+          saved: true,
+          exported: true,
+          feedbackId: 'feedback-listener',
+        },
+        error: null,
+      }),
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_submitted',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'up',
+      source: 'listener-feedback',
+      detail: 'exported',
     },
   ]);
 });
