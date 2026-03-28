@@ -34,7 +34,6 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
-import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
 import {
   mergeRuntimeCatalogTranslations,
   reconcileMissingRuntimeTranslationPacks,

@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { BibleTranslation } from '../types';
-import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
 import {
   mergeRuntimeCatalogTranslations,
   reconcileMissingRuntimeTranslationPacks,
