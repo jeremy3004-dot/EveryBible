@@ -34,3 +34,11 @@ test('sync service avoids static progress and bible store imports so startup doe
     'syncService should lazy-load the bible store when a sync actually runs'
   );
 });
+
+test('syncPreferences does not upsert a manual chapter feedback ID number into user_preferences', () => {
+  assert.equal(
+    source.includes('chapter_feedback_id_number'),
+    false,
+    'syncPreferences should not write a manual chapter feedback ID number into user_preferences'
+  );
+});

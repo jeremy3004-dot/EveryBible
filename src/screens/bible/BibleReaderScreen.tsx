@@ -190,9 +190,6 @@ export function BibleReaderScreen() {
   const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
   const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
   const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
-  const chapterFeedbackIdNumber = useAuthStore(
-    (state) => state.preferences.chapterFeedbackIdNumber
-  );
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
@@ -263,7 +260,6 @@ export function BibleReaderScreen() {
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: chapterFeedbackName ?? '',
     role: chapterFeedbackRole ?? '',
-    idNumber: chapterFeedbackIdNumber ?? '',
   });
   const canSubmitFeedback = shouldEnableChapterFeedbackSubmit({
     sentiment: feedbackSentiment,
@@ -1003,7 +999,6 @@ export function BibleReaderScreen() {
       contentLanguageName,
       participantName: savedChapterFeedbackIdentity.name,
       participantRole: savedChapterFeedbackIdentity.role,
-      participantIdNumber: savedChapterFeedbackIdentity.idNumber,
       sourceScreen,
       appPlatform: Platform.OS,
       appVersion: config.version,

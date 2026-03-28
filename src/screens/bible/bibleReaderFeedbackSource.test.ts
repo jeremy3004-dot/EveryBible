@@ -71,18 +71,23 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
     'BibleReaderScreen should preserve a retry-safe error state when feedback submission fails'
   );
 });
-test('BibleReaderScreen keeps the feedback submit actions reachable when the keyboard is open', () => {
+
+test('BibleReaderScreen uses the saved reviewer name and role but does not depend on a manual ID-number preference', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
-    source,
-    /<KeyboardAvoidingView[\s\S]*behavior=\{Platform\.OS === 'ios' \? 'padding' : 'height'\}[\s\S]*styles\.feedbackModalOverlay/s,
-    'BibleReaderScreen should wrap the feedback modal in a KeyboardAvoidingView so the keyboard can shift the sheet upward'
+  assert.equal(
+    source.includes('chapterFeedbackIdNumber'),
+    false,
+    'BibleReaderScreen should not read a manual chapter feedback ID number from preferences'
   );
-
   assert.match(
     source,
-    /<ScrollView[\s\S]*styles\.feedbackModalScrollView[\s\S]*keyboardShouldPersistTaps="handled"[\s\S]*styles\.feedbackActionRow/s,
-    'BibleReaderScreen should make the feedback modal body scrollable so the submit row stays reachable above the keyboard'
+    /participantName:\s*savedChapterFeedbackIdentity\.name/,
+    'BibleReaderScreen should keep sending the saved reviewer name'
+  );
+  assert.match(
+    source,
+    /participantRole:\s*savedChapterFeedbackIdentity\.role/,
+    'BibleReaderScreen should keep sending the saved reviewer role'
   );
 });

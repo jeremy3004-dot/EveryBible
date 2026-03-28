@@ -318,7 +318,6 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.contentLanguageNativeName, null);
   assert.equal(sanitized.preferences.chapterFeedbackName, 'Grace');
   assert.equal(sanitized.preferences.chapterFeedbackRole, 'Elder');
-  assert.equal(sanitized.preferences.chapterFeedbackIdNumber, '009');
   assert.equal(sanitized.preferences.onboardingCompleted, false);
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
   assert.equal(sanitized.preferences.notificationsEnabled, true);
@@ -336,7 +335,6 @@ test('sanitizePersistedAuthState defaults chapter feedback to false when the key
       reminderTime: null,
       chapterFeedbackName: null,
       chapterFeedbackRole: null,
-      chapterFeedbackIdNumber: null,
     },
   });
 
@@ -356,7 +354,22 @@ test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', ()
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, true);
   assert.equal(sanitized.preferences.chapterFeedbackName, 'Ada');
   assert.equal(sanitized.preferences.chapterFeedbackRole, 'Leader');
-  assert.equal(sanitized.preferences.chapterFeedbackIdNumber, '7');
+});
+
+test('sanitizePersistedAuthState drops the legacy manual feedback ID number field', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      chapterFeedbackName: 'Ada',
+      chapterFeedbackRole: 'Leader',
+      chapterFeedbackIdNumber: '7',
+    },
+  });
+
+  assert.deepEqual(sanitized.preferences, {
+    ...defaultAuthPreferences,
+    chapterFeedbackName: 'Ada',
+    chapterFeedbackRole: 'Leader',
+  });
 });
 
 test('sanitizePersistedAudioState keeps only supported playback settings', () => {

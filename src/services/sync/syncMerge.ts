@@ -164,7 +164,6 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
   contentLanguageNativeName: remotePreferences.content_language_native_name,
   chapterFeedbackName: remotePreferences.chapter_feedback_name,
   chapterFeedbackRole: remotePreferences.chapter_feedback_role,
-  chapterFeedbackIdNumber: remotePreferences.chapter_feedback_id_number,
   onboardingCompleted: remotePreferences.onboarding_completed,
   chapterFeedbackEnabled: remotePreferences.chapter_feedback_enabled,
   notificationsEnabled: remotePreferences.notifications_enabled,
@@ -182,7 +181,6 @@ const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolea
   left.contentLanguageNativeName === right.contentLanguageNativeName &&
   left.chapterFeedbackName === right.chapterFeedbackName &&
   left.chapterFeedbackRole === right.chapterFeedbackRole &&
-  left.chapterFeedbackIdNumber === right.chapterFeedbackIdNumber &&
   left.onboardingCompleted === right.onboardingCompleted &&
   left.chapterFeedbackEnabled === right.chapterFeedbackEnabled &&
   left.notificationsEnabled === right.notificationsEnabled &&

@@ -76,6 +76,16 @@ test('SettingsScreen asks for a feedback identity before enabling chapter feedba
   assert.match(
     source,
     /handleSaveChapterFeedbackIdentity/,
-    'SettingsScreen should persist the reviewer name, role, and id number from the identity modal'
+    'SettingsScreen should persist the reviewer name and role from the identity modal'
+  );
+  assert.equal(
+    source.includes('chapterFeedbackIdentityIdNumber'),
+    false,
+    'SettingsScreen should not ask reviewers for a manual ID number once auth already provides a UUID-backed identifier'
+  );
+  assert.equal(
+    source.includes('chapterFeedbackIdNumber'),
+    false,
+    'SettingsScreen should not persist a manual feedback ID number in local preferences'
   );
 });

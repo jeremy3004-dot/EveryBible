@@ -43,6 +43,8 @@ Header order is fixed and must remain:
 17. `app_version`
 18. `user_id`
 
+`participant_id_number` is not user-entered. The Edge Function fills it from the authenticated Supabase user UUID so reviewers only need to save their name and role in the app.
+
 ## Export States
 
 - `pending`: saved in Supabase, export attempt not finished yet
@@ -104,7 +106,8 @@ If Sheets is still unavailable, leave the row as `failed`. Do not delete it.
    - the row exports to the correct translation tab in Sheets
 2. Submit thumbs down plus comment and confirm:
    - the comment persists in Supabase
-   - the reviewer name, role, and id number persist in Supabase and Sheets
+   - the reviewer name and role persist in Supabase and Sheets
+   - `participant_id_number` matches the authenticated Supabase user UUID
    - the same comment text appears in the spreadsheet row
 3. Disable the feature in Settings and confirm the reader action disappears.
 4. Remove or break one Sheets secret and confirm:

@@ -49,6 +49,26 @@ test('submit-chapter-feedback appends reviewer identity columns to the Google Sh
   );
 });
 
+test('submit-chapter-feedback derives the reviewer ID column from the authenticated user instead of a manual request field', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.equal(
+    source.includes('participantIdNumber?:'),
+    false,
+    'submit-chapter-feedback should not accept a manual participantIdNumber from the client payload'
+  );
+  assert.match(
+    source,
+    /participant_id_number:\s*user\.id/,
+    'submit-chapter-feedback should source participant_id_number from the authenticated Supabase user UUID'
+  );
+  assert.doesNotMatch(
+    source,
+    /participantIdNumber are required|participantIdNumber\)/,
+    'submit-chapter-feedback should not require a reviewer-entered participantIdNumber field'
+  );
+});
+
 test('submit-chapter-feedback disables the legacy edge JWT gate and authenticates inside the function', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
   const config = readFileSync(CONFIG_PATH, 'utf8');

@@ -62,11 +62,6 @@ test('chapter feedback backend migration creates the durable preference flag and
   );
   assert.match(
     identityMigration,
-    /ADD COLUMN IF NOT EXISTS chapter_feedback_id_number TEXT/,
-    'Expected user_preferences to store the reviewer id number'
-  );
-  assert.match(
-    identityMigration,
     /ADD COLUMN IF NOT EXISTS participant_name TEXT/,
     'Expected chapter_feedback_submissions to store the reviewer name'
   );
@@ -103,8 +98,13 @@ test('chapter feedback backend contract is wired into Supabase types and synced 
   );
   assert.match(
     syncService,
-    /chapterFeedbackName|chapterFeedbackRole|chapterFeedbackIdNumber/,
-    'Expected syncPreferences to preserve the chapter feedback identity fields'
+    /chapterFeedbackName|chapterFeedbackRole/,
+    'Expected syncPreferences to preserve the chapter feedback reviewer name and role fields'
+  );
+  assert.doesNotMatch(
+    syncService,
+    /chapter_feedback_id_number|chapterFeedbackIdNumber/,
+    'Expected syncPreferences to stop persisting a manual feedback ID number field'
   );
 });
 
@@ -148,6 +148,11 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
   );
   assert.match(
     functionSource,
+    /participant_id_number:\s*user\.id/,
+    'Expected the Edge Function to derive the reviewer id number from the authenticated Supabase UUID'
+  );
+  assert.match(
+    functionSource,
     /GOOGLE_SHEETS_SPREADSHEET_ID/,
     'Expected the Edge Function to read the Google Sheets spreadsheet ID from secrets'
   );
@@ -166,26 +171,9 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
     /export_status='failed'|export_status = 'failed'/,
     'Expected the ops doc to describe how operators find failed exports'
   );
-});
-test('chapter feedback function defers spreadsheet secret lookup until after the feedback row is saved', () => {
-  const functionSource = readRepoFile('supabase/functions/submit-chapter-feedback/index.ts');
-  const spreadsheetSecretLookup = functionSource.indexOf(
-    "getRequiredSecret('GOOGLE_SHEETS_SPREADSHEET_ID')"
-  );
-  const insertStart = functionSource.indexOf(".from('chapter_feedback_submissions')");
-
-  assert.notEqual(
-    spreadsheetSecretLookup,
-    -1,
-    'Expected the Edge Function to resolve GOOGLE_SHEETS_SPREADSHEET_ID during export'
-  );
-  assert.notEqual(
-    insertStart,
-    -1,
-    'Expected the Edge Function to insert into chapter_feedback_submissions'
-  );
-  assert.ok(
-    spreadsheetSecretLookup > insertStart,
-    'Spreadsheet export secrets should be resolved only after the feedback row is durably saved'
+  assert.match(
+    docs,
+    /UUID|authenticated user/i,
+    'Expected the ops doc to explain that participant_id_number is sourced from the authenticated user UUID'
   );
 });

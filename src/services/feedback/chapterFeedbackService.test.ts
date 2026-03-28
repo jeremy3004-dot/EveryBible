@@ -22,7 +22,6 @@ const baseInput: ChapterFeedbackSubmissionInput = {
   contentLanguageName: 'English',
   participantName: '  Miriam  ',
   participantRole: '  Church leader  ',
-  participantIdNumber: '  42  ',
   sourceScreen: 'reader',
   appPlatform: 'ios',
   appVersion: '1.0.0',
@@ -56,7 +55,11 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
   assert.equal(calls[0]?.body.comment, 'Great chapter');
   assert.equal(calls[0]?.body.participantName, 'Miriam');
   assert.equal(calls[0]?.body.participantRole, 'Church leader');
-  assert.equal(calls[0]?.body.participantIdNumber, '42');
+  assert.equal(
+    Object.hasOwn(calls[0]?.body ?? {}, 'participantIdNumber'),
+    false,
+    'submitChapterFeedback should not send a reviewer-entered participantIdNumber'
+  );
   assert.equal(result.success, true);
   assert.equal(result.saved, true);
   assert.equal(result.exported, true);
@@ -297,6 +300,7 @@ test('submitChapterFeedback surfaces backend auth misconfiguration when the edge
     },
   ]);
 });
+
 test('submitChapterFeedback refreshes the session and retries once after a 401 edge-function response', async () => {
   resetTrackedBibleExperienceEvents();
   const calls: Array<{ headers?: Record<string, string> }> = [];

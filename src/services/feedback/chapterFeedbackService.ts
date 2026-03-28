@@ -20,7 +20,6 @@ export interface ChapterFeedbackSubmissionInput {
   contentLanguageName: string | null;
   participantName: string;
   participantRole: string;
-  participantIdNumber: string;
   sourceScreen: ChapterFeedbackSourceScreen;
   appPlatform: string;
   appVersion: string;
@@ -59,18 +58,16 @@ function normalizeSubmissionText(value: string | null | undefined): string {
 }
 
 function buildNormalizedIdentity(
-  input: Pick<ChapterFeedbackSubmissionInput, 'participantName' | 'participantRole' | 'participantIdNumber'>
+  input: Pick<ChapterFeedbackSubmissionInput, 'participantName' | 'participantRole'>
 ): ChapterFeedbackIdentity {
   const identity = normalizeChapterFeedbackIdentity({
     name: input.participantName,
     role: input.participantRole,
-    idNumber: input.participantIdNumber,
   });
 
   return identity ?? {
     name: normalizeSubmissionText(input.participantName),
     role: normalizeSubmissionText(input.participantRole),
-    idNumber: normalizeSubmissionText(input.participantIdNumber),
   };
 }
 
@@ -127,7 +124,6 @@ function buildPayload(
     comment: normalizeComment(input.comment ?? null),
     participantName: normalizedIdentity.name,
     participantRole: normalizedIdentity.role,
-    participantIdNumber: normalizedIdentity.idNumber,
     appPlatform: input.appPlatform ?? process.env.EXPO_OS ?? 'unknown',
     appVersion: input.appVersion ?? config.version,
   };
@@ -149,6 +145,7 @@ function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): num
 }
 
 const EDGE_RUNTIME_401_MESSAGES = new Set(['Invalid JWT', 'Missing authorization header']);
+
 async function resolveFunctionErrorMessage(
   error: ChapterFeedbackFunctionError | null
 ): Promise<string> {
@@ -215,6 +212,7 @@ async function resolveFunctionErrorMessage(
   if (status === 401) {
     return 'Please sign in again before sending chapter feedback.';
   }
+
   return error.message ?? 'Unable to submit chapter feedback right now.';
 }
 

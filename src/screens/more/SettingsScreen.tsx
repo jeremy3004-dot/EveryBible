@@ -59,7 +59,6 @@ export function SettingsScreen() {
   const [pendingChapterFeedbackEnabled, setPendingChapterFeedbackEnabled] = useState(false);
   const [chapterFeedbackIdentityName, setChapterFeedbackIdentityName] = useState('');
   const [chapterFeedbackIdentityRole, setChapterFeedbackIdentityRole] = useState('');
-  const [chapterFeedbackIdentityIdNumber, setChapterFeedbackIdentityIdNumber] = useState('');
   const [chapterFeedbackIdentityError, setChapterFeedbackIdentityError] = useState<string | null>(
     null
   );
@@ -123,14 +122,12 @@ export function SettingsScreen() {
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: preferences.chapterFeedbackName ?? '',
     role: preferences.chapterFeedbackRole ?? '',
-    idNumber: preferences.chapterFeedbackIdNumber ?? '',
   });
 
   const openChapterFeedbackIdentityModal = (enableAfterSave: boolean) => {
     setPendingChapterFeedbackEnabled(enableAfterSave);
     setChapterFeedbackIdentityName(preferences.chapterFeedbackName ?? user?.displayName ?? '');
     setChapterFeedbackIdentityRole(preferences.chapterFeedbackRole ?? '');
-    setChapterFeedbackIdentityIdNumber(preferences.chapterFeedbackIdNumber ?? '');
     setChapterFeedbackIdentityError(null);
     setShowChapterFeedbackIdentityModal(true);
   };
@@ -149,7 +146,6 @@ export function SettingsScreen() {
     const identity = normalizeChapterFeedbackIdentity({
       name: chapterFeedbackIdentityName,
       role: chapterFeedbackIdentityRole,
-      idNumber: chapterFeedbackIdentityIdNumber,
     });
 
     if (!identity) {
@@ -164,7 +160,6 @@ export function SettingsScreen() {
       setPreferences({
         chapterFeedbackName: identity.name,
         chapterFeedbackRole: identity.role,
-        chapterFeedbackIdNumber: identity.idNumber,
         chapterFeedbackEnabled: pendingChapterFeedbackEnabled ? true : chapterFeedbackEnabled,
       });
 
@@ -304,7 +299,7 @@ export function SettingsScreen() {
     disabledLabel: t('settings.chapterFeedbackSummaryOff'),
   });
   const chapterFeedbackIdentitySummary = savedChapterFeedbackIdentity
-    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role} • ${savedChapterFeedbackIdentity.idNumber}`
+    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
     : t('settings.chapterFeedbackIdentitySummaryOff');
 
   return (
@@ -644,31 +639,6 @@ export function SettingsScreen() {
                   />
                 </View>
 
-                <View style={styles.feedbackIdentityField}>
-                  <Text style={[styles.feedbackIdentityLabel, { color: colors.primaryText }]}>
-                    {t('settings.chapterFeedbackIdentityIdNumber')}
-                  </Text>
-                  <TextInput
-                    value={chapterFeedbackIdentityIdNumber}
-                    onChangeText={(value) => {
-                      setChapterFeedbackIdentityIdNumber(value);
-                      if (chapterFeedbackIdentityError) {
-                        setChapterFeedbackIdentityError(null);
-                      }
-                    }}
-                    editable={!isSavingChapterFeedbackIdentity}
-                    placeholder={t('settings.chapterFeedbackIdentityIdNumberPlaceholder')}
-                    placeholderTextColor={colors.secondaryText}
-                    style={[
-                      styles.feedbackIdentityInput,
-                      {
-                        color: colors.primaryText,
-                        borderColor: colors.cardBorder,
-                        backgroundColor: colors.background,
-                      },
-                    ]}
-                  />
-                </View>
               </View>
 
               {chapterFeedbackIdentityError ? (

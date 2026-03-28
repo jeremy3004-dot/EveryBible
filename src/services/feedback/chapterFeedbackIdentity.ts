@@ -1,13 +1,11 @@
 export interface ChapterFeedbackIdentity {
   name: string;
   role: string;
-  idNumber: string;
 }
 
 export interface ChapterFeedbackIdentityDraft {
   name: string;
   role: string;
-  idNumber: string;
 }
 
 const normalizeText = (value: string | null | undefined): string => value?.trim() ?? '';
@@ -21,16 +19,14 @@ export function normalizeChapterFeedbackIdentity(
 
   const name = normalizeText(identity.name);
   const role = normalizeText(identity.role);
-  const idNumber = normalizeText(identity.idNumber);
 
-  if (!name || !role || !idNumber) {
+  if (!name || !role) {
     return null;
   }
 
   return {
     name,
     role,
-    idNumber,
   };
 }
 

@@ -43,7 +43,6 @@ interface ChapterFeedbackRequest {
   contentLanguageName?: string | null;
   participantName?: string | null;
   participantRole?: string | null;
-  participantIdNumber?: string | null;
   sourceScreen?: string;
   appPlatform?: string | null;
   appVersion?: string | null;
@@ -284,31 +283,31 @@ const appendSheetRow = async (
   await ensureSheetExists(accessToken, spreadsheetId, sheetTitle);
   await ensureHeaderRow(accessToken, spreadsheetId, sheetTitle);
 
-    const range = encodeURIComponent(`${sheetTitle}!A:R`);
-    await googleSheetsRequest<Record<string, never>>(
-      accessToken,
-      `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          values: [
-            [
-              row.id,
-              row.created_at,
-              row.translation_language,
-              row.translation_id,
-              row.book_id,
-              row.chapter,
-              row.sentiment,
-              row.comment ?? '',
-              row.participant_name,
-              row.participant_role,
-              row.participant_id_number,
-              row.interface_language,
-              row.content_language_code ?? '',
-              row.content_language_name ?? '',
-              row.source_screen,
-              row.app_platform ?? '',
+  const range = encodeURIComponent(`${sheetTitle}!A:R`);
+  await googleSheetsRequest<Record<string, never>>(
+    accessToken,
+    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        values: [
+          [
+            row.id,
+            row.created_at,
+            row.translation_language,
+            row.translation_id,
+            row.book_id,
+            row.chapter,
+            row.sentiment,
+            row.comment ?? '',
+            row.participant_name,
+            row.participant_role,
+            row.participant_id_number,
+            row.interface_language,
+            row.content_language_code ?? '',
+            row.content_language_name ?? '',
+            row.source_screen,
+            row.app_platform ?? '',
             row.app_version ?? '',
             row.user_id,
           ],
@@ -326,7 +325,6 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
   const comment = trimOptionalText(body.comment);
   const participantName = requireNonEmptyString(body.participantName);
   const participantRole = requireNonEmptyString(body.participantRole);
-  const participantIdNumber = requireNonEmptyString(body.participantIdNumber);
 
   if (
     !translationId ||
@@ -334,12 +332,11 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
     !bookId ||
     !interfaceLanguage ||
     !participantName ||
-    !participantRole ||
-    !participantIdNumber
+    !participantRole
   ) {
     return {
       error:
-        'translationId, translationLanguage, bookId, chapter, sentiment, interfaceLanguage, participantName, participantRole, and participantIdNumber are required',
+        'translationId, translationLanguage, bookId, chapter, sentiment, interfaceLanguage, participantName, and participantRole are required',
     };
   }
 
@@ -365,7 +362,7 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
       content_language_name: trimOptionalText(body.contentLanguageName),
       participant_name: participantName,
       participant_role: participantRole,
-      participant_id_number: participantIdNumber,
+      participant_id_number: '',
       book_id: bookId,
       chapter: body.chapter,
       sentiment: body.sentiment,
@@ -429,6 +426,7 @@ Deno.serve(async (req) => {
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
       user_id: user.id,
+      participant_id_number: user.id,
     };
 
     const { data: insertedRow, error: insertError } = await supabase

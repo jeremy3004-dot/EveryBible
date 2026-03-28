@@ -190,7 +190,6 @@ test('mergePreferences does not let a newer incomplete remote snapshot reopen on
       contentLanguageNativeName: 'Español',
       chapterFeedbackName: 'Miriam',
       chapterFeedbackRole: 'Church leader',
-      chapterFeedbackIdNumber: '42',
       onboardingCompleted: true,
     },
     updatedAt: '2026-03-10T08:00:00.000Z',
