@@ -103,6 +103,7 @@ export const tr = {
     available: 'Mevcut',
     translationComingSoon: '{{name}} gelecekteki bir güncellemeyle indirilebilecek.',
     failedToLoad: 'Bu bölümü şu anda yükleyemedik.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}}\'in henüz yazılı metni yok.',
     fullBibleComingSoon: 'Bu bölüm şu anda metin olarak mevcut değil. Ses mevcutsa Every Bible bunun yerine dinleme deneyimini açacaktır.',
     audioOnlyTitle: 'Sesli ilk bölüm',

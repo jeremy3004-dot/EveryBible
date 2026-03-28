@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
 import {
+  BibleSearchUnavailableError,
   buildBibleBrowserRows,
   parsePassageReferenceLocale,
   searchBible,
@@ -36,6 +37,7 @@ import {
 import type { BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
 import {
+  BIBLE_SEARCH_DEBOUNCE_MS,
   formatBibleSearchReference,
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
@@ -63,6 +65,7 @@ export function BibleBrowserScreen() {
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const searchRequestIdRef = useRef(0);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
@@ -74,51 +77,69 @@ export function BibleBrowserScreen() {
     [currentLanguage],
   );
   const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
+  const failedToLoadMessage = t('bible.failedToLoad');
+  const searchUnavailableMessage = t('bible.searchUnavailable');
 
   useEffect(() => {
     let isCancelled = false;
+    const deferredSearchIntent = resolveBibleSearchIntent(
+      deferredSearchQuery,
+      parseRef
+    );
 
-    const runSearch = async () => {
-      const deferredSearchIntent = resolveBibleSearchIntent(
-        deferredSearchQuery,
-        parseRef
-      );
-
-      if (deferredSearchIntent.kind !== 'full-text') {
-        setSearchResults([]);
-        setSearchError(null);
-        setIsSearching(false);
-        return;
-      }
-
-      setIsSearching(true);
+    if (deferredSearchIntent.kind !== 'full-text') {
+      searchRequestIdRef.current += 1;
+      setSearchResults([]);
       setSearchError(null);
+      setIsSearching(false);
 
-      try {
-        const results = await searchBible(currentTranslation, deferredSearchIntent.query);
+      return () => {
+        isCancelled = true;
+      };
+    }
 
-        if (!isCancelled) {
-          setSearchResults(results);
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          console.error('Error searching Bible:', error);
-          setSearchResults([]);
-          setSearchError(t('bible.failedToLoad'));
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsSearching(false);
-        }
-      }
-    };
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+    setIsSearching(true);
+    setSearchError(null);
 
-    void runSearch();
+    const timeoutId = setTimeout(() => {
+      void (async () => {
+        try {
+          const results = await searchBible(currentTranslation, deferredSearchIntent.query);
+
+          if (!isCancelled && requestId === searchRequestIdRef.current) {
+            setSearchResults(results);
+          }
+        } catch (error) {
+          if (!isCancelled && requestId === searchRequestIdRef.current) {
+            console.error('Error searching Bible:', error);
+            setSearchResults([]);
+            setSearchError(
+              error instanceof BibleSearchUnavailableError
+                ? searchUnavailableMessage
+                : failedToLoadMessage
+            );
+          }
+        } finally {
+          if (!isCancelled && requestId === searchRequestIdRef.current) {
+            setIsSearching(false);
+          }
+        }
+      })();
+    }, BIBLE_SEARCH_DEBOUNCE_MS);
 
     return () => {
       isCancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [currentTranslation, deferredSearchQuery, parseRef, t]);
+  }, [
+    currentTranslation,
+    deferredSearchQuery,
+    failedToLoadMessage,
+    parseRef,
+    searchUnavailableMessage,
+  ]);
 
   const handleBookPress = (book: BibleBook) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

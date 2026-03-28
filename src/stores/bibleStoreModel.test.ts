@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { BibleTranslation } from '../types';
 import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
+import {
+  mergeRuntimeCatalogTranslations,
+  reconcileMissingRuntimeTranslationPacks,
+} from './bibleStoreModel';
 
 function makeTranslation(overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name'>): BibleTranslation {
   return {
@@ -127,4 +131,79 @@ test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog over
   assert.equal(kjv.source, 'runtime');
   assert.equal(kjv.hasText, true);
   assert.equal(kjv.installState, 'remote-only');
+});
+test('reconcileMissingRuntimeTranslationPacks resets a stale selected runtime translation to bsb', () => {
+  const result = reconcileMissingRuntimeTranslationPacks(
+    [
+      makeTranslation({
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        hasText: true,
+        isDownloaded: true,
+        source: 'bundled',
+        installState: 'seeded',
+      }),
+      makeTranslation({
+        id: 'niv',
+        name: 'New International Version',
+        hasText: true,
+        source: 'runtime',
+        installState: 'installed',
+        isDownloaded: true,
+        downloadedBooks: ['JHN'],
+        activeTextPackVersion: '2026.03.27',
+        textPackLocalPath: '/missing/niv.sqlite',
+      }),
+    ],
+    'niv',
+    new Set(['niv'])
+  );
+
+  assert.equal(result.currentTranslation, 'bsb');
+  const niv = result.translations.find((translation) => translation.id === 'niv');
+
+  assert.ok(niv);
+  assert.equal(niv.installState, 'remote-only');
+  assert.equal(niv.isDownloaded, false);
+  assert.deepEqual(niv.downloadedBooks, []);
+  assert.equal(niv.activeTextPackVersion, null);
+  assert.equal(niv.textPackLocalPath, null);
+  assert.match(niv.lastInstallError ?? '', /Re-download required/);
+});
+
+test('reconcileMissingRuntimeTranslationPacks keeps other translations selected and ignores bundled ones', () => {
+  const result = reconcileMissingRuntimeTranslationPacks(
+    [
+      makeTranslation({
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        hasText: true,
+        isDownloaded: true,
+        source: 'bundled',
+        installState: 'seeded',
+      }),
+      makeTranslation({
+        id: 'niv',
+        name: 'New International Version',
+        hasText: true,
+        source: 'runtime',
+        installState: 'installed',
+        isDownloaded: true,
+        textPackLocalPath: '/missing/niv.sqlite',
+      }),
+    ],
+    'bsb',
+    new Set(['niv', 'bsb'])
+  );
+
+  assert.equal(result.currentTranslation, 'bsb');
+  const bsb = result.translations.find((translation) => translation.id === 'bsb');
+  const niv = result.translations.find((translation) => translation.id === 'niv');
+
+  assert.ok(bsb);
+  assert.equal(bsb.textPackLocalPath, undefined);
+
+  assert.ok(niv);
+  assert.equal(niv.installState, 'remote-only');
+  assert.equal(niv.isDownloaded, false);
 });

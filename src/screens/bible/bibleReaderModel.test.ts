@@ -8,6 +8,7 @@ import {
   getEstimatedFollowAlongVerse,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
+  getNextFollowAlongVisibility,
   getNextFontSizeSheetVisibility,
   getInitialChapterSessionMode,
   getNextTranslationSheetVisibility,
@@ -380,6 +381,44 @@ test('timestamps with a single verse return that verse for any position', () => 
       timestamps,
     }),
     1
+  );
+});
+
+test('keeps the live transcript open only when the next chapter stays in listen mode with text', () => {
+  assert.equal(
+    getNextFollowAlongVisibility({
+      currentlyVisible: true,
+      nextSessionMode: 'listen',
+      hasText: true,
+    }),
+    true
+  );
+
+  assert.equal(
+    getNextFollowAlongVisibility({
+      currentlyVisible: true,
+      nextSessionMode: 'read',
+      hasText: true,
+    }),
+    false
+  );
+
+  assert.equal(
+    getNextFollowAlongVisibility({
+      currentlyVisible: true,
+      nextSessionMode: 'listen',
+      hasText: false,
+    }),
+    false
+  );
+
+  assert.equal(
+    getNextFollowAlongVisibility({
+      currentlyVisible: false,
+      nextSessionMode: 'listen',
+      hasText: true,
+    }),
+    false
   );
 });
 

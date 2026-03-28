@@ -68,6 +68,22 @@ test('BibleReaderScreen uses minimal listen chrome instead of repeating chapter 
   );
 });
 
+test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.equal(
+    source.includes("from '../../services/bible/verseTimestamps'"),
+    false,
+    'BibleReaderScreen should keep the large verse timestamp require map off the initial reader import path'
+  );
+
+  assert.match(
+    source,
+    /import\('\.\.\/\.\.\/services\/bible\/verseTimestamps'\)/,
+    'BibleReaderScreen should dynamically import the verse timestamp module when follow-along is requested'
+  );
+});
+
 test('listen mode no longer renders the extra eyebrow and play-CTA card copy above the player', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
@@ -365,5 +381,47 @@ test('chapter sync preserves the current reader session mode in navigation param
     source,
     /const syncReaderReference = \(nextBookId: string, nextChapter: number\) => \{[\s\S]*navigation\.setParams\([\s\S]*buildReaderChapterRouteParams\({[\s\S]*preferredMode: chapterSessionMode,[\s\S]*}\)[\s\S]*\);/s,
     'BibleReaderScreen should preserve the active listen-or-read session mode by passing it into the shared reader route-param builder'
+  );
+});
+
+test('active audio chapter sync preserves the current session mode when the reader follows playback into a new chapter', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /navigation\.setParams\(\s*buildReaderChapterRouteParams\(\{[\s\S]*bookId: activeAudioBookId \?\? bookId,[\s\S]*chapter: activeAudioChapter,[\s\S]*preferredMode: chapterSessionMode,[\s\S]*}\)\s*\);/s,
+    'BibleReaderScreen should preserve the active listen-or-read mode when auto-syncing the reader to the next playing chapter'
+  );
+});
+
+test('changing the listen-or-read rail keeps the route preferred mode in sync for later chapter and translation changes', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*navigation\.setParams\(\{[\s\S]*preferredMode: nextMode,[\s\S]*}\);/s,
+    'BibleReaderScreen should update the route preferredMode whenever the user switches between listen and read'
+  );
+});
+
+test('chapter session resets preserve the live transcript when the next chapter remains in listen mode with text', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const nextSessionMode = getInitialChapterSessionMode\(/,
+    'BibleReaderScreen should derive the next chapter session mode before deciding whether to keep live transcript open'
+  );
+
+  assert.match(
+    source,
+    /setShowFollowAlongText\(\(current\) =>\s*getNextFollowAlongVisibility\(\{[\s\S]*currentlyVisible: current,[\s\S]*nextSessionMode,[\s\S]*hasText: verses.length > 0,[\s\S]*}\)\s*\);/s,
+    'BibleReaderScreen should preserve the live transcript when chapter changes stay in listen mode with readable text'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /sessionKeyRef\.current = sessionKey;\s*setShowFollowAlongText\(false\);/,
+    'BibleReaderScreen should not unconditionally close the live transcript on every chapter session reset'
   );
 });

@@ -131,6 +131,7 @@ export function GroupSessionScreen() {
     isSignedIn,
     remoteRequestKey,
     syncFeatureEnabled,
+    t,
     userId,
   ]);
 

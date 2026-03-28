@@ -103,6 +103,7 @@ export const ko = {
     available: '사용 가능',
     translationComingSoon: '{{name}}는 향후 업데이트에서 다운로드할 수 있습니다.',
     failedToLoad: '지금은 이 장을 로드할 수 없습니다.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}}에는 아직 작성된 텍스트가 없습니다.',
     fullBibleComingSoon: '이 장은 현재 텍스트로 제공되지 않습니다. 오디오를 사용할 수 있는 경우 Every Bible는 대신 청취 환경을 엽니다.',
     audioOnlyTitle: '오디오 우선 장',

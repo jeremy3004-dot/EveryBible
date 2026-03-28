@@ -112,6 +112,7 @@ export const hi = {
     available: 'उपलब्ध',
     translationComingSoon: '{{name}} भविष्य के अपडेट में डाउनलोड के लिए उपलब्ध होगा।',
     failedToLoad: 'हम अभी इस अध्याय को लोड नहीं कर सके.',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} में अभी तक लिखित पाठ नहीं है।',
     fullBibleComingSoon:
       'यह अध्याय अभी पाठ में उपलब्ध नहीं है. यदि ऑडियो उपलब्ध है, तो Every Bible इसके बजाय सुनने का अनुभव खोलेगा।',

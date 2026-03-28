@@ -109,7 +109,6 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
     'Expected the ops doc to describe how operators find failed exports'
   );
 });
-
 test('chapter feedback function defers spreadsheet secret lookup until after the feedback row is saved', () => {
   const functionSource = readRepoFile('supabase/functions/submit-chapter-feedback/index.ts');
   const spreadsheetSecretLookup = functionSource.indexOf(

@@ -222,6 +222,40 @@ test('submitChapterFeedback maps a 401 edge-function response into a sign-in ret
   ]);
 });
 
+test('submitChapterFeedback surfaces backend auth misconfiguration when the edge runtime rejects the JWT', async () => {
+  resetTrackedBibleExperienceEvents();
+  const result = await submitChapterFeedback(baseInput, {
+    invoke: async () => ({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: new Response(JSON.stringify({ code: 401, message: 'Invalid JWT' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      } as { message?: string; context?: Response },
+    }),
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.saved, false);
+  assert.equal(result.exported, false);
+  assert.equal(
+    result.error,
+    'Chapter feedback is temporarily unavailable right now. Please try again soon.'
+  );
+  assert.deepEqual(getTrackedBibleExperienceEvents(), [
+    {
+      name: 'chapter_feedback_failed',
+      translationId: 'bsb',
+      bookId: 'JHN',
+      chapter: 3,
+      sentiment: 'up',
+      source: 'reader-feedback',
+      detail: 'Chapter feedback is temporarily unavailable right now. Please try again soon.',
+    },
+  ]);
+});
 test('submitChapterFeedback refreshes the session and retries once after a 401 edge-function response', async () => {
   resetTrackedBibleExperienceEvents();
   const calls: Array<{ headers?: Record<string, string> }> = [];

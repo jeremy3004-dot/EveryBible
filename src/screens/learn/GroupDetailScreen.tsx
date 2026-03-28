@@ -118,6 +118,7 @@ export function GroupDetailScreen() {
     isSignedIn,
     remoteRequestKey,
     syncFeatureEnabled,
+    t,
     userId,
   ]);
 

@@ -31,6 +31,11 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     /require\('\.\/src\/navigation\/RootNavigator'\)/,
     'App.tsx should defer the navigator module until after boot'
   );
+  assert.match(
+    appSource,
+    /migrateStorage:\s*async\s*\(\)\s*=>\s*\{[\s\S]*await migrateFromAsyncStorage\(\);[\s\S]*await reconcileTranslationPacks\(\);[\s\S]*\}/,
+    'App.tsx should repair stale runtime translation packs before the boot flow renders the navigator'
+  );
 });
 
 test('Root navigator keeps the mini-player off the startup import path', () => {

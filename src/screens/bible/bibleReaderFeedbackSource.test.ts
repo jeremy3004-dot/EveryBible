@@ -71,7 +71,6 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
     'BibleReaderScreen should preserve a retry-safe error state when feedback submission fails'
   );
 });
-
 test('BibleReaderScreen keeps the feedback submit actions reachable when the keyboard is open', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

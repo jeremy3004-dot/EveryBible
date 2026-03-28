@@ -254,7 +254,8 @@ test('parseTranslationCatalogManifest throws when issuedAt is not a valid ISO da
 });
 
 test('parseTranslationCatalogManifest throws when translations is missing', () => {
-  const { translations: _, ...withoutTranslations } = validManifestPayload;
+  const withoutTranslations = { ...validManifestPayload } as Partial<typeof validManifestPayload>;
+  delete withoutTranslations.translations;
   assert.throws(
     () => parseTranslationCatalogManifest(withoutTranslations),
     /missing required fields/i

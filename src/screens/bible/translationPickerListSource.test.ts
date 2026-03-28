@@ -58,3 +58,18 @@ test('shared translation picker can filter by language and download runtime tran
     'TranslationPickerList should route testament audio downloads through the batched store action instead of per-book serial loops'
   );
 });
+test('translation picker keeps the sheet open while a runtime translation still needs download', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /if \(selectionState\.isSelectable\) \{[\s\S]*onRequestClose\?\.\(\);[\s\S]*onTranslationActivated\?\.\(\);[\s\S]*return;[\s\S]*\}/,
+    'TranslationPickerList should only dismiss the sheet after a translation is actually activated'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /onRequestClose\?\.\(\);\s*\n\s*const audioAvailability = getTranslationAudioAvailability/,
+    'TranslationPickerList should not dismiss the sheet before it decides whether the tap starts a download instead of activating a translation'
+  );
+});

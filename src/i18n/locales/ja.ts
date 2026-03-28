@@ -103,6 +103,7 @@ export const ja = {
     available: '利用可能',
     translationComingSoon: '{{name}} は将来のアップデートでダウンロードできるようになる予定です。',
     failedToLoad: '現在、この章をロードできませんでした。',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} にはまだテキストが書き込まれていません。',
     fullBibleComingSoon: '現在、この章はテキストで利用できません。オーディオが利用可能な場合は、代わりに Every Bible がリスニング エクスペリエンスを開きます。',
     audioOnlyTitle: 'オーディオの最初の章',

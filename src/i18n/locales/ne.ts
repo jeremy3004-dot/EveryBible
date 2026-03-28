@@ -112,6 +112,7 @@ export const ne = {
     available: 'उपलब्ध छ',
     translationComingSoon: '{{name}} भविष्यको अद्यावधिकमा डाउनलोडको लागि उपलब्ध हुनेछ।',
     failedToLoad: 'हामीले अहिले यो अध्याय लोड गर्न सकेनौं।',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} सँग अझै लेखिएको पाठ छैन।',
     fullBibleComingSoon:
       'यो अध्याय अहिले पाठमा उपलब्ध छैन। यदि अडियो उपलब्ध छ भने, Every Bible ले सुन्ने अनुभव खोल्नेछ।',

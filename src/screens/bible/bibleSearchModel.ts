@@ -2,6 +2,7 @@ import type { Verse } from '../../types';
 import type { PassageReferenceTarget } from '../../services/bible/referenceParser';
 
 export const MIN_BIBLE_SEARCH_QUERY_LENGTH = 2;
+export const BIBLE_SEARCH_DEBOUNCE_MS = 250;
 
 export type BibleSearchIntent =
   | {

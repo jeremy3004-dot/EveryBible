@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import { syncProgress } from '../services/sync';
 import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
 let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedSyncProgress() {
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
-    syncProgress().catch(() => {});
+    void import('../services/sync')
+      .then(({ syncProgress }) => syncProgress())
+      .catch(() => {});
     syncDebounceTimer = null;
   }, 2000);
 }

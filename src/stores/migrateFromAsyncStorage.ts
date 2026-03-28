@@ -21,6 +21,8 @@ export const STORE_KEYS = [
   'library-storage',
 ] as const;
 
+export const ASYNC_STORAGE_MIGRATION_COMPLETED_KEY = 'async-storage-mmkv-migration-complete';
+
 /**
  * Core migration loop extracted for testability.
  * Accepts injected read/write functions so tests can pass plain Map-based mocks.
@@ -48,6 +50,22 @@ export async function migrateStoreKeys(
   }
 }
 
+export async function migrateStoreKeysIfNeeded(
+  keys: readonly string[],
+  getAsyncValue: (key: string) => Promise<string | null>,
+  getMmkvValue: (key: string) => string | undefined,
+  setMmkvValue: (key: string, value: string) => void,
+  completedKey: string = ASYNC_STORAGE_MIGRATION_COMPLETED_KEY
+): Promise<boolean> {
+  if (getMmkvValue(completedKey) === '1') {
+    return false;
+  }
+
+  await migrateStoreKeys(keys, getAsyncValue, getMmkvValue, setMmkvValue);
+  setMmkvValue(completedKey, '1');
+  return true;
+}
+
 /**
  * Runs the one-time migration from AsyncStorage to MMKV for all 7 persisted store keys.
  * Call this at startup BEFORE stores are read from MMKV so the data is available.
@@ -60,11 +78,14 @@ export async function migrateFromAsyncStorage(): Promise<void> {
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   const { mmkvInstance } = require('./mmkvStorage') as typeof import('./mmkvStorage');
 
-  await migrateStoreKeys(
+  const didMigrate = await migrateStoreKeysIfNeeded(
     STORE_KEYS,
     (key) => AsyncStorage.getItem(key),
     (key) => mmkvInstance.getString(key),
     (key, value) => mmkvInstance.set(key, value)
   );
-  console.log('[MMKV Migration] Complete');
+
+  if (didMigrate) {
+    console.log('[MMKV Migration] Complete');
+  }
 }

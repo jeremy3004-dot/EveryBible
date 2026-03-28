@@ -1,6 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system/legacy';
-import { defaultDatabaseDirectory, importDatabaseFromAssetAsync } from 'expo-sqlite';
+import { importDatabaseFromAssetAsync } from 'expo-sqlite';
 import type { Verse } from '../../types';
 import { buildBibleSearchQuery, isBundledBibleDatabaseReady } from './bibleDataModel';
 
@@ -9,13 +8,25 @@ const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
 const DEFAULT_MINIMUM_READY_VERSE_COUNT = 90000;
+const SQLITE_OPEN_OPTIONS = {
+  finalizeUnusedStatementsBeforeClosing: false,
+} as const;
+
+export class BibleSearchUnavailableError extends Error {
+  readonly translationId: string;
+
+  constructor(translationId: string) {
+    super(`Full-text search is not available for translation "${translationId}".`);
+    this.name = 'BibleSearchUnavailableError';
+    this.translationId = translationId;
+  }
+}
 
 export type BibleDatabaseSource =
   | {
       kind: 'bundled';
       databaseName: string;
       assetId: number;
-      directory?: string;
     }
   | {
       kind: 'installed';
@@ -30,7 +41,6 @@ const bundledBibleDatabaseSource: BibleDatabaseSource = {
   kind: 'bundled',
   databaseName: DATABASE_NAME,
   assetId: DATABASE_ASSET_ID,
-  directory: String(defaultDatabaseDirectory).replace(/\/$/, ''),
 };
 
 let bibleDatabaseSourceResolver: BibleDatabaseSourceResolver = () => null;
@@ -50,12 +60,8 @@ type BibleDatabaseStatus = {
   ready: boolean;
 };
 
-function getDatabasePath(): string {
-  return `${bundledBibleDatabaseSource.directory ?? String(defaultDatabaseDirectory).replace(/\/$/, '')}/${DATABASE_NAME}`;
-}
-
 function getSourceCacheKey(source: BibleDatabaseSource): string {
-  return `${source.kind}:${source.databaseName}:${source.kind === 'installed' ? source.directory : source.directory ?? ''}`;
+  return `${source.kind}:${source.databaseName}:${source.kind === 'installed' ? source.directory : ''}`;
 }
 
 async function closeDatabase(database?: SQLite.SQLiteDatabase | null): Promise<void> {
@@ -81,7 +87,7 @@ async function openBundledDatabase(forceOverwrite = false): Promise<SQLite.SQLit
     assetId: DATABASE_ASSET_ID,
     forceOverwrite,
   });
-  db = await SQLite.openDatabaseAsync(DATABASE_NAME, undefined, bundledBibleDatabaseSource.directory);
+  db = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS);
   await db.execAsync('PRAGMA journal_mode = WAL');
   return db;
 }
@@ -166,25 +172,22 @@ export async function initDatabase(
 export async function inspectBundledDatabaseStatus(
   minimumReadyVerseCount = DEFAULT_MINIMUM_READY_VERSE_COUNT
 ): Promise<BibleDatabaseStatus> {
-  const fileInfo = await FileSystem.getInfoAsync(getDatabasePath());
-
-  if (!fileInfo.exists) {
-    return {
-      verseCount: 0,
-      schemaVersion: 0,
-      hasSearchIndex: false,
-      ready: false,
-    };
-  }
-
   let temporaryDb: SQLite.SQLiteDatabase | null = null;
 
   try {
-    temporaryDb = db ?? (await SQLite.openDatabaseAsync(DATABASE_NAME));
+    temporaryDb = db ?? (await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
     const status = await inspectOpenDatabase(temporaryDb);
+    const ready = isBundledBibleDatabaseReady(status, minimumReadyVerseCount);
+
+    if (!db && temporaryDb && ready) {
+      await temporaryDb.execAsync('PRAGMA journal_mode = WAL');
+      db = temporaryDb;
+      temporaryDb = null;
+    }
+
     return {
       ...status,
-      ready: isBundledBibleDatabaseReady(status, minimumReadyVerseCount),
+      ready,
     };
   } catch (error) {
     console.warn('[Bible] Failed to inspect bundled database status:', error);
@@ -223,7 +226,11 @@ export async function getDatabase(
     return cachedDatabase;
   }
 
-  const database = await SQLite.openDatabaseAsync(source.databaseName, undefined, source.directory);
+  const database = await SQLite.openDatabaseAsync(
+    source.databaseName,
+    SQLITE_OPEN_OPTIONS,
+    source.directory
+  );
   await database.execAsync('PRAGMA journal_mode = WAL');
   installedDatabaseCache.set(cacheKey, database);
   return database;
@@ -271,7 +278,15 @@ export async function searchVerses(
   const database = await getDatabase(translationId);
   const ftsQuery = buildBibleSearchQuery(query.trim());
 
-  if (ftsQuery && (await hasSearchIndexTable(database))) {
+  if (!ftsQuery) {
+    return [];
+  }
+
+  if (ftsQuery && !(await hasSearchIndexTable(database))) {
+    throw new BibleSearchUnavailableError(translationId);
+  }
+
+  if (ftsQuery) {
     try {
       const indexedResults = await database.getAllAsync<{
         id: number;
@@ -302,37 +317,12 @@ export async function searchVerses(
         heading: row.heading ?? undefined,
       }));
     } catch (error) {
-      console.warn('[Bible] Indexed search failed, falling back to LIKE search:', error);
+      console.warn('[Bible] Indexed search failed:', error);
+      throw error;
     }
   }
 
-  const results = await database.getAllAsync<{
-    id: number;
-    translation_id: string;
-    book_id: string;
-    chapter: number;
-    verse: number;
-    text: string;
-    heading: string | null;
-  }>(
-    `
-      SELECT *
-      FROM verses
-      WHERE translation_id = ? AND text LIKE ?
-      ORDER BY book_id, chapter, verse
-      LIMIT ?
-    `,
-    [translationId, `%${query}%`, limit]
-  );
-
-  return results.map((row) => ({
-    id: row.id,
-    bookId: row.book_id,
-    chapter: row.chapter,
-    verse: row.verse,
-    text: row.text,
-    heading: row.heading ?? undefined,
-  }));
+  return [];
 }
 
 export async function insertVerse(

@@ -7,7 +7,12 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { STORE_KEYS, migrateStoreKeys } from './migrateFromAsyncStorage';
+import {
+  ASYNC_STORAGE_MIGRATION_COMPLETED_KEY,
+  STORE_KEYS,
+  migrateStoreKeys,
+  migrateStoreKeysIfNeeded,
+} from './migrateFromAsyncStorage';
 
 test('STORE_KEYS contains exactly 7 entries', () => {
   assert.equal(STORE_KEYS.length, 7);
@@ -90,4 +95,39 @@ test('does not set MMKV when AsyncStorage value is null', async () => {
   );
 
   assert.equal(mmkvStore.has('audio-storage'), false);
+});
+
+test('skips AsyncStorage reads after the one-time migration marker is set', async () => {
+  const mmkvStore = new Map<string, string>([[ASYNC_STORAGE_MIGRATION_COMPLETED_KEY, '1']]);
+  let asyncReadCount = 0;
+
+  const didMigrate = await migrateStoreKeysIfNeeded(
+    ['auth-storage', 'bible-storage'],
+    async () => {
+      asyncReadCount += 1;
+      return '{"unexpected":true}';
+    },
+    (key) => mmkvStore.get(key),
+    (key, value) => mmkvStore.set(key, value)
+  );
+
+  assert.equal(didMigrate, false);
+  assert.equal(asyncReadCount, 0);
+  assert.equal(mmkvStore.get('auth-storage'), undefined);
+});
+
+test('marks AsyncStorage migration complete after the first pass', async () => {
+  const mmkvStore = new Map<string, string>();
+  const asyncStore = new Map<string, string>([['auth-storage', '{"user":null}']]);
+
+  const didMigrate = await migrateStoreKeysIfNeeded(
+    ['auth-storage'],
+    async (key) => asyncStore.get(key) ?? null,
+    (key) => mmkvStore.get(key),
+    (key, value) => mmkvStore.set(key, value)
+  );
+
+  assert.equal(didMigrate, true);
+  assert.equal(mmkvStore.get('auth-storage'), '{"user":null}');
+  assert.equal(mmkvStore.get(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY), '1');
 });

@@ -157,8 +157,6 @@ export function TranslationPickerList({
           .translations.find((candidate) => candidate.id === translation.id) ?? translation;
     }
 
-    onRequestClose?.();
-
     const audioAvailability = getTranslationAudioAvailability(nextTranslation);
     const selectionState = getTranslationSelectionState({
       isDownloaded: nextTranslation.isDownloaded,
@@ -171,6 +169,7 @@ export function TranslationPickerList({
 
     if (selectionState.isSelectable) {
       setCurrentTranslation(nextTranslation.id);
+      onRequestClose?.();
       onTranslationActivated?.();
       return;
     }

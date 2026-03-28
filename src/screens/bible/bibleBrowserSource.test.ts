@@ -39,6 +39,50 @@ test('Bible browser exposes a search input that drives the deferred query', () =
   );
 });
 
+test('Bible browser debounces full-text search requests and ignores stale completions', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /BIBLE_SEARCH_DEBOUNCE_MS/,
+    'BibleBrowserScreen should use a shared debounce window before issuing SQLite-backed full-text searches'
+  );
+
+  assert.match(
+    source,
+    /setTimeout\(/,
+    'BibleBrowserScreen should debounce full-text search requests instead of starting a database query on every keystroke'
+  );
+
+  assert.match(
+    source,
+    /searchRequestIdRef/,
+    'BibleBrowserScreen should track the latest search request so stale async completions do not overwrite newer results'
+  );
+
+  assert.match(
+    source,
+    /requestId === searchRequestIdRef\.current/,
+    'BibleBrowserScreen should ignore outdated async search completions once a newer query has started'
+  );
+});
+
+test('Bible browser shows a dedicated message when the selected translation does not support full-text search', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /BibleSearchUnavailableError/,
+    'BibleBrowserScreen should distinguish unsupported full-text search from generic load failures'
+  );
+
+  assert.match(
+    source,
+    /t\('bible\.searchUnavailable'\)/,
+    'BibleBrowserScreen should show a dedicated unsupported-search message when the current translation lacks full-text search'
+  );
+});
+
 test('Bible browser handles all three search intent kinds in the render tree', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 

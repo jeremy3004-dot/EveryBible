@@ -363,6 +363,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = getRequiredSecret('SUPABASE_URL');
+    const anonKey = getRequiredSecret('SUPABASE_ANON_KEY');
     const serviceRoleKey = getRequiredSecret('SUPABASE_SERVICE_ROLE_KEY');
     const authorization = req.headers.get('Authorization');
 
@@ -371,11 +372,22 @@ Deno.serve(async (req) => {
     }
 
     const accessToken = authorization.slice('Bearer '.length).trim();
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const authClient = createClient(supabaseUrl, anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser(accessToken);
+    } = await authClient.auth.getUser(accessToken);
 
     if (authError || !user) {
       return jsonResponse(401, { success: false, error: 'Not authenticated' });

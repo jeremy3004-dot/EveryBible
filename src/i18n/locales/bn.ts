@@ -103,6 +103,7 @@ export const bn = {
     available: 'পাওয়া যায়',
     translationComingSoon: '{{name}} ভবিষ্যতের আপডেটে ডাউনলোডের জন্য উপলব্ধ হবে৷',
     failedToLoad: 'আমরা এখন এই অধ্যায়টি লোড করতে পারিনি৷',
+    searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} এখনও কোন লেখা নেই.',
     fullBibleComingSoon: 'এই অধ্যায় এই মুহূর্তে পাঠ্য পাওয়া যায় না. অডিও উপলব্ধ থাকলে, Every Bible পরিবর্তে শোনার অভিজ্ঞতা খুলবে৷',
     audioOnlyTitle: 'অডিও-প্রথম অধ্যায়',

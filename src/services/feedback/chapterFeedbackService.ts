@@ -111,6 +111,7 @@ function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): num
     : null;
 }
 
+const EDGE_RUNTIME_401_MESSAGES = new Set(['Invalid JWT', 'Missing authorization header']);
 async function resolveFunctionErrorMessage(
   error: ChapterFeedbackFunctionError | null
 ): Promise<string> {
@@ -121,22 +122,36 @@ async function resolveFunctionErrorMessage(
   const status = getFunctionErrorStatus(error);
   const response = error.context;
 
-  if (status === 401) {
-    return 'Please sign in again before sending chapter feedback.';
-  }
-
   if (response && typeof response === 'object') {
+    let responseJson: unknown = null;
+
     try {
       if (typeof response.json === 'function') {
-        const json = await response.json();
+        responseJson = await response.json();
+
         if (
-          json &&
-          typeof json === 'object' &&
-          'error' in json &&
-          typeof json.error === 'string' &&
-          json.error.trim().length > 0
+          status === 401 &&
+          responseJson &&
+          typeof responseJson === 'object' &&
+          'message' in responseJson &&
+          typeof responseJson.message === 'string' &&
+          EDGE_RUNTIME_401_MESSAGES.has(responseJson.message)
         ) {
-          return json.error.trim();
+          return 'Chapter feedback is temporarily unavailable right now. Please try again soon.';
+        }
+
+        if (
+          responseJson &&
+          typeof responseJson === 'object' &&
+          'error' in responseJson &&
+          typeof responseJson.error === 'string' &&
+          responseJson.error.trim().length > 0
+        ) {
+          if (status === 401) {
+            return 'Please sign in again before sending chapter feedback.';
+          }
+
+          return responseJson.error.trim();
         }
       }
     } catch {
@@ -146,6 +161,11 @@ async function resolveFunctionErrorMessage(
     try {
       if (typeof response.text === 'function') {
         const text = await response.text();
+
+        if (status === 401 && EDGE_RUNTIME_401_MESSAGES.has(text.trim())) {
+          return 'Chapter feedback is temporarily unavailable right now. Please try again soon.';
+        }
+
         if (typeof text === 'string' && text.trim().length > 0) {
           return text.trim();
         }
@@ -155,6 +175,9 @@ async function resolveFunctionErrorMessage(
     }
   }
 
+  if (status === 401) {
+    return 'Please sign in again before sending chapter feedback.';
+  }
   return error.message ?? 'Unable to submit chapter feedback right now.';
 }
 

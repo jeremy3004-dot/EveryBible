@@ -541,7 +541,9 @@ export const sanitizePersistedAuthState = (
   const persisted = isRecord(value) ? value : {};
 
   return {
-    // Persisted auth UI state must never outrank the live Supabase session.
+    // A persisted auth flag is not proof of a valid Supabase session token.
+    // The live session restored by Supabase SecureStore remains the only source
+    // of truth for signed-in state.
     user: null,
     isAuthenticated: false,
     preferences: sanitizeUserPreferences(persisted.preferences),

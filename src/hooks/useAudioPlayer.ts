@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore, useLibraryStore } from '../stores';
 import {
   audioPlayer,
@@ -76,7 +77,52 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     clearSleepTimer,
     setBackgroundMusicChoice,
     resetPlayback,
-  } = useAudioStore();
+  } = useAudioStore(
+    useShallow((state) => ({
+      status: state.status,
+      currentTranslationId: state.currentTranslationId,
+      currentBookId: state.currentBookId,
+      currentChapter: state.currentChapter,
+      currentPosition: state.currentPosition,
+      duration: state.duration,
+      error: state.error,
+      showPlayer: state.showPlayer,
+      queue: state.queue,
+      queueIndex: state.queueIndex,
+      playbackSequence: state.playbackSequence,
+      lastPlayedTranslationId: state.lastPlayedTranslationId,
+      lastPlayedBookId: state.lastPlayedBookId,
+      lastPlayedChapter: state.lastPlayedChapter,
+      lastPosition: state.lastPosition,
+      playbackRate: state.playbackRate,
+      autoAdvanceChapter: state.autoAdvanceChapter,
+      repeatMode: state.repeatMode,
+      sleepTimerMinutes: state.sleepTimerMinutes,
+      sleepTimerEndTime: state.sleepTimerEndTime,
+      backgroundMusicChoice: state.backgroundMusicChoice,
+      setStatus: state.setStatus,
+      setCurrentTrack: state.setCurrentTrack,
+      setPosition: state.setPosition,
+      setDuration: state.setDuration,
+      setError: state.setError,
+      syncQueueToTrack: state.syncQueueToTrack,
+      addToQueue: state.addToQueue,
+      removeFromQueue: state.removeFromQueue,
+      clearQueue: state.clearQueue,
+      setQueueIndex: state.setQueueIndex,
+      clearPlaybackSequence: state.clearPlaybackSequence,
+      setShowPlayer: state.setShowPlayer,
+      togglePlayer: state.togglePlayer,
+      setPlaybackRate: state.setPlaybackRate,
+      setAutoAdvanceChapter: state.setAutoAdvanceChapter,
+      setRepeatMode: state.setRepeatMode,
+      cycleRepeatMode: state.cycleRepeatMode,
+      setSleepTimer: state.setSleepTimer,
+      clearSleepTimer: state.clearSleepTimer,
+      setBackgroundMusicChoice: state.setBackgroundMusicChoice,
+      resetPlayback: state.resetPlayback,
+    }))
+  );
 
   const playChapterForTranslation = useCallback(
     async (targetTranslationId: string, bookId: string, chapter: number, verse?: number) => {

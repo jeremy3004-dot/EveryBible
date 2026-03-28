@@ -16,6 +16,7 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		E32ABEF1BEED1903ECDCC71D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DDAF5C60B8FCDE3C52D246C /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */ = {isa = PBXBuildFile; fileRef = EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = EveryBible/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* EveryBible-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "EveryBible-Bridging-Header.h"; path = "EveryBible/EveryBible-Bridging-Header.h"; sourceTree = "<group>"; };
+		EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */ = {isa = PBXFileReference; name = "bible-bsb-v2.db"; path = "../assets/databases/bible-bsb-v2.db"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				9FDC08E48497F68CFEF901E7 /* Pods */,
 				4A289FA5A0B45F4E895C6A56 /* ExpoModulesProviders */,
+				D069371DE46C4D9B846A964A /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -143,6 +146,15 @@
 			name = Supporting;
 			path = EveryBible/Supporting;
 			sourceTree = "<group>";
+		};
+		D069371DE46C4D9B846A964A /* Resources */ = {
+			isa = "PBXGroup";
+			children = (
+				EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -211,6 +223,7 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* EveryBibleLaunchScreen.storyboard in Resources */,
 				13B9648EC37BCFE93DE0C96C /* PrivacyInfo.xcprivacy in Resources */,
+				2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -379,7 +392,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 181;
+				CURRENT_PROJECT_VERSION = 189;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -419,7 +432,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 181;
+				CURRENT_PROJECT_VERSION = 189;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				INFOPLIST_FILE = EveryBible/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

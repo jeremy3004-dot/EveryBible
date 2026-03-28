@@ -32,5 +32,65 @@ test('getDatabase opens the resolved SQLite source directory for translation-awa
 
   assert.match(source, /export async function getDatabase\(/);
   assert.match(source, /const source = resolveBibleDatabaseSource\(translationId\)/);
-  assert.match(source, /SQLite\.openDatabaseAsync\(source\.databaseName, undefined, source\.directory\)/);
+  assert.match(
+    source,
+    /SQLite\.openDatabaseAsync\(\s*source\.databaseName,\s*SQLITE_OPEN_OPTIONS,\s*source\.directory\s*\)/
+  );
+});
+
+test('bible database opens disable sqlite auto-finalization before close paths', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /const SQLITE_OPEN_OPTIONS = \{\s*finalizeUnusedStatementsBeforeClosing:\s*false,?\s*\}/,
+    'bibleDatabase.ts should define sqlite open options that disable auto-finalization to avoid iOS closeDatabase crashes'
+  );
+  assert.match(
+    source,
+    /SQLite\.openDatabaseAsync\(\s*DATABASE_NAME,\s*SQLITE_OPEN_OPTIONS\s*\)/,
+    'bundled bible database opens should let Expo resolve the default sqlite directory internally'
+  );
+  assert.match(
+    source,
+    /temporaryDb\s*=\s*db\s*\?\?\s*\(await SQLite\.openDatabaseAsync\(\s*DATABASE_NAME,\s*SQLITE_OPEN_OPTIONS\s*\)\)/,
+    'bundled status inspection should probe sqlite by opening the default bundled database path directly'
+  );
+  assert.doesNotMatch(
+    source,
+    /getInfoAsync\(getDatabasePath\(\)\)/,
+    'bundled status inspection should not rely on raw filesystem path checks before probing sqlite'
+  );
+});
+
+test('bundled status inspection keeps the ready bundled database open for reuse', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /const status = await inspectOpenDatabase\(temporaryDb\);[\s\S]*const ready = isBundledBibleDatabaseReady\(status, minimumReadyVerseCount\);[\s\S]*if \(!db && temporaryDb && ready\) \{[\s\S]*db = temporaryDb;[\s\S]*temporaryDb = null;[\s\S]*\}/,
+    'bundled status inspection should promote a ready temporary bundled database into the shared handle so iOS startup does not immediately close and reopen the same SQLite file'
+  );
+});
+
+test('full-text search refuses non-FTS translations instead of falling back to an unbounded LIKE scan', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /export class BibleSearchUnavailableError extends Error/,
+    'bibleDatabase.ts should expose a dedicated error for translations that do not support full-text search'
+  );
+
+  assert.match(
+    source,
+    /if \(ftsQuery && !\(await hasSearchIndexTable\(database\)\)\) \{[\s\S]*throw new BibleSearchUnavailableError\(translationId\);[\s\S]*\}/,
+    'searchVerses should fail fast when a translation lacks verses_fts instead of trying a CPU-heavy table scan'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /text LIKE \?/,
+    'searchVerses should not run a LIKE fallback against verses.text when no full-text index exists'
+  );
 });

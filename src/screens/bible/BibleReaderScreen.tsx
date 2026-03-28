@@ -47,8 +47,6 @@ import {
 } from '../../services/annotations/annotationService';
 import { buildBibleDeepLink, getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
-import { getChapterTimestamps } from '../../services/bible/verseTimestamps';
-import type { VerseTimestamps } from '../../services/bible/verseTimestamps';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { submitChapterFeedback } from '../../services/feedback';
 import {
@@ -80,6 +78,7 @@ import {
   getInitialChapterSessionMode,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
+  getNextFollowAlongVisibility,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
   shouldAutoplayChapterAudio,
@@ -95,6 +94,7 @@ import {
 import { getTranslationSelectionState } from './bibleTranslationModel';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
+type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
 
 interface GlassSurfaceProps {
   children: ReactNode;
@@ -451,21 +451,27 @@ export function BibleReaderScreen() {
     }
 
     sessionKeyRef.current = sessionKey;
-    setShowFollowAlongText(false);
-    setChapterSessionMode(
-      getInitialChapterSessionMode({
-        translationId: currentTranslation,
-        audioEnabled,
+    const nextSessionMode = getInitialChapterSessionMode({
+      translationId: currentTranslation,
+      audioEnabled,
+      hasText: verses.length > 0,
+      autoplayAudio: Boolean(autoplayAudio),
+      preferredMode: preferredMode ?? null,
+      bookId,
+      chapter,
+      activeAudioTranslationId,
+      activeAudioBookId,
+      activeAudioChapter,
+    });
+
+    setShowFollowAlongText((current) =>
+      getNextFollowAlongVisibility({
+        currentlyVisible: current,
+        nextSessionMode,
         hasText: verses.length > 0,
-        autoplayAudio: Boolean(autoplayAudio),
-        preferredMode: preferredMode ?? null,
-        bookId,
-        chapter,
-        activeAudioTranslationId,
-        activeAudioBookId,
-        activeAudioChapter,
       })
     );
+    setChapterSessionMode(nextSessionMode);
   }, [
     activeAudioTranslationId,
     activeAudioBookId,
@@ -515,8 +521,29 @@ export function BibleReaderScreen() {
   // Fetch verse timestamps when Follow Along opens; clear when chapter changes.
   useEffect(() => {
     if (!showFollowAlongText) return;
+
+    let isCancelled = false;
     setChapterTimestamps(null);
-    getChapterTimestamps(currentTranslation, bookId, chapter).then(setChapterTimestamps);
+
+    void import('../../services/bible/verseTimestamps')
+      .then(({ getChapterTimestamps }) =>
+        getChapterTimestamps(currentTranslation, bookId, chapter)
+      )
+      .then((timestamps) => {
+        if (!isCancelled) {
+          setChapterTimestamps(timestamps);
+        }
+      })
+      .catch((timestampsError) => {
+        if (!isCancelled) {
+          console.error('Error loading verse timestamps:', timestampsError);
+          setChapterTimestamps(null);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [showFollowAlongText, currentTranslation, bookId, chapter]);
 
   useEffect(() => {
@@ -582,13 +609,22 @@ export function BibleReaderScreen() {
       return;
     }
 
-    navigation.setParams({
-      bookId: activeAudioBookId ?? bookId,
-      chapter: activeAudioChapter,
-      focusVerse: undefined,
-      autoplayAudio: false,
-    });
-  }, [audioEnabled, activeAudioBookId, activeAudioChapter, bookId, chapter, navigation]);
+    navigation.setParams(
+      buildReaderChapterRouteParams({
+        bookId: activeAudioBookId ?? bookId,
+        chapter: activeAudioChapter,
+        preferredMode: chapterSessionMode,
+      })
+    );
+  }, [
+    audioEnabled,
+    activeAudioBookId,
+    activeAudioChapter,
+    bookId,
+    chapter,
+    chapterSessionMode,
+    navigation,
+  ]);
 
   useEffect(() => {
     const loadAnnotations = async () => {
@@ -689,6 +725,7 @@ export function BibleReaderScreen() {
     setShowTranslationSheet(false);
     setChapterSessionMode(nextMode);
     setPreferredChapterLaunchMode(nextMode);
+    navigation.setParams({ preferredMode: nextMode, autoplayAudio: false });
     if (nextMode === 'read') {
       setShowFollowAlongText(false);
       return;

@@ -13,14 +13,19 @@ export async function isBibleDataReady(): Promise<boolean> {
     return true;
   }
 
-  const status = await bibleDb.inspectBundledDatabaseStatus(MIN_READY_VERSE_COUNT);
-  const ready = status.ready;
+  try {
+    const status = await bibleDb.inspectBundledDatabaseStatus(MIN_READY_VERSE_COUNT);
+    const ready = status.ready;
 
-  if (ready) {
-    isInitialized = true;
+    if (ready) {
+      isInitialized = true;
+    }
+
+    return ready;
+  } catch (error) {
+    console.warn('[Bible] Failed to inspect bundled database readiness:', error);
+    return false;
   }
-
-  return ready;
 }
 
 export async function initBibleData(): Promise<void> {

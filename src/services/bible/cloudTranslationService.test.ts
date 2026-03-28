@@ -33,3 +33,18 @@ test('cloud translation downloads disable sqlite auto-finalization before closeA
     'downloaded translations should opt out of expo-sqlite auto-finalization before closeAsync because Expo tracks a native AsyncQueue crash for this path'
   );
 });
+test('cloud translation downloads write verses through an exclusive sqlite transaction', () => {
+  const source = readRelativeSource('./cloudTranslationService.ts');
+
+  assert.match(
+    source,
+    /await database\.withExclusiveTransactionAsync\(async \(txn\) => \{[\s\S]*await txn\.runAsync\(/,
+    "downloaded translation installs should use Expo SQLite's exclusive transaction API for batched writes so async install work does not trip the non-exclusive rollback path"
+  );
+
+  assert.doesNotMatch(
+    source,
+    /withTransactionAsync\(/,
+    'downloaded translation installs should not rely on the non-exclusive transaction helper for batched sqlite writes'
+  );
+});

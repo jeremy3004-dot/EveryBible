@@ -46,3 +46,50 @@ export function mergeRuntimeCatalogTranslations(
 
   return Array.from(mergedById.values());
 }
+export function reconcileMissingRuntimeTranslationPacks(
+  translations: BibleTranslation[],
+  currentTranslation: string,
+  missingTranslationIds: ReadonlySet<string>,
+  fallbackTranslationId = 'bsb'
+): { translations: BibleTranslation[]; currentTranslation: string } {
+  if (missingTranslationIds.size === 0) {
+    return { translations, currentTranslation };
+  }
+
+  const nextTranslations = translations.map((translation) => {
+    if (translation.source !== 'runtime' || !missingTranslationIds.has(translation.id)) {
+      return translation;
+    }
+
+    return {
+      ...translation,
+      isDownloaded: false,
+      downloadedBooks: [],
+      activeTextPackVersion: null,
+      pendingTextPackVersion: null,
+      pendingTextPackLocalPath: null,
+      textPackLocalPath: null,
+      rollbackTextPackVersion: null,
+      rollbackTextPackLocalPath: null,
+      installState: 'remote-only' as const,
+      lastInstallError: 'Local text pack missing from disk. Re-download required.',
+    };
+  });
+
+  const selectedTranslation = nextTranslations.find(
+    (translation) => translation.id === currentTranslation
+  );
+  const selectedTranslationIsReadable =
+    !!selectedTranslation &&
+    (selectedTranslation.isDownloaded ||
+      !selectedTranslation.hasText ||
+      selectedTranslation.source !== 'runtime' ||
+      Boolean(selectedTranslation.textPackLocalPath));
+
+  return {
+    translations: nextTranslations,
+    currentTranslation: selectedTranslationIsReadable
+      ? currentTranslation
+      : fallbackTranslationId,
+  };
+}

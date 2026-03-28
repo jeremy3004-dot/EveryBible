@@ -119,7 +119,8 @@ export async function getCloudTranslationVerseCount(translationId: string): Prom
  *
  * Downloaded translations intentionally omit verses_fts. iOS release builds were
  * crashing inside expo-sqlite native closeDatabase after FTS rebuild on these
- * freshly written databases, and search already has a safe LIKE fallback.
+ * freshly written databases, so the app surfaces a dedicated "search unavailable"
+ * state for installed translations instead of rebuilding FTS on-device.
  *
  * @param translationId - The translation_id from the catalog (e.g., 'engwebp')
  * @param onProgress - Optional progress callback
@@ -240,27 +241,27 @@ export async function downloadCloudTranslation(
     let written = 0;
     const BATCH_SIZE = 500;
 
-    // Split into batches for progress reporting inside the transaction
-    for (let batchStart = 0; batchStart < allVerses.length; batchStart += BATCH_SIZE) {
-      const batch = allVerses.slice(batchStart, batchStart + BATCH_SIZE);
+    // Use Expo SQLite's exclusive transaction handle for batched writes on native.
+    await database.withExclusiveTransactionAsync(async (txn) => {
+      for (let batchStart = 0; batchStart < allVerses.length; batchStart += BATCH_SIZE) {
+        const batch = allVerses.slice(batchStart, batchStart + BATCH_SIZE);
 
-      await database.withTransactionAsync(async () => {
         for (const row of batch) {
-          await database.runAsync(
+          await txn.runAsync(
             `INSERT OR IGNORE INTO verses (translation_id, book_id, chapter, verse, text, heading)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [row.translation_id, row.book_id, row.chapter, row.verse, row.text, row.heading ?? null]
           );
         }
-      });
 
-      written += batch.length;
-      onProgress?.({
-        phase: 'writing',
-        versesDownloaded: written,
-        totalVerses: allVerses.length,
-      });
-    }
+        written += batch.length;
+        onProgress?.({
+          phase: 'writing',
+          versesDownloaded: written,
+          totalVerses: allVerses.length,
+        });
+      }
+    });
 
     // ── 7. Finalize and activate the database ──────────────────────────────
     onProgress?.({

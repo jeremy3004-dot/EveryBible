@@ -34,8 +34,6 @@ export function GatherScreen() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('foundations');
 
-  const infoBannerDismissed = useGatherStore((state) => state.infoBannerDismissed);
-  const dismissInfoBanner = useGatherStore((state) => state.dismissInfoBanner);
   const getCompletedCount = useGatherStore((state) => state.getCompletedCount);
 
   const topicCardWidth = (screenWidth - 2 * layout.screenPadding - spacing.sm) / 2;

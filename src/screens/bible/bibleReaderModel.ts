@@ -47,6 +47,12 @@ interface EstimatedFollowAlongVerseInput {
   timestamps?: Record<number, number> | null;
 }
 
+interface NextFollowAlongVisibilityInput {
+  currentlyVisible: boolean;
+  nextSessionMode: ChapterSessionMode;
+  hasText: boolean;
+}
+
 interface ShouldAutoplayChapterAudioInput {
   translationId?: string | null;
   autoplayAudio: boolean;
@@ -287,6 +293,13 @@ export const getEstimatedFollowAlongVerse = ({
 
   return verses[verses.length - 1]?.verse ?? fallbackVerse ?? null;
 };
+
+export const getNextFollowAlongVisibility = ({
+  currentlyVisible,
+  nextSessionMode,
+  hasText,
+}: NextFollowAlongVisibilityInput): boolean =>
+  currentlyVisible && nextSessionMode === 'listen' && hasText;
 
 export const shouldAutoplayChapterAudio = ({
   translationId,

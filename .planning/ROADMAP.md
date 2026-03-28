@@ -35,6 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 21: Content Versioning & Multiple Translations** - Translation version tracking, preferences, and expanded content sourcing
 - [ ] **Phase 22: Gather Tab — Waha-style Foundations, Topics & Meeting Format** - Replace Harvest tab with Waha-style Gather tab featuring DBS meeting format
 - [ ] **Phase 23: Foundations Content Restructure** - Replace 9-foundation placeholder data with authoritative 7-foundation, 67-lesson content spec
+- [ ] **Phase 33: Chapter Feedback And Review Pipeline** - Let readers opt into chapter feedback and route submissions into durable review ops
 
 ## Phase Details
 
@@ -253,7 +254,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 31 → 32 → 33
 
 | Phase                                                                         | Plans Complete | Status                                                             | Completed  |
 | ----------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------ | ---------- |
@@ -286,6 +287,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 29. MMKV State Persistence Upgrade                                             | 2/2 | Complete    | 2026-03-25 |
 | 30. Animated Chapter Swipe and Reader Gestures                                 | 3/3 | Complete    | 2026-03-25 |
 | 31. Push Notification Implementation                                           | 0/2 | Planned     | -          |
+| 32. Bible Verse Deep Linking                                                   | 1/1 | Complete    | 2026-03-26 |
+| 33. Chapter Feedback And Review Pipeline                                       | 0/4 | Planned     | -          |
 
 ### Phase 12.1: Premium liquid-glass reader chrome and scroll-collapse motion (INSERTED)
 
@@ -341,23 +344,23 @@ Plans:
 
 ### Phase 14: Backend-driven Bible content sync and offline pack delivery
 
-**Goal:** Let the mobile app discover backend-managed Bible translations online, stream them immediately when needed, and install verified text/audio packs that remain fully usable offline.
+**Goal:** Let the mobile app discover backend-managed Bible translations online through one manifest-driven text/audio contract, stream them immediately when needed, and install verified text/audio packs that remain fully usable offline.
 **Requirements**: READ-01, READ-02, AUDIO-03, MULTI-01
 **Depends on:** Phase 13
 **Success Criteria** (what must be TRUE):
 
-1. The app can fetch a runtime translation catalog from the backend and show remotely provisioned translations without breaking current bundled BSB/WEB behavior.
+1. The app can fetch a runtime translation catalog and current text/audio version metadata from the backend and show remotely provisioned translations without breaking current bundled BSB/WEB behavior.
 2. A translation can be installed as a verified versioned SQLite text pack plus downloadable audio assets, then read, searched, and played fully offline.
 3. Failed downloads, bad signatures/checksums, interrupted installs, and stale updates never replace the last known good local pack.
-4. Backgrounded downloads reattach cleanly on resume/app restart and surface honest progress, retry, and failure states in the Bible UI.
+4. Backgrounded downloads reattach cleanly on resume/app restart, use bounded concurrency for large audio packs, and surface honest progress, retry, and failure states in the Bible UI.
    **Plans:** 4 plans
 
 Plans:
 
-- [ ] 14-01: Define the runtime catalog, signed manifest verification, and background download foundation
+- [ ] 14-01: Define the Supabase runtime catalog/audio-version contract, signed manifest verification, and background download foundation
 - [ ] 14-02: Build the versioned SQLite text-pack registry, install flow, and rollback-safe query routing
-- [ ] 14-03: Replace hardcoded audio providers with backend-driven sources and resilient offline/background audio downloads
-- [ ] 14-04: Ship translation install/update UX, verification coverage, and release/device QA for the new content platform
+- [ ] 14-03: Replace hardcoded audio providers with backend-driven sources and resilient bounded-concurrency offline/background audio downloads
+- [ ] 14-04: Ship translation install/update UX, verification coverage, rollback docs, and release/device QA for the new content platform
 
 ### Phase 15: Reverential Theme & Typography
 
@@ -588,3 +591,16 @@ Plans:
 
 Plans:
 - [x] 32-01-PLAN.md — Deep link parser service + tests, linking config in RootNavigator, share button URL upgrade
+
+### Phase 33: Chapter Feedback And Review Pipeline
+
+**Goal:** Add an opt-in chapter feedback loop so readers can mark a chapter thumbs up or thumbs down, optionally describe issues or improvement ideas, and send that feedback into a durable backend plus an operations spreadsheet organized by translation language, book, and chapter.
+**Requirements**: FDBK-01, FDBK-02, FDBK-03, FDBK-04
+**Depends on:** Phase 32
+**Plans:** 4 plans
+
+Plans:
+- [ ] 33-01-PLAN.md — Add chapter feedback schema, user preference storage, and an Edge Function that persists feedback then appends rows to language-specific spreadsheet tabs
+- [ ] 33-02-PLAN.md — Add the off-by-default settings toggle, BibleReader feedback entry point, thumbs up/down UI, optional comment field, and submission client
+- [ ] 33-03-PLAN.md — Add failure visibility, regression coverage, manual QA guidance, and operator setup docs for the spreadsheet pipeline
+- [ ] 33-04-PLAN.md — Run release verification, ship a new local iOS build to TestFlight, and push the branch plus PR update to GitHub

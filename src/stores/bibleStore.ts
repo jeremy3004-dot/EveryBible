@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import * as FileSystem from 'expo-file-system/legacy';
 import { zustandStorage } from './mmkvStorage';
 import { bibleBooks, config, getBookById } from '../constants';
 import type {
@@ -34,6 +35,10 @@ import {
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
 import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
+import {
+  mergeRuntimeCatalogTranslations,
+  reconcileMissingRuntimeTranslationPacks,
+} from './bibleStoreModel';
 
 interface BibleState {
   currentBook: string;
@@ -60,6 +65,7 @@ interface BibleState {
   // Translation actions
   setCurrentTranslation: (translationId: string) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
+  reconcileTranslationPacks: () => Promise<void>;
   reattachAudioDownloads: () => Promise<void>;
   stageTranslationPack: (
     translationId: string,
@@ -278,6 +284,44 @@ export const useBibleStore = create<BibleState>()(
         });
 
         syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
+      },
+
+      reconcileTranslationPacks: async () => {
+        const runtimeTranslations = get().translations.filter(
+          (translation) => translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
+        );
+
+        if (runtimeTranslations.length === 0) {
+          return;
+        }
+
+        const missingTranslationIds = new Set<string>();
+
+        await Promise.all(
+          runtimeTranslations.map(async (translation) => {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(translation.textPackLocalPath ?? '');
+
+              if (!fileInfo.exists) {
+                missingTranslationIds.add(translation.id);
+              }
+            } catch {
+              missingTranslationIds.add(translation.id);
+            }
+          })
+        );
+
+        if (missingTranslationIds.size === 0) {
+          return;
+        }
+
+        set((state) =>
+          reconcileMissingRuntimeTranslationPacks(
+            state.translations,
+            state.currentTranslation,
+            missingTranslationIds
+          )
+        );
       },
 
       reattachAudioDownloads: async () => {
