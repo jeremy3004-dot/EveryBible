@@ -18,6 +18,9 @@ export interface UserPreferences {
   contentLanguageCode: string | null;
   contentLanguageName: string | null;
   contentLanguageNativeName: string | null;
+  chapterFeedbackName: string | null;
+  chapterFeedbackRole: string | null;
+  chapterFeedbackIdNumber: string | null;
   onboardingCompleted: boolean;
   chapterFeedbackEnabled: boolean;
   notificationsEnabled: boolean;

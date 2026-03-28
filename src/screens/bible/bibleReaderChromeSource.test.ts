@@ -154,13 +154,25 @@ test('switching the chapter session into listen mode starts playback for the dis
   );
 });
 
-test('chapter feedback stays inside the chapter overflow flow instead of becoming persistent reader chrome', () => {
+test('chapter feedback renders inline on the listen page while keeping the overflow modal as rollback fallback', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /showChapterActionsSheet[\s\S]*key:\s*'chapter-feedback'[\s\S]*handleOpenChapterFeedback/s,
-    'BibleReaderScreen should keep chapter feedback inside the existing chapter actions sheet'
+    /styles\.listenFeedbackCard[\s\S]*thumbs-up-outline[\s\S]*thumbs-down-outline/s,
+    'BibleReaderScreen should render the thumbs feedback composer directly on the listen page'
+  );
+
+  assert.match(
+    source,
+    /chapterFeedbackEnabled && !showInlineChapterFeedbackComposer[\s\S]*key:\s*'chapter-feedback'/s,
+    'BibleReaderScreen should keep the overflow feedback action behind the inline composer rollback path'
+  );
+
+  assert.match(
+    source,
+    /handleSubmitChapterFeedback\('listener'\)/,
+    'BibleReaderScreen should submit inline feedback as listener feedback'
   );
 
   assert.equal(

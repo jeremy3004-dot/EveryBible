@@ -15,6 +15,7 @@ export const config = {
     audioEnabled: true,
     multipleTranslations: true,
     socialSharing: true,
+    chapterFeedbackInlineComposer: true,
     studyGroupsSync: false,
   },
 } as const;

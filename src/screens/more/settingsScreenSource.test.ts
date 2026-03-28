@@ -54,3 +54,28 @@ test('SettingsScreen exposes an opt-in chapter feedback toggle that syncs prefer
     'SettingsScreen should keep syncing preferences after the chapter feedback toggle changes'
   );
 });
+
+test('SettingsScreen asks for a feedback identity before enabling chapter feedback and exposes an edit row', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.match(
+    source,
+    /showChapterFeedbackIdentityModal/,
+    'SettingsScreen should keep a dedicated identity modal for chapter feedback'
+  );
+  assert.match(
+    source,
+    /openChapterFeedbackIdentityModal\(true\)/,
+    'SettingsScreen should prompt for identity before enabling chapter feedback when the identity is missing'
+  );
+  assert.match(
+    source,
+    /settings\.chapterFeedbackIdentity/,
+    'SettingsScreen should surface a dedicated feedback identity row in the settings list'
+  );
+  assert.match(
+    source,
+    /handleSaveChapterFeedbackIdentity/,
+    'SettingsScreen should persist the reviewer name, role, and id number from the identity modal'
+  );
+});

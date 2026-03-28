@@ -11,7 +11,13 @@ export interface BibleExperienceEvent {
   name: BibleExperienceEventName;
   bookId: string;
   chapter?: number;
-  source: 'book-hub' | 'companion' | 'reader-actions' | 'saved-library' | 'reader-feedback';
+  source:
+    | 'book-hub'
+    | 'companion'
+    | 'reader-actions'
+    | 'saved-library'
+    | 'reader-feedback'
+    | 'listener-feedback';
   mode?: 'listen' | 'read';
   translationId?: string;
   sentiment?: 'up' | 'down';

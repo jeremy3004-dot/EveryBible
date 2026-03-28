@@ -17,6 +17,9 @@ const SHEET_HEADER = [
   'chapter',
   'sentiment',
   'comment',
+  'participant_name',
+  'participant_role',
+  'participant_id_number',
   'interface_language',
   'content_language_code',
   'content_language_name',
@@ -38,6 +41,9 @@ interface ChapterFeedbackRequest {
   interfaceLanguage?: string;
   contentLanguageCode?: string | null;
   contentLanguageName?: string | null;
+  participantName?: string | null;
+  participantRole?: string | null;
+  participantIdNumber?: string | null;
   sourceScreen?: string;
   appPlatform?: string | null;
   appVersion?: string | null;
@@ -50,6 +56,9 @@ interface ChapterFeedbackInsert {
   interface_language: string;
   content_language_code: string | null;
   content_language_name: string | null;
+  participant_name: string;
+  participant_role: string;
+  participant_id_number: string;
   book_id: string;
   chapter: number;
   sentiment: Sentiment;
@@ -275,28 +284,31 @@ const appendSheetRow = async (
   await ensureSheetExists(accessToken, spreadsheetId, sheetTitle);
   await ensureHeaderRow(accessToken, spreadsheetId, sheetTitle);
 
-  const range = encodeURIComponent(`${sheetTitle}!A:O`);
-  await googleSheetsRequest<Record<string, never>>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        values: [
-          [
-            row.id,
-            row.created_at,
-            row.translation_language,
-            row.translation_id,
-            row.book_id,
-            row.chapter,
-            row.sentiment,
-            row.comment ?? '',
-            row.interface_language,
-            row.content_language_code ?? '',
-            row.content_language_name ?? '',
-            row.source_screen,
-            row.app_platform ?? '',
+    const range = encodeURIComponent(`${sheetTitle}!A:R`);
+    await googleSheetsRequest<Record<string, never>>(
+      accessToken,
+      `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          values: [
+            [
+              row.id,
+              row.created_at,
+              row.translation_language,
+              row.translation_id,
+              row.book_id,
+              row.chapter,
+              row.sentiment,
+              row.comment ?? '',
+              row.participant_name,
+              row.participant_role,
+              row.participant_id_number,
+              row.interface_language,
+              row.content_language_code ?? '',
+              row.content_language_name ?? '',
+              row.source_screen,
+              row.app_platform ?? '',
             row.app_version ?? '',
             row.user_id,
           ],
@@ -312,11 +324,22 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
   const bookId = requireNonEmptyString(body.bookId);
   const interfaceLanguage = requireNonEmptyString(body.interfaceLanguage);
   const comment = trimOptionalText(body.comment);
+  const participantName = requireNonEmptyString(body.participantName);
+  const participantRole = requireNonEmptyString(body.participantRole);
+  const participantIdNumber = requireNonEmptyString(body.participantIdNumber);
 
-  if (!translationId || !translationLanguage || !bookId || !interfaceLanguage) {
+  if (
+    !translationId ||
+    !translationLanguage ||
+    !bookId ||
+    !interfaceLanguage ||
+    !participantName ||
+    !participantRole ||
+    !participantIdNumber
+  ) {
     return {
       error:
-        'translationId, translationLanguage, bookId, chapter, sentiment, and interfaceLanguage are required',
+        'translationId, translationLanguage, bookId, chapter, sentiment, interfaceLanguage, participantName, participantRole, and participantIdNumber are required',
     };
   }
 
@@ -340,6 +363,9 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
       interface_language: interfaceLanguage,
       content_language_code: trimOptionalText(body.contentLanguageCode),
       content_language_name: trimOptionalText(body.contentLanguageName),
+      participant_name: participantName,
+      participant_role: participantRole,
+      participant_id_number: participantIdNumber,
       book_id: bookId,
       chapter: body.chapter,
       sentiment: body.sentiment,

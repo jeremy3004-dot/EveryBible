@@ -13,14 +13,22 @@ const readRepoFile = (relativePath: string): string =>
 
 test('chapter feedback backend migration creates the durable preference flag and submission table', () => {
   const migrationPath = 'supabase/migrations/20260327190000_create_chapter_feedback_pipeline.sql';
+  const identityMigrationPath =
+    'supabase/migrations/20260328180000_add_chapter_feedback_identity.sql';
 
   assert.equal(
     existsSync(resolveRepoPath(migrationPath)),
     true,
     'Expected a dedicated migration for the chapter feedback pipeline'
   );
+  assert.equal(
+    existsSync(resolveRepoPath(identityMigrationPath)),
+    true,
+    'Expected a follow-up migration for the chapter feedback identity fields'
+  );
 
   const migration = readRepoFile(migrationPath);
+  const identityMigration = readRepoFile(identityMigrationPath);
 
   assert.match(
     migration,
@@ -42,6 +50,36 @@ test('chapter feedback backend migration creates the durable preference flag and
     /CHECK \(export_status IN \('pending', 'exported', 'failed'\)\)/,
     'Expected the migration to track export_status for spreadsheet delivery'
   );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS chapter_feedback_name TEXT/,
+    'Expected user_preferences to store the reviewer name'
+  );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS chapter_feedback_role TEXT/,
+    'Expected user_preferences to store the reviewer role'
+  );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS chapter_feedback_id_number TEXT/,
+    'Expected user_preferences to store the reviewer id number'
+  );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS participant_name TEXT/,
+    'Expected chapter_feedback_submissions to store the reviewer name'
+  );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS participant_role TEXT/,
+    'Expected chapter_feedback_submissions to store the reviewer role'
+  );
+  assert.match(
+    identityMigration,
+    /ADD COLUMN IF NOT EXISTS participant_id_number TEXT/,
+    'Expected chapter_feedback_submissions to store the reviewer id number'
+  );
 });
 
 test('chapter feedback backend contract is wired into Supabase types and synced preferences', () => {
@@ -62,6 +100,11 @@ test('chapter feedback backend contract is wired into Supabase types and synced 
     syncService,
     /chapter_feedback_enabled/,
     'Expected syncPreferences to read and write the chapter feedback flag'
+  );
+  assert.match(
+    syncService,
+    /chapterFeedbackName|chapterFeedbackRole|chapterFeedbackIdNumber/,
+    'Expected syncPreferences to preserve the chapter feedback identity fields'
   );
 });
 
@@ -87,6 +130,21 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
     functionSource,
     /chapter_feedback_submissions/,
     'Expected the Edge Function to insert into chapter_feedback_submissions before export'
+  );
+  assert.match(
+    functionSource,
+    /participant_name/,
+    'Expected the Edge Function to persist the reviewer name'
+  );
+  assert.match(
+    functionSource,
+    /participant_role/,
+    'Expected the Edge Function to persist the reviewer role'
+  );
+  assert.match(
+    functionSource,
+    /participant_id_number/,
+    'Expected the Edge Function to persist the reviewer id number'
   );
   assert.match(
     functionSource,

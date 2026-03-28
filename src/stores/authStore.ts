@@ -90,6 +90,9 @@ export const useAuthStore = create<AuthState>()(
             state.preferences.contentLanguageCode !== preferences.contentLanguageCode ||
             state.preferences.contentLanguageName !== preferences.contentLanguageName ||
             state.preferences.contentLanguageNativeName !== preferences.contentLanguageNativeName ||
+            state.preferences.chapterFeedbackName !== preferences.chapterFeedbackName ||
+            state.preferences.chapterFeedbackRole !== preferences.chapterFeedbackRole ||
+            state.preferences.chapterFeedbackIdNumber !== preferences.chapterFeedbackIdNumber ||
             state.preferences.onboardingCompleted !== preferences.onboardingCompleted ||
             state.preferences.chapterFeedbackEnabled !== preferences.chapterFeedbackEnabled ||
             state.preferences.notificationsEnabled !== preferences.notificationsEnabled ||
