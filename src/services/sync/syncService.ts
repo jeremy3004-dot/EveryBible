@@ -205,6 +205,8 @@ export const syncPreferences = async (): Promise<SyncResult> => {
         content_language_code: mergedPreferences.preferences.contentLanguageCode,
         content_language_name: mergedPreferences.preferences.contentLanguageName,
         content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
+        chapter_feedback_name: mergedPreferences.preferences.chapterFeedbackName,
+        chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
         onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
         chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
         notifications_enabled: mergedPreferences.preferences.notificationsEnabled,

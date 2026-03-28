@@ -136,6 +136,7 @@ export const en = {
     chapterFeedbackThumbsUp: 'Helpful',
     chapterFeedbackThumbsDown: 'Needs work',
     chapterFeedbackPlaceholder: 'Optional comment about this chapter',
+    chapterFeedbackSelectionHint: 'Tap thumbs up or thumbs down to add an optional note.',
     chapterFeedbackSubmit: 'Send feedback',
     chapterFeedbackSuccess: 'Thanks. Your feedback was sent.',
     chapterFeedbackSavedFallback:
@@ -237,6 +238,14 @@ export const en = {
   settings: {
     title: 'Settings',
     reading: 'Reading',
+    chapterFeedbackIdentity: 'Feedback identity',
+    chapterFeedbackIdentityTitle: 'Who should this feedback come from?',
+    chapterFeedbackIdentityBody:
+      'Add your name and role so every chapter rating is attributed correctly in the Google Sheet.',
+    chapterFeedbackIdentityRole: 'Role in the project',
+    chapterFeedbackIdentityRolePlaceholder: 'Church leader, language speaker, community elder',
+    chapterFeedbackIdentityRequired: 'Please enter your name and role.',
+    chapterFeedbackIdentitySummaryOff: 'No feedback identity saved yet',
     language: 'Interface language',
     nationAndLanguage: 'Nation & Bible language',
     fontSize: 'Font Size',

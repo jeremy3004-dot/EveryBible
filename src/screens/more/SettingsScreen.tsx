@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { radius } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ import { mmkvInstance } from '../../stores';
 import { usePrivacyStore } from '../../stores/privacyStore';
 import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
+import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
 import { localeSearchEngine } from '../../services/onboarding/localeSelection';
@@ -53,6 +55,14 @@ export function SettingsScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showChapterFeedbackIdentityModal, setShowChapterFeedbackIdentityModal] = useState(false);
+  const [pendingChapterFeedbackEnabled, setPendingChapterFeedbackEnabled] = useState(false);
+  const [chapterFeedbackIdentityName, setChapterFeedbackIdentityName] = useState('');
+  const [chapterFeedbackIdentityRole, setChapterFeedbackIdentityRole] = useState('');
+  const [chapterFeedbackIdentityError, setChapterFeedbackIdentityError] = useState<string | null>(
+    null
+  );
+  const [isSavingChapterFeedbackIdentity, setIsSavingChapterFeedbackIdentity] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedHour, setSelectedHour] = useState(9);
   const [selectedMinute, setSelectedMinute] = useState('00');
@@ -109,9 +119,81 @@ export function SettingsScreen() {
     setShowLanguagePicker(false);
   };
 
+  const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
+    name: preferences.chapterFeedbackName ?? '',
+    role: preferences.chapterFeedbackRole ?? '',
+  });
+
+  const openChapterFeedbackIdentityModal = (enableAfterSave: boolean) => {
+    setPendingChapterFeedbackEnabled(enableAfterSave);
+    setChapterFeedbackIdentityName(preferences.chapterFeedbackName ?? user?.displayName ?? '');
+    setChapterFeedbackIdentityRole(preferences.chapterFeedbackRole ?? '');
+    setChapterFeedbackIdentityError(null);
+    setShowChapterFeedbackIdentityModal(true);
+  };
+
+  const closeChapterFeedbackIdentityModal = () => {
+    if (isSavingChapterFeedbackIdentity) {
+      return;
+    }
+
+    setShowChapterFeedbackIdentityModal(false);
+    setPendingChapterFeedbackEnabled(false);
+    setChapterFeedbackIdentityError(null);
+  };
+
+  const handleSaveChapterFeedbackIdentity = async () => {
+    const identity = normalizeChapterFeedbackIdentity({
+      name: chapterFeedbackIdentityName,
+      role: chapterFeedbackIdentityRole,
+    });
+
+    if (!identity) {
+      setChapterFeedbackIdentityError(t('settings.chapterFeedbackIdentityRequired'));
+      return;
+    }
+
+    setIsSavingChapterFeedbackIdentity(true);
+    setChapterFeedbackIdentityError(null);
+
+    try {
+      setPreferences({
+        chapterFeedbackName: identity.name,
+        chapterFeedbackRole: identity.role,
+        chapterFeedbackEnabled: pendingChapterFeedbackEnabled ? true : chapterFeedbackEnabled,
+      });
+
+      const result = await syncPreferences();
+      if (!result.success) {
+        setChapterFeedbackIdentityError(result.error ?? t('common.unexpectedError'));
+        return;
+      }
+
+      setShowChapterFeedbackIdentityModal(false);
+      setPendingChapterFeedbackEnabled(false);
+    } finally {
+      setIsSavingChapterFeedbackIdentity(false);
+    }
+  };
+
   const handleChapterFeedbackToggle = (enabled: boolean) => {
-    setPreferences({ chapterFeedbackEnabled: enabled });
-    syncPreferences().catch(() => {});
+    if (!enabled) {
+      setPreferences({ chapterFeedbackEnabled: false });
+      syncPreferences().catch(() => {});
+      return;
+    }
+
+    if (savedChapterFeedbackIdentity) {
+      setPreferences({ chapterFeedbackEnabled: true });
+      syncPreferences().catch(() => {});
+      return;
+    }
+
+    openChapterFeedbackIdentityModal(true);
+  };
+
+  const handleOpenChapterFeedbackIdentityEditor = () => {
+    openChapterFeedbackIdentityModal(false);
   };
 
   const localeSummary = (() => {
@@ -216,6 +298,9 @@ export function SettingsScreen() {
     enabledLabel: t('settings.chapterFeedbackSummaryOn'),
     disabledLabel: t('settings.chapterFeedbackSummaryOff'),
   });
+  const chapterFeedbackIdentitySummary = savedChapterFeedbackIdentity
+    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
+    : t('settings.chapterFeedbackIdentitySummaryOff');
 
   return (
     <SafeAreaView
@@ -383,7 +468,7 @@ export function SettingsScreen() {
             </View>
           </TouchableOpacity>
 
-          <View style={[styles.settingItem, styles.lastItem]}>
+          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="chatbox-ellipses-outline" size={24} color={colors.secondaryText} />
               <View style={styles.settingCopy}>
@@ -408,6 +493,35 @@ export function SettingsScreen() {
               thumbColor={colors.cardBackground}
             />
           </View>
+
+          <TouchableOpacity
+            style={[styles.settingItem, styles.lastItem, styles.feedbackIdentityRow]}
+            onPress={handleOpenChapterFeedbackIdentityEditor}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="person-outline" size={24} color={colors.secondaryText} />
+              <View style={styles.settingCopy}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    styles.settingLabelNoMargin,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  {t('settings.chapterFeedbackIdentity')}
+                </Text>
+                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
+                  {chapterFeedbackIdentitySummary}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.settingRight}>
+              <Text style={[styles.settingValue, { color: colors.secondaryText }]}>
+                {savedChapterFeedbackIdentity ? t('common.edit') : t('common.notSet')}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View
@@ -445,6 +559,134 @@ export function SettingsScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        <Modal
+          visible={showChapterFeedbackIdentityModal}
+          transparent
+          animationType="fade"
+          onRequestClose={closeChapterFeedbackIdentityModal}
+        >
+          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={closeChapterFeedbackIdentityModal}
+            />
+            <View
+              style={[
+                styles.modalContent,
+                styles.chapterFeedbackIdentityModalContent,
+                { backgroundColor: colors.cardBackground },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+                {t('settings.chapterFeedbackIdentityTitle')}
+              </Text>
+              <Text style={[styles.chapterFeedbackIdentityBody, { color: colors.secondaryText }]}>
+                {t('settings.chapterFeedbackIdentityBody')}
+              </Text>
+
+              <View style={styles.feedbackIdentityFields}>
+                <View style={styles.feedbackIdentityField}>
+                  <Text style={[styles.feedbackIdentityLabel, { color: colors.primaryText }]}>
+                    {t('common.name')}
+                  </Text>
+                  <TextInput
+                    value={chapterFeedbackIdentityName}
+                    onChangeText={(value) => {
+                      setChapterFeedbackIdentityName(value);
+                      if (chapterFeedbackIdentityError) {
+                        setChapterFeedbackIdentityError(null);
+                      }
+                    }}
+                    editable={!isSavingChapterFeedbackIdentity}
+                    placeholder={t('auth.namePlaceholder')}
+                    placeholderTextColor={colors.secondaryText}
+                    style={[
+                      styles.feedbackIdentityInput,
+                      {
+                        color: colors.primaryText,
+                        borderColor: colors.cardBorder,
+                        backgroundColor: colors.background,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.feedbackIdentityField}>
+                  <Text style={[styles.feedbackIdentityLabel, { color: colors.primaryText }]}>
+                    {t('settings.chapterFeedbackIdentityRole')}
+                  </Text>
+                  <TextInput
+                    value={chapterFeedbackIdentityRole}
+                    onChangeText={(value) => {
+                      setChapterFeedbackIdentityRole(value);
+                      if (chapterFeedbackIdentityError) {
+                        setChapterFeedbackIdentityError(null);
+                      }
+                    }}
+                    editable={!isSavingChapterFeedbackIdentity}
+                    placeholder={t('settings.chapterFeedbackIdentityRolePlaceholder')}
+                    placeholderTextColor={colors.secondaryText}
+                    style={[
+                      styles.feedbackIdentityInput,
+                      {
+                        color: colors.primaryText,
+                        borderColor: colors.cardBorder,
+                        backgroundColor: colors.background,
+                      },
+                    ]}
+                  />
+                </View>
+
+              </View>
+
+              {chapterFeedbackIdentityError ? (
+                <Text style={[styles.feedbackIdentityError, { color: colors.error }]}>
+                  {chapterFeedbackIdentityError}
+                </Text>
+              ) : null}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    {
+                      backgroundColor: colors.cardBorder,
+                    },
+                  ]}
+                  onPress={closeChapterFeedbackIdentityModal}
+                  disabled={isSavingChapterFeedbackIdentity}
+                >
+                  <Text style={[styles.modalButtonTextCancel, { color: colors.primaryText }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonPrimary,
+                    {
+                      backgroundColor: colors.accentPrimary,
+                    },
+                  ]}
+                  onPress={() => {
+                    void handleSaveChapterFeedbackIdentity();
+                  }}
+                  disabled={isSavingChapterFeedbackIdentity}
+                >
+                  {isSavingChapterFeedbackIdentity ? (
+                    <ActivityIndicator size="small" color={colors.cardBackground} />
+                  ) : (
+                    <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
+                      {t('common.save')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Notifications */}
         <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
@@ -826,6 +1068,9 @@ const styles = StyleSheet.create({
   lastItem: {
     borderBottomWidth: 0,
   },
+  feedbackIdentityRow: {
+    marginTop: 4,
+  },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -881,17 +1126,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   modalContent: {
     borderRadius: radius.md,
     padding: 24,
     width: '80%',
     maxWidth: 320,
   },
+  chapterFeedbackIdentityModalContent: {
+    width: '88%',
+    maxWidth: 360,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  chapterFeedbackIdentityBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  feedbackIdentityFields: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  feedbackIdentityField: {
+    gap: 8,
+  },
+  feedbackIdentityLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  feedbackIdentityInput: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  feedbackIdentityError: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   timePickerContainer: {
     flexDirection: 'row',

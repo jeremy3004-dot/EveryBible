@@ -23,6 +23,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
   const isChapterTransitioningRef = useRef(false);
+  const backgroundMusicOffHandledRef = useRef(false);
   const playChapterForTranslationRef = useRef<
     ((translationId: string, bookId: string, chapter: number, verse?: number) => Promise<void>) | null
   >(null);
@@ -212,11 +213,16 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Handle playback status updates from track-player wrapper
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
-      setPosition(snapshot.positionMillis);
+      const currentPosition = useAudioStore.getState().currentPosition;
+      // Keep the visible position monotonic so stop-like snapshots from
+      // background-music teardown cannot pull the Bible progress bar backward.
+      const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
+
+      setPosition(nextPosition);
       setDuration(snapshot.durationMillis || 0);
 
       // Record the real poll anchor for interpolation
-      lastPollPositionRef.current = snapshot.positionMillis;
+      lastPollPositionRef.current = nextPosition;
       lastPollTimeRef.current = Date.now();
 
       if (snapshot.isPlaying) {
@@ -228,7 +234,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             const playbackRate = useAudioStore.getState().playbackRate ?? 1.0;
             const elapsed = Date.now() - lastPollTimeRef.current;
             const interpolated = lastPollPositionRef.current + elapsed * playbackRate;
-            useAudioStore.getState().setPosition(interpolated);
+            const currentPosition = useAudioStore.getState().currentPosition;
+            useAudioStore.getState().setPosition(Math.max(currentPosition, interpolated));
           }, 50);
         }
       } else {
@@ -362,9 +369,21 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       // Chapter finished transitioning
       isChapterTransitioningRef.current = false;
     }
+  }, [status]);
+
+  useEffect(() => {
+    if (backgroundMusicChoice === 'off') {
+      if (!backgroundMusicOffHandledRef.current) {
+        backgroundMusicOffHandledRef.current = true;
+        void backgroundMusicPlayer.stop();
+      }
+
+      return;
+    }
 
     // Keep music playing during chapter transitions (isChapterTransitioningRef).
     // Pause it when the user explicitly pauses (status==='paused' and not transitioning).
+    backgroundMusicOffHandledRef.current = false;
     const shouldPlayBackgroundMusic =
       status === 'playing' ||
       status === 'loading' ||

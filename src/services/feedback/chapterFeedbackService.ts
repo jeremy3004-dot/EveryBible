@@ -1,7 +1,12 @@
 import { config } from '../../constants/config';
 import { trackBibleExperienceEvent } from '../analytics/bibleExperienceAnalytics';
+import {
+  normalizeChapterFeedbackIdentity,
+  type ChapterFeedbackIdentity,
+} from './chapterFeedbackIdentity';
 
 export type ChapterFeedbackSentiment = 'up' | 'down';
+export type ChapterFeedbackSourceScreen = 'reader' | 'listener';
 
 export interface ChapterFeedbackSubmissionInput {
   translationId: string;
@@ -13,7 +18,9 @@ export interface ChapterFeedbackSubmissionInput {
   interfaceLanguage: string;
   contentLanguageCode: string | null;
   contentLanguageName: string | null;
-  sourceScreen: 'reader';
+  participantName: string;
+  participantRole: string;
+  sourceScreen: ChapterFeedbackSourceScreen;
   appPlatform: string;
   appVersion: string;
 }
@@ -44,6 +51,24 @@ interface ChapterFeedbackFunctionClient {
 interface ChapterFeedbackAuthClient {
   getAccessToken: () => Promise<string | null>;
   refreshAccessToken: () => Promise<string | null>;
+}
+
+function normalizeSubmissionText(value: string | null | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function buildNormalizedIdentity(
+  input: Pick<ChapterFeedbackSubmissionInput, 'participantName' | 'participantRole'>
+): ChapterFeedbackIdentity {
+  const identity = normalizeChapterFeedbackIdentity({
+    name: input.participantName,
+    role: input.participantRole,
+  });
+
+  return identity ?? {
+    name: normalizeSubmissionText(input.participantName),
+    role: normalizeSubmissionText(input.participantRole),
+  };
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -92,12 +117,20 @@ function buildPayload(
     appVersion?: string;
   }
 ): ChapterFeedbackSubmissionInput {
+  const normalizedIdentity = buildNormalizedIdentity(input);
+
   return {
     ...input,
     comment: normalizeComment(input.comment ?? null),
+    participantName: normalizedIdentity.name,
+    participantRole: normalizedIdentity.role,
     appPlatform: input.appPlatform ?? process.env.EXPO_OS ?? 'unknown',
     appVersion: input.appVersion ?? config.version,
   };
+}
+
+function getAnalyticsSource(sourceScreen: ChapterFeedbackSourceScreen): 'reader-feedback' | 'listener-feedback' {
+  return sourceScreen === 'listener' ? 'listener-feedback' : 'reader-feedback';
 }
 
 function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): number | null {
@@ -207,15 +240,15 @@ export async function submitChapterFeedback(
   const payload = buildPayload(input);
 
   if (!resolvedClient) {
-    trackBibleExperienceEvent({
-      name: 'chapter_feedback_failed',
-      translationId: payload.translationId,
-      bookId: payload.bookId,
-      chapter: payload.chapter,
-      sentiment: payload.sentiment,
-      source: 'reader-feedback',
-      detail: 'backend-unconfigured',
-    });
+      trackBibleExperienceEvent({
+        name: 'chapter_feedback_failed',
+        translationId: payload.translationId,
+        bookId: payload.bookId,
+        chapter: payload.chapter,
+        sentiment: payload.sentiment,
+        source: getAnalyticsSource(payload.sourceScreen),
+        detail: 'backend-unconfigured',
+      });
     return {
       success: false,
       saved: false,
@@ -252,7 +285,7 @@ export async function submitChapterFeedback(
         bookId: payload.bookId,
         chapter: payload.chapter,
         sentiment: payload.sentiment,
-        source: 'reader-feedback',
+        source: getAnalyticsSource(payload.sourceScreen),
         detail: resolvedErrorMessage,
       });
       return {
@@ -270,7 +303,7 @@ export async function submitChapterFeedback(
         bookId: payload.bookId,
         chapter: payload.chapter,
         sentiment: payload.sentiment,
-        source: 'reader-feedback',
+        source: getAnalyticsSource(payload.sourceScreen),
         detail: 'empty-response',
       });
       return {
@@ -287,7 +320,7 @@ export async function submitChapterFeedback(
       bookId: payload.bookId,
       chapter: payload.chapter,
       sentiment: payload.sentiment,
-      source: 'reader-feedback',
+      source: getAnalyticsSource(payload.sourceScreen),
       detail: data.success ? (data.exported ? 'exported' : 'saved-not-exported') : data.error,
     });
     return data;
@@ -298,7 +331,7 @@ export async function submitChapterFeedback(
       bookId: payload.bookId,
       chapter: payload.chapter,
       sentiment: payload.sentiment,
-      source: 'reader-feedback',
+      source: getAnalyticsSource(payload.sourceScreen),
       detail: error instanceof Error ? error.message : 'unexpected-error',
     });
     return {

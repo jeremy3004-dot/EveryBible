@@ -288,6 +288,9 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
       contentLanguageCode: 123,
       contentLanguageName: 'English',
       contentLanguageNativeName: '',
+      chapterFeedbackName: '  Grace  ',
+      chapterFeedbackRole: '  Elder  ',
+      chapterFeedbackIdNumber: '  009  ',
       onboardingCompleted: 'yes',
       chapterFeedbackEnabled: 'sometimes',
       notificationsEnabled: true,
@@ -313,6 +316,8 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.contentLanguageCode, null);
   assert.equal(sanitized.preferences.contentLanguageName, 'English');
   assert.equal(sanitized.preferences.contentLanguageNativeName, null);
+  assert.equal(sanitized.preferences.chapterFeedbackName, 'Grace');
+  assert.equal(sanitized.preferences.chapterFeedbackRole, 'Elder');
   assert.equal(sanitized.preferences.onboardingCompleted, false);
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
   assert.equal(sanitized.preferences.notificationsEnabled, true);
@@ -328,6 +333,8 @@ test('sanitizePersistedAuthState defaults chapter feedback to false when the key
       onboardingCompleted: true,
       notificationsEnabled: false,
       reminderTime: null,
+      chapterFeedbackName: null,
+      chapterFeedbackRole: null,
     },
   });
 
@@ -338,10 +345,31 @@ test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', ()
   const sanitized = sanitizePersistedAuthState({
     preferences: {
       chapterFeedbackEnabled: true,
+      chapterFeedbackName: 'Ada',
+      chapterFeedbackRole: 'Leader',
+      chapterFeedbackIdNumber: '7',
     },
   });
 
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, true);
+  assert.equal(sanitized.preferences.chapterFeedbackName, 'Ada');
+  assert.equal(sanitized.preferences.chapterFeedbackRole, 'Leader');
+});
+
+test('sanitizePersistedAuthState drops the legacy manual feedback ID number field', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      chapterFeedbackName: 'Ada',
+      chapterFeedbackRole: 'Leader',
+      chapterFeedbackIdNumber: '7',
+    },
+  });
+
+  assert.deepEqual(sanitized.preferences, {
+    ...defaultAuthPreferences,
+    chapterFeedbackName: 'Ada',
+    chapterFeedbackRole: 'Leader',
+  });
 });
 
 test('sanitizePersistedAudioState keeps only supported playback settings', () => {

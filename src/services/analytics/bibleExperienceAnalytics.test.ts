@@ -37,7 +37,7 @@ test('trackBibleExperienceEvent keeps chapter feedback analytics payloads intact
     bookId: 'JHN',
     chapter: 3,
     sentiment: 'down',
-    source: 'reader-feedback',
+    source: 'listener-feedback',
     detail: 'saved-not-exported',
   });
 
@@ -48,7 +48,7 @@ test('trackBibleExperienceEvent keeps chapter feedback analytics payloads intact
       bookId: 'JHN',
       chapter: 3,
       sentiment: 'down',
-      source: 'reader-feedback',
+      source: 'listener-feedback',
       detail: 'saved-not-exported',
     },
   ]);

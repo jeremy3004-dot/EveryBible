@@ -34,6 +34,41 @@ test('submit-chapter-feedback defers spreadsheet secret lookup until after the S
   );
 });
 
+test('submit-chapter-feedback appends reviewer identity columns to the Google Sheet header', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.match(
+    source,
+    /participant_name[\s\S]*participant_role[\s\S]*participant_id_number[\s\S]*interface_language/s,
+    'Expected the Google Sheet header and row append to include reviewer identity columns before interface language'
+  );
+  assert.match(
+    source,
+    /A:R/,
+    'Expected the exported sheet range to expand for the extra reviewer identity columns'
+  );
+});
+
+test('submit-chapter-feedback derives the reviewer ID column from the authenticated user instead of a manual request field', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.equal(
+    source.includes('participantIdNumber?:'),
+    false,
+    'submit-chapter-feedback should not accept a manual participantIdNumber from the client payload'
+  );
+  assert.match(
+    source,
+    /participant_id_number:\s*user\.id/,
+    'submit-chapter-feedback should source participant_id_number from the authenticated Supabase user UUID'
+  );
+  assert.doesNotMatch(
+    source,
+    /participantIdNumber are required|participantIdNumber\)/,
+    'submit-chapter-feedback should not require a reviewer-entered participantIdNumber field'
+  );
+});
+
 test('submit-chapter-feedback disables the legacy edge JWT gate and authenticates inside the function', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
   const config = readFileSync(CONFIG_PATH, 'utf8');
