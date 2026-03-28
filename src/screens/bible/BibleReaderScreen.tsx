@@ -295,7 +295,7 @@ export function BibleReaderScreen() {
     chapterFeedbackEnabled &&
     hasLiveAuthSession &&
     savedChapterFeedbackIdentity != null &&
-    stableSessionMode === 'listen';
+    showMinimalListenChrome;
   const rawFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,

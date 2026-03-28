@@ -214,12 +214,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
       const currentPosition = useAudioStore.getState().currentPosition;
+      const currentDuration = useAudioStore.getState().duration;
       // Keep the visible position monotonic so stop-like snapshots from
       // background-music teardown cannot pull the Bible progress bar backward.
       const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
+      const nextDuration =
+        snapshot.durationMillis > 0 ? Math.max(currentDuration, snapshot.durationMillis) : currentDuration;
 
       setPosition(nextPosition);
-      setDuration(snapshot.durationMillis || 0);
+      setDuration(nextDuration);
 
       // Record the real poll anchor for interpolation
       lastPollPositionRef.current = nextPosition;
@@ -235,7 +238,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             const elapsed = Date.now() - lastPollTimeRef.current;
             const interpolated = lastPollPositionRef.current + elapsed * playbackRate;
             const currentPosition = useAudioStore.getState().currentPosition;
-            useAudioStore.getState().setPosition(Math.max(currentPosition, interpolated));
+            const currentDuration = useAudioStore.getState().duration;
+            const cappedInterpolated =
+              currentDuration > 0 ? Math.min(interpolated, currentDuration) : interpolated;
+            useAudioStore.getState().setPosition(Math.max(currentPosition, cappedInterpolated));
           }, 50);
         }
       } else {
