@@ -33,6 +33,7 @@ test('cloud translation downloads disable sqlite auto-finalization before closeA
     'downloaded translations should opt out of expo-sqlite auto-finalization before closeAsync because Expo tracks a native AsyncQueue crash for this path'
   );
 });
+
 test('cloud translation downloads write verses through an exclusive sqlite transaction', () => {
   const source = readRelativeSource('./cloudTranslationService.ts');
 

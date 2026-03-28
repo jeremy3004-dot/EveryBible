@@ -182,6 +182,16 @@ test('chapter feedback renders inline on the listen page while keeping the overf
   );
 });
 
+test('chapter feedback modal avoids keyboard overlap while typing a comment', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /visible=\{showFeedbackModal\}[\s\S]*<KeyboardAvoidingView[\s\S]*keyboardShouldPersistTaps="handled"/s,
+    'BibleReaderScreen should keep the feedback composer above the keyboard and make the modal content scrollable while typing'
+  );
+});
+
 test('premium read mode uses animated overlay chrome with blur-backed glass surfaces', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

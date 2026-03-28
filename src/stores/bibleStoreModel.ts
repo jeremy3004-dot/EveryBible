@@ -46,6 +46,7 @@ export function mergeRuntimeCatalogTranslations(
 
   return Array.from(mergedById.values());
 }
+
 export function reconcileMissingRuntimeTranslationPacks(
   translations: BibleTranslation[],
   currentTranslation: string,

@@ -131,6 +131,7 @@ test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog over
   assert.equal(kjv.hasText, true);
   assert.equal(kjv.installState, 'remote-only');
 });
+
 test('reconcileMissingRuntimeTranslationPacks resets a stale selected runtime translation to bsb', () => {
   const result = reconcileMissingRuntimeTranslationPacks(
     [

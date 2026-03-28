@@ -68,7 +68,7 @@ test('reader chapter navigation hands active audio over instead of replaying the
 
   assert.match(
     readerSource,
-    /navigation\.setParams\(\{[\s\S]*chapter: activeAudioChapter,[\s\S]*focusVerse: undefined,[\s\S]*autoplayAudio: false,[\s\S]*\}\);/,
-    'BibleReaderScreen should clear autoplay params when audio-driven chapter changes update the reader route'
+    /navigation\.setParams\(\s*buildReaderChapterRouteParams\(\{\s*bookId:\s*activeAudioBookId \?\? bookId,\s*chapter:\s*activeAudioChapter,\s*preferredMode:\s*chapterSessionMode,\s*\}\)\s*\);/s,
+    'BibleReaderScreen should sync the active audio chapter into the reader route without replaying stale autoplay params'
   );
 });
