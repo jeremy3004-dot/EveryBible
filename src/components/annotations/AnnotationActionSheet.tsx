@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,9 +22,6 @@ const HIGHLIGHT_COLORS = [
   { id: 'blue', hex: '#4A90E2' },
 ] as const;
 
-type HighlightColorHex = (typeof HIGHLIGHT_COLORS)[number]['hex'];
-
-const DEFAULT_HIGHLIGHT_COLOR: HighlightColorHex = HIGHLIGHT_COLORS[1].hex;
 const PRESSED_SCALE = 0.96;
 
 interface AnnotationActionSheetProps {
@@ -100,25 +98,22 @@ function AnnotationActionSheetContent({
   const { t } = useTranslation();
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
-  const [selectedColor, setSelectedColor] = useState<HighlightColorHex>(DEFAULT_HIGHLIGHT_COLOR);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleClose = () => {
     setMode('actions');
     setNoteText(existingNote ?? '');
-    setSelectedColor(DEFAULT_HIGHLIGHT_COLOR);
     onClose();
   };
 
-  const handleHighlight = async () => {
+  const handleHighlight = async (color: string) => {
     if (!canAnnotate || isSaving) {
       return;
     }
 
     setIsSaving(true);
     try {
-      await onHighlight(selectedColor);
-      handleClose();
+      await onHighlight(color);
     } finally {
       setIsSaving(false);
     }
@@ -172,7 +167,6 @@ function AnnotationActionSheetContent({
             paddingBottom: spacing.xl + bottomInset,
           },
         ]}
-        onStartShouldSetResponder={() => true}
       >
         <View style={styles.handle}>
           <View style={[styles.handleBar, { backgroundColor: colors.bibleSecondaryText + '55' }]} />
@@ -202,48 +196,37 @@ function AnnotationActionSheetContent({
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
-            <View style={styles.colorRow}>
-              {HIGHLIGHT_COLORS.map((color) => {
-                const isSelected = selectedColor === color.hex;
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.actionRail}
+            >
+              {HIGHLIGHT_COLORS.map((color) => (
+                <Pressable
+                  key={color.id}
+                  accessibilityLabel={t(`annotations.colors.${color.id}`)}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canAnnotate }}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.colorDotButton,
+                    {
+                      backgroundColor: color.hex,
+                      opacity: canAnnotate ? 1 : 0.46,
+                      transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
+                    },
+                  ]}
+                  onPress={() => {
+                    if (!canAnnotate) {
+                      return;
+                    }
 
-                return (
-                  <Pressable
-                    key={color.id}
-                    accessibilityLabel={t(`annotations.colors.${color.id}`)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected, disabled: !canAnnotate }}
-                    hitSlop={8}
-                    style={({ pressed }) => [
-                      styles.colorDot,
-                      {
-                        backgroundColor: color.hex,
-                        borderColor: isSelected ? colors.biblePrimaryText : 'transparent',
-                        opacity: canAnnotate ? 1 : 0.46,
-                        transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
-                      },
-                    ]}
-                    onPress={() => {
-                      if (!canAnnotate) {
-                        return;
-                      }
-
-                      setSelectedColor(color.hex);
-                    }}
-                    disabled={!canAnnotate}
-                  />
-                );
-              })}
-            </View>
-
-            <View style={styles.actionGrid}>
-              <ActionPill
-                icon="color-fill-outline"
-                label={t('annotations.highlight')}
-                onPress={() => {
-                  void handleHighlight();
-                }}
-                disabled={!canAnnotate || isSaving}
-              />
+                    void handleHighlight(color.hex);
+                  }}
+                  disabled={!canAnnotate}
+                />
+              ))}
               {canRemoveHighlight ? (
                 <ActionPill
                   icon="close"
@@ -270,7 +253,7 @@ function AnnotationActionSheetContent({
                 label={t('groups.share')}
                 onPress={onShare}
               />
-            </View>
+            </ScrollView>
           </View>
         ) : (
           <View style={styles.noteContainer}>
@@ -361,8 +344,9 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
+    zIndex: 50,
   },
   sheet: {
     borderTopLeftRadius: 28,
@@ -404,27 +388,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionsContainer: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  colorRow: {
+  actionRail: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     justifyContent: 'flex-start',
+    flexGrow: 0,
     paddingLeft: 2,
+    paddingRight: layout.screenPadding,
   },
-  colorDot: {
+  colorDotButton: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    borderWidth: 2,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    borderWidth: 1.5,
   },
   actionButton: {
-    flex: 1,
+    flexShrink: 0,
+    minWidth: 84,
     minHeight: 70,
     borderWidth: 1,
     borderRadius: 14,

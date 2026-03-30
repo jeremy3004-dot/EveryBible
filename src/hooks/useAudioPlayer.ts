@@ -4,11 +4,15 @@ import { useAudioStore, useLibraryStore } from '../stores';
 import {
   audioPlayer,
   backgroundMusicPlayer,
+  clearBibleNowPlaying,
   getChapterAudioUrl,
   isAudioAvailable,
   prefetchChapterAudio,
+  subscribeBibleNowPlayingRemoteCommands,
+  syncBibleNowPlaying,
 } from '../services/audio';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
+import type { BibleNowPlayingInput } from '../services/audio';
 import { trackEvent } from '../services/analytics';
 import { getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
@@ -34,6 +38,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const lastPollPositionRef = useRef<number>(0);
   const lastPollTimeRef = useRef<number>(0);
   const interpolationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastNowPlayingSignatureRef = useRef<string | null>(null);
 
   const {
     status,
@@ -125,6 +130,52 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }))
   );
 
+  const syncCurrentNowPlaying = useCallback(
+    (overrides: Partial<BibleNowPlayingInput> = {}, force = false) => {
+      const state = useAudioStore.getState();
+      const resolvedTranslationId = overrides.translationId ?? state.currentTranslationId ?? translationId;
+      const resolvedBookId = overrides.bookId ?? state.currentBookId;
+      const resolvedChapter = overrides.chapter ?? state.currentChapter;
+
+      if (!resolvedBookId || !resolvedChapter) {
+        lastNowPlayingSignatureRef.current = null;
+        void clearBibleNowPlaying();
+        return;
+      }
+
+      const resolvedPositionMs = overrides.positionMs ?? state.currentPosition;
+      const resolvedDurationMs = overrides.durationMs ?? state.duration;
+      const resolvedIsPlaying = overrides.isPlaying ?? state.status === 'playing';
+      const resolvedPlaybackRate = overrides.playbackRate ?? state.playbackRate ?? 1;
+      const signature = [
+        resolvedTranslationId,
+        resolvedBookId,
+        resolvedChapter,
+        Math.floor(resolvedPositionMs / 1000),
+        Math.floor(resolvedDurationMs / 1000),
+        resolvedIsPlaying ? '1' : '0',
+        resolvedPlaybackRate,
+      ].join('|');
+
+      if (!force && lastNowPlayingSignatureRef.current === signature) {
+        return;
+      }
+
+      lastNowPlayingSignatureRef.current = signature;
+
+      void syncBibleNowPlaying({
+        translationId: resolvedTranslationId,
+        bookId: resolvedBookId,
+        chapter: resolvedChapter,
+        positionMs: resolvedPositionMs,
+        durationMs: resolvedDurationMs,
+        isPlaying: resolvedIsPlaying,
+        playbackRate: resolvedPlaybackRate,
+      });
+    },
+    [translationId]
+  );
+
   const playChapterForTranslation = useCallback(
     async (targetTranslationId: string, bookId: string, chapter: number, verse?: number) => {
       if (!isAudioAvailable(targetTranslationId)) {
@@ -162,6 +213,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         if (!audioData) {
           setError('Audio not available for this chapter');
+          await clearBibleNowPlaying();
           setStatus('error');
           return;
         }
@@ -170,6 +222,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         setDuration(audioData.duration);
         setStatus('playing');
         useLibraryStore.getState().recordHistory(bookId, chapter, 0);
+        syncCurrentNowPlaying({
+          translationId: targetTranslationId,
+          bookId,
+          chapter,
+          positionMs: 0,
+          durationMs: audioData.duration,
+          isPlaying: true,
+          playbackRate,
+        }, true);
 
         // Prefetch next chapters
         prefetchChapterAudio(targetTranslationId, bookId, chapter + 1, 2);
@@ -180,6 +241,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         const message = err instanceof Error ? err.message : 'Failed to play audio';
         setError(message);
+        await clearBibleNowPlaying();
         setStatus('error');
       }
     },
@@ -196,6 +258,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       syncQueueToTrackInStore,
       playbackSequence,
       clearPlaybackSequence,
+      syncCurrentNowPlaying,
     ]
   );
 
@@ -214,12 +277,24 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
       const currentPosition = useAudioStore.getState().currentPosition;
+      const currentDuration = useAudioStore.getState().duration;
       // Keep the visible position monotonic so stop-like snapshots from
       // background-music teardown cannot pull the Bible progress bar backward.
       const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
+      const nextDuration =
+        snapshot.durationMillis > 0 ? Math.max(currentDuration, snapshot.durationMillis) : currentDuration;
 
       setPosition(nextPosition);
-      setDuration(snapshot.durationMillis || 0);
+      setDuration(nextDuration);
+      syncCurrentNowPlaying({
+        translationId: useAudioStore.getState().currentTranslationId ?? translationId,
+        bookId: useAudioStore.getState().currentBookId ?? undefined,
+        chapter: useAudioStore.getState().currentChapter ?? undefined,
+        positionMs: nextPosition,
+        durationMs: nextDuration,
+        isPlaying: snapshot.isPlaying,
+        playbackRate: useAudioStore.getState().playbackRate ?? 1,
+      });
 
       // Record the real poll anchor for interpolation
       lastPollPositionRef.current = nextPosition;
@@ -252,7 +327,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         }
       }
     },
-    [setPosition, setDuration, setStatus]
+    [setPosition, setDuration, setStatus, syncCurrentNowPlaying, translationId]
   );
 
   // Handle playback finished - auto-advance to next chapter
@@ -322,11 +397,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (!shouldAutoAdvance || !bookId || !chapterNum) {
+      void clearBibleNowPlaying();
       setStatus('idle');
       return;
     }
 
     if (!currentBook) {
+      void clearBibleNowPlaying();
       setStatus('idle');
       return;
     }
@@ -343,6 +420,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       );
     } else {
       // End of book - stop playback
+      void clearBibleNowPlaying();
       setStatus('idle');
     }
   }, [setStatus, translationId]);
@@ -441,7 +519,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         currentPosition / duration
       );
     }
-  }, [currentBookId, currentChapter, currentPosition, duration, setStatus]);
+    syncCurrentNowPlaying({
+      isPlaying: false,
+      positionMs: currentPosition,
+      durationMs: duration,
+    }, true);
+  }, [currentBookId, currentChapter, currentPosition, duration, setStatus, syncCurrentNowPlaying]);
 
   // Resume playback
   const resume = useCallback(async () => {
@@ -450,7 +533,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPollTimeRef.current = Date.now();
     await audioPlayer.resume();
     setStatus('playing');
-  }, [setStatus]);
+    syncCurrentNowPlaying({
+      isPlaying: true,
+      positionMs: useAudioStore.getState().currentPosition,
+      durationMs: duration,
+    }, true);
+  }, [duration, setStatus, syncCurrentNowPlaying]);
 
   // Stop playback completely
   const stop = useCallback(async () => {
@@ -467,8 +555,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
     await audioPlayer.stop();
     await backgroundMusicPlayer.stop();
+    await clearBibleNowPlaying();
     resetPlayback();
-  }, [currentBookId, currentChapter, currentPosition, duration, resetPlayback]);
+  }, [
+    currentBookId,
+    currentChapter,
+    currentPosition,
+    duration,
+    resetPlayback,
+  ]);
 
   // Toggle play/pause
   const togglePlayPause = useCallback(async () => {
@@ -509,10 +604,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       // Reset interpolation anchor to the seek target so we don't overshoot
       lastPollPositionRef.current = positionMs;
       lastPollTimeRef.current = Date.now();
-      await audioPlayer.seekTo(positionMs);
-      setPosition(positionMs);
-    },
-    [setPosition]
+    await audioPlayer.seekTo(positionMs);
+    setPosition(positionMs);
+    syncCurrentNowPlaying({
+      positionMs,
+      durationMs: duration,
+      isPlaying: status === 'playing',
+    }, true);
+  },
+  [duration, setPosition, status, syncCurrentNowPlaying]
   );
 
   const skipBy = useCallback(
@@ -524,8 +624,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       const nextPosition = Math.max(0, Math.min(duration, currentPosition + deltaMs));
       await audioPlayer.seekTo(nextPosition);
       setPosition(nextPosition);
+      syncCurrentNowPlaying({
+        positionMs: nextPosition,
+        durationMs: duration,
+        isPlaying: status === 'playing',
+      }, true);
     },
-    [currentBookId, currentChapter, currentPosition, duration, setPosition]
+    [currentBookId, currentChapter, currentPosition, duration, setPosition, status, syncCurrentNowPlaying]
   );
 
   const skipBackward = useCallback(async () => {
@@ -541,8 +646,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     async (rate: PlaybackRate) => {
       await audioPlayer.setRate(rate);
       setPlaybackRate(rate);
+      syncCurrentNowPlaying({
+        playbackRate: rate,
+      }, true);
     },
-    [setPlaybackRate]
+    [setPlaybackRate, syncCurrentNowPlaying]
   );
 
   // Navigate to previous chapter
@@ -646,6 +754,41 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     setQueueIndex,
     translationId,
   ]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeBibleNowPlayingRemoteCommands(async ({ command, positionSeconds }) => {
+      switch (command) {
+        case 'play':
+          await togglePlayPause();
+          break;
+        case 'pause':
+          await pause();
+          break;
+        case 'stop':
+          await stop();
+          break;
+        case 'next':
+          await nextChapter();
+          break;
+        case 'previous':
+          await previousChapter();
+          break;
+        case 'seek-forward':
+          await skipForward();
+          break;
+        case 'seek-backward':
+          await skipBackward();
+          break;
+        case 'seek-position':
+          if (typeof positionSeconds === 'number' && Number.isFinite(positionSeconds)) {
+            await seekTo(positionSeconds * 1000);
+          }
+          break;
+      }
+    });
+
+    return unsubscribe;
+  }, [nextChapter, pause, previousChapter, seekTo, skipBackward, skipForward, stop, togglePlayPause]);
 
   const addToQueue = useCallback(
     (bookId: string, chapter: number) => {
