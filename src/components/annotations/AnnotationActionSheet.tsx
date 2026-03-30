@@ -31,12 +31,12 @@ interface AnnotationActionSheetProps {
   canAnnotate: boolean;
   closeButtonAccessibilityLabel: string;
   bottomInset?: number;
-  canRemoveHighlight: boolean;
+  activeHighlightColors: string[];
   onCopy: () => void;
   onShare: () => void;
   onHighlight: (color: string) => void;
   onNote: (text: string) => void;
-  onRemoveHighlight: () => void;
+  onRemoveHighlight: (color: string) => void;
   onClose: () => void;
   existingNote?: string;
 }
@@ -91,7 +91,7 @@ function AnnotationActionSheetContent({
   onClose,
   closeButtonAccessibilityLabel,
   bottomInset = 0,
-  canRemoveHighlight,
+  activeHighlightColors,
   existingNote,
 }: AnnotationActionSheetProps) {
   const { colors } = useTheme();
@@ -99,6 +99,7 @@ function AnnotationActionSheetContent({
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
   const [isSaving, setIsSaving] = useState(false);
+  const activeHighlightColorSet = new Set(activeHighlightColors);
 
   const handleClose = () => {
     setMode('actions');
@@ -106,14 +107,18 @@ function AnnotationActionSheetContent({
     onClose();
   };
 
-  const handleHighlight = async (color: string) => {
+  const handleHighlightColor = async (color: string, isActive: boolean) => {
     if (!canAnnotate || isSaving) {
       return;
     }
 
     setIsSaving(true);
     try {
-      await onHighlight(color);
+      if (isActive) {
+        await onRemoveHighlight(color);
+      } else {
+        await onHighlight(color);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -136,20 +141,6 @@ function AnnotationActionSheetContent({
     }
 
     handleClose();
-  };
-
-  const handleRemoveHighlight = async () => {
-    if (!canAnnotate || isSaving || !canRemoveHighlight) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await onRemoveHighlight();
-      handleClose();
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   return (
@@ -202,41 +193,42 @@ function AnnotationActionSheetContent({
               bounces={false}
               contentContainerStyle={styles.actionRail}
             >
-              {HIGHLIGHT_COLORS.map((color) => (
-                <Pressable
-                  key={color.id}
-                  accessibilityLabel={t(`annotations.colors.${color.id}`)}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !canAnnotate }}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.colorDotButton,
-                    {
-                      backgroundColor: color.hex,
-                      opacity: canAnnotate ? 1 : 0.46,
-                      transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
-                    },
-                  ]}
-                  onPress={() => {
-                    if (!canAnnotate) {
-                      return;
-                    }
+              {HIGHLIGHT_COLORS.map((color) => {
+                const isActive = activeHighlightColorSet.has(color.hex);
 
-                    void handleHighlight(color.hex);
-                  }}
-                  disabled={!canAnnotate}
-                />
-              ))}
-              {canRemoveHighlight ? (
-                <ActionPill
-                  icon="close"
-                  label={t('annotations.removeHighlight')}
-                  onPress={() => {
-                    void handleRemoveHighlight();
-                  }}
-                  disabled={!canAnnotate || isSaving}
-                />
-              ) : null}
+                return (
+                  <Pressable
+                    key={color.id}
+                    accessibilityLabel={t(`annotations.colors.${color.id}`)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive, disabled: !canAnnotate }}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.colorDotButton,
+                      {
+                        backgroundColor: color.hex,
+                        borderColor: isActive ? colors.biblePrimaryText : 'transparent',
+                        opacity: canAnnotate ? 1 : 0.46,
+                        transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
+                      },
+                    ]}
+                    onPress={() => {
+                      if (!canAnnotate) {
+                        return;
+                      }
+
+                      void handleHighlightColor(color.hex, isActive);
+                    }}
+                    disabled={!canAnnotate}
+                  >
+                    {isActive ? (
+                      <View style={styles.colorDotRemoveOverlay} pointerEvents="none">
+                        <Ionicons name="close" size={13} color={colors.bibleSurface} />
+                      </View>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
               <ActionPill
                 icon="create-outline"
                 label={t('annotations.note')}
@@ -404,6 +396,14 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  colorDotRemoveOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButton: {
     flexShrink: 0,
