@@ -339,7 +339,8 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    // Keep the tray out of normal flex layout so it doesn't push the reader UI upward.
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
   },
   sheet: {

@@ -56,7 +56,13 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   assert.match(
     traySource,
     /pointerEvents="box-none"/,
-    'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
+    'The selection tray should let Bible taps keep reaching the underlying reader outside the sheet'
+  );
+
+  assert.match(
+    traySource,
+    /\.\.\.StyleSheet\.absoluteFillObject/,
+    'The selection tray should overlay the screen instead of taking layout space from the reader'
   );
 
   assert.equal(
