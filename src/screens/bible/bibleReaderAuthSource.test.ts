@@ -46,13 +46,19 @@ test('BibleReaderScreen keeps verse selection available and local-only annotatio
 
   assert.match(
     source,
-    /if \(selectedVerse == null\) \{/,
-    'BibleReaderScreen should only gate highlight and note actions on an actual verse selection'
+    /const \[selectedVerses, setSelectedVerses\] = useState<number\[\]>\(\[\]\);/,
+    'BibleReaderScreen should keep selected verses in a multi-select state container'
   );
 
   assert.match(
     source,
-    /onPress=\{\s*\(\) => \{\s*setSelectedVerse\(verse\.verse\);\s*setShowAnnotationSheet\(true\);\s*\}\s*\}/s,
-    'BibleReaderScreen should open the tray directly when the user taps text'
+    /onPress=\{\s*\(\) => \{\s*setSelectedVerses\(\(current\) => toggleBibleSelectionVerse\(current, verse\.verse\)\);\s*\}\s*\}/s,
+    'BibleReaderScreen should toggle verse selection when the user taps text'
+  );
+
+  assert.match(
+    source,
+    /selectedVerses\.length > 0/,
+    'BibleReaderScreen should only show the selection tray while at least one verse is selected'
   );
 });

@@ -589,6 +589,7 @@ export const en = {
     highlight: 'Highlight',
     note: 'Note',
     copy: 'Copy',
+    removeHighlight: 'Remove Highlight',
     editNote: 'Edit Note',
     deleteAnnotation: 'Delete',
     noAnnotations: 'No annotations yet',

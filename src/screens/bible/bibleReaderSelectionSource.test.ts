@@ -13,32 +13,32 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
-    /import \* as Clipboard from 'expo-clipboard';/,
-    'BibleReaderScreen should use a real clipboard implementation for selected-text copy'
+    /import \* as Clipboard from 'expo-clipboard';[\s\S]*import \{ selectionHaptic \} from '\.\.\/\.\.\/utils\/haptics';/s,
+    'BibleReaderScreen should use a real clipboard implementation and the local haptic helper for copy feedback'
   );
 
   assert.match(
     source,
-    /const handleCopySelectedVerse = async \(\) => \{/,
-    'BibleReaderScreen should define a dedicated selected-text copy handler'
+    /const handleCopySelectedVerses = async \(\) => \{/,
+    'BibleReaderScreen should define a dedicated multi-verse copy handler'
   );
 
   assert.match(
     source,
-    /const handleShareSelectedVerse = async \(\) => \{/,
-    'BibleReaderScreen should define a dedicated selected-text share handler'
+    /const handleShareSelectedVerses = async \(\) => \{/,
+    'BibleReaderScreen should define a dedicated multi-verse share handler'
   );
 
   assert.match(
     source,
-    /const handleHighlightSelectedVerse = async \(color: string\) => \{/,
+    /const handleHighlightSelectedVerses = async \(color: string\) => \{/,
     'BibleReaderScreen should define a dedicated selected-text highlight handler'
   );
 
   assert.match(
     source,
-    /referenceLabel=\{selectedVerseReferenceLabel\}[\s\S]*selectedText=\{selectedVerseText\}[\s\S]*handleCopySelectedVerse[\s\S]*handleShareSelectedVerse[\s\S]*handleHighlightSelectedVerse[\s\S]*handleNoteSelectedVerse/s,
-    'BibleReaderScreen should pass the selected text and action callbacks into the selection tray'
+    /referenceLabel=\{selectedVerseReferenceLabel\}[\s\S]*selectedText=\{selectedVerseText\}[\s\S]*handleCopySelectedVerses[\s\S]*handleShareSelectedVerses[\s\S]*handleHighlightSelectedVerses[\s\S]*handleNoteSelectedVerses[\s\S]*handleRemoveHighlightSelectedVerses/s,
+    'BibleReaderScreen should pass the multi-verse selection text and action callbacks into the selection tray'
   );
 
   assert.match(
@@ -48,15 +48,21 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   );
 
   assert.match(
-    traySource,
-    /annotations\.selected/,
-    'The selection tray should title the action panel with the selected reference copy'
+    source,
+    /visible=\{selectedVerses\.length > 0\}/,
+    'BibleReaderScreen should keep the selection tray open while at least one verse remains selected'
   );
 
   assert.match(
     traySource,
-    /common\.save/,
-    'The selection tray should keep the save/highlight primary action label from the recording'
+    /pointerEvents="box-none"/,
+    'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
+  );
+
+  assert.match(
+    traySource,
+    /annotations\.highlight/,
+    'The selection tray should expose a highlight action in the tray'
   );
 
   assert.match(
@@ -75,5 +81,23 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     traySource,
     /groups\.share/,
     'The selection tray should expose a share action in the tray'
+  );
+
+  assert.match(
+    traySource,
+    /annotations\.removeHighlight/,
+    'The selection tray should expose an X button for removing an existing highlight'
+  );
+
+  assert.equal(
+    traySource.includes('common.save'),
+    false,
+    'The selection tray should remove the old save button label from the recording'
+  );
+
+  assert.equal(
+    traySource.includes('<Modal'),
+    false,
+    'The selection tray should be inline so the Bible remains tappable while verses are selected'
   );
 });

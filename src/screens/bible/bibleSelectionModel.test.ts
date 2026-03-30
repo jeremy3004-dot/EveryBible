@@ -5,35 +5,22 @@ import {
   buildBibleSelectionShareText,
   extractBibleSelectionText,
   formatBibleSelectionReference,
+  toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
 
-test('formats a selected Bible reference with the translation label', () => {
+test('formats a multi-verse Bible selection reference with the translation label', () => {
   assert.equal(
     formatBibleSelectionReference({
       bookName: 'Ephesians',
       chapter: 1,
-      startVerse: 3,
-      endVerse: 3,
+      verses: [5, 3, 4, 4, 7],
       translationLabel: 'BSB',
     }),
-    'Ephesians 1:3 BSB'
+    'Ephesians 1:3-5, 7 BSB'
   );
 });
 
-test('formats a selected Bible reference range with the translation label', () => {
-  assert.equal(
-    formatBibleSelectionReference({
-      bookName: 'Ephesians',
-      chapter: 1,
-      startVerse: 3,
-      endVerse: 5,
-      translationLabel: 'BSB',
-    }),
-    'Ephesians 1:3-5 BSB'
-  );
-});
-
-test('joins the selected verses into copyable selection text', () => {
+test('joins the selected verses into copyable selection text in chapter order', () => {
   assert.equal(
     extractBibleSelectionText(
       [
@@ -44,10 +31,21 @@ test('joins the selected verses into copyable selection text', () => {
         },
         { verse: 5, text: 'He predestined us for adoption as His sons through Jesus Christ.' },
       ],
-      { startVerse: 3, endVerse: 5 }
+      [5, 3, 4]
     ),
     'Blessed be the God and Father of our Lord Jesus Christ. He chose us in Him before the foundation of the world. He predestined us for adoption as His sons through Jesus Christ.'
   );
+});
+
+test('toggles verses like a sorted set so multi-select stays order-independent', () => {
+  let selectedVerses: number[] = [];
+
+  selectedVerses = toggleBibleSelectionVerse(selectedVerses, 5);
+  selectedVerses = toggleBibleSelectionVerse(selectedVerses, 3);
+  selectedVerses = toggleBibleSelectionVerse(selectedVerses, 4);
+  selectedVerses = toggleBibleSelectionVerse(selectedVerses, 3);
+
+  assert.deepEqual(selectedVerses, [4, 5]);
 });
 
 test('builds the selected-verse share payload with the reference on top', () => {
