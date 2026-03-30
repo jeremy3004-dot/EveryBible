@@ -70,6 +70,7 @@ import {
   PlaybackControls,
 } from '../../components';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
+import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
@@ -325,6 +326,11 @@ export function BibleReaderScreen() {
           selectedText: selectedVerseText,
         })
       : '';
+  const selectedVerseDecorationStyle = {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
+    textDecorationColor: colors.bibleAccent,
+  } as const;
   const selectedVerseSet = new Set(selectedVerses);
   const selectedVerseAnnotations =
     selectedVerses.length > 0
@@ -335,6 +341,13 @@ export function BibleReaderScreen() {
       : [];
   const selectedHighlightAnnotations = selectedVerseAnnotations.filter(
     (annotation) => annotation.type === 'highlight'
+  );
+  const selectedHighlightColors = Array.from(
+    new Set(
+      selectedHighlightAnnotations
+        .map((annotation) => annotation.color)
+        .filter((color): color is string => typeof color === 'string' && color.trim().length > 0)
+    )
   );
   const selectedNoteAnnotation = selectedVerseAnnotations.find(
     (annotation) => annotation.type === 'note'
@@ -1260,15 +1273,18 @@ export function BibleReaderScreen() {
     }
 
     await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
-  const handleRemoveHighlightSelectedVerses = async () => {
-    if (selectedHighlightAnnotations.length === 0) {
+  const handleRemoveHighlightSelectedVerses = async (color: string) => {
+    const annotationsToRemove = selectedHighlightAnnotations.filter(
+      (annotation) => annotation.color === color
+    );
+
+    if (annotationsToRemove.length === 0) {
       return;
     }
 
-    for (const annotation of selectedHighlightAnnotations) {
+    for (const annotation of annotationsToRemove) {
       const result = await softDeleteAnnotation(annotation.id);
       if (!result.success) {
         Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
@@ -1277,7 +1293,6 @@ export function BibleReaderScreen() {
     }
 
     await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
   const renderListenMode = () => {
@@ -1581,6 +1596,15 @@ export function BibleReaderScreen() {
       usePremiumTypography ? styles.premiumVerseText : null,
       { fontSize: verseFontSize, lineHeight: verseLineHeight, color: colors.biblePrimaryText },
     ];
+    const verseNumberStyle = [
+      styles.inlineVerseNumber,
+      usePremiumTypography ? styles.premiumVerseNumber : null,
+      {
+        fontSize: verseNumberSize,
+        lineHeight: verseLineHeight,
+        color: colors.bibleAccent,
+      },
+    ];
 
     return (
       <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
@@ -1617,6 +1641,30 @@ export function BibleReaderScreen() {
                 const highlightAnnotation = verseAnnotations.find((a) => a.type === 'highlight');
                 const isFocused = verse.verse === focusVerse;
 
+                const trailingSpace = vIndex < paragraph.verses.length - 1 ? ' ' : '';
+
+                if (highlightAnnotation?.color) {
+                  return (
+                    <HighlightedVerseText
+                      key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}`}
+                      verseNumber={verse.verse}
+                      verseText={verse.text}
+                      verseTextStyle={textStyle}
+                      verseNumberStyle={verseNumberStyle}
+                      selectedStyle={
+                        selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null
+                      }
+                      highlightColor={highlightAnnotation.color}
+                      onPress={() => {
+                        setSelectedVerses((current) =>
+                          toggleBibleSelectionVerse(current, verse.verse)
+                        );
+                      }}
+                      trailingSpace={trailingSpace}
+                    />
+                  );
+                }
+
                 return (
                   <Text
                     key={verse.id}
@@ -1625,35 +1673,14 @@ export function BibleReaderScreen() {
                     }}
                     style={[
                       { lineHeight: verseLineHeight },
-                      selectedVerseSet.has(verse.verse)
-                        ? {
-                            textDecorationLine: 'underline',
-                            textDecorationStyle: 'dotted',
-                            textDecorationColor: colors.bibleAccent,
-                          }
-                        : null,
+                      selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null,
                       isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
-                      highlightAnnotation?.color
-                        ? { backgroundColor: highlightAnnotation.color + '25' }
-                        : null,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.inlineVerseNumber,
-                        usePremiumTypography ? styles.premiumVerseNumber : null,
-                        {
-                          fontSize: verseNumberSize,
-                          lineHeight: verseLineHeight,
-                          color: colors.bibleAccent,
-                        },
-                      ]}
-                    >
-                      {verse.verse}
-                    </Text>
+                    <Text style={verseNumberStyle}>{verse.verse}</Text>
                     {'\u00A0'}
                     {verse.text}
-                    {vIndex < paragraph.verses.length - 1 ? ' ' : ''}
+                    {trailingSpace}
                   </Text>
                 );
               })}
@@ -2727,7 +2754,7 @@ export function BibleReaderScreen() {
         canAnnotate={true}
         closeButtonAccessibilityLabel={t('common.done')}
         bottomInset={safeInsets.bottom}
-        canRemoveHighlight={selectedHighlightAnnotations.length > 0}
+        activeHighlightColors={selectedHighlightColors}
         onCopy={() => {
           void handleCopySelectedVerses();
         }}

@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,9 +22,6 @@ const HIGHLIGHT_COLORS = [
   { id: 'blue', hex: '#4A90E2' },
 ] as const;
 
-type HighlightColorHex = (typeof HIGHLIGHT_COLORS)[number]['hex'];
-
-const DEFAULT_HIGHLIGHT_COLOR: HighlightColorHex = HIGHLIGHT_COLORS[1].hex;
 const PRESSED_SCALE = 0.96;
 
 interface AnnotationActionSheetProps {
@@ -33,12 +31,12 @@ interface AnnotationActionSheetProps {
   canAnnotate: boolean;
   closeButtonAccessibilityLabel: string;
   bottomInset?: number;
-  canRemoveHighlight: boolean;
+  activeHighlightColors: string[];
   onCopy: () => void;
   onShare: () => void;
   onHighlight: (color: string) => void;
   onNote: (text: string) => void;
-  onRemoveHighlight: () => void;
+  onRemoveHighlight: (color: string) => void;
   onClose: () => void;
   existingNote?: string;
 }
@@ -93,32 +91,34 @@ function AnnotationActionSheetContent({
   onClose,
   closeButtonAccessibilityLabel,
   bottomInset = 0,
-  canRemoveHighlight,
+  activeHighlightColors,
   existingNote,
 }: AnnotationActionSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
-  const [selectedColor, setSelectedColor] = useState<HighlightColorHex>(DEFAULT_HIGHLIGHT_COLOR);
   const [isSaving, setIsSaving] = useState(false);
+  const activeHighlightColorSet = new Set(activeHighlightColors);
 
   const handleClose = () => {
     setMode('actions');
     setNoteText(existingNote ?? '');
-    setSelectedColor(DEFAULT_HIGHLIGHT_COLOR);
     onClose();
   };
 
-  const handleHighlight = async () => {
+  const handleHighlightColor = async (color: string, isActive: boolean) => {
     if (!canAnnotate || isSaving) {
       return;
     }
 
     setIsSaving(true);
     try {
-      await onHighlight(selectedColor);
-      handleClose();
+      if (isActive) {
+        await onRemoveHighlight(color);
+      } else {
+        await onHighlight(color);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -141,20 +141,6 @@ function AnnotationActionSheetContent({
     }
 
     handleClose();
-  };
-
-  const handleRemoveHighlight = async () => {
-    if (!canAnnotate || isSaving || !canRemoveHighlight) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await onRemoveHighlight();
-      handleClose();
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   return (
@@ -202,22 +188,26 @@ function AnnotationActionSheetContent({
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
-            <View style={styles.colorRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.actionRail}
+            >
               {HIGHLIGHT_COLORS.map((color) => {
-                const isSelected = selectedColor === color.hex;
+                const isActive = activeHighlightColorSet.has(color.hex);
 
                 return (
                   <Pressable
                     key={color.id}
                     accessibilityLabel={t(`annotations.colors.${color.id}`)}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected, disabled: !canAnnotate }}
+                    accessibilityState={{ selected: isActive, disabled: !canAnnotate }}
                     hitSlop={8}
                     style={({ pressed }) => [
                       styles.colorDot,
                       {
                         backgroundColor: color.hex,
-                        borderColor: isSelected ? colors.biblePrimaryText : 'transparent',
+                        borderColor: isActive ? colors.biblePrimaryText : 'transparent',
                         opacity: canAnnotate ? 1 : 0.46,
                         transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
                       },
@@ -227,33 +217,18 @@ function AnnotationActionSheetContent({
                         return;
                       }
 
-                      setSelectedColor(color.hex);
+                      void handleHighlightColor(color.hex, isActive);
                     }}
                     disabled={!canAnnotate}
-                  />
+                  >
+                    {isActive ? (
+                      <View style={styles.colorDotRemoveOverlay} pointerEvents="none">
+                        <Ionicons name="close" size={13} color={colors.bibleSurface} />
+                      </View>
+                    ) : null}
+                  </Pressable>
                 );
               })}
-            </View>
-
-            <View style={styles.actionGrid}>
-              <ActionPill
-                icon="color-fill-outline"
-                label={t('annotations.highlight')}
-                onPress={() => {
-                  void handleHighlight();
-                }}
-                disabled={!canAnnotate || isSaving}
-              />
-              {canRemoveHighlight ? (
-                <ActionPill
-                  icon="close"
-                  label={t('annotations.removeHighlight')}
-                  onPress={() => {
-                    void handleRemoveHighlight();
-                  }}
-                  disabled={!canAnnotate || isSaving}
-                />
-              ) : null}
               <ActionPill
                 icon="create-outline"
                 label={t('annotations.note')}
@@ -270,7 +245,7 @@ function AnnotationActionSheetContent({
                 label={t('groups.share')}
                 onPress={onShare}
               />
-            </View>
+            </ScrollView>
           </View>
         ) : (
           <View style={styles.noteContainer}>
@@ -406,25 +381,30 @@ const styles = StyleSheet.create({
   actionsContainer: {
     gap: spacing.md,
   },
-  colorRow: {
+  actionRail: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     justifyContent: 'flex-start',
     paddingLeft: 2,
+    paddingRight: spacing.sm,
   },
   colorDot: {
     width: 26,
     height: 26,
     borderRadius: 13,
     borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  actionGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  colorDotRemoveOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButton: {
-    flex: 1,
+    width: 74,
     minHeight: 70,
     borderWidth: 1,
     borderRadius: 14,
@@ -433,6 +413,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 8,
     gap: 4,
+    flexShrink: 0,
   },
   actionLabel: {
     ...typography.micro,
