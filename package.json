@@ -87,5 +87,18 @@
     "tsx": "^4.20.6",
     "typescript": "~5.9.2"
   },
+  "expo": {
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
+    },
+    "install": {
+      "exclude": [
+        "@shopify/flash-list",
+        "react-native-reanimated"
+      ]
+    }
+  },
   "private": true
 }
