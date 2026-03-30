@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildPublicRuntimeConfig } from './publicRuntimeConfig';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const require = createRequire(import.meta.url);
 
 const toRootFilePath = (relativePathFromRepoRoot: string): string =>
   path.join(REPO_ROOT, relativePathFromRepoRoot);
@@ -59,6 +62,43 @@ test('env example documents only supported Google sign-in client IDs', () => {
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=/);
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=/);
   assert.doesNotMatch(envExample, /EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=/);
+});
+
+test('buildPublicRuntimeConfig falls back to Expo extra when release bundles miss inline env vars', () => {
+  const runtimeConfig = buildPublicRuntimeConfig({
+    env: {},
+    extra: {
+      publicRuntimeConfig: {
+        EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
+        EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
+        EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client-id',
+      },
+    },
+  });
+
+  assert.equal(
+    runtimeConfig.EXPO_PUBLIC_SUPABASE_URL,
+    'https://ganmududzdzpruvdulkg.supabase.co'
+  );
+  assert.equal(runtimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY, 'publishable-key');
+  assert.equal(runtimeConfig.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 'web-client-id');
+});
+
+test('app config injects public runtime auth values into Expo extra for release builds', () => {
+  const appConfig = require(toRootFilePath('app.config.js'));
+  const extra = appConfig.buildPublicRuntimeConfigExtra({
+    EXPO_PUBLIC_SUPABASE_URL: ' https://ganmududzdzpruvdulkg.supabase.co ',
+    EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ' publishable-key ',
+    EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ' ios-client-id ',
+  });
+
+  assert.deepEqual(extra, {
+    publicRuntimeConfig: {
+      EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
+      EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: 'ios-client-id',
+    },
+  });
 });
 
 test('local xcode node override points to an installed executable when present', () => {

@@ -1,7 +1,8 @@
 import type { BibleTranslation } from '../types';
+import { publicRuntimeConfig } from '../services/startup/publicRuntimeConfig';
 
-const SUPABASE_AUDIO_BUCKET_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL
-  ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
+const SUPABASE_AUDIO_BUCKET_BASE = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL
+  ? `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
   : null;
 
 export const bibleTranslations: BibleTranslation[] = [

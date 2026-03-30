@@ -3,6 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createGoogleSignInInitializer } from './googleSignIn';
 import type { AuthErrorCode } from './authErrors';
 import {
@@ -16,7 +17,7 @@ import {
 } from './authErrors';
 
 const ensureGoogleSignInConfigured = createGoogleSignInInitializer({
-  env: process.env,
+  env: publicRuntimeConfig,
   configure: (config) => {
     GoogleSignin.configure(config);
   },

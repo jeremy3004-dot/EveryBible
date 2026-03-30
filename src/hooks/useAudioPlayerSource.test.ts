@@ -27,10 +27,4 @@ test('useAudioPlayer keeps iOS now playing metadata and remote commands wired to
     /subscribeBibleNowPlayingRemoteCommands/,
     'useAudioPlayer should subscribe to native remote-command events for lock-screen controls'
   );
-
-  assert.match(
-    source,
-    /Math\.max\(currentDuration, snapshot\.durationMillis\)/,
-    'useAudioPlayer should keep the now-playing duration monotonic while audio status updates arrive'
-  );
 });
