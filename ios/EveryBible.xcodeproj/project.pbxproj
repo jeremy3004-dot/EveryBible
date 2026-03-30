@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		13B9648EC37BCFE93DE0C96C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1860AD1B82CBE66BD57B62D3 /* PrivacyInfo.xcprivacy */; };
+		2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */ = {isa = PBXBuildFile; fileRef = EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */; };
 		3E461D99554A48A4959DE609 /* EveryBibleLaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */; };
 		94D921C656518F7722FB3C8A /* libPods-EveryBible.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 97CCD1DB46F8E5917E4BD96A /* libPods-EveryBible.a */; };
 		A81F47F92E005D920044C1D9 /* EveryBiblePrivacyModule.m in Sources */ = {isa = PBXBuildFile; fileRef = A81F47F72E005D920044C1D9 /* EveryBiblePrivacyModule.m */; };
@@ -16,7 +17,6 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		E32ABEF1BEED1903ECDCC71D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DDAF5C60B8FCDE3C52D246C /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */ = {isa = PBXBuildFile; fileRef = EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,10 +35,10 @@
 		AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		C38B1E7F79671F1E5CDEE3CC /* Pods-EveryBible.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-EveryBible.debug.xcconfig"; path = "Target Support Files/Pods-EveryBible/Pods-EveryBible.debug.xcconfig"; sourceTree = "<group>"; };
+		EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "bible-bsb-v2.db"; path = "../assets/databases/bible-bsb-v2.db"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = EveryBible/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* EveryBible-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "EveryBible-Bridging-Header.h"; path = "EveryBible/EveryBible-Bridging-Header.h"; sourceTree = "<group>"; };
-		EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */ = {isa = PBXFileReference; name = "bible-bsb-v2.db"; path = "../assets/databases/bible-bsb-v2.db"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,13 +148,13 @@
 			sourceTree = "<group>";
 		};
 		D069371DE46C4D9B846A964A /* Resources */ = {
-			isa = "PBXGroup";
+			isa = PBXGroup;
 			children = (
 				EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */,
 			);
 			name = Resources;
-			sourceTree = "<group>";
 			path = "";
+			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
@@ -390,9 +390,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 176;
+				CURRENT_PROJECT_VERSION = 213;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -430,9 +430,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 176;
+				CURRENT_PROJECT_VERSION = 213;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				INFOPLIST_FILE = EveryBible/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -484,7 +484,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -546,7 +546,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				COPY_PHASE_STRIP = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

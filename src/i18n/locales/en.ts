@@ -138,9 +138,10 @@ export const en = {
     chapterFeedbackPlaceholder: 'Optional comment about this chapter',
     chapterFeedbackSelectionHint: 'Tap thumbs up or thumbs down to add an optional note.',
     chapterFeedbackSubmit: 'Send feedback',
-    chapterFeedbackSuccess: 'Thanks. Your feedback was sent.',
+    chapterFeedbackSuccess:
+      'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
     chapterFeedbackSavedFallback:
-      'Thanks. Your feedback was saved and will be exported for review shortly.',
+      'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
     chapterFeedbackSignInRequired: 'Please sign in before sending chapter feedback.',
     books: {
       GEN: 'Genesis',
