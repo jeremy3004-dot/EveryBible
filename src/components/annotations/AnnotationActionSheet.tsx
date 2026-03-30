@@ -21,9 +21,6 @@ const HIGHLIGHT_COLORS = [
   { id: 'blue', hex: '#4A90E2' },
 ] as const;
 
-type HighlightColorHex = (typeof HIGHLIGHT_COLORS)[number]['hex'];
-
-const DEFAULT_HIGHLIGHT_COLOR: HighlightColorHex = HIGHLIGHT_COLORS[1].hex;
 const PRESSED_SCALE = 0.96;
 
 interface AnnotationActionSheetProps {
@@ -100,24 +97,22 @@ function AnnotationActionSheetContent({
   const { t } = useTranslation();
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
-  const [selectedColor, setSelectedColor] = useState<HighlightColorHex>(DEFAULT_HIGHLIGHT_COLOR);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleClose = () => {
     setMode('actions');
     setNoteText(existingNote ?? '');
-    setSelectedColor(DEFAULT_HIGHLIGHT_COLOR);
     onClose();
   };
 
-  const handleHighlight = async () => {
+  const handleHighlight = async (color: string) => {
     if (!canAnnotate || isSaving) {
       return;
     }
 
     setIsSaving(true);
     try {
-      await onHighlight(selectedColor);
+      await onHighlight(color);
       handleClose();
     } finally {
       setIsSaving(false);
@@ -202,48 +197,31 @@ function AnnotationActionSheetContent({
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
-            <View style={styles.colorRow}>
+            <View style={styles.actionGrid}>
               {HIGHLIGHT_COLORS.map((color) => {
-                const isSelected = selectedColor === color.hex;
-
                 return (
                   <Pressable
                     key={color.id}
                     accessibilityLabel={t(`annotations.colors.${color.id}`)}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected, disabled: !canAnnotate }}
+                    accessibilityState={{ disabled: !canAnnotate || isSaving }}
+                    disabled={!canAnnotate || isSaving}
                     hitSlop={8}
                     style={({ pressed }) => [
-                      styles.colorDot,
+                      styles.colorActionButton,
                       {
                         backgroundColor: color.hex,
-                        borderColor: isSelected ? colors.biblePrimaryText : 'transparent',
-                        opacity: canAnnotate ? 1 : 0.46,
-                        transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
+                        borderColor: colors.bibleDivider,
+                        opacity: canAnnotate && !isSaving ? 1 : 0.46,
+                        transform: [{ scale: pressed && canAnnotate && !isSaving ? PRESSED_SCALE : 1 }],
                       },
                     ]}
                     onPress={() => {
-                      if (!canAnnotate) {
-                        return;
-                      }
-
-                      setSelectedColor(color.hex);
+                      void handleHighlight(color.hex);
                     }}
-                    disabled={!canAnnotate}
                   />
                 );
               })}
-            </View>
-
-            <View style={styles.actionGrid}>
-              <ActionPill
-                icon="color-fill-outline"
-                label={t('annotations.highlight')}
-                onPress={() => {
-                  void handleHighlight();
-                }}
-                disabled={!canAnnotate || isSaving}
-              />
               {canRemoveHighlight ? (
                 <ActionPill
                   icon="close"
@@ -406,25 +384,20 @@ const styles = StyleSheet.create({
   actionsContainer: {
     gap: spacing.md,
   },
-  colorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    justifyContent: 'flex-start',
-    paddingLeft: 2,
-  },
-  colorDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-  },
   actionGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+    alignItems: 'center',
+  },
+  colorActionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   actionButton: {
-    flex: 1,
+    width: 104,
     minHeight: 70,
     borderWidth: 1,
     borderRadius: 14,

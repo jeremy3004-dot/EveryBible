@@ -7,7 +7,7 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and highlight actions', () => {
+test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and inline highlight colors', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
   const traySource = readRelativeSource('../../components/annotations/AnnotationActionSheet.tsx');
 
@@ -59,10 +59,28 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
   );
 
+  assert.equal(
+    traySource.includes('annotations.highlight'),
+    false,
+    'The selection tray should remove the old highlight button label from the tray'
+  );
+
+  assert.equal(
+    traySource.includes('selectedColor'),
+    false,
+    'The selection tray should not keep a separate highlight selection state once color chips auto-apply'
+  );
+
+  assert.equal(
+    traySource.includes('DEFAULT_HIGHLIGHT_COLOR'),
+    false,
+    'The selection tray should not require a default highlight color state after color chips auto-apply'
+  );
+
   assert.match(
     traySource,
-    /annotations\.highlight/,
-    'The selection tray should expose a highlight action in the tray'
+    /handleHighlight\(color\.hex\)/,
+    'The selection tray should highlight verses directly when a color chip is tapped'
   );
 
   assert.match(
