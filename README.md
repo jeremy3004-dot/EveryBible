@@ -63,6 +63,8 @@ Optional for full features:
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Google OAuth iOS client ID
 - `EXPO_PUBLIC_BIBLE_IS_API_KEY` - Bible.is API key for any future additional streamed audio sources
 
+Expo also mirrors the supported `EXPO_PUBLIC_*` auth/runtime values into `extra.publicRuntimeConfig` during builds via [`app.config.js`](./app.config.js), so preview and production bundles must be created with these variables available.
+
 ### 3. Supabase Setup
 
 1. Create a Supabase project at https://supabase.com
@@ -144,6 +146,9 @@ eas build --profile production --platform android
 ### Deployment
 
 ```bash
+# Pre-build release guard for local iOS signing and branch sync
+npm run release:prepare  # runs scripts/testflight_release_guard.ts after release metadata checks
+
 # Preflight an iOS IPA before submission
 bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
 

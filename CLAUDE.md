@@ -562,6 +562,9 @@ See `eas.json` for build profiles:
 
 ### Build Process
 ```bash
+# Pre-build release guard for local iOS signing and branch sync
+npm run release:prepare
+
 # iOS Production
 eas build --platform ios --profile production
 
@@ -591,11 +594,13 @@ eas submit --platform android --profile production
 ### Release Checklist
 1. Update version in app.json
 2. Test on both platforms
-3. Run lint and format checks
+3. Run `npm run release:prepare` in a clean release worktree
 4. Build with EAS (production profile)
 5. Test builds via internal distribution or TestFlight, depending on profile
 6. Submit to stores
 7. Monitor crash reports
+
+`npm run release:prepare` runs the release metadata checks and `scripts/testflight_release_guard.ts`, which fails fast if `origin/main` is out of sync or if the active keychain exposes multiple Apple Distribution identities.
 
 ### ⛔ TestFlight Distribution — MANDATORY 4-Step Flow
 
