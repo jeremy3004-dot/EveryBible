@@ -16,8 +16,9 @@
  *   - addEventListener for remote events
  *
  * Limitations vs real track-player:
- *   - Lock-screen controls / notification controls are NOT wired (expo-av does
- *     not expose MediaSession or MPNowPlayingInfoCenter).
+ *   - Lock-screen controls / notification controls are handled separately by
+ *     `audioNowPlaying.ts` because expo-av does not expose MediaSession or
+ *     MPNowPlayingInfoCenter directly.
  *   - Only one track is loaded at a time; queue management lives in audioStore.
  *   - RepeatMode is tracked in state but looping is handled by the caller
  *     (useAudioPlayer) because expo-av's isLooping has no crossfade support.

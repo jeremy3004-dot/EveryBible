@@ -7,7 +7,7 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and inline highlight colors', () => {
+test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and highlight actions', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
   const traySource = readRelativeSource('../../components/annotations/AnnotationActionSheet.tsx');
 
@@ -56,37 +56,13 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   assert.match(
     traySource,
     /pointerEvents="box-none"/,
-    'The selection tray should let Bible taps keep reaching the underlying reader outside the sheet'
+    'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
   );
 
   assert.match(
     traySource,
-    /\.\.\.StyleSheet\.absoluteFillObject/,
-    'The selection tray should overlay the screen instead of taking layout space from the reader'
-  );
-
-  assert.equal(
-    traySource.includes('annotations.highlight'),
-    false,
-    'The selection tray should remove the old highlight button label from the tray'
-  );
-
-  assert.equal(
-    traySource.includes('selectedColor'),
-    false,
-    'The selection tray should not keep a separate highlight selection state once color chips auto-apply'
-  );
-
-  assert.equal(
-    traySource.includes('DEFAULT_HIGHLIGHT_COLOR'),
-    false,
-    'The selection tray should not require a default highlight color state after color chips auto-apply'
-  );
-
-  assert.match(
-    traySource,
-    /handleHighlight\(color\.hex\)/,
-    'The selection tray should highlight verses directly when a color chip is tapped'
+    /\.{3}StyleSheet\.absoluteFillObject/,
+    'The selection tray should overlay the reader instead of reserving its own layout space'
   );
 
   assert.match(
@@ -113,6 +89,24 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     'The selection tray should expose an X button for removing an existing highlight'
   );
 
+  assert.match(
+    traySource,
+    /<ScrollView[\s\S]*horizontal[\s\S]*showsHorizontalScrollIndicator=\{false\}/,
+    'The tray actions should stay on one horizontal rail instead of wrapping to a second line'
+  );
+
+  assert.match(
+    traySource,
+    /void handleHighlight\(color\.hex\)/,
+    'Tapping a highlighter color should immediately apply the highlight'
+  );
+
+  assert.equal(
+    traySource.includes('await onHighlight(color);\n      handleClose();'),
+    false,
+    'Tapping a highlighter color should keep the tray open so copy/share can follow'
+  );
+
   assert.equal(
     traySource.includes('common.save'),
     false,
@@ -123,5 +117,17 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     traySource.includes('<Modal'),
     false,
     'The selection tray should be inline so the Bible remains tappable while verses are selected'
+  );
+
+  assert.equal(
+    traySource.includes('annotations.highlight'),
+    false,
+    'The tray should not show a separate highlight button when the color chips apply immediately'
+  );
+
+  assert.equal(
+    traySource.includes('actionGrid'),
+    false,
+    'The tray should not use a wrapping action grid that pushes actions to a second row'
   );
 });

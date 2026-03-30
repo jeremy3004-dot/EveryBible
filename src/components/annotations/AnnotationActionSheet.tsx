@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -113,7 +114,6 @@ function AnnotationActionSheetContent({
     setIsSaving(true);
     try {
       await onHighlight(color);
-      handleClose();
     } finally {
       setIsSaving(false);
     }
@@ -167,7 +167,6 @@ function AnnotationActionSheetContent({
             paddingBottom: spacing.xl + bottomInset,
           },
         ]}
-        onStartShouldSetResponder={() => true}
       >
         <View style={styles.handle}>
           <View style={[styles.handleBar, { backgroundColor: colors.bibleSecondaryText + '55' }]} />
@@ -197,31 +196,37 @@ function AnnotationActionSheetContent({
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
-            <View style={styles.actionGrid}>
-              {HIGHLIGHT_COLORS.map((color) => {
-                return (
-                  <Pressable
-                    key={color.id}
-                    accessibilityLabel={t(`annotations.colors.${color.id}`)}
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: !canAnnotate || isSaving }}
-                    disabled={!canAnnotate || isSaving}
-                    hitSlop={8}
-                    style={({ pressed }) => [
-                      styles.colorActionButton,
-                      {
-                        backgroundColor: color.hex,
-                        borderColor: colors.bibleDivider,
-                        opacity: canAnnotate && !isSaving ? 1 : 0.46,
-                        transform: [{ scale: pressed && canAnnotate && !isSaving ? PRESSED_SCALE : 1 }],
-                      },
-                    ]}
-                    onPress={() => {
-                      void handleHighlight(color.hex);
-                    }}
-                  />
-                );
-              })}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.actionRail}
+            >
+              {HIGHLIGHT_COLORS.map((color) => (
+                <Pressable
+                  key={color.id}
+                  accessibilityLabel={t(`annotations.colors.${color.id}`)}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canAnnotate }}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.colorDotButton,
+                    {
+                      backgroundColor: color.hex,
+                      opacity: canAnnotate ? 1 : 0.46,
+                      transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
+                    },
+                  ]}
+                  onPress={() => {
+                    if (!canAnnotate) {
+                      return;
+                    }
+
+                    void handleHighlight(color.hex);
+                  }}
+                  disabled={!canAnnotate}
+                />
+              ))}
               {canRemoveHighlight ? (
                 <ActionPill
                   icon="close"
@@ -248,7 +253,7 @@ function AnnotationActionSheetContent({
                 label={t('groups.share')}
                 onPress={onShare}
               />
-            </View>
+            </ScrollView>
           </View>
         ) : (
           <View style={styles.noteContainer}>
@@ -339,9 +344,9 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
 
 const styles = StyleSheet.create({
   overlay: {
-    // Keep the tray out of normal flex layout so it doesn't push the reader UI upward.
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
+    zIndex: 50,
   },
   sheet: {
     borderTopLeftRadius: 28,
@@ -383,22 +388,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionsContainer: {
-    gap: spacing.md,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    alignItems: 'center',
   },
-  colorActionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+  actionRail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    justifyContent: 'flex-start',
+    flexGrow: 0,
+    paddingLeft: 2,
+    paddingRight: layout.screenPadding,
+  },
+  colorDotButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
   },
   actionButton: {
-    width: 104,
+    flexShrink: 0,
+    minWidth: 84,
     minHeight: 70,
     borderWidth: 1,
     borderRadius: 14,
