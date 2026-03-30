@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -40,10 +41,10 @@ import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
+import { getCurrentSession } from '../../services/auth';
 import {
   getAnnotationsForChapter,
   upsertAnnotation,
-  softDeleteAnnotation,
 } from '../../services/annotations/annotationService';
 import { buildBibleDeepLink, getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
@@ -70,6 +71,11 @@ import { AnnotationActionSheet } from '../../components/annotations/AnnotationAc
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
+import {
+  buildBibleSelectionShareText,
+  extractBibleSelectionText,
+  formatBibleSelectionReference,
+} from './bibleSelectionModel';
 import {
   READER_HERO_COLLAPSE_DISTANCE,
   READER_TOP_CHROME_DISMISS_DISTANCE,
@@ -188,6 +194,8 @@ export function BibleReaderScreen() {
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
+  const hasStoredAuthSession = isAuthenticated || hasLiveAuthSession;
+  const [hasRestoredAuthSession, setHasRestoredAuthSession] = useState(hasStoredAuthSession);
   const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
   const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
   const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
@@ -290,12 +298,37 @@ export function BibleReaderScreen() {
   const stableSessionMode = isLoading ? lastStableSessionModeRef.current : chapterSessionMode;
   const showMinimalListenChrome =
     stableSessionMode === 'listen' || chapterPresentationMode === 'audio-first';
+  const hasReaderAuthSession = hasStoredAuthSession || hasRestoredAuthSession;
   const showInlineChapterFeedbackComposer =
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
-    hasLiveAuthSession &&
+    hasReaderAuthSession &&
     savedChapterFeedbackIdentity != null &&
-    stableSessionMode === 'listen';
+    showMinimalListenChrome;
+  const selectedVerseReferenceLabel =
+    selectedVerse != null
+      ? formatBibleSelectionReference({
+          bookName: getTranslatedBookName(bookId, t),
+          chapter,
+          startVerse: selectedVerse,
+          endVerse: selectedVerse,
+          translationLabel,
+        })
+      : '';
+  const selectedVerseText =
+    selectedVerse != null
+      ? extractBibleSelectionText(verses, {
+          startVerse: selectedVerse,
+          endVerse: selectedVerse,
+        })
+      : '';
+  const selectedVerseShareText =
+    selectedVerse != null
+      ? buildBibleSelectionShareText({
+          referenceLabel: selectedVerseReferenceLabel,
+          selectedText: selectedVerseText,
+        })
+      : '';
   const rawFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,
@@ -641,16 +674,36 @@ export function BibleReaderScreen() {
   ]);
 
   useEffect(() => {
+    setHasRestoredAuthSession(hasStoredAuthSession);
+  }, [hasStoredAuthSession]);
+
+  useEffect(() => {
+    if (hasStoredAuthSession) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void getCurrentSession().then(({ session }) => {
+      if (!isCancelled) {
+        setHasRestoredAuthSession(session !== null);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hasStoredAuthSession]);
+
+  useEffect(() => {
     const loadAnnotations = async () => {
       const result = await getAnnotationsForChapter(bookId, chapter);
       if (result.success && result.data) {
         setAnnotations(result.data);
       }
     };
-    if (isAuthenticated) {
-      loadAnnotations();
-    }
-  }, [bookId, chapter, isAuthenticated]);
+    void loadAnnotations();
+  }, [bookId, chapter]);
 
   const loadChapter = async () => {
     // Only show loading skeleton on the very first load (no verses yet).
@@ -954,7 +1007,7 @@ export function BibleReaderScreen() {
   const handleOpenChapterFeedback = () => {
     setShowChapterActionsSheet(false);
 
-    if (!hasLiveAuthSession) {
+    if (!hasReaderAuthSession) {
       Alert.alert(t('common.error'), t('bible.chapterFeedbackSignInRequired'));
       return;
     }
@@ -975,7 +1028,7 @@ export function BibleReaderScreen() {
       return;
     }
 
-    if (!hasLiveAuthSession) {
+    if (!hasReaderAuthSession) {
       setFeedbackSubmitError(t('bible.chapterFeedbackSignInRequired'));
       return;
     }
@@ -1120,34 +1173,33 @@ export function BibleReaderScreen() {
     }
   };
 
-  const handleAnnotationBookmark = async () => {
-    const existing = annotations.find(
-      (a) => a.verse_start === selectedVerse && a.type === 'bookmark' && !a.deleted_at
-    );
-    if (existing) {
-      await softDeleteAnnotation(existing.id);
-    } else if (selectedVerse != null) {
-      await upsertAnnotation({
-        id: Math.random().toString(36).slice(2),
-        book: bookId,
-        chapter,
-        verse_start: selectedVerse,
-        verse_end: null,
-        type: 'bookmark',
-        color: null,
-        content: null,
-        deleted_at: null,
-      });
+  const handleCopySelectedVerse = async () => {
+    if (!selectedVerseShareText) {
+      return;
     }
-    await reloadAnnotations();
+
+    await Clipboard.setStringAsync(selectedVerseShareText);
   };
 
-  const handleAnnotationHighlight = async (color: string) => {
+  const handleShareSelectedVerse = async () => {
+    if (!selectedVerseShareText) {
+      return;
+    }
+
+    await Share.share({ message: selectedVerseShareText });
+  };
+
+  const handleHighlightSelectedVerse = async (color: string) => {
+    if (selectedVerse == null) {
+      return;
+    }
+
     const existing = annotations.find(
       (a) => a.verse_start === selectedVerse && a.type === 'highlight' && !a.deleted_at
     );
+
     if (existing) {
-      await upsertAnnotation({
+      const result = await upsertAnnotation({
         id: existing.id,
         book: bookId,
         chapter,
@@ -1158,8 +1210,12 @@ export function BibleReaderScreen() {
         content: null,
         deleted_at: null,
       });
-    } else if (selectedVerse != null) {
-      await upsertAnnotation({
+      if (!result.success) {
+        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        return;
+      }
+    } else {
+      const result = await upsertAnnotation({
         id: Math.random().toString(36).slice(2),
         book: bookId,
         chapter,
@@ -1170,16 +1226,26 @@ export function BibleReaderScreen() {
         content: null,
         deleted_at: null,
       });
+      if (!result.success) {
+        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        return;
+      }
     }
+
     await reloadAnnotations();
   };
 
-  const handleAnnotationNote = async (text: string) => {
+  const handleNoteSelectedVerse = async (text: string) => {
+    if (selectedVerse == null) {
+      return;
+    }
+
     const existing = annotations.find(
       (a) => a.verse_start === selectedVerse && a.type === 'note' && !a.deleted_at
     );
+
     if (existing) {
-      await upsertAnnotation({
+      const result = await upsertAnnotation({
         id: existing.id,
         book: bookId,
         chapter,
@@ -1190,8 +1256,12 @@ export function BibleReaderScreen() {
         content: text,
         deleted_at: null,
       });
-    } else if (selectedVerse != null) {
-      await upsertAnnotation({
+      if (!result.success) {
+        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        return;
+      }
+    } else {
+      const result = await upsertAnnotation({
         id: Math.random().toString(36).slice(2),
         book: bookId,
         chapter,
@@ -1202,7 +1272,12 @@ export function BibleReaderScreen() {
         content: text,
         deleted_at: null,
       });
+      if (!result.success) {
+        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        return;
+      }
     }
+
     await reloadAnnotations();
   };
 
@@ -1546,16 +1621,19 @@ export function BibleReaderScreen() {
                 return (
                   <Text
                     key={verse.id}
-                    onLongPress={
-                      isAuthenticated
-                        ? () => {
-                            setSelectedVerse(verse.verse);
-                            setShowAnnotationSheet(true);
-                          }
-                        : undefined
-                    }
+                    onPress={() => {
+                      setSelectedVerse(verse.verse);
+                      setShowAnnotationSheet(true);
+                    }}
                     style={[
                       { lineHeight: verseLineHeight },
+                      selectedVerse === verse.verse
+                        ? {
+                            textDecorationLine: 'underline',
+                            textDecorationStyle: 'dotted',
+                            textDecorationColor: colors.bibleAccent,
+                          }
+                        : null,
                       isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
                       highlightAnnotation?.color
                         ? { backgroundColor: highlightAnnotation.color + '25' }
@@ -2646,12 +2724,17 @@ export function BibleReaderScreen() {
 
       <AnnotationActionSheet
         visible={showAnnotationSheet}
-        verseNumber={selectedVerse ?? 0}
-        bookId={bookId}
-        chapter={chapter}
-        onBookmark={handleAnnotationBookmark}
-        onHighlight={handleAnnotationHighlight}
-        onNote={handleAnnotationNote}
+        referenceLabel={selectedVerseReferenceLabel}
+        selectedText={selectedVerseText}
+        canAnnotate={true}
+        onCopy={() => {
+          void handleCopySelectedVerse();
+        }}
+        onShare={() => {
+          void handleShareSelectedVerse();
+        }}
+        onHighlight={handleHighlightSelectedVerse}
+        onNote={handleNoteSelectedVerse}
         onClose={() => {
           setShowAnnotationSheet(false);
           setSelectedVerse(null);
@@ -2661,9 +2744,6 @@ export function BibleReaderScreen() {
             (a) => a.verse_start === selectedVerse && a.type === 'note' && !a.deleted_at
           )?.content ?? undefined
         }
-        isBookmarked={annotations.some(
-          (a) => a.verse_start === selectedVerse && a.type === 'bookmark' && !a.deleted_at
-        )}
       />
     </View>
   );

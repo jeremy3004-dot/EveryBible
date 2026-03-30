@@ -17,7 +17,6 @@ import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getBookById } from '../../constants';
 import { fetchAnnotations } from '../../services/annotations';
-import { useAuthStore } from '../../stores';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { MoreStackParamList } from '../../navigation/types';
 
@@ -29,7 +28,6 @@ export function AnnotationsScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const insets = useSafeAreaInsets();
 
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
@@ -38,17 +36,12 @@ export function AnnotationsScreen() {
   const [loading, setLoading] = useState(true);
 
   const loadAnnotations = useCallback(async () => {
-    if (!isAuthenticated) {
-      setAnnotations([]);
-      setLoading(false);
-      return;
-    }
     const result = await fetchAnnotations();
     if (result.success && result.data) {
       setAnnotations(result.data.filter((a) => !a.deleted_at));
     }
     setLoading(false);
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
     loadAnnotations(); // eslint-disable-line react-hooks/set-state-in-effect

@@ -9,16 +9,28 @@ function readRelativeSource(relativePath: string): string {
 
 test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps the reader modal as fallback', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const inlineFeedbackDefinition =
+    source.match(/const showInlineChapterFeedbackComposer =[\s\S]*?;\n/)?.[0] ?? '';
 
   assert.match(
-    source,
-    /showInlineChapterFeedbackComposer[\s\S]*chapterFeedbackInlineComposer[\s\S]*stableSessionMode === 'listen'/,
-    'BibleReaderScreen should render the inline feedback composer only in listen mode behind the feature flag'
+    inlineFeedbackDefinition,
+    /chapterFeedbackInlineComposer[\s\S]*showMinimalListenChrome/,
+    'BibleReaderScreen should render the inline feedback composer anywhere the actual listen chrome is shown, behind the feature flag'
+  );
+  assert.equal(
+    inlineFeedbackDefinition.includes("stableSessionMode === 'listen'"),
+    false,
+    'BibleReaderScreen should not hide inline feedback on audio-first listen pages just because the stable session mode is not explicitly set to listen'
   );
   assert.match(
     source,
     /chapterFeedbackEnabled && !showInlineChapterFeedbackComposer[\s\S]*key:\s*'chapter-feedback'/,
     'BibleReaderScreen should keep the overflow feedback action as a fallback when the inline composer is hidden'
+  );
+  assert.match(
+    source,
+    /const showMinimalListenChrome =[\s\S]*chapterPresentationMode === 'audio-first'/,
+    'BibleReaderScreen should treat audio-first chapters as listen-mode chrome for inline feedback visibility'
   );
   assert.match(
     source,
