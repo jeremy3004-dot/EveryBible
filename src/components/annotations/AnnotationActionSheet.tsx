@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,10 +31,14 @@ interface AnnotationActionSheetProps {
   referenceLabel: string;
   selectedText: string;
   canAnnotate: boolean;
+  closeButtonAccessibilityLabel: string;
+  bottomInset?: number;
+  canRemoveHighlight: boolean;
   onCopy: () => void;
   onShare: () => void;
   onHighlight: (color: string) => void;
   onNote: (text: string) => void;
+  onRemoveHighlight: () => void;
   onClose: () => void;
   existingNote?: string;
 }
@@ -87,7 +89,11 @@ function AnnotationActionSheetContent({
   onShare,
   onHighlight,
   onNote,
+  onRemoveHighlight,
   onClose,
+  closeButtonAccessibilityLabel,
+  bottomInset = 0,
+  canRemoveHighlight,
   existingNote,
 }: AnnotationActionSheetProps) {
   const { colors } = useTheme();
@@ -137,19 +143,33 @@ function AnnotationActionSheetContent({
     handleClose();
   };
 
+  const handleRemoveHighlight = async () => {
+    if (!canAnnotate || isSaving || !canRemoveHighlight) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onRemoveHighlight();
+      handleClose();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.overlay}
+      pointerEvents="box-none"
+      style={[styles.overlay, { paddingBottom: bottomInset }]}
     >
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
-
       <View
         style={[
           styles.sheet,
           {
             backgroundColor: colors.bibleSurface,
             borderColor: colors.bibleDivider,
+            paddingBottom: spacing.xl + bottomInset,
           },
         ]}
         onStartShouldSetResponder={() => true}
@@ -158,9 +178,27 @@ function AnnotationActionSheetContent({
           <View style={[styles.handleBar, { backgroundColor: colors.bibleSecondaryText + '55' }]} />
         </View>
 
-        <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-          {t('annotations.selected')}: {referenceLabel}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+            {t('annotations.selected')}: {referenceLabel}
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.closeButton,
+              {
+                backgroundColor: colors.bibleElevatedSurface,
+                borderColor: colors.bibleDivider,
+                transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
+              },
+            ]}
+            onPress={handleClose}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={closeButtonAccessibilityLabel}
+          >
+            <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
+          </Pressable>
+        </View>
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
@@ -199,13 +237,23 @@ function AnnotationActionSheetContent({
 
             <View style={styles.actionGrid}>
               <ActionPill
-                icon="bookmark-outline"
-                label={t('common.save')}
+                icon="color-fill-outline"
+                label={t('annotations.highlight')}
                 onPress={() => {
                   void handleHighlight();
                 }}
                 disabled={!canAnnotate || isSaving}
               />
+              {canRemoveHighlight ? (
+                <ActionPill
+                  icon="close"
+                  label={t('annotations.removeHighlight')}
+                  onPress={() => {
+                    void handleRemoveHighlight();
+                  }}
+                  disabled={!canAnnotate || isSaving}
+                />
+              ) : null}
               <ActionPill
                 icon="create-outline"
                 label={t('annotations.note')}
@@ -290,7 +338,7 @@ function AnnotationActionSheetContent({
                     { color: colors.bibleSurface },
                   ]}
                 >
-                  {t('common.save')}
+                  {t('common.done')}
                 </Text>
               </Pressable>
             </View>
@@ -302,23 +350,19 @@ function AnnotationActionSheetContent({
 }
 
 export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
-  const resetKey = `${props.visible ? 'open' : 'closed'}:${props.referenceLabel}`;
+  const resetKey = props.visible ? 'open' : 'closed';
 
-  return (
-    <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
-      <AnnotationActionSheetContent key={resetKey} {...props} />
-    </Modal>
-  );
+  if (!props.visible) {
+    return null;
+  }
+
+  return <AnnotationActionSheetContent key={resetKey} {...props} />;
 }
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 12, 18, 0.52)',
   },
   sheet: {
     borderTopLeftRadius: 28,
@@ -340,10 +384,24 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: radius.pill,
   },
+  titleRow: {
+    minHeight: 30,
+    marginBottom: spacing.md,
+    justifyContent: 'center',
+  },
   title: {
     ...typography.label,
     textAlign: 'center',
-    marginBottom: spacing.md,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionsContainer: {
     gap: spacing.md,
