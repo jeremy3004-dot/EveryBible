@@ -1,10 +1,6 @@
-import { supabase, isSupabaseConfigured } from '../supabase';
 import type { UserAnnotation } from '../supabase/types';
-import {
-  mergeAnnotationLists,
-  indexAnnotationsByKey,
-  selectAnnotationsToPush,
-} from './annotationMerge';
+import { localAnnotationStore } from '../../stores/annotationStore';
+import { mergeAnnotationLists } from './annotationMerge';
 
 export interface AnnotationResult<T = undefined> {
   success: boolean;
@@ -19,55 +15,48 @@ export interface SyncAnnotationsResult {
   error?: string;
 }
 
+const isActiveAnnotation = (annotation: UserAnnotation) => annotation.deleted_at == null;
+
+const sortByChapterVerse = (annotations: UserAnnotation[]) =>
+  [...annotations].sort((a, b) => {
+    const chapterDelta = a.chapter - b.chapter;
+    if (chapterDelta !== 0) {
+      return chapterDelta;
+    }
+
+    return a.verse_start - b.verse_start;
+  });
+
+const sortByUpdatedAt = (annotations: UserAnnotation[]) =>
+  [...annotations].sort((a, b) => {
+    const updatedAtDelta = b.updated_at.localeCompare(a.updated_at);
+    if (updatedAtDelta !== 0) {
+      return updatedAtDelta;
+    }
+
+    return b.created_at.localeCompare(a.created_at);
+  });
+
 // ---------------------------------------------------------------------------
 // fetchAnnotations
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch the authenticated user's annotations from Supabase.
- * RLS on user_annotations enforces `user_id = auth.uid()` server-side, so no
- * client-side `.eq('user_id', ...)` filter is needed.
+ * Fetch the locally saved annotations.
+ *
+ * The app intentionally stays on-device for annotations, so this returns the
+ * persisted local store instead of calling a backend.
  *
  * @param bookFilter - Optional BSB book abbreviation (e.g. "GEN") to narrow results.
  */
 export const fetchAnnotations = async (
   bookFilter?: string
 ): Promise<AnnotationResult<UserAnnotation[]>> => {
-  if (!isSupabaseConfigured()) {
-    return { success: true, data: [] };
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    return { success: false, error: userError.message };
-  }
-
-  if (!user) {
-    return { success: false, error: 'Not signed in' };
-  }
-
   try {
-    let query = supabase
-      .from('user_annotations')
-      .select('*')
-      .is('deleted_at', null)
-      .order('updated_at', { ascending: false });
+    const annotations = localAnnotationStore.annotations.filter(isActiveAnnotation);
+    const filtered = bookFilter ? annotations.filter((annotation) => annotation.book === bookFilter) : annotations;
 
-    if (bookFilter) {
-      query = query.eq('book', bookFilter);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data: (data as UserAnnotation[]) ?? [] };
+    return { success: true, data: sortByUpdatedAt(filtered) };
   } catch (err) {
     return {
       success: false,
@@ -81,52 +70,14 @@ export const fetchAnnotations = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Create or update a single annotation in Supabase.
- * Pass the full annotation shape including `id` for updates.
- * Omit `id` (or pass a client-generated UUID) for new records.
+ * Create or update a single local annotation.
  */
 export const upsertAnnotation = async (
   annotation: Omit<UserAnnotation, 'user_id' | 'created_at' | 'updated_at' | 'synced_at'>
 ): Promise<AnnotationResult<UserAnnotation>> => {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase not configured' };
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    return { success: false, error: userError.message };
-  }
-
-  if (!user) {
-    return { success: false, error: 'Not signed in' };
-  }
-
   try {
-    const now = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('user_annotations')
-      .upsert(
-        {
-          ...annotation,
-          user_id: user.id,
-          updated_at: now,
-          synced_at: now,
-        },
-        { onConflict: 'id' }
-      )
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data: data as UserAnnotation };
+    const saved = localAnnotationStore.upsertAnnotation(annotation);
+    return { success: true, data: saved };
   } catch (err) {
     return {
       success: false,
@@ -140,40 +91,15 @@ export const upsertAnnotation = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Soft-delete an annotation by setting `deleted_at` to the current timestamp.
- * The record is retained in Supabase so that other devices can learn about the
- * deletion during the next bidirectional sync.
+ * Soft-delete a local annotation by id.
  */
 export const softDeleteAnnotation = async (
   id: string
 ): Promise<AnnotationResult> => {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase not configured' };
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    return { success: false, error: userError.message };
-  }
-
-  if (!user) {
-    return { success: false, error: 'Not signed in' };
-  }
-
   try {
-    const now = new Date().toISOString();
-
-    const { error } = await supabase
-      .from('user_annotations')
-      .update({ deleted_at: now, updated_at: now, synced_at: now })
-      .eq('id', id);
-
-    if (error) {
-      return { success: false, error: error.message };
+    const success = localAnnotationStore.softDeleteAnnotation(id);
+    if (!success) {
+      return { success: false, error: 'Annotation not found' };
     }
 
     return { success: true };
@@ -190,86 +116,19 @@ export const softDeleteAnnotation = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Bidirectional sync between a local annotation list and Supabase.
+ * Local-only annotation sync.
  *
- * Algorithm:
- * 1. Pull all remote annotations updated since `lastSyncedAt`.
- * 2. Build a map keyed by composite key (book+chapter+verse_start+type).
- * 3. Merge local and remote additiviely: for the same composite key, the
- *    record with the later `updated_at` wins.
- * 4. Push any local annotation that is newer than its remote counterpart
- *    (or has no remote counterpart) to Supabase via upsert.
- * 5. Return the fully merged list so the caller can persist it locally.
- *
- * Deleted annotations (deleted_at != null) flow through the same merge so
- * that deletions propagate across devices.
- *
- * @param localAnnotations - The current local annotation list (may include
- *   soft-deleted records so deletions can be pushed upstream).
- * @param lastSyncedAt - ISO timestamp of the most recent successful sync.
- *   Pass `null` for a full initial sync.
+ * The app no longer syncs annotations to a backend. This function keeps the
+ * same API surface but simply reconciles the provided local list with the
+ * persisted on-device store.
  */
 export const syncAnnotations = async (
   localAnnotations: UserAnnotation[],
-  lastSyncedAt: string | null
+  _lastSyncedAt: string | null
 ): Promise<SyncAnnotationsResult> => {
-  if (!isSupabaseConfigured()) {
-    return { success: true, merged: localAnnotations };
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    return { success: false, error: userError.message };
-  }
-
-  if (!user) {
-    return { success: true, merged: localAnnotations };
-  }
-
   try {
-    // -- Step 1: Pull remote changes since lastSyncedAt ----------------------
-    let remoteQuery = supabase.from('user_annotations').select('*');
-
-    if (lastSyncedAt) {
-      remoteQuery = remoteQuery.gt('updated_at', lastSyncedAt);
-    }
-
-    const { data: remoteData, error: fetchError } = await remoteQuery;
-
-    if (fetchError) {
-      return { success: false, error: fetchError.message };
-    }
-
-    const remoteAnnotations = (remoteData as UserAnnotation[]) ?? [];
-
-    // -- Steps 2-3: Build key index and perform additive merge ---------------
-    const remoteByKey = indexAnnotationsByKey(remoteAnnotations);
-    const merged = mergeAnnotationLists(localAnnotations, remoteAnnotations);
-
-    // -- Step 4: Push local annotations that are newer than remote -----------
-    const now = new Date().toISOString();
-    const toPush = selectAnnotationsToPush(localAnnotations, remoteByKey).map((a) => ({
-      ...a,
-      user_id: user.id,
-      synced_at: now,
-    }));
-
-    if (toPush.length > 0) {
-      const { error: pushError } = await supabase
-        .from('user_annotations')
-        .upsert(toPush, { onConflict: 'id' });
-
-      if (pushError) {
-        // Surface the push error but still return the merged local state so
-        // the app remains functional; the next sync will retry.
-        return { success: false, error: pushError.message };
-      }
-    }
-
+    const merged = mergeAnnotationLists(localAnnotationStore.annotations, localAnnotations);
+    localAnnotationStore.replaceAnnotations(merged);
     return { success: true, merged };
   } catch (err) {
     return {
@@ -284,45 +143,20 @@ export const syncAnnotations = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all non-deleted annotations for a specific book and chapter.
+ * Fetch all non-deleted local annotations for a specific book and chapter.
  * Results are ordered by verse_start ascending for display in reading order.
- * RLS enforces user scoping server-side.
  */
 export const getAnnotationsForChapter = async (
   book: string,
   chapter: number
 ): Promise<AnnotationResult<UserAnnotation[]>> => {
-  if (!isSupabaseConfigured()) {
-    return { success: true, data: [] };
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    return { success: false, error: userError.message };
-  }
-
-  if (!user) {
-    return { success: false, error: 'Not signed in' };
-  }
-
   try {
-    const { data, error } = await supabase
-      .from('user_annotations')
-      .select('*')
-      .eq('book', book)
-      .eq('chapter', chapter)
-      .is('deleted_at', null)
-      .order('verse_start', { ascending: true });
+    const annotations = localAnnotationStore.annotations.filter(
+      (annotation) =>
+        isActiveAnnotation(annotation) && annotation.book === book && annotation.chapter === chapter
+    );
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data: (data as UserAnnotation[]) ?? [] };
+    return { success: true, data: sortByChapterVerse(annotations) };
   } catch (err) {
     return {
       success: false,
