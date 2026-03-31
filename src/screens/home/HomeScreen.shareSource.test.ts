@@ -10,10 +10,16 @@ function readRelativeSource(relativePath: string): string {
 test('HomeScreen captures a verse image and falls back to text sharing', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
+  assert.equal(
+    source.includes("import * as Sharing from 'expo-sharing';"),
+    false,
+    'HomeScreen should not eagerly import expo-sharing on the startup path'
+  );
+
   assert.match(
     source,
-    /import \* as Sharing from 'expo-sharing';/,
-    'HomeScreen should use Expo Sharing to share a captured image file'
+    /const Sharing = await import\('expo-sharing'\);/,
+    'HomeScreen should lazy-load Expo Sharing only when the share button is pressed'
   );
 
   assert.match(

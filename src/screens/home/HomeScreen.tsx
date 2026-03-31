@@ -10,7 +10,6 @@ import {
   useWindowDimensions,
   Share,
 } from 'react-native';
-import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -238,6 +237,8 @@ export function HomeScreen() {
     setIsSharingVerse(true);
 
     try {
+      const Sharing = await import('expo-sharing');
+
       if ((await Sharing.isAvailableAsync()) && verseSharePreviewRef.current) {
         const imageUri = await captureRef(verseSharePreviewRef, {
           format: 'png',
