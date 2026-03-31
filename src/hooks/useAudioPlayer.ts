@@ -4,9 +4,12 @@ import { useAudioStore, useLibraryStore } from '../stores';
 import {
   audioPlayer,
   backgroundMusicPlayer,
+  clearBibleNowPlaying,
   getChapterAudioUrl,
   isAudioAvailable,
   prefetchChapterAudio,
+  subscribeBibleNowPlayingRemoteCommands,
+  syncBibleNowPlaying,
 } from '../services/audio';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackEvent } from '../services/analytics';
@@ -214,12 +217,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
       const currentPosition = useAudioStore.getState().currentPosition;
+      const currentDuration = useAudioStore.getState().duration;
       // Keep the visible position monotonic so stop-like snapshots from
       // background-music teardown cannot pull the Bible progress bar backward.
       const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
+      const nextDuration =
+        snapshot.durationMillis > 0 ? Math.max(currentDuration, snapshot.durationMillis) : currentDuration;
 
       setPosition(nextPosition);
-      setDuration(snapshot.durationMillis || 0);
+      setDuration(nextDuration);
 
       // Record the real poll anchor for interpolation
       lastPollPositionRef.current = nextPosition;
@@ -235,7 +241,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             const elapsed = Date.now() - lastPollTimeRef.current;
             const interpolated = lastPollPositionRef.current + elapsed * playbackRate;
             const currentPosition = useAudioStore.getState().currentPosition;
-            useAudioStore.getState().setPosition(Math.max(currentPosition, interpolated));
+            const currentDuration = useAudioStore.getState().duration;
+            const cappedInterpolated =
+              currentDuration > 0 ? Math.min(interpolated, currentDuration) : interpolated;
+            useAudioStore.getState().setPosition(Math.max(currentPosition, cappedInterpolated));
           }, 50);
         }
       } else {
@@ -372,6 +381,34 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   }, [status]);
 
   useEffect(() => {
+    const activeTranslationId = currentTranslationId ?? translationId;
+
+    if (!currentBookId || !currentChapter || status === 'idle') {
+      clearBibleNowPlaying();
+      return;
+    }
+
+    syncBibleNowPlaying({
+      translationId: activeTranslationId,
+      bookId: currentBookId,
+      chapter: currentChapter,
+      positionMs: currentPosition,
+      durationMs: duration,
+      isPlaying: status === 'playing',
+      playbackRate,
+    });
+  }, [
+    currentBookId,
+    currentChapter,
+    currentPosition,
+    currentTranslationId,
+    duration,
+    playbackRate,
+    status,
+    translationId,
+  ]);
+
+  useEffect(() => {
     if (backgroundMusicChoice === 'off') {
       if (!backgroundMusicOffHandledRef.current) {
         backgroundMusicOffHandledRef.current = true;
@@ -467,6 +504,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
     await audioPlayer.stop();
     await backgroundMusicPlayer.stop();
+    clearBibleNowPlaying();
     resetPlayback();
   }, [currentBookId, currentChapter, currentPosition, duration, resetPlayback]);
 
@@ -664,6 +702,49 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Check if audio is available for current translation
   const audioAvailable = isAudioAvailable(translationId);
+
+  useEffect(() => {
+    return subscribeBibleNowPlayingRemoteCommands({
+      onPlay: async () => {
+        const store = useAudioStore.getState();
+
+        if (store.status === 'playing') {
+          return;
+        }
+
+        if (store.status === 'paused') {
+          await resume();
+          return;
+        }
+
+        if (store.currentBookId && store.currentChapter) {
+          await playChapterForTranslation(
+            store.currentTranslationId ?? translationId,
+            store.currentBookId,
+            store.currentChapter
+          );
+          return;
+        }
+
+        if (store.lastPlayedBookId && store.lastPlayedChapter) {
+          await playChapterForTranslation(
+            store.lastPlayedTranslationId ?? translationId,
+            store.lastPlayedBookId,
+            store.lastPlayedChapter
+          );
+        }
+      },
+      onPause: pause,
+      onStop: stop,
+      onSeek: seekTo,
+      onNext: async () => {
+        await nextChapter();
+      },
+      onPrevious: async () => {
+        await previousChapter();
+      },
+    });
+  }, [nextChapter, pause, playChapterForTranslation, previousChapter, resume, seekTo, stop, translationId]);
 
   return {
     // State

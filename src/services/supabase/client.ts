@@ -1,12 +1,13 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createLazyClientAccessor } from './lazyClient';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || '';
+const SUPABASE_URL = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_PUBLIC_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   '';
 
 const hasValidSupabaseUrl = (value: string): boolean => {

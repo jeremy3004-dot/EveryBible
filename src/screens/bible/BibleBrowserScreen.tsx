@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
@@ -21,6 +21,7 @@ import {
   bibleBooks,
   type BibleBook,
   config,
+  getBookById,
   getTranslatedBookName,
 } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -34,7 +35,7 @@ import {
   type BibleBrowserRow,
   type PassageReferenceTarget,
 } from '../../services/bible';
-import type { BibleStackParamList } from '../../navigation/types';
+import type { BibleBrowserScreenProps, BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
 import {
   BIBLE_SEARCH_DEBOUNCE_MS,
@@ -57,9 +58,13 @@ if (Platform.OS === 'android') {
 
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<BibleBrowserScreenProps['route']>();
   const { colors } = useTheme();
   const { t, currentLanguage } = useI18n();
-  const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
+  const initialBookId = route.params?.initialBookId ?? null;
+  const initialExpandedBookId =
+    initialBookId != null && getBookById(initialBookId) ? initialBookId : null;
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(initialExpandedBookId);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
@@ -72,6 +77,7 @@ export function BibleBrowserScreen() {
   const translations = useBibleStore((state) => state.translations);
 
   const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
+  const canDismissModal = navigation.canGoBack();
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
     [currentLanguage],
@@ -79,6 +85,10 @@ export function BibleBrowserScreen() {
   const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
   const failedToLoadMessage = t('bible.failedToLoad');
   const searchUnavailableMessage = t('bible.searchUnavailable');
+
+  useEffect(() => {
+    setExpandedBookId(initialExpandedBookId);
+  }, [initialExpandedBookId]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -294,11 +304,27 @@ export function BibleBrowserScreen() {
     >
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <View>
-            <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('bible.title')}</Text>
-            <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-              {currentTranslationInfo?.name || t('about.bereanBible')}
-            </Text>
+          <View style={styles.headerTitleCluster}>
+            {canDismissModal ? (
+              <TouchableOpacity
+                style={[
+                  styles.modalDismissButton,
+                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+                ]}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="close" size={18} color={colors.biblePrimaryText} />
+              </TouchableOpacity>
+            ) : null}
+            <View>
+              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+                {t('bible.title')}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
+                {currentTranslationInfo?.name || t('about.bereanBible')}
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -459,6 +485,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  headerTitleCluster: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   title: {
     ...typography.screenTitle,
     fontSize: 32,
@@ -479,6 +511,14 @@ const styles = StyleSheet.create({
   },
   translationButtonText: {
     ...typography.label,
+  },
+  modalDismissButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listContent: {
     paddingHorizontal: layout.screenPadding,
@@ -625,15 +665,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     borderWidth: 1,
-    paddingTop: layout.cardPadding,
-    maxHeight: '82%',
+    paddingTop: layout.denseCardPadding,
+    height: '60%',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: layout.screenPadding,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   modalTitle: {
     ...typography.cardTitle,

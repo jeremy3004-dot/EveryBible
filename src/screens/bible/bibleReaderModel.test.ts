@@ -4,6 +4,7 @@ import {
   buildReaderChapterRouteParams,
   getReaderChromeAnimationProgress,
   isReaderChromeCollapsed,
+  READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
   isActiveAudioTrackMatch,
@@ -29,6 +30,12 @@ test('only treats the reader chrome as collapsed once the bottom controls have c
   assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE - 1), false);
   assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE), true);
   assert.equal(isReaderChromeCollapsed(READER_BOTTOM_CHROME_COLLAPSE_DISTANCE + 80), true);
+});
+
+test('keeps the premium top chrome visible across a wider upward-scroll window', () => {
+  assert.equal(READER_TOP_CHROME_DISMISS_DISTANCE, 220);
+  assert.equal(getReaderChromeAnimationProgress(110, READER_TOP_CHROME_DISMISS_DISTANCE), 0.5);
+  assert.equal(getReaderChromeAnimationProgress(220, READER_TOP_CHROME_DISMISS_DISTANCE), 1);
 });
 
 test('toggles the font sheet from the font button', () => {

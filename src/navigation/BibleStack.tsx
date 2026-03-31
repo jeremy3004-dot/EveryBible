@@ -19,6 +19,11 @@ export function BibleStack() {
         getComponent={() => require('../screens/bible/BibleBrowserScreen').BibleBrowserScreen}
       />
       <Stack.Screen
+        name="BiblePicker"
+        getComponent={() => require('../screens/bible/BibleBrowserScreen').BibleBrowserScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen
         name="ChapterSelector"
         getComponent={() => require('../screens/bible/ChapterSelectorScreen').ChapterSelectorScreen}
       />

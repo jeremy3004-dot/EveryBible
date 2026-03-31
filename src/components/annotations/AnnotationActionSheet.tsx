@@ -336,8 +336,9 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
+    zIndex: 30,
   },
   sheet: {
     borderTopLeftRadius: 28,

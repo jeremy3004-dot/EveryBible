@@ -16,7 +16,7 @@ interface ReaderChapterRouteParamsInput {
 }
 
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
-export const READER_TOP_CHROME_DISMISS_DISTANCE = 148;
+export const READER_TOP_CHROME_DISMISS_DISTANCE = 220;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
 
 interface InitialChapterSessionModeInput {

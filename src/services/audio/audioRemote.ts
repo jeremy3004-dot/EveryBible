@@ -1,14 +1,15 @@
 import { getTranslationById } from '../../constants/translations';
 import type { AudioProvider, BibleIsAudioResponse, BibleTranslation } from '../../types';
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import type { RemoteAudioAsset } from './audioDownloadService';
 
 const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
-const BIBLE_IS_API_KEY = process.env.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
+const BIBLE_IS_API_KEY = publicRuntimeConfig.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
 
 // Supabase Storage audio: set EXPO_PUBLIC_SUPABASE_URL in .env
 // Upload audio to: bible-audio/{translationId}/{bookId}/{chapter}.mp3
-const SUPABASE_AUDIO_BUCKET_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL
-  ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
+const SUPABASE_AUDIO_BUCKET_BASE = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL
+  ? `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
   : null;
 const EBIBLE_WEBBE_AUDIO_BASE = 'https://ebible.org/eng-webbe/mp3';
 const AUDIO_TEMPLATE_PLACEHOLDERS = new Set([

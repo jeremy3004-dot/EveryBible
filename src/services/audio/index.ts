@@ -6,5 +6,6 @@ export * from './audioDownloadService';
 export * from './audioDownloadStorage';
 export * from './audioSource';
 export * from './audioRemote';
+export * from './audioNowPlaying';
 export * from './backgroundMusicCatalog';
 export * from './backgroundMusicPlayer';

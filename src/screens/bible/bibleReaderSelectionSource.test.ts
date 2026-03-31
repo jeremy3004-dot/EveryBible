@@ -26,6 +26,12 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
+    /buildBibleSelectionVerseRanges/,
+    'BibleReaderScreen should group contiguous selected verses before saving highlights or notes'
+  );
+
+  assert.match(
+    source,
     /const handleShareSelectedVerses = async \(\) => \{/,
     'BibleReaderScreen should define a dedicated multi-verse share handler'
   );
@@ -62,6 +68,12 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
+    /<Pressable[\s\S]*onPress=\{\(\) => \{\s*setSelectedVerses\(/s,
+    'BibleReaderScreen should wrap verse taps in Pressable instead of a clickable Text node so selection does not shove the chapter around'
+  );
+
+  assert.match(
+    source,
     /visible=\{selectedVerses\.length > 0\}/,
     'BibleReaderScreen should keep the selection tray open while at least one verse remains selected'
   );
@@ -70,6 +82,12 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     traySource,
     /pointerEvents="box-none"/,
     'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
+  );
+
+  assert.match(
+    traySource,
+    /\.\.\.StyleSheet\.absoluteFillObject/,
+    'The selection tray should float as a true overlay instead of taking reader layout space'
   );
 
   assert.match(
@@ -122,8 +140,8 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     highlightSource,
-    /borderRadius:\s*radius\.sm/,
-    'Line-level highlight fragments should keep the rounded edges from the reference screenshot'
+    /borderRadius:\s*radius\.xs/,
+    'Line-level highlight fragments should keep compact rounded edges from the reference screenshot'
   );
 
   assert.equal(

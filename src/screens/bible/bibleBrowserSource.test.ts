@@ -39,6 +39,28 @@ test('Bible browser exposes a search input that drives the deferred query', () =
   );
 });
 
+test('Bible browser modal picker shows a dismiss control and opens on the requested book', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /navigation\.canGoBack\(\)/,
+    'BibleBrowserScreen should detect modal presentation so it can show a close control in picker mode'
+  );
+
+  assert.match(
+    source,
+    /name="close"/,
+    'BibleBrowserScreen should render a close icon when presented as the picker modal'
+  );
+
+  assert.match(
+    source,
+    /initialBookId/,
+    'BibleBrowserScreen should accept an initial book id so the picker can open on the current book'
+  );
+});
+
 test('Bible browser debounces full-text search requests and ignores stale completions', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 
@@ -128,6 +150,28 @@ test('Bible browser translation selector is delegated to the shared picker', () 
     source.includes('TranslationPickerList'),
     true,
     'BibleBrowserScreen should delegate the selector UI to TranslationPickerList so Bible and Settings stay aligned'
+  );
+});
+
+test('Bible browser translation modal uses a fixed-height sheet for the shared picker', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /modalHeader:[\s\S]*marginBottom:\s*spacing\.xs/,
+    'BibleBrowserScreen should keep only a small gap between the translation title and the language tabs'
+  );
+
+  assert.match(
+    source,
+    /modalContent:[\s\S]*paddingTop:\s*layout\.denseCardPadding,[\s\S]*height:\s*'60%'/,
+    'BibleBrowserScreen should keep the translation modal at a compact fixed height so the picker does not collapse to the bottom'
+  );
+
+  assert.match(
+    source,
+    /modalContent:[\s\S]*overflow:\s*'hidden'/,
+    'BibleBrowserScreen should clip the translation modal contents instead of letting the picker resize the sheet'
   );
 });
 

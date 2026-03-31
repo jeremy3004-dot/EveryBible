@@ -10,7 +10,12 @@ export type HomeStackParamList = {
 
 // Bible Stack
 export type BibleStackParamList = {
-  BibleBrowser: undefined;
+  BibleBrowser: {
+    initialBookId?: string;
+  } | undefined;
+  BiblePicker: {
+    initialBookId?: string;
+  } | undefined;
   BibleReader: {
     bookId: string;
     chapter: number;

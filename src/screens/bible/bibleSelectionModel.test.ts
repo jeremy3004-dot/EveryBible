@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildBibleSelectionShareText,
+  buildBibleSelectionVerseRanges,
   extractBibleSelectionText,
   formatBibleSelectionReference,
   toggleBibleSelectionVerse,
@@ -35,6 +36,14 @@ test('joins the selected verses into copyable selection text in chapter order', 
     ),
     'Blessed be the God and Father of our Lord Jesus Christ. He chose us in Him before the foundation of the world. He predestined us for adoption as His sons through Jesus Christ.'
   );
+});
+
+test('groups contiguous selected verses into reusable verse ranges', () => {
+  assert.deepEqual(buildBibleSelectionVerseRanges([1, 2, 4, 5, 7]), [
+    { verse_start: 1, verse_end: 2 },
+    { verse_start: 4, verse_end: 5 },
+    { verse_start: 7, verse_end: 7 },
+  ]);
 });
 
 test('toggles verses like a sorted set so multi-select stays order-independent', () => {

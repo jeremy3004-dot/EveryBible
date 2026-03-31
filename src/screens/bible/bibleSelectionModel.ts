@@ -7,11 +7,51 @@ export interface BibleSelectionReferenceInput {
   translationLabel: string;
 }
 
+export interface BibleSelectionVerseRange {
+  verse_start: number;
+  verse_end: number;
+}
+
 export const normalizeBibleSelectionVerses = (verses: number[]): number[] =>
   [...new Set(verses)].sort((left, right) => left - right);
 
 const formatVerseRun = (startVerse: number, endVerse: number): string =>
   startVerse === endVerse ? `${startVerse}` : `${startVerse}-${endVerse}`;
+
+export const buildBibleSelectionVerseRanges = (
+  verses: number[]
+): BibleSelectionVerseRange[] => {
+  const normalizedVerses = normalizeBibleSelectionVerses(verses);
+
+  if (normalizedVerses.length === 0) {
+    return [];
+  }
+
+  const verseRanges: BibleSelectionVerseRange[] = [];
+  let rangeStart = normalizedVerses[0];
+  let rangeEnd = normalizedVerses[0];
+
+  for (const verse of normalizedVerses.slice(1)) {
+    if (verse === rangeEnd + 1) {
+      rangeEnd = verse;
+      continue;
+    }
+
+    verseRanges.push({
+      verse_start: rangeStart,
+      verse_end: rangeEnd,
+    });
+    rangeStart = verse;
+    rangeEnd = verse;
+  }
+
+  verseRanges.push({
+    verse_start: rangeStart,
+    verse_end: rangeEnd,
+  });
+
+  return verseRanges;
+};
 
 export const formatBibleSelectionReference = ({
   bookName,
@@ -19,28 +59,13 @@ export const formatBibleSelectionReference = ({
   verses,
   translationLabel,
 }: BibleSelectionReferenceInput): string => {
-  const normalizedVerses = normalizeBibleSelectionVerses(verses);
+  const verseRanges = buildBibleSelectionVerseRanges(verses);
 
-  if (normalizedVerses.length === 0) {
+  if (verseRanges.length === 0) {
     return `${bookName} ${chapter} ${translationLabel}`.trim();
   }
 
-  const verseLabels: string[] = [];
-  let runStart = normalizedVerses[0];
-  let runEnd = normalizedVerses[0];
-
-  for (const verse of normalizedVerses.slice(1)) {
-    if (verse === runEnd + 1) {
-      runEnd = verse;
-      continue;
-    }
-
-    verseLabels.push(formatVerseRun(runStart, runEnd));
-    runStart = verse;
-    runEnd = verse;
-  }
-
-  verseLabels.push(formatVerseRun(runStart, runEnd));
+  const verseLabels = verseRanges.map((range) => formatVerseRun(range.verse_start, range.verse_end));
 
   return `${bookName} ${chapter}:${verseLabels.join(', ')} ${translationLabel}`.trim();
 };

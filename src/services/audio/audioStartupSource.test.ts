@@ -42,10 +42,36 @@ test('useAudioPlayer keeps playback position monotonic across status snapshots',
     'useAudioPlayer should refuse to move the visible playback position backwards when a stop-like status snapshot arrives'
   );
 
-  assert.match(
-    source,
-    /const interpolated = lastPollPositionRef\.current \+ elapsed \* playbackRate;[\s\S]*const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*useAudioStore\.getState\(\)\.setPosition\(Math\.max\(currentPosition, interpolated\)\);/s,
+  assert.equal(
+    source.includes('useAudioStore.getState().setPosition(Math.max(currentPosition, cappedInterpolated));'),
+    true,
     'useAudioPlayer should keep the interpolation timer from regressing the displayed position between native updates'
+  );
+});
+
+test('useAudioPlayer keeps chapter duration stable and clamps interpolation to the known chapter length', () => {
+  const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
+
+  assert.equal(
+    source.includes('const currentDuration = useAudioStore.getState().duration;'),
+    true,
+    'useAudioPlayer should read the current known duration before applying a native snapshot'
+  );
+  assert.equal(
+    source.includes('snapshot.durationMillis > 0 ? Math.max(currentDuration, snapshot.durationMillis) : currentDuration;'),
+    true,
+    'useAudioPlayer should not let a zero or shorter native snapshot collapse the known chapter duration while the current chapter is still playing'
+  );
+
+  assert.equal(
+    source.includes('const cappedInterpolated ='),
+    true,
+    'useAudioPlayer should derive a capped interpolation target while the chapter is playing'
+  );
+  assert.equal(
+    source.includes('currentDuration > 0 ? Math.min(interpolated, currentDuration) : interpolated;'),
+    true,
+    'useAudioPlayer should keep interpolation from visually outrunning the known chapter duration'
   );
 });
 

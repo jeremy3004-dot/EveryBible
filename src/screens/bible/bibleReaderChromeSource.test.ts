@@ -214,7 +214,7 @@ test('premium read mode uses animated overlay chrome with blur-backed glass surf
   );
 });
 
-test('premium read mode removes the old bottom audio bar and keeps one persistent glass chapter bar', () => {
+test('premium read mode removes the old bottom audio bar and keeps the Genesis pill plus matching arrow circles', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
@@ -234,9 +234,27 @@ test('premium read mode removes the old bottom audio bar and keeps one persisten
     false,
     'BibleReaderScreen should not swap to a chapter-only collapsed pill when the user scrolls'
   );
+
+  assert.equal(
+    source.includes('styles.persistentReaderBottomBarSurface'),
+    false,
+    'BibleReaderScreen should stop rendering the long shared glass bar around the premium reader controls'
+  );
+
+  assert.match(
+    source,
+    /styles\.persistentReaderBottomBarLayout/,
+    'BibleReaderScreen should render the premium reader controls in a plain layout row without a capsule background'
+  );
+
+  assert.match(
+    source,
+    /styles\.persistentReaderChapterSurface/,
+    'BibleReaderScreen should render a dedicated pill surface for the chapter label'
+  );
 });
 
-test('premium read mode keeps chapter arrows inside the persistent bottom glass bar while scrolling', () => {
+test('premium read mode keeps circular chapter arrows and a Genesis pill inside the persistent bottom bar while scrolling', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -253,8 +271,8 @@ test('premium read mode keeps chapter arrows inside the persistent bottom glass 
 
   assert.match(
     source,
-    /styles\.persistentReaderBottomBar[\s\S]*name="chevron-back"[\s\S]*styles\.persistentReaderChapterCenter[\s\S]*name="chevron-forward"/s,
-    'BibleReaderScreen should keep the chapter arrows on the persistent bottom glass bar in premium read mode'
+    /styles\.persistentReaderBottomBar[\s\S]*styles\.persistentReaderBottomBarLayout[\s\S]*styles\.persistentReaderArrowSurface[\s\S]*styles\.persistentReaderChapterSurface[\s\S]*name="chevron-forward"/s,
+    'BibleReaderScreen should keep the chapter arrows and Genesis pill on the persistent bottom bar in premium read mode'
   );
 
   assert.equal(
@@ -328,19 +346,72 @@ test('premium read mode centers a translation-list button under the listen and r
   );
 });
 
-test('premium read mode centers the chapter label inside the persistent bottom bar', () => {
+test('premium read mode uses a Genesis pill and matching arrow circles inside the persistent bottom bar', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /persistentReaderChapterCenter:\s*{[\s\S]*flex:\s*1,[\s\S]*alignItems:\s*'center'/,
-    'BibleReaderScreen should dedicate a centered middle column for the chapter label'
+    /persistentReaderBottomBarLayout:\s*{[\s\S]*width:\s*'100%'/,
+    'BibleReaderScreen should stretch the premium read control row across the available width'
   );
 
   assert.match(
     source,
-    /persistentReaderChapterLabel:\s*{[\s\S]*textAlign:\s*'center'/,
-    'BibleReaderScreen should center the chapter label text inside the persistent bottom bar'
+    /persistentReaderBottomBarLayout:\s*{[\s\S]*flexDirection:\s*'row'/,
+    'BibleReaderScreen should lay out the bottom bar controls in a single horizontal row'
+  );
+
+  assert.match(
+    source,
+    /persistentReaderArrowButton:\s*{[\s\S]*width:\s*layout\.minTouchTarget,[\s\S]*height:\s*layout\.minTouchTarget/,
+    'BibleReaderScreen should render the chapter arrows as circular glass buttons'
+  );
+
+  assert.match(
+    source,
+    /persistentReaderChapterSlot:\s*{[\s\S]*flex:\s*1,[\s\S]*alignItems:\s*'center'/,
+    'BibleReaderScreen should keep the Genesis label centered between the arrows'
+  );
+
+  assert.match(
+    source,
+    /persistentReaderChapterTouchable:\s*{[\s\S]*alignSelf:\s*'center'/,
+    'BibleReaderScreen should keep the chapter touch target centered without adding a second bar'
+  );
+
+  assert.match(
+    source,
+    /persistentReaderChapterSurface:\s*{[\s\S]*minHeight:\s*layout\.minTouchTarget,[\s\S]*borderRadius:\s*radius\.pill/,
+    'BibleReaderScreen should render the Genesis label inside a pill surface'
+  );
+
+  assert.match(
+    source,
+    /navigation\.push\('BiblePicker',\s*\{\s*initialBookId:\s*bookId,?\s*\}\)/,
+    'BibleReaderScreen should open the book-and-chapter picker modal from the chapter pill'
+  );
+
+  assert.equal(
+    source.includes('persistentReaderChapterCenter'),
+    false,
+    'BibleReaderScreen should remove the wide flex chapter-center column from the persistent bottom bar'
+  );
+
+  assert.equal(
+    source.includes('persistentReaderChapterButton'),
+    false,
+    'BibleReaderScreen should remove the chapter pill from the persistent bottom bar'
+  );
+
+  const bottomBarSource = source.slice(
+    source.indexOf('<View style={[styles.persistentReaderBottomBar'),
+    source.indexOf('const renderLegacyReaderLayout')
+  );
+
+  assert.equal(
+    bottomBarSource.includes('disabledIconButton'),
+    false,
+    'BibleReaderScreen should keep both arrow circles visually consistent and avoid dimming one side in the bottom bar'
   );
 });
 

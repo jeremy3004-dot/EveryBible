@@ -88,20 +88,35 @@ async function resolveDefaultAuthClient(): Promise<ChapterFeedbackAuthClient | n
     return null;
   }
 
+  const getStoredAccessToken = async () => {
+    const { useAuthStore } = await import('../../stores/authStore');
+    return useAuthStore.getState().session?.access_token ?? null;
+  };
+
   return {
     getAccessToken: async () => {
+      const storedAccessToken = await getStoredAccessToken();
+      if (storedAccessToken) {
+        return storedAccessToken;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
       return session?.access_token ?? null;
     },
     refreshAccessToken: async () => {
+      const storedAccessToken = await getStoredAccessToken();
+      if (storedAccessToken) {
+        return storedAccessToken;
+      }
+
       const { data, error } = await supabase.auth.refreshSession();
       if (error) {
         return null;
       }
 
-      return data.session?.access_token ?? null;
+      return data.session?.access_token ?? (await getStoredAccessToken());
     },
   };
 }

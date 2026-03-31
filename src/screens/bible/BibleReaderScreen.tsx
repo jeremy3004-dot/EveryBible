@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -76,6 +77,7 @@ import type { UserAnnotation } from '../../services/supabase/types';
 import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
 import {
   buildBibleSelectionShareText,
+  buildBibleSelectionVerseRanges,
   extractBibleSelectionText,
   formatBibleSelectionReference,
   toggleBibleSelectionVerse,
@@ -326,19 +328,33 @@ export function BibleReaderScreen() {
           selectedText: selectedVerseText,
         })
       : '';
+  const selectedVerseRanges =
+    selectedVerses.length > 0 ? buildBibleSelectionVerseRanges(selectedVerses) : [];
+  const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
+    annotation.verse_end ?? annotation.verse_start;
+  const annotationOverlapsVerse = (
+    annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
+    verse: number
+  ) => verse >= annotation.verse_start && verse <= getAnnotationVerseEnd(annotation);
+  const annotationOverlapsSelectionRange = (
+    annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
+    range: (typeof selectedVerseRanges)[number]
+  ) =>
+    annotation.verse_start <= range.verse_end &&
+    getAnnotationVerseEnd(annotation) >= range.verse_start;
   const selectedVerseDecorationStyle = {
     textDecorationLine: 'underline',
     textDecorationStyle: 'dotted',
     textDecorationColor: colors.bibleAccent,
   } as const;
   const selectedVerseSet = new Set(selectedVerses);
-  const selectedVerseAnnotations =
-    selectedVerses.length > 0
-      ? annotations.filter(
-          (annotation) =>
-            selectedVerseSet.has(annotation.verse_start) && annotation.deleted_at == null
-        )
-      : [];
+  const selectedVerseAnnotations = selectedVerseRanges.length > 0
+    ? annotations.filter(
+        (annotation) =>
+          annotation.deleted_at == null &&
+          selectedVerseRanges.some((range) => annotationOverlapsSelectionRange(annotation, range))
+      )
+    : [];
   const selectedHighlightAnnotations = selectedVerseAnnotations.filter(
     (annotation) => annotation.type === 'highlight'
   );
@@ -799,6 +815,12 @@ export function BibleReaderScreen() {
     );
   };
 
+  const handleOpenBookPicker = () => {
+    navigation.push('BiblePicker', {
+      initialBookId: bookId,
+    });
+  };
+
   const handleCloseTranslationSheet = () => {
     setShowTranslationSheet((current) =>
       getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
@@ -1215,21 +1237,25 @@ export function BibleReaderScreen() {
   };
 
   const handleHighlightSelectedVerses = async (color: string) => {
-    if (selectedVerses.length === 0) {
+    if (selectedVerseRanges.length === 0) {
       return;
     }
 
-    for (const verse of selectedVerses) {
+    for (const range of selectedVerseRanges) {
       const existing = annotations.find(
-        (annotation) => annotation.verse_start === verse && annotation.type === 'highlight' && !annotation.deleted_at
+        (annotation) =>
+          annotation.type === 'highlight' &&
+          !annotation.deleted_at &&
+          annotation.verse_start === range.verse_start &&
+          getAnnotationVerseEnd(annotation) === range.verse_end
       );
 
       const result = await upsertAnnotation({
         id: existing?.id ?? Math.random().toString(36).slice(2),
         book: bookId,
         chapter,
-        verse_start: verse,
-        verse_end: existing?.verse_end ?? null,
+        verse_start: range.verse_start,
+        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
         type: 'highlight',
         color,
         content: null,
@@ -1246,21 +1272,25 @@ export function BibleReaderScreen() {
   };
 
   const handleNoteSelectedVerses = async (text: string) => {
-    if (selectedVerses.length === 0) {
+    if (selectedVerseRanges.length === 0) {
       return;
     }
 
-    for (const verse of selectedVerses) {
+    for (const range of selectedVerseRanges) {
       const existing = annotations.find(
-        (annotation) => annotation.verse_start === verse && annotation.type === 'note' && !annotation.deleted_at
+        (annotation) =>
+          annotation.type === 'note' &&
+          !annotation.deleted_at &&
+          annotation.verse_start === range.verse_start &&
+          getAnnotationVerseEnd(annotation) === range.verse_end
       );
 
       const result = await upsertAnnotation({
         id: existing?.id ?? Math.random().toString(36).slice(2),
         book: bookId,
         chapter,
-        verse_start: verse,
-        verse_end: existing?.verse_end ?? null,
+        verse_start: range.verse_start,
+        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
         type: 'note',
         color: null,
         content: text,
@@ -1556,9 +1586,7 @@ export function BibleReaderScreen() {
     const verseFontSize = usePremiumTypography
       ? scaleValue(typography.readingBody.fontSize)
       : scaleValue(20);
-    const verseLineHeight = usePremiumTypography
-      ? scaleValue(typography.readingBody.lineHeight * 1.15)
-      : scaleValue(40);
+    const verseLineHeight = Math.round(verseFontSize * 1.4);
     const verseNumberSize = usePremiumTypography
       ? scaleValue(typography.readingVerseNumber.fontSize)
       : scaleValue(12);
@@ -1633,58 +1661,64 @@ export function BibleReaderScreen() {
                 {paragraph.heading}
               </Text>
             ) : null}
-            <Text style={textStyle}>
-              {paragraph.verses.map((verse, vIndex) => {
+            <View style={styles.readerParagraph}>
+              {paragraph.verses.map((verse) => {
                 const verseAnnotations = annotations.filter(
-                  (a) => a.verse_start === verse.verse && !a.deleted_at
+                  (annotation) => !annotation.deleted_at && annotationOverlapsVerse(annotation, verse.verse)
                 );
                 const highlightAnnotation = verseAnnotations.find((a) => a.type === 'highlight');
                 const isFocused = verse.verse === focusVerse;
 
-                const trailingSpace = vIndex < paragraph.verses.length - 1 ? ' ' : '';
-
                 if (highlightAnnotation?.color) {
                   return (
-                    <HighlightedVerseText
+                    <View
                       key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}`}
-                      verseNumber={verse.verse}
-                      verseText={verse.text}
-                      verseTextStyle={textStyle}
-                      verseNumberStyle={verseNumberStyle}
-                      selectedStyle={
-                        selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null
-                      }
-                      highlightColor={highlightAnnotation.color}
-                      onPress={() => {
-                        setSelectedVerses((current) =>
-                          toggleBibleSelectionVerse(current, verse.verse)
-                        );
-                      }}
-                      trailingSpace={trailingSpace}
-                    />
+                      style={styles.readerVerse}
+                    >
+                      <HighlightedVerseText
+                        verseNumber={verse.verse}
+                        verseText={verse.text}
+                        verseTextStyle={textStyle}
+                        verseNumberStyle={verseNumberStyle}
+                        selectedStyle={
+                          selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null
+                        }
+                        highlightColor={highlightAnnotation.color}
+                        onPress={() => {
+                          setSelectedVerses((current) =>
+                            toggleBibleSelectionVerse(current, verse.verse)
+                          );
+                        }}
+                      />
+                    </View>
                   );
                 }
 
                 return (
-                  <Text
+                  <Pressable
                     key={verse.id}
                     onPress={() => {
-                      setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
+                      setSelectedVerses((current) =>
+                        toggleBibleSelectionVerse(current, verse.verse)
+                      );
                     }}
-                    style={[
-                      { lineHeight: verseLineHeight },
-                      selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null,
-                      isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
-                    ]}
+                    style={styles.readerVerse}
                   >
-                    <Text style={verseNumberStyle}>{verse.verse}</Text>
-                    {'\u00A0'}
-                    {verse.text}
-                    {trailingSpace}
-                  </Text>
+                    <Text
+                      style={[
+                        textStyle,
+                        selectedVerseSet.has(verse.verse) ? selectedVerseDecorationStyle : null,
+                        isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
+                      ]}
+                    >
+                      <Text style={verseNumberStyle}>{verse.verse}</Text>
+                      {'\u00A0'}
+                      {verse.text}
+                    </Text>
+                  </Pressable>
                 );
               })}
-            </Text>
+            </View>
           </View>
         ))}
       </View>
@@ -1928,57 +1962,59 @@ export function BibleReaderScreen() {
         </Animated.View>
       </GestureDetector>
 
-      <View style={[styles.persistentReaderBottomBar, { bottom: premiumBottomInset }]}>
-        <GlassSurface
-          style={styles.persistentReaderBottomBarSurface}
-          contentStyle={styles.persistentReaderBottomBarContent}
-          intensity={44}
-        >
+      <View style={[styles.persistentReaderBottomBar, { bottom: premiumBottomInset }]} pointerEvents="box-none">
+        <View style={styles.persistentReaderBottomBarLayout}>
           <TouchableOpacity
-            style={[
-              styles.persistentReaderArrowButton,
-              !hasPrevChapter ? styles.disabledIconButton : null,
-            ]}
+            style={styles.persistentReaderArrowButton}
             activeOpacity={0.9}
             onPress={() => void handlePreviousReadChapter()}
             disabled={!hasPrevChapter}
           >
-            <Ionicons
-              name="chevron-back"
-              size={20}
-              color={hasPrevChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-            />
+            <GlassSurface style={styles.persistentReaderArrowSurface} intensity={44}>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color={colors.biblePrimaryText}
+              />
+            </GlassSurface>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.persistentReaderChapterCenter}
-            activeOpacity={0.9}
-            onPress={() => setShowChapterActionsSheet(true)}
-          >
-            <Text
-              style={[styles.persistentReaderChapterLabel, { color: colors.biblePrimaryText }]}
-              numberOfLines={1}
+          <View style={styles.persistentReaderChapterSlot}>
+            <TouchableOpacity
+              style={styles.persistentReaderChapterTouchable}
+              activeOpacity={0.9}
+              onPress={handleOpenBookPicker}
             >
-              {getTranslatedBookName(bookId, t)} {chapter}
-            </Text>
-          </TouchableOpacity>
+              <GlassSurface
+                style={styles.persistentReaderChapterSurface}
+                contentStyle={styles.persistentReaderChapterSurfaceContent}
+                intensity={44}
+              >
+                <Text
+                  style={[styles.persistentReaderChapterLabel, { color: colors.biblePrimaryText }]}
+                  numberOfLines={1}
+                >
+                  {getTranslatedBookName(bookId, t)} {chapter}
+                </Text>
+              </GlassSurface>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
-            style={[
-              styles.persistentReaderArrowButton,
-              !hasNextChapter ? styles.disabledIconButton : null,
-            ]}
+            style={styles.persistentReaderArrowButton}
             activeOpacity={0.9}
             onPress={() => void handleNextReadChapter()}
             disabled={!hasNextChapter}
           >
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-            />
+            <GlassSurface style={styles.persistentReaderArrowSurface} intensity={44}>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.biblePrimaryText}
+              />
+            </GlassSurface>
           </TouchableOpacity>
-        </GlassSurface>
+        </View>
       </View>
     </View>
   );
@@ -2994,6 +3030,9 @@ const styles = StyleSheet.create({
   premiumReaderColumn: {
     gap: 16,
   },
+  readerParagraph: {
+    gap: 0,
+  },
   listenColumn: {
     flex: 1,
     gap: 20,
@@ -3128,6 +3167,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 0,
   },
+  readerVerse: {
+    alignSelf: 'stretch',
+  },
   sectionHeading: {
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -3161,29 +3203,46 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     zIndex: 30,
+    alignItems: 'center',
   },
-  persistentReaderBottomBarSurface: {
-    borderRadius: radius.pill,
-  },
-  persistentReaderBottomBarContent: {
+  persistentReaderBottomBarLayout: {
+    width: '100%',
     minHeight: 56,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
   },
   persistentReaderArrowButton: {
-    width: layout.minTouchTarget + 4,
-    minHeight: layout.minTouchTarget + 4,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  persistentReaderArrowSurface: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: radius.pill,
   },
-  persistentReaderChapterCenter: {
+  persistentReaderChapterSlot: {
     flex: 1,
-    minHeight: layout.minTouchTarget + 4,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+  },
+  persistentReaderChapterTouchable: {
+    alignSelf: 'center',
+  },
+  persistentReaderChapterSurface: {
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.pill,
+  },
+  persistentReaderChapterSurfaceContent: {
+    minHeight: layout.minTouchTarget,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    justifyContent: 'center',
   },
   persistentReaderChapterLabel: {
     ...typography.cardTitle,

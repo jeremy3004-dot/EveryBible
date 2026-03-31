@@ -268,11 +268,12 @@ export function TranslationPickerList({
   };
 
   return (
-    <>
+    <View style={styles.container}>
       {languageFilters.length > 1 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
           contentContainerStyle={styles.translationLanguageFilters}
           style={styles.translationLanguageScroller}
         >
@@ -317,7 +318,12 @@ export function TranslationPickerList({
         </View>
       ) : null}
 
-      <ScrollView style={styles.translationList} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.translationList}
+        contentInsetAdjustmentBehavior="never"
+        contentContainerStyle={styles.translationListContent}
+        showsVerticalScrollIndicator={false}
+      >
         {visibleTranslations.map((translation) => {
           const isSelected = currentTranslation === translation.id;
           const audioAvailability = getTranslationAudioAvailability(translation);
@@ -625,9 +631,9 @@ export function TranslationPickerList({
                   </TouchableOpacity>
                 </View>
               ) : null}
-            </View>
-          );
-        })}
+              </View>
+            );
+          })}
       </ScrollView>
 
       <Modal
@@ -670,7 +676,12 @@ export function TranslationPickerList({
             </View>
 
             {audioManagerTranslation ? (
-              <ScrollView style={styles.translationList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.translationList}
+              contentInsetAdjustmentBehavior="never"
+              contentContainerStyle={styles.translationListContent}
+              showsVerticalScrollIndicator={false}
+            >
                 <TouchableOpacity
                   style={[
                     styles.downloadAllCard,
@@ -965,11 +976,15 @@ export function TranslationPickerList({
           </View>
         </View>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    minHeight: 0,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -979,7 +994,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     borderWidth: 1,
     paddingTop: layout.cardPadding,
-    maxHeight: '82%',
+    height: '82%',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -992,19 +1008,24 @@ const styles = StyleSheet.create({
     ...typography.cardTitle,
   },
   translationLanguageScroller: {
-    marginBottom: spacing.sm,
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 28,
+    marginBottom: 0,
+    paddingBottom: 0,
   },
   translationLanguageFilters: {
     paddingHorizontal: layout.screenPadding,
     gap: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingBottom: 0,
+    alignItems: 'center',
   },
   catalogHydrationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: layout.screenPadding,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   catalogHydrationText: {
     fontSize: 13,
@@ -1013,25 +1034,37 @@ const styles = StyleSheet.create({
   translationLanguageChip: {
     borderRadius: radius.pill,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    minHeight: 28,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   translationLanguageChipText: {
     ...typography.label,
+    fontSize: 12,
     fontWeight: '600',
+    lineHeight: 14,
   },
   translationList: {
+    flex: 1,
+    minHeight: 0,
     paddingHorizontal: layout.screenPadding,
   },
+  translationListContent: {
+    paddingTop: spacing.sm,
+    paddingBottom: layout.sectionGap,
+  },
   translationCard: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
     borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
   translationItem: {
-    minHeight: 88,
-    paddingVertical: 16,
+    minHeight: 80,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',

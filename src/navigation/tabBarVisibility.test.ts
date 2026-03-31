@@ -7,6 +7,7 @@ test('shouldHideTabBarOnNestedRoute only hides the root tabs for the active Bibl
   assert.equal(shouldHideTabBarOnNestedRoute('BibleBrowser'), false);
   assert.equal(shouldHideTabBarOnNestedRoute('ChapterSelector'), false);
   assert.equal(shouldHideTabBarOnNestedRoute('BibleReader'), true);
+  assert.equal(shouldHideTabBarOnNestedRoute('BiblePicker'), true);
 });
 
 test('shouldHideTabBarOnNestedRoute hides the tab bar for the Learn lesson detail view', () => {

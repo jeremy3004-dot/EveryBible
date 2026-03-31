@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';
 import { radius } from '../../design/system';
+import { getCompactHighlightVerticalInset } from './highlightMetrics';
 
 interface HighlightedVerseTextProps {
   verseNumber: number;
@@ -10,7 +18,6 @@ interface HighlightedVerseTextProps {
   selectedStyle?: StyleProp<TextStyle>;
   highlightColor: string;
   onPress: () => void;
-  trailingSpace?: string;
 }
 
 const HIGHLIGHT_ALPHA = '4D';
@@ -31,65 +38,112 @@ export function HighlightedVerseText({
   selectedStyle,
   highlightColor,
   onPress,
-  trailingSpace = '',
 }: HighlightedVerseTextProps) {
   const [lineTexts, setLineTexts] = useState<string[] | null>(null);
   const hasMeasuredLines = Array.isArray(lineTexts) && lineTexts.length > 0;
+  const flattenedVerseTextStyle = StyleSheet.flatten(verseTextStyle) ?? {};
+  const highlightVerticalInset = getCompactHighlightVerticalInset(
+    flattenedVerseTextStyle.fontSize,
+    flattenedVerseTextStyle.lineHeight
+  );
 
   return (
-    <Text onPress={onPress} style={[verseTextStyle, selectedStyle]}>
-      <Text style={verseNumberStyle}>{verseNumber}</Text>
-      {'\u00A0'}
+    <Pressable onPress={onPress} style={styles.highlightVerse}>
+      <Text
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        onTextLayout={(event) => {
+          const nextLines = event.nativeEvent.lines
+            .map((line) => line.text.replace(/\s+$/u, ''))
+            .filter((line) => line.length > 0);
+
+          setLineTexts((current) => (sameLines(current, nextLines) ? current : nextLines));
+        }}
+        style={[verseTextStyle, styles.measurementText]}
+      >
+        <Text style={verseNumberStyle}>{verseNumber}</Text>
+        {'\u00A0'}
+        {verseText}
+      </Text>
       {hasMeasuredLines ? (
         lineTexts.map((line, index) => (
-          <Text
-            key={`${verseNumber}-${index}`}
-            style={[
-              styles.highlightLine,
-              {
-                backgroundColor: `${highlightColor}${HIGHLIGHT_ALPHA}`,
-              },
-            ]}
-          >
-            {line}
-            {index < lineTexts.length - 1 ? '\n' : ''}
-          </Text>
+          <View key={`${verseNumber}-${index}`} style={styles.highlightLine}>
+            <View
+              pointerEvents="none"
+              style={[
+                styles.highlightBackground,
+                {
+                  backgroundColor: `${highlightColor}${HIGHLIGHT_ALPHA}`,
+                  top: highlightVerticalInset,
+                  bottom: highlightVerticalInset,
+                },
+              ]}
+            />
+            <Text style={[verseTextStyle, selectedStyle, styles.highlightLineText]}>
+              {index === 0 ? <Text style={verseNumberStyle}>{verseNumber}</Text> : null}
+              {index === 0 ? '\u00A0' : ''}
+              {index === 0 ? line.replace(new RegExp(`^${verseNumber}[\\s\\u00A0]+`), '') : line}
+            </Text>
+          </View>
         ))
       ) : (
-        <Text
-          onTextLayout={(event) => {
-            const nextLines = event.nativeEvent.lines
-              .map((line) => line.text.replace(/\s+$/u, ''))
-              .filter((line) => line.length > 0);
-
-            setLineTexts((current) => (sameLines(current, nextLines) ? current : nextLines));
-          }}
-          style={[
-            styles.highlightFallback,
-            {
-              backgroundColor: `${highlightColor}33`,
-            },
-          ]}
-        >
-          {verseText}
-        </Text>
+        <View style={styles.highlightFallback}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.highlightBackground,
+              {
+                backgroundColor: `${highlightColor}33`,
+                top: highlightVerticalInset,
+                bottom: highlightVerticalInset,
+              },
+            ]}
+          />
+          <Text style={[verseTextStyle, selectedStyle, styles.highlightLineText]}>
+            <Text style={verseNumberStyle}>{verseNumber}</Text>
+            {'\u00A0'}
+            {verseText}
+          </Text>
+        </View>
       )}
-      {trailingSpace}
-    </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  highlightVerse: {
+    alignSelf: 'stretch',
+  },
+  measurementText: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+  },
   highlightLine: {
-    borderRadius: radius.sm,
+    alignSelf: 'flex-start',
+    borderRadius: radius.xs,
     overflow: 'hidden',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    position: 'relative',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   highlightFallback: {
-    borderRadius: radius.sm,
+    alignSelf: 'flex-start',
+    borderRadius: radius.xs,
     overflow: 'hidden',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    position: 'relative',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  highlightBackground: {
+    borderRadius: radius.xs,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  highlightLineText: {
+    flexShrink: 1,
   },
 });
