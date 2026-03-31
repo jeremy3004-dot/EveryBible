@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { shouldLockForAppStateChange } from '../services/privacy';
-import { usePrivacyStore } from '../stores';
+import { usePrivacyStore } from '../stores/privacyStore';
 
 export const usePrivacyLock = () => {
   const appState = useRef<AppStateStatus>(AppState.currentState);
