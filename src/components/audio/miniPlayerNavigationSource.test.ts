@@ -15,6 +15,18 @@ test('mini player does not read navigation state with a screen-only hook', () =>
     false,
     'MiniPlayer should not use useNavigationState because it is mounted outside navigator screens'
   );
+
+  assert.equal(
+    miniPlayerSource.includes('useBottomTabBarHeight'),
+    false,
+    'MiniPlayer should not use useBottomTabBarHeight because it is mounted outside the bottom tab screens'
+  );
+
+  assert.match(
+    miniPlayerSource,
+    /const tabBarHeight = layout\.tabBarBaseHeight;/,
+    'MiniPlayer should anchor itself with the shared tab bar height token instead of a screen hook'
+  );
 });
 
 test('root navigator owns the current route name for the global mini player', () => {
