@@ -3,13 +3,17 @@ import {
   View,
   Text,
   Image,
+  ImageBackground,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  RefreshControl,
   InteractionManager,
+  useWindowDimensions,
+  Share,
 } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,23 +25,33 @@ import { useProgressStore, useBibleStore } from '../../stores';
 import { useGatherStore } from '../../stores/gatherStore';
 import { gatherFoundations } from '../../data/gatherFoundations';
 import { gatherIconImages } from '../../data/gatherIcons';
+import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
+import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
+import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getDailyScripture } from '../../services/bible';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { radius, spacing, typography } from '../../design/system';
+import { captureRef } from 'react-native-view-shot';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useTranslation();
-  const [refreshing, setRefreshing] = useState(false);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const bottomTabBarHeight = useBottomTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
+  const [isSharingVerse, setIsSharingVerse] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const verseSharePreviewRef = useRef<View | null>(null);
+  const verseBackground = getHomeVerseBackground();
+  const homeLayout = getHomeScreenLayout(screenWidth, screenHeight, bottomTabBarHeight);
+  const isCompactHomeStatsLayout = shouldUseCompactHomeStatsLayout(screenWidth);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) =>
@@ -122,12 +136,6 @@ export function HomeScreen() {
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadVerseOfDay({ allowInitialization: true });
-    setRefreshing(false);
-  };
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return t('home.goodMorning');
@@ -176,179 +184,699 @@ export function HomeScreen() {
         ? 'verse-audio'
         : 'section-audio'
       : dailyScripture?.kind;
+  const verseCardTitleLabel =
+    dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
+  const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
+  const verseShareBodyText =
+    dailyScripture?.kind === 'verse-text'
+      ? dailyScripture.text?.trim() || t('home.defaultVerse')
+      : shouldShowDailyAudio
+        ? dailyAudioKind === 'section-audio'
+          ? t('home.sectionOfTheDayBody')
+          : t('home.verseAudioBody')
+        : t('home.defaultVerse');
+  const verseShareMessage = buildHomeVerseShareMessage({
+    cardTitle: verseCardTitleLabel,
+    referenceLabel: verseShareReferenceLabel,
+    bodyText: verseShareBodyText,
+  });
 
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top']}
+  const handleShareVerseOfTheDay = async () => {
+    if (isSharingVerse) {
+      return;
+    }
+
+    setIsSharingVerse(true);
+
+    try {
+      if ((await Sharing.isAvailableAsync()) && verseSharePreviewRef.current) {
+        const imageUri = await captureRef(verseSharePreviewRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        });
+
+        await Sharing.shareAsync(imageUri, {
+          dialogTitle: t('common.share'),
+          mimeType: 'image/png',
+        });
+        return;
+      }
+
+      await Share.share({ message: verseShareMessage });
+    } catch {
+      try {
+        await Share.share({ message: verseShareMessage });
+      } catch {
+        // Ignore share errors.
+      }
+    } finally {
+      setIsSharingVerse(false);
+    }
+  };
+
+  const renderVerseOfTheDayCard = (showActions: boolean) => (
+    <ImageBackground
+      source={verseBackground}
+      style={[
+        styles.card,
+        styles.verseCard,
+        {
+          flex: 1,
+          minHeight: homeLayout.verseCardMinHeight,
+          backgroundColor: colors.cardBackground,
+          borderColor: colors.cardBorder,
+        },
+      ]}
+      imageStyle={[styles.verseCardImage, { opacity: isDark ? 0.34 : 0.18 }]}
+      resizeMode="cover"
     >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.accentGreen}
-          />
+      <LinearGradient
+        colors={
+          isDark
+            ? ['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.72)']
+            : ['rgba(245, 240, 232, 0.08)', 'rgba(245, 240, 232, 0.56)']
         }
-      >
-        <Text style={[styles.greeting, { color: colors.primaryText }]}>{getGreeting()}</Text>
-        <Text style={[styles.subtitle, { color: colors.secondaryText }]}>{t('home.welcome')}</Text>
-
-        {/* Continue in Foundations card */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[styles.card, styles.foundationCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
-          onPress={() =>
-            navigation.navigate('Learn', {
-              screen: 'FoundationDetail',
-              params: { foundationId: activeFoundation.id },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any)
-          }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.verseCardOverlay}
+      />
+      <View style={[styles.verseCardContent, { padding: homeLayout.cardPadding, gap: homeLayout.bodyGap }]}>
+        <Text
+          style={[styles.cardTitle, { color: colors.secondaryText, marginBottom: 0 }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
         >
-          <Text style={[styles.cardTitle, { color: colors.secondaryText, paddingHorizontal: layout.cardPadding, paddingTop: layout.cardPadding }]}>
-            {activeFoundationDone > 0 ? 'CONTINUE IN FOUNDATIONS' : 'GET STARTED'}
-          </Text>
-          <View style={styles.foundationCardBody}>
-            <View style={[styles.foundationIconWrap, { backgroundColor: colors.accentPrimary + '18' }]}>
-              {activeFoundation.iconImage && gatherIconImages[activeFoundation.iconImage] ? (
-                <Image
-                  source={gatherIconImages[activeFoundation.iconImage]}
-                  style={styles.foundationIconImage}
-                  resizeMode="contain"
-                />
-              ) : (
+          {verseCardTitleLabel}
+        </Text>
+        {dailyScripture?.kind === 'verse-text' ? (
+          <>
+            <Text
+              style={[
+                styles.verseText,
+                {
+                  color: colors.primaryText,
+                  fontSize: homeLayout.verseTextFontSize,
+                  lineHeight: homeLayout.verseTextLineHeight,
+                },
+              ]}
+              numberOfLines={homeLayout.verseTextLines}
+              adjustsFontSizeToFit
+              minimumFontScale={0.66}
+            >
+              {`"${dailyScripture.text?.trim() || t('home.defaultVerse')}"`}
+            </Text>
+            <Text
+              style={[
+                styles.reference,
+                {
+                  color: colors.accentGreen,
+                  fontSize: homeLayout.verseReferenceFontSize,
+                  lineHeight: homeLayout.verseReferenceLineHeight,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
+              {verseShareReferenceLabel}
+            </Text>
+            {showActions ? (
+              <TouchableOpacity
+                style={[
+                  styles.audioAction,
+                  {
+                    backgroundColor: colors.accentPrimary + '18',
+                    borderColor: colors.accentPrimary + '28',
+                    borderWidth: 1,
+                    paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
+                    paddingVertical: homeLayout.audioButtonPaddingVertical,
+                    gap: homeLayout.audioButtonGap,
+                    marginTop: homeLayout.bodyGap,
+                  },
+                ]}
+                onPress={handleShareVerseOfTheDay}
+                activeOpacity={0.9}
+                disabled={isSharingVerse}
+              >
                 <Ionicons
-                  name={(activeFoundation.iconName as ComponentProps<typeof Ionicons>['name']) ?? 'book-outline'}
-                  size={36}
+                  name="share-social-outline"
+                  size={Math.max(16, Math.round(18 * homeLayout.scale))}
                   color={colors.accentPrimary}
                 />
-              )}
-            </View>
-            <View style={styles.foundationCardInfo}>
-              <Text style={[styles.foundationCardTitle, { color: colors.primaryText }]} numberOfLines={2}>
-                {`Foundations ${activeFoundation.number}: ${activeFoundation.title}`}
-              </Text>
-              <Text style={[styles.foundationCardSubtitle, { color: colors.secondaryText }]}>
-                {activeFoundation.description}
-              </Text>
-              <Text style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}>
-                {`${activeFoundationDone} / ${activeFoundationTotal} lessons`}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Verse of the Day Card */}
-        {isLoadingVerse ? (
-          <View style={styles.cardSkeleton}>
-            <CardSkeleton lines={3} />
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: colors.secondaryText }]}>
-              {dailyAudioKind === 'section-audio'
-                ? t('home.sectionOfTheDay')
-                : t('home.verseOfTheDay')}
+                <Text
+                  style={[
+                    styles.audioActionText,
+                    {
+                      color: colors.accentPrimary,
+                      fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
+                      lineHeight: homeLayout.subtitleLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {t('common.share')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </>
+        ) : shouldShowDailyAudio ? (
+          <>
+            <Text
+              style={[
+                styles.audioFallbackBody,
+                {
+                  color: colors.primaryText,
+                  fontSize: homeLayout.verseBodyFontSize,
+                  lineHeight: homeLayout.verseBodyLineHeight,
+                },
+              ]}
+              numberOfLines={homeLayout.verseBodyLines}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {verseShareBodyText}
             </Text>
-            {dailyScripture?.kind === 'verse-text' ? (
+            <Text
+              style={[
+                styles.reference,
+                {
+                  color: colors.accentGreen,
+                  fontSize: homeLayout.verseReferenceFontSize,
+                  lineHeight: homeLayout.verseReferenceLineHeight,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
+              {verseShareReferenceLabel}
+            </Text>
+            {showActions ? (
               <>
-                <Text style={[styles.verseText, { color: colors.primaryText }]}>
-                  {`"${dailyScripture.text}"`}
-                </Text>
-                <Text style={[styles.reference, { color: colors.accentGreen }]}>
-                  {dailyReferenceLabel}
-                </Text>
-              </>
-            ) : shouldShowDailyAudio ? (
-              <>
-                <Text style={[styles.audioFallbackBody, { color: colors.primaryText }]}>
-                  {dailyAudioKind === 'section-audio'
-                    ? t('home.sectionOfTheDayBody')
-                    : t('home.verseAudioBody')}
-                </Text>
-                <Text style={[styles.reference, { color: colors.accentGreen }]}>
-                  {dailyReferenceLabel}
-                </Text>
                 <TouchableOpacity
-                  style={[styles.audioAction, { backgroundColor: colors.bibleControlBackground }]}
+                  style={[
+                    styles.audioAction,
+                    {
+                      backgroundColor: colors.bibleControlBackground,
+                      paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
+                      paddingVertical: homeLayout.audioButtonPaddingVertical,
+                      gap: homeLayout.audioButtonGap,
+                    },
+                  ]}
                   onPress={handlePlayDailyAudio}
                   activeOpacity={0.9}
                 >
-                  <Ionicons name="play" size={18} color={colors.bibleBackground} />
-                  <Text style={[styles.audioActionText, { color: colors.bibleBackground }]}>
+                  <Ionicons
+                    name="play"
+                    size={Math.max(16, Math.round(18 * homeLayout.scale))}
+                    color={colors.bibleBackground}
+                  />
+                  <Text
+                    style={[
+                      styles.audioActionText,
+                      {
+                        color: colors.bibleBackground,
+                        fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
+                        lineHeight: homeLayout.subtitleLineHeight,
+                      },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
                     {dailyAudioKind === 'section-audio'
                       ? t('home.playSectionOfTheDay')
                       : t('home.playVerseOfTheDay')}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.audioAction,
+                    {
+                      backgroundColor: colors.accentPrimary + '18',
+                      borderColor: colors.accentPrimary + '28',
+                      borderWidth: 1,
+                      paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
+                      paddingVertical: homeLayout.audioButtonPaddingVertical,
+                      gap: homeLayout.audioButtonGap,
+                      marginTop: homeLayout.bodyGap,
+                    },
+                  ]}
+                  onPress={handleShareVerseOfTheDay}
+                  activeOpacity={0.9}
+                  disabled={isSharingVerse}
+                >
+                  <Ionicons
+                    name="share-social-outline"
+                    size={Math.max(16, Math.round(18 * homeLayout.scale))}
+                    color={colors.accentPrimary}
+                  />
+                  <Text
+                    style={[
+                      styles.audioActionText,
+                      {
+                        color: colors.accentPrimary,
+                        fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
+                        lineHeight: homeLayout.subtitleLineHeight,
+                      },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    {t('common.share')}
+                  </Text>
+                </TouchableOpacity>
               </>
-            ) : (
-              <>
-                <Text style={[styles.verseText, { color: colors.primaryText }]}>
-                  {t('home.defaultVerse')}
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text
+              style={[
+                styles.verseText,
+                {
+                  color: colors.primaryText,
+                  fontSize: homeLayout.verseTextFontSize,
+                  lineHeight: homeLayout.verseTextLineHeight,
+                },
+              ]}
+              numberOfLines={homeLayout.verseTextLines}
+              adjustsFontSizeToFit
+              minimumFontScale={0.66}
+            >
+              {t('home.defaultVerse')}
+            </Text>
+            <Text
+              style={[
+                styles.reference,
+                {
+                  color: colors.accentGreen,
+                  fontSize: homeLayout.verseReferenceFontSize,
+                  lineHeight: homeLayout.verseReferenceLineHeight,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
+              {verseShareReferenceLabel}
+            </Text>
+            {showActions ? (
+              <TouchableOpacity
+                style={[
+                  styles.audioAction,
+                  {
+                    backgroundColor: colors.accentPrimary + '18',
+                    borderColor: colors.accentPrimary + '28',
+                    borderWidth: 1,
+                    paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
+                    paddingVertical: homeLayout.audioButtonPaddingVertical,
+                    gap: homeLayout.audioButtonGap,
+                    marginTop: homeLayout.bodyGap,
+                  },
+                ]}
+                onPress={handleShareVerseOfTheDay}
+                activeOpacity={0.9}
+                disabled={isSharingVerse}
+              >
+                <Ionicons
+                  name="share-social-outline"
+                  size={Math.max(16, Math.round(18 * homeLayout.scale))}
+                  color={colors.accentPrimary}
+                />
+                <Text
+                  style={[
+                    styles.audioActionText,
+                    {
+                      color: colors.accentPrimary,
+                      fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
+                      lineHeight: homeLayout.subtitleLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {t('common.share')}
                 </Text>
-                <Text style={[styles.reference, { color: colors.accentGreen }]}>
-                  {t('home.defaultReference')}
-                </Text>
-              </>
-            )}
-          </View>
+              </TouchableOpacity>
+            ) : null}
+          </>
         )}
+      </View>
+    </ImageBackground>
+  );
 
-        {/* Stats Card */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.secondaryText }]}>
-            {t('home.chaptersRead')}
-          </Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
-                {getTodayCount()}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
-                {t('home.today')}
-              </Text>
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View
+        style={[
+          styles.content,
+          {
+            paddingHorizontal: homeLayout.screenPadding,
+            paddingVertical: homeLayout.screenPadding,
+            gap: homeLayout.sectionGap,
+          },
+        ]}
+      >
+        <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
+          <View style={[styles.headerBlock, { gap: homeLayout.bodyGap }]}>
+            <Text
+              style={[
+                styles.greeting,
+                {
+                  color: colors.primaryText,
+                  fontSize: homeLayout.greetingFontSize,
+                  lineHeight: homeLayout.greetingLineHeight,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {getGreeting()}
+            </Text>
+            <Text
+              style={[
+                styles.subtitle,
+                {
+                  color: colors.secondaryText,
+                  fontSize: homeLayout.subtitleFontSize,
+                  lineHeight: homeLayout.subtitleLineHeight,
+                },
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+            >
+              {t('home.welcome')}
+            </Text>
+          </View>
+
+          {/* Continue in Foundations card */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.card,
+              styles.foundationCard,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+            onPress={() =>
+              navigation.navigate('Learn', {
+                screen: 'FoundationDetail',
+                params: { foundationId: activeFoundation.id },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any)
+            }
+          >
+            <Text
+              style={[
+                styles.cardTitle,
+                {
+                  color: colors.secondaryText,
+                  paddingHorizontal: homeLayout.cardPadding,
+                  paddingTop: homeLayout.cardPadding,
+                  marginBottom: homeLayout.cardTitleGap,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+            >
+              {activeFoundationDone > 0 ? 'CONTINUE IN FOUNDATIONS' : 'GET STARTED'}
+            </Text>
+            <View
+              style={[
+                styles.foundationCardBody,
+                {
+                  gap: homeLayout.foundationCardGap,
+                  paddingHorizontal: homeLayout.cardPadding,
+                  paddingBottom: homeLayout.cardPadding,
+                  paddingTop: 0,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.foundationIconWrap,
+                  {
+                    backgroundColor: colors.accentPrimary + '18',
+                    width: homeLayout.foundationIconSize,
+                    height: homeLayout.foundationIconSize,
+                  },
+                ]}
+              >
+                {activeFoundation.iconImage && gatherIconImages[activeFoundation.iconImage] ? (
+                  <Image
+                    source={gatherIconImages[activeFoundation.iconImage]}
+                    style={[
+                      styles.foundationIconImage,
+                      {
+                        width: homeLayout.foundationIconSize,
+                        height: homeLayout.foundationIconSize,
+                      },
+                    ]}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Ionicons
+                    name={
+                      (activeFoundation.iconName as ComponentProps<typeof Ionicons>['name']) ??
+                      'book-outline'
+                    }
+                    size={Math.max(28, Math.round(homeLayout.foundationIconSize * 0.52))}
+                    color={colors.accentPrimary}
+                  />
+                )}
+              </View>
+              <View style={[styles.foundationCardInfo, { gap: homeLayout.bodyGap }]}>
+                <Text
+                  style={[styles.foundationCardTitle, { color: colors.primaryText }]}
+                  numberOfLines={homeLayout.foundationTitleLines}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {`Foundations ${activeFoundation.number}: ${activeFoundation.title}`}
+                </Text>
+                <Text
+                  style={[styles.foundationCardSubtitle, { color: colors.secondaryText }]}
+                  numberOfLines={homeLayout.foundationSubtitleLines}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {activeFoundation.description}
+                </Text>
+                <Text
+                  style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}
+                  numberOfLines={1}
+                >
+                  {`${activeFoundationDone} / ${activeFoundationTotal} lessons`}
+                </Text>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
-                {getWeekCount()}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
-                {t('home.week')}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
-                {getMonthCount()}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
-                {t('home.month')}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primaryText }]}>
-                {getYearCount()}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.secondaryText }]}>
-                {t('home.year')}
-              </Text>
+          </TouchableOpacity>
+
+          {/* Verse of the Day Card */}
+          {isLoadingVerse ? (
+            <CardSkeleton
+              lines={3}
+              style={{
+                flex: 1,
+                minHeight: homeLayout.verseCardMinHeight,
+              }}
+            />
+          ) : (
+            <>
+              {renderVerseOfTheDayCard(true)}
+              <View
+                ref={verseSharePreviewRef}
+                collapsable={false}
+                pointerEvents="none"
+                style={[
+                  styles.sharePreviewMount,
+                  {
+                    width: screenWidth - homeLayout.screenPadding * 2,
+                  },
+                ]}
+              >
+                {renderVerseOfTheDayCard(false)}
+              </View>
+            </>
+          )}
+
+          {/* Stats Card */}
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.cardBackground,
+                borderColor: colors.cardBorder,
+                padding: isCompactHomeStatsLayout
+                  ? homeLayout.denseCardPadding
+                  : homeLayout.cardPadding,
+                paddingBottom:
+                  (isCompactHomeStatsLayout
+                    ? homeLayout.denseCardPadding
+                    : homeLayout.cardPadding) - 2,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: colors.secondaryText, marginBottom: homeLayout.cardTitleGap },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+            >
+              {t('home.chaptersRead')}
+            </Text>
+            <View
+              style={[
+                styles.statsRow,
+                {
+                  gap: isCompactHomeStatsLayout ? homeLayout.bodyGap : homeLayout.statsRowGap,
+                },
+              ]}
+            >
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    {
+                      color: colors.primaryText,
+                      fontSize: homeLayout.statNumberFontSize,
+                      lineHeight: homeLayout.statNumberLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {getTodayCount()}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    {
+                      color: colors.secondaryText,
+                      fontSize: homeLayout.statLabelFontSize,
+                      lineHeight: homeLayout.statLabelLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {t('home.today')}
+                </Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    {
+                      color: colors.primaryText,
+                      fontSize: homeLayout.statNumberFontSize,
+                      lineHeight: homeLayout.statNumberLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {getWeekCount()}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    {
+                      color: colors.secondaryText,
+                      fontSize: homeLayout.statLabelFontSize,
+                      lineHeight: homeLayout.statLabelLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {t('home.week')}
+                </Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    {
+                      color: colors.primaryText,
+                      fontSize: homeLayout.statNumberFontSize,
+                      lineHeight: homeLayout.statNumberLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {getMonthCount()}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    {
+                      color: colors.secondaryText,
+                      fontSize: homeLayout.statLabelFontSize,
+                      lineHeight: homeLayout.statLabelLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {t('home.month')}
+                </Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    {
+                      color: colors.primaryText,
+                      fontSize: homeLayout.statNumberFontSize,
+                      lineHeight: homeLayout.statNumberLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {getYearCount()}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    {
+                      color: colors.secondaryText,
+                      fontSize: homeLayout.statLabelFontSize,
+                      lineHeight: homeLayout.statLabelLineHeight,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {t('home.year')}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -357,33 +885,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   content: {
-    padding: layout.screenPadding,
+    flex: 1,
   },
   greeting: {
     ...typography.screenTitle,
-    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
-    marginBottom: layout.sectionGap,
   },
   card: {
     borderRadius: radius.lg,
-    padding: layout.cardPadding,
-    marginBottom: spacing.lg,
     borderWidth: 1,
+  },
+  verseCard: {
+    padding: 0,
+    overflow: 'hidden',
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  verseCardImage: {
+    borderRadius: radius.lg,
+  },
+  verseCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  verseCardContent: {
+    flex: 1,
   },
   cardTitle: {
     ...typography.eyebrow,
-    marginBottom: spacing.md,
+    marginBottom: 0,
   },
   verseText: {
     ...typography.readingDisplay,
-    marginBottom: spacing.md,
+    marginBottom: 0,
   },
   reference: {
     ...typography.label,
@@ -392,26 +929,29 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     fontSize: 17,
     lineHeight: 26,
-    marginBottom: spacing.md,
+    marginBottom: 0,
   },
   audioAction: {
-    marginTop: spacing.lg,
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
   audioActionText: {
     ...typography.button,
   },
+  sharePreviewMount: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+  },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
   },
   statItem: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
   },
   statNumber: {
@@ -420,12 +960,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.4,
     marginBottom: spacing.xs,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
   },
   statLabel: {
     ...typography.micro,
-  },
-  cardSkeleton: {
-    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   // Foundations continuation card
   foundationCard: {
@@ -435,26 +975,19 @@ const styles = StyleSheet.create({
   foundationCardBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
-    padding: layout.cardPadding,
     paddingTop: 0,
   },
   foundationIconWrap: {
-    width: 72,
-    height: 72,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   foundationIconImage: {
-    width: 72,
-    height: 72,
     borderRadius: radius.pill,
   },
   foundationCardInfo: {
     flex: 1,
-    gap: spacing.xs,
   },
   foundationCardTitle: {
     ...typography.bodyStrong,
@@ -464,6 +997,12 @@ const styles = StyleSheet.create({
   },
   foundationCardProgress: {
     ...typography.label,
-    marginTop: spacing.xs,
+  },
+  homeStack: {
+    flex: 1,
+    minHeight: 0,
+  },
+  headerBlock: {
+    alignItems: 'flex-start',
   },
 });

@@ -22,12 +22,24 @@ export function TabNavigator() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = layout.tabBarBaseHeight + insets.bottom;
   const defaultTabBarStyle = {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.background,
     borderTopColor: colors.cardBorder,
     borderTopWidth: 1,
-    paddingTop: spacing.sm,
-    paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
     height: tabBarHeight,
+  } as const;
+  const floatingHomeTabBarStyle = {
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    elevation: 0,
+    height: tabBarHeight,
+    left: 0,
+    paddingTop: spacing.xs,
+    paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.xs,
+    position: 'absolute',
+    right: 0,
+    shadowOpacity: 0,
   } as const;
 
   return (
@@ -38,10 +50,12 @@ export function TabNavigator() {
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle:
-          (route.name === 'Bible' || route.name === 'Learn') &&
-          shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route))
-            ? { display: 'none' }
-            : defaultTabBarStyle,
+          route.name === 'Home'
+            ? floatingHomeTabBarStyle
+            : (route.name === 'Bible' || route.name === 'Learn') &&
+                shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route))
+              ? { display: 'none' }
+              : defaultTabBarStyle,
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {
           paddingVertical: spacing.xs,

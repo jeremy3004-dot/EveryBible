@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,8 +16,7 @@ interface MiniPlayerProps {
 export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const tabBarHeight = layout.tabBarBaseHeight + insets.bottom;
+  const tabBarHeight = useBottomTabBarHeight();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setCurrentTrack = useAudioStore((state) => state.setCurrentTrack);

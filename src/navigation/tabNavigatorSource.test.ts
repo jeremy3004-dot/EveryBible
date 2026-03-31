@@ -38,3 +38,45 @@ test('TabNavigator freezes inactive tabs so Home, Bible, and Gather do not keep 
     'TabNavigator should freeze inactive tabs to reduce lag while switching between Home, Bible, and Gather'
   );
 });
+
+test('TabNavigator keeps the tab bar padding compact instead of turning the bottom inset into a dark strip', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.equal(
+    source.includes('paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm'),
+    false,
+    'TabNavigator should not reserve the full bottom inset as extra internal padding'
+  );
+});
+
+test('TabNavigator blends the bar into the screen background instead of a separate card surface', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.equal(
+    source.includes('backgroundColor: colors.cardBackground'),
+    false,
+    'TabNavigator should use the screen background so the bottom bar does not read like a dark slab'
+  );
+});
+
+test('TabNavigator lets Home float instead of reserving a dark bar surface', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /route\.name === 'Home'/,
+    'TabNavigator should treat the Home tab as the floating tab-bar case'
+  );
+
+  assert.match(
+    source,
+    /backgroundColor:\s*'transparent'/,
+    'TabNavigator should make the Home tab bar transparent'
+  );
+
+  assert.match(
+    source,
+    /position:\s*'absolute'/,
+    'TabNavigator should let the Home tab bar float over the screen instead of reserving a block'
+  );
+});
