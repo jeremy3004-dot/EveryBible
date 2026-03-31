@@ -49,6 +49,22 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
   );
 });
 
+test('TabNavigator uses the base tab bar height instead of adding the bottom safe-area inset twice', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /const tabBarHeight = layout\.tabBarBaseHeight;/,
+    'TabNavigator should keep the tab bar height anchored to the base bar token'
+  );
+
+  assert.equal(
+    source.includes('layout.tabBarBaseHeight + insets.bottom'),
+    false,
+    'TabNavigator should not stack the bottom inset onto the tab bar height itself'
+  );
+});
+
 test('TabNavigator blends the bar into the screen background instead of a separate card surface', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
