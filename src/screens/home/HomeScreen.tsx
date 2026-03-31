@@ -534,16 +534,17 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View
-        style={[
-          styles.content,
-          {
-            paddingHorizontal: homeLayout.screenPadding,
-            paddingVertical: homeLayout.screenPadding,
-            gap: homeLayout.sectionGap,
-          },
-        ]}
-      >
+          <View
+            style={[
+              styles.content,
+              {
+                paddingHorizontal: homeLayout.screenPadding,
+                paddingVertical: homeLayout.screenPadding,
+                paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
+                gap: homeLayout.sectionGap,
+              },
+            ]}
+          >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
           <View style={[styles.headerBlock, { gap: homeLayout.bodyGap }]}>
             <Text

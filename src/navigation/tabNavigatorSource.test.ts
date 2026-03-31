@@ -59,24 +59,15 @@ test('TabNavigator blends the bar into the screen background instead of a separa
   );
 });
 
-test('TabNavigator lets Home float instead of reserving a dark bar surface', () => {
+test('TabNavigator keeps Home in the normal tab bar instead of floating it over the screen', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
   assert.match(
     source,
     /route\.name === 'Home'/,
-    'TabNavigator should treat the Home tab as the floating tab-bar case'
+    'TabNavigator should keep the Home tab in the standard bar configuration'
   );
 
-  assert.match(
-    source,
-    /backgroundColor:\s*'transparent'/,
-    'TabNavigator should make the Home tab bar transparent'
-  );
-
-  assert.match(
-    source,
-    /position:\s*'absolute'/,
-    'TabNavigator should let the Home tab bar float over the screen instead of reserving a block'
-  );
+  assert.equal(source.includes("backgroundColor: 'transparent'"), false);
+  assert.equal(source.includes("position: 'absolute'"), false);
 });

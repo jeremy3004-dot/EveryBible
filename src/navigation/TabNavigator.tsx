@@ -29,18 +29,6 @@ export function TabNavigator() {
     paddingBottom: spacing.xs,
     height: tabBarHeight,
   } as const;
-  const floatingHomeTabBarStyle = {
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    elevation: 0,
-    height: tabBarHeight,
-    left: 0,
-    paddingTop: spacing.xs,
-    paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.xs,
-    position: 'absolute',
-    right: 0,
-    shadowOpacity: 0,
-  } as const;
 
   return (
     <Tab.Navigator
@@ -51,7 +39,7 @@ export function TabNavigator() {
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle:
           route.name === 'Home'
-            ? floatingHomeTabBarStyle
+            ? defaultTabBarStyle
             : (route.name === 'Bible' || route.name === 'Learn') &&
                 shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route))
               ? { display: 'none' }

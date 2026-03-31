@@ -34,3 +34,13 @@ test('HomeScreen stays fixed and sizes itself against the tab bar height', () =>
     'HomeScreen should size itself against the visible space after the bottom bar'
   );
 });
+
+test('HomeScreen trims the bottom padding so Chapters Read clears the tab bar', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  assert.match(
+    source,
+    /paddingBottom:\s*Math\.max\(spacing\.sm,\s*homeLayout\.screenPadding\s*-\s*spacing\.xs\)/,
+    'HomeScreen should keep a little less space under the content so the bottom card sits above the tabs'
+  );
+});
