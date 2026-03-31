@@ -49,3 +49,19 @@ test('cloud translation downloads write verses through an exclusive sqlite trans
     'downloaded translation installs should not rely on the non-exclusive transaction helper for batched sqlite writes'
   );
 });
+
+test('cloud translation downloads force a self-contained sqlite file before activation', () => {
+  const source = readRelativeSource('./cloudTranslationService.ts');
+
+  assert.match(
+    source,
+    /await database\.execAsync\('PRAGMA journal_mode = DELETE'\)/,
+    'downloaded translation installs should force DELETE journal mode so moving the main sqlite file does not strand schema or verse rows in WAL sidecars'
+  );
+
+  assert.match(
+    source,
+    /await verifyInstalledTranslationDatabase\(\{[\s\S]*expectedVerseCount:\s*allVerses\.length[\s\S]*\}\);/,
+    'downloaded translation installs should reopen the activated sqlite file and verify the verses table before marking the translation as installed'
+  );
+});

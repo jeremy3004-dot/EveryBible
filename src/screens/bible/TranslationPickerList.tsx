@@ -47,6 +47,7 @@ export function TranslationPickerList({
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
+  const downloadProgress = useBibleStore((state) => state.downloadProgress);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
@@ -327,6 +328,12 @@ export function TranslationPickerList({
         {visibleTranslations.map((translation) => {
           const isSelected = currentTranslation === translation.id;
           const audioAvailability = getTranslationAudioAvailability(translation);
+          const isTextDownloadActive =
+            downloadProgress?.translationId === translation.id && !downloadProgress.bookId;
+          const textDownloadProgress = isTextDownloadActive ? downloadProgress.progress : 0;
+          const textDownloadStatusLabel = isTextDownloadActive
+            ? `${t('translations.downloading')} ${downloadProgress.progress}%`
+            : null;
           const selectionState = getTranslationSelectionState({
             isDownloaded: translation.isDownloaded,
             hasText: translation.hasText,
@@ -351,7 +358,9 @@ export function TranslationPickerList({
                 style={[styles.translationItem, { borderBottomColor: colors.bibleDivider }]}
                 onPress={() => handleTranslationSelect(translation)}
                 activeOpacity={0.85}
-                disabled={isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog}
+                disabled={
+                  (isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) || isTextDownloadActive
+                }
               >
                 <View style={styles.translationInfo}>
                   <View style={styles.translationNameRow}>
@@ -411,6 +420,40 @@ export function TranslationPickerList({
                       </View>
                     )}
                   </View>
+                  {isTextDownloadActive ? (
+                    <View style={styles.translationDownloadProgress}>
+                      <View style={styles.translationDownloadProgressHeader}>
+                        <ActivityIndicator size="small" color={colors.bibleAccent} />
+                        <Text
+                          style={[
+                            styles.translationDownloadProgressText,
+                            { color: colors.bibleAccent },
+                          ]}
+                        >
+                          {textDownloadStatusLabel}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.downloadProgressTrack,
+                          {
+                            backgroundColor: colors.bibleDivider,
+                            marginTop: 0,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.downloadProgressFill,
+                            {
+                              backgroundColor: colors.bibleAccent,
+                              width: `${textDownloadProgress}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
                 {isSelected ? (
                   <Ionicons name="checkmark" size={22} color={colors.bibleAccent} />
@@ -1095,6 +1138,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  translationDownloadProgress: {
+    marginTop: 10,
+    gap: 6,
+  },
+  translationDownloadProgressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  translationDownloadProgressText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   translationSize: {
     fontSize: 12,
