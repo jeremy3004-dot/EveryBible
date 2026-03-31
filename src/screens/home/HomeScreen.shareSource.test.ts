@@ -16,6 +16,24 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
     'HomeScreen should not eagerly import expo-sharing on the startup path'
   );
 
+  assert.equal(
+    source.includes("from '../../stores';"),
+    false,
+    'HomeScreen should avoid the stores barrel on the startup path'
+  );
+
+  assert.match(
+    source,
+    /import \{ useProgressStore \} from '\.\.\/\.\.\/stores\/progressStore';/,
+    'HomeScreen should import the progress store directly on the startup path'
+  );
+
+  assert.match(
+    source,
+    /import \{ useBibleStore \} from '\.\.\/\.\.\/stores\/bibleStore';/,
+    'HomeScreen should import the bible store directly on the startup path'
+  );
+
   assert.match(
     source,
     /const Sharing = await import\('expo-sharing'\);/,

@@ -52,6 +52,18 @@ test('Root navigator keeps the mini-player off the startup import path', () => {
     /require\('\.\.\/components\/audio\/MiniPlayer'\)/,
     'RootNavigator should defer MiniPlayer until it is actually needed'
   );
+
+  assert.match(
+    rootNavigatorSource,
+    /Boolean\(state\.currentBookId && state\.currentChapter\)/,
+    'RootNavigator should only mount the mini player for an active playback session during startup'
+  );
+
+  assert.doesNotMatch(
+    rootNavigatorSource,
+    /lastPlayedBookId|lastPlayedChapter/,
+    'RootNavigator should not mount the mini player from stale resume-only audio state on cold launch'
+  );
 });
 
 test('navigation stacks lazy-load screens instead of importing them at module load', () => {

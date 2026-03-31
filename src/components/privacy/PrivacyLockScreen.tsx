@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { usePrivacyStore } from '../../stores';
+import { usePrivacyStore } from '../../stores/privacyStore';
 import { validatePrivacyPin } from '../../services/privacy';
 
 // ---------- calculator engine ----------

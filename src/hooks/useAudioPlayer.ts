@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAudioStore, useLibraryStore } from '../stores';
+import { useAudioStore } from '../stores/audioStore';
+import { useLibraryStore } from '../stores/libraryStore';
 import {
   audioPlayer,
   backgroundMusicPlayer,
