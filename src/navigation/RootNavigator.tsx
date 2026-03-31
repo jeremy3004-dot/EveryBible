@@ -45,14 +45,11 @@ export function RootNavigator() {
 }
 
 function MiniPlayerHost({ currentRouteName }: { currentRouteName: string | null }) {
-  const hasPlayableSession = useAudioStore((state) =>
-    Boolean(
-      (state.currentBookId && state.currentChapter) ||
-      (state.lastPlayedBookId && state.lastPlayedChapter)
-    )
+  const hasActivePlaybackSession = useAudioStore((state) =>
+    Boolean(state.currentBookId && state.currentChapter)
   );
 
-  if (!hasPlayableSession) {
+  if (!hasActivePlaybackSession) {
     return null;
   }
 

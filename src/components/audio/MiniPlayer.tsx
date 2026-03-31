@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById, getTranslatedBookName } from '../../constants';
 import { useAudioPlayer } from '../../hooks';
-import { useAudioStore, useBibleStore } from '../../stores';
+import { useAudioStore } from '../../stores/audioStore';
+import { useBibleStore } from '../../stores/bibleStore';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, shadows, typography } from '../../design/system';
 

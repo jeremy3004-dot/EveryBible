@@ -7,24 +7,24 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('useAudioPlayer keeps iOS now playing metadata and remote commands wired to the Bible audio flow', () => {
+test('useAudioPlayer imports only the stores it needs', () => {
   const source = readRelativeSource('./useAudioPlayer.ts');
 
-  assert.match(
-    source,
-    /syncBibleNowPlaying/,
-    'useAudioPlayer should publish lock-screen metadata whenever the chapter playback state changes'
+  assert.equal(
+    source.includes("from '../stores';"),
+    false,
+    'useAudioPlayer should not import the full stores barrel on the startup audio path'
   );
 
   assert.match(
     source,
-    /clearBibleNowPlaying/,
-    'useAudioPlayer should clear the lock-screen metadata when playback stops'
+    /import \{ useAudioStore \} from '\.\.\/stores\/audioStore';/,
+    'useAudioPlayer should import the audio store directly'
   );
 
   assert.match(
     source,
-    /subscribeBibleNowPlayingRemoteCommands/,
-    'useAudioPlayer should subscribe to native remote-command events for lock-screen controls'
+    /import \{ useLibraryStore \} from '\.\.\/stores\/libraryStore';/,
+    'useAudioPlayer should import the library store directly'
   );
 });
