@@ -62,6 +62,46 @@ async function deleteDatabaseArtifactsIfExists(path: string): Promise<void> {
   }
 }
 
+async function verifyInstalledTranslationDatabase({
+  directory,
+  databaseName,
+  expectedVerseCount,
+}: {
+  directory: string;
+  databaseName: string;
+  expectedVerseCount: number;
+}): Promise<void> {
+  const database = await SQLite.openDatabaseAsync(
+    databaseName,
+    {
+      finalizeUnusedStatementsBeforeClosing: false,
+    },
+    directory
+  );
+
+  try {
+    const tableResult = await database.getFirstAsync<{ present: number }>(
+      "SELECT COUNT(*) as present FROM sqlite_master WHERE type = 'table' AND name = 'verses'"
+    );
+
+    if ((tableResult?.present ?? 0) === 0) {
+      throw new Error('Downloaded translation database is missing the verses table.');
+    }
+
+    const countResult = await database.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM verses'
+    );
+
+    if ((countResult?.count ?? 0) < expectedVerseCount) {
+      throw new Error(
+        `Downloaded translation database is incomplete (${countResult?.count ?? 0}/${expectedVerseCount} verses).`
+      );
+    }
+  } finally {
+    await database.closeAsync();
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -222,6 +262,9 @@ export async function downloadCloudTranslation(
       directory
     );
 
+    // Keep staging installs self-contained so activation only needs the main sqlite file.
+    await database.execAsync('PRAGMA journal_mode = DELETE');
+
     // ── 5. Create the schema matching the bundled db ─────────────────────
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS verses (
@@ -277,6 +320,11 @@ export async function downloadCloudTranslation(
     await database.closeAsync();
     await deleteDatabaseArtifactsIfExists(finalDbPath);
     await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
+    await verifyInstalledTranslationDatabase({
+      directory,
+      databaseName: `${translationId}.db`,
+      expectedVerseCount: allVerses.length,
+    });
 
     onProgress?.({
       phase: 'complete',
@@ -288,6 +336,7 @@ export async function downloadCloudTranslation(
   } catch (err) {
     // ── 8. Clean up partial file on error ─────────────────────────────────
     await deleteDatabaseArtifactsIfExists(stagingDbPath);
+    await deleteDatabaseArtifactsIfExists(finalDbPath);
 
     const message = err instanceof Error ? err.message : 'Unknown download error';
 

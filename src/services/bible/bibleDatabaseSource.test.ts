@@ -38,6 +38,22 @@ test('getDatabase opens the resolved SQLite source directory for translation-awa
   );
 });
 
+test('installed translation databases can be invalidated when a pack is replaced', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /export async function invalidateInstalledBibleDatabaseAtPath\(localPath: string\): Promise<void>/,
+    'bibleDatabase.ts should expose a way to close cached installed sqlite handles when a downloaded translation pack is replaced'
+  );
+
+  assert.match(
+    source,
+    /installedDatabaseCache\.delete\(cacheKey\)/,
+    'invalidating an installed translation database should remove the cached sqlite handle after it is closed'
+  );
+});
+
 test('bible database opens disable sqlite auto-finalization before close paths', () => {
   const source = readRelativeSource('./bibleDatabase.ts');
 

@@ -1,7 +1,11 @@
 import * as SQLite from 'expo-sqlite';
 import { importDatabaseFromAssetAsync } from 'expo-sqlite';
 import type { Verse } from '../../types';
-import { buildBibleSearchQuery, isBundledBibleDatabaseReady } from './bibleDataModel';
+import {
+  buildBibleSearchQuery,
+  buildInstalledBibleDatabaseSource,
+  isBundledBibleDatabaseReady,
+} from './bibleDataModel';
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
@@ -62,6 +66,24 @@ type BibleDatabaseStatus = {
 
 function getSourceCacheKey(source: BibleDatabaseSource): string {
   return `${source.kind}:${source.databaseName}:${source.kind === 'installed' ? source.directory : ''}`;
+}
+
+export async function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void> {
+  const source = buildInstalledBibleDatabaseSource('installed', localPath);
+
+  if (!source) {
+    return;
+  }
+
+  const cacheKey = getSourceCacheKey(source);
+  const cachedDatabase = installedDatabaseCache.get(cacheKey);
+
+  if (!cachedDatabase) {
+    return;
+  }
+
+  await closeDatabase(cachedDatabase);
+  installedDatabaseCache.delete(cacheKey);
 }
 
 async function closeDatabase(database?: SQLite.SQLiteDatabase | null): Promise<void> {

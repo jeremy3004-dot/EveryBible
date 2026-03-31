@@ -22,7 +22,10 @@ import {
   syncRemoteAudioMetadataResolverWithTranslations,
   type AudioDownloadJobRecord,
 } from '../services/audio';
-import { setBibleDatabaseSourceResolver } from '../services/bible/bibleDatabase';
+import {
+  invalidateInstalledBibleDatabaseAtPath,
+  setBibleDatabaseSourceResolver,
+} from '../services/bible/bibleDatabase';
 import {
   activateTranslationPackCandidate,
   buildInstalledBibleDatabaseSource,
@@ -428,6 +431,10 @@ export const useBibleStore = create<BibleState>()(
 
         // Cloud download from Supabase bible_verses table
         try {
+          if (translation?.textPackLocalPath) {
+            await invalidateInstalledBibleDatabaseAtPath(translation.textPackLocalPath);
+          }
+
           set((state) => ({
             error: null,
             downloadProgress: {
@@ -456,11 +463,15 @@ export const useBibleStore = create<BibleState>()(
                     ? 'error'
                     : progress.phase === 'complete'
                       ? 'completed'
-                      : 'downloading',
+                      : progress.phase === 'indexing'
+                        ? 'installing'
+                        : 'downloading',
                 error: progress.error,
               },
             });
           });
+
+          await invalidateInstalledBibleDatabaseAtPath(localPath);
 
           // Activate the installed pack — sets textPackLocalPath, isDownloaded, installState
           set((state) => ({

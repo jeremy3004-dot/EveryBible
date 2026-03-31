@@ -140,3 +140,25 @@ test('translation picker keeps the sheet open while a runtime translation still 
     'TranslationPickerList should not dismiss the sheet before it decides whether the tap starts a download instead of activating a translation'
   );
 });
+
+test('translation picker shows inline progress for the active Bible text download', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /const downloadProgress = useBibleStore\(\(state\) => state\.downloadProgress\);/,
+    'TranslationPickerList should subscribe to the shared text download progress so the active translation row can show live install state'
+  );
+
+  assert.match(
+    source,
+    /const isTextDownloadActive =[\s\S]*downloadProgress\?\.translationId === translation\.id && !downloadProgress\.bookId;/,
+    'TranslationPickerList should recognize the currently-downloading Bible text translation row'
+  );
+
+  assert.match(
+    source,
+    /ActivityIndicator size="small" color=\{colors\.bibleAccent\} \/>[\s\S]*textDownloadStatusLabel/,
+    'TranslationPickerList should show a visible spinner and percent complete inside the active translation row while the Bible text pack downloads'
+  );
+});
