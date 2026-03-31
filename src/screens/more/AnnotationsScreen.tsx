@@ -22,7 +22,7 @@ import type { MoreStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
-type FilterType = 'all' | 'bookmark' | 'highlight' | 'note';
+type FilterType = 'bookmark' | 'highlight' | 'note';
 
 export function AnnotationsScreen() {
   const { colors } = useTheme();
@@ -31,7 +31,7 @@ export function AnnotationsScreen() {
   const insets = useSafeAreaInsets();
 
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<FilterType>('note');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -53,9 +53,7 @@ export function AnnotationsScreen() {
     setRefreshing(false);
   };
 
-  const filtered = filter === 'all'
-    ? annotations
-    : annotations.filter((a) => a.type === filter);
+  const filtered = annotations.filter((a) => a.type === filter);
 
   const getAnnotationIcon = (type: UserAnnotation['type']): string => {
     switch (type) {
@@ -67,12 +65,19 @@ export function AnnotationsScreen() {
 
   const getEmptyMessage = (): string => {
     switch (filter) {
+      case 'note': return t('annotations.noNotes');
       case 'bookmark': return t('annotations.noBookmarks');
       case 'highlight': return t('annotations.noHighlights');
-      case 'note': return t('annotations.noNotes');
-      default: return t('annotations.noAnnotations');
     }
+
+    return t('annotations.noNotes');
   };
+
+  const emptyStateIcons = {
+    note: 'document-text-outline',
+    bookmark: 'bookmark-outline',
+    highlight: 'color-fill-outline',
+  } as const;
 
   const formatReference = (a: UserAnnotation): string => {
     const book = getBookById(a.book);
@@ -128,10 +133,9 @@ export function AnnotationsScreen() {
   );
 
   const filterButtons: { key: FilterType; label: string; icon: string }[] = [
-    { key: 'all', label: t('annotations.title'), icon: 'layers-outline' },
+    { key: 'note', label: t('annotations.notes'), icon: 'document-text-outline' },
     { key: 'bookmark', label: t('annotations.bookmarks'), icon: 'bookmark-outline' },
     { key: 'highlight', label: t('annotations.highlights'), icon: 'color-fill-outline' },
-    { key: 'note', label: t('annotations.notes'), icon: 'document-text-outline' },
   ];
 
   return (
@@ -191,7 +195,7 @@ export function AnnotationsScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyState}>
-              <Ionicons name="bookmarks-outline" size={48} color={colors.secondaryText + '60'} />
+              <Ionicons name={emptyStateIcons[filter]} size={48} color={colors.secondaryText + '60'} />
               <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                 {getEmptyMessage()}
               </Text>
