@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 interface AppConfig {
   expo: {
     version: string;
+    description?: string;
+    privacyPolicyUrl?: string;
   };
 }
 
@@ -84,11 +86,19 @@ test('release metadata stays aligned across tracked config and generated native 
 
   const appVersion = appConfig.expo.version;
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
+  const appDescription = appConfig.expo.description?.trim() ?? '';
+  const privacyPolicyUrl = appConfig.expo.privacyPolicyUrl?.trim() ?? '';
 
   assert.equal(packageJson.version, appVersion);
   assert.equal(iosMarketingVersion, appVersion);
   assert.equal(easConfig.cli?.appVersionSource, 'remote');
   assert.equal(easConfig.build?.production?.autoIncrement, true);
+  assert.ok(appDescription.length > 0, 'Expected app.json expo.description for release metadata');
+  assert.match(
+    privacyPolicyUrl,
+    /^https:\/\//,
+    'Expected app.json expo.privacyPolicyUrl to provide the canonical HTTPS privacy policy reference'
+  );
 
   if (infoPlist) {
     const iosShortVersion = readPlistString(infoPlist, 'CFBundleShortVersionString');
