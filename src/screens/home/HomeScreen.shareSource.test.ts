@@ -36,14 +36,20 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /Ionicons[\s\S]*name="share-social-outline"/,
-    'The verse card should show a compact share button'
+    /const renderVerseShareButton = \(\) => \(/,
+    'HomeScreen should factor the verse share button into a helper'
   );
 
   assert.match(
     source,
-    /const renderVerseOfTheDayCard = \(showActions: boolean\) => \(/,
-    'HomeScreen should factor the verse card into a reusable renderer'
+    /accessibilityLabel=\{t\('groups\.share'\)\}[\s\S]*Ionicons[\s\S]*name="share-outline"/,
+    'The verse card should expose an icon-only share button with a shared translation label for accessibility'
+  );
+
+  assert.match(
+    source,
+    /styles\.verseShareRow/,
+    'The verse share button should sit in a bottom-aligned footer row'
   );
 
   assert.match(
@@ -56,5 +62,11 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
     source,
     /renderVerseOfTheDayCard\(true\)/,
     'HomeScreen should render the visible verse card with actions'
+  );
+
+  assert.equal(
+    source.includes("common.share"),
+    false,
+    'HomeScreen should not render the broken common.share key on the verse share control'
   );
 });

@@ -200,6 +200,35 @@ export function HomeScreen() {
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
+  const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
+  const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
+
+  const renderVerseShareButton = () => (
+    <TouchableOpacity
+      style={[
+        styles.verseShareButton,
+        {
+          backgroundColor: colors.accentPrimary,
+          width: verseShareButtonSize,
+          height: verseShareButtonSize,
+          borderRadius: verseShareButtonSize / 2,
+          opacity: isSharingVerse ? 0.72 : 1,
+        },
+      ]}
+      onPress={handleShareVerseOfTheDay}
+      activeOpacity={0.88}
+      disabled={isSharingVerse}
+      accessibilityRole="button"
+      accessibilityLabel={t('groups.share')}
+      hitSlop={8}
+    >
+      <Ionicons
+        name="share-outline"
+        size={verseShareIconSize}
+        color={colors.primaryText}
+      />
+    </TouchableOpacity>
+  );
 
   const handleShareVerseOfTheDay = async () => {
     if (isSharingVerse) {
@@ -217,7 +246,7 @@ export function HomeScreen() {
         });
 
         await Sharing.shareAsync(imageUri, {
-          dialogTitle: t('common.share'),
+          dialogTitle: t('groups.share'),
           mimeType: 'image/png',
         });
         return;
@@ -303,44 +332,7 @@ export function HomeScreen() {
               {verseShareReferenceLabel}
             </Text>
             {showActions ? (
-              <TouchableOpacity
-                style={[
-                  styles.audioAction,
-                  {
-                    backgroundColor: colors.accentPrimary + '18',
-                    borderColor: colors.accentPrimary + '28',
-                    borderWidth: 1,
-                    paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
-                    paddingVertical: homeLayout.audioButtonPaddingVertical,
-                    gap: homeLayout.audioButtonGap,
-                    marginTop: homeLayout.bodyGap,
-                  },
-                ]}
-                onPress={handleShareVerseOfTheDay}
-                activeOpacity={0.9}
-                disabled={isSharingVerse}
-              >
-                <Ionicons
-                  name="share-social-outline"
-                  size={Math.max(16, Math.round(18 * homeLayout.scale))}
-                  color={colors.accentPrimary}
-                />
-                <Text
-                  style={[
-                    styles.audioActionText,
-                    {
-                      color: colors.accentPrimary,
-                      fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
-                      lineHeight: homeLayout.subtitleLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.82}
-                >
-                  {t('common.share')}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
             ) : null}
           </>
         ) : shouldShowDailyAudio ? (
@@ -413,45 +405,10 @@ export function HomeScreen() {
                       : t('home.playVerseOfTheDay')}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.audioAction,
-                    {
-                      backgroundColor: colors.accentPrimary + '18',
-                      borderColor: colors.accentPrimary + '28',
-                      borderWidth: 1,
-                      paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
-                      paddingVertical: homeLayout.audioButtonPaddingVertical,
-                      gap: homeLayout.audioButtonGap,
-                      marginTop: homeLayout.bodyGap,
-                    },
-                  ]}
-                  onPress={handleShareVerseOfTheDay}
-                  activeOpacity={0.9}
-                  disabled={isSharingVerse}
-                >
-                  <Ionicons
-                    name="share-social-outline"
-                    size={Math.max(16, Math.round(18 * homeLayout.scale))}
-                    color={colors.accentPrimary}
-                  />
-                  <Text
-                    style={[
-                      styles.audioActionText,
-                      {
-                        color: colors.accentPrimary,
-                        fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
-                        lineHeight: homeLayout.subtitleLineHeight,
-                      },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.82}
-                  >
-                    {t('common.share')}
-                  </Text>
-                </TouchableOpacity>
               </>
+            ) : null}
+            {showActions ? (
+              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
             ) : null}
           </>
         ) : (
@@ -487,44 +444,7 @@ export function HomeScreen() {
               {verseShareReferenceLabel}
             </Text>
             {showActions ? (
-              <TouchableOpacity
-                style={[
-                  styles.audioAction,
-                  {
-                    backgroundColor: colors.accentPrimary + '18',
-                    borderColor: colors.accentPrimary + '28',
-                    borderWidth: 1,
-                    paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
-                    paddingVertical: homeLayout.audioButtonPaddingVertical,
-                    gap: homeLayout.audioButtonGap,
-                    marginTop: homeLayout.bodyGap,
-                  },
-                ]}
-                onPress={handleShareVerseOfTheDay}
-                activeOpacity={0.9}
-                disabled={isSharingVerse}
-              >
-                <Ionicons
-                  name="share-social-outline"
-                  size={Math.max(16, Math.round(18 * homeLayout.scale))}
-                  color={colors.accentPrimary}
-                />
-                <Text
-                  style={[
-                    styles.audioActionText,
-                    {
-                      color: colors.accentPrimary,
-                      fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
-                      lineHeight: homeLayout.subtitleLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.82}
-                >
-                  {t('common.share')}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
             ) : null}
           </>
         )}
@@ -914,6 +834,15 @@ const styles = StyleSheet.create({
   },
   verseCardContent: {
     flex: 1,
+  },
+  verseShareRow: {
+    marginTop: 'auto',
+    alignItems: 'flex-end',
+  },
+  verseShareButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   cardTitle: {
     ...typography.eyebrow,
