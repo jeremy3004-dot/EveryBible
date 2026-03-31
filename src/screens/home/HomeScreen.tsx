@@ -468,7 +468,7 @@ export function HomeScreen() {
             ]}
           >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
-          <View style={[styles.headerBlock, { gap: homeLayout.bodyGap }]}>
+          <View style={styles.headerBlock}>
             <Text
               style={[
                 styles.greeting,
@@ -483,21 +483,6 @@ export function HomeScreen() {
               minimumFontScale={0.75}
             >
               {getGreeting()}
-            </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                {
-                  color: colors.secondaryText,
-                  fontSize: homeLayout.subtitleFontSize,
-                  lineHeight: homeLayout.subtitleLineHeight,
-                },
-              ]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-            >
-              {t('home.welcome')}
             </Text>
           </View>
 
@@ -813,9 +798,6 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...typography.screenTitle,
-  },
-  subtitle: {
-    ...typography.body,
   },
   card: {
     borderRadius: radius.lg,

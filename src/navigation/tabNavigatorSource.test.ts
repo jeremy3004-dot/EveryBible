@@ -47,6 +47,12 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
     false,
     'TabNavigator should not reserve the full bottom inset as extra internal padding'
   );
+
+  assert.match(
+    source,
+    /const tabBarBottomPadding = spacing\.sm;/,
+    'TabNavigator should use a small fixed lift to pull the icons away from the home indicator'
+  );
 });
 
 test('TabNavigator uses the base tab bar height instead of adding the bottom safe-area inset twice', () => {
@@ -54,8 +60,8 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
 
   assert.match(
     source,
-    /const tabBarHeight = layout\.tabBarBaseHeight;/,
-    'TabNavigator should keep the tab bar height anchored to the base bar token'
+    /const tabBarHeight = layout\.tabBarBaseHeight \+ tabBarBottomPadding;/,
+    'TabNavigator should size the bar from the base token plus a small internal lift'
   );
 
   assert.equal(

@@ -44,3 +44,13 @@ test('HomeScreen trims the bottom padding so Chapters Read clears the tab bar', 
     'HomeScreen should keep a little less space under the content so the bottom card sits above the tabs'
   );
 });
+
+test('HomeScreen removes the extra welcome subtitle so the fixed layout can sit higher', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  assert.equal(
+    source.includes("t('home.welcome')"),
+    false,
+    'HomeScreen should remove the extra welcome subtitle to free vertical space for the fixed layout'
+  );
+});

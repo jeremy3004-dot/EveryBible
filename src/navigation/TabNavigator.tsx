@@ -18,12 +18,14 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const tabBarHeight = layout.tabBarBaseHeight;
+  const tabBarBottomPadding = spacing.sm;
+  const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
     backgroundColor: colors.background,
     borderTopColor: colors.cardBorder,
     borderTopWidth: 1,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: tabBarBottomPadding,
     height: tabBarHeight,
   } as const;
 
@@ -43,7 +45,7 @@ export function TabNavigator() {
               : defaultTabBarStyle,
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {
-          paddingVertical: spacing.xs,
+          paddingTop: spacing.xs,
         },
         tabBarIcon: ({ focused, color, size }) => {
           const tab = rootTabManifest.find((entry) => entry.name === route.name);
