@@ -96,6 +96,7 @@ import {
   buildBibleSelectionVerseRanges,
   extractBibleSelectionText,
   formatBibleSelectionReference,
+  getBibleSelectionShareTranslationLabel,
   toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
@@ -497,6 +498,10 @@ export function BibleReaderScreen() {
         ? selectedVerseImageBackgroundIndex % verseImageBackgroundCount
         : 0
     ] ?? HOME_VERSE_BACKGROUND_SOURCES[0];
+  const dismissSelectedVerseSelection = () => {
+    setShowVerseImageSheet(false);
+    setSelectedVerses([]);
+  };
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
@@ -572,6 +577,12 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const translationShareLabel =
+    getBibleSelectionShareTranslationLabel({
+      translationName: currentTranslationInfo?.name,
+      translationAbbreviation: currentTranslationInfo?.abbreviation,
+      translationLanguage: currentTranslationInfo?.language,
+    }) || translationLabel;
   const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
   const chapterAudioShareRootUri = `${
     FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
@@ -626,7 +637,7 @@ export function BibleReaderScreen() {
           bookName: getTranslatedBookName(bookId, t),
           chapter,
           verses: selectedVerses,
-          translationLabel,
+          translationLabel: translationShareLabel,
         })
       : '';
   const selectedVerseText =
@@ -1178,6 +1189,9 @@ export function BibleReaderScreen() {
     setChapterSessionMode(nextMode);
     setPreferredChapterLaunchMode(nextMode);
     navigation.setParams({ preferredMode: nextMode, autoplayAudio: false });
+    if (nextMode === 'listen') {
+      dismissSelectedVerseSelection();
+    }
     if (nextMode === 'read') {
       setShowFollowAlongText(false);
       return;
@@ -1907,8 +1921,7 @@ export function BibleReaderScreen() {
   };
 
   const handleCloseSelectedVerses = () => {
-    setShowVerseImageSheet(false);
-    setSelectedVerses([]);
+    dismissSelectedVerseSelection();
   };
 
   const handleShareSelectedVerses = async () => {

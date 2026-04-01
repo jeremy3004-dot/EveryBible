@@ -730,7 +730,7 @@ export const en = {
   gather: {
     title: 'Gather',
     foundations: 'Foundations',
-    topics: 'Wisdom',
+    wisdom: 'Wisdom',
     infoBanner: 'Help others start their journey of discovering God for themselves in the Bible.',
     wisdomBanner:
       'If your group has a specific felt need, do some wisdom lessons before returning to your foundational or training lessons.',

@@ -62,6 +62,7 @@ test('env example documents only supported Google sign-in client IDs', () => {
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=/);
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=/);
   assert.doesNotMatch(envExample, /EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=/);
+  assert.match(envExample, /EXPO_PUBLIC_CONTENT_API_URL=/);
 });
 
 test('buildPublicRuntimeConfig falls back to Expo extra when release bundles miss inline env vars', () => {
@@ -72,6 +73,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
         EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
         EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
         EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client-id',
+        EXPO_PUBLIC_CONTENT_API_URL: 'https://everybible.app/api/mobile/content',
       },
     },
   });
@@ -82,6 +84,10 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
   );
   assert.equal(runtimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY, 'publishable-key');
   assert.equal(runtimeConfig.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 'web-client-id');
+  assert.equal(
+    runtimeConfig.EXPO_PUBLIC_CONTENT_API_URL,
+    'https://everybible.app/api/mobile/content'
+  );
 });
 
 test('app config injects public runtime auth values into Expo extra for release builds', () => {
@@ -90,10 +96,12 @@ test('app config injects public runtime auth values into Expo extra for release 
     EXPO_PUBLIC_SUPABASE_URL: ' https://ganmududzdzpruvdulkg.supabase.co ',
     EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ' publishable-key ',
     EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ' ios-client-id ',
+    EXPO_PUBLIC_CONTENT_API_URL: ' https://everybible.app/api/mobile/content ',
   });
 
   assert.deepEqual(extra, {
     publicRuntimeConfig: {
+      EXPO_PUBLIC_CONTENT_API_URL: 'https://everybible.app/api/mobile/content',
       EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
       EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: 'ios-client-id',

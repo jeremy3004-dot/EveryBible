@@ -7,6 +7,12 @@ export interface BibleSelectionReferenceInput {
   translationLabel: string;
 }
 
+export interface BibleSelectionShareTranslationLabelInput {
+  translationName?: string | null;
+  translationAbbreviation?: string | null;
+  translationLanguage?: string | null;
+}
+
 export interface BibleSelectionVerseRange {
   verse_start: number;
   verse_end: number;
@@ -14,6 +20,35 @@ export interface BibleSelectionVerseRange {
 
 export const normalizeBibleSelectionVerses = (verses: number[]): number[] =>
   [...new Set(verses)].sort((left, right) => left - right);
+
+const normalizeSelectionLabel = (value?: string | null): string => value?.trim() ?? '';
+
+export const getBibleSelectionShareTranslationLabel = ({
+  translationName,
+  translationAbbreviation,
+  translationLanguage,
+}: BibleSelectionShareTranslationLabelInput): string => {
+  const normalizedName = normalizeSelectionLabel(translationName);
+  const normalizedAbbreviation = normalizeSelectionLabel(translationAbbreviation);
+  const normalizedLanguage = normalizeSelectionLabel(translationLanguage);
+
+  if (!normalizedAbbreviation) {
+    return normalizedName || normalizedLanguage;
+  }
+
+  const abbreviationMatchesLanguage =
+    normalizedLanguage.length > 0 &&
+    normalizedAbbreviation.localeCompare(normalizedLanguage, undefined, {
+      sensitivity: 'accent',
+      usage: 'search',
+    }) === 0;
+
+  if (abbreviationMatchesLanguage && normalizedName.length > 0) {
+    return normalizedName;
+  }
+
+  return normalizedAbbreviation;
+};
 
 const formatVerseRun = (startVerse: number, endVerse: number): string =>
   startVerse === endVerse ? `${startVerse}` : `${startVerse}-${endVerse}`;

@@ -72,9 +72,7 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
 
   assert.match(
     infoPlist,
-    new RegExp(
-      `<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`
-    ),
+    new RegExp(`<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`),
     'Expected ios/EveryBible/Info.plist to mirror NSCameraUsageDescription from app.json'
   );
   assert.match(

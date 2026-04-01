@@ -154,6 +154,16 @@ test('switching the chapter session into listen mode starts playback for the dis
   );
 });
 
+test('switching the chapter session into listen mode dismisses the verse selection tray', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*if \(nextMode === 'listen'\) \{[\s\S]*dismissSelectedVerseSelection\(\);[\s\S]*\}/s,
+    'BibleReaderScreen should clear the selection tray as part of entering listen mode'
+  );
+});
+
 test('chapter feedback renders inline on the listen page while keeping the overflow modal as rollback fallback', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

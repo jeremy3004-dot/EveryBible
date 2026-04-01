@@ -39,6 +39,7 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
+import { trackEvent } from '../services/analytics/analyticsService';
 import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
@@ -496,6 +497,15 @@ export const useBibleStore = create<BibleState>()(
                 : t
             ),
           }));
+
+          trackEvent('text_translation_download_completed', {
+            content_kind: 'text',
+            download_scope: 'translation',
+            download_units: 1,
+            has_audio: Boolean(translation?.hasAudio),
+            translation_id: translationId,
+            translation_source: translation?.source ?? 'unknown',
+          });
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Download failed';
           set((state) => ({
@@ -567,6 +577,16 @@ export const useBibleStore = create<BibleState>()(
           ),
           downloadProgress: null,
         }));
+
+        trackEvent('audio_download_completed', {
+          book_count: 1,
+          book_id: bookId,
+          chapter_count: book.chapters,
+          content_kind: 'audio',
+          download_scope: 'book',
+          download_units: 1,
+          translation_id: translationId,
+        });
       },
 
       downloadAudioForBooks: async (translationId: string, bookIds: string[]) => {
@@ -636,6 +656,16 @@ export const useBibleStore = create<BibleState>()(
           ),
           downloadProgress: null,
         }));
+
+        trackEvent('audio_download_completed', {
+          book_count: result.downloadedBookIds.length,
+          chapter_count: selectedBooks.reduce((total, book) => total + book.chapters, 0),
+          content_kind: 'audio',
+          download_scope:
+            result.downloadedBookIds.length === bibleBooks.length ? 'translation' : 'collection',
+          download_units: result.downloadedBookIds.length,
+          translation_id: translationId,
+        });
       },
 
       downloadAudioForTranslation: async (translationId: string) => {
