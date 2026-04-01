@@ -27,4 +27,10 @@ test('LessonDetailScreen uses the active Bible translation for gather scripture 
     true,
     'LessonDetailScreen should resolve gather lesson audio from the currently selected translation when available'
   );
+
+  assert.equal(
+    source.includes('gather.readTheStory'),
+    false,
+    'LessonDetailScreen should not render the redundant "Read the Story" button'
+  );
 });

@@ -38,7 +38,7 @@ export type LearnStackParamList = {
   LessonDetail: {
     parentId: string;
     lessonId: string;
-    parentType: 'foundation' | 'topic';
+    parentType: 'foundation' | 'wisdom';
   };
   GroupList: undefined;
   GroupDetail: {

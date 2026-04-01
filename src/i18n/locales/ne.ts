@@ -544,9 +544,9 @@ export const ne = {
   gather: {
     title: 'भेला',
     foundations: 'आधारहरू',
-    topics: 'विषयहरू',
+    wisdom: 'बुद्धि',
     infoBanner: 'अरूलाई बाइबलमा आफैँ परमेश्वर पत्ता लगाउने यात्रा सुरु गर्न मद्दत गर्नुहोस्।',
-    topicsBanner:
+    wisdomBanner:
       'यदि तपाईंको समूहको कुनै विशेष आवश्यकता छ भने, आफ्नो आधारभूत वा तालिम पाठहरूमा फर्कनु अघि केही विषयगत पाठहरू गर्नुहोस्।',
     getStarted: 'आधारहरूबाट सुरु गर्नुहोस्',
     foundationLabel: 'आधार {{number}}',
@@ -709,7 +709,7 @@ export const ne = {
     topicCharacterOfGod: 'परमेश्वरको चरित्र',
     topicPromisesOfGod: 'परमेश्वरका प्रतिज्ञाहरू',
     topicNamesOfGod: 'परमेश्वरका नामहरू',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'बलियो र साहसी हुनुहोस्',
         l2: 'दाऊद र गोलियत',

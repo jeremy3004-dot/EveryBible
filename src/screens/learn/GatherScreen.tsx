@@ -16,14 +16,18 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_TITLE_KEYS } from '../../data/gatherFoundations';
-import { gatherTopicCategories, CATEGORY_NAME_KEYS, TOPIC_TITLE_KEYS } from '../../data/gatherTopics';
+import {
+  gatherWisdomCategories,
+  WISDOM_CATEGORY_NAME_KEYS,
+  WISDOM_TITLE_KEYS,
+} from '../../data/gatherWisdom';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import type { LearnStackParamList } from '../../navigation/types';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
-type ActiveTab = 'foundations' | 'topics';
+type ActiveTab = 'foundations' | 'wisdom';
 
 
 export function GatherScreen() {
@@ -36,7 +40,7 @@ export function GatherScreen() {
 
   const getCompletedCount = useGatherStore((state) => state.getCompletedCount);
 
-  const topicCardWidth = (screenWidth - 2 * layout.screenPadding - spacing.sm) / 2;
+  const wisdomCardWidth = (screenWidth - 2 * layout.screenPadding - spacing.sm) / 2;
 
   return (
     <SafeAreaView
@@ -69,22 +73,22 @@ export function GatherScreen() {
 
         <TouchableOpacity
           style={styles.tabItem}
-          onPress={() => setActiveTab('topics')}
+          onPress={() => setActiveTab('wisdom')}
           activeOpacity={0.8}
           accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'topics' }}
+          accessibilityState={{ selected: activeTab === 'wisdom' }}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === 'topics'
+              activeTab === 'wisdom'
                 ? { ...typography.bodyStrong, color: colors.primaryText }
                 : { ...typography.body, color: colors.secondaryText },
             ]}
           >
-            {t('gather.topics')}
+            {t('gather.wisdom')}
           </Text>
-          {activeTab === 'topics' && (
+          {activeTab === 'wisdom' && (
             <View style={[styles.tabUnderline, { backgroundColor: colors.accentPrimary }]} />
           )}
         </TouchableOpacity>
@@ -175,17 +179,17 @@ export function GatherScreen() {
         </ScrollView>
       )}
 
-      {/* Topics sub-tab */}
-      {activeTab === 'topics' && (
+      {/* Wisdom sub-tab */}
+      {activeTab === 'wisdom' && (
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.topicsContent, { padding: layout.screenPadding, gap: spacing.xl }]}
+          contentContainerStyle={[styles.wisdomContent, { padding: layout.screenPadding, gap: spacing.xl }]}
           showsVerticalScrollIndicator={false}
         >
 
 
           {/* Category sections */}
-          {gatherTopicCategories.map((category) => (
+          {gatherWisdomCategories.map((category) => (
             <View key={category.id}>
               <View style={styles.categoryHeaderRow}>
                 {category.iconImage && gatherIconImages[category.iconImage] && (
@@ -195,59 +199,65 @@ export function GatherScreen() {
                   />
                 )}
                 <Text style={[styles.categoryHeader, { color: colors.primaryText }]}>
-                  {CATEGORY_NAME_KEYS[category.id] ? t(CATEGORY_NAME_KEYS[category.id]) : category.name}
+                  {WISDOM_CATEGORY_NAME_KEYS[category.id]
+                    ? t(WISDOM_CATEGORY_NAME_KEYS[category.id])
+                    : category.name}
                 </Text>
               </View>
-              <View style={styles.topicsGrid}>
-                {category.topics.map((topic) => {
-                  const completedCount = getCompletedCount(topic.id);
+              <View style={styles.wisdomGrid}>
+                {category.wisdoms.map((wisdom) => {
+                  const completedCount = getCompletedCount(wisdom.id);
                   return (
                     <TouchableOpacity
-                      key={topic.id}
+                      key={wisdom.id}
                       onPress={() =>
-                        navigation.navigate('FoundationDetail', { foundationId: topic.id })
+                        navigation.navigate('FoundationDetail', { foundationId: wisdom.id })
                       }
                       activeOpacity={0.85}
                       style={[
-                        styles.topicCard,
+                        styles.wisdomCard,
                         {
-                          width: topicCardWidth,
+                          width: wisdomCardWidth,
                           backgroundColor: colors.cardBackground,
                           borderColor: colors.cardBorder,
                         },
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel={TOPIC_TITLE_KEYS[topic.id] ? t(TOPIC_TITLE_KEYS[topic.id]) : topic.title}
+                      accessibilityLabel={
+                        WISDOM_TITLE_KEYS[wisdom.id]
+                          ? t(WISDOM_TITLE_KEYS[wisdom.id])
+                          : wisdom.title
+                      }
                     >
                       <View
                         style={[
-                          styles.topicIconContainer,
-                          topic.iconImage && gatherIconImages[topic.iconImage]
+                          styles.wisdomIconContainer,
+                          wisdom.iconImage && gatherIconImages[wisdom.iconImage]
                             ? undefined
                             : { backgroundColor: colors.accentPrimary + '18' },
                         ]}
                       >
-                        {topic.iconImage && gatherIconImages[topic.iconImage] ? (
+                        {wisdom.iconImage && gatherIconImages[wisdom.iconImage] ? (
                           <Image
-                            source={gatherIconImages[topic.iconImage]}
-                            style={styles.topicIconImage}
+                            source={gatherIconImages[wisdom.iconImage]}
+                            style={styles.wisdomIconImage}
                           />
                         ) : (
                           <Ionicons
-                            name={topic.iconName as React.ComponentProps<typeof Ionicons>['name']}
+                            name={wisdom.iconName as React.ComponentProps<typeof Ionicons>['name']}
                             size={20}
                             color={colors.accentPrimary}
                           />
                         )}
                       </View>
                       <Text
-                        style={[styles.topicTitle, { color: colors.primaryText }]}
+                        style={[styles.wisdomTitle, { color: colors.primaryText }]}
                         numberOfLines={2}
                       >
-                        {TOPIC_TITLE_KEYS[topic.id] ? t(TOPIC_TITLE_KEYS[topic.id]) : topic.title}
+                        {WISDOM_TITLE_KEYS[wisdom.id] ? t(WISDOM_TITLE_KEYS[wisdom.id]) : wisdom.title}
                       </Text>
-                      <Text style={[styles.topicProgress, { color: colors.secondaryText }]}>
-                        {`${completedCount}/${topic.lessonCount}`}
+                      <Text style={[styles.wisdomProgress, { color: colors.secondaryText }]}>
+                        {`${completedCount}/${wisdom.lessonCount}`}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -293,7 +303,7 @@ const styles = StyleSheet.create({
   foundationsContent: {
     paddingBottom: spacing.xxxl,
   },
-  topicsContent: {
+  wisdomContent: {
     paddingBottom: spacing.xxxl,
   },
   // Info banner
@@ -351,7 +361,7 @@ const styles = StyleSheet.create({
   foundationProgress: {
     ...typography.label,
   },
-  // Topics
+  // Wisdom
   categoryHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,19 +376,19 @@ const styles = StyleSheet.create({
   categoryHeader: {
     ...typography.cardTitle,
   },
-  topicsGrid: {
+  wisdomGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  topicCard: {
+  wisdomCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.md,
     alignItems: 'center',
     gap: spacing.sm,
   },
-  topicIconContainer: {
+  wisdomIconContainer: {
     width: 40,
     height: 40,
     borderRadius: radius.pill,
@@ -386,16 +396,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  topicIconImage: {
+  wisdomIconImage: {
     width: 40,
     height: 40,
     borderRadius: radius.pill,
   },
-  topicTitle: {
+  wisdomTitle: {
     ...typography.label,
     textAlign: 'center',
   },
-  topicProgress: {
+  wisdomProgress: {
     ...typography.micro,
   },
 });

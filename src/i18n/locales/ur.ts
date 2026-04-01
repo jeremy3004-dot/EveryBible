@@ -663,9 +663,9 @@ export const ur = {
   gather: {
     title: 'اجتماع',
     foundations: 'بنیادیں',
-    topics: 'موضوعات',
+    wisdom: 'حکمت',
     infoBanner: 'دوسروں کو بائبل میں خود خدا کو دریافت کرنے کا سفر شروع کرنے میں مدد کریں۔',
-    topicsBanner: 'اگر آپ کے گروپ کی کوئی مخصوص ضرورت ہے، تو اپنے بنیادی یا تربیتی اسباق پر واپس آنے سے پہلے کچھ موضوعاتی اسباق کریں۔',
+    wisdomBanner: 'اگر آپ کے گروپ کی کوئی مخصوص ضرورت ہے، تو اپنے بنیادی یا تربیتی اسباق پر واپس آنے سے پہلے کچھ موضوعاتی اسباق کریں۔',
     getStarted: 'بنیادوں کے ساتھ شروع کریں',
     foundationLabel: 'بنیاد {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const ur = {
     topicCharacterOfGod: 'خدا کا کردار',
     topicPromisesOfGod: 'خدا کے وعدے',
     topicNamesOfGod: 'خدا کے نام',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'مضبوط اور ہمت والا بن',
         l2: 'داؤد اور جالوت',

@@ -663,9 +663,9 @@ export const vi = {
   gather: {
     title: 'Nhóm Họp',
     foundations: 'Nền Tảng',
-    topics: 'Chủ Đề',
+    wisdom: 'Khôn ngoan',
     infoBanner: 'Giúp người khác bắt đầu hành trình tự khám phá Đức Chúa Trời trong Kinh Thánh.',
-    topicsBanner: 'Nếu nhóm của bạn có nhu cầu cụ thể, hãy thực hiện một số bài học theo chủ đề trước khi quay lại các bài học nền tảng hoặc đào tạo.',
+    wisdomBanner: 'Nếu nhóm của bạn có nhu cầu cụ thể, hãy thực hiện một số bài học theo chủ đề trước khi quay lại các bài học nền tảng hoặc đào tạo.',
     getStarted: 'Bắt đầu với nền tảng',
     foundationLabel: 'Nền Tảng {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const vi = {
     topicCharacterOfGod: 'Bản Tính Đức Chúa Trời',
     topicPromisesOfGod: 'Lời Hứa Của Đức Chúa Trời',
     topicNamesOfGod: 'Các Danh Hiệu Của Đức Chúa Trời',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Hãy mạnh mẽ và can đảm',
         l2: 'Đa-vít và Gô-li-át',

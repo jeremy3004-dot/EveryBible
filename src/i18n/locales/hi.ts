@@ -712,9 +712,9 @@ export const hi = {
   gather: {
     title: 'इकट्ठा',
     foundations: 'आधार',
-    topics: 'विषय',
+    wisdom: 'बुद्धि',
     infoBanner: 'दूसरों को बाइबल में खुद के लिए परमेश्वर की खोज की यात्रा शुरू करने में मदद करें।',
-    topicsBanner:
+    wisdomBanner:
       'यदि आपके समूह की कोई विशेष आवश्यकता है, तो अपने मूलभूत या प्रशिक्षण पाठों पर वापस आने से पहले कुछ विषयगत पाठ करें।',
     getStarted: 'नींव के साथ शुरुआत करें',
     foundationLabel: 'नींव {{number}}',
@@ -877,7 +877,7 @@ export const hi = {
     topicCharacterOfGod: 'परमेश्वर का चरित्र',
     topicPromisesOfGod: 'परमेश्वर के वादे',
     topicNamesOfGod: 'परमेश्वर के नाम',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'मजबूत और साहसी बनो',
         l2: 'दाऊद और गोलियत',

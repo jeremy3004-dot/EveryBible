@@ -663,9 +663,9 @@ export const ja = {
   gather: {
     title: '集い',
     foundations: '基礎',
-    topics: 'テーマ',
+    wisdom: '知恵',
     infoBanner: '他の人が聖書の中で自分自身で神を発見する旅を始める手助けをしましょう。',
-    topicsBanner: 'グループに特定のニーズがある場合は、基礎や訓練のレッスンに戻る前にトピック別のレッスンをいくつか行いましょう。',
+    wisdomBanner: 'グループに特定のニーズがある場合は、基礎や訓練のレッスンに戻る前にトピック別のレッスンをいくつか行いましょう。',
     getStarted: '基礎から始める',
     foundationLabel: '基礎 {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const ja = {
     topicCharacterOfGod: '神のご性質',
     topicPromisesOfGod: '神の約束',
     topicNamesOfGod: '神のみ名',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: '強く、雄々しくあれ',
         l2: 'ダビデとゴリアテ',

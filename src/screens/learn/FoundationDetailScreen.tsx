@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_TITLE_KEYS, FOUNDATION_DESC_KEYS, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
-import { gatherTopicCategories, TOPIC_TITLE_KEYS } from '../../data/gatherTopics';
+import { gatherWisdomCategories, WISDOM_TITLE_KEYS } from '../../data/gatherWisdom';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
@@ -27,7 +27,6 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<GatherLesson | null>(null);
   const [bottomSheetVisible, setBottomSheetVisible] = useState(false);
 
@@ -36,10 +35,10 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const isLessonComplete = useGatherStore((state) => state.isLessonComplete);
   const getCompletedCount = useGatherStore((state) => state.getCompletedCount);
 
-  // Resolve foundation or topic by ID
+  // Resolve foundation or wisdom by ID
   const foundation =
     gatherFoundations.find((f) => f.id === foundationId) ??
-    gatherTopicCategories.flatMap((c) => c.topics).find((t) => t.id === foundationId);
+    gatherWisdomCategories.flatMap((c) => c.wisdoms).find((wisdom) => wisdom.id === foundationId);
 
   if (!foundation) {
     return (
@@ -113,8 +112,8 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         >
           {FOUNDATION_TITLE_KEYS[foundation.id]
             ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-            : TOPIC_TITLE_KEYS[foundation.id]
-              ? t(TOPIC_TITLE_KEYS[foundation.id])
+            : WISDOM_TITLE_KEYS[foundation.id]
+              ? t(WISDOM_TITLE_KEYS[foundation.id])
               : foundation.title}
         </Text>
 
@@ -176,29 +175,18 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
             {FOUNDATION_TITLE_KEYS[foundation.id]
               ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-              : TOPIC_TITLE_KEYS[foundation.id]
-                ? t(TOPIC_TITLE_KEYS[foundation.id])
-                : foundation.title}
+            : WISDOM_TITLE_KEYS[foundation.id]
+              ? t(WISDOM_TITLE_KEYS[foundation.id])
+              : foundation.title}
           </Text>
         </View>
 
-        {/* Description (expandable) — GatherFoundation has description; GatherTopic does not */}
+        {/* Description — GatherFoundation has description; GatherWisdom does not */}
         {'description' in foundation && !!foundation.description && (
           <View style={styles.descriptionSection}>
-            <Text
-              style={[styles.descriptionText, { color: colors.secondaryText }]}
-              numberOfLines={descriptionExpanded ? undefined : 3}
-            >
+            <Text style={[styles.descriptionText, { color: colors.secondaryText }]}>
               {FOUNDATION_DESC_KEYS[foundation.id] ? t(FOUNDATION_DESC_KEYS[foundation.id]) : foundation.description}
             </Text>
-            <TouchableOpacity
-              onPress={() => setDescriptionExpanded((prev) => !prev)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.showMoreText, { color: colors.accentPrimary }]}>
-                {descriptionExpanded ? t('gather.showLess') : t('gather.showMore')}
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -245,7 +233,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                 navigation.navigate('LessonDetail', {
                   parentId: foundationId,
                   lessonId: lesson.id,
-                  parentType: isFoundation ? 'foundation' : 'topic',
+                  parentType: isFoundation ? 'foundation' : 'wisdom',
                 })
               }
               activeOpacity={0.85}
@@ -426,9 +414,6 @@ const styles = StyleSheet.create({
   },
   descriptionText: {
     ...typography.body,
-  },
-  showMoreText: {
-    ...typography.label,
   },
   // Invitation card
   invitationCard: {

@@ -663,9 +663,9 @@ export const id = {
   gather: {
     title: 'Berkumpul',
     foundations: 'Fondasi',
-    topics: 'Topik',
+    wisdom: 'Hikmat',
     infoBanner: 'Bantu orang lain memulai perjalanan mereka sendiri dalam menemukan Tuhan di Alkitab.',
-    topicsBanner: 'Jika kelompok Anda memiliki kebutuhan tertentu, lakukan beberapa pelajaran topikal sebelum kembali ke pelajaran fondasi atau pelatihan Anda.',
+    wisdomBanner: 'Jika kelompok Anda memiliki kebutuhan tertentu, lakukan beberapa pelajaran topikal sebelum kembali ke pelajaran fondasi atau pelatihan Anda.',
     getStarted: 'Mulai dengan fondasi',
     foundationLabel: 'Fondasi {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const id = {
     topicCharacterOfGod: 'Karakter Tuhan',
     topicPromisesOfGod: 'Janji Tuhan',
     topicNamesOfGod: 'Nama-nama Tuhan',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Kuatkan dan teguhkan hatimu',
         l2: 'Daud dan Goliat',

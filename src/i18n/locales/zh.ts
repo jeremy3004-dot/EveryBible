@@ -663,9 +663,9 @@ export const zh = {
   gather: {
     title: '聚集',
     foundations: '根基',
-    topics: '主题',
+    wisdom: '智慧',
     infoBanner: '帮助他人开始自己在圣经中认识神的旅程。',
-    topicsBanner: '如果你的小组有特定的需求，在回到根基或训练课程之前，先做一些专题课程。',
+    wisdomBanner: '如果你的小组有特定的需求，在回到根基或训练课程之前，先做一些专题课程。',
     getStarted: '从根基开始',
     foundationLabel: '根基 {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const zh = {
     topicCharacterOfGod: '神的性情',
     topicPromisesOfGod: '神的应许',
     topicNamesOfGod: '神的名字',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: '刚强壮胆',
         l2: '大卫与歌利亚',

@@ -548,10 +548,10 @@ export const es = {
   gather: {
     title: 'Reunir',
     foundations: 'Fundamentos',
-    topics: 'Temas',
+    wisdom: 'Sabiduría',
     infoBanner:
       'Ayuda a otros a comenzar su camino de descubrir a Dios por sí mismos en la Biblia.',
-    topicsBanner:
+    wisdomBanner:
       'Si tu grupo tiene una necesidad específica, haz algunas lecciones temáticas antes de regresar a tus lecciones fundamentales o de entrenamiento.',
     getStarted: 'Comienza con los fundamentos',
     foundationLabel: 'Fundamentos {{number}}',
@@ -716,7 +716,7 @@ export const es = {
     topicCharacterOfGod: 'El carácter de Dios',
     topicPromisesOfGod: 'Las promesas de Dios',
     topicNamesOfGod: 'Los nombres de Dios',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Sé fuerte y valiente',
         l2: 'David y Goliat',

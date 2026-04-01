@@ -663,9 +663,9 @@ export const fr = {
   gather: {
     title: 'Rassemblement',
     foundations: 'Fondements',
-    topics: 'Thèmes',
+    wisdom: 'Sagesse',
     infoBanner: 'Aidez d\'autres à commencer leur propre voyage de découverte de Dieu dans la Bible.',
-    topicsBanner: 'Si votre groupe a un besoin particulier ressenti, faites quelques leçons thématiques avant de revenir à vos leçons fondamentales ou de formation.',
+    wisdomBanner: 'Si votre groupe a un besoin particulier ressenti, faites quelques leçons thématiques avant de revenir à vos leçons fondamentales ou de formation.',
     getStarted: 'Commencer avec les fondements',
     foundationLabel: 'Fondements {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const fr = {
     topicCharacterOfGod: 'Caractère de Dieu',
     topicPromisesOfGod: 'Promesses de Dieu',
     topicNamesOfGod: 'Noms de Dieu',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Sois fort et courageux',
         l2: 'David et Goliath',
