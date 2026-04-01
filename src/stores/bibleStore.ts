@@ -18,6 +18,7 @@ import {
   expoAudioFileSystemAdapter,
   fetchRemoteChapterAudio,
   getAudioAvailability,
+  ensureBackgroundAudioDownloadsRunning,
   isRemoteAudioAvailable,
   syncRemoteAudioMetadataResolverWithTranslations,
   type AudioDownloadBookProgress,
@@ -348,6 +349,8 @@ export const useBibleStore = create<BibleState>()(
             }
           })
         );
+
+        await ensureBackgroundAudioDownloadsRunning();
 
         const activeJobs = Array.from(latestJobsByTranslation.values());
 
