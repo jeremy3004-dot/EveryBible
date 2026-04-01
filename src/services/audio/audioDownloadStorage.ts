@@ -118,6 +118,25 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
   }
 }
 
+export async function ensureBackgroundAudioDownloadsRunning(): Promise<void> {
+  try {
+    const backgroundDownloader = await import(
+      '@kesha-antonov/react-native-background-downloader'
+    );
+    const ensureDownloadsAreRunning = (
+      backgroundDownloader as {
+        ensureDownloadsAreRunning?: () => Promise<void>;
+      }
+    ).ensureDownloadsAreRunning;
+
+    if (typeof ensureDownloadsAreRunning === 'function') {
+      await ensureDownloadsAreRunning();
+    }
+  } catch {
+    // The background downloader is optional in some Expo/dev contexts.
+  }
+}
+
 const isAudioDownloadJobRecord = (value: unknown): value is AudioDownloadJobRecord => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;

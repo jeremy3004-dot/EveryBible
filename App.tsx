@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { InteractionManager, StyleSheet, View } from 'react-native';
+import { AppState, type AppStateStatus, InteractionManager, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -59,6 +59,7 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
   const preferences = useAuthStore((state) => state.preferences);
   const reconcileTranslationPacks = useBibleStore((state) => state.reconcileTranslationPacks);
   const reattachAudioDownloads = useBibleStore((state) => state.reattachAudioDownloads);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const startupCoordinator = useMemo(
     () =>
       createStartupCoordinator({
@@ -147,9 +148,25 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
       return;
     }
 
-    void reattachAudioDownloads().catch((error) => {
-      console.error('Failed to reattach persisted audio downloads:', error);
+    const recoverAudioDownloads = () => {
+      void reattachAudioDownloads().catch((error) => {
+        console.error('Failed to reattach persisted audio downloads:', error);
+      });
+    };
+
+    recoverAudioDownloads();
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        recoverAudioDownloads();
+      }
+
+      appStateRef.current = nextAppState;
     });
+
+    return () => {
+      subscription.remove();
+    };
   }, [isReady, preferences.onboardingCompleted, reattachAudioDownloads]);
 
   useEffect(() => {
