@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildReaderChapterRouteParams,
+  FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   getReaderChromeAnimationProgress,
+  getReaderVerseLineHeight,
   isReaderChromeCollapsed,
   READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
@@ -61,6 +63,12 @@ test('opens the translation sheet from the header chip when multiple translation
 test('keeps the translation sheet closed when translation switching is unavailable', () => {
   assert.equal(getNextTranslationSheetVisibility(false, false, 'toggleChip'), false);
   assert.equal(getNextTranslationSheetVisibility(true, false, 'toggleChip'), false);
+});
+
+test('uses a slightly more open line height for reader verses', () => {
+  assert.equal(getReaderVerseLineHeight(20), 30);
+  assert.equal(getReaderVerseLineHeight(18), 27);
+  assert.equal(FOLLOW_ALONG_VERSE_LINE_HEIGHT, 32);
 });
 
 test('closes the translation sheet after selection or manual dismissal', () => {

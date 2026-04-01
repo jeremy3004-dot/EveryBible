@@ -90,11 +90,13 @@ import {
   buildReaderChapterRouteParams,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
+  FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
+  getReaderVerseLineHeight,
   shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
@@ -1586,7 +1588,7 @@ export function BibleReaderScreen() {
     const verseFontSize = usePremiumTypography
       ? scaleValue(typography.readingBody.fontSize)
       : scaleValue(20);
-    const verseLineHeight = Math.round(verseFontSize * 1.4);
+    const verseLineHeight = getReaderVerseLineHeight(verseFontSize);
     const verseNumberSize = usePremiumTypography
       ? scaleValue(typography.readingVerseNumber.fontSize)
       : scaleValue(12);
@@ -3560,7 +3562,7 @@ const styles = StyleSheet.create({
   followAlongVerseText: {
     ...typography.readingBody,
     fontSize: 18,
-    lineHeight: 30,
+    lineHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   },
   followAlongVerseNumber: {
     ...typography.readingVerseNumber,

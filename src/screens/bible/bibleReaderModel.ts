@@ -18,6 +18,8 @@ interface ReaderChapterRouteParamsInput {
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
 export const READER_TOP_CHROME_DISMISS_DISTANCE = 220;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
+export const READER_VERSE_LINE_HEIGHT_MULTIPLIER = 1.5;
+export const FOLLOW_ALONG_VERSE_LINE_HEIGHT = 32;
 
 interface InitialChapterSessionModeInput {
   translationId?: string | null;
@@ -150,6 +152,9 @@ export const getReaderChromeAnimationProgress = (
   const clampedOffset = Math.max(offsetY, 0);
   return Math.max(0, Math.min(clampedOffset / collapseDistance, 1));
 };
+
+export const getReaderVerseLineHeight = (verseFontSize: number): number =>
+  Math.round(verseFontSize * READER_VERSE_LINE_HEIGHT_MULTIPLIER);
 
 export const isReaderChromeCollapsed = (offsetY: number): boolean =>
   getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE) >= 1;
