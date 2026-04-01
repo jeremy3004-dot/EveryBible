@@ -94,3 +94,17 @@ export function reconcileMissingRuntimeTranslationPacks(
       : fallbackTranslationId,
   };
 }
+
+export function mergeDownloadedAudioBook(
+  translation: BibleTranslation,
+  bookId: string
+): BibleTranslation {
+  if (translation.downloadedAudioBooks.includes(bookId)) {
+    return translation;
+  }
+
+  return {
+    ...translation,
+    downloadedAudioBooks: [...translation.downloadedAudioBooks, bookId],
+  };
+}

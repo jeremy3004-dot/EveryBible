@@ -20,6 +20,7 @@ import {
   getAudioAvailability,
   isRemoteAudioAvailable,
   syncRemoteAudioMetadataResolverWithTranslations,
+  type AudioDownloadBookProgress,
   type AudioDownloadJobRecord,
 } from '../services/audio';
 import {
@@ -39,6 +40,7 @@ import {
 } from './persistedStateSanitizers';
 import {
   mergeRuntimeCatalogTranslations,
+  mergeDownloadedAudioBook,
   reconcileMissingRuntimeTranslationPacks,
 } from './bibleStoreModel';
 
@@ -551,13 +553,13 @@ export const useBibleStore = create<BibleState>()(
         set((state) => ({
           translations: state.translations.map((item) =>
             item.id === translationId
-              ? {
-                  ...item,
-                  activeDownloadJob: null,
-                  downloadedAudioBooks: Array.from(
-                    new Set([...item.downloadedAudioBooks, bookId])
-                  ),
-                }
+              ? mergeDownloadedAudioBook(
+                  {
+                    ...item,
+                    activeDownloadJob: null,
+                  },
+                  bookId
+                )
               : item
           ),
           downloadProgress: null,
@@ -588,6 +590,15 @@ export const useBibleStore = create<BibleState>()(
             downloadProgress: mapAudioDownloadProgress(job),
           }));
         };
+        const handleAudioBookComplete = ({ bookId: completedBookId }: AudioDownloadBookProgress) => {
+          set((state) => ({
+            translations: state.translations.map((item) =>
+              item.id === translationId
+                ? mergeDownloadedAudioBook(item, completedBookId)
+                : item
+            ),
+          }));
+        };
 
         const result = await downloadAudioTranslation({
           rootUri: AUDIO_DOWNLOAD_ROOT_URI,
@@ -602,6 +613,7 @@ export const useBibleStore = create<BibleState>()(
             onReattach: handleAudioJobUpdate,
             onFailure: (job) => handleAudioJobUpdate(job),
             onComplete: handleAudioJobUpdate,
+            onBookComplete: handleAudioBookComplete,
           },
         });
 
@@ -611,8 +623,10 @@ export const useBibleStore = create<BibleState>()(
               ? {
                   ...item,
                   activeDownloadJob: null,
-                  downloadedAudioBooks: Array.from(
-                    new Set([...item.downloadedAudioBooks, ...result.downloadedBookIds])
+                  downloadedAudioBooks: result.downloadedBookIds.reduce(
+                    (books, completedBookId) =>
+                      books.includes(completedBookId) ? books : [...books, completedBookId],
+                    item.downloadedAudioBooks
                   ),
                 }
               : item

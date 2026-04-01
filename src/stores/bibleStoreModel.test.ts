@@ -5,6 +5,7 @@ import type { BibleTranslation } from '../types';
 import {
   mergeRuntimeCatalogTranslations,
   reconcileMissingRuntimeTranslationPacks,
+  mergeDownloadedAudioBook,
 } from './bibleStoreModel';
 
 function makeTranslation(overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name'>): BibleTranslation {
@@ -206,4 +207,19 @@ test('reconcileMissingRuntimeTranslationPacks keeps other translations selected 
   assert.ok(niv);
   assert.equal(niv.installState, 'remote-only');
   assert.equal(niv.isDownloaded, false);
+});
+
+test('mergeDownloadedAudioBook appends each finished audio book exactly once', () => {
+  const translation = makeTranslation({
+    id: 'bsb',
+    name: 'Berean Standard Bible',
+    hasAudio: true,
+    downloadedAudioBooks: ['GEN'],
+  });
+
+  const withJohn = mergeDownloadedAudioBook(translation, 'JHN');
+  const withJohnAgain = mergeDownloadedAudioBook(withJohn, 'JHN');
+
+  assert.deepEqual(withJohn.downloadedAudioBooks, ['GEN', 'JHN']);
+  assert.equal(withJohnAgain, withJohn);
 });

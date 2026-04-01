@@ -296,3 +296,31 @@ test('downloadAudioTranslation returns every fully-downloaded book id in order',
   assert.deepEqual(result.downloadedBookIds, ['2JN', '3JN']);
   assert.equal(downloads.length, 2);
 });
+
+test('downloadAudioTranslation reports incremental book completion progress', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const selectedBooks = ['2JN', '3JN']
+    .map((bookId) => getBookById(bookId))
+    .filter((book) => book !== undefined);
+  const events: Array<{ completedBooks: number; totalBooks: number }> = [];
+
+  await downloadAudioTranslation({
+    translationId: 'bsb',
+    books: selectedBooks,
+    fileSystem,
+    resolveRemoteAudio: async (_translationId, bookId, chapter) => ({
+      url: `https://audio.test/${bookId}/${chapter}.mp3`,
+      duration: 1000,
+    }),
+    hooks: {
+      onBookComplete: ({ completedBooks, totalBooks }) => {
+        events.push({ completedBooks, totalBooks });
+      },
+    },
+  });
+
+  assert.deepEqual(events, [
+    { completedBooks: 1, totalBooks: 2 },
+    { completedBooks: 2, totalBooks: 2 },
+  ]);
+});

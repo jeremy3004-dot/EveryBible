@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { config } from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
+
+const ABOUT_WEBSITE_URL = 'https://everybible.app';
+const ABOUT_WEBSITE_LABEL = 'everybible.app';
+const ABOUT_SUPPORT_EMAIL = 'hello@everybible.app';
+const ABOUT_RESOURCES_LABEL = 'Resources';
+const ABOUT_MADE_WITH_LOVE = 'Made with love';
+const ABOUT_APP_ICON = require('../../../assets/icon.png');
 
 export function AboutScreen() {
   const navigation = useNavigation();
@@ -31,7 +38,7 @@ export function AboutScreen() {
         {/* App Logo/Title */}
         <View style={styles.appSection}>
           <View style={styles.appIcon}>
-            <Ionicons name="book" size={48} color={colors.accentGreen} />
+            <Image source={ABOUT_APP_ICON} style={styles.appIconImage} resizeMode="cover" />
           </View>
           <Text style={styles.appName}>{config.appName}</Text>
           <Text style={styles.appVersion}>{t('about.version', { version: config.version })}</Text>
@@ -44,39 +51,34 @@ export function AboutScreen() {
           </Text>
         </View>
 
-        {/* Bible Info */}
-        <Text style={styles.sectionTitle}>{t('about.bibleTranslation')}</Text>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>{t('about.bsbTitle')}</Text>
-          <Text style={styles.infoDescription}>
-            {t('about.bsbDescription')}
-          </Text>
-        </View>
-
         {/* Links */}
-        <Text style={styles.sectionTitle}>{t('about.resources')}</Text>
+        <Text style={styles.sectionTitle}>{t('about.resources', { defaultValue: ABOUT_RESOURCES_LABEL })}</Text>
         <View style={styles.linksCard}>
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('https://berean.bible')}
+            onPress={() => handleLink(ABOUT_WEBSITE_URL)}
           >
             <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>{t('about.bereanWebsite')}</Text>
+            <Text style={styles.linkText}>
+              {t('about.bereanWebsite', { defaultValue: ABOUT_WEBSITE_LABEL })}
+            </Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('mailto:support@everybible.app')}
+            onPress={() => handleLink(`mailto:${ABOUT_SUPPORT_EMAIL}`)}
           >
             <Ionicons name="mail-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>{t('about.contactSupport')}</Text>
+            <Text style={styles.linkText}>
+              {t('about.contactSupport', { defaultValue: ABOUT_SUPPORT_EMAIL })}
+            </Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('https://everybible.app/privacy')}
+            onPress={() => handleLink('https://jeremy3004-dot.github.io/EveryBible/privacy.html')}
           >
             <Ionicons name="shield-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.privacyPolicy')}</Text>
@@ -85,7 +87,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={[styles.linkItem, styles.linkItemLast]}
-            onPress={() => handleLink('https://everybible.app/terms')}
+            onPress={() => handleLink('https://jeremy3004-dot.github.io/EveryBible/terms.html')}
           >
             <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>
@@ -93,7 +95,9 @@ export function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.copyright}>{t('about.madeWithLove')}</Text>
+        <Text style={styles.copyright}>
+          {t('about.madeWithLove', { defaultValue: ABOUT_MADE_WITH_LOVE })}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,6 +144,11 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: spacing.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+      overflow: 'hidden',
+    },
+    appIconImage: {
+      width: '100%',
+      height: '100%',
     },
     appName: {
       ...typography.sectionTitle,
@@ -168,23 +177,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
       textTransform: 'uppercase',
       marginBottom: spacing.md,
-    },
-    infoCard: {
-      backgroundColor: colors.cardBackground,
-      borderRadius: radius.lg,
-      padding: layout.cardPadding,
-      marginBottom: spacing.xl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    infoLabel: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-      marginBottom: spacing.sm,
-    },
-    infoDescription: {
-      ...typography.label,
-      color: colors.secondaryText,
     },
     linksCard: {
       backgroundColor: colors.cardBackground,

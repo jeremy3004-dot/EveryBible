@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ComponentProps } from 'react';
+import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   InteractionManager,
   useWindowDimensions,
   Share,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,12 +31,12 @@ import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getDailyScripture } from '../../services/bible';
+import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { radius, spacing, typography } from '../../design/system';
-import { captureRef } from 'react-native-view-shot';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -48,6 +50,8 @@ export function HomeScreen() {
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const verseSharePreviewRef = useRef<View | null>(null);
   const verseBackground = getHomeVerseBackground();
   const homeLayout = getHomeScreenLayout(screenWidth, screenHeight, bottomTabBarHeight);
@@ -86,7 +90,55 @@ export function HomeScreen() {
   const activeFoundationDone = completedLessons[activeFoundation.id]?.length ?? 0;
   const activeFoundationTotal = activeFoundation.lessons.length;
 
+  const loadVerseOfDay = useCallback(
+    async ({
+      allowInitialization = true,
+      silent = false,
+    }: {
+      allowInitialization?: boolean;
+      silent?: boolean;
+    } = {}) => {
+      if (!silent) {
+        setIsLoadingVerse(true);
+      }
+
+      try {
+        if (!currentTranslationInfo) {
+          setDailyScripture(null);
+          return;
+        }
+
+        const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
+          allowInitialization,
+        });
+        setDailyScripture(scripture);
+      } catch (error) {
+        console.error('Error loading verse of the day:', error);
+      } finally {
+        if (!silent) {
+          setIsLoadingVerse(false);
+        }
+      }
+    },
+    [currentTranslationInfo, remoteAudioAvailable]
+  );
+
   useEffect(() => {
+    const refreshVerseOfDay = () => {
+      void loadVerseOfDay({ allowInitialization: false, silent: true });
+    };
+
+    const scheduleMidnightRefresh = () => {
+      if (midnightRefreshTimerRef.current) {
+        clearTimeout(midnightRefreshTimerRef.current);
+      }
+
+      midnightRefreshTimerRef.current = setTimeout(() => {
+        refreshVerseOfDay();
+        scheduleMidnightRefresh();
+      }, getMillisecondsUntilNextLocalMidnight());
+    };
+
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       void loadVerseOfDay({ allowInitialization: false });
     });
@@ -95,46 +147,31 @@ export function HomeScreen() {
       void loadVerseOfDay({ allowInitialization: false, silent: true });
     }, 2500);
 
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        refreshVerseOfDay();
+        scheduleMidnightRefresh();
+      }
+
+      appStateRef.current = nextAppState;
+    });
+
+    scheduleMidnightRefresh();
+
     return () => {
       interactionHandle.cancel();
+      subscription.remove();
 
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
+      if (midnightRefreshTimerRef.current) {
+        clearTimeout(midnightRefreshTimerRef.current);
+        midnightRefreshTimerRef.current = null;
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTranslation, remoteAudioAvailable]);
-
-  const loadVerseOfDay = async ({
-    allowInitialization = true,
-    silent = false,
-  }: {
-    allowInitialization?: boolean;
-    silent?: boolean;
-  } = {}) => {
-    if (!silent) {
-      setIsLoadingVerse(true);
-    }
-
-    try {
-      if (!currentTranslationInfo) {
-        setDailyScripture(null);
-        return;
-      }
-
-      const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
-        allowInitialization,
-      });
-      setDailyScripture(scripture);
-    } catch (error) {
-      console.error('Error loading verse of the day:', error);
-    } finally {
-      if (!silent) {
-        setIsLoadingVerse(false);
-      }
-    }
-  };
+  }, [loadVerseOfDay]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -241,6 +278,7 @@ export function HomeScreen() {
       const Sharing = await import('expo-sharing');
 
       if ((await Sharing.isAvailableAsync()) && verseSharePreviewRef.current) {
+        const { captureRef } = await import('react-native-view-shot');
         const imageUri = await captureRef(verseSharePreviewRef, {
           format: 'png',
           quality: 1,

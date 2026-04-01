@@ -22,6 +22,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 9. **Use Expo's native modules** - Why: Custom native modules require ejecting from managed workflow
 10. **Follow React Navigation v7 patterns** - Why: Stack/Tab navigators have specific type requirements
 11. **Bump all three DB version constants when rebuilding bible-bsb-v2.db** - Why: The upgrade gate in `ensureBundledDatabaseReady()` will silently skip re-importing the DB on existing devices if the thresholds aren't raised. Every rebuild of `bible-bsb-v2.db` MUST update in the same commit: (a) `PRAGMA user_version` in the DB file, (b) `BUNDLED_BIBLE_SCHEMA_VERSION` in `bibleDataModel.ts`, (c) `DEFAULT_MINIMUM_READY_VERSE_COUNT` in `bibleDatabase.ts`. Failing this caused ASV to be invisible on existing installs even though the bundled DB had the data.
+12. **For iOS TestFlight releases, prefer local EAS builds with remote Expo-managed credentials** - Why: This project can successfully run `eas build --platform ios --profile production --local` while EAS fetches signing assets from Expo's remote credential store. Missing local `credentials.json`, `.p12`, or `.mobileprovision` files are not a release blocker unless the flow explicitly requires manual local signing.
 
 ---
 
@@ -96,6 +97,14 @@ eas build --platform android --profile production # Android production build
 eas submit --platform ios --profile production    # Submit iOS to App Store/TestFlight
 eas submit --platform android --profile production # Submit Android to Play Store
 ```
+
+### iOS Release Credential Rule
+```bash
+eas build --platform ios --profile production --local
+```
+- Default to a local EAS production build first for TestFlight releases.
+- Let EAS use remote Expo-managed iOS credentials when they are configured for the project.
+- Do not treat absent local signing artifacts (`credentials.json`, `.p12`, `.mobileprovision`) as a blocker unless the release explicitly requires manual local credentials.
 
 ### Supabase
 ```bash

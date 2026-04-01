@@ -28,11 +28,19 @@ export interface AudioDownloadJobStore {
   removeJob: (jobId: string) => Promise<void>;
 }
 
+export interface AudioDownloadBookProgress {
+  translationId: string;
+  bookId: string;
+  completedBooks: number;
+  totalBooks: number;
+}
+
 export interface AudioDownloadLifecycleHooks {
   onStart?: (job: AudioDownloadJobRecord) => void;
   onReattach?: (job: AudioDownloadJobRecord) => void;
   onFailure?: (job: AudioDownloadJobRecord, error: Error) => void;
   onComplete?: (job: AudioDownloadJobRecord) => void;
+  onBookComplete?: (progress: AudioDownloadBookProgress) => void;
 }
 
 export interface AudioFileSystemAdapter {
@@ -507,6 +515,12 @@ export async function downloadAudioTranslation({
         transport: activeTransport,
       });
       downloadedBookIds.push(result.bookId);
+      hooks?.onBookComplete?.({
+        translationId,
+        bookId: result.bookId,
+        completedBooks: downloadedBookIds.length,
+        totalBooks: books.length,
+      });
     });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));

@@ -62,7 +62,7 @@ bible, scripture, audio bible, devotional, christian, discipleship, reading, chu
 curryj@protonmail.com
 
 ## Privacy Policy URL
-https://everybible-legal.github.io/privacy.html
+https://jeremy3004-dot.github.io/EveryBible/privacy.html
 
 ## Feature Graphic Text (for 1024x500 image)
 "Every Bible - Read. Listen. Grow."
@@ -98,4 +98,4 @@ Welcome to Every Bible! This initial release includes:
 
 **Data Deletion:**
 - Users can delete their account via Settings > Profile > Delete Account
-- Deletion instructions: https://everybible-legal.github.io/delete-account.html
+- Deletion instructions: https://jeremy3004-dot.github.io/EveryBible/delete-account.html

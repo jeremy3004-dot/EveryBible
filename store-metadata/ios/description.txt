@@ -1,32 +1,28 @@
-Every Bible - Read the Bible daily with beautiful design and progress tracking.
+Every Bible helps you read, listen to, and grow in Scripture every day.
 
-FEATURES:
+READ THE BIBLE OFFLINE
+- Read the complete Berean Standard Bible without an internet connection
+- Enjoy a clean, focused reading experience designed for long sessions
+- Adjust font size and theme for comfortable day or night reading
 
-Clean Bible Reading
-- Beautiful, distraction-free reading experience
-- Adjustable font sizes for comfortable reading
-- Dark and light themes
-- The complete Bible Standard Bible (BSB) translation
+LISTEN ANYWHERE
+- Stream or download chapter audio for supported translations
+- Keep listening in the background while you drive, walk, or work
+- Use playback speed controls, chapter controls, and sleep timer support
 
-Track Your Progress
-- Mark chapters as read automatically
-- Track daily, weekly, monthly, and yearly reading
-- Maintain reading streaks
-- See your progress at a glance
+BUILD A DAILY HABIT
+- Track your reading across daily, weekly, monthly, and yearly views
+- Pick up where you left off and keep momentum in your reading routine
+- Use reminders and activity tracking to stay consistent
 
-Sync Across Devices
-- Create an account to sync your progress
-- Sign in with Apple or email
-- Your reading history stays with you
+SAVE WHAT STANDS OUT
+- Highlight verses that matter to you
+- Add notes as you read
+- Return to your saved highlights and annotations later
 
-Daily Reminders
-- Set custom daily reading reminders
-- Never miss your Bible reading time
-- Build consistent reading habits
+GROW BEYOND READING
+- Explore Four Fields discipleship pathways and learning content
+- Use the app for personal growth, mentoring, or small-group study
+- Switch between English, Spanish, Hindi, and Nepali
 
-Offline Access
-- Complete Bible available offline
-- Read anywhere, anytime
-- No internet required for reading
-
-Start your Bible reading journey today with Every Bible.
+Every Bible is built for everyday Bible readers who want Scripture close at hand, whether they are reading quietly, listening on the go, or studying with others.

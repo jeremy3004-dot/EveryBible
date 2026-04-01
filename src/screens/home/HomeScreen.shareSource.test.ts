@@ -42,8 +42,8 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /import \{ captureRef \} from 'react-native-view-shot';/,
-    'HomeScreen should capture the verse card as an image before sharing'
+    /const \{ captureRef \} = await import\('react-native-view-shot'\);/,
+    'HomeScreen should lazy-load react-native-view-shot only when the share button is pressed'
   );
 
   assert.match(
