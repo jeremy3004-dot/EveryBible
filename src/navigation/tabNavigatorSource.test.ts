@@ -50,7 +50,7 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
 
   assert.match(
     source,
-    /const tabBarBottomPadding = spacing\.sm;/,
+    /const tabBarBottomPadding = spacing\.md;/,
     'TabNavigator should use a small fixed lift to pull the icons away from the home indicator'
   );
 });

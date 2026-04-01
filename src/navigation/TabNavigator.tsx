@@ -18,7 +18,7 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const tabBarBottomPadding = spacing.sm;
+  const tabBarBottomPadding = spacing.md;
   const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
     backgroundColor: colors.background,
