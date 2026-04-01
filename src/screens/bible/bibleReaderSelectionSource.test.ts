@@ -152,14 +152,56 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     traySource,
-    /<ScrollView[\s\S]*horizontal[\s\S]*showsHorizontalScrollIndicator=\{false\}/,
-    'The tray actions should stay on one horizontal rail instead of wrapping to a second line'
+    /HIGHLIGHT_COLORS\.map\(\(color\) =>/,
+    'All five highlight colors should render inline in one row'
+  );
+
+  assert.match(
+    traySource,
+    /highlightRow/,
+    'The highlight colors should sit in a single side-by-side row'
+  );
+
+  assert.match(
+    traySource,
+    /selectionControlsRow/,
+    'The color row and action buttons should share one horizontal tray row'
+  );
+
+  assert.match(
+    traySource,
+    /actionButtonRail/,
+    'The four primary actions should appear beside the highlight colors in the same row'
   );
 
   assert.match(
     traySource,
     /Ionicons name="close" size=\{13\}/,
     'Already-highlighted color chips should show the inline X badge from the recording'
+  );
+
+  assert.match(
+    traySource,
+    /Ionicons[\s\S]*name={icon}[\s\S]*size=\{16\}/s,
+    'The action pills should be a bit smaller so the tray feels lighter'
+  );
+
+  assert.match(
+    traySource,
+    /minHeight:\s*60/,
+    'The action pills should be slightly shorter than before'
+  );
+
+  assert.match(
+    traySource,
+    /width:\s*50/,
+    'The action pills should be sized tighter so the whole row can stay mostly on screen'
+  );
+
+  assert.equal(
+    traySource.includes('ScrollView'),
+    false,
+    'The tray should not need a horizontal ScrollView now that the actions fit on one row'
   );
 
   assert.match(
@@ -199,14 +241,8 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   );
 
   assert.equal(
-    traySource.includes('actionGrid'),
+    traySource.includes('highlightOverflow'),
     false,
-    'The tray should not use a wrapping action grid that pushes actions to a second row'
-  );
-
-  assert.equal(
-    traySource.includes('annotations.removeHighlight'),
-    false,
-    'The tray should not show a separate remove-highlight button now that the active color chip handles removal'
+    'The tray should not use an overflow palette now that all five highlight colors are shown inline'
   );
 });

@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -66,14 +65,19 @@ function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps)
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      hitSlop={6}
+      hitSlop={8}
     >
       <Ionicons
         name={icon}
-        size={18}
+        size={16}
         color={disabled ? colors.bibleSecondaryText : colors.biblePrimaryText}
       />
-      <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]} numberOfLines={1}>
+      <Text
+        style={[styles.actionLabel, { color: colors.biblePrimaryText }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {label}
       </Text>
     </Pressable>
@@ -189,69 +193,70 @@ function AnnotationActionSheetContent({
 
         {mode === 'actions' ? (
           <View style={styles.actionsContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.actionRail}
-            >
-              {HIGHLIGHT_COLORS.map((color) => {
-                const isActive = activeHighlightColorSet.has(color.hex);
+            <View style={styles.selectionControlsRow}>
+              <View style={styles.highlightRow}>
+                {HIGHLIGHT_COLORS.map((color) => {
+                  const isActive = activeHighlightColorSet.has(color.hex);
 
-                return (
-                  <Pressable
-                    key={color.id}
-                    accessibilityLabel={t(`annotations.colors.${color.id}`)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isActive, disabled: !canAnnotate }}
-                    hitSlop={8}
-                    style={({ pressed }) => [
-                      styles.colorDot,
-                      {
-                        backgroundColor: color.hex,
-                        borderColor: isActive ? colors.biblePrimaryText : 'transparent',
-                        opacity: canAnnotate ? 1 : 0.46,
-                        transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
-                      },
-                    ]}
-                    onPress={() => {
-                      if (!canAnnotate) {
-                        return;
-                      }
+                  return (
+                    <Pressable
+                      key={color.id}
+                      accessibilityLabel={t(`annotations.colors.${color.id}`)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive, disabled: !canAnnotate }}
+                      hitSlop={8}
+                      style={({ pressed }) => [
+                        styles.colorDot,
+                        {
+                          backgroundColor: color.hex,
+                          borderColor: isActive ? colors.biblePrimaryText : 'transparent',
+                          opacity: canAnnotate ? 1 : 0.46,
+                          transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
+                        },
+                      ]}
+                      onPress={() => {
+                        if (!canAnnotate) {
+                          return;
+                        }
 
-                      void handleHighlightColor(color.hex, isActive);
-                    }}
-                    disabled={!canAnnotate}
-                  >
-                    {isActive ? (
-                      <View style={styles.colorDotRemoveOverlay} pointerEvents="none">
-                        <Ionicons name="close" size={13} color={colors.bibleSurface} />
-                      </View>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-              <ActionPill
-                icon="create-outline"
-                label={t('annotations.note')}
-                onPress={() => {
-                  if (canAnnotate && !isSaving) {
-                    setMode('note');
-                  }
-                }}
-                disabled={!canAnnotate || isSaving}
-              />
-              <ActionPill icon="copy-outline" label={t('annotations.copy')} onPress={onCopy} />
-              <ActionPill
-                icon="share-social-outline"
-                label={t('groups.share')}
-                onPress={onShare}
-              />
-              <ActionPill
-                icon="image-outline"
-                label={t('bible.shareVerseImage')}
-                onPress={onShareImage}
-              />
-            </ScrollView>
+                        void handleHighlightColor(color.hex, isActive);
+                      }}
+                      disabled={!canAnnotate}
+                    >
+                      {isActive ? (
+                        <View style={styles.colorDotRemoveOverlay} pointerEvents="none">
+                          <Ionicons name="close" size={13} color={colors.bibleSurface} />
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.actionButtonRail}>
+                <ActionPill
+                  icon="create-outline"
+                  label={t('annotations.note')}
+                  onPress={() => {
+                    if (canAnnotate && !isSaving) {
+                      setMode('note');
+                    }
+                  }}
+                  disabled={!canAnnotate || isSaving}
+                />
+                <ActionPill icon="copy-outline" label={t('annotations.copy')} onPress={onCopy} />
+                <ActionPill
+                  icon="share-social-outline"
+                  label={t('groups.share')}
+                  onPress={onShare}
+                />
+                <ActionPill
+                  icon="image-outline"
+                  label={t('bible.shareVerseImage')}
+                  onPress={onShareImage}
+                />
+              </View>
+            </View>
           </View>
         ) : (
           <View style={styles.noteContainer}>
@@ -388,18 +393,24 @@ const styles = StyleSheet.create({
   actionsContainer: {
     gap: spacing.md,
   },
-  actionRail: {
+  selectionControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    justifyContent: 'flex-start',
-    paddingLeft: 2,
-    paddingRight: spacing.sm,
+    gap: 8,
+    minWidth: 0,
+    overflow: 'visible',
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
   },
   colorDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    position: 'relative',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -411,20 +422,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionButton: {
-    width: 74,
-    minHeight: 70,
+    minWidth: 0,
+    width: 50,
+    minHeight: 60,
     borderWidth: 1,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    gap: 4,
-    flexShrink: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 5,
+    gap: 2,
   },
   actionLabel: {
     ...typography.micro,
     textAlign: 'center',
+    fontSize: 10,
+    lineHeight: 12,
+  },
+  actionButtonRail: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 4,
+    minWidth: 0,
+    flexShrink: 0,
   },
   noteContainer: {
     gap: spacing.md,
