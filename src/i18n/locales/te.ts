@@ -663,9 +663,9 @@ export const te = {
   gather: {
     title: 'సమావేశమవండి',
     foundations: 'పునాది',
-    topics: 'అంశాలు',
+    wisdom: 'జ్ఞానం',
     infoBanner: 'ఇతరులు బైబిల్‌లో స్వయంగా దేవుణ్ణి కనుగొనే ప్రయాణాన్ని ప్రారంభించడానికి సహాయం చేయండి.',
-    topicsBanner: 'మీ సమూహానికి ఒక నిర్దిష్ట అవసరం ఉంటే, మీ ప్రాథమిక లేదా శిక్షణ పాఠాలకు తిరిగి వెళ్ళే ముందు కొన్ని విషయ-ఆధారిత పాఠాలు చేయండి.',
+    wisdomBanner: 'మీ సమూహానికి ఒక నిర్దిష్ట అవసరం ఉంటే, మీ ప్రాథమిక లేదా శిక్షణ పాఠాలకు తిరిగి వెళ్ళే ముందు కొన్ని విషయ-ఆధారిత పాఠాలు చేయండి.',
     getStarted: 'పునాదితో ప్రారంభించండి',
     foundationLabel: 'పునాది {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const te = {
     topicCharacterOfGod: 'దేవుని స్వభావం',
     topicPromisesOfGod: 'దేవుని వాగ్దానాలు',
     topicNamesOfGod: 'దేవుని పేర్లు',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'బలంగా మరియు ధైర్యంగా ఉండండి',
         l2: 'దావీదు మరియు గొల్యాతు',

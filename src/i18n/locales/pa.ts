@@ -663,9 +663,9 @@ export const pa = {
   gather: {
     title: 'ਇਕੱਠੇ ਹੋਵੋ',
     foundations: 'ਨੀਂਹ',
-    topics: 'ਵਿਸ਼ੇ',
+    wisdom: 'ਸਿਆਣਪ',
     infoBanner: 'ਦੂਜਿਆਂ ਨੂੰ ਬਾਈਬਲ ਵਿੱਚ ਆਪਣੇ ਆਪ ਪਰਮੇਸ਼ੁਰ ਨੂੰ ਖੋਜਣ ਦੀ ਯਾਤਰਾ ਸ਼ੁਰੂ ਕਰਨ ਵਿੱਚ ਮਦਦ ਕਰੋ।',
-    topicsBanner: 'ਜੇ ਤੁਹਾਡੇ ਗਰੁੱਪ ਦੀ ਕੋਈ ਖਾਸ ਲੋੜ ਹੈ, ਤਾਂ ਆਪਣੇ ਬੁਨਿਆਦੀ ਜਾਂ ਸਿਖਲਾਈ ਪਾਠਾਂ ਤੇ ਵਾਪਸ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਵਿਸ਼ੇਵਾਰ ਪਾਠ ਕਰੋ।',
+    wisdomBanner: 'ਜੇ ਤੁਹਾਡੇ ਗਰੁੱਪ ਦੀ ਕੋਈ ਖਾਸ ਲੋੜ ਹੈ, ਤਾਂ ਆਪਣੇ ਬੁਨਿਆਦੀ ਜਾਂ ਸਿਖਲਾਈ ਪਾਠਾਂ ਤੇ ਵਾਪਸ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਵਿਸ਼ੇਵਾਰ ਪਾਠ ਕਰੋ।',
     getStarted: 'ਨੀਂਹ ਨਾਲ ਸ਼ੁਰੂ ਕਰੋ',
     foundationLabel: 'ਨੀਂਹ {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const pa = {
     topicCharacterOfGod: 'ਪਰਮੇਸ਼ੁਰ ਦਾ ਸੁਭਾਅ',
     topicPromisesOfGod: 'ਪਰਮੇਸ਼ੁਰ ਦੇ ਵਾਅਦੇ',
     topicNamesOfGod: 'ਪਰਮੇਸ਼ੁਰ ਦੇ ਨਾਮ',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'ਮਜ਼ਬੂਤ ਅਤੇ ਹਿੰਮਤਵਾਨ ਬਣੋ',
         l2: 'ਦਾਊਦ ਅਤੇ ਗਲਿਯਾਤ',

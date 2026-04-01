@@ -17,9 +17,15 @@ test('GatherScreen uses translation keys for all visible section labels', () => 
   );
 
   assert.equal(
-    source.includes("t('gather.topics')"),
+    source.includes('gatherWisdomCategories'),
     true,
-    'GatherScreen should use a translation key for the topics sub-tab label'
+    'GatherScreen should import the wisdom category collection by its wisdom name'
+  );
+
+  assert.equal(
+    source.includes("t('gather.wisdom')"),
+    true,
+    'GatherScreen should use a translation key for the wisdom sub-tab label'
   );
 
   assert.equal(
@@ -29,14 +35,14 @@ test('GatherScreen uses translation keys for all visible section labels', () => 
   );
 });
 
-test('GatherScreen navigates into FoundationDetail for both foundations and topic cards', () => {
+test('GatherScreen navigates into FoundationDetail for both foundations and wisdom cards', () => {
   const source = readRelativeSource('./GatherScreen.tsx');
 
   const detailNavigationCount = (source.match(/navigate\('FoundationDetail'/g) || []).length;
 
   assert.ok(
     detailNavigationCount >= 2,
-    'GatherScreen should navigate to FoundationDetail from both foundations and topics'
+    'GatherScreen should navigate to FoundationDetail from both foundations and wisdom'
   );
 });
 

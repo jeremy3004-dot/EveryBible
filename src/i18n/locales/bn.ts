@@ -663,9 +663,9 @@ export const bn = {
   gather: {
     title: 'একত্রিত',
     foundations: 'ভিত্তি',
-    topics: 'বিষয়',
+    wisdom: 'প্রজ্ঞা',
     infoBanner: 'অন্যদের নিজেরাই বাইবেলে ঈশ্বরকে আবিষ্কার করার যাত্রা শুরু করতে সাহায্য করুন।',
-    topicsBanner: 'যদি আপনার দলের একটি নির্দিষ্ট প্রয়োজন থাকে, তাহলে আপনার মৌলিক বা প্রশিক্ষণ পাঠে ফিরে যাওয়ার আগে কিছু বিষয়ভিত্তিক পাঠ করুন।',
+    wisdomBanner: 'যদি আপনার দলের একটি নির্দিষ্ট প্রয়োজন থাকে, তাহলে আপনার মৌলিক বা প্রশিক্ষণ পাঠে ফিরে যাওয়ার আগে কিছু বিষয়ভিত্তিক পাঠ করুন।',
     getStarted: 'ভিত্তি দিয়ে শুরু করুন',
     foundationLabel: 'ভিত্তি {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const bn = {
     topicCharacterOfGod: 'ঈশ্বরের চরিত্র',
     topicPromisesOfGod: 'ঈশ্বরের প্রতিশ্রুতি',
     topicNamesOfGod: 'ঈশ্বরের নামসমূহ',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'শক্তিশালী ও সাহসী হও',
         l2: 'দাউদ ও গলিয়াথ',

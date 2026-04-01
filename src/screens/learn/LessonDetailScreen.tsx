@@ -24,7 +24,7 @@ import {
   gatherFoundations,
   FOUNDATION_LESSON_TITLE_KEYS,
 } from '../../data/gatherFoundations';
-import { gatherTopicCategories, TOPIC_LESSON_TITLE_KEYS } from '../../data/gatherTopics';
+import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
 import { gatherIconImages } from '../../data/gatherIcons';
 import {
   getPassageText,
@@ -81,13 +81,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const parent =
     parentType === 'foundation'
       ? gatherFoundations.find((f) => f.id === parentId)
-      : gatherTopicCategories.flatMap((c) => c.topics).find((topic) => topic.id === parentId);
+      : gatherWisdomCategories.flatMap((c) => c.wisdoms).find((wisdom) => wisdom.id === parentId);
 
   const lesson = parent?.lessons.find((l) => l.id === lessonId);
 
-  // Translate lesson title when an i18n key is available (foundation or topic lessons)
+  // Translate lesson title when an i18n key is available (foundation or wisdom lessons)
   const lessonTitleKey = lesson
-    ? (FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? TOPIC_LESSON_TITLE_KEYS[lesson.id])
+    ? (FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? WISDOM_LESSON_TITLE_KEYS[lesson.id])
     : undefined;
   const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : (lesson?.title ?? '');
 
@@ -514,10 +514,6 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           <FellowshipSection
             questions={translatedFellowshipQuestions}
             colors={colors}
-            onReadStory={() => {
-              scrollToSection('story');
-              if (audioUrl) playAudio();
-            }}
           />
         </View>
 
@@ -858,35 +854,18 @@ function QuestionCard({ number, text, colors, actionButton }: QuestionCardProps)
 interface FellowshipSectionProps {
   questions: string[];
   colors: ThemeColors;
-  onReadStory: () => void;
 }
 
-function FellowshipSection({ questions, colors, onReadStory }: FellowshipSectionProps) {
-  const { t } = useTranslation();
+function FellowshipSection({ questions, colors }: FellowshipSectionProps) {
   return (
     <View style={styles.sectionContainer}>
       {questions.map((q, idx) => {
-        // Question index 3: add "Read the Story →" button after the question
-        const isLastQuestion = idx === 3;
-        const actionButton = isLastQuestion ? (
-          <TouchableOpacity
-            style={[styles.actionButton, { borderColor: colors.accentPrimary }]}
-            onPress={onReadStory}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-              {t('gather.readTheStory')}
-            </Text>
-          </TouchableOpacity>
-        ) : undefined;
-
         return (
           <QuestionCard
             key={idx}
             number={idx + 1}
             text={q}
             colors={colors}
-            actionButton={actionButton}
           />
         );
       })}

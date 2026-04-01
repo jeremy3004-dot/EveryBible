@@ -663,9 +663,9 @@ export const tr = {
   gather: {
     title: 'Toplanma',
     foundations: 'Temeller',
-    topics: 'Konular',
+    wisdom: 'Bilgelik',
     infoBanner: 'Başkalarının Kutsal Kitap\'ta Tanrı\'yı kendileri keşfetme yolculuklarına başlamalarına yardım edin.',
-    topicsBanner: 'Grubunuzun belirli bir ihtiyacı varsa, temel veya eğitim derslerinize geri dönmeden önce bazı konusal dersler yapın.',
+    wisdomBanner: 'Grubunuzun belirli bir ihtiyacı varsa, temel veya eğitim derslerinize geri dönmeden önce bazı konusal dersler yapın.',
     getStarted: 'Temeller ile başla',
     foundationLabel: 'Temel {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const tr = {
     topicCharacterOfGod: 'Tanrı\'nın Karakteri',
     topicPromisesOfGod: 'Tanrı\'nın Vaatleri',
     topicNamesOfGod: 'Tanrı\'nın İsimleri',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Güçlü ve cesur ol',
         l2: 'Davut ve Golyat',

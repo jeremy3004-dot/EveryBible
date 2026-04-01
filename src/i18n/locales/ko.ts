@@ -663,9 +663,9 @@ export const ko = {
   gather: {
     title: '모임',
     foundations: '기초',
-    topics: '주제',
+    wisdom: '지혜',
     infoBanner: '다른 사람들이 성경에서 스스로 하나님을 발견하는 여정을 시작할 수 있도록 도와주세요.',
-    topicsBanner: '그룹에 특정한 필요가 있다면, 기초 또는 훈련 레슨으로 돌아가기 전에 주제별 레슨을 먼저 해보세요.',
+    wisdomBanner: '그룹에 특정한 필요가 있다면, 기초 또는 훈련 레슨으로 돌아가기 전에 주제별 레슨을 먼저 해보세요.',
     getStarted: '기초부터 시작하기',
     foundationLabel: '기초 {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const ko = {
     topicCharacterOfGod: '하나님의 성품',
     topicPromisesOfGod: '하나님의 약속',
     topicNamesOfGod: '하나님의 이름들',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: '강하고 담대하라',
         l2: '다윗과 골리앗',

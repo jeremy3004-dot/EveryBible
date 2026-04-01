@@ -663,9 +663,9 @@ export const pt = {
   gather: {
     title: 'Reunião',
     foundations: 'Fundamentos',
-    topics: 'Tópicos',
+    wisdom: 'Sabedoria',
     infoBanner: 'Ajude outros a começar sua jornada de descoberta de Deus por si mesmos na Bíblia.',
-    topicsBanner: 'Se o seu grupo tem uma necessidade específica sentida, faça algumas lições temáticas antes de retornar às suas lições fundamentais ou de treinamento.',
+    wisdomBanner: 'Se o seu grupo tem uma necessidade específica sentida, faça algumas lições temáticas antes de retornar às suas lições fundamentais ou de treinamento.',
     getStarted: 'Começar com os fundamentos',
     foundationLabel: 'Fundamentos {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const pt = {
     topicCharacterOfGod: 'Caráter de Deus',
     topicPromisesOfGod: 'Promessas de Deus',
     topicNamesOfGod: 'Nomes de Deus',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'Seja forte e corajoso',
         l2: 'Davi e Golias',

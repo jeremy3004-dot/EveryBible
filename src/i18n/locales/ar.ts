@@ -663,9 +663,9 @@ export const ar = {
   gather: {
     title: 'التجمع',
     foundations: 'الأسس',
-    topics: 'المواضيع',
+    wisdom: 'الحكمة',
     infoBanner: 'ساعد الآخرين على بدء رحلتهم في اكتشاف الله بأنفسهم في الكتاب المقدس.',
-    topicsBanner: 'إذا كانت مجموعتك لديها حاجة محددة، فقم ببعض الدروس الموضوعية قبل العودة إلى دروسك الأساسية أو التدريبية.',
+    wisdomBanner: 'إذا كانت مجموعتك لديها حاجة محددة، فقم ببعض الدروس الموضوعية قبل العودة إلى دروسك الأساسية أو التدريبية.',
     getStarted: 'ابدأ بالأسس',
     foundationLabel: 'الأسس {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const ar = {
     topicCharacterOfGod: 'شخصية الله',
     topicPromisesOfGod: 'وعود الله',
     topicNamesOfGod: 'أسماء الله',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'كن قويًا وشجاعًا',
         l2: 'داود وجليات',

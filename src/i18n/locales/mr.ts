@@ -663,9 +663,9 @@ export const mr = {
   gather: {
     title: 'एकत्र या',
     foundations: 'पाया',
-    topics: 'विषय',
+    wisdom: 'शहाणपण',
     infoBanner: 'इतरांना बायबलमध्ये स्वतः देवाचा शोध घेण्याच्या प्रवासाला सुरुवात करण्यास मदत करा.',
-    topicsBanner: 'जर तुमच्या गटाची एखादी विशिष्ट गरज असेल, तर तुमच्या मूलभूत किंवा प्रशिक्षण धड्यांकडे परत जाण्यापूर्वी काही विषयाधारित धडे करा.',
+    wisdomBanner: 'जर तुमच्या गटाची एखादी विशिष्ट गरज असेल, तर तुमच्या मूलभूत किंवा प्रशिक्षण धड्यांकडे परत जाण्यापूर्वी काही विषयाधारित धडे करा.',
     getStarted: 'पायाने सुरुवात करा',
     foundationLabel: 'पाया {{number}}',
     lessonsProgress: '{{completed}}/{{total}}',
@@ -814,7 +814,7 @@ export const mr = {
     topicCharacterOfGod: 'देवाचे स्वरूप',
     topicPromisesOfGod: 'देवाची वचने',
     topicNamesOfGod: 'देवाची नावे',
-    topicLessons: {
+    wisdomLessons: {
       courage: {
         l1: 'बलवान व धाडसी व्हा',
         l2: 'दावीद आणि गल्यात',
