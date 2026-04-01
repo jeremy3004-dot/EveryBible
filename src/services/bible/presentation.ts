@@ -22,6 +22,7 @@ interface ChapterPresentationOptions {
 interface BuildDailyScriptureOptions {
   reference: DailyScriptureReference;
   verse: Verse | null;
+  passageText?: string | null;
   translation?: Pick<BibleTranslation, 'hasAudio' | 'audioGranularity'>;
   audioAvailable: boolean;
 }
@@ -71,19 +72,41 @@ export function buildAudioFirstChapterPresentation({
   };
 }
 
+export function formatDailyScriptureReferenceLabel(
+  bookName: string,
+  chapter: number,
+  verse?: number,
+  verseEnd?: number
+): string {
+  if (!verse) {
+    return `${bookName} ${chapter}`;
+  }
+
+  if (!verseEnd || verseEnd === verse) {
+    return `${bookName} ${chapter}:${verse}`;
+  }
+
+  return `${bookName} ${chapter}:${verse}-${verseEnd}`;
+}
+
 export function buildDailyScripture({
   reference,
   verse,
+  passageText,
   translation,
   audioAvailable,
 }: BuildDailyScriptureOptions): DailyScripture {
-  if (verse?.text?.trim()) {
+  const verseText = passageText?.trim() || verse?.text?.trim() || null;
+  const verseEnd = reference.verseEnd;
+
+  if (verseText) {
     return {
       kind: 'verse-text',
       bookId: reference.bookId,
       chapter: reference.chapter,
       verse: reference.verse,
-      text: verse.text,
+      ...(verseEnd !== undefined ? { verseEnd } : {}),
+      text: verseText,
       playScope: 'none',
     };
   }
@@ -96,6 +119,7 @@ export function buildDailyScripture({
       bookId: reference.bookId,
       chapter: reference.chapter,
       verse: reference.verse,
+      ...(verseEnd !== undefined ? { verseEnd } : {}),
       text: null,
       playScope,
     };
@@ -106,6 +130,7 @@ export function buildDailyScripture({
     bookId: reference.bookId,
     chapter: reference.chapter,
     verse: reference.verse,
+    ...(verseEnd !== undefined ? { verseEnd } : {}),
     text: null,
     playScope: 'none',
   };

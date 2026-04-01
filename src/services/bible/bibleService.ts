@@ -3,6 +3,7 @@ import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
 import { shouldLoadDailyScriptureText } from './dailyScripture';
 import { buildDailyScripture } from './presentation';
+import { POPULAR_VERSE_REFERENCES } from './popularVerseReferences';
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
@@ -86,22 +87,24 @@ function getTodayReference(): DailyScriptureReference {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
   );
+  return POPULAR_VERSE_REFERENCES[dayOfYear % POPULAR_VERSE_REFERENCES.length];
+}
 
-  // Popular verses for verse of the day
-  const popularVerses = [
-    { bookId: 'JHN', chapter: 3, verse: 16 },
-    { bookId: 'ROM', chapter: 8, verse: 28 },
-    { bookId: 'PHP', chapter: 4, verse: 13 },
-    { bookId: 'JER', chapter: 29, verse: 11 },
-    { bookId: 'PSA', chapter: 23, verse: 1 },
-    { bookId: 'PRO', chapter: 3, verse: 5 },
-    { bookId: 'ISA', chapter: 40, verse: 31 },
-    { bookId: 'MAT', chapter: 11, verse: 28 },
-    { bookId: 'ROM', chapter: 12, verse: 2 },
-    { bookId: 'GAL', chapter: 5, verse: 22 },
-  ];
+function getReferencePassageText(verses: Verse[], reference: DailyScriptureReference): string | null {
+  const startVerse = reference.verse;
+  if (!startVerse) {
+    return verses[0]?.text?.trim() ?? null;
+  }
 
-  return popularVerses[dayOfYear % popularVerses.length];
+  const endVerse = reference.verseEnd ?? startVerse;
+  const selectedVerses = verses.filter((verse) => verse.verse >= startVerse && verse.verse <= endVerse);
+  const passageText = selectedVerses.map((verse) => verse.text.trim()).filter(Boolean).join(' ').trim();
+
+  if (passageText.length > 0) {
+    return passageText;
+  }
+
+  return verses.find((verse) => verse.verse === startVerse)?.text?.trim() ?? verses[0]?.text?.trim() ?? null;
 }
 
 export async function getVerseOfTheDay(translationId = 'bsb'): Promise<Verse | null> {
@@ -136,11 +139,21 @@ export async function getDailyScripture(
 
     const verses = await getChapter(translation.id, reference.bookId, reference.chapter);
     verse = verses.find((item) => item.verse === reference.verse) ?? verses[0] ?? null;
+    const passageText = getReferencePassageText(verses, reference);
+
+    return buildDailyScripture({
+      reference,
+      verse,
+      passageText,
+      translation,
+      audioAvailable,
+    });
   }
 
   return buildDailyScripture({
     reference,
     verse,
+    passageText: null,
     translation,
     audioAvailable,
   });

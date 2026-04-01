@@ -95,6 +95,35 @@ test('keeps verse text for the daily scripture when text exists', () => {
   });
 });
 
+test('keeps the passage reference and passage text for a ranged daily scripture', () => {
+  const rangeDailyScriptureOptions: Parameters<typeof buildDailyScripture>[0] = {
+    reference: { bookId: 'NUM', chapter: 6, verse: 24, verseEnd: 26 },
+    verse: {
+      id: 2,
+      bookId: 'NUM',
+      chapter: 6,
+      verse: 24,
+      text: 'The LORD bless you and keep you.',
+    } as Verse,
+    passageText:
+      'The LORD bless you and keep you. The LORD make His face shine upon you and be gracious to you.',
+    translation: textAndAudioTranslation,
+    audioAvailable: true,
+  };
+
+  const daily = buildDailyScripture(rangeDailyScriptureOptions);
+
+  assert.deepEqual(daily, {
+    kind: 'verse-text',
+    bookId: 'NUM',
+    chapter: 6,
+    verse: 24,
+    verseEnd: 26,
+    text: 'The LORD bless you and keep you. The LORD make His face shine upon you and be gracious to you.',
+    playScope: 'none',
+  });
+});
+
 test('falls back to section audio when text is missing and audio is chapter-based', () => {
   const daily = buildDailyScripture({
     reference: { bookId: 'JHN', chapter: 3, verse: 16 },

@@ -167,6 +167,7 @@ export interface DailyScriptureReference {
   bookId: string;
   chapter: number;
   verse?: number;
+  verseEnd?: number;
 }
 
 export interface DailyScripture {
@@ -174,6 +175,7 @@ export interface DailyScripture {
   bookId: string;
   chapter: number;
   verse?: number;
+  verseEnd?: number;
   text: string | null;
   playScope: DailyScripturePlayScope;
 }

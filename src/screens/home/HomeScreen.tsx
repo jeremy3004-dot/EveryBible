@@ -30,7 +30,7 @@ import { gatherIconImages } from '../../data/gatherIcons';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
-import { getDailyScripture } from '../../services/bible';
+import { formatDailyScriptureReferenceLabel, getDailyScripture } from '../../services/bible';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
 import { CardSkeleton } from '../../components';
@@ -197,9 +197,12 @@ export function HomeScreen() {
   };
 
   const dailyReferenceLabel = dailyScripture
-    ? `${getTranslatedBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}${
-        dailyScripture.verse ? `:${dailyScripture.verse}` : ''
-      }`
+    ? formatDailyScriptureReferenceLabel(
+        getTranslatedBookName(dailyScripture.bookId, t),
+        dailyScripture.chapter,
+        dailyScripture.verse,
+        dailyScripture.verseEnd
+      )
     : null;
   const dailyAudioAvailability =
     dailyScripture && currentTranslationInfo
