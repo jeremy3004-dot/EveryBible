@@ -129,6 +129,8 @@ export const hi = {
     addToQueue: 'कतार में जोड़ें',
     downloadBookAudio: 'पुस्तक ऑडियो डाउनलोड करें',
     shareChapterReference: 'अध्याय संदर्भ साझा करें',
+    shareChapterAudio: 'अध्याय का ऑडियो साझा करें',
+    shareAudioPortion: 'ऑडियो का हिस्सा साझा करें',
     shareVerseImage: 'Image',
     chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'अध्याय प्रतिक्रिया',

@@ -6,8 +6,11 @@ import {
   Alert,
   Image,
   ImageBackground,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
+  NativeEventEmitter,
+  NativeModules,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -51,7 +55,15 @@ import {
 } from '../../services/annotations/annotationService';
 import { buildBibleDeepLink, getChapter } from '../../services/bible';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
-import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
+import {
+  AUDIO_DOWNLOAD_ROOT_URI,
+  expoAudioFileSystemAdapter,
+  fetchRemoteChapterAudio,
+  getAudioAvailability,
+  getDownloadedChapterAudioUri,
+  isRemoteAudioAvailable,
+  prepareChapterAudioShareAsset,
+} from '../../services/audio';
 import { submitChapterFeedback } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
@@ -266,6 +278,10 @@ export function BibleReaderScreen() {
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
   const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
+  const [showChapterAudioShareSheet, setShowChapterAudioShareSheet] = useState(false);
+  const [pendingChapterAudioShareAction, setPendingChapterAudioShareAction] = useState<
+    'full' | 'portion' | null
+  >(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
@@ -362,6 +378,14 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
+  const chapterAudioShareRootUri = `${
+    FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
+  }everybible-audio-share/`;
+  const chapterAudioShareActionLabel =
+    pendingChapterAudioShareAction === 'portion'
+      ? t('bible.shareAudioPortion')
+      : t('bible.shareChapterAudio');
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: chapterFeedbackName ?? '',
     role: chapterFeedbackRole ?? '',
@@ -1076,6 +1100,232 @@ export function BibleReaderScreen() {
     );
   };
 
+  const handleOpenChapterAudioShareSheet = () => {
+    setShowChapterActionsSheet(false);
+    setShowChapterAudioShareSheet(true);
+  };
+
+  const waitForChapterAudioShareSheetDismissal = async () => {
+    await new Promise<void>((resolve) => {
+      InteractionManager.runAfterInteractions(() => {
+        resolve();
+      });
+    });
+  };
+
+  const handleShareFullChapterAudio = async () => {
+    if (pendingChapterAudioShareAction) {
+      return;
+    }
+
+    setShowChapterAudioShareSheet(false);
+    setPendingChapterAudioShareAction('full');
+
+    try {
+      await waitForChapterAudioShareSheetDismissal();
+
+      const audioShareAsset = await prepareChapterAudioShareAsset({
+        translationId: currentTranslation,
+        bookId,
+        chapter,
+        fileSystem: expoAudioFileSystemAdapter,
+        rootUri: chapterAudioShareRootUri,
+        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
+          getDownloadedChapterAudioUri(
+            translationId,
+            bookId,
+            chapter,
+            expoAudioFileSystemAdapter,
+            AUDIO_DOWNLOAD_ROOT_URI
+          ),
+        resolveRemoteAudio: fetchRemoteChapterAudio,
+      });
+
+      if (!audioShareAsset) {
+        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+        return;
+      }
+
+      trackBibleExperienceEvent({
+        name: 'library_action',
+        bookId,
+        chapter,
+        source: 'reader-actions',
+        mode: 'listen',
+        translationId: currentTranslation,
+        detail: 'share-audio-full',
+      });
+
+      const Sharing = await import('expo-sharing');
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(audioShareAsset.uri, {
+          dialogTitle: t('groups.share'),
+          mimeType: audioShareAsset.mimeType,
+          UTI: 'public.audio',
+        });
+        return;
+      }
+
+      const url = buildBibleDeepLink(bookId, chapter);
+      await Share.share(
+        Platform.OS === 'android'
+          ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
+          : { message: chapterShareTitle, url }
+      );
+    } catch (shareError) {
+      const message = shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
+    } finally {
+      setPendingChapterAudioShareAction(null);
+    }
+  };
+
+  const handleShareAudioPortion = async () => {
+    if (pendingChapterAudioShareAction) {
+      return;
+    }
+
+    setShowChapterAudioShareSheet(false);
+    setPendingChapterAudioShareAction('portion');
+
+    try {
+      await waitForChapterAudioShareSheetDismissal();
+
+      const audioShareAsset = await prepareChapterAudioShareAsset({
+        translationId: currentTranslation,
+        bookId,
+        chapter,
+        fileSystem: expoAudioFileSystemAdapter,
+        rootUri: chapterAudioShareRootUri,
+        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
+          getDownloadedChapterAudioUri(
+            translationId,
+            bookId,
+            chapter,
+            expoAudioFileSystemAdapter,
+            AUDIO_DOWNLOAD_ROOT_URI
+          ),
+        resolveRemoteAudio: fetchRemoteChapterAudio,
+      });
+
+      if (!audioShareAsset) {
+        setPendingChapterAudioShareAction(null);
+        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+        return;
+      }
+
+      trackBibleExperienceEvent({
+        name: 'library_action',
+        bookId,
+        chapter,
+        source: 'reader-actions',
+        mode: 'listen',
+        translationId: currentTranslation,
+        detail: 'share-audio-clip',
+      });
+
+      const {
+        showEditor,
+        isValidFile,
+        default: NativeVideoTrim,
+      } = await import('react-native-video-trim');
+
+      const isValidAudioFile = await isValidFile(audioShareAsset.uri);
+      if (!isValidAudioFile) {
+        setPendingChapterAudioShareAction(null);
+        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+        return;
+      }
+
+      const trimEditorListeners: Array<{ remove: () => void }> = [];
+      const clearTrimEditorListeners = () => {
+        trimEditorListeners.splice(0).forEach((listener) => listener.remove());
+      };
+      const handleTrimEditorShown = () => {
+        setPendingChapterAudioShareAction(null);
+      };
+      const handleTrimEditorClosed = () => {
+        setPendingChapterAudioShareAction(null);
+        clearTrimEditorListeners();
+      };
+      const handleTrimEditorError = (message?: string) => {
+        setPendingChapterAudioShareAction(null);
+        clearTrimEditorListeners();
+        Alert.alert(t('common.error'), message || t('bible.audioDownloadFailed'));
+      };
+
+      const isFabricRuntime = Boolean((globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager);
+      if (isFabricRuntime && typeof NativeVideoTrim.onShow === 'function') {
+        trimEditorListeners.push(
+          NativeVideoTrim.onShow(() => {
+            handleTrimEditorShown();
+          })
+        );
+        trimEditorListeners.push(
+          NativeVideoTrim.onCancel(() => {
+            handleTrimEditorClosed();
+          })
+        );
+        trimEditorListeners.push(
+          NativeVideoTrim.onHide(() => {
+            handleTrimEditorClosed();
+          })
+        );
+        trimEditorListeners.push(
+          NativeVideoTrim.onError(({ message }: { message?: string }) => {
+            handleTrimEditorError(message);
+          })
+        );
+      } else if (NativeModules.VideoTrim) {
+        const trimEventEmitter = new NativeEventEmitter(NativeModules.VideoTrim);
+        trimEditorListeners.push(
+          trimEventEmitter.addListener(
+            'VideoTrim',
+            (event: { name?: string; message?: string } | undefined) => {
+              switch (event?.name) {
+                case 'onShow':
+                  handleTrimEditorShown();
+                  break;
+                case 'onCancel':
+                case 'onHide':
+                  handleTrimEditorClosed();
+                  break;
+                case 'onError':
+                  handleTrimEditorError(event.message);
+                  break;
+                default:
+                  break;
+              }
+            }
+          )
+        );
+      }
+
+      showEditor(audioShareAsset.uri, {
+        type: 'audio',
+        outputExt: audioShareAsset.fileExtension,
+        headerText: chapterShareTitle,
+        cancelButtonText: t('common.cancel'),
+        saveButtonText: t('groups.share'),
+        trimmingText: t('bible.shareAudioPortion'),
+        jumpToPositionOnLoad: isCurrentAudioChapter ? currentPosition : 0,
+        maxDuration: duration > 0 ? Math.round(duration) : -1,
+        openShareSheetOnFinish: true,
+        closeWhenFinish: true,
+        autoplay: false,
+        removeAfterShared: Platform.OS === 'ios',
+        removeAfterFailedToShare: Platform.OS === 'ios',
+        headerTextColor: colors.biblePrimaryText,
+        trimmerColor: colors.bibleAccent,
+        handleIconColor: colors.bibleBackground,
+      });
+    } catch (shareError) {
+      setPendingChapterAudioShareAction(null);
+      const message = shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
+    }
+  };
+
   const handleDownloadCurrentBookAudio = async () => {
     setShowChapterActionsSheet(false);
 
@@ -1497,13 +1747,36 @@ export function BibleReaderScreen() {
           <Image source={getBookIcon(bookId)} style={styles.listenArtwork} resizeMode="cover" />
         </View>
 
-        <View style={styles.listenMetaBlock}>
-          <Text style={[styles.listenChapterTitle, { color: colors.biblePrimaryText }]}>
-            {getTranslatedBookName(bookId, t)} {chapter}
-          </Text>
-          <Text style={[styles.listenChapterMeta, { color: colors.bibleSecondaryText }]}>
-            {t('bible.verseCount', { count: verses.length })}
-          </Text>
+        <View style={styles.listenMetaRow}>
+          <View style={styles.listenMetaBlock}>
+            <Text style={[styles.listenChapterTitle, { color: colors.biblePrimaryText }]}>
+              {getTranslatedBookName(bookId, t)} {chapter}
+            </Text>
+            <Text style={[styles.listenChapterMeta, { color: colors.bibleSecondaryText }]}>
+              {t('bible.verseCount', { count: verses.length })}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.share')}
+            activeOpacity={0.88}
+            style={[
+              styles.listenShareButton,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+            onPress={() => {
+              setShowChapterAudioShareSheet(true);
+            }}
+          >
+            <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
+            <Text style={[styles.listenShareButtonText, { color: colors.biblePrimaryText }]}>
+              {t('groups.share')}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View
@@ -1915,6 +2188,9 @@ export function BibleReaderScreen() {
             playbackSequenceEntries={playbackSequenceEntries}
             onChapterChange={(nextBookId, newChapter) => {
               syncReaderReference(nextBookId, newChapter);
+            }}
+            onShare={() => {
+              setShowChapterAudioShareSheet(true);
             }}
           />
         </View>
@@ -2482,6 +2758,12 @@ export function BibleReaderScreen() {
                 onPress: handleDownloadCurrentBookAudio,
               },
               {
+                key: 'share-audio',
+                icon: 'musical-notes-outline',
+                label: t('bible.shareChapterAudio'),
+                onPress: handleOpenChapterAudioShareSheet,
+              },
+              {
                 key: 'share',
                 icon: 'share-social-outline',
                 label: t('bible.shareChapterReference'),
@@ -2709,6 +2991,90 @@ export function BibleReaderScreen() {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={showChapterAudioShareSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowChapterAudioShareSheet(false)}
+      >
+        <TouchableOpacity
+          style={[styles.modalBackdropFill, { backgroundColor: colors.overlay }]}
+          activeOpacity={1}
+          onPress={() => setShowChapterAudioShareSheet(false)}
+        >
+          <View
+            style={[
+              styles.actionSheet,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <Text style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}>
+              {chapterShareTitle}
+            </Text>
+
+            {[
+              {
+                key: 'full-audio',
+                icon: 'musical-notes-outline',
+                label: t('bible.shareChapterAudio'),
+                onPress: () => {
+                  void handleShareFullChapterAudio();
+                },
+              },
+              {
+                key: 'audio-clip',
+                icon: 'cut-outline',
+                label: t('bible.shareAudioPortion'),
+                onPress: () => {
+                  void handleShareAudioPortion();
+                },
+              },
+            ].map((action) => (
+              <TouchableOpacity
+                key={action.key}
+                style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
+                onPress={action.onPress}
+              >
+                <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
+                <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={pendingChapterAudioShareAction !== null} transparent animationType="fade">
+        <View style={[styles.feedbackModalOverlay, styles.chapterAudioShareLoadingOverlay]}>
+          <View
+            style={[
+              styles.chapterAudioShareLoadingCard,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <ActivityIndicator size="small" color={colors.biblePrimaryText} />
+            <Text style={[styles.chapterAudioShareLoadingTitle, { color: colors.biblePrimaryText }]}>
+              {chapterAudioShareActionLabel}
+            </Text>
+            <Text
+              style={[
+                styles.chapterAudioShareLoadingBody,
+                { color: colors.bibleSecondaryText },
+              ]}
+            >
+              {t('common.loading')}
+            </Text>
+          </View>
+        </View>
       </Modal>
 
       {canShowTranslationSheet ? (
@@ -3368,7 +3734,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  listenMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   listenMetaBlock: {
+    flex: 1,
     gap: 6,
   },
   listenChapterTitle: {
@@ -3378,6 +3750,19 @@ const styles = StyleSheet.create({
   listenChapterMeta: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  listenShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  listenShareButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   listenPlayerCard: {
     marginTop: 'auto',
@@ -3628,6 +4013,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+  },
+  chapterAudioShareLoadingOverlay: {
+    alignItems: 'center',
+  },
+  chapterAudioShareLoadingCard: {
+    minWidth: 220,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  chapterAudioShareLoadingTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  chapterAudioShareLoadingBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   feedbackModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
