@@ -50,7 +50,6 @@ export function AboutScreen() {
             {t('about.description')}
           </Text>
         </View>
-
         {/* Links */}
         <Text style={styles.sectionTitle}>{t('about.resources', { defaultValue: ABOUT_RESOURCES_LABEL })}</Text>
         <View style={styles.linksCard}>
@@ -78,7 +77,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('https://jeremy3004-dot.github.io/EveryBible/privacy.html')}
+            onPress={() => handleLink('https://everybible.app/privacy')}
           >
             <Ionicons name="shield-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.privacyPolicy')}</Text>
@@ -87,7 +86,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={[styles.linkItem, styles.linkItemLast]}
-            onPress={() => handleLink('https://jeremy3004-dot.github.io/EveryBible/terms.html')}
+            onPress={() => handleLink('https://everybible.app/terms')}
           >
             <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>

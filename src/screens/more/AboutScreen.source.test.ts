@@ -45,6 +45,28 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
     'AboutScreen should render the actual EveryBible app icon'
   );
 
+  assert.ok(
+    source.includes('https://everybible.app/privacy'),
+    'AboutScreen should link to the EveryBible privacy page'
+  );
+
+  assert.ok(
+    source.includes('https://everybible.app/terms'),
+    'AboutScreen should link to the EveryBible terms page'
+  );
+
+  assert.equal(
+    source.includes('https://jeremy3004-dot.github.io/EveryBible/privacy.html'),
+    false,
+    'AboutScreen should no longer link to the old privacy page'
+  );
+
+  assert.equal(
+    source.includes('https://jeremy3004-dot.github.io/EveryBible/terms.html'),
+    false,
+    'AboutScreen should no longer link to the old terms page'
+  );
+
   assert.equal(
     source.includes("t('about.bibleTranslation')"),
     false,
