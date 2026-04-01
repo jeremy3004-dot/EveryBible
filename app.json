@@ -18,10 +18,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "234",
+      "buildNumber": "235",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
+        "NSCameraUsageDescription": "Allow Every Bible to access your camera if you choose to take a profile photo.",
+        "NSPhotoLibraryUsageDescription": "Allow Every Bible to access your photo library so you can choose a profile photo.",
         "UIBackgroundModes": [
           "audio",
           "fetch",

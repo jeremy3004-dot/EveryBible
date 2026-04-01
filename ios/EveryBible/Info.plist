@@ -81,8 +81,12 @@
 	</dict>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow Every Bible to access your camera if you choose to take a profile photo.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow Every Bible to access your photo library so you can choose a profile photo.</string>
 	<key>RCTNewArchEnabled</key>
 	<false/>
 	<key>UIBackgroundModes</key>
