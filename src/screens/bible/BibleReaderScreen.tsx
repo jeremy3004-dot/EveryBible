@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -9,8 +9,7 @@ import {
   InteractionManager,
   KeyboardAvoidingView,
   Modal,
-  NativeEventEmitter,
-  NativeModules,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -38,6 +37,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import VideoTrimModule, {
+  isValidFile as isValidTrimMediaFile,
+  trim as trimAudioMedia,
+} from 'react-native-video-trim';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -176,6 +179,190 @@ interface VerseImageSharePreviewProps {
   selectedText: string;
 }
 
+interface AudioPortionShareDraft {
+  sourceUri: string;
+  fileExtension: string;
+  mimeType: string;
+  durationMs: number;
+}
+
+const AUDIO_PORTION_MIN_DURATION_MS = 1000;
+const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
+const AUDIO_PORTION_HANDLE_WIDTH = 20;
+
+interface AudioRangeSelectorProps {
+  durationMs: number;
+  startMs: number;
+  endMs: number;
+  minRangeMs: number;
+  previewPositionMs: number;
+  trackColor: string;
+  selectionColor: string;
+  waveColor: string;
+  selectedWaveColor: string;
+  playedWaveColor: string;
+  handleColor: string;
+  onStartChange: (nextStartMs: number) => void;
+  onEndChange: (nextEndMs: number) => void;
+}
+
+function AudioRangeSelector({
+  durationMs,
+  startMs,
+  endMs,
+  minRangeMs,
+  previewPositionMs,
+  trackColor,
+  selectionColor,
+  waveColor,
+  selectedWaveColor,
+  playedWaveColor,
+  handleColor,
+  onStartChange,
+  onEndChange,
+}: AudioRangeSelectorProps) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const waveformSamples = useMemo(
+    () =>
+      Array.from({ length: 44 }, (_, index) => {
+        const harmonic = Math.sin((index + 1) * 0.9);
+        const pulse = Math.sin((index + 1) * 0.33);
+        const normalized = 0.25 + Math.abs(harmonic) * 0.5 + Math.abs(pulse) * 0.25;
+        return 8 + Math.round(normalized * 34);
+      }),
+    []
+  );
+
+  const safeDurationMs = Math.max(durationMs, minRangeMs);
+  const pxPerMs = trackWidth > 0 ? trackWidth / safeDurationMs : 0;
+  const minGapPx = pxPerMs * minRangeMs;
+  const clampedStartMs = Math.max(0, Math.min(startMs, safeDurationMs));
+  const clampedEndMs = Math.max(clampedStartMs, Math.min(endMs, safeDurationMs));
+  const startPx = pxPerMs * clampedStartMs;
+  const endPx = pxPerMs * clampedEndMs;
+  const previewPx = pxPerMs * Math.max(0, Math.min(previewPositionMs, safeDurationMs));
+
+  const pxToMs = useCallback(
+    (positionPx: number) => {
+      if (trackWidth <= 0 || safeDurationMs <= 0) {
+        return 0;
+      }
+
+      return Math.max(0, Math.min(safeDurationMs, Math.round((positionPx / trackWidth) * safeDurationMs)));
+    },
+    [safeDurationMs, trackWidth]
+  );
+
+  const onTrackLayout = (event: LayoutChangeEvent) => {
+    setTrackWidth(event.nativeEvent.layout.width);
+  };
+
+  const startHandleResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderMove: (_event, gestureState) => {
+          const maxStartPx = Math.max(endPx - minGapPx, 0);
+          const nextStartPx = Math.max(0, Math.min(maxStartPx, startPx + gestureState.dx));
+          onStartChange(pxToMs(nextStartPx));
+        },
+      }),
+    [endPx, minGapPx, onStartChange, pxToMs, startPx]
+  );
+
+  const endHandleResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderMove: (_event, gestureState) => {
+          const minEndPx = Math.min(startPx + minGapPx, trackWidth);
+          const nextEndPx = Math.max(minEndPx, Math.min(trackWidth, endPx + gestureState.dx));
+          onEndChange(pxToMs(nextEndPx));
+        },
+      }),
+    [endPx, minGapPx, onEndChange, pxToMs, startPx, trackWidth]
+  );
+
+  const isPreviewWithinSelection = previewPositionMs >= clampedStartMs && previewPositionMs <= clampedEndMs;
+
+  return (
+    <View style={styles.audioPortionRangeSelector} onLayout={onTrackLayout}>
+      <View style={[styles.audioPortionRangeTrack, { backgroundColor: trackColor }]} />
+      <View
+        style={[
+          styles.audioPortionRangeSelection,
+          {
+            left: startPx,
+            width: Math.max(endPx - startPx, 0),
+            backgroundColor: selectionColor,
+          },
+        ]}
+      />
+
+      <View style={styles.audioPortionWaveRow}>
+        {waveformSamples.map((sample, index) => {
+          const segmentCenter = trackWidth * (index / Math.max(waveformSamples.length - 1, 1));
+          const isSelected = segmentCenter >= startPx && segmentCenter <= endPx;
+          const isPlayed = isPreviewWithinSelection && segmentCenter >= startPx && segmentCenter <= previewPx;
+
+          return (
+            <View
+              key={`wave-${index}`}
+              style={[
+                styles.audioPortionWaveBar,
+                {
+                  height: sample,
+                  backgroundColor: isPlayed ? playedWaveColor : isSelected ? selectedWaveColor : waveColor,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+
+      {isPreviewWithinSelection ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.audioPortionPreviewNeedle,
+            { left: previewPx, backgroundColor: playedWaveColor },
+          ]}
+        />
+      ) : null}
+
+      <View
+        style={[
+          styles.audioPortionHandle,
+          styles.audioPortionHandleStart,
+          {
+            left: startPx - AUDIO_PORTION_HANDLE_WIDTH / 2,
+            backgroundColor: handleColor,
+          },
+        ]}
+        {...startHandleResponder.panHandlers}
+      >
+        <View style={styles.audioPortionHandleGrip} />
+      </View>
+
+      <View
+        style={[
+          styles.audioPortionHandle,
+          styles.audioPortionHandleEnd,
+          {
+            left: endPx - AUDIO_PORTION_HANDLE_WIDTH / 2,
+            backgroundColor: handleColor,
+          },
+        ]}
+        {...endHandleResponder.panHandlers}
+      >
+        <View style={styles.audioPortionHandleGrip} />
+      </View>
+    </View>
+  );
+}
+
 function VerseImageSharePreview({
   previewRef,
   backgroundSource,
@@ -282,6 +469,13 @@ export function BibleReaderScreen() {
   const [pendingChapterAudioShareAction, setPendingChapterAudioShareAction] = useState<
     'full' | 'portion' | null
   >(null);
+  const [audioPortionShareDraft, setAudioPortionShareDraft] = useState<AudioPortionShareDraft | null>(
+    null
+  );
+  const [audioPortionStartMs, setAudioPortionStartMs] = useState(0);
+  const [audioPortionEndMs, setAudioPortionEndMs] = useState(0);
+  const [isSharingAudioPortion, setIsSharingAudioPortion] = useState(false);
+  const [isPreviewingAudioPortion, setIsPreviewingAudioPortion] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
@@ -386,6 +580,7 @@ export function BibleReaderScreen() {
     pendingChapterAudioShareAction === 'portion'
       ? t('bible.shareAudioPortion')
       : t('bible.shareChapterAudio');
+  const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: chapterFeedbackName ?? '',
     role: chapterFeedbackRole ?? '',
@@ -860,6 +1055,35 @@ export function BibleReaderScreen() {
     void loadAnnotations();
   }, [bookId, chapter]);
 
+  useEffect(() => {
+    if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
+      return;
+    }
+
+    if (status !== 'playing') {
+      setIsPreviewingAudioPortion(false);
+      return;
+    }
+
+    if (currentPosition < audioPortionEndMs) {
+      return;
+    }
+
+    void togglePlayPause();
+    void seekTo(audioPortionStartMs);
+    setIsPreviewingAudioPortion(false);
+  }, [
+    audioPortionEndMs,
+    audioPortionShareDraft,
+    audioPortionStartMs,
+    currentPosition,
+    isCurrentAudioChapter,
+    isPreviewingAudioPortion,
+    seekTo,
+    status,
+    togglePlayPause,
+  ]);
+
   const loadChapter = async () => {
     // Only show loading skeleton on the very first load (no verses yet).
     // For chapter-to-chapter transitions, keep the old content visible to
@@ -1107,9 +1331,18 @@ export function BibleReaderScreen() {
 
   const waitForChapterAudioShareSheetDismissal = async () => {
     await new Promise<void>((resolve) => {
-      InteractionManager.runAfterInteractions(() => {
+      let settled = false;
+      const complete = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timeoutId);
         resolve();
-      });
+      };
+      // Guard against long-running interaction handles that can block runAfterInteractions forever.
+      const timeoutId = setTimeout(complete, 300);
+      InteractionManager.runAfterInteractions(complete);
     });
   };
 
@@ -1158,6 +1391,7 @@ export function BibleReaderScreen() {
 
       const Sharing = await import('expo-sharing');
       if (await Sharing.isAvailableAsync()) {
+        setPendingChapterAudioShareAction(null);
         await Sharing.shareAsync(audioShareAsset.uri, {
           dialogTitle: t('groups.share'),
           mimeType: audioShareAsset.mimeType,
@@ -1167,6 +1401,7 @@ export function BibleReaderScreen() {
       }
 
       const url = buildBibleDeepLink(bookId, chapter);
+      setPendingChapterAudioShareAction(null);
       await Share.share(
         Platform.OS === 'android'
           ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
@@ -1224,105 +1459,207 @@ export function BibleReaderScreen() {
         detail: 'share-audio-clip',
       });
 
-      const {
-        showEditor,
-        isValidFile,
-        default: NativeVideoTrim,
-      } = await import('react-native-video-trim');
+      const validateTrimMediaFile =
+        typeof isValidTrimMediaFile === 'function'
+          ? isValidTrimMediaFile
+          : typeof (VideoTrimModule as { isValidFile?: (url: string) => Promise<unknown> })
+                .isValidFile === 'function'
+            ? (VideoTrimModule as { isValidFile: (url: string) => Promise<unknown> }).isValidFile
+            : null;
 
-      const isValidAudioFile = await isValidFile(audioShareAsset.uri);
+      const validationResult = validateTrimMediaFile
+        ? await validateTrimMediaFile(audioShareAsset.uri)
+        : null;
+      const isValidAudioFile =
+        validationResult == null ||
+        typeof validationResult === 'boolean'
+          ? validationResult !== false
+          : (validationResult as { isValid?: boolean } | null | undefined)?.isValid === true;
       if (!isValidAudioFile) {
         setPendingChapterAudioShareAction(null);
         Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
         return;
       }
 
-      const trimEditorListeners: Array<{ remove: () => void }> = [];
-      const clearTrimEditorListeners = () => {
-        trimEditorListeners.splice(0).forEach((listener) => listener.remove());
-      };
-      const handleTrimEditorShown = () => {
-        setPendingChapterAudioShareAction(null);
-      };
-      const handleTrimEditorClosed = () => {
-        setPendingChapterAudioShareAction(null);
-        clearTrimEditorListeners();
-      };
-      const handleTrimEditorError = (message?: string) => {
-        setPendingChapterAudioShareAction(null);
-        clearTrimEditorListeners();
-        Alert.alert(t('common.error'), message || t('bible.audioDownloadFailed'));
-      };
+      const validatedDurationMs =
+        validationResult != null && typeof validationResult !== 'boolean'
+          ? (validationResult as { duration?: number } | null | undefined)?.duration
+          : null;
+      const fallbackDurationMs = isCurrentAudioChapter && duration > 0 ? Math.round(duration) : 0;
+      const resolvedDurationMs = Math.max(validatedDurationMs ?? fallbackDurationMs, AUDIO_PORTION_MIN_DURATION_MS);
+      const initialStartMs = Math.max(
+        0,
+        Math.min(
+          isCurrentAudioChapter ? currentPosition : 0,
+          resolvedDurationMs - AUDIO_PORTION_MIN_DURATION_MS
+        )
+      );
+      const initialEndMs = Math.min(
+        resolvedDurationMs,
+        Math.max(initialStartMs + AUDIO_PORTION_MIN_DURATION_MS, initialStartMs + AUDIO_PORTION_DEFAULT_DURATION_MS)
+      );
 
-      const isFabricRuntime = Boolean((globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager);
-      if (isFabricRuntime && typeof NativeVideoTrim.onShow === 'function') {
-        trimEditorListeners.push(
-          NativeVideoTrim.onShow(() => {
-            handleTrimEditorShown();
-          })
-        );
-        trimEditorListeners.push(
-          NativeVideoTrim.onCancel(() => {
-            handleTrimEditorClosed();
-          })
-        );
-        trimEditorListeners.push(
-          NativeVideoTrim.onHide(() => {
-            handleTrimEditorClosed();
-          })
-        );
-        trimEditorListeners.push(
-          NativeVideoTrim.onError(({ message }: { message?: string }) => {
-            handleTrimEditorError(message);
-          })
-        );
-      } else if (NativeModules.VideoTrim) {
-        const trimEventEmitter = new NativeEventEmitter(NativeModules.VideoTrim);
-        trimEditorListeners.push(
-          trimEventEmitter.addListener(
-            'VideoTrim',
-            (event: { name?: string; message?: string } | undefined) => {
-              switch (event?.name) {
-                case 'onShow':
-                  handleTrimEditorShown();
-                  break;
-                case 'onCancel':
-                case 'onHide':
-                  handleTrimEditorClosed();
-                  break;
-                case 'onError':
-                  handleTrimEditorError(event.message);
-                  break;
-                default:
-                  break;
-              }
-            }
-          )
-        );
-      }
-
-      showEditor(audioShareAsset.uri, {
-        type: 'audio',
-        outputExt: audioShareAsset.fileExtension,
-        headerText: chapterShareTitle,
-        cancelButtonText: t('common.cancel'),
-        saveButtonText: t('groups.share'),
-        trimmingText: t('bible.shareAudioPortion'),
-        jumpToPositionOnLoad: isCurrentAudioChapter ? currentPosition : 0,
-        maxDuration: duration > 0 ? Math.round(duration) : -1,
-        openShareSheetOnFinish: true,
-        closeWhenFinish: true,
-        autoplay: false,
-        removeAfterShared: Platform.OS === 'ios',
-        removeAfterFailedToShare: Platform.OS === 'ios',
-        headerTextColor: colors.biblePrimaryText,
-        trimmerColor: colors.bibleAccent,
-        handleIconColor: colors.bibleBackground,
+      setAudioPortionShareDraft({
+        sourceUri: audioShareAsset.uri,
+        fileExtension: audioShareAsset.fileExtension,
+        mimeType: audioShareAsset.mimeType,
+        durationMs: resolvedDurationMs,
       });
+      setAudioPortionStartMs(initialStartMs);
+      setAudioPortionEndMs(initialEndMs);
+      setPendingChapterAudioShareAction(null);
     } catch (shareError) {
       setPendingChapterAudioShareAction(null);
       const message = shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
+    }
+  };
+
+  const handleCloseAudioPortionSheet = () => {
+    if (isSharingAudioPortion) {
+      return;
+    }
+
+    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
+      void togglePlayPause();
+    }
+
+    setIsPreviewingAudioPortion(false);
+    setAudioPortionShareDraft(null);
+    setAudioPortionStartMs(0);
+    setAudioPortionEndMs(0);
+  };
+
+  const handleAudioPortionStartSeek = (nextStartMs: number) => {
+    if (!audioPortionShareDraft) {
+      return;
+    }
+
+    const clampedStartMs = Math.max(0, Math.min(nextStartMs, audioPortionShareDraft.durationMs));
+    const maxStartMs = Math.max(audioPortionEndMs - AUDIO_PORTION_MIN_DURATION_MS, 0);
+    setAudioPortionStartMs(Math.min(clampedStartMs, maxStartMs));
+  };
+
+  const handleAudioPortionEndSeek = (nextEndMs: number) => {
+    if (!audioPortionShareDraft) {
+      return;
+    }
+
+    const clampedEndMs = Math.max(0, Math.min(nextEndMs, audioPortionShareDraft.durationMs));
+    const minEndMs = Math.min(
+      audioPortionShareDraft.durationMs,
+      audioPortionStartMs + AUDIO_PORTION_MIN_DURATION_MS
+    );
+    setAudioPortionEndMs(Math.max(clampedEndMs, minEndMs));
+  };
+
+  const handleToggleAudioPortionPreview = () => {
+    if (!audioPortionShareDraft || !isCurrentAudioChapter || duration <= 0) {
+      return;
+    }
+
+    if (isPreviewingAudioPortion) {
+      if (status === 'playing') {
+        void togglePlayPause();
+      }
+      setIsPreviewingAudioPortion(false);
+      return;
+    }
+
+    const nextStartMs = Math.max(0, Math.min(audioPortionStartMs, duration));
+    lastFollowAlongVerseRef.current = null;
+    void seekTo(nextStartMs);
+    if (status !== 'playing') {
+      void togglePlayPause();
+    }
+    setIsPreviewingAudioPortion(true);
+  };
+
+  const handleConfirmAudioPortionShare = async () => {
+    if (!audioPortionShareDraft || isSharingAudioPortion) {
+      return;
+    }
+
+    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
+      void togglePlayPause();
+    }
+    setIsPreviewingAudioPortion(false);
+
+    const startTime = Math.max(0, Math.round(audioPortionStartMs));
+    const endTime = Math.max(startTime + AUDIO_PORTION_MIN_DURATION_MS, Math.round(audioPortionEndMs));
+    if (endTime > audioPortionShareDraft.durationMs) {
+      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+      return;
+    }
+
+    const trimMediaFile =
+      typeof trimAudioMedia === 'function'
+        ? trimAudioMedia
+        : typeof (VideoTrimModule as {
+              trim?: (url: string, options: unknown) => Promise<unknown>;
+            }).trim === 'function'
+          ? (VideoTrimModule as {
+              trim: (url: string, options: unknown) => Promise<unknown>;
+            }).trim
+          : null;
+    if (!trimMediaFile) {
+      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+      return;
+    }
+
+    setIsSharingAudioPortion(true);
+    try {
+      const trimResult = await trimMediaFile(audioPortionShareDraft.sourceUri, {
+        type: 'audio',
+        outputExt: audioPortionShareDraft.fileExtension,
+        startTime,
+        endTime,
+        saveToPhoto: false,
+        removeAfterSavedToPhoto: false,
+        removeAfterFailedToSavePhoto: false,
+        enableRotation: false,
+        rotationAngle: 0,
+      });
+
+      const trimOutputPath =
+        typeof trimResult === 'string'
+          ? trimResult
+          : (trimResult as { outputPath?: string; success?: boolean } | null | undefined)?.outputPath;
+      const trimSucceeded =
+        typeof trimResult === 'string'
+          ? trimResult.length > 0
+          : (trimResult as { success?: boolean } | null | undefined)?.success !== false;
+
+      if (!trimSucceeded || !trimOutputPath) {
+        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+        return;
+      }
+
+      const trimOutputUri = trimOutputPath.startsWith('file://')
+        ? trimOutputPath
+        : `file://${trimOutputPath}`;
+      handleCloseAudioPortionSheet();
+
+      const Sharing = await import('expo-sharing');
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(trimOutputUri, {
+          dialogTitle: t('groups.share'),
+          mimeType: audioPortionShareDraft.mimeType,
+          UTI: 'public.audio',
+        });
+      } else {
+        const url = buildBibleDeepLink(bookId, chapter);
+        await Share.share(
+          Platform.OS === 'android'
+            ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
+            : { message: chapterShareTitle, url }
+        );
+      }
+    } catch (shareError) {
+      const message = shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
+    } finally {
+      setIsSharingAudioPortion(false);
     }
   };
 
@@ -1764,7 +2101,7 @@ export function BibleReaderScreen() {
             style={[
               styles.listenShareButton,
               {
-                backgroundColor: colors.bibleSurface,
+                backgroundColor: colors.bibleElevatedSurface,
                 borderColor: colors.bibleDivider,
               },
             ]}
@@ -1772,7 +2109,17 @@ export function BibleReaderScreen() {
               setShowChapterAudioShareSheet(true);
             }}
           >
-            <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
+            <View
+              style={[
+                styles.listenShareButtonIconWrap,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+            >
+              <Ionicons name="share-outline" size={15} color={colors.bibleAccent} />
+            </View>
             <Text style={[styles.listenShareButtonText, { color: colors.biblePrimaryText }]}>
               {t('groups.share')}
             </Text>
@@ -3000,22 +3347,61 @@ export function BibleReaderScreen() {
         onRequestClose={() => setShowChapterAudioShareSheet(false)}
       >
         <TouchableOpacity
-          style={[styles.modalBackdropFill, { backgroundColor: colors.overlay }]}
+          style={[
+            styles.audioShareBackdrop,
+            {
+              backgroundColor: colors.overlay,
+              paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
+            },
+          ]}
           activeOpacity={1}
           onPress={() => setShowChapterAudioShareSheet(false)}
         >
           <View
             style={[
-              styles.actionSheet,
+              styles.audioShareSheet,
               {
                 backgroundColor: colors.bibleSurface,
                 borderColor: colors.bibleDivider,
               },
             ]}
           >
-            <Text style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}>
-              {chapterShareTitle}
-            </Text>
+            <View
+              style={[
+                styles.audioShareGrabber,
+                { backgroundColor: colors.bibleDivider },
+              ]}
+            />
+
+            <View style={styles.audioShareHeader}>
+              <View style={styles.audioShareTitleWrap}>
+                <Text
+                  style={[
+                    styles.audioShareEyebrow,
+                    { color: colors.bibleSecondaryText },
+                  ]}
+                >
+                  {t('groups.share')}
+                </Text>
+                <Text style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}>
+                  {chapterShareTitle}
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
+                onPress={() => setShowChapterAudioShareSheet(false)}
+                style={[
+                  styles.audioShareCloseButton,
+                  {
+                    backgroundColor: colors.bibleElevatedSurface,
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+              >
+                <Ionicons name="close" size={16} color={colors.bibleSecondaryText} />
+              </TouchableOpacity>
+            </View>
 
             {[
               {
@@ -3037,21 +3423,180 @@ export function BibleReaderScreen() {
             ].map((action) => (
               <TouchableOpacity
                 key={action.key}
-                style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
+                style={[
+                  styles.audioShareOption,
+                  {
+                    backgroundColor: colors.bibleElevatedSurface,
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+                activeOpacity={0.9}
                 onPress={action.onPress}
               >
-                <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
-                <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
+                <View
+                  style={[
+                    styles.audioShareOptionIconWrap,
+                    {
+                      backgroundColor: colors.bibleSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                >
+                  <Ionicons name={action.icon as never} size={18} color={colors.bibleAccent} />
+                </View>
+                <Text style={[styles.audioShareOptionLabel, { color: colors.biblePrimaryText }]}>
                   {action.label}
                 </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.bibleSecondaryText}
+                />
               </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
       </Modal>
 
-      <Modal visible={pendingChapterAudioShareAction !== null} transparent animationType="fade">
-        <View style={[styles.feedbackModalOverlay, styles.chapterAudioShareLoadingOverlay]}>
+      <Modal
+        visible={audioPortionShareDraft !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseAudioPortionSheet}
+      >
+        <View style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
+          <TouchableOpacity
+            style={styles.feedbackModalBackdrop}
+            activeOpacity={1}
+            onPress={handleCloseAudioPortionSheet}
+          />
+          <View
+            style={[
+              styles.audioPortionSheet,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <Text style={[styles.audioPortionTitle, { color: colors.biblePrimaryText }]}>
+              {t('bible.shareAudioPortion')}
+            </Text>
+            <Text style={[styles.audioPortionReference, { color: colors.bibleSecondaryText }]}>
+              {chapterShareTitle}
+            </Text>
+
+            <View style={styles.audioPortionRangeHeader}>
+              <View style={styles.audioPortionRangeLabelWrap}>
+                <Ionicons
+                  name="play-skip-back-outline"
+                  size={14}
+                  color={colors.bibleSecondaryText}
+                />
+                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
+                  {formatTime(audioPortionStartMs)}
+                </Text>
+              </View>
+              <View style={styles.audioPortionRangeLabelWrap}>
+                <Ionicons
+                  name="play-skip-forward-outline"
+                  size={14}
+                  color={colors.bibleSecondaryText}
+                />
+                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
+                  {formatTime(audioPortionEndMs)}
+                </Text>
+              </View>
+            </View>
+
+            <AudioRangeSelector
+              durationMs={audioPortionShareDraft?.durationMs ?? 0}
+              startMs={audioPortionStartMs}
+              endMs={audioPortionEndMs}
+              minRangeMs={AUDIO_PORTION_MIN_DURATION_MS}
+              previewPositionMs={isCurrentAudioChapter ? currentPosition : audioPortionStartMs}
+              trackColor={colors.bibleDivider}
+              selectionColor={colors.bibleElevatedSurface}
+              waveColor={colors.bibleDivider}
+              selectedWaveColor={colors.bibleSecondaryText}
+              playedWaveColor={colors.bibleAccent}
+              handleColor={colors.bibleAccent}
+              onStartChange={handleAudioPortionStartSeek}
+              onEndChange={handleAudioPortionEndSeek}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.audioPortionPreviewButton,
+                {
+                  borderColor: colors.bibleDivider,
+                  backgroundColor: colors.bibleElevatedSurface,
+                },
+              ]}
+              activeOpacity={0.9}
+              onPress={handleToggleAudioPortionPreview}
+              disabled={!isCurrentAudioChapter || isSharingAudioPortion}
+            >
+              <Ionicons
+                name={isPreviewingAudioPortion ? 'pause' : 'play'}
+                size={14}
+                color={colors.biblePrimaryText}
+              />
+              <Text style={[styles.audioPortionPreviewLabel, { color: colors.biblePrimaryText }]}>
+                {formatTime(audioPortionRangeDurationMs)}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.audioPortionActions}>
+              <TouchableOpacity
+                style={[
+                  styles.audioPortionActionButton,
+                  {
+                    borderColor: colors.bibleDivider,
+                    backgroundColor: colors.bibleElevatedSurface,
+                  },
+                ]}
+                onPress={handleCloseAudioPortionSheet}
+                disabled={isSharingAudioPortion}
+              >
+                <Text style={[styles.audioPortionActionLabel, { color: colors.biblePrimaryText }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.audioPortionActionButton,
+                  styles.audioPortionShareButton,
+                  {
+                    borderColor: colors.bibleAccent,
+                    backgroundColor: colors.bibleAccent,
+                  },
+                ]}
+                onPress={() => {
+                  void handleConfirmAudioPortionShare();
+                }}
+                disabled={isSharingAudioPortion}
+              >
+                {isSharingAudioPortion ? (
+                  <ActivityIndicator size="small" color={colors.cardBackground} />
+                ) : (
+                  <Text style={[styles.audioPortionActionLabel, { color: colors.cardBackground }]}>
+                    {t('groups.share')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {pendingChapterAudioShareAction !== null ? (
+        <View
+          style={[
+            styles.chapterAudioShareLoadingOverlay,
+            { backgroundColor: colors.overlay },
+          ]}
+        >
           <View
             style={[
               styles.chapterAudioShareLoadingCard,
@@ -3075,7 +3620,7 @@ export function BibleReaderScreen() {
             </Text>
           </View>
         </View>
-      </Modal>
+      ) : null}
 
       {canShowTranslationSheet ? (
         <Modal
@@ -3754,15 +4299,26 @@ const styles = StyleSheet.create({
   listenShareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 9,
     borderWidth: 1,
     borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: layout.minTouchTarget,
+    ...shadows.floating,
+  },
+  listenShareButtonIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listenShareButtonText: {
     fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 0.1,
   },
   listenPlayerCard: {
     marginTop: 'auto',
@@ -4015,7 +4571,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   chapterAudioShareLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    zIndex: 50,
   },
   chapterAudioShareLoadingCard: {
     minWidth: 220,
@@ -4035,6 +4595,217 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  audioShareBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xxl,
+  },
+  audioShareSheet: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+    ...shadows.floating,
+  },
+  audioShareGrabber: {
+    width: 44,
+    height: 4,
+    borderRadius: radius.pill,
+    alignSelf: 'center',
+    opacity: 0.9,
+  },
+  audioShareHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  audioShareTitleWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  audioShareEyebrow: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 1.1,
+  },
+  audioShareTitle: {
+    ...typography.cardTitle,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: -0.35,
+  },
+  audioShareCloseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioShareOption: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  audioShareOptionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioShareOptionLabel: {
+    ...typography.bodyStrong,
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  audioPortionSheet: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    ...shadows.floating,
+  },
+  audioPortionTitle: {
+    ...typography.cardTitle,
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  audioPortionReference: {
+    ...typography.label,
+    fontSize: 12,
+    lineHeight: 17,
+    letterSpacing: 0.3,
+  },
+  audioPortionRangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    gap: spacing.md,
+  },
+  audioPortionRangeLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  audioPortionRangeTime: {
+    ...typography.bodyStrong,
+    fontSize: 14,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+  },
+  audioPortionRangeSelector: {
+    height: 72,
+    borderRadius: 16,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    overflow: 'hidden',
+  },
+  audioPortionRangeTrack: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    opacity: 0.45,
+  },
+  audioPortionRangeSelection: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    borderRadius: 16,
+    opacity: 0.6,
+  },
+  audioPortionWaveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    height: 54,
+  },
+  audioPortionWaveBar: {
+    width: 3,
+    borderRadius: radius.pill,
+    opacity: 0.95,
+  },
+  audioPortionPreviewNeedle: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    width: 2,
+    borderRadius: radius.pill,
+    marginLeft: -1,
+  },
+  audioPortionHandle: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    width: AUDIO_PORTION_HANDLE_WIDTH,
+    borderRadius: radius.pill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioPortionHandleStart: {
+    marginLeft: 0,
+  },
+  audioPortionHandleEnd: {
+    marginLeft: 0,
+  },
+  audioPortionHandleGrip: {
+    width: 2,
+    height: 22,
+    borderRadius: radius.pill,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.88,
+  },
+  audioPortionPreviewButton: {
+    alignSelf: 'center',
+    minHeight: 36,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  audioPortionPreviewLabel: {
+    ...typography.label,
+    fontVariant: ['tabular-nums'],
+  },
+  audioPortionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  audioPortionActionButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  audioPortionShareButton: {
+    flex: 1.2,
+  },
+  audioPortionActionLabel: {
+    ...typography.button,
+    fontSize: 15,
+    lineHeight: 20,
   },
   feedbackModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
