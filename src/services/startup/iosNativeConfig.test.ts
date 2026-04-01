@@ -10,6 +10,8 @@ interface AppConfig {
   expo: {
     ios?: {
       infoPlist?: {
+        NSCameraUsageDescription?: string;
+        NSPhotoLibraryUsageDescription?: string;
         UIBackgroundModes?: string[];
       };
     };
@@ -54,6 +56,32 @@ test('ios Info.plist keeps configured background modes aligned with app config',
       `Expected ios/EveryBible/Info.plist to include the ${mode} background mode from app.json`
     );
   }
+});
+
+test('ios Info.plist keeps image permission purpose strings aligned with app config', () => {
+  const appConfig = readRootJson<AppConfig>('app.json');
+  const infoPlist = readRootFile('ios/EveryBible/Info.plist');
+  const expectedCameraUsage = appConfig.expo.ios?.infoPlist?.NSCameraUsageDescription;
+  const expectedPhotoLibraryUsage = appConfig.expo.ios?.infoPlist?.NSPhotoLibraryUsageDescription;
+
+  assert.ok(expectedCameraUsage, 'Expected app.json to declare NSCameraUsageDescription');
+  assert.ok(
+    expectedPhotoLibraryUsage,
+    'Expected app.json to declare NSPhotoLibraryUsageDescription'
+  );
+
+  assert.match(
+    infoPlist,
+    new RegExp(`<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`),
+    'Expected ios/EveryBible/Info.plist to mirror NSCameraUsageDescription from app.json'
+  );
+  assert.match(
+    infoPlist,
+    new RegExp(
+      `<key>NSPhotoLibraryUsageDescription</key>\\s*<string>${escapeForRegex(expectedPhotoLibraryUsage)}</string>`
+    ),
+    'Expected ios/EveryBible/Info.plist to mirror NSPhotoLibraryUsageDescription from app.json'
+  );
 });
 
 test('ios Xcode project bundles the configured bible SQLite asset', () => {

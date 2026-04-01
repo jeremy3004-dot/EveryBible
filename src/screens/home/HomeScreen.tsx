@@ -37,6 +37,10 @@ import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { radius, spacing, typography } from '../../design/system';
+import {
+  getLiveVerseOfDayOverride,
+  type MobileVerseOfDayOverride,
+} from '../../services/content/mobileContentService';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -47,6 +51,8 @@ export function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const bottomTabBarHeight = useBottomTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
+  const [remoteVerseOverride, setRemoteVerseOverride] =
+    useState<MobileVerseOfDayOverride | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,8 +109,17 @@ export function HomeScreen() {
       }
 
       try {
+        const override = await getLiveVerseOfDayOverride();
+        setRemoteVerseOverride(override);
+
+        if (override) {
+          setDailyScripture(null);
+          return;
+        }
+
         if (!currentTranslationInfo) {
           setDailyScripture(null);
+          setRemoteVerseOverride(null);
           return;
         }
 
@@ -114,6 +129,7 @@ export function HomeScreen() {
         setDailyScripture(scripture);
       } catch (error) {
         console.error('Error loading verse of the day:', error);
+        setRemoteVerseOverride(null);
       } finally {
         if (!silent) {
           setIsLoadingVerse(false);
@@ -205,7 +221,7 @@ export function HomeScreen() {
       )
     : null;
   const dailyAudioAvailability =
-    dailyScripture && currentTranslationInfo
+    dailyScripture && !remoteVerseOverride && currentTranslationInfo
       ? getAudioAvailability({
           featureEnabled: config.features.audioEnabled,
           translationHasAudio: currentTranslationInfo.hasAudio,
@@ -226,15 +242,21 @@ export function HomeScreen() {
       : dailyScripture?.kind;
   const verseCardTitleLabel =
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
-  const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
+  const verseShareReferenceLabel =
+    remoteVerseOverride?.referenceLabel ?? dailyReferenceLabel ?? t('home.defaultReference');
   const verseShareBodyText =
-    dailyScripture?.kind === 'verse-text'
+    remoteVerseOverride?.verseText?.trim()
+      ? remoteVerseOverride.verseText.trim()
+      : dailyScripture?.kind === 'verse-text'
       ? dailyScripture.text?.trim() || t('home.defaultVerse')
       : shouldShowDailyAudio
         ? dailyAudioKind === 'section-audio'
           ? t('home.sectionOfTheDayBody')
           : t('home.verseAudioBody')
         : t('home.defaultVerse');
+  const verseBackgroundSource = remoteVerseOverride?.imageUrl
+    ? { uri: remoteVerseOverride.imageUrl }
+    : verseBackground;
   const verseShareMessage = buildHomeVerseShareMessage({
     cardTitle: verseCardTitleLabel,
     referenceLabel: verseShareReferenceLabel,
@@ -309,7 +331,7 @@ export function HomeScreen() {
 
   const renderVerseOfTheDayCard = (showActions: boolean) => (
     <ImageBackground
-      source={verseBackground}
+      source={verseBackgroundSource}
       style={[
         styles.card,
         styles.verseCard,
@@ -342,7 +364,7 @@ export function HomeScreen() {
         >
           {verseCardTitleLabel}
         </Text>
-        {dailyScripture?.kind === 'verse-text' ? (
+        {remoteVerseOverride || dailyScripture?.kind === 'verse-text' ? (
           <>
             <Text
               style={[
@@ -357,7 +379,7 @@ export function HomeScreen() {
               adjustsFontSizeToFit
               minimumFontScale={0.66}
             >
-              {`"${dailyScripture.text?.trim() || t('home.defaultVerse')}"`}
+              {`"${verseShareBodyText}"`}
             </Text>
             <Text
               style={[

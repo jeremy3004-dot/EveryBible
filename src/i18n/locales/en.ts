@@ -129,6 +129,8 @@ export const en = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    shareChapterAudio: 'Share chapter audio',
+    shareAudioPortion: 'Share audio portion',
     shareVerseImage: 'Image',
     chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'Chapter feedback',
@@ -728,7 +730,7 @@ export const en = {
   gather: {
     title: 'Gather',
     foundations: 'Foundations',
-    topics: 'Wisdom',
+    wisdom: 'Wisdom',
     infoBanner: 'Help others start their journey of discovering God for themselves in the Bible.',
     wisdomBanner:
       'If your group has a specific felt need, do some wisdom lessons before returning to your foundational or training lessons.',

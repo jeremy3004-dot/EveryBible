@@ -6,6 +6,7 @@ const PUBLIC_RUNTIME_CONFIG_KEYS = [
   'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
   'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
   'EXPO_PUBLIC_BIBLE_IS_API_KEY',
+  'EXPO_PUBLIC_CONTENT_API_URL',
 ] as const;
 
 type PublicRuntimeConfigKey = (typeof PUBLIC_RUNTIME_CONFIG_KEYS)[number];
@@ -80,6 +81,7 @@ export const buildPublicRuntimeConfig = ({
       EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: undefined,
       EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: undefined,
       EXPO_PUBLIC_BIBLE_IS_API_KEY: undefined,
+      EXPO_PUBLIC_CONTENT_API_URL: undefined,
     }
   );
 };

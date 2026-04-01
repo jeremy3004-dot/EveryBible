@@ -1,4 +1,6 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
 import { getBookById, getBookIcon } from '../../constants';
@@ -14,6 +16,7 @@ interface AudioFirstChapterCardProps {
   translationLabel: string;
   playbackSequenceEntries?: AudioPlaybackSequenceEntry[];
   onChapterChange?: (bookId: string, chapter: number) => void;
+  onShare?: () => void;
 }
 
 export function AudioFirstChapterCard({
@@ -22,8 +25,10 @@ export function AudioFirstChapterCard({
   translationLabel,
   playbackSequenceEntries = [],
   onChapterChange,
+  onShare,
 }: AudioFirstChapterCardProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -146,13 +151,34 @@ export function AudioFirstChapterCard({
         <Image source={getBookIcon(bookId)} style={styles.artwork} resizeMode="cover" />
       </View>
 
-      <View style={styles.metaBlock}>
-        <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-          {book?.name} {chapter}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-          {translationLabel}
-        </Text>
+      <View style={styles.metaRow}>
+        <View style={styles.metaBlock}>
+          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+            {book?.name} {chapter}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
+            {translationLabel}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('groups.share')}
+          activeOpacity={0.88}
+          style={[
+            styles.shareButton,
+            {
+              backgroundColor: colors.bibleSurface,
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+          onPress={onShare}
+        >
+          <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
+          <Text style={[styles.shareButtonText, { color: colors.biblePrimaryText }]}>
+            {t('groups.share')}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.controlBlock}>
@@ -229,7 +255,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   metaBlock: {
+    flex: 1,
     gap: 6,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   title: {
     fontSize: 28,
@@ -238,6 +270,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  shareButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   controlBlock: {
     gap: 18,

@@ -118,6 +118,8 @@ export const de = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    shareChapterAudio: 'Share chapter audio',
+    shareAudioPortion: 'Share audio portion',
     shareVerseImage: 'Image',
     chooseVerseImageBackground: 'Choose a background',
     books: {

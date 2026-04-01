@@ -6,6 +6,7 @@ import {
   buildBibleSelectionVerseRanges,
   extractBibleSelectionText,
   formatBibleSelectionReference,
+  getBibleSelectionShareTranslationLabel,
   toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
 
@@ -65,5 +66,27 @@ test('builds the selected-verse share payload with the reference on top', () => 
         'Blessed be the God and Father of our Lord Jesus Christ. He chose us in Him before the foundation of the world.',
     }),
     'Ephesians 1:3-5 BSB\n\nBlessed be the God and Father of our Lord Jesus Christ. He chose us in Him before the foundation of the world.'
+  );
+});
+
+test('prefers the full translation name when the abbreviation is only the language label', () => {
+  assert.equal(
+    getBibleSelectionShareTranslationLabel({
+      translationName: 'Nepali Bible',
+      translationAbbreviation: 'Nepali',
+      translationLanguage: 'Nepali',
+    }),
+    'Nepali Bible'
+  );
+});
+
+test('keeps the short translation abbreviation when it is distinct from the language name', () => {
+  assert.equal(
+    getBibleSelectionShareTranslationLabel({
+      translationName: 'Berean Standard Bible',
+      translationAbbreviation: 'BSB',
+      translationLanguage: 'English',
+    }),
+    'BSB'
   );
 });
