@@ -7,6 +7,13 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { config } from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
 
+const ABOUT_WEBSITE_URL = 'https://everybible.app';
+const ABOUT_WEBSITE_LABEL = 'everybible.app';
+const ABOUT_SUPPORT_EMAIL = 'hello@everybible.app';
+const ABOUT_BSB_DESCRIPTION = 'Public-domain Berean text with direct CC0 chapter audio.';
+const ABOUT_RESOURCES_LABEL = 'Resources';
+const ABOUT_MADE_WITH_LOVE = 'Made with love';
+
 export function AboutScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
@@ -47,30 +54,34 @@ export function AboutScreen() {
         {/* Bible Info */}
         <Text style={styles.sectionTitle}>{t('about.bibleTranslation')}</Text>
         <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>{t('about.bsbTitle')}</Text>
+          <Text style={styles.infoLabel}>{t('about.bereanBible')}</Text>
           <Text style={styles.infoDescription}>
-            {t('about.bsbDescription')}
+            {t('about.bsbDescription', { defaultValue: ABOUT_BSB_DESCRIPTION })}
           </Text>
         </View>
 
         {/* Links */}
-        <Text style={styles.sectionTitle}>{t('about.resources')}</Text>
+        <Text style={styles.sectionTitle}>{t('about.resources', { defaultValue: ABOUT_RESOURCES_LABEL })}</Text>
         <View style={styles.linksCard}>
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('https://berean.bible')}
+            onPress={() => handleLink(ABOUT_WEBSITE_URL)}
           >
             <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>{t('about.bereanWebsite')}</Text>
+            <Text style={styles.linkText}>
+              {t('about.bereanWebsite', { defaultValue: ABOUT_WEBSITE_LABEL })}
+            </Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('mailto:support@everybible.app')}
+            onPress={() => handleLink(`mailto:${ABOUT_SUPPORT_EMAIL}`)}
           >
             <Ionicons name="mail-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>{t('about.contactSupport')}</Text>
+            <Text style={styles.linkText}>
+              {t('about.contactSupport', { defaultValue: ABOUT_SUPPORT_EMAIL })}
+            </Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
@@ -93,7 +104,9 @@ export function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.copyright}>{t('about.madeWithLove')}</Text>
+        <Text style={styles.copyright}>
+          {t('about.madeWithLove', { defaultValue: ABOUT_MADE_WITH_LOVE })}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
