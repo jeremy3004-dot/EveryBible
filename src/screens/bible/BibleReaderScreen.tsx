@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -82,21 +83,23 @@ import {
   formatBibleSelectionReference,
   toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
+import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
+import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   READER_HERO_COLLAPSE_DISTANCE,
   READER_TOP_CHROME_DISMISS_DISTANCE,
   SWIPE_THRESHOLD,
   SWIPE_VELOCITY_MIN,
+  FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
-  FOLLOW_ALONG_VERSE_LINE_HEIGHT,
+  getReaderVerseLineHeight,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
-  getReaderVerseLineHeight,
   shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
@@ -154,6 +157,79 @@ function GlassSurface({ children, style, contentStyle, intensity = 36 }: GlassSu
   );
 }
 
+interface VerseImageSharePreviewProps {
+  previewRef: RefObject<View | null>;
+  backgroundSource: import('react-native').ImageSourcePropType;
+  referenceLabel: string;
+  selectedText: string;
+}
+
+function VerseImageSharePreview({
+  previewRef,
+  backgroundSource,
+  referenceLabel,
+  selectedText,
+}: VerseImageSharePreviewProps) {
+  const { colors, isDark } = useTheme();
+  const verseText = selectedText.trim();
+  const verseFontSize = verseText.length > 220 ? 19 : verseText.length > 140 ? 21 : 23;
+  const referenceFontSize = verseText.length > 220 ? 13 : 14;
+  const gradientColors: [string, string] = isDark
+    ? ['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.74)']
+    : ['rgba(245, 240, 232, 0.08)', 'rgba(245, 240, 232, 0.6)'];
+
+  return (
+    <View ref={previewRef} collapsable={false} style={styles.verseImagePreviewFrame}>
+      <ImageBackground
+        source={backgroundSource}
+        style={styles.verseImagePreviewBackground}
+        imageStyle={styles.verseImagePreviewImage}
+        resizeMode="cover"
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.verseImagePreviewOverlay}
+        />
+        <View style={styles.verseImagePreviewContent}>
+          <Text
+            style={[
+              styles.verseImagePreviewText,
+              {
+                color: colors.biblePrimaryText,
+                fontSize: verseFontSize,
+                lineHeight: Math.round(verseFontSize * 1.38),
+              },
+            ]}
+            numberOfLines={8}
+            adjustsFontSizeToFit
+            minimumFontScale={0.64}
+          >
+            {`"${verseText || referenceLabel}"`}
+          </Text>
+          <Text
+            style={[
+              styles.verseImagePreviewReference,
+              {
+                color: colors.accentGreen,
+                fontSize: referenceFontSize,
+                lineHeight: Math.round(referenceFontSize * 1.4),
+              },
+            ]}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+          >
+            {referenceLabel}
+          </Text>
+        </View>
+      </ImageBackground>
+    </View>
+  );
+}
+
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleReaderScreenProps['route']>();
@@ -174,6 +250,7 @@ export function BibleReaderScreen() {
   const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
+  const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
   // Monotonic follow-along: verse index only advances forward, never retreats.
@@ -190,14 +267,26 @@ export function BibleReaderScreen() {
   const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
+  const [selectedVerseImageBackgroundIndex, setSelectedVerseImageBackgroundIndex] = useState(() =>
+    getHomeVerseBackgroundIndex(new Date(), HOME_VERSE_BACKGROUND_SOURCES.length)
+  );
   const lastStableSessionModeRef = useRef(chapterSessionMode);
+  const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
+  const selectedVerseImageBackground =
+    HOME_VERSE_BACKGROUND_SOURCES[
+      verseImageBackgroundCount > 0
+        ? selectedVerseImageBackgroundIndex % verseImageBackgroundCount
+        : 0
+    ] ?? HOME_VERSE_BACKGROUND_SOURCES[0];
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
@@ -1230,12 +1319,72 @@ export function BibleReaderScreen() {
     selectionHaptic();
   };
 
+  const handleCloseSelectedVerses = () => {
+    setShowVerseImageSheet(false);
+    setSelectedVerses([]);
+  };
+
   const handleShareSelectedVerses = async () => {
     if (!selectedVerseShareText) {
       return;
     }
 
     await Share.share({ message: selectedVerseShareText });
+  };
+
+  const handleOpenVerseImageShare = () => {
+    if (!selectedVerseShareText) {
+      return;
+    }
+
+    setShowVerseImageSheet(true);
+  };
+
+  const handleSelectVerseImageBackground = (backgroundIndex: number) => {
+    setSelectedVerseImageBackgroundIndex(backgroundIndex);
+  };
+
+  const handleShareSelectedVerseImage = async () => {
+    if (!selectedVerseShareText || isSharingVerseImage) {
+      return;
+    }
+
+    setIsSharingVerseImage(true);
+
+    try {
+      const Sharing = await import('expo-sharing');
+
+      if (await Sharing.isAvailableAsync()) {
+        if (verseImageSharePreviewRef.current) {
+          const { captureRef } = await import('react-native-view-shot');
+          const imageUri = await captureRef(verseImageSharePreviewRef, {
+            format: 'png',
+            quality: 1,
+            result: 'tmpfile',
+          });
+
+          setShowVerseImageSheet(false);
+
+          await Sharing.shareAsync(imageUri, {
+            dialogTitle: t('groups.share'),
+            mimeType: 'image/png',
+          });
+          return;
+        }
+      }
+
+      setShowVerseImageSheet(false);
+      await Share.share({ message: selectedVerseShareText });
+    } catch {
+      try {
+        setShowVerseImageSheet(false);
+        await Share.share({ message: selectedVerseShareText });
+      } catch {
+        // Ignore share errors.
+      }
+    } finally {
+      setIsSharingVerseImage(false);
+    }
   };
 
   const handleHighlightSelectedVerses = async (color: string) => {
@@ -2799,14 +2948,181 @@ export function BibleReaderScreen() {
         onShare={() => {
           void handleShareSelectedVerses();
         }}
+        onShareImage={handleOpenVerseImageShare}
         onHighlight={handleHighlightSelectedVerses}
         onNote={handleNoteSelectedVerses}
         onRemoveHighlight={handleRemoveHighlightSelectedVerses}
         onClose={() => {
-          setSelectedVerses([]);
+          handleCloseSelectedVerses();
         }}
         existingNote={selectedNoteAnnotation?.content ?? undefined}
       />
+
+      <Modal
+        visible={showVerseImageSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVerseImageSheet(false)}
+      >
+        <View style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}>
+          <TouchableOpacity
+            style={styles.verseImageSheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowVerseImageSheet(false)}
+          />
+          <View
+            style={[
+              styles.verseImageSheetCard,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <View style={styles.verseImageSheetHeader}>
+              <View style={styles.verseImageSheetHeaderCopy}>
+                <Text style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}>
+                  {t('bible.chooseVerseImageBackground')}
+                </Text>
+                <Text
+                  style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
+                  numberOfLines={1}
+                >
+                  {selectedVerseReferenceLabel}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.verseImageSheetCloseButton,
+                  {
+                    backgroundColor: colors.bibleElevatedSurface,
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+                activeOpacity={0.88}
+                onPress={() => setShowVerseImageSheet(false)}
+              >
+                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
+              </TouchableOpacity>
+            </View>
+
+            <VerseImageSharePreview
+              previewRef={verseImageSharePreviewRef}
+              backgroundSource={selectedVerseImageBackground}
+              referenceLabel={selectedVerseReferenceLabel}
+              selectedText={selectedVerseText}
+            />
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.verseImageBackgroundRail}
+            >
+              {HOME_VERSE_BACKGROUND_SOURCES.map((backgroundSource, index) => {
+                const isSelected =
+                  verseImageBackgroundCount > 0 &&
+                  index === selectedVerseImageBackgroundIndex % verseImageBackgroundCount;
+
+                return (
+                  <Pressable
+                    key={`${index}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityLabel={`${t('bible.chooseVerseImageBackground')} ${index + 1}`}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.verseImageBackgroundButton,
+                      {
+                        opacity: pressed ? 0.92 : 1,
+                        borderColor: isSelected ? colors.accentGreen : colors.bibleDivider,
+                      },
+                    ]}
+                    onPress={() => {
+                      handleSelectVerseImageBackground(index);
+                    }}
+                  >
+                    <ImageBackground
+                      source={backgroundSource}
+                      style={styles.verseImageBackgroundTile}
+                      imageStyle={styles.verseImageBackgroundTileImage}
+                      resizeMode="cover"
+                    >
+                      <LinearGradient
+                        pointerEvents="none"
+                        colors={['rgba(12, 11, 9, 0.04)', 'rgba(12, 11, 9, 0.48)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                      {isSelected ? (
+                        <View
+                          style={[
+                            styles.verseImageBackgroundSelectedBadge,
+                            { backgroundColor: colors.accentGreen },
+                          ]}
+                        >
+                          <Ionicons
+                            name="checkmark"
+                            size={13}
+                            color={colors.bibleBackground}
+                          />
+                        </View>
+                      ) : null}
+                    </ImageBackground>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.verseImageSheetActions}>
+              <TouchableOpacity
+                style={[
+                  styles.verseImageSheetActionButton,
+                  {
+                    backgroundColor: colors.bibleElevatedSurface,
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+                activeOpacity={0.88}
+                onPress={() => setShowVerseImageSheet(false)}
+              >
+                <Text style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.verseImageSheetActionButton,
+                  styles.verseImageSheetShareButton,
+                  {
+                    backgroundColor: colors.accentPrimary,
+                    borderColor: colors.accentPrimary,
+                  },
+                ]}
+                activeOpacity={0.88}
+                onPress={() => {
+                  void handleShareSelectedVerseImage();
+                }}
+                disabled={isSharingVerseImage}
+              >
+                {isSharingVerseImage ? (
+                  <ActivityIndicator size="small" color={colors.bibleBackground} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.verseImageSheetActionText,
+                      { color: colors.bibleBackground },
+                    ]}
+                  >
+                    {t('groups.share')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -3374,6 +3690,138 @@ const styles = StyleSheet.create({
   feedbackErrorText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  verseImageSheetOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  verseImageSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  verseImageSheetCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    maxHeight: '88%',
+  },
+  verseImageSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  verseImageSheetHeaderCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  verseImageSheetTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  verseImageSheetReference: {
+    ...typography.label,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  verseImageSheetCloseButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  verseImagePreviewFrame: {
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    aspectRatio: 1.08,
+  },
+  verseImagePreviewBackground: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  verseImagePreviewImage: {
+    borderRadius: radius.lg,
+  },
+  verseImagePreviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  verseImagePreviewContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    gap: spacing.lg,
+  },
+  verseImagePreviewText: {
+    ...typography.readingDisplay,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  verseImagePreviewReference: {
+    ...typography.label,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  verseImageBackgroundRail: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  verseImageBackgroundButton: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  verseImageBackgroundTile: {
+    width: 88,
+    height: 118,
+    justifyContent: 'flex-end',
+  },
+  verseImageBackgroundTileImage: {
+    borderRadius: radius.lg,
+  },
+  verseImageBackgroundSelectedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verseImageSheetActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.xs,
+  },
+  verseImageSheetActionButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  verseImageSheetShareButton: {
+    minWidth: 132,
+  },
+  verseImageSheetActionText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   feedbackActionRow: {
     flexDirection: 'row',

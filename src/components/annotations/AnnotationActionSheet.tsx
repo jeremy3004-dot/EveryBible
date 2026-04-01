@@ -34,6 +34,7 @@ interface AnnotationActionSheetProps {
   activeHighlightColors: string[];
   onCopy: () => void;
   onShare: () => void;
+  onShareImage: () => void;
   onHighlight: (color: string) => void;
   onNote: (text: string) => void;
   onRemoveHighlight: (color: string) => void;
@@ -85,6 +86,7 @@ function AnnotationActionSheetContent({
   canAnnotate,
   onCopy,
   onShare,
+  onShareImage,
   onHighlight,
   onNote,
   onRemoveHighlight,
@@ -158,7 +160,6 @@ function AnnotationActionSheetContent({
             paddingBottom: spacing.xl + bottomInset,
           },
         ]}
-        onStartShouldSetResponder={() => true}
       >
         <View style={styles.handle}>
           <View style={[styles.handleBar, { backgroundColor: colors.bibleSecondaryText + '55' }]} />
@@ -244,6 +245,11 @@ function AnnotationActionSheetContent({
                 icon="share-social-outline"
                 label={t('groups.share')}
                 onPress={onShare}
+              />
+              <ActionPill
+                icon="image-outline"
+                label={t('bible.shareVerseImage')}
+                onPress={onShareImage}
               />
             </ScrollView>
           </View>

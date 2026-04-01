@@ -129,6 +129,8 @@ export const en = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    shareVerseImage: 'Image',
+    chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'Chapter feedback',
     chapterFeedbackTitle: 'Share feedback about this chapter',
     chapterFeedbackBody:

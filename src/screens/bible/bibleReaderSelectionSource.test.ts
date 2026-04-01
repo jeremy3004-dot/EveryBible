@@ -38,6 +38,18 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
+    /const handleOpenVerseImageShare = \(\) => \{/,
+    'BibleReaderScreen should define a dedicated verse-image picker opener'
+  );
+
+  assert.match(
+    source,
+    /const handleShareSelectedVerseImage = async \(\) => \{/,
+    'BibleReaderScreen should define a dedicated verse-image share handler'
+  );
+
+  assert.match(
+    source,
     /const handleHighlightSelectedVerses = async \(color: string\) => \{/,
     'BibleReaderScreen should define a dedicated selected-text highlight handler'
   );
@@ -79,6 +91,18 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   );
 
   assert.match(
+    source,
+    /visible=\{showVerseImageSheet\}/,
+    'BibleReaderScreen should open a dedicated verse-image sheet after the image action'
+  );
+
+  assert.match(
+    source,
+    /HOME_VERSE_BACKGROUND_SOURCES/,
+    'BibleReaderScreen should reuse the bundled verse background artwork for image sharing'
+  );
+
+  assert.match(
     traySource,
     /pointerEvents="box-none"/,
     'The selection tray should be inline so Bible taps can keep reaching the underlying reader'
@@ -106,6 +130,18 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     traySource,
     /groups\.share/,
     'The selection tray should expose a share action in the tray'
+  );
+
+  assert.match(
+    traySource,
+    /bible\.shareVerseImage/,
+    'The selection tray should expose an image-share action after the text share action'
+  );
+
+  assert.match(
+    traySource,
+    /image-outline/,
+    'The selection tray should show a picture icon for the image-share action'
   );
 
   assert.match(

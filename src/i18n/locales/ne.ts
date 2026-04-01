@@ -129,6 +129,8 @@ export const ne = {
     addToQueue: 'कतारमा थप्नुहोस्',
     downloadBookAudio: 'पुस्तक अडियो डाउनलोड गर्नुहोस्',
     shareChapterReference: 'अध्याय सन्दर्भ साझा गर्नुहोस्',
+    shareVerseImage: 'Image',
+    chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'अध्याय प्रतिक्रिया',
     chapterFeedbackTitle: 'यस अध्यायबारे प्रतिक्रिया साझा गर्नुहोस्',
     chapterFeedbackBody:

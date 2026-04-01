@@ -118,6 +118,8 @@ export const ur = {
     addToQueue: 'Add to queue',
     downloadBookAudio: 'Download book audio',
     shareChapterReference: 'Share chapter reference',
+    shareVerseImage: 'Image',
+    chooseVerseImageBackground: 'Choose a background',
     books: {
       GEN: 'Genesis',
       EXO: 'Exodus',

@@ -129,6 +129,8 @@ export const es = {
     addToQueue: 'Agregar a la cola',
     downloadBookAudio: 'Descargar audio del libro',
     shareChapterReference: 'Compartir referencia del capítulo',
+    shareVerseImage: 'Image',
+    chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'Comentarios del capítulo',
     chapterFeedbackTitle: 'Comparte comentarios sobre este capítulo',
     chapterFeedbackBody:
