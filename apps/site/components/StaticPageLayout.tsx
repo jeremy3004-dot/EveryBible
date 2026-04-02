@@ -18,7 +18,7 @@ export function StaticPageLayout({
     <main className="static-page">
       <div className="container static-page__container">
         <Link href="/" className="static-page__backlink">
-          Back to EveryBible
+          Back to homepage
         </Link>
 
         <section className="static-page__hero">

@@ -106,11 +106,20 @@ export function resolveBibleAssetUrl(
 }
 
 export function getBibleAudioAssetBaseUrl(
-  configuredAssetBaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL)
+  configuredAssetBaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL),
+  supabaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL)
 ): string | null {
-  if (!configuredAssetBaseUrl) {
+  if (!configuredAssetBaseUrl && !supabaseUrl) {
     return `${DEFAULT_BIBLE_ASSET_BASE_URL}/audio`;
   }
 
-  return `${configuredAssetBaseUrl}/audio`;
+  if (configuredAssetBaseUrl) {
+    return `${configuredAssetBaseUrl}/audio`;
+  }
+
+  if (!supabaseUrl) {
+    return null;
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/bible-audio`;
 }

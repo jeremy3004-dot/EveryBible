@@ -137,6 +137,21 @@ test('analyticsService posts queued events to the analytics collector with beare
   assert.doesNotMatch(source, /batch_track_events/, 'collector flow should replace the old RPC');
 });
 
+test('analyticsService keeps queueing location-agnostic before backend enrichment', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+
+  assert.doesNotMatch(
+    source,
+    /getCachedAnalyticsLocationEventProperties/,
+    'analyticsService should not read device-location helpers before queueing analytics events'
+  );
+  assert.doesNotMatch(
+    source,
+    /LOCATION_AWARE_EVENT_NAMES/,
+    'analyticsService should not special-case event names for device-location enrichment'
+  );
+});
+
 test('analyticsService skips flush when Supabase is not configured', () => {
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(

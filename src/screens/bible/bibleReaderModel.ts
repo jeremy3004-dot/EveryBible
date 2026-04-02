@@ -21,6 +21,7 @@ export const READER_TOP_CHROME_DISMISS_DISTANCE = 220;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
 export const READER_TAB_BAR_RESTORE_TOP_THRESHOLD = 16;
 export const READER_TAB_BAR_RESTORE_VELOCITY_MIN = 300;
+export const READER_TAB_BAR_RESTORE_DRAG_DELTA = 48;
 export const READER_VERSE_LINE_HEIGHT_MULTIPLIER = 1.5;
 export const FOLLOW_ALONG_VERSE_LINE_HEIGHT = 32;
 
@@ -328,6 +329,8 @@ export const getNextBibleTabBarVisibility = ({
     return true;
   }
 
+  const upwardDragDistance = previousScrollOffsetY - currentScrollOffsetY;
+
   switch (action) {
     case 'enter':
       return true;
@@ -343,7 +346,8 @@ export const getNextBibleTabBarVisibility = ({
 
       return (
         currentScrollOffsetY < previousScrollOffsetY &&
-        Math.abs(velocityY) >= READER_TAB_BAR_RESTORE_VELOCITY_MIN
+        (upwardDragDistance >= READER_TAB_BAR_RESTORE_DRAG_DELTA ||
+          Math.abs(velocityY) >= READER_TAB_BAR_RESTORE_VELOCITY_MIN)
       );
   }
 };

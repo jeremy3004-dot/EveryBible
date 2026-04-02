@@ -12,6 +12,12 @@ test('bibleStore emits analytics when a text translation download completes', ()
 
   assert.match(
     source,
+    /primeAnalyticsLocationForCurrentSession\('download'\)/,
+    'Bible store should prime approximate location before download analytics are emitted'
+  );
+
+  assert.match(
+    source,
     /trackEvent\(\s*'text_translation_download_completed'/,
     'Bible store should track a completed text translation download event'
   );

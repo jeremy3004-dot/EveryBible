@@ -113,3 +113,37 @@ test('TabNavigator respects Bible reader tab-bar visibility when the reader upda
     'TabNavigator should treat the Bible reader route param as the source of truth for showing the root tab bar'
   );
 });
+
+test('TabNavigator resumes the last open Bible chapter when the Bible tab is pressed from a cold start', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.hasReaderHistory\)/,
+    'TabNavigator should read persisted Bible reader history before deciding where the Bible tab should open'
+  );
+
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.currentBook\)/,
+    'TabNavigator should read the last open Bible book from the shared store'
+  );
+
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.currentChapter\)/,
+    'TabNavigator should read the last open Bible chapter from the shared store'
+  );
+
+  assert.match(
+    source,
+    /listeners=\{\(\{ navigation, route \}\) =>/,
+    'TabNavigator should attach a Bible tab-press listener so cold starts can resume into the reader stack'
+  );
+
+  assert.match(
+    source,
+    /navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
+    'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
+  );
+});

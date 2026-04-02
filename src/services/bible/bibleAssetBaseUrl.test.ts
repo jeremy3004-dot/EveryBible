@@ -1,22 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPublicRuntimeConfig } from '../startup/publicRuntimeConfig';
+
 import {
   getBibleAudioAssetBaseUrl,
   resolveBibleAssetBaseUrl,
   resolveBibleAssetUrl,
   sanitizeBibleAssetReference,
 } from './bibleAssetBaseUrl';
-
-test('buildPublicRuntimeConfig reads the optional Bible asset base URL', () => {
-  const config = buildPublicRuntimeConfig({
-    env: {
-      EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: ' https://cdn.everybible.app ',
-    },
-  });
-
-  assert.equal(config.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL, 'https://cdn.everybible.app');
-});
 
 test('sanitizeBibleAssetReference accepts absolute https asset urls', () => {
   assert.equal(
@@ -59,4 +49,11 @@ test('resolveBibleAssetUrl falls back to the EveryBible media route when no asse
 
 test('getBibleAudioAssetBaseUrl falls back to the EveryBible media route audio prefix', () => {
   assert.equal(getBibleAudioAssetBaseUrl(), 'https://everybible.app/api/media/audio');
+});
+
+test('getBibleAudioAssetBaseUrl keeps the legacy Supabase audio bucket when only Supabase is configured', () => {
+  assert.equal(
+    getBibleAudioAssetBaseUrl(undefined, 'https://ganmududzdzpruvdulkg.supabase.co'),
+    'https://ganmududzdzpruvdulkg.supabase.co/storage/v1/object/public/bible-audio'
+  );
 });

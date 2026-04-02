@@ -1,4 +1,9 @@
 export {
+  getCachedAnalyticsLocationEventProperties,
+  primeAnalyticsLocationForCurrentSession,
+} from './activityLocation';
+
+export {
   trackEvent,
   flushEvents,
   getEngagementSummary,

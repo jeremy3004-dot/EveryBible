@@ -11,6 +11,7 @@ interface AppConfig {
     ios?: {
       infoPlist?: {
         NSCameraUsageDescription?: string;
+        NSLocationWhenInUseUsageDescription?: string;
         NSPhotoLibraryUsageDescription?: string;
         UIBackgroundModes?: string[];
       };
@@ -62,9 +63,14 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
   const appConfig = readRootJson<AppConfig>('app.json');
   const infoPlist = readRootFile('ios/EveryBible/Info.plist');
   const expectedCameraUsage = appConfig.expo.ios?.infoPlist?.NSCameraUsageDescription;
+  const expectedLocationUsage = appConfig.expo.ios?.infoPlist?.NSLocationWhenInUseUsageDescription;
   const expectedPhotoLibraryUsage = appConfig.expo.ios?.infoPlist?.NSPhotoLibraryUsageDescription;
 
   assert.ok(expectedCameraUsage, 'Expected app.json to declare NSCameraUsageDescription');
+  assert.ok(
+    expectedLocationUsage,
+    'Expected app.json to declare NSLocationWhenInUseUsageDescription'
+  );
   assert.ok(
     expectedPhotoLibraryUsage,
     'Expected app.json to declare NSPhotoLibraryUsageDescription'
@@ -74,6 +80,13 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
     infoPlist,
     new RegExp(`<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`),
     'Expected ios/EveryBible/Info.plist to mirror NSCameraUsageDescription from app.json'
+  );
+  assert.match(
+    infoPlist,
+    new RegExp(
+      `<key>NSLocationWhenInUseUsageDescription</key>\\s*<string>${escapeForRegex(expectedLocationUsage)}</string>`
+    ),
+    'Expected ios/EveryBible/Info.plist to mirror NSLocationWhenInUseUsageDescription from app.json'
   );
   assert.match(
     infoPlist,

@@ -4,7 +4,7 @@
 
   gateway: {
     mode: "local",
-    port: 18791,
+    port: 18789,
     bind: "loopback",
     auth: {
       mode: "token",
@@ -14,6 +14,12 @@
 
   plugins: {
     enabled: true,
+
+    // Keep local recall/capture on the built-in long-term memory engine.
+    // Honcho is optional and can be enabled later without changing the slot.
+    slots: {
+      memory: "memory-lancedb",
+    },
 
     entries: {
       everybible: {
@@ -26,8 +32,7 @@
 
       "openclaw-honcho": {
         // Optional. Leave disabled until you have run `openclaw honcho setup`
-        // and you want service-backed cross-session memory beyond the bundled
-        // file-backed memory-core baseline.
+        // and you want Honcho's service-backed cross-session memory layer too.
         enabled: false,
         config: {
           workspaceId: "openclaw",
@@ -50,9 +55,7 @@
   agents: {
     defaults: {
       model: {
-        // If you are reusing local Codex OAuth instead of OPENAI_API_KEY, set
-        // EVERYBIBLE_OPERATOR_MODEL_ID to openai-codex/gpt-5.4 in the host config.
-        primary: "${EVERYBIBLE_OPERATOR_MODEL_ID}",
+        primary: "openai/gpt-5.4",
       },
     },
   },
@@ -83,8 +86,6 @@
       allowFrom: [
         "${EVERYBIBLE_OPERATOR_TELEGRAM_ALLOW_FROM}",
       ],
-      // Use pairing only for first contact if you still need to discover the
-      // numeric Telegram sender ID, then move back to allowlist immediately.
       // Keep groups off for the MVP. If you later need Telegram forum topics
       // for ACP thread binding, add a groups block and enable topic routing.
       groupPolicy: "disabled",

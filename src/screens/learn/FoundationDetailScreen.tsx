@@ -45,11 +45,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         <TouchableOpacity
           style={[
             styles.headerBar,
-            {
-              borderBottomColor: colors.cardBorder,
-              paddingTop: insets.top,
-              height: 56 + insets.top,
-            },
+            { borderBottomColor: colors.cardBorder, paddingTop: insets.top },
           ]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
@@ -104,14 +100,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header bar */}
       <View
-        style={[
-          styles.headerBar,
-          {
-            borderBottomColor: colors.cardBorder,
-            paddingTop: insets.top,
-            height: 56 + insets.top,
-          },
-        ]}
+        style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}
       >
         <TouchableOpacity
           onPress={() => navigation.goBack()}

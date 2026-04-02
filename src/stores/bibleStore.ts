@@ -40,7 +40,7 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
-import { trackEvent } from '../services/analytics/analyticsService';
+import { trackEvent, primeAnalyticsLocationForCurrentSession } from '../services/analytics';
 import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
@@ -50,6 +50,7 @@ import {
 interface BibleState {
   currentBook: string;
   currentChapter: number;
+  hasReaderHistory: boolean;
   preferredChapterLaunchMode: 'listen' | 'read';
   verses: Verse[];
   isLoading: boolean;
@@ -181,6 +182,7 @@ export const useBibleStore = create<BibleState>()(
     (set, get) => ({
       currentBook: 'GEN',
       currentChapter: 1,
+      hasReaderHistory: false,
       preferredChapterLaunchMode: 'read',
       verses: [],
       isLoading: false,
@@ -190,8 +192,8 @@ export const useBibleStore = create<BibleState>()(
       downloadProgress: null,
       readerTabBarVisible: true,
 
-      setCurrentBook: (bookId) => set({ currentBook: bookId }),
-      setCurrentChapter: (chapter) => set({ currentChapter: chapter }),
+      setCurrentBook: (bookId) => set({ currentBook: bookId, hasReaderHistory: true }),
+      setCurrentChapter: (chapter) => set({ currentChapter: chapter, hasReaderHistory: true }),
       setPreferredChapterLaunchMode: (preferredChapterLaunchMode) =>
         set({ preferredChapterLaunchMode }),
       applySyncedReadingPosition: ({ bookId, chapter }) => {
@@ -204,6 +206,7 @@ export const useBibleStore = create<BibleState>()(
         set({
           currentBook: bookId,
           currentChapter: chapter,
+          hasReaderHistory: true,
         });
       },
       setVerses: (verses) => set({ verses }),
@@ -416,6 +419,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadTranslation: async (translationId: string, _bookId?: string) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((t) => t.id === translationId);
         const hasInstalledTextPack = Boolean(translation?.textPackLocalPath);
         const isBundledSeed = Boolean(
@@ -465,7 +469,8 @@ export const useBibleStore = create<BibleState>()(
             ),
           }));
 
-          const { downloadCatalogTextPack } = await import(
+          const textPack = translation?.catalog?.text;
+          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
             '../services/bible/cloudTranslationService'
           );
 
@@ -496,17 +501,13 @@ export const useBibleStore = create<BibleState>()(
             });
           };
 
-          if (!textPack) {
-            throw new Error(
-              `No R2 text pack is published for ${translationId.toUpperCase()} yet.`
-            );
-          }
-
-          const localPath = await downloadCatalogTextPack({
-            translationId,
-            downloadUrl: textPack.downloadUrl,
-            onProgress: handleProgress,
-          });
+          const localPath = await (textPack
+            ? downloadCatalogTextPack({
+                translationId,
+                downloadUrl: textPack.downloadUrl,
+                onProgress: handleProgress,
+              })
+            : downloadCloudTranslation(translationId, handleProgress));
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 
@@ -557,6 +558,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadAudioForBook: async (translationId: string, bookId: string) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((item) => item.id === translationId);
         const book = getBookById(bookId);
 
@@ -621,6 +623,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadAudioForBooks: async (translationId: string, bookIds: string[]) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((item) => item.id === translationId);
         if (!translation?.hasAudio) {
           throw new Error('Audio downloads are not available for this translation.');
@@ -770,6 +773,7 @@ export const useBibleStore = create<BibleState>()(
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
+        hasReaderHistory: state.hasReaderHistory,
         preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,
         translations: state.translations,

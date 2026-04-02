@@ -5,6 +5,7 @@ import { GetObjectCommand, type GetObjectCommandOutput } from '@aws-sdk/client-s
 import {
   getBibleMediaClient,
   getBibleMediaEnv,
+  resolveLegacyBibleMediaUrl,
   resolveBibleMediaObjectKey,
 } from '../../../../lib/bible-media';
 
@@ -59,7 +60,34 @@ interface RouteContext {
   }>;
 }
 
-async function handleRequest(context: RouteContext): Promise<Response> {
+async function fetchLegacyMediaResponse(
+  request: Request,
+  objectKey: string
+): Promise<Response | null> {
+  const legacyUrl = resolveLegacyBibleMediaUrl(objectKey);
+  if (!legacyUrl) {
+    return null;
+  }
+
+  const response = await fetch(legacyUrl, {
+    headers: {
+      Accept: request.headers.get('accept') ?? '*/*',
+      Range: request.headers.get('range') ?? '',
+    },
+    method: request.method,
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return new Response(request.method === 'HEAD' ? null : response.body, {
+    headers: response.headers,
+    status: response.status,
+  });
+}
+
+async function handleRequest(request: Request, context: RouteContext): Promise<Response> {
   const { assetPath = [] } = await context.params;
   const objectKey = resolveBibleMediaObjectKey(assetPath);
 
@@ -88,7 +116,8 @@ async function handleRequest(context: RouteContext): Promise<Response> {
     });
   } catch (error) {
     if (isMissingObjectError(error)) {
-      return new Response('Not found', { status: 404 });
+      const legacyResponse = await fetchLegacyMediaResponse(request, objectKey);
+      return legacyResponse ?? new Response('Not found', { status: 404 });
     }
 
     throw error;
@@ -96,11 +125,9 @@ async function handleRequest(context: RouteContext): Promise<Response> {
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
-  void request;
-  return handleRequest(context);
+  return handleRequest(request, context);
 }
 
 export async function HEAD(request: Request, context: RouteContext): Promise<Response> {
-  void request;
-  return handleRequest(context);
+  return handleRequest(request, context);
 }

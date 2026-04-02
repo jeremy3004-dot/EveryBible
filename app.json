@@ -7,6 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
+    "privacyPolicyUrl": "https://everysevennine.tech/privacy",
     "scheme": "com.everybible.app",
     "newArchEnabled": false,
     "splash": {
@@ -17,11 +18,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "259",
+      "buildNumber": "243",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
         "NSCameraUsageDescription": "Allow Every Bible to access your camera if you choose to take a profile photo.",
+        "NSLocationWhenInUseUsageDescription": "Allow Every Bible to use your approximate location while you listen or download Scripture so the activity map reflects real listening areas without storing precise GPS.",
         "NSPhotoLibraryUsageDescription": "Allow Every Bible to access your photo library so you can choose a profile photo.",
         "UIBackgroundModes": [
           "audio",
@@ -39,9 +41,13 @@
       },
       "package": "com.everybible.app",
       "edgeToEdgeEnabled": true,
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.FOREGROUND_SERVICE"
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -60,6 +66,12 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Every Bible to use your approximate location while you listen or download Scripture so the activity map reflects real listening areas without storing precise GPS."
+        }
+      ],
       "expo-apple-authentication",
       "expo-av",
       "@kesha-antonov/react-native-background-downloader",
@@ -76,7 +88,8 @@
       "@react-native-google-signin/google-signin"
     ],
     "extra": {
-      "privacyPolicyUrl": "https://everybible.app/privacy",
+      "privacyPolicyUrl": "https://everysevennine.tech/privacy",
+      "termsOfServiceUrl": "https://everysevennine.tech/terms",
       "eas": {
         "projectId": "cfbf2bac-d680-448f-b2aa-33c4c01ad15b"
       }
