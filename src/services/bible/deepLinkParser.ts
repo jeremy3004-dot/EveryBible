@@ -50,7 +50,6 @@ export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => 
   if (!Number.isInteger(chapter) || chapter < 1) return null;
 
   const verse = verseStr !== undefined ? parseInt(verseStr, 10) : undefined;
-
   return { bookId, chapter, verse };
 };
 

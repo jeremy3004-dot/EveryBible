@@ -20,8 +20,6 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
-  READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
-  READER_TAB_BAR_RESTORE_VELOCITY_MIN,
 } from './bibleReaderModel';
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
@@ -79,7 +77,7 @@ test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
 });
 
-test('keeps the Bible tab bar open in listen mode', () => {
+test('keeps the Bible tab bar open in listen and read modes', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'listen',
@@ -98,9 +96,6 @@ test('keeps the Bible tab bar open in listen mode', () => {
     }),
     true
   );
-});
-
-test('hides the Bible tab bar when read mode scrolling starts', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'read',
@@ -109,55 +104,15 @@ test('hides the Bible tab bar when read mode scrolling starts', () => {
       currentScrollOffsetY: 36,
       velocityY: 0,
     }),
-    false
-  );
-});
-
-test('shows the Bible tab bar again when the reader reaches the top', () => {
-  assert.equal(
-    getNextBibleTabBarVisibility({
-      sessionMode: 'read',
-      action: 'scrollEndDrag',
-      previousScrollOffsetY: 72,
-      currentScrollOffsetY: READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
-      velocityY: 40,
-    }),
     true
   );
-});
-
-test('shows the Bible tab bar on a lighter upward flick in read mode', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'read',
       action: 'scrollEndDrag',
       previousScrollOffsetY: 240,
       currentScrollOffsetY: 210,
-      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN - 1,
-    }),
-    false
-  );
-
-  assert.equal(
-    getNextBibleTabBarVisibility({
-      sessionMode: 'read',
-      action: 'scrollEndDrag',
-      previousScrollOffsetY: 240,
-      currentScrollOffsetY: 120,
-      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN,
-    }),
-    true
-  );
-});
-
-test('shows the Bible tab bar again on a meaningful upward drag before the reader reaches the very top', () => {
-  assert.equal(
-    getNextBibleTabBarVisibility({
-      sessionMode: 'read',
-      action: 'scrollEndDrag',
-      previousScrollOffsetY: 260,
-      currentScrollOffsetY: 188,
-      velocityY: 120,
+      velocityY: 0,
     }),
     true
   );

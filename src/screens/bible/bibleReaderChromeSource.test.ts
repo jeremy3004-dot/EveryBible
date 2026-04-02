@@ -46,25 +46,49 @@ test('Bible listen surfaces leave breathing room above the bottom edge instead o
   );
 });
 
-test('BibleReaderScreen uses minimal listen chrome instead of repeating chapter metadata in the header', () => {
+test('BibleReaderScreen reuses the shared top chrome in listen mode and removes the duplicate chapter title under the artwork', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
     /const showMinimalListenChrome =[\s\S]*(stableSessionMode|chapterSessionMode) === 'listen' \|\| chapterPresentationMode === 'audio-first';/,
-    'BibleReaderScreen should compute a dedicated minimal-header mode for listen and audio-first chapters'
+    'BibleReaderScreen should still compute a dedicated listen-chrome mode for listen and audio-first chapters'
   );
 
   assert.match(
     source,
-    /!showMinimalListenChrome && \([\s\S]*styles\.title/s,
-    'BibleReaderScreen should hide the duplicated chapter title when minimal listen chrome is active'
+    /const renderSharedTopChrome = \(useAnimatedChrome: boolean\) => \(/,
+    'BibleReaderScreen should define a shared top chrome renderer so listen and read stay visually aligned'
   );
 
   assert.match(
     source,
-    /!showMinimalListenChrome && \([\s\S]*styles\.translationChip/s,
-    'BibleReaderScreen should hide the translation chip when minimal listen chrome is active'
+    /const renderLegacyReaderLayout = \(\) => \([\s\S]*\{renderSharedTopChrome\(false\)\}/s,
+    'BibleReaderScreen should render the shared top chrome inside the legacy listen/read layout'
+  );
+
+  assert.match(
+    source,
+    /const renderPremiumReadLayout = \(\) => \([\s\S]*\{renderSharedTopChrome\(true\)\}/s,
+    'BibleReaderScreen should render the same shared top chrome inside the premium read layout'
+  );
+
+  assert.equal(
+    source.includes('styles.listenMetaRow'),
+    false,
+    'BibleReaderScreen should remove the duplicate listen-mode metadata row once the top chrome carries the reference'
+  );
+
+  assert.equal(
+    source.includes('styles.listenChapterTitle'),
+    false,
+    'BibleReaderScreen should remove the duplicate listen-mode chapter title below the artwork'
+  );
+
+  assert.equal(
+    source.includes('styles.listenTimeCenterText'),
+    false,
+    'BibleReaderScreen should remove the duplicate chapter reference from the listen-mode scrubber row'
   );
 
   assert.equal(
@@ -188,7 +212,7 @@ test('listen mode passes chapter audio sharing into the shared playback controls
   );
 });
 
-test('BibleReaderScreen keeps the listen tab open and only toggles the root tab bar from read-mode scroll gestures', () => {
+test('BibleReaderScreen keeps the root tab bar visible while read mode scroll gestures update the chrome', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -211,8 +235,16 @@ test('BibleReaderScreen keeps the listen tab open and only toggles the root tab 
 
   assert.match(
     source,
-    /onScrollEndDrag=\{handleReaderScrollEndDrag\}/,
-    'BibleReaderScreen should restore the tab bar from the reader scroll end gesture when the flick is fast enough'
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollEndDrag'/s,
+    'BibleReaderScreen should keep the read-mode scroll-end restore logic for the root tab bar'
+  );
+
+  assert.equal(
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollStart'/s.test(
+      source
+    ),
+    false,
+    'BibleReaderScreen should no longer hide the root tab bar when read-mode scrolling starts'
   );
 });
 
@@ -242,15 +274,9 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
   );
 
   assert.equal(
-    source.includes('accessibilityLabel={t(\'common.previous\')}'),
+    source.includes('styles.iconButton'),
     false,
-    'BibleReaderScreen should remove the duplicate previous-chapter arrow from the top-right header actions'
-  );
-
-  assert.equal(
-    source.includes('accessibilityLabel={t(\'common.next\')}'),
-    false,
-    'BibleReaderScreen should remove the duplicate next-chapter arrow from the top-right header actions'
+    'BibleReaderScreen should remove the old icon-button header row from the top of the reader'
   );
 
   assert.equal(
@@ -261,14 +287,20 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
 
   assert.match(
     source,
-    /floatingReaderReferencePill:\s*{[\s\S]*maxWidth:\s*200,/,
-    'BibleReaderScreen should tighten the top-left reference pill so the listen/read rail does not shift sideways in read mode'
+    /floatingReaderReferencePill:\s*{[\s\S]*maxWidth:\s*212,[\s\S]*height:\s*layout\.minTouchTarget,/s,
+    'BibleReaderScreen should keep the top-left reference pill aligned at the same compact height as the other header buttons'
   );
 
   assert.match(
     source,
-    /floatingReaderReferencePillContent:\s*{[\s\S]*paddingHorizontal:\s*10,[\s\S]*gap:\s*6,/,
-    'BibleReaderScreen should trim the pill interior spacing so the top chrome aligns more closely with listen mode'
+    /floatingReaderReferencePillSegment:\s*{[\s\S]*paddingHorizontal:\s*12,/s,
+    'BibleReaderScreen should split the book and translation actions inside the top-left pill'
+  );
+
+  assert.match(
+    source,
+    /floatingReaderReferencePillDivider:\s*{[\s\S]*alignSelf:\s*'stretch'/s,
+    'BibleReaderScreen should draw a thin divider that spans the full pill height'
   );
 });
 
@@ -330,7 +362,7 @@ test('chapter feedback modal avoids keyboard overlap while typing a comment', ()
   );
 });
 
-test('premium read mode uses animated overlay chrome with blur-backed glass surfaces', () => {
+test('premium read mode keeps the animated overlay while the top controls stay flat', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -345,10 +377,16 @@ test('premium read mode uses animated overlay chrome with blur-backed glass surf
     'BibleReaderScreen should derive the premium reader motion from scroll-driven animated scroll handlers'
   );
 
-  assert.match(
-    source,
-    /BlurView/,
-    'BibleReaderScreen should use blur-backed glass surfaces instead of opaque reader chrome'
+  assert.equal(
+    source.includes('BlurView'),
+    false,
+    'BibleReaderScreen should keep the premium read header flat instead of using blur-backed glass surfaces'
+  );
+
+  assert.equal(
+    source.includes('translateY:'),
+    false,
+    'BibleReaderScreen should keep the shared top chrome fixed in place instead of sliding vertically when scrolling'
   );
 });
 
@@ -381,14 +419,14 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderModeRail[\s\S]*styles\.glassIconButton/s,
-    'BibleReaderScreen should keep the read/listen rail centered with the overflow menu still on the right'
+    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderModeRail[\s\S]*styles\.floatingReaderMenuButton/s,
+    'BibleReaderScreen should keep the read/listen rail centered with the flat overflow button still on the right'
   );
 
   assert.match(
     source,
-    /paddingTop:\s*premiumTopInset \+ 98,[\s\S]*paddingBottom:\s*premiumBottomInset \+ 72,/s,
-    'BibleReaderScreen should reclaim the middle and bottom space once the separate hero and bottom rail are gone'
+    /const premiumReaderBottomPadding = useMemo\([\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
+    'BibleReaderScreen should measure the short-chapter spacer so the text can reach the visible root tab bar'
   );
 
   assert.equal(
@@ -425,16 +463,137 @@ test('premium read mode keeps the three-dot overflow menu on the right while rem
     'BibleReaderScreen should keep the overflow menu icon on the right side of the premium read chrome'
   );
 
+  assert.equal(
+    source.includes('styles.translationChip'),
+    false,
+    'BibleReaderScreen should not keep a separate translation chip once both modes share the same top chrome'
+  );
+});
+
+test('premium read mode uses flat segmented top buttons with separate chapter and translation actions', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const topChromeMatch = source.match(
+    /const renderSharedTopChrome = \(useAnimatedChrome: boolean\)\s*=>\s*\(([\s\S]*?)\n\s{2}\);/
+  );
+
+  assert.ok(topChromeMatch, 'BibleReaderScreen should define the shared top chrome render block');
+
+  const topChrome = topChromeMatch?.[1] ?? '';
+
+  assert.equal(
+    topChrome.includes('GlassSurface'),
+    false,
+    'BibleReaderScreen should remove glass surfaces from the shared top chrome buttons'
+  );
+
+  assert.match(
+    topChrome,
+    /styles\.floatingReaderReferencePillDivider/,
+    'BibleReaderScreen should keep the small divider between the chapter and translation segments'
+  );
+
+  assert.match(
+    topChrome,
+    /top:\s*sharedTopChromeTop/,
+    'BibleReaderScreen should place the shared top chrome from one explicit shared offset in both read and listen modes'
+  );
+
   assert.match(
     source,
-    /styles\.translationChip/,
-    'BibleReaderScreen should still keep translation selection available in the legacy header fallback'
+    /const sharedTopChromeTop = safeInsets\.top \+ premiumTopInset;/,
+    'BibleReaderScreen should compute the top chrome offset once from the safe area and reuse it in both modes'
+  );
+
+  assert.match(
+    source,
+    /paddingTop:\s*readerContentTopPadding/,
+    'BibleReaderScreen should reuse the same content top padding in read and listen so the header does not jump when toggling modes'
+  );
+
+  assert.match(
+    topChrome,
+    /backgroundColor:\s*colors\.bibleElevatedSurface,\s*borderColor:\s*colors\.bibleElevatedSurface/s,
+    'BibleReaderScreen should use the single elevated secondary surface for the shared top controls instead of the older grayscale treatment'
   );
 
   assert.equal(
-    source.includes('styles.floatingReaderTranslationDock'),
+    source.includes('paddingTop: safeInsets.top,'),
     false,
-    'BibleReaderScreen should not render a separate translation button in the premium read layout'
+    'BibleReaderScreen should not keep a root safe-area top padding that would offset read and listen differently'
+  );
+
+  assert.match(
+    topChrome,
+    /onPress=\{handleOpenBookPicker\}/,
+    'BibleReaderScreen should keep the chapter segment opening the book picker'
+  );
+
+  assert.match(
+    topChrome,
+    /onPress=\{handleOpenTranslationOptions\}/,
+    'BibleReaderScreen should make the translation segment open translation options'
+  );
+});
+
+test('read mode occludes the dynamic-island area so verse text does not bleed into the notch region', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /chapterSessionMode === 'read'[\s\S]*styles\.dynamicIslandTopMask/s,
+    'BibleReaderScreen should render a read-mode top mask to keep the notch area visually black'
+  );
+
+  assert.match(
+    source,
+    /dynamicIslandTopMask:\s*{[\s\S]*position:\s*'absolute'[\s\S]*top:\s*0[\s\S]*zIndex:\s*29/s,
+    'BibleReaderScreen should pin the top mask above reader content and below floating chrome controls'
+  );
+});
+
+test('premium read mode restores the bottom previous and next chapter circles', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.equal(
+    source.includes('floatingReaderChapterNavOverlay'),
+    true,
+    'BibleReaderScreen should render a pinned bottom overlay for the chapter navigation circles'
+  );
+
+  assert.equal(
+    source.includes('bottom: layout.tabBarBaseHeight + spacing.md'),
+    true,
+    'BibleReaderScreen should keep the chapter navigation circles above the visible root tab bar'
+  );
+
+  assert.equal(
+    source.includes('handlePreviousReadChapter'),
+    true,
+    'BibleReaderScreen should keep the previous chapter action wired into premium read mode'
+  );
+
+  assert.equal(
+    source.includes('handleNextReadChapter'),
+    true,
+    'BibleReaderScreen should keep the next chapter action wired into premium read mode'
+  );
+
+  assert.equal(
+    source.includes('name="chevron-back"'),
+    true,
+    'BibleReaderScreen should render a back chevron inside the previous chapter circle'
+  );
+
+  assert.equal(
+    source.includes('name="chevron-forward"'),
+    true,
+    'BibleReaderScreen should render a forward chevron inside the next chapter circle'
+  );
+
+  assert.match(
+    source,
+    /floatingReaderChapterNavButton:\s*{[\s\S]*width:\s*layout\.minTouchTarget,[\s\S]*height:\s*layout\.minTouchTarget,[\s\S]*borderRadius:\s*radius\.pill,/s,
+    'BibleReaderScreen should give both chapter navigation buttons the same circular size'
   );
 });
 

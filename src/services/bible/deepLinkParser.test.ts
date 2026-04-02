@@ -7,34 +7,58 @@ import { bibleBooks } from '../../constants/books';
 // DEEP-01: parseBibleDeepLink — chapter + verse
 test('parseBibleDeepLink returns correct result for /bible/john/3/16', () => {
   const result = parseBibleDeepLink('/bible/john/3/16');
-  assert.deepEqual(result, { bookId: 'JHN', chapter: 3, verse: 16 } satisfies BibleDeepLinkTarget);
+  assert.deepEqual(result, {
+    bookId: 'JHN',
+    chapter: 3,
+    verse: 16,
+  } satisfies BibleDeepLinkTarget);
 });
 
 test('parseBibleDeepLink also accepts a path without the leading slash', () => {
   const result = parseBibleDeepLink('bible/john/3/16');
-  assert.deepEqual(result, { bookId: 'JHN', chapter: 3, verse: 16 } satisfies BibleDeepLinkTarget);
+  assert.deepEqual(result, {
+    bookId: 'JHN',
+    chapter: 3,
+    verse: 16,
+  } satisfies BibleDeepLinkTarget);
 });
 
 // DEEP-02: parseBibleDeepLink — multi-word book slug (1corinthians)
 test('parseBibleDeepLink returns correct result for /bible/1corinthians/13', () => {
   const result = parseBibleDeepLink('/bible/1corinthians/13');
-  assert.deepEqual(result, { bookId: '1CO', chapter: 13, verse: undefined });
+  assert.deepEqual(result, {
+    bookId: '1CO',
+    chapter: 13,
+    verse: undefined,
+  });
 });
 
 test('parseBibleDeepLink returns correct result for /bible/john/3 (no verse)', () => {
   const result = parseBibleDeepLink('/bible/john/3');
-  assert.deepEqual(result, { bookId: 'JHN', chapter: 3, verse: undefined });
+  assert.deepEqual(result, {
+    bookId: 'JHN',
+    chapter: 3,
+    verse: undefined,
+  });
 });
 
 test('parseBibleDeepLink handles Song of Solomon slug', () => {
   const result = parseBibleDeepLink('/bible/songofsolomon/1/1');
-  assert.deepEqual(result, { bookId: 'SNG', chapter: 1, verse: 1 });
+  assert.deepEqual(result, {
+    bookId: 'SNG',
+    chapter: 1,
+    verse: 1,
+  });
 });
 
 // Psalm alias
 test('parseBibleDeepLink resolves psalm alias to PSA', () => {
   const result = parseBibleDeepLink('/bible/psalm/23');
-  assert.deepEqual(result, { bookId: 'PSA', chapter: 23, verse: undefined });
+  assert.deepEqual(result, {
+    bookId: 'PSA',
+    chapter: 23,
+    verse: undefined,
+  });
 });
 
 // DEEP-03: unknown slug returns null

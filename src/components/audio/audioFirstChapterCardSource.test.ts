@@ -73,18 +73,46 @@ test('AudioFirstChapterCard moves audio sharing into the shared playback control
   );
 });
 
-test('AudioFirstChapterCard localizes the displayed Bible book name', () => {
+test('AudioFirstChapterCard removes the duplicate chapter reference from the scrubber row', () => {
   const source = readRelativeSource('./AudioFirstChapterCard.tsx');
 
-  assert.match(
-    source,
-    /getTranslatedBookName\(bookId, t\)/,
-    'AudioFirstChapterCard should resolve the chapter title through the translated book-name helper'
+  assert.equal(
+    source.includes('timeCenterText'),
+    false,
+    'AudioFirstChapterCard should remove the centered chapter label because the shared top chrome already shows the reference'
   );
 
   assert.equal(
-    source.includes('{book?.name}'),
+    source.includes('getTranslatedBookName'),
     false,
-    'AudioFirstChapterCard should not render the raw English book catalog name in the player chrome'
+    'AudioFirstChapterCard should not resolve a second chapter label once the shared top chrome owns that metadata'
+  );
+});
+
+test('AudioFirstChapterCard removes the duplicate chapter and translation copy below the artwork', () => {
+  const source = readRelativeSource('./AudioFirstChapterCard.tsx');
+
+  assert.equal(
+    source.includes('translationLabel: string;'),
+    false,
+    'AudioFirstChapterCard should stop accepting a dedicated translation label once the shared reader chrome carries it above'
+  );
+
+  assert.equal(
+    source.includes('styles.metaRow'),
+    false,
+    'AudioFirstChapterCard should remove the duplicate metadata row below the artwork'
+  );
+
+  assert.equal(
+    source.includes('styles.title'),
+    false,
+    'AudioFirstChapterCard should remove the duplicate chapter title below the artwork'
+  );
+
+  assert.equal(
+    source.includes('styles.subtitle'),
+    false,
+    'AudioFirstChapterCard should remove the duplicate translation subtitle below the artwork'
   );
 });

@@ -1,8 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
-import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
+import { getBookById, getBookIcon } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
@@ -12,7 +11,6 @@ import type { AudioPlaybackSequenceEntry } from '../../types';
 interface AudioFirstChapterCardProps {
   bookId: string;
   chapter: number;
-  translationLabel: string;
   playbackSequenceEntries?: AudioPlaybackSequenceEntry[];
   onChapterChange?: (bookId: string, chapter: number) => void;
   onShare?: () => void;
@@ -21,13 +19,11 @@ interface AudioFirstChapterCardProps {
 export function AudioFirstChapterCard({
   bookId,
   chapter,
-  translationLabel,
   playbackSequenceEntries = [],
   onChapterChange,
   onShare,
 }: AudioFirstChapterCardProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -135,7 +131,6 @@ export function AudioFirstChapterCard({
   const hasPreviousChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const remainingDuration = Math.max(displayDuration - displayPosition, 0);
-  const localizedBookName = getTranslatedBookName(bookId, t);
 
   return (
     <View style={styles.card}>
@@ -149,18 +144,6 @@ export function AudioFirstChapterCard({
         ]}
       >
         <Image source={getBookIcon(bookId)} style={styles.artwork} resizeMode="cover" />
-      </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaBlock}>
-          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-            {localizedBookName} {chapter}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-            {translationLabel}
-          </Text>
-        </View>
-
       </View>
 
       <View style={styles.controlBlock}>
@@ -178,9 +161,6 @@ export function AudioFirstChapterCard({
         <View style={styles.timeRow}>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
             {formatTime(displayPosition)}
-          </Text>
-          <Text style={[styles.timeCenterText, { color: colors.bibleSecondaryText }]}>
-            {localizedBookName} {chapter}
           </Text>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
             -{formatTime(remainingDuration)}
@@ -237,23 +217,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  metaBlock: {
-    flex: 1,
-    gap: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   controlBlock: {
     gap: 18,
   },
@@ -274,17 +237,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
   },
   timeText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  timeCenterText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   errorText: {
     fontSize: 13,

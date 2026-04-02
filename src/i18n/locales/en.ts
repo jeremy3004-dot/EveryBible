@@ -80,7 +80,7 @@ export const en = {
       'Try another spelling or search in English or the local script. Fuzzy search is enabled.',
     recommendedBadge: 'Recommended',
     interfaceAvailable: 'Interface available',
-    privacyTitle: 'Choose your privacy style',
+    privacyTitle: 'Choose icon',
     privacyBody:
       'Pick the icon style for this device. Discreet mode also adds a local code lock whenever you leave the app.',
     standardIconTitle: 'Standard icon',

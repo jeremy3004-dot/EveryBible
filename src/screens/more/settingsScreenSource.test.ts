@@ -23,15 +23,21 @@ test('SettingsScreen keeps the calculator disguise shortcut visible from More se
   );
 
   assert.equal(
-    source.includes("t('onboarding.discreetIconTitle')"),
+    source.includes("name=\"chevron-forward\""),
     true,
-    'SettingsScreen should mention the discreet calculator mode on the shortcut row'
+    'SettingsScreen should keep only the chevron affordance on the shortcut row'
   );
 
   assert.equal(
-    source.includes("name=\"lock-closed-outline\""),
+    source.includes('privacyModeLabel'),
     false,
-    'SettingsScreen should not hide the disguise shortcut behind a generic lock icon'
+    'SettingsScreen should not show the current privacy mode text on the shortcut row'
+  );
+
+  assert.equal(
+    source.includes("t('onboarding.discreetIconTitle')"),
+    false,
+    'SettingsScreen should not repeat the discreet icon label in the shortcut row'
   );
 });
 

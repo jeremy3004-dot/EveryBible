@@ -9,10 +9,10 @@ import { BibleStack } from './BibleStack';
 import { LearnStack } from './LearnStack';
 import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
-import { useBibleStore } from '../stores/bibleStore';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { layout, spacing, typography } from '../design/system';
+import { useBibleStore } from '../stores/bibleStore';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -45,7 +45,6 @@ function shouldKeepBibleTabBarVisible(route: {
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const bibleReaderTabBarVisible = useBibleStore((state) => state.readerTabBarVisible);
   const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
   const currentBibleBook = useBibleStore((state) => state.currentBook);
   const currentBibleChapter = useBibleStore((state) => state.currentChapter);
@@ -79,11 +78,10 @@ export function TabNavigator() {
             shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
           const shouldHideBibleReaderTabBar =
             route.name === 'Bible' &&
-            (!bibleReaderTabBarVisible ||
-              !shouldKeepBibleTabBarVisible(route as {
-                name: string;
-                state?: NestedTabRouteState;
-              }));
+            !shouldKeepBibleTabBarVisible(route as {
+              name: string;
+              state?: NestedTabRouteState;
+            });
 
           return shouldHideNestedBibleScreen || shouldHideBibleReaderTabBar
             ? { display: 'none' }

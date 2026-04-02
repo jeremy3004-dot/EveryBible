@@ -32,7 +32,11 @@ test('buildBibleNavState routes /bible/john/3/16 to BibleReader with JHN params'
 
   assert.equal(bibleStack[0]?.name, 'BibleBrowser', 'first route should be BibleBrowser');
   assert.equal(bibleStack[1]?.name, 'BibleReader', 'second route should be BibleReader');
-  assert.deepEqual(bibleStack[1]?.params, { bookId: 'JHN', chapter: 3, focusVerse: 16 });
+  assert.deepEqual(bibleStack[1]?.params, {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: 16,
+  });
 });
 
 // Chapter-only (no verse) deep link
@@ -43,7 +47,11 @@ test('buildBibleNavState routes /bible/1corinthians/13 to BibleReader with 1CO p
   const bibleRoute = state.routes.find((r) => r.name === 'Bible');
   const bibleStack = bibleRoute?.state?.routes ?? [];
   const readerRoute = bibleStack.find((r) => r.name === 'BibleReader');
-  assert.deepEqual(readerRoute?.params, { bookId: '1CO', chapter: 13, focusVerse: undefined });
+  assert.deepEqual(readerRoute?.params, {
+    bookId: '1CO',
+    chapter: 13,
+    focusVerse: undefined,
+  });
 });
 
 // Unknown path falls through to defaultParser

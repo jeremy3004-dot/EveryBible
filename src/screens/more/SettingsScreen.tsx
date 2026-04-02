@@ -20,7 +20,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { mmkvInstance } from '../../stores';
-import { usePrivacyStore } from '../../stores/privacyStore';
 import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
@@ -49,7 +48,6 @@ export function SettingsScreen() {
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
-  const privacyMode = usePrivacyStore((state) => state.mode);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
   const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -290,10 +288,6 @@ export function SettingsScreen() {
     }
   };
 
-  const privacyModeLabel =
-    privacyMode === 'discreet'
-      ? t('onboarding.discreetIconTitle')
-      : t('onboarding.standardIconTitle');
   const chapterFeedbackSummary = getChapterFeedbackPreferenceSummary(chapterFeedbackEnabled, {
     enabledLabel: t('settings.chapterFeedbackSummaryOn'),
     disabledLabel: t('settings.chapterFeedbackSummaryOff'),
@@ -546,15 +540,9 @@ export function SettingsScreen() {
                 >
                   {t('onboarding.privacyTitle')}
                 </Text>
-                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
-                  {t('onboarding.discreetIconTitle')}
-                </Text>
               </View>
             </View>
             <View style={styles.settingRight}>
-              <Text style={[styles.settingValue, { color: colors.secondaryText }]}>
-                {privacyModeLabel}
-              </Text>
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
             </View>
           </TouchableOpacity>
