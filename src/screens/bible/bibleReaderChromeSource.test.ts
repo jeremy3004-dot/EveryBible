@@ -128,7 +128,7 @@ test('BibleReaderScreen renders scripture section headings with the shared readi
   );
 });
 
-test('listen mode moves the show-text action into the inline utility row and anchors controls lower', () => {
+test('listen mode moves the show-text action into the inline utility row and keeps the player inset from the bottom edge', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
@@ -145,8 +145,14 @@ test('listen mode moves the show-text action into the inline utility row and anc
 
   assert.match(
     source,
-    /listenPlayerCard:\s*{[\s\S]*marginTop:\s*'auto'/,
-    'BibleReaderScreen should pull the player cluster lower by anchoring the listen player card to the bottom'
+    /listenPlayerCard:\s*{[\s\S]*paddingBottom:\s*24,/,
+    'BibleReaderScreen should keep a little bottom padding under the listen player card so the controls do not sit flush against the screen edge'
+  );
+
+  assert.equal(
+    source.includes("marginTop: 'auto'"),
+    false,
+    'BibleReaderScreen should not push the listen player card down with auto top margin'
   );
 });
 
@@ -281,6 +287,24 @@ test('premium read mode uses animated overlay chrome with blur-backed glass surf
     source,
     /BlurView/,
     'BibleReaderScreen should use blur-backed glass surfaces instead of opaque reader chrome'
+  );
+
+  assert.match(
+    source,
+    /const readerNativeScrollGesture = Gesture\.Native\(\)\.shouldActivateOnStart\(true\);[\s\S]*swipeGesture\.simultaneousWithExternalGesture\(readerNativeScrollGesture\);/s,
+    'BibleReaderScreen should allow the premium horizontal chapter swipe to recognize simultaneously with the native vertical scroll gesture'
+  );
+
+  assert.match(
+    source,
+    /setReaderTabBarVisible\(nextVisible\);[\s\S]*navigation\.setParams\(\{ tabBarVisible: nextVisible \}\);/s,
+    'BibleReaderScreen should keep the shared Bible store in sync with the reader tab-bar visibility state'
+  );
+
+  assert.match(
+    source,
+    /<GestureDetector gesture=\{readerNativeScrollGesture\}>[\s\S]*<Animated\.ScrollView/s,
+    'BibleReaderScreen should wrap the premium read ScrollView in a native gesture detector so vertical scrolling remains responsive'
   );
 });
 

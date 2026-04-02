@@ -55,6 +55,16 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
   );
 });
 
+test('TabNavigator reads Bible reader tab-bar visibility from the shared Bible store', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.readerTabBarVisible\)/,
+    'TabNavigator should subscribe to the shared readerTabBarVisible flag so Bible scrolling can hide the root tab bar'
+  );
+});
+
 test('TabNavigator uses the base tab bar height instead of adding the bottom safe-area inset twice', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 

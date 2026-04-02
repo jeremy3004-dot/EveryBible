@@ -15,6 +15,7 @@ import {
   getNextFontSizeSheetVisibility,
   getInitialChapterSessionMode,
   getNextTranslationSheetVisibility,
+  getNextBibleTabBarVisibility,
   shouldReplayActiveAudioForTranslationChange,
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
@@ -74,6 +75,35 @@ test('uses a slightly more open line height for reader verses', () => {
 test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'selectTranslation'), false);
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
+});
+
+test('keeps the root tab bar visible in listen mode regardless of read-scroll actions', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'listen',
+      action: 'enter',
+    }),
+    true
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'listen',
+      action: 'scrollStart',
+    }),
+    true
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'listen',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 180,
+      currentScrollOffsetY: 12,
+      velocityY: -2400,
+    }),
+    true
+  );
 });
 
 test('builds chapter route params that preserve the current reader session mode', () => {

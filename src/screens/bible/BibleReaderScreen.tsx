@@ -113,6 +113,7 @@ import {
   SWIPE_VELOCITY_MIN,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
+  getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
   getReaderVerseLineHeight,
@@ -496,6 +497,63 @@ export function BibleReaderScreen() {
     getHomeVerseBackgroundIndex(new Date(), HOME_VERSE_BACKGROUND_SOURCES.length)
   );
   const lastStableSessionModeRef = useRef(chapterSessionMode);
+  const scrollDragStartOffsetYRef = useRef(0);
+  const setReaderTabBarVisible = useBibleStore((state) => state.setReaderTabBarVisible);
+
+  const syncRootTabBarVisibility = useCallback(
+    (nextVisible: boolean) => {
+      setReaderTabBarVisible(nextVisible);
+      navigation.setParams({ tabBarVisible: nextVisible });
+    },
+    [navigation, setReaderTabBarVisible]
+  );
+
+  useEffect(() => {
+    syncRootTabBarVisibility(
+      getNextBibleTabBarVisibility({
+        sessionMode: chapterSessionMode,
+        action: 'enter',
+      })
+    );
+    scrollDragStartOffsetYRef.current = 0;
+  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
+
+  const handleReaderScrollBeginDrag = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+      scrollDragStartOffsetYRef.current = event.nativeEvent.contentOffset.y;
+      if (chapterSessionMode !== 'read') {
+        return;
+      }
+
+      syncRootTabBarVisibility(
+        getNextBibleTabBarVisibility({
+          sessionMode: chapterSessionMode,
+          action: 'scrollStart',
+        })
+      );
+    },
+    [chapterSessionMode, syncRootTabBarVisibility]
+  );
+
+  const handleReaderScrollEndDrag = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number }; velocity?: { y: number } } }) => {
+      if (chapterSessionMode !== 'read') {
+        return;
+      }
+
+      syncRootTabBarVisibility(
+        getNextBibleTabBarVisibility({
+          sessionMode: chapterSessionMode,
+          action: 'scrollEndDrag',
+          previousScrollOffsetY: scrollDragStartOffsetYRef.current,
+          currentScrollOffsetY: event.nativeEvent.contentOffset.y,
+          velocityY: event.nativeEvent.velocity?.y ?? 0,
+        })
+      );
+    },
+    [chapterSessionMode, syncRootTabBarVisibility]
+  );
+
   const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
   const selectedVerseImageBackground =
     HOME_VERSE_BACKGROUND_SOURCES[
@@ -819,6 +877,8 @@ export function BibleReaderScreen() {
       else if (wantsPrev && hasPrevChapter) runOnJS(handleSwipeNavigation)('prev');
       swipeX.value = withSpring(0, { damping: 30, stiffness: 300 });
     });
+  const readerNativeScrollGesture = Gesture.Native().shouldActivateOnStart(true);
+  swipeGesture.simultaneousWithExternalGesture(readerNativeScrollGesture);
 
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
@@ -1152,8 +1212,8 @@ export function BibleReaderScreen() {
       })
     );
   };
-  const dismissFontSizeSheetFromReader = () => {
-    setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'readerContentTap'));
+  const handleCloseFontSizeSheet = () => {
+    setShowFontSizeSheet(false);
   };
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -2691,30 +2751,34 @@ export function BibleReaderScreen() {
             ) : null}
           </Animated.View>
 
-          <Animated.ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onScroll={scrollHandler}
-            onScrollBeginDrag={() => {
-              setShowFontSizeSheet((current) =>
-                getNextFontSizeSheetVisibility(current, 'scrollStart')
-              );
-              setShowTranslationSheet((current) =>
-                getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-              );
-            }}
-            contentContainerStyle={[
-              styles.premiumReaderScrollContent,
-              {
-                paddingTop: premiumTopInset + 208,
-                paddingBottom: premiumBottomInset + 108,
-              },
-            ]}
-          >
-            <View style={styles.premiumReaderContentShell}>{renderReaderVerses(true)}</View>
-          </Animated.ScrollView>
+          <GestureDetector gesture={readerNativeScrollGesture}>
+            <Animated.ScrollView
+              ref={scrollViewRef}
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={scrollHandler}
+              onScrollBeginDrag={(event) => {
+                handleReaderScrollBeginDrag(event);
+                setShowFontSizeSheet((current) =>
+                  getNextFontSizeSheetVisibility(current, 'scrollStart')
+                );
+                setShowTranslationSheet((current) =>
+                  getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
+                );
+              }}
+              onScrollEndDrag={handleReaderScrollEndDrag}
+              contentContainerStyle={[
+                styles.premiumReaderScrollContent,
+                {
+                  paddingTop: premiumTopInset + 208,
+                  paddingBottom: premiumBottomInset + 108,
+                },
+              ]}
+            >
+              <View style={styles.premiumReaderContentShell}>{renderReaderVerses(true)}</View>
+            </Animated.ScrollView>
+          </GestureDetector>
         </Animated.View>
       </GestureDetector>
 
@@ -2900,9 +2964,11 @@ export function BibleReaderScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets
-            onScrollBeginDrag={() => {
+            onScrollBeginDrag={(event) => {
+              handleReaderScrollBeginDrag(event);
               setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
             }}
+            onScrollEndDrag={handleReaderScrollEndDrag}
         contentContainerStyle={[
           styles.content,
           shouldFillReaderCanvas ? styles.immersiveContent : null,
@@ -2918,7 +2984,6 @@ export function BibleReaderScreen() {
             shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
             { backgroundColor: colors.bibleBackground },
           ]}
-          onTouchStart={showFontSizeSheet ? dismissFontSizeSheetFromReader : undefined}
         >
           {renderLegacyContent()}
         </View>
@@ -2940,71 +3005,91 @@ export function BibleReaderScreen() {
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
 
       {showFontSizeSheet && canAdjustFontSize ? (
-        <View
-          style={[
-            styles.fontSheet,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
+        <Modal
+          visible={showFontSizeSheet && canAdjustFontSize}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCloseFontSizeSheet}
         >
-          <View
-            style={[styles.fontSheetHandle, { backgroundColor: colors.bibleSecondaryText + '55' }]}
-          />
-          <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
-            {t('settings.fontSize')}
-          </Text>
-          <View style={styles.fontOptionRow}>
-            {(
-              [
-                { key: 'small', label: t('settings.fontSizeSmall'), sampleSize: 16 },
-                { key: 'medium', label: t('settings.fontSizeMedium'), sampleSize: 20 },
-                { key: 'large', label: t('settings.fontSizeLarge'), sampleSize: 24 },
-              ] as const
-            ).map((option) => {
-              const isSelected = fontSize === option.key;
+          <View style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}>
+            <TouchableOpacity
+              style={styles.fontSheetBackdrop}
+              activeOpacity={1}
+              onPress={handleCloseFontSizeSheet}
+            />
+            <View
+              style={[
+                styles.fontSheet,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                  paddingBottom: safeInsets.bottom + spacing.lg,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.fontSheetHandle,
+                  { backgroundColor: colors.bibleSecondaryText + '55' },
+                ]}
+              />
+              <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
+                {t('settings.fontSize')}
+              </Text>
+              <View style={styles.fontOptionRow}>
+                {(
+                  [
+                    { key: 'small', label: t('settings.fontSizeSmall'), sampleSize: 16 },
+                    { key: 'medium', label: t('settings.fontSizeMedium'), sampleSize: 20 },
+                    { key: 'large', label: t('settings.fontSizeLarge'), sampleSize: 24 },
+                  ] as const
+                ).map((option) => {
+                  const isSelected = fontSize === option.key;
 
-              return (
-                <TouchableOpacity
-                  key={option.key}
-                  style={[
-                    styles.fontOptionButton,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.bibleControlBackground
-                        : colors.bibleBackground,
-                      borderColor: isSelected ? colors.bibleControlBackground : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => setSize(option.key)}
-                >
-                  <Text
-                    style={[
-                      styles.fontOptionSample,
-                      {
-                        color: isSelected ? colors.bibleBackground : colors.biblePrimaryText,
-                        fontSize: option.sampleSize,
-                      },
-                    ]}
-                  >
-                    A
-                  </Text>
-                  <Text
-                    style={[
-                      styles.fontOptionLabel,
-                      {
-                        color: isSelected ? colors.bibleBackground : colors.bibleSecondaryText,
-                      },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[
+                        styles.fontOptionButton,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.bibleControlBackground
+                            : colors.bibleBackground,
+                          borderColor: isSelected
+                            ? colors.bibleControlBackground
+                            : colors.bibleDivider,
+                        },
+                      ]}
+                      onPress={() => setSize(option.key)}
+                    >
+                      <Text
+                        style={[
+                          styles.fontOptionSample,
+                          {
+                            color: isSelected ? colors.bibleBackground : colors.biblePrimaryText,
+                            fontSize: option.sampleSize,
+                          },
+                        ]}
+                      >
+                        A
+                      </Text>
+                      <Text
+                        style={[
+                          styles.fontOptionLabel,
+                          {
+                            color: isSelected ? colors.bibleBackground : colors.bibleSecondaryText,
+                          },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           </View>
-        </View>
+        </Modal>
       ) : null}
 
       <Modal
@@ -4247,7 +4332,7 @@ const styles = StyleSheet.create({
   listenColumn: {
     flex: 1,
     gap: 20,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   listenArtworkFrame: {
     alignSelf: 'stretch',
@@ -4275,8 +4360,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listenPlayerCard: {
-    marginTop: 'auto',
-    paddingBottom: 8,
+    paddingBottom: 24,
     gap: 12,
   },
   listenProgressTouch: {
@@ -4486,6 +4570,13 @@ const styles = StyleSheet.create({
   feedbackButtonText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  fontSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  fontSheetBackdrop: {
+    flex: 1,
   },
   modalBackdropFill: {
     flex: 1,

@@ -515,8 +515,11 @@ const styles = StyleSheet.create({
   utilityPrimaryGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 12,
-    flexShrink: 1,
+    width: '100%',
+    maxWidth: '100%',
   },
   chapterOnlyUtilityRow: {
     gap: 10,

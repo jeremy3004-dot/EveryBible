@@ -221,9 +221,9 @@ export function AudioFirstChapterCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    paddingBottom: 12,
+    paddingBottom: 20,
     gap: 24,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   artworkFrame: {
     alignSelf: 'stretch',

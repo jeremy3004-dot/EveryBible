@@ -59,6 +59,7 @@ interface BibleState {
   currentTranslation: string;
   translations: BibleTranslation[];
   downloadProgress: TranslationDownloadProgress | null;
+  readerTabBarVisible: boolean;
 
   // Basic actions
   setCurrentBook: (bookId: string) => void;
@@ -71,6 +72,7 @@ interface BibleState {
 
   // Translation actions
   setCurrentTranslation: (translationId: string) => void;
+  setReaderTabBarVisible: (visible: boolean) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
   reconcileTranslationPacks: () => Promise<void>;
   reattachAudioDownloads: () => Promise<void>;
@@ -186,6 +188,7 @@ export const useBibleStore = create<BibleState>()(
       currentTranslation: 'bsb',
       translations: getDefaultBibleTranslations(),
       downloadProgress: null,
+      readerTabBarVisible: true,
 
       setCurrentBook: (bookId) => set({ currentBook: bookId }),
       setCurrentChapter: (chapter) => set({ currentChapter: chapter }),
@@ -234,6 +237,8 @@ export const useBibleStore = create<BibleState>()(
           }
         }
       },
+
+      setReaderTabBarVisible: (readerTabBarVisible) => set({ readerTabBarVisible }),
 
       applyRuntimeCatalog: (runtimeTranslations) => {
         let nextTranslationsSnapshot: BibleTranslation[] = [];
