@@ -29,20 +29,20 @@ test('BibleReaderScreen no longer renders a duplicate chapter rail under the pla
   );
 });
 
-test('Bible listen surfaces stretch to fill the reader canvas instead of floating mid-screen', () => {
+test('Bible listen surfaces leave breathing room above the bottom edge instead of clipping the player controls', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
   const audioFirstSource = readRelativeSource('../../components/audio/AudioFirstChapterCard.tsx');
 
   assert.match(
     readerSource,
-    /listenColumn:\s*{[\s\S]*flex:\s*1,[\s\S]*justifyContent:\s*'space-between'/,
-    'Listen-mode reader layout should fill the available height and push controls lower'
+    /listenColumn:\s*{[\s\S]*flex:\s*1,[\s\S]*justifyContent:\s*'flex-start'/,
+    'Listen-mode reader layout should top-align the chapter stack so the controls sit higher on screen'
   );
 
   assert.match(
     audioFirstSource,
-    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*justifyContent:\s*'space-between'/,
-    'Audio-first chapter card should fill the reader canvas and distribute content vertically'
+    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*paddingBottom:\s*20,[\s\S]*justifyContent:\s*'flex-start'/,
+    'Audio-first chapter card should top-align its content and add breathing room below the player'
   );
 });
 
@@ -128,7 +128,7 @@ test('BibleReaderScreen renders scripture section headings with the shared readi
   );
 });
 
-test('listen mode moves the show-text action into the inline utility row and keeps the player inset from the bottom edge', () => {
+test('listen mode moves the show-text action into the inline utility row and keeps the controls comfortably above the bottom edge', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
@@ -145,14 +145,8 @@ test('listen mode moves the show-text action into the inline utility row and kee
 
   assert.match(
     source,
-    /listenPlayerCard:\s*{[\s\S]*paddingBottom:\s*24,/,
-    'BibleReaderScreen should keep a little bottom padding under the listen player card so the controls do not sit flush against the screen edge'
-  );
-
-  assert.equal(
-    source.includes("marginTop: 'auto'"),
-    false,
-    'BibleReaderScreen should not push the listen player card down with auto top margin'
+    /listenPlayerCard:\s*{[\s\S]*paddingBottom:\s*20,/,
+    'BibleReaderScreen should give the listen player card extra bottom breathing room so the utility row does not clip'
   );
 });
 
@@ -191,6 +185,34 @@ test('listen mode passes chapter audio sharing into the shared playback controls
     source.includes('listenShareButton'),
     false,
     'BibleReaderScreen should remove the old share button from the listen-mode metadata row'
+  );
+});
+
+test('BibleReaderScreen keeps the listen tab open and only toggles the root tab bar from read-mode scroll gestures', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /navigation\.setParams\(\{ tabBarVisible: nextVisible \}\);/,
+    'BibleReaderScreen should store tab-bar visibility in the reader route params so the tab navigator can react to it'
+  );
+
+  assert.match(
+    source,
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'enter'/s,
+    'BibleReaderScreen should make listen and read modes enter the reader with the tab bar visible'
+  );
+
+  assert.match(
+    source,
+    /chapterSessionMode !== 'read'/,
+    'BibleReaderScreen should leave listen mode alone when scroll gestures occur'
+  );
+
+  assert.match(
+    source,
+    /onScrollEndDrag=\{handleReaderScrollEndDrag\}/,
+    'BibleReaderScreen should restore the tab bar from the reader scroll end gesture when the flick is fast enough'
   );
 });
 
@@ -288,267 +310,123 @@ test('premium read mode uses animated overlay chrome with blur-backed glass surf
     /BlurView/,
     'BibleReaderScreen should use blur-backed glass surfaces instead of opaque reader chrome'
   );
-
-  assert.match(
-    source,
-    /const readerNativeScrollGesture = Gesture\.Native\(\)\.shouldActivateOnStart\(true\);[\s\S]*swipeGesture\.simultaneousWithExternalGesture\(readerNativeScrollGesture\);/s,
-    'BibleReaderScreen should allow the premium horizontal chapter swipe to recognize simultaneously with the native vertical scroll gesture'
-  );
-
-  assert.match(
-    source,
-    /setReaderTabBarVisible\(nextVisible\);[\s\S]*navigation\.setParams\(\{ tabBarVisible: nextVisible \}\);/s,
-    'BibleReaderScreen should keep the shared Bible store in sync with the reader tab-bar visibility state'
-  );
-
-  assert.match(
-    source,
-    /<GestureDetector gesture=\{readerNativeScrollGesture\}>[\s\S]*<Animated\.ScrollView/s,
-    'BibleReaderScreen should wrap the premium read ScrollView in a native gesture detector so vertical scrolling remains responsive'
-  );
-
-  assert.match(
-    source,
-    /onMomentumScrollEnd=\{handleReaderMomentumScrollEnd\}/,
-    'BibleReaderScreen should wait for momentum to finish before restoring the root tab bar at the top of read mode'
-  );
-
-  assert.ok(
-    source.split('onScroll={scrollHandler}').length >= 3,
-    'BibleReaderScreen should wire the shared scroll handler into both the premium and legacy read layouts'
-  );
-
-  assert.match(
-    source,
-    /readerTabBarRevealPendingShared\.value = false;[\s\S]*syncRootTabBarVisibility\(false, reason\);/s,
-    'BibleReaderScreen should clear any pending reveal when the read tab starts scrolling again'
-  );
 });
 
-test('premium read mode removes the old bottom audio bar and keeps the Genesis pill plus matching arrow circles', () => {
+test('premium read mode moves book, chapter, and translation into the top-left pill', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
-    source.includes('AudioPlayerBar'),
+    source.includes('styles.persistentReaderBottomBar'),
     false,
-    'BibleReaderScreen should no longer render the old AudioPlayerBar inside read mode'
+    'BibleReaderScreen should remove the persistent bottom chapter rail once the top-left pill handles navigation'
   );
 
   assert.match(
     source,
-    /styles\.persistentReaderBottomBar/,
-    'BibleReaderScreen should define one persistent bottom reader bar for the premium read layout'
+    /styles\.floatingReaderReferencePill/,
+    'BibleReaderScreen should define a pill surface for the current book, chapter, and translation'
+  );
+
+  assert.match(
+    source,
+    /handleOpenBookPicker/,
+    'BibleReaderScreen should open the book picker from the top-left navigation pill'
+  );
+
+  assert.match(
+    source,
+    /getTranslatedBookName\(bookId, t\)[\s\S]*?\{chapter\}[\s\S]*?\{translationLabel\}/s,
+    'BibleReaderScreen should render the book, chapter, and translation together inside the navigation pill'
+  );
+
+  assert.match(
+    source,
+    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderModeRail[\s\S]*styles\.glassIconButton/s,
+    'BibleReaderScreen should keep the read/listen rail centered with the overflow menu still on the right'
+  );
+
+  assert.match(
+    source,
+    /paddingTop:\s*premiumTopInset \+ 98,[\s\S]*paddingBottom:\s*premiumBottomInset \+ 72,/s,
+    'BibleReaderScreen should reclaim the middle and bottom space once the separate hero and bottom rail are gone'
   );
 
   assert.equal(
-    source.includes('styles.collapsedReaderChapterPill'),
+    source.includes('styles.floatingReaderTranslationDock'),
     false,
-    'BibleReaderScreen should not swap to a chapter-only collapsed pill when the user scrolls'
+    'BibleReaderScreen should remove the separate translation dock now that translation lives in the navigation pill'
   );
 
   assert.equal(
-    source.includes('styles.persistentReaderBottomBarSurface'),
+    source.includes('styles.premiumReaderTitle'),
     false,
-    'BibleReaderScreen should stop rendering the long shared glass bar around the premium reader controls'
+    'BibleReaderScreen should remove the large chapter title that used to sit below the top chrome'
   );
 
-  assert.match(
-    source,
-    /styles\.persistentReaderBottomBarLayout/,
-    'BibleReaderScreen should render the premium reader controls in a plain layout row without a capsule background'
+  assert.equal(
+    source.includes('name="arrow-back"'),
+    false,
+    'BibleReaderScreen should remove the old back arrow from the premium read chrome'
   );
 
-  assert.match(
-    source,
-    /styles\.persistentReaderChapterSurface/,
-    'BibleReaderScreen should render a dedicated pill surface for the chapter label'
+  assert.equal(
+    source.includes('styles.floatingReaderHero'),
+    false,
+    'BibleReaderScreen should remove the floating chapter hero because the top-left pill now carries the chapter metadata'
   );
 });
 
-test('premium read mode keeps circular chapter arrows and a Genesis pill inside the persistent bottom bar while scrolling', () => {
+test('premium read mode keeps the three-dot overflow menu on the right while removing the duplicate translation chip', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const handlePreviousReadChapter = async \(\) => \{/,
-    'BibleReaderScreen should define a previous-chapter handler for the premium read controls'
+    /name="ellipsis-horizontal"/,
+    'BibleReaderScreen should keep the overflow menu icon on the right side of the premium read chrome'
   );
 
   assert.match(
     source,
-    /const handleNextReadChapter = async \(\) => \{/,
-    'BibleReaderScreen should define a next-chapter handler for the premium read controls'
-  );
-
-  assert.match(
-    source,
-    /styles\.persistentReaderBottomBar[\s\S]*styles\.persistentReaderBottomBarLayout[\s\S]*styles\.persistentReaderArrowSurface[\s\S]*styles\.persistentReaderChapterSurface[\s\S]*name="chevron-forward"/s,
-    'BibleReaderScreen should keep the chapter arrows and Genesis pill on the persistent bottom bar in premium read mode'
+    /styles\.translationChip/,
+    'BibleReaderScreen should still keep translation selection available in the legacy header fallback'
   );
 
   assert.equal(
-    source.includes('styles.floatingReaderUtilityLabel'),
+    source.includes('styles.floatingReaderTranslationDock'),
     false,
-    'BibleReaderScreen should remove the standalone AA button from the premium reader bottom bar'
+    'BibleReaderScreen should not render a separate translation button in the premium read layout'
   );
 });
 
-test('premium read mode centers a translation-list button under the listen and read rail', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
-
-  assert.match(
-    source,
-    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderTranslationDock/s,
-    'BibleReaderScreen should render a centered translation dock below the listen/read rail'
-  );
-
-  assert.match(
-    source,
-    /styles\.floatingReaderTranslationDock[\s\S]*handleOpenTranslationOptions/s,
-    'BibleReaderScreen should open translation options from the centered dock instead of the saved library'
-  );
-
-  assert.match(
-    source,
-    /floatingReaderTranslationDock:[\s\S]*alignItems:\s*'center'/,
-    'BibleReaderScreen should center the translation dock container under the listen/read rail'
-  );
-
-  assert.match(
-    source,
-    /floatingReaderTranslationButtonTouchable:[\s\S]*alignSelf:\s*'center'/,
-    'BibleReaderScreen should center the translation chip touch target instead of pinning it to the left edge'
-  );
-
-  assert.match(
-    source,
-    /\{translationLabel\}/,
-    'BibleReaderScreen should show only the currently selected translation in the centered dock'
-  );
-
-  assert.equal(
-    source.includes('availableListenTranslationLabel'),
-    false,
-    'BibleReaderScreen should not show a combined available-translation list in the centered dock'
-  );
-
-  assert.equal(
-    source.includes('handleOpenLibrary'),
-    false,
-    'BibleReaderScreen should remove the saved library overflow action after the More tab reverts to settings'
-  );
-
-  assert.equal(
-    source.includes('styles.floatingReaderLibraryButton'),
-    false,
-    'BibleReaderScreen should remove the old small library button from under the session rail'
-  );
-
-  assert.equal(
-    source.includes('styles.expandedReaderChapterMeta'),
-    false,
-    'BibleReaderScreen should remove the translation/meta row from the expanded bottom chapter pill'
-  );
-
-  assert.equal(
-    source.includes('styles.expandedReaderTranslationLabel'),
-    false,
-    'BibleReaderScreen should stop rendering the translation abbreviation inside the premium bottom pill'
-  );
-});
-
-test('premium read mode uses a Genesis pill and matching arrow circles inside the persistent bottom bar', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
-
-  assert.match(
-    source,
-    /persistentReaderBottomBarLayout:\s*{[\s\S]*width:\s*'100%'/,
-    'BibleReaderScreen should stretch the premium read control row across the available width'
-  );
-
-  assert.match(
-    source,
-    /persistentReaderBottomBarLayout:\s*{[\s\S]*flexDirection:\s*'row'/,
-    'BibleReaderScreen should lay out the bottom bar controls in a single horizontal row'
-  );
-
-  assert.match(
-    source,
-    /persistentReaderArrowButton:\s*{[\s\S]*width:\s*layout\.minTouchTarget,[\s\S]*height:\s*layout\.minTouchTarget/,
-    'BibleReaderScreen should render the chapter arrows as circular glass buttons'
-  );
-
-  assert.match(
-    source,
-    /persistentReaderChapterSlot:\s*{[\s\S]*flex:\s*1,[\s\S]*alignItems:\s*'center'/,
-    'BibleReaderScreen should keep the Genesis label centered between the arrows'
-  );
-
-  assert.match(
-    source,
-    /persistentReaderChapterTouchable:\s*{[\s\S]*alignSelf:\s*'center'/,
-    'BibleReaderScreen should keep the chapter touch target centered without adding a second bar'
-  );
-
-  assert.match(
-    source,
-    /persistentReaderChapterSurface:\s*{[\s\S]*minHeight:\s*layout\.minTouchTarget,[\s\S]*borderRadius:\s*radius\.pill/,
-    'BibleReaderScreen should render the Genesis label inside a pill surface'
-  );
-
-  assert.match(
-    source,
-    /navigation\.push\('BiblePicker',\s*\{\s*initialBookId:\s*bookId,?\s*\}\)/,
-    'BibleReaderScreen should open the book-and-chapter picker modal from the chapter pill'
-  );
-
-  assert.equal(
-    source.includes('persistentReaderChapterCenter'),
-    false,
-    'BibleReaderScreen should remove the wide flex chapter-center column from the persistent bottom bar'
-  );
-
-  assert.equal(
-    source.includes('persistentReaderChapterButton'),
-    false,
-    'BibleReaderScreen should remove the chapter pill from the persistent bottom bar'
-  );
-
-  const bottomBarSource = source.slice(
-    source.indexOf('<View style={[styles.persistentReaderBottomBar'),
-    source.indexOf('const renderLegacyReaderLayout')
-  );
-
-  assert.equal(
-    bottomBarSource.includes('disabledIconButton'),
-    false,
-    'BibleReaderScreen should keep both arrow circles visually consistent and avoid dimming one side in the bottom bar'
-  );
-});
-
-test('premium read mode uses a left-facing back arrow in the top-left control', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
-
-  assert.match(
-    source,
-    /onPress=\{\(\) => navigation\.navigate\('BibleBrowser'\)\}[\s\S]*?<GlassSurface style=\{styles\.glassIconButton\} intensity=\{44\}>[\s\S]*?name="arrow-back"/s,
-    'BibleReaderScreen should use a left-facing back arrow for the top-left reader control that navigates to BibleBrowser'
-  );
-});
-
-test('BibleReaderScreen exposes font size from the overflow menu instead of a standalone AA control', () => {
+test('BibleReaderScreen still exposes font size from the overflow menu', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
     /key: 'font-size'[\s\S]*label: t\('settings\.fontSize'\)/,
-    'BibleReaderScreen should offer font size from the chapter actions sheet'
+    'BibleReaderScreen should keep font size inside the overflow menu'
+  );
+});
+
+test('BibleReaderScreen closes the font size sheet when tapping outside the modal', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handleCloseFontSizeSheet = \(\) => \{[\s\S]*setShowFontSizeSheet\(false\);[\s\S]*\};/,
+    'BibleReaderScreen should define a dedicated close helper for the font size sheet'
+  );
+
+  assert.match(
+    source,
+    /visible=\{showFontSizeSheet && canAdjustFontSize\}[\s\S]*onRequestClose=\{handleCloseFontSizeSheet\}[\s\S]*styles\.fontSheetBackdrop[\s\S]*onPress=\{handleCloseFontSizeSheet\}/s,
+    'BibleReaderScreen should dismiss the font size sheet from the backdrop and the hardware close gesture'
   );
 
   assert.equal(
-    source.includes('styles.fontButtonLabel'),
+    source.includes('onTouchStart={showFontSizeSheet ? dismissFontSizeSheetFromReader : undefined}'),
     false,
-    'BibleReaderScreen should remove the standalone AA header button once font size lives in overflow'
+    'BibleReaderScreen should stop relying on touch-through content taps to close the font size sheet'
   );
 });
 

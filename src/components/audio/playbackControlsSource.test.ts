@@ -115,6 +115,44 @@ test('PlaybackControls supports icon-only text and share utilities for the chapt
   );
 });
 
+test('PlaybackControls lets the centered chapter-only utility cluster wrap on compact screens', () => {
+  const source = readRelativeSource('./PlaybackControls.tsx');
+  const utilityGap = Number(
+    (source.match(/utilityPrimaryGroup:\s*{[\s\S]*gap:\s*(\d+)/) ?? [])[1]
+  );
+  const baseUtilityWidth = Number(
+    (source.match(/utilityButton:\s*{[\s\S]*minWidth:\s*(\d+)/) ?? [])[1]
+  );
+  const getVariantWidth = (styleName: string) =>
+    Number((source.match(new RegExp(`${styleName}:\\s*{[\\s\\S]*minWidth:\\s*(\\d+)`)) ?? [])[1]);
+
+  const totalMinimumWidth =
+    baseUtilityWidth +
+    getVariantWidth('musicUtilityButton') +
+    getVariantWidth('repeatUtilityButton') +
+    baseUtilityWidth +
+    getVariantWidth('textUtilityButton') +
+    getVariantWidth('iconOnlyUtilityButton') +
+    utilityGap * 5;
+
+  assert.ok(
+    totalMinimumWidth > 320,
+    'PlaybackControls compact-width regression test expects the six-button utility cluster to exceed a 320pt phone width before wrapping'
+  );
+
+  assert.match(
+    source,
+    /utilityPrimaryGroup:\s*{[\s\S]*flexWrap:\s*'wrap'/,
+    'PlaybackControls should allow the centered chapter-only utility cluster to wrap onto a second row on compact screens'
+  );
+
+  assert.match(
+    source,
+    /utilityPrimaryGroup:\s*{[\s\S]*width:\s*'100%'/,
+    'PlaybackControls should constrain the wrapping utility cluster to the available player width'
+  );
+});
+
 test('PlaybackControls exposes a bundled background-music utility in the listen control row', () => {
   const source = readRelativeSource('./PlaybackControls.tsx');
 

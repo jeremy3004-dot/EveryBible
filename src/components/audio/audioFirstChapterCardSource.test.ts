@@ -41,6 +41,16 @@ test('AudioFirstChapterCard removes redundant watermark art and explanatory audi
   );
 });
 
+test('AudioFirstChapterCard keeps the listen controls comfortably above the bottom edge', () => {
+  const source = readRelativeSource('./AudioFirstChapterCard.tsx');
+
+  assert.match(
+    source,
+    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*paddingBottom:\s*20,[\s\S]*justifyContent:\s*'flex-start'/s,
+    'AudioFirstChapterCard should top-align its content so the playback controls do not clip at the bottom of the viewport'
+  );
+});
+
 test('AudioFirstChapterCard moves audio sharing into the shared playback controls', () => {
   const source = readRelativeSource('./AudioFirstChapterCard.tsx');
 

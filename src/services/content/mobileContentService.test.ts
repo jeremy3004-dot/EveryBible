@@ -5,6 +5,7 @@ import {
   getLiveVerseOfDayOverride,
   parseMobileContentOverridePayload,
 } from './mobileContentService';
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 
 test('parseMobileContentOverridePayload returns null for malformed payloads', () => {
   assert.equal(parseMobileContentOverridePayload(null), null);
@@ -42,10 +43,27 @@ test('parseMobileContentOverridePayload keeps valid verse and image overrides', 
   assert.equal(payload.verseOfDay?.referenceLabel, 'Psalm 119:105');
 });
 
-test('getLiveVerseOfDayOverride returns null for failed responses', async () => {
+test('getLiveVerseOfDayOverride returns null when the remote payload omits verse data', async () => {
+  const previousEndpoint = publicRuntimeConfig.EXPO_PUBLIC_CONTENT_API_URL;
+  publicRuntimeConfig.EXPO_PUBLIC_CONTENT_API_URL = 'https://everybible.app/api/mobile/content';
+
   const override = await getLiveVerseOfDayOverride(async () => {
-    return new Response(null, { status: 503 });
+    return new Response(
+      JSON.stringify({
+        generatedAt: '2026-04-02T12:00:00.000Z',
+        images: [],
+        verseOfDay: null,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   });
+
+  publicRuntimeConfig.EXPO_PUBLIC_CONTENT_API_URL = previousEndpoint;
 
   assert.equal(override, null);
 });

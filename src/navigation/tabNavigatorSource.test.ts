@@ -103,3 +103,13 @@ test('TabNavigator keeps Home in the normal tab bar instead of floating it over 
   assert.equal(source.includes("backgroundColor: 'transparent'"), false);
   assert.equal(source.includes("position: 'absolute'"), false);
 });
+
+test('TabNavigator respects Bible reader tab-bar visibility when the reader updates its route params', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /focusedRoute\.params\?\.tabBarVisible !== false/,
+    'TabNavigator should treat the Bible reader route param as the source of truth for showing the root tab bar'
+  );
+});

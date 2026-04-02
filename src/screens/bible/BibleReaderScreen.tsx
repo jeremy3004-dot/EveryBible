@@ -107,7 +107,6 @@ import {
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
-  READER_HERO_COLLAPSE_DISTANCE,
   READER_TOP_CHROME_DISMISS_DISTANCE,
   SWIPE_THRESHOLD,
   SWIPE_VELOCITY_MIN,
@@ -867,8 +866,6 @@ export function BibleReaderScreen() {
     verses.length > 0 &&
     !isLoading &&
     error == null;
-  const primarySectionHeading =
-    verses.find((verse) => verse.heading?.trim())?.heading?.trim() ?? null;
   const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
   const premiumTopInset = 12;
   const premiumBottomInset = 18;
@@ -929,25 +926,6 @@ export function BibleReaderScreen() {
           scrollY.value,
           [0, READER_TOP_CHROME_DISMISS_DISTANCE],
           [0, -36],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  const heroAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [0, READER_HERO_COLLAPSE_DISTANCE * 0.45, READER_HERO_COLLAPSE_DISTANCE],
-      [1, 0.45, 0],
-      Extrapolation.CLAMP
-    ),
-    transform: [
-      {
-        translateY: interpolate(
-          scrollY.value,
-          [0, READER_HERO_COLLAPSE_DISTANCE],
-          [0, -52],
           Extrapolation.CLAMP
         ),
       },
@@ -2740,10 +2718,37 @@ export function BibleReaderScreen() {
             <TouchableOpacity
               style={styles.touchableGlassButton}
               activeOpacity={0.9}
-              onPress={() => navigation.navigate('BibleBrowser')}
+              onPress={handleOpenBookPicker}
+              accessibilityRole="button"
+              accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter} ${translationLabel}`}
+              accessibilityHint="Opens the book and chapter picker"
             >
-              <GlassSurface style={styles.glassIconButton} intensity={44}>
-                <Ionicons name="arrow-back" size={20} color={colors.biblePrimaryText} />
+              <GlassSurface
+                style={styles.floatingReaderReferencePill}
+                contentStyle={styles.floatingReaderReferencePillContent}
+                intensity={44}
+              >
+                <Text
+                  style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
+                  numberOfLines={1}
+                >
+                  {getTranslatedBookName(bookId, t)} {chapter}
+                </Text>
+                <View
+                  style={[
+                    styles.floatingReaderReferencePillDivider,
+                    { backgroundColor: colors.bibleDivider },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.floatingReaderReferencePillTranslation,
+                    { color: colors.bibleSecondaryText },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {translationLabel}
+                </Text>
               </GlassSurface>
             </TouchableOpacity>
 
@@ -2800,73 +2805,6 @@ export function BibleReaderScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          <Animated.View
-            style={[
-              styles.floatingReaderTranslationDock,
-              { top: premiumTopInset + 62 },
-              topChromeAnimatedStyle,
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.floatingReaderTranslationButtonTouchable}
-              activeOpacity={canShowTranslationSheet ? 0.9 : 1}
-              disabled={!canShowTranslationSheet}
-              onPress={handleOpenTranslationOptions}
-            >
-              <GlassSurface
-                style={styles.floatingReaderTranslationButton}
-                contentStyle={styles.floatingReaderTranslationButtonContent}
-                intensity={40}
-              >
-                <Text
-                  style={[
-                    styles.floatingReaderTranslationButtonLabel,
-                    {
-                      color: canShowTranslationSheet
-                        ? colors.biblePrimaryText
-                        : colors.bibleSecondaryText,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {translationLabel}
-                </Text>
-              </GlassSurface>
-            </TouchableOpacity>
-          </Animated.View>
-
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.floatingReaderHero, { top: premiumTopInset + 124 }, heroAnimatedStyle]}
-          >
-            <Text
-              style={[
-                styles.premiumReaderTitle,
-                {
-                  color: colors.biblePrimaryText,
-                  fontSize: scaleValue(typography.readingDisplay.fontSize),
-                  lineHeight: scaleValue(typography.readingDisplay.lineHeight),
-                },
-              ]}
-            >
-              {getTranslatedBookName(bookId, t)} {chapter}
-            </Text>
-            {primarySectionHeading ? (
-              <Text
-                style={[
-                  styles.premiumReaderSubtitle,
-                  {
-                    color: colors.bibleSecondaryText,
-                    fontSize: scaleValue(typography.readingHeading.fontSize),
-                    lineHeight: scaleValue(typography.readingHeading.lineHeight),
-                  },
-                ]}
-              >
-                {primarySectionHeading}
-              </Text>
-            ) : null}
-          </Animated.View>
-
           <GestureDetector gesture={readerNativeScrollGesture}>
             <Animated.ScrollView
               ref={scrollViewRef}
@@ -2891,8 +2829,8 @@ export function BibleReaderScreen() {
               contentContainerStyle={[
                 styles.premiumReaderScrollContent,
                 {
-                  paddingTop: premiumTopInset + 208,
-                  paddingBottom: premiumBottomInset + 108,
+                  paddingTop: premiumTopInset + 98,
+                  paddingBottom: premiumBottomInset + 72,
                 },
               ]}
             >
@@ -2901,61 +2839,6 @@ export function BibleReaderScreen() {
           </GestureDetector>
         </Animated.View>
       </GestureDetector>
-
-      <View style={[styles.persistentReaderBottomBar, { bottom: premiumBottomInset }]} pointerEvents="box-none">
-        <View style={styles.persistentReaderBottomBarLayout}>
-          <TouchableOpacity
-            style={styles.persistentReaderArrowButton}
-            activeOpacity={0.9}
-            onPress={() => void handlePreviousReadChapter()}
-            disabled={!hasPrevChapter}
-          >
-            <GlassSurface style={styles.persistentReaderArrowSurface} intensity={44}>
-              <Ionicons
-                name="chevron-back"
-                size={20}
-                color={colors.biblePrimaryText}
-              />
-            </GlassSurface>
-          </TouchableOpacity>
-
-          <View style={styles.persistentReaderChapterSlot}>
-            <TouchableOpacity
-              style={styles.persistentReaderChapterTouchable}
-              activeOpacity={0.9}
-              onPress={handleOpenBookPicker}
-            >
-              <GlassSurface
-                style={styles.persistentReaderChapterSurface}
-                contentStyle={styles.persistentReaderChapterSurfaceContent}
-                intensity={44}
-              >
-                <Text
-                  style={[styles.persistentReaderChapterLabel, { color: colors.biblePrimaryText }]}
-                  numberOfLines={1}
-                >
-                  {getTranslatedBookName(bookId, t)} {chapter}
-                </Text>
-              </GlassSurface>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={styles.persistentReaderArrowButton}
-            activeOpacity={0.9}
-            onPress={() => void handleNextReadChapter()}
-            disabled={!hasNextChapter}
-          >
-            <GlassSurface style={styles.persistentReaderArrowSurface} intensity={44}>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={colors.biblePrimaryText}
-              />
-            </GlassSurface>
-          </TouchableOpacity>
-        </View>
-      </View>
     </View>
   );
 
@@ -4299,49 +4182,38 @@ const styles = StyleSheet.create({
   floatingReaderModeSpacer: {
     flex: 1,
   },
-  floatingReaderTranslationDock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 25,
-    alignItems: 'center',
+  floatingReaderReferencePill: {
+    minHeight: layout.minTouchTarget + 4,
+    maxWidth: 220,
   },
-  floatingReaderTranslationButtonTouchable: {
-    alignSelf: 'center',
-  },
-  floatingReaderTranslationButton: {
-    minHeight: 34,
-    borderRadius: radius.pill,
-    maxWidth: 240,
-  },
-  floatingReaderTranslationButtonContent: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  floatingReaderReferencePillContent: {
+    minHeight: layout.minTouchTarget + 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
     justifyContent: 'center',
   },
-  floatingReaderTranslationButtonLabel: {
+  floatingReaderReferencePillPrimary: {
+    ...typography.label,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: -0.15,
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillDivider: {
+    width: 1,
+    height: 16,
+    borderRadius: radius.pill,
+    opacity: 0.55,
+  },
+  floatingReaderReferencePillTranslation: {
     ...typography.label,
     fontSize: 12,
     lineHeight: 15,
-    letterSpacing: -0.1,
-    textAlign: 'center',
-  },
-  floatingReaderHero: {
-    position: 'absolute',
-    left: spacing.xl,
-    right: spacing.xl,
-    zIndex: 20,
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  premiumReaderTitle: {
-    ...typography.readingDisplay,
-    textAlign: 'center',
-  },
-  premiumReaderSubtitle: {
-    ...typography.readingHeading,
-    textAlign: 'center',
-    opacity: 0.84,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    flexShrink: 1,
   },
   premiumReaderScrollContent: {
     paddingHorizontal: spacing.xl,
@@ -4618,58 +4490,6 @@ const styles = StyleSheet.create({
   premiumVerseNumber: {
     ...typography.readingVerseNumber,
     opacity: 0.92,
-  },
-  persistentReaderBottomBar: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 30,
-    alignItems: 'center',
-  },
-  persistentReaderBottomBarLayout: {
-    width: '100%',
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xs,
-  },
-  persistentReaderArrowButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  persistentReaderArrowSurface: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: radius.pill,
-  },
-  persistentReaderChapterSlot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  persistentReaderChapterTouchable: {
-    alignSelf: 'center',
-  },
-  persistentReaderChapterSurface: {
-    minHeight: layout.minTouchTarget,
-    borderRadius: radius.pill,
-  },
-  persistentReaderChapterSurfaceContent: {
-    minHeight: layout.minTouchTarget,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    justifyContent: 'center',
-  },
-  persistentReaderChapterLabel: {
-    ...typography.cardTitle,
-    fontSize: 15,
-    lineHeight: 20,
-    textAlign: 'center',
   },
   feedbackCard: {
     borderWidth: 1,
