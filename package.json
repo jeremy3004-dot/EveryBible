@@ -120,6 +120,7 @@
     "install": {
       "exclude": [
         "@shopify/flash-list",
+        "@types/react",
         "react-native-reanimated"
       ]
     }
