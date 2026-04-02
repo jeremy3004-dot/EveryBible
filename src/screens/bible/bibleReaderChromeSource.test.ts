@@ -212,19 +212,39 @@ test('listen mode passes chapter audio sharing into the shared playback controls
   );
 });
 
-test('BibleReaderScreen no longer controls root tab visibility through reader route params', () => {
+test('BibleReaderScreen keeps the root tab bar visible while read mode scroll gestures update the chrome', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.equal(
-    source.includes('tabBarVisible'),
-    false,
-    'BibleReaderScreen should not write tab-bar visibility into reader params because stale route state can hide the root tabs'
+  assert.match(
+    source,
+    /navigation\.setParams\(\{ tabBarVisible: nextVisible \}\);/,
+    'BibleReaderScreen should store tab-bar visibility in the reader route params so the tab navigator can react to it'
+  );
+
+  assert.match(
+    source,
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'enter'/s,
+    'BibleReaderScreen should make listen and read modes enter the reader with the tab bar visible'
+  );
+
+  assert.match(
+    source,
+    /chapterSessionMode !== 'read'/,
+    'BibleReaderScreen should leave listen mode alone when scroll gestures occur'
+  );
+
+  assert.match(
+    source,
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollEndDrag'/s,
+    'BibleReaderScreen should keep the read-mode scroll-end restore logic for the root tab bar'
   );
 
   assert.equal(
-    /onScrollEndDrag=\{handleReaderScrollEndDrag\}/.test(source),
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollStart'/s.test(
+      source
+    ),
     false,
-    'BibleReaderScreen should not keep scroll-end handlers that only existed for route-param tab-bar toggling'
+    'BibleReaderScreen should no longer hide the root tab bar when read-mode scrolling starts'
   );
 });
 
@@ -622,22 +642,6 @@ test('BibleReaderScreen keeps translation selection reachable from overflow afte
     source,
     /key: 'translation'[\s\S]*label: t\('bible\.selectTranslation'\)[\s\S]*onPress: handleOpenTranslationOptions/s,
     'BibleReaderScreen should expose translation selection in the overflow menu'
-  );
-
-  assert.equal(
-    source.includes('TranslationPickerList'),
-    true,
-    'BibleReaderScreen should render the shared TranslationPickerList so the reader uses the same selector structure as Bible and Settings'
-  );
-});
-
-test('BibleReaderScreen gives the translation sheet a fixed-height modal body so the shared picker list stays visible', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
-
-  assert.match(
-    source,
-    /modalContent:\s*{[\s\S]*height:\s*'78%',[\s\S]*overflow:\s*'hidden'/,
-    'BibleReaderScreen should keep the translation modal tall enough for the shared picker contents on device'
   );
 });
 

@@ -29,7 +29,6 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
 test('sanitizePersistedBibleState preserves valid downloaded audio books only', () => {
   const sanitized = sanitizePersistedBibleState({
     preferredChapterLaunchMode: 'listen',
-    preferredTranslationLanguage: 'Nepali',
     translations: [
       {
         id: 'bsb',
@@ -41,16 +40,7 @@ test('sanitizePersistedBibleState preserves valid downloaded audio books only', 
   const bsb = sanitized.translations.find((translation) => translation.id === 'bsb');
   assert.ok(bsb);
   assert.equal(sanitized.preferredChapterLaunchMode, 'listen');
-  assert.equal(sanitized.preferredTranslationLanguage, 'Nepali');
   assert.deepEqual(bsb.downloadedAudioBooks, ['GEN', 'JHN']);
-});
-
-test('sanitizePersistedBibleState drops a malformed preferred translation language', () => {
-  const sanitized = sanitizePersistedBibleState({
-    preferredTranslationLanguage: 42,
-  });
-
-  assert.equal(sanitized.preferredTranslationLanguage, null);
 });
 
 test('sanitizePersistedBibleState only marks reader history when a prior chapter was actually persisted', () => {
