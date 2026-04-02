@@ -82,5 +82,7 @@ test('bible store prefers catalog text packs over row-by-row Supabase downloads 
   const source = readRelativeSource('../../stores/bibleStore.ts');
 
   assert.match(source, /const textPack = translation\?\.catalog\?\.text;/);
-  assert.match(source, /textPack\s*\?\s*downloadCatalogTextPack\(/);
+  assert.match(source, /if \(!textPack\) \{/);
+  assert.match(source, /await downloadCatalogTextPack\(/);
+  assert.doesNotMatch(source, /downloadCloudTranslation\(/);
 });

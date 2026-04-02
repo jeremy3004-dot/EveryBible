@@ -57,6 +57,7 @@ async function listOpenBibleImportDirs(root: string): Promise<string[]> {
 async function buildMappings(repoRoot: string): Promise<Mapping[]> {
   const mappings: Mapping[] = [];
   const bundledDbPath = path.join(repoRoot, 'assets', 'databases', 'bible-bsb-v2.db');
+  const exportedTextRoot = path.join(repoRoot, 'tmp', 'r2-source-of-truth', 'text');
 
   if (await pathExists(bundledDbPath)) {
     mappings.push({
@@ -76,6 +77,14 @@ async function buildMappings(repoRoot: string): Promise<Mapping[]> {
         destination: `timing/${translationId.toLowerCase()}`,
       });
     }
+  }
+
+  if (await pathExists(exportedTextRoot)) {
+    mappings.push({
+      kind: 'dir',
+      source: exportedTextRoot,
+      destination: 'text',
+    });
   }
 
   const importDirs = await listOpenBibleImportDirs(path.join(repoRoot, 'tmp', 'open-bible-import'));

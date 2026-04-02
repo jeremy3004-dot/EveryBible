@@ -109,19 +109,6 @@ function parseArgs(): ScriptArgs {
   };
 }
 
-function requireSupabaseUrl(): string {
-  const value =
-    process.env.SUPABASE_URL ??
-    process.env.EXPO_PUBLIC_SUPABASE_URL ??
-    '';
-
-  if (!value) {
-    throw new Error('Missing SUPABASE_URL or EXPO_PUBLIC_SUPABASE_URL for catalog generation.');
-  }
-
-  return value.replace(/\/+$/, '');
-}
-
 async function loadLocalEnvFile(): Promise<void> {
   const envPath = path.resolve('.env');
 
@@ -150,7 +137,6 @@ async function loadLocalEnvFile(): Promise<void> {
 }
 
 function buildCatalogPayload(translationId: string, generatedAt: string): CatalogPayload {
-  const supabaseUrl = requireSupabaseUrl();
   const versionStamp = generatedAt.slice(0, 10).replaceAll('-', '.');
 
   return {
@@ -158,14 +144,14 @@ function buildCatalogPayload(translationId: string, generatedAt: string): Catalo
     updatedAt: generatedAt,
     audio: {
       strategy: 'stream-template',
-      baseUrl: `${supabaseUrl}/storage/v1/object/public/bible-audio/${translationId}`,
+      baseUrl: `audio/${translationId}`,
       chapterPathTemplate: '{bookId}/{chapter}.mp3',
       fileExtension: 'mp3',
       mimeType: 'audio/mpeg',
     },
     timing: {
       strategy: 'stream-template',
-      baseUrl: `${supabaseUrl}/storage/v1/object/public/verse-timestamps/${translationId}`,
+      baseUrl: `timing/${translationId}`,
       chapterPathTemplate: '{bookId}/{chapter}.json',
       fileExtension: 'json',
       mimeType: 'application/json',

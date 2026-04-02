@@ -46,7 +46,7 @@ Recommended schema shape:
 - `translation_audio_versions`
   - audio pack versions, manifest URL, checksum/signature metadata, delivery mode, storage provider, and current-version flag
 
-The mobile app should only ask Supabase, “what is the current text/audio version for this translation?” It should not care whether bytes come from Supabase Storage today or R2 tomorrow.
+The mobile app should only ask Supabase, “what is the current text/audio version for this translation?” It should not care that the published bytes now come from Cloudflare R2.
 
 ### Media Plane: CDN-Backed Object Storage
 
@@ -66,8 +66,10 @@ What matters is the contract:
 Current repo wiring:
 
 - mobile/runtime asset resolution uses `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`
-- translation catalogs may now store relative asset paths such as `audio/npiulb` or `text/npiulb/app.sqlite`
-- R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket and emits R2-flavored catalog files for staged imports
+- translation catalogs store relative R2-backed asset paths such as `audio/bsb/{bookId}/{chapter}.m4a`, `audio/web/{bookId}/{chapter}.mp3`, and `text/{translation_id}/{translation_id}-{version}.db`
+- current text packs are exported from Supabase into versioned SQLite files by `scripts/export_translation_text_packs.py`
+- public-domain chapter audio is mirrored into R2 by `scripts/mirror_public_audio_to_r2.py`
+- general-purpose R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket and emits R2-flavored catalog files for staged imports
 - the public delivery surface is now `https://everybible.app/api/media/...`, backed by the site app's server-side R2 proxy
 - the site app requires `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in Vercel to serve that proxy in production
 
@@ -200,25 +202,25 @@ Required backend rules:
 
 ## Storage Provider Policy
 
-### Near Term
+### Current State
 
-Lowest-risk path:
+The current production direction is:
 
-- keep Supabase as control plane
-- keep current audio in bucket storage
-- republish audio under versioned immutable paths
-- fix cache headers immediately
-- move the app to manifest-driven URLs
+- keep Supabase as the control plane
+- publish all current translation text packs to Cloudflare R2
+- mirror all current public-domain chapter audio to Cloudflare R2
+- serve Bible assets through `https://everybible.app/api/media/...`
+- treat translation catalog metadata plus R2 objects as the source of truth
 
-### Medium Term
+### Future Provider Swaps
 
-If traffic or CDN behavior warrants it:
+If traffic, pricing, or CDN behavior warrants another provider later:
 
-- move public-domain audio objects to R2 behind a custom domain
-- keep Supabase tables and manifest rows unchanged
-- update only `storage_provider` and manifest `base_url`
+- keep Supabase tables and catalog rows as the contract surface
+- migrate object storage behind the same catalog-driven paths
+- update only the publishing pipeline and media proxy internals
 
-This gives us a migration path without another app rewrite.
+This preserves the client contract and avoids another app rewrite.
 
 ## New Translation Onboarding Checklist
 
@@ -254,8 +256,9 @@ Every future translation/audio import must pass this checklist:
 
 These should happen first because they improve BSB now and become the base policy for everything after it:
 
-1. Republish hot audio objects under versioned paths with immutable cache headers.
-2. Move audio resolution to manifest metadata.
-3. Replace serial chapter downloads with bounded concurrency.
-4. Normalize extension and MIME handling from manifest data.
+1. Keep every current translation catalog pointed at an R2-backed text pack before release.
+2. Keep public-domain chapter audio mirrored into R2 before `has_audio` is exposed.
+3. Move audio and timing resolution entirely through catalog metadata and media proxy paths.
+4. Replace serial chapter downloads with bounded concurrency.
+5. Normalize extension and MIME handling from manifest data.
 5. Add control-plane rows for current audio version and manifest URL.

@@ -40,23 +40,7 @@ test('berean standard bible audio resolves psalms chapters through the EveryBibl
   });
 });
 
-test('berean standard bible audio resolves a Supabase storage URL when a Supabase base URL is injected', async () => {
-  setRemoteAudioMetadataResolver((translationId) => {
-    if (translationId !== 'bsb') {
-      return null;
-    }
-
-    return {
-      id: 'bsb',
-      hasAudio: true,
-      audio: {
-        strategy: 'supabase-storage',
-        extension: 'm4a',
-      },
-    };
-  });
-
-  // Simulate the supabase-storage strategy with a known base URL via stream-template fallback
+test('berean standard bible audio resolves through injected stream-template metadata', async () => {
   setRemoteAudioMetadataResolver((translationId) => {
     if (translationId !== 'bsb') {
       return null;
@@ -86,30 +70,18 @@ test('world english bible audio resolves a direct public-domain chapter file wit
   const audio = await fetchRemoteChapterAudio('web', 'GEN', 1);
 
   assert.deepEqual(audio, {
-    url: 'https://ebible.org/eng-webbe/mp3/eng-webbe_002_GEN_01.mp3',
+    url: 'https://everybible.app/api/media/audio/web/GEN/1.mp3',
     duration: 0,
   });
 });
 
-test('world english bible audio supports psalms three-digit chapter filenames', async () => {
+test('world english bible audio resolves psalms chapters through the EveryBible media route', async () => {
   const audio = await fetchRemoteChapterAudio('web', 'PSA', 150);
 
   assert.deepEqual(audio, {
-    url: 'https://ebible.org/eng-webbe/mp3/eng-webbe_020_PSA_150.mp3',
+    url: 'https://everybible.app/api/media/audio/web/PSA/150.mp3',
     duration: 0,
   });
-});
-
-test('world english bible audio returns null for unsupported books', async () => {
-  const audio = await fetchRemoteChapterAudio('web', 'XXX', 1);
-
-  assert.equal(audio, null);
-});
-
-test('world english bible audio returns null for invalid chapters', async () => {
-  const audio = await fetchRemoteChapterAudio('web', 'GEN', 0);
-
-  assert.equal(audio, null);
 });
 
 test('public-domain web audio remains remotely available without Bible.is credentials', () => {

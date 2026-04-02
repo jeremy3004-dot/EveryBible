@@ -98,19 +98,19 @@ EBIBLE_PREFIXES = {b: p for b, p, _ in BOOKS}
 # ─────────────────────────── Audio URL builders ───────────────────────────
 
 def web_audio_url(book_id: str, chapter: int) -> str:
+    asset_base = os.environ.get("EXPO_PUBLIC_BIBLE_ASSET_BASE_URL", "").rstrip("/")
+    if asset_base:
+        return f"{asset_base}/audio/web/{book_id}/{chapter}.mp3"
     prefix = EBIBLE_PREFIXES[book_id]
     ch_str = f"{chapter:03d}" if book_id == "PSA" else f"{chapter:02d}"
     return f"https://ebible.org/eng-webbe/mp3/eng-webbe_{prefix}_{ch_str}.mp3"
 
 
 def bsb_audio_url(book_id: str, chapter: int) -> str:
-    base = os.environ.get("EXPO_PUBLIC_SUPABASE_URL", "").rstrip("/")
-    if not base:
-        raise RuntimeError(
-            "EXPO_PUBLIC_SUPABASE_URL not set. "
-            "Add it to .env or export it before running."
-        )
-    return f"{base}/storage/v1/object/public/bible-audio/bsb/{book_id}/{chapter}.m4a"
+    asset_base = os.environ.get("EXPO_PUBLIC_BIBLE_ASSET_BASE_URL", "").rstrip("/")
+    if asset_base:
+        return f"{asset_base}/audio/bsb/{book_id}/{chapter}.m4a"
+    return f"https://everybible.app/api/media/audio/bsb/{book_id}/{chapter}.m4a"
 
 
 # ─────────────────────────── Verse text loading ───────────────────────────

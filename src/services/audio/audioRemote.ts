@@ -1,7 +1,6 @@
 import { getTranslationById } from '../../constants/translations';
 import type { AudioProvider, BibleIsAudioResponse, BibleTranslation } from '../../types';
 import {
-  getBibleAudioAssetBaseUrl,
   resolveBibleAssetBaseUrl,
   resolveBibleAssetUrl,
 } from '../bible/bibleAssetBaseUrl';
@@ -11,10 +10,6 @@ import type { RemoteAudioAsset } from './audioDownloadService';
 const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
 const BIBLE_IS_API_KEY = publicRuntimeConfig.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
 
-// Prefer manifest-driven audio metadata. This fallback base keeps the last
-// hardcoded bucket path configurable so Bible assets can move from Supabase
-// Storage to Cloudflare R2 without another client rewrite.
-const FALLBACK_AUDIO_BUCKET_BASE = getBibleAudioAssetBaseUrl();
 const EBIBLE_WEBBE_AUDIO_BASE = 'https://ebible.org/eng-webbe/mp3';
 const AUDIO_TEMPLATE_PLACEHOLDERS = new Set([
   '{bookId}',
@@ -117,12 +112,6 @@ type RemoteAudioMetadata = {
     | {
         strategy: 'audio-pack';
         downloadUrl: string;
-      }
-    | {
-        // Self-hosted in Supabase Storage bucket "bible-audio"
-        // Path: {translationId}/{bookId}/{chapter}.{extension}
-        strategy: 'supabase-storage';
-        extension?: string; // file extension without dot, defaults to 'mp3'
       };
 };
 
@@ -229,21 +218,6 @@ function buildRemoteAudioMetadataFromTranslation(
         strategy: 'provider',
         provider: translation.audioProvider,
         filesetId: translation.audioFilesetId ?? undefined,
-      },
-    };
-  }
-
-  // Fallback: translations with audio but no explicit provider use Supabase Storage (.m4a).
-  // BSB is the only translation currently hitting this path; files are uploaded as .m4a.
-  if (FALLBACK_AUDIO_BUCKET_BASE) {
-    return {
-      id: translation.id,
-      hasAudio: true,
-      audioGranularity: translation.audioGranularity,
-      fileExtension: 'm4a',
-      audio: {
-        strategy: 'supabase-storage',
-        extension: 'm4a',
       },
     };
   }
@@ -484,17 +458,6 @@ export async function fetchRemoteChapterAudio(
     return result;
   }
 
-  if (audio.strategy === 'supabase-storage') {
-    if (!FALLBACK_AUDIO_BUCKET_BASE) {
-      return null;
-    }
-    const ext = audio.extension ?? 'mp3';
-    const url = `${FALLBACK_AUDIO_BUCKET_BASE}/${translationId}/${bookId}/${chapter}.${ext}`;
-    const result = { url, duration: 0 };
-    audioUrlCache.set(cacheKey, result);
-    return result;
-  }
-
   const providerUrl = buildProviderChapterAudioUrl(audio.provider, bookId, chapter);
   if (providerUrl) {
     const result = { url: providerUrl, duration: 0 };
@@ -527,10 +490,6 @@ export function isRemoteAudioAvailable(translationId: string): boolean {
 
   if (audio.strategy === 'audio-pack') {
     return Boolean(audio.downloadUrl);
-  }
-
-  if (audio.strategy === 'supabase-storage') {
-    return Boolean(FALLBACK_AUDIO_BUCKET_BASE);
   }
 
   if (audio.provider === 'ebible-webbe') {

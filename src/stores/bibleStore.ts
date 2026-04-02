@@ -422,10 +422,16 @@ export const useBibleStore = create<BibleState>()(
           translation?.hasText && translation?.source !== 'runtime' && !hasInstalledTextPack
         );
 
-        // Bundled seeded translations are already present in the app's bundled database.
-        // Mark them available, but do not pretend runtime/cloud translations are installed
-        // unless a local pack path exists.
-        if (translation && isBundledSeed) {
+        const textPack = translation?.catalog?.text;
+        const bundledSeedMatchesCurrentCatalog =
+          isBundledSeed &&
+          Boolean(textPack) &&
+          translation?.activeTextPackVersion === textPack?.version;
+
+        // Bundled seeded translations stay readable without any network hop.
+        // If the catalog now advertises a newer R2 text pack, fall through and
+        // install it so the seeded copy no longer acts as the source of truth.
+        if (translation && isBundledSeed && (!textPack || bundledSeedMatchesCurrentCatalog)) {
           set((state) => ({
             error: null,
             translations: state.translations.map((t) =>
@@ -442,9 +448,6 @@ export const useBibleStore = create<BibleState>()(
           return;
         }
 
-        const textPack = translation?.catalog?.text;
-
-        // Cloud download from Supabase bible_verses table
         try {
           if (translation?.textPackLocalPath) {
             await invalidateInstalledBibleDatabaseAtPath(translation.textPackLocalPath);
@@ -462,7 +465,7 @@ export const useBibleStore = create<BibleState>()(
             ),
           }));
 
-          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
+          const { downloadCatalogTextPack } = await import(
             '../services/bible/cloudTranslationService'
           );
 
@@ -493,13 +496,17 @@ export const useBibleStore = create<BibleState>()(
             });
           };
 
-          const localPath = await (textPack
-            ? downloadCatalogTextPack({
-                translationId,
-                downloadUrl: textPack.downloadUrl,
-                onProgress: handleProgress,
-              })
-            : downloadCloudTranslation(translationId, handleProgress));
+          if (!textPack) {
+            throw new Error(
+              `No R2 text pack is published for ${translationId.toUpperCase()} yet.`
+            );
+          }
+
+          const localPath = await downloadCatalogTextPack({
+            translationId,
+            downloadUrl: textPack.downloadUrl,
+            onProgress: handleProgress,
+          });
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 
