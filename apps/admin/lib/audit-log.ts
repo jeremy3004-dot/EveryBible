@@ -1,3 +1,5 @@
+import type { OperatorAuditMetadata } from '@everybible/types';
+
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
 interface AuditLogInput {
@@ -6,8 +8,28 @@ interface AuditLogInput {
   actorUserId: string;
   entityId?: string | null;
   entityType: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | OperatorAuditMetadata;
   summary: string;
+}
+
+function normalizeAuditMetadata(
+  metadata?: Record<string, unknown> | OperatorAuditMetadata
+): Record<string, unknown> {
+  if (!metadata) {
+    return {};
+  }
+
+  const normalized = Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => value !== undefined)
+  );
+
+  if (Array.isArray(normalized.changedFields)) {
+    normalized.changedFields = normalized.changedFields.filter(
+      (field): field is string => typeof field === 'string'
+    );
+  }
+
+  return normalized;
 }
 
 export async function writeAdminAuditLog({
@@ -26,7 +48,7 @@ export async function writeAdminAuditLog({
     actor_user_id: actorUserId,
     entity_id: entityId ?? null,
     entity_type: entityType,
-    metadata: metadata ?? {},
+    metadata: normalizeAuditMetadata(metadata),
     summary,
   });
 
