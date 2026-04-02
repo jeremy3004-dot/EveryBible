@@ -23,6 +23,7 @@ import type {
   User,
   UserPreferences,
 } from '../types';
+import { sanitizeBibleAssetReference } from '../services/bible/bibleAssetBaseUrl';
 
 const supportedBibleTranslationIds = new Set(bibleTranslations.map((translation) => translation.id));
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
@@ -85,17 +86,8 @@ const sanitizeRequiredString = (value: unknown): string | null =>
 const sanitizeOptionalFiniteNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
 
-const sanitizeUrlString = (value: unknown): string | null => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return null;
-  }
-
-  try {
-    return new URL(value).toString();
-  } catch {
-    return null;
-  }
-};
+const sanitizeUrlString = (value: unknown): string | null =>
+  sanitizeBibleAssetReference(value);
 
 const sanitizeIsoDateString = (value: unknown): string | null => {
   if (typeof value !== 'string' || value.trim().length === 0) {

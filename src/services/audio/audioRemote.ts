@@ -1,6 +1,10 @@
 import { getTranslationById } from '../../constants/translations';
 import type { AudioProvider, BibleIsAudioResponse, BibleTranslation } from '../../types';
-import { getBibleAudioAssetBaseUrl } from '../bible/bibleAssetBaseUrl';
+import {
+  getBibleAudioAssetBaseUrl,
+  resolveBibleAssetBaseUrl,
+  resolveBibleAssetUrl,
+} from '../bible/bibleAssetBaseUrl';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import type { RemoteAudioAsset } from './audioDownloadService';
 
@@ -323,7 +327,11 @@ function buildStreamTemplateAudioUrl(
     return null;
   }
 
-  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const normalizedBaseUrl = resolveBibleAssetBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) {
+    return null;
+  }
+
   const chapterPadded = String(chapter).padStart(2, '0');
   const versePadded = verse == null ? '' : String(verse).padStart(3, '0');
   const path = chapterPathTemplate
@@ -466,7 +474,12 @@ export async function fetchRemoteChapterAudio(
   }
 
   if (audio.strategy === 'audio-pack') {
-    const result = { url: audio.downloadUrl, duration: 0 };
+    const resolvedDownloadUrl = resolveBibleAssetUrl(audio.downloadUrl);
+    if (!resolvedDownloadUrl) {
+      return null;
+    }
+
+    const result = { url: resolvedDownloadUrl, duration: 0 };
     audioUrlCache.set(cacheKey, result);
     return result;
   }

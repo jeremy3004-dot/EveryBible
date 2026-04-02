@@ -20,6 +20,7 @@
 
 import { getTranslationById } from '../../constants/translations';
 import type { BibleTranslation } from '../../types';
+import { resolveBibleAssetBaseUrl } from './bibleAssetBaseUrl';
 
 export type VerseTimestamps = Record<number, number>;
 type VerseTimestampMetadata = {
@@ -1182,7 +1183,10 @@ function buildRemoteTimestampUrl(
     return null;
   }
 
-  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const normalizedBaseUrl = resolveBibleAssetBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) {
+    return null;
+  }
   const chapterPadded = String(chapter).padStart(3, '0');
   const path = chapterPathTemplate
     .replaceAll('{bookId}', bookId)

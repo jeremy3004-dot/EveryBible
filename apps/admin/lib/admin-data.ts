@@ -1,4 +1,4 @@
-import type { OperatorAuditMetadata } from '@everybible/types';
+import type { OperatorAuditMetadata } from './operator-audit-metadata';
 
 import { adminNavigation } from '@/lib/admin-navigation';
 import {

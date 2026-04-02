@@ -5,7 +5,7 @@ import type {
   HomepageHeroContentOverride,
   HomepageStoreLink,
   HomepageVerseOfDayOverride,
-} from '@everybible/types';
+} from './shared-contracts';
 
 import {
   defaultHomepageContent,

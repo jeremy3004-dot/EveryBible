@@ -1,27 +1,8 @@
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 
-function normalizeBaseUrl(value: string | undefined): string | null {
-  if (!value) {
-    return null;
-  }
+const DEFAULT_BIBLE_ASSET_BASE_URL = 'https://everybible.app/api/media';
 
-  return value.replace(/\/+$/, '');
-}
-
-export function getBibleAssetBaseUrl(): string | null {
-  return normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL);
-}
-
-function isAbsoluteUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return Boolean(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
-
-function normalizeAssetPath(value: string | undefined): string | null {
+function normalizeBaseUrl(value: string | null | undefined): string | null {
   if (!value) {
     return null;
   }
@@ -31,39 +12,110 @@ function normalizeAssetPath(value: string | undefined): string | null {
     return null;
   }
 
-  return trimmed.replace(/^\.?\//, '');
+  return trimmed.replace(/\/+$/, '');
+}
+
+function normalizeRelativeAssetPath(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^(?:data|javascript|blob|file):/i.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed.replace(/^\.\//, '');
+}
+
+export function sanitizeBibleAssetReference(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString();
+    }
+
+    return null;
+  } catch {
+    return normalizeRelativeAssetPath(trimmed);
+  }
+}
+
+export function getBibleAssetBaseUrl(): string | null {
+  return (
+    normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL) ??
+    DEFAULT_BIBLE_ASSET_BASE_URL
+  );
+}
+
+export function resolveBibleAssetBaseUrl(
+  value: string | undefined | null,
+  assetBaseUrl = getBibleAssetBaseUrl()
+): string | null {
+  const reference = sanitizeBibleAssetReference(value);
+
+  if (!reference) {
+    return null;
+  }
+
+  try {
+    return new URL(reference).toString().replace(/\/+$/, '');
+  } catch {
+    const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
+
+    if (!normalizedAssetBaseUrl) {
+      return null;
+    }
+
+    return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+  }
 }
 
 export function resolveBibleAssetUrl(
-  value: string | undefined,
+  value: string | undefined | null,
   assetBaseUrl = getBibleAssetBaseUrl()
 ): string | null {
-  const normalizedValue = normalizeAssetPath(value);
-  const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl ?? undefined);
+  const reference = sanitizeBibleAssetReference(value);
 
-  if (!normalizedValue) {
+  if (!reference) {
     return null;
   }
 
-  if (isAbsoluteUrl(normalizedValue)) {
-    return normalizedValue;
-  }
+  try {
+    return new URL(reference).toString();
+  } catch {
+    const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
 
-  if (!normalizedAssetBaseUrl) {
-    return null;
-  }
+    if (!normalizedAssetBaseUrl) {
+      return null;
+    }
 
-  return `${normalizedAssetBaseUrl}/${normalizedValue}`;
+    return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '')}`;
+  }
 }
 
-export function getBibleAudioAssetBaseUrl(): string | null {
-  const configuredAssetBaseUrl = getBibleAssetBaseUrl();
+export function getBibleAudioAssetBaseUrl(
+  configuredAssetBaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL),
+  supabaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL)
+): string | null {
+  if (!configuredAssetBaseUrl && !supabaseUrl) {
+    return `${DEFAULT_BIBLE_ASSET_BASE_URL}/audio`;
+  }
 
   if (configuredAssetBaseUrl) {
     return `${configuredAssetBaseUrl}/audio`;
   }
-
-  const supabaseUrl = normalizeBaseUrl(publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL);
 
   if (!supabaseUrl) {
     return null;
