@@ -123,11 +123,10 @@ export const typography = {
   } satisfies TextStyle,
   readingHeading: {
     fontFamily: readingFontFamily,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '400',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   } satisfies TextStyle,
   readingBody: {
     fontFamily: readingFontFamily,
