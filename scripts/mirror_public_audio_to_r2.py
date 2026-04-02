@@ -14,6 +14,7 @@ import argparse
 import os
 import sqlite3
 import subprocess
+import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -177,7 +178,8 @@ def build_sources(translation: str, supabase_url: str) -> list[AudioSource]:
                 chapter=chapter,
                 source_url=(
                     f"https://ebible.org/eng-webbe/mp3/"
-                    f"eng-webbe_{BOOK_PREFIXES[book_id]}_{chapter:02d}.mp3"
+                    f"eng-webbe_{BOOK_PREFIXES[book_id]}_"
+                    f"{chapter_filename_segment(book_id, chapter)}.mp3"
                 ),
                 destination_key=f"audio/web/{book_id}/{chapter}.mp3",
             )
@@ -186,6 +188,10 @@ def build_sources(translation: str, supabase_url: str) -> list[AudioSource]:
         ]
 
     raise ValueError(f"Unsupported translation: {translation}")
+
+
+def chapter_filename_segment(book_id: str, chapter: int) -> str:
+    return f"{chapter:03d}" if book_id == "PSA" else f"{chapter:02d}"
 
 
 def object_exists(bucket: str, endpoint: str, key: str, env: dict[str, str]) -> bool:
@@ -275,6 +281,7 @@ def main() -> None:
 
     uploaded = 0
     skipped = 0
+    failed = 0
 
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
         future_map = {
@@ -283,7 +290,14 @@ def main() -> None:
         }
 
         for future in as_completed(future_map):
-            result = future.result()
+            source = future_map[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                failed += 1
+                print(f"error {source.destination_key}: {exc}")
+                continue
+
             print(result)
             if result.startswith("upload "):
                 uploaded += 1
@@ -296,9 +310,12 @@ def main() -> None:
             "total": len(sources),
             "uploaded": uploaded,
             "skipped": skipped,
+            "failed": failed,
             "bucket": bucket,
         }
     )
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
