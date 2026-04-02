@@ -577,13 +577,15 @@ export const sanitizePersistedBibleState = (value: unknown) => {
   const persisted = isRecord(value) ? value : {};
   const translations = sanitizeBibleTranslations(persisted.translations);
   const translationIds = new Set(translations.map((translation) => translation.id));
-  const currentBook = sanitizeBookId(persisted.currentBook) ?? 'GEN';
-  const currentChapter =
+  const persistedCurrentBook = sanitizeBookId(persisted.currentBook);
+  const persistedCurrentChapter =
     typeof persisted.currentChapter === 'number' &&
     Number.isInteger(persisted.currentChapter) &&
     persisted.currentChapter > 0
       ? persisted.currentChapter
-      : 1;
+      : null;
+  const currentBook = persistedCurrentBook ?? 'GEN';
+  const currentChapter = persistedCurrentChapter ?? 1;
   const preferredChapterLaunchMode: 'listen' | 'read' =
     persisted.preferredChapterLaunchMode === 'listen' ? 'listen' : 'read';
   const normalizedCurrentTranslation =
@@ -597,6 +599,7 @@ export const sanitizePersistedBibleState = (value: unknown) => {
   return {
     currentBook,
     currentChapter,
+    hasReaderHistory: persistedCurrentBook != null && persistedCurrentChapter != null,
     preferredChapterLaunchMode,
     currentTranslation:
       normalizedCurrentTranslation &&

@@ -89,3 +89,20 @@ test('SettingsScreen asks for a feedback identity before enabling chapter feedba
     'SettingsScreen should not persist a manual feedback ID number in local preferences'
   );
 });
+
+test('SettingsScreen keeps the locale preferences row labeled as Nation and Bible', () => {
+  const settingsSource = readRelativeSource('./SettingsScreen.tsx');
+  const englishLocaleSource = readRelativeSource('../../i18n/locales/en.ts');
+
+  assert.equal(
+    settingsSource.includes("t('settings.nationAndLanguage')"),
+    true,
+    'SettingsScreen should keep using the shared nationAndLanguage translation key'
+  );
+
+  assert.equal(
+    englishLocaleSource.includes("nationAndLanguage: 'Nation and Bible'"),
+    true,
+    'The English settings copy should label the locale row as Nation and Bible'
+  );
+});

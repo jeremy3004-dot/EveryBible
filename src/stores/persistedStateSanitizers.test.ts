@@ -43,6 +43,27 @@ test('sanitizePersistedBibleState preserves valid downloaded audio books only', 
   assert.deepEqual(bsb.downloadedAudioBooks, ['GEN', 'JHN']);
 });
 
+test('sanitizePersistedBibleState only marks reader history when a prior chapter was actually persisted', () => {
+  const fallbackState = sanitizePersistedBibleState({});
+  assert.equal(
+    fallbackState.hasReaderHistory,
+    false,
+    'Bible state should not pretend there is a resumable reader session when no chapter was persisted yet'
+  );
+
+  const persistedState = sanitizePersistedBibleState({
+    currentBook: 'JHN',
+    currentChapter: 3,
+  });
+  assert.equal(persistedState.currentBook, 'JHN');
+  assert.equal(persistedState.currentChapter, 3);
+  assert.equal(
+    persistedState.hasReaderHistory,
+    true,
+    'Bible state should remember that the user has a real chapter session to resume'
+  );
+});
+
 test('sanitizePersistedBibleState refreshes bundled translation capabilities during upgrades', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'web',

@@ -252,7 +252,7 @@ export const en = {
     chapterFeedbackIdentityRequired: 'Please enter your name and role.',
     chapterFeedbackIdentitySummaryOff: 'No feedback identity saved yet',
     language: 'Interface language',
-    nationAndLanguage: 'Nation & Bible language',
+    nationAndLanguage: 'Nation and Bible',
     fontSize: 'Font Size',
     fontSizeSmall: 'Small',
     fontSizeMedium: 'Medium',

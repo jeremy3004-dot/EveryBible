@@ -16,7 +16,6 @@ import {
   getNextFontSizeSheetVisibility,
   getInitialChapterSessionMode,
   getNextTranslationSheetVisibility,
-  getNextBibleTabBarVisibility,
   shouldReplayActiveAudioForTranslationChange,
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
@@ -133,7 +132,7 @@ test('shows the Bible tab bar on a lighter upward flick in read mode', () => {
       sessionMode: 'read',
       action: 'scrollEndDrag',
       previousScrollOffsetY: 240,
-      currentScrollOffsetY: 120,
+      currentScrollOffsetY: 210,
       velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN - 1,
     }),
     false
@@ -146,6 +145,19 @@ test('shows the Bible tab bar on a lighter upward flick in read mode', () => {
       previousScrollOffsetY: 240,
       currentScrollOffsetY: 120,
       velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN,
+    }),
+    true
+  );
+});
+
+test('shows the Bible tab bar again on a meaningful upward drag before the reader reaches the very top', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 260,
+      currentScrollOffsetY: 188,
+      velocityY: 120,
     }),
     true
   );

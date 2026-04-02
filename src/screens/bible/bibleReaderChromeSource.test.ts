@@ -232,19 +232,43 @@ test('BibleReaderScreen resolves chapter navigation targets across book boundari
   );
 });
 
-test('BibleReaderScreen keeps the read-tab chapter arrows in the legacy header actions', () => {
+test('BibleReaderScreen removes the legacy header arrows so the session rail stays anchored between listen and read', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
-    source,
-    /<View style=\{styles\.headerActions\}>[\s\S]*handlePreviousReadChapter\(\)[\s\S]*chevron-back[\s\S]*handleNextReadChapter\(\)[\s\S]*chevron-forward/s,
-    'BibleReaderScreen should keep the previous and next chapter arrows visible in the read header'
+  assert.equal(
+    source.includes('navigation.navigate(\'BibleBrowser\')'),
+    false,
+    'BibleReaderScreen should remove the old top-left back button from the legacy header'
+  );
+
+  assert.equal(
+    source.includes('accessibilityLabel={t(\'common.previous\')}'),
+    false,
+    'BibleReaderScreen should remove the duplicate previous-chapter arrow from the top-right header actions'
+  );
+
+  assert.equal(
+    source.includes('accessibilityLabel={t(\'common.next\')}'),
+    false,
+    'BibleReaderScreen should remove the duplicate next-chapter arrow from the top-right header actions'
+  );
+
+  assert.equal(
+    source.includes('styles.headerActions'),
+    false,
+    'BibleReaderScreen should replace the legacy multi-button header action row with a single anchored overflow action'
   );
 
   assert.match(
     source,
-    /accessibilityLabel=\{t\('common\.previous'\)\}[\s\S]*accessibilityLabel=\{t\('common\.next'\)\}/s,
-    'BibleReaderScreen should expose the read header arrows with clear accessibility labels'
+    /floatingReaderReferencePill:\s*{[\s\S]*maxWidth:\s*200,/,
+    'BibleReaderScreen should tighten the top-left reference pill so the listen/read rail does not shift sideways in read mode'
+  );
+
+  assert.match(
+    source,
+    /floatingReaderReferencePillContent:\s*{[\s\S]*paddingHorizontal:\s*10,[\s\S]*gap:\s*6,/,
+    'BibleReaderScreen should trim the pill interior spacing so the top chrome aligns more closely with listen mode'
   );
 });
 

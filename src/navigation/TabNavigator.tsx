@@ -46,6 +46,10 @@ export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const bibleReaderTabBarVisible = useBibleStore((state) => state.readerTabBarVisible);
+  const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
+  const currentBibleBook = useBibleStore((state) => state.currentBook);
+  const currentBibleChapter = useBibleStore((state) => state.currentChapter);
+  const preferredBibleMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const tabBarBottomPadding = spacing.md;
   const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
@@ -75,10 +79,11 @@ export function TabNavigator() {
             shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
           const shouldHideBibleReaderTabBar =
             route.name === 'Bible' &&
-            !shouldKeepBibleTabBarVisible(route as {
-              name: string;
-              state?: NestedTabRouteState;
-            });
+            (!bibleReaderTabBarVisible ||
+              !shouldKeepBibleTabBarVisible(route as {
+                name: string;
+                state?: NestedTabRouteState;
+              }));
 
           return shouldHideNestedBibleScreen || shouldHideBibleReaderTabBar
             ? { display: 'none' }
@@ -101,7 +106,36 @@ export function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: t('tabs.home') }} />
-      <Tab.Screen name="Bible" component={BibleStack} options={{ tabBarLabel: t('tabs.bible') }} />
+      <Tab.Screen
+        name="Bible"
+        component={BibleStack}
+        options={{ tabBarLabel: t('tabs.bible') }}
+        listeners={({ navigation, route }) => ({
+          tabPress: (event) => {
+            const bibleRouteState = route as {
+              state?: NestedTabRouteState;
+            };
+            const focusedRoute =
+              bibleRouteState.state?.routes?.[bibleRouteState.state.index ?? 0];
+            const shouldResumeReader =
+              hasReaderHistory && focusedRoute?.name !== 'BibleReader';
+
+            if (!shouldResumeReader) {
+              return;
+            }
+
+            event.preventDefault();
+            navigation.navigate('Bible', {
+              screen: 'BibleReader',
+              params: {
+                bookId: currentBibleBook,
+                chapter: currentBibleChapter,
+                preferredMode: preferredBibleMode,
+              },
+            });
+          },
+        })}
+      />
       <Tab.Screen
         name="Learn"
         component={LearnStack}

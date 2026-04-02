@@ -462,6 +462,9 @@ export function BibleReaderScreen() {
   // Prevents highlight flickering caused by interpolated position noise.
   const lastFollowAlongVerseRef = useRef<number | null>(null);
   const scrollY = useSharedValue(0);
+  const readerLastScrollOffsetYShared = useSharedValue(0);
+  const readerTabBarVisibleShared = useSharedValue(true);
+  const readerTabBarRevealPendingShared = useSharedValue(false);
 
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -497,13 +500,23 @@ export function BibleReaderScreen() {
   );
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
+  const readerTabBarVisible = useBibleStore((state) => state.readerTabBarVisible);
+  const setReaderTabBarVisible = useBibleStore((state) => state.setReaderTabBarVisible);
 
   const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean) => {
+    (
+      nextVisible: boolean,
+      _source: 'enter' | 'scrollStart' | 'scrollMove' | 'scrollTop' | 'scrollEndDrag' = 'enter'
+    ) => {
+      setReaderTabBarVisible(nextVisible);
       navigation.setParams({ tabBarVisible: nextVisible });
     },
-    [navigation]
+    [navigation, setReaderTabBarVisible]
   );
+
+  const hideRootTabBarForReaderScroll = useCallback((_source: 'scrollMove' = 'scrollMove') => {
+    syncRootTabBarVisibility(false, 'scrollMove');
+  }, [syncRootTabBarVisibility]);
 
   useEffect(() => {
     syncRootTabBarVisibility(
@@ -513,7 +526,23 @@ export function BibleReaderScreen() {
       })
     );
     scrollDragStartOffsetYRef.current = 0;
-  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
+    readerLastScrollOffsetYShared.value = 0;
+    readerTabBarRevealPendingShared.value = false;
+  }, [
+    bookId,
+    chapter,
+    chapterSessionMode,
+    readerLastScrollOffsetYShared,
+    readerTabBarRevealPendingShared,
+    syncRootTabBarVisibility,
+  ]);
+
+  useEffect(() => {
+    readerTabBarVisibleShared.value = readerTabBarVisible;
+    if (readerTabBarVisible) {
+      readerTabBarRevealPendingShared.value = false;
+    }
+  }, [readerTabBarRevealPendingShared, readerTabBarVisible, readerTabBarVisibleShared]);
 
   const handleReaderScrollBeginDrag = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {
@@ -2768,12 +2797,7 @@ export function BibleReaderScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.navigate('BibleBrowser')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.biblePrimaryText} />
-        </TouchableOpacity>
+        <View style={styles.headerSideSlot} />
 
         <View style={styles.headerCenter}>
           {showSessionModeRail ? (
@@ -2850,64 +2874,26 @@ export function BibleReaderScreen() {
           )}
         </View>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[
-              styles.iconButton,
-              styles.secondaryIconButton,
-              !hasPrevChapter ? styles.disabledIconButton : null,
-            ]}
-            onPress={() => void handlePreviousReadChapter()}
-            disabled={!hasPrevChapter}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.previous')}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={20}
-              color={hasPrevChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.iconButton,
-              styles.secondaryIconButton,
-              !hasNextChapter ? styles.disabledIconButton : null,
-            ]}
-            onPress={() => void handleNextReadChapter()}
-            disabled={!hasNextChapter}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.next')}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.iconButton,
-              styles.secondaryIconButton,
-              {
-                borderColor: showChapterActionsSheet ? colors.bibleAccent : colors.bibleDivider,
-              },
-            ]}
-            onPress={() => {
-              setShowFontSizeSheet(false);
-              setShowTranslationSheet(false);
-              setShowChapterActionsSheet(true);
-            }}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color={showChapterActionsSheet ? colors.bibleAccent : colors.biblePrimaryText}
-            />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.iconButton,
+            styles.secondaryIconButton,
+            {
+              borderColor: showChapterActionsSheet ? colors.bibleAccent : colors.bibleDivider,
+            },
+          ]}
+          onPress={() => {
+            setShowFontSizeSheet(false);
+            setShowTranslationSheet(false);
+            setShowChapterActionsSheet(true);
+          }}
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={20}
+            color={showChapterActionsSheet ? colors.bibleAccent : colors.biblePrimaryText}
+          />
+        </TouchableOpacity>
       </View>
 
           <ScrollView
@@ -4127,13 +4113,13 @@ const styles = StyleSheet.create({
   },
   floatingReaderReferencePill: {
     minHeight: layout.minTouchTarget + 4,
-    maxWidth: 220,
+    maxWidth: 200,
   },
   floatingReaderReferencePillContent: {
     minHeight: layout.minTouchTarget + 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 8,
+    gap: 6,
     justifyContent: 'center',
   },
   floatingReaderReferencePillPrimary: {
@@ -4188,13 +4174,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
   },
+  headerSideSlot: {
+    width: 36,
+    height: 36,
+  },
   disabledIconButton: {
     opacity: 0.45,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   headerCenter: {
     flex: 1,
