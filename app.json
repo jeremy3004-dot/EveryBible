@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "privacyPolicyUrl": "https://everybible.app/privacy",
     "scheme": "com.everybible.app",
     "newArchEnabled": false,
     "splash": {
