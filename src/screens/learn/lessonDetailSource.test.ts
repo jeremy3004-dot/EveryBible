@@ -17,13 +17,17 @@ test('LessonDetailScreen uses the active Bible translation for gather scripture 
   );
 
   assert.equal(
-    source.includes('getPassageText(lesson.references, currentTranslation)'),
+    source.includes(
+      'getPassageText(lesson.references, currentTranslation, { bookNameResolver: resolveBookName })'
+    ),
     true,
-    'LessonDetailScreen should load gather passage text in the currently selected translation'
+    'LessonDetailScreen should load gather passage text in the currently selected translation and locale'
   );
 
   assert.equal(
-    source.includes('getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)'),
+    source.includes(
+      'getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)'
+    ),
     true,
     'LessonDetailScreen should resolve gather lesson audio from the currently selected translation when available'
   );

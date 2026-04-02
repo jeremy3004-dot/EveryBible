@@ -1,16 +1,11 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Share,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { getTranslatedBookName } from '../../constants';
+import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import type { GatherLesson } from '../../types/gather';
 
 interface LessonBottomSheetProps {
@@ -31,10 +26,12 @@ export function LessonBottomSheet({
 }: LessonBottomSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
+  const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
 
   const handleShareAudio = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + lesson.referenceLabel });
+      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -43,7 +40,7 @@ export function LessonBottomSheet({
 
   const handleShareText = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + lesson.referenceLabel });
+      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -52,7 +49,7 @@ export function LessonBottomSheet({
 
   const handleShareLink = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + lesson.referenceLabel });
+      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -75,18 +72,9 @@ export function LessonBottomSheet({
   };
 
   return (
-    <Modal
-      transparent
-      animationType="slide"
-      visible={visible}
-      onRequestClose={onClose}
-    >
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       {/* Backdrop overlay */}
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         {/* Inner sheet — prevent backdrop close from bubbling through the sheet */}
         <TouchableOpacity
           style={[styles.sheet, { backgroundColor: colors.cardBackground }]}
@@ -98,10 +86,7 @@ export function LessonBottomSheet({
           {/* Header row: icon + lesson title + reference */}
           <View style={styles.headerRow}>
             <View
-              style={[
-                styles.headerIconContainer,
-                { backgroundColor: colors.accentPrimary + '18' },
-              ]}
+              style={[styles.headerIconContainer, { backgroundColor: colors.accentPrimary + '18' }]}
             >
               <Ionicons name="book-outline" size={20} color={colors.accentPrimary} />
             </View>
@@ -110,7 +95,7 @@ export function LessonBottomSheet({
                 {lesson.title}
               </Text>
               <Text style={[styles.lessonReference, { color: colors.secondaryText }]}>
-                {lesson.referenceLabel}
+                {referenceLabel}
               </Text>
             </View>
           </View>
@@ -170,11 +155,7 @@ export function LessonBottomSheet({
           </TouchableOpacity>
 
           {/* Close button */}
-          <TouchableOpacity
-            style={[styles.closeButton]}
-            onPress={onClose}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={[styles.closeButton]} onPress={onClose} activeOpacity={0.7}>
             <Text style={[styles.closeButtonText, { color: colors.accentPrimary }]}>
               {t('common.done')}
             </Text>
