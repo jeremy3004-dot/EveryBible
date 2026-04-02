@@ -1,9 +1,7 @@
 import type { BibleTranslation } from '../types';
-import { publicRuntimeConfig } from '../services/startup/publicRuntimeConfig';
+import { getBibleAudioAssetBaseUrl } from '../services/bible/bibleAssetBaseUrl';
 
-const SUPABASE_AUDIO_BUCKET_BASE = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL
-  ? `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
-  : null;
+const AUDIO_BUCKET_BASE = getBibleAudioAssetBaseUrl();
 
 export const bibleTranslations: BibleTranslation[] = [
   {
@@ -21,13 +19,13 @@ export const bibleTranslations: BibleTranslation[] = [
     hasText: true,
     hasAudio: true,
     audioGranularity: 'chapter',
-    catalog: SUPABASE_AUDIO_BUCKET_BASE
+    catalog: AUDIO_BUCKET_BASE
       ? {
           version: '2026.03.26',
           updatedAt: '2026-03-26T00:00:00.000Z',
           audio: {
             strategy: 'stream-template',
-            baseUrl: `${SUPABASE_AUDIO_BUCKET_BASE}/bsb`,
+            baseUrl: `${AUDIO_BUCKET_BASE}/bsb`,
             chapterPathTemplate: '{bookId}/{chapter}.m4a',
             fileExtension: 'm4a',
             mimeType: 'audio/mp4',

@@ -13,22 +13,31 @@ test.afterEach(() => {
   setRemoteAudioMetadataResolver(null);
 });
 
-test('berean standard bible audio returns null when Supabase base URL is not configured', async () => {
+test('berean standard bible audio resolves through the EveryBible media route when Supabase base URL is not configured', async () => {
   const audio = await fetchRemoteChapterAudio('bsb', 'GEN', 1);
 
-  assert.equal(audio, null);
+  assert.deepEqual(audio, {
+    url: 'https://everybible.app/api/media/audio/bsb/GEN/1.m4a',
+    duration: 0,
+  });
 });
 
-test('berean standard bible audio returns null for numbered-book chapters when Supabase base URL is not configured', async () => {
+test('berean standard bible audio resolves numbered-book chapters through the EveryBible media route', async () => {
   const audio = await fetchRemoteChapterAudio('bsb', '1CO', 13);
 
-  assert.equal(audio, null);
+  assert.deepEqual(audio, {
+    url: 'https://everybible.app/api/media/audio/bsb/1CO/13.m4a',
+    duration: 0,
+  });
 });
 
-test('berean standard bible audio returns null for psalms chapters when Supabase base URL is not configured', async () => {
+test('berean standard bible audio resolves psalms chapters through the EveryBible media route', async () => {
   const audio = await fetchRemoteChapterAudio('bsb', 'PSA', 150);
 
-  assert.equal(audio, null);
+  assert.deepEqual(audio, {
+    url: 'https://everybible.app/api/media/audio/bsb/PSA/150.m4a',
+    duration: 0,
+  });
 });
 
 test('berean standard bible audio resolves a Supabase storage URL when a Supabase base URL is injected', async () => {
@@ -107,8 +116,8 @@ test('public-domain web audio remains remotely available without Bible.is creden
   assert.equal(isRemoteAudioAvailable('web'), true);
 });
 
-test('bsb audio is not remotely available when Supabase base URL is not configured', () => {
-  assert.equal(isRemoteAudioAvailable('bsb'), false);
+test('bsb audio remains remotely available when the EveryBible media route is the fallback', () => {
+  assert.equal(isRemoteAudioAvailable('bsb'), true);
 });
 
 test('translations without configured audio remain unavailable remotely', () => {

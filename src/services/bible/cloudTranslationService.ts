@@ -8,6 +8,7 @@ import {
   resolveCloudTextTranslationId,
   shouldContinueCloudTranslationFetch,
 } from './cloudTranslationModel';
+import { resolveBibleAssetUrl } from './bibleAssetBaseUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -344,6 +345,75 @@ export async function downloadCloudTranslation(
       phase: 'error',
       versesDownloaded: 0,
       totalVerses: 0,
+      error: message,
+    });
+
+    throw err;
+  }
+}
+
+export async function downloadCatalogTextPack(params: {
+  downloadUrl: string;
+  expectedVerseCount?: number;
+  onProgress?: CloudDownloadProgressCallback;
+  translationId: string;
+}): Promise<string> {
+  const finalDbPath = getTranslationDbPath(params.translationId);
+  const stagingDbPath = getStagingTranslationDbPath(params.translationId);
+  const expectedVerseCount = Math.max(1, params.expectedVerseCount ?? 1);
+
+  try {
+    await ensureTranslationsDirectoryExists();
+    await deleteDatabaseArtifactsIfExists(stagingDbPath);
+
+    const resolvedDownloadUrl = resolveBibleAssetUrl(params.downloadUrl);
+
+    if (!resolvedDownloadUrl) {
+      throw new Error(
+        `No reachable Bible asset URL is configured for ${params.translationId.toUpperCase()}.`
+      );
+    }
+
+    params.onProgress?.({
+      phase: 'fetching',
+      versesDownloaded: 0,
+      totalVerses: expectedVerseCount,
+    });
+
+    await FileSystem.downloadAsync(resolvedDownloadUrl, stagingDbPath);
+
+    params.onProgress?.({
+      phase: 'indexing',
+      versesDownloaded: expectedVerseCount,
+      totalVerses: expectedVerseCount,
+    });
+
+    const directory = getTranslationsDirectory();
+    await deleteDatabaseArtifactsIfExists(finalDbPath);
+    await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
+    await verifyInstalledTranslationDatabase({
+      directory,
+      databaseName: `${params.translationId}.db`,
+      expectedVerseCount,
+    });
+
+    params.onProgress?.({
+      phase: 'complete',
+      versesDownloaded: expectedVerseCount,
+      totalVerses: expectedVerseCount,
+    });
+
+    return finalDbPath;
+  } catch (err) {
+    await deleteDatabaseArtifactsIfExists(stagingDbPath);
+    await deleteDatabaseArtifactsIfExists(finalDbPath);
+
+    const message = err instanceof Error ? err.message : 'Unknown download error';
+
+    params.onProgress?.({
+      phase: 'error',
+      versesDownloaded: 0,
+      totalVerses: expectedVerseCount,
       error: message,
     });
 

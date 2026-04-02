@@ -1,4 +1,5 @@
 const PUBLIC_RUNTIME_CONFIG_KEYS = [
+  'EXPO_PUBLIC_BIBLE_ASSET_BASE_URL',
   'EXPO_PUBLIC_SUPABASE_URL',
   'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
   'EXPO_PUBLIC_SUPABASE_ANON_KEY',
@@ -74,6 +75,7 @@ export const buildPublicRuntimeConfig = ({
       return config;
     },
     {
+      EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: undefined,
       EXPO_PUBLIC_SUPABASE_URL: undefined,
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: undefined,
       EXPO_PUBLIC_SUPABASE_ANON_KEY: undefined,

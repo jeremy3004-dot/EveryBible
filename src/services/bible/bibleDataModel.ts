@@ -8,6 +8,7 @@ import type {
   TranslationCatalogManifestTranslation,
   TranslationTextCatalog,
 } from '../../types';
+import { sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
 export const BUNDLED_BIBLE_SCHEMA_VERSION = 4;
 
@@ -44,17 +45,8 @@ const sanitizeIsoDateString = (value: unknown): string | null => {
   return Number.isNaN(Date.parse(value)) ? null : value;
 };
 
-const sanitizeUrlString = (value: unknown): string | null => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return null;
-  }
-
-  try {
-    return new URL(value).toString();
-  } catch {
-    return null;
-  }
-};
+const sanitizeUrlString = (value: unknown): string | null =>
+  sanitizeBibleAssetReference(value);
 
 const parseTextCatalog = (value: unknown): TranslationTextCatalog | null => {
   if (!isRecord(value)) {

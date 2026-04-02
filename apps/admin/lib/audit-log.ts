@@ -1,4 +1,4 @@
-import type { OperatorAuditMetadata } from '@everybible/types';
+import type { OperatorAuditMetadata } from './operator-audit-metadata';
 
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
