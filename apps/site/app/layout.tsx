@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import { OperatorLauncher } from '../components/OperatorLauncher';
 import { siteMetadata } from '../lib/site-metadata';
 
 export const metadata: Metadata = siteMetadata;
@@ -23,7 +24,10 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://use.typekit.net/wfn2tts.css" />
         <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <OperatorLauncher />
+      </body>
     </html>
   );
 }

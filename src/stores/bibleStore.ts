@@ -453,9 +453,17 @@ export const useBibleStore = create<BibleState>()(
             ),
           }));
 
-          const { downloadCloudTranslation } = await import('../services/bible/cloudTranslationService');
+          const textPack = translation?.catalog?.text;
+          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
+            '../services/bible/cloudTranslationService'
+          );
 
-          const localPath = await downloadCloudTranslation(translationId, (progress) => {
+          const handleProgress = (progress: {
+            error?: string;
+            phase: 'fetching' | 'writing' | 'indexing' | 'complete' | 'error';
+            totalVerses: number;
+            versesDownloaded: number;
+          }) => {
             const pct =
               progress.totalVerses > 0
                 ? Math.round((progress.versesDownloaded / progress.totalVerses) * 100)
@@ -475,7 +483,15 @@ export const useBibleStore = create<BibleState>()(
                 error: progress.error,
               },
             });
-          });
+          };
+
+          const localPath = await (textPack
+            ? downloadCatalogTextPack({
+                translationId,
+                downloadUrl: textPack.downloadUrl,
+                onProgress: handleProgress,
+              })
+            : downloadCloudTranslation(translationId, handleProgress));
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 
@@ -492,7 +508,7 @@ export const useBibleStore = create<BibleState>()(
                     hasText: true,
                     installState: 'installed' as const,
                     textPackLocalPath: localPath,
-                    activeTextPackVersion: '1',
+                    activeTextPackVersion: textPack?.version ?? '1',
                   }
                 : t
             ),

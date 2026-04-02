@@ -1,16 +1,16 @@
 import { getTranslationById } from '../../constants/translations';
 import type { AudioProvider, BibleIsAudioResponse, BibleTranslation } from '../../types';
+import { getBibleAudioAssetBaseUrl } from '../bible/bibleAssetBaseUrl';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import type { RemoteAudioAsset } from './audioDownloadService';
 
 const BIBLE_IS_API_BASE = 'https://4.dbt.io/api';
 const BIBLE_IS_API_KEY = publicRuntimeConfig.EXPO_PUBLIC_BIBLE_IS_API_KEY || '';
 
-// Supabase Storage audio: set EXPO_PUBLIC_SUPABASE_URL in .env
-// Upload audio to: bible-audio/{translationId}/{bookId}/{chapter}.mp3
-const SUPABASE_AUDIO_BUCKET_BASE = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL
-  ? `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bible-audio`
-  : null;
+// Prefer manifest-driven audio metadata. This fallback base keeps the last
+// hardcoded bucket path configurable so Bible assets can move from Supabase
+// Storage to Cloudflare R2 without another client rewrite.
+const FALLBACK_AUDIO_BUCKET_BASE = getBibleAudioAssetBaseUrl();
 const EBIBLE_WEBBE_AUDIO_BASE = 'https://ebible.org/eng-webbe/mp3';
 const AUDIO_TEMPLATE_PLACEHOLDERS = new Set([
   '{bookId}',
@@ -231,7 +231,7 @@ function buildRemoteAudioMetadataFromTranslation(
 
   // Fallback: translations with audio but no explicit provider use Supabase Storage (.m4a).
   // BSB is the only translation currently hitting this path; files are uploaded as .m4a.
-  if (SUPABASE_AUDIO_BUCKET_BASE) {
+  if (FALLBACK_AUDIO_BUCKET_BASE) {
     return {
       id: translation.id,
       hasAudio: true,
@@ -472,11 +472,11 @@ export async function fetchRemoteChapterAudio(
   }
 
   if (audio.strategy === 'supabase-storage') {
-    if (!SUPABASE_AUDIO_BUCKET_BASE) {
+    if (!FALLBACK_AUDIO_BUCKET_BASE) {
       return null;
     }
     const ext = audio.extension ?? 'mp3';
-    const url = `${SUPABASE_AUDIO_BUCKET_BASE}/${translationId}/${bookId}/${chapter}.${ext}`;
+    const url = `${FALLBACK_AUDIO_BUCKET_BASE}/${translationId}/${bookId}/${chapter}.${ext}`;
     const result = { url, duration: 0 };
     audioUrlCache.set(cacheKey, result);
     return result;
@@ -517,7 +517,7 @@ export function isRemoteAudioAvailable(translationId: string): boolean {
   }
 
   if (audio.strategy === 'supabase-storage') {
-    return Boolean(SUPABASE_AUDIO_BUCKET_BASE);
+    return Boolean(FALLBACK_AUDIO_BUCKET_BASE);
   }
 
   if (audio.provider === 'ebible-webbe') {

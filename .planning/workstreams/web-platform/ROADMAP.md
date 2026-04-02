@@ -191,11 +191,12 @@ See `EXECUTION-LANES.md` for the detailed split and responsibilities.
 **Goal:** Add an OpenClaw-powered EveryBible operator that can be reached from Telegram, retain durable memory, use Codex/GPT-5.4-class reasoning, and safely change approved site/data surfaces through audited tools.
 **Requirements**: COPILOT-01, COPILOT-02, COPILOT-03, COPILOT-04, COPILOT-05, COPILOT-06
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [ ] `10-01-PLAN.md` — Add the Supabase homepage override contract, deterministic site fallback, and operator audit visibility
 - [ ] `10-02-PLAN.md` — Add the OpenClaw EveryBible plugin package, Telegram/ACP bootstrap assets, and reviewable code-change routing
+- [ ] `10-03-PLAN.md` — Activate the real local OpenClaw host, verify Telegram pairing/allowlist, and add the public-site floating operator launcher
 
 **Success Criteria**
 
@@ -204,6 +205,7 @@ Plans:
 3. The operator can read and safely mutate approved EveryBible content/data through explicit audited tools.
 4. The EveryBible homepage can consume live override content while preserving code-managed fallback behavior.
 5. Requests that require source-code edits route into a reviewable Codex/Git/GitHub workflow instead of hidden production mutation.
+6. Bible assets can move to Cloudflare R2 for app delivery while listening/download analytics stay on the existing reporting rails used by the website/admin platform.
 
 **Likely OSS Leverage**
 

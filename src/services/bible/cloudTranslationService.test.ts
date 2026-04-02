@@ -65,3 +65,22 @@ test('cloud translation downloads force a self-contained sqlite file before acti
     'downloaded translation installs should reopen the activated sqlite file and verify the verses table before marking the translation as installed'
   );
 });
+
+test('catalog text-pack downloads fetch the sqlite file directly before activation', () => {
+  const source = readRelativeSource('./cloudTranslationService.ts');
+
+  assert.match(source, /export async function downloadCatalogTextPack\(/);
+  assert.match(source, /const resolvedDownloadUrl = resolveBibleAssetUrl\(params\.downloadUrl\);/);
+  assert.match(source, /await FileSystem\.downloadAsync\(resolvedDownloadUrl,\s*stagingDbPath\);/);
+  assert.match(
+    source,
+    /await verifyInstalledTranslationDatabase\(\{[\s\S]*expectedVerseCount[\s\S]*\}\);/
+  );
+});
+
+test('bible store prefers catalog text packs over row-by-row Supabase downloads when available', () => {
+  const source = readRelativeSource('../../stores/bibleStore.ts');
+
+  assert.match(source, /const textPack = translation\?\.catalog\?\.text;/);
+  assert.match(source, /textPack\s*\?\s*downloadCatalogTextPack\(/);
+});

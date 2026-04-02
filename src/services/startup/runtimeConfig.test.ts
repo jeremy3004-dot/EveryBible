@@ -59,6 +59,7 @@ test('expo disables the new architecture and local android output matches when p
 test('env example documents only supported Google sign-in client IDs', () => {
   const envExample = readRootFile('.env.example');
 
+  assert.match(envExample, /EXPO_PUBLIC_BIBLE_ASSET_BASE_URL=/);
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=/);
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=/);
   assert.doesNotMatch(envExample, /EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=/);
@@ -70,6 +71,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
     env: {},
     extra: {
       publicRuntimeConfig: {
+        EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://cdn.everybible.app',
         EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
         EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
         EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client-id',
@@ -78,6 +80,10 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
     },
   });
 
+  assert.equal(
+    runtimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL,
+    'https://cdn.everybible.app'
+  );
   assert.equal(
     runtimeConfig.EXPO_PUBLIC_SUPABASE_URL,
     'https://ganmududzdzpruvdulkg.supabase.co'
@@ -93,6 +99,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
 test('app config injects public runtime auth values into Expo extra for release builds', () => {
   const appConfig = require(toRootFilePath('app.config.js'));
   const extra = appConfig.buildPublicRuntimeConfigExtra({
+    EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: ' https://cdn.everybible.app ',
     EXPO_PUBLIC_SUPABASE_URL: ' https://ganmududzdzpruvdulkg.supabase.co ',
     EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ' publishable-key ',
     EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ' ios-client-id ',
@@ -101,6 +108,7 @@ test('app config injects public runtime auth values into Expo extra for release 
 
   assert.deepEqual(extra, {
     publicRuntimeConfig: {
+      EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://cdn.everybible.app',
       EXPO_PUBLIC_CONTENT_API_URL: 'https://everybible.app/api/mobile/content',
       EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',

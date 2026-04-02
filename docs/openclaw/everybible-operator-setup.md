@@ -2,6 +2,8 @@
 
 This runbook matches the Phase 10 OpenClaw operator plan: Telegram as the human-facing surface, durable memory, Codex-backed ACP escalation, and a narrow EveryBible tool boundary.
 
+Bible delivery note: the mobile app now expects Bible text/audio assets to be published from the Cloudflare R2 asset base configured through `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`. Listening analytics and download analytics stay in the existing Supabase-backed flow, so the website/admin can still report both usage streams without moving operational analytics into R2.
+
 The example config in [config/openclaw/everybible-gateway.example.json](/Users/dev/Projects/EveryBible/config/openclaw/everybible-gateway.example.json) is JSON5 even though the file extension is `.json`.
 
 ## What You Need
@@ -40,14 +42,47 @@ openclaw plugins install @honcho-ai/openclaw-honcho
 
 Set these in your shell, `.env`, or whatever secret manager you use on the host:
 
+- `EVERYBIBLE_OPERATOR_PROFILE` - optional, defaults to `everybible`
+- `EVERYBIBLE_OPERATOR_GATEWAY_PORT` - optional, defaults to `18791`
+- `EVERYBIBLE_OPERATOR_PLUGIN_ROOT` - optional, points the bootstrap at a persistent repo checkout when you are running it from a temporary worktree
 - `OPENCLAW_GATEWAY_TOKEN` - the Gateway auth token used by the example config
 - `OPENAI_API_KEY` - the key used for the main `openai/gpt-5.4` agent model
+- `EVERYBIBLE_OPERATOR_MODEL_ID` - defaults to `openai-codex/gpt-5.4` when you reuse local Codex OAuth instead of an OpenAI API key
 - `EVERYBIBLE_OPERATOR_TELEGRAM_BOT_TOKEN` - the Telegram BotFather token
-- `EVERYBIBLE_OPERATOR_TELEGRAM_ALLOW_FROM` - the allowlisted Telegram sender in `tg:<numeric-id>` form
+- `EVERYBIBLE_OPERATOR_TELEGRAM_ALLOW_FROM` - the allowlisted Telegram sender as a plain numeric Telegram user ID
 - `HONCHO_API_KEY` - optional, only if you use managed Honcho
 - `HONCHO_BASE_URL` - optional, defaults to the managed Honcho URL or your self-hosted endpoint
 
 OpenClaw also accepts env substitution directly in config strings, so the example file can stay pinned while secrets stay out of git.
+
+If the host already has a working local Codex/OpenClaw OAuth setup and you do not want to add `OPENAI_API_KEY` on day one, the local bootstrap script will copy the existing auth profile into the isolated EveryBible profile and use `openai-codex/gpt-5.4` as the model ID. That is the path used on the local EveryBible host bring-up.
+
+## Local Host Bootstrap
+
+The repo now includes a repeatable local-host bootstrap:
+
+```bash
+bash scripts/openclaw/bootstrap-local-host.sh
+```
+
+Useful modes:
+
+```bash
+# Force first-run pairing mode if you still need to capture the Telegram sender ID.
+bash scripts/openclaw/bootstrap-local-host.sh --pairing
+
+# Or pin the numeric allowlist directly.
+bash scripts/openclaw/bootstrap-local-host.sh --allowlist 8533856850
+```
+
+The script will:
+
+1. verify the installed OpenClaw version
+2. create an isolated `~/.openclaw-everybible` profile
+3. install `acpx` and the local EveryBible plugin
+4. reuse local Codex auth when `OPENAI_API_KEY` is not present
+5. write a dedicated Telegram token file outside git
+6. install/restart the profile-specific gateway service
 
 ## Configure Telegram
 
@@ -69,9 +104,16 @@ Telegram setup notes:
 - `pairing` is a bootstrap mode for first contact and approval.
 - Group chats are intentionally disabled in the example so the first cut stays DM-only and easy to audit.
 
-## Optional Honcho Memory
+## Memory Baseline
 
-Honcho is optional. The default memory slot in the example stays on `memory-lancedb`, which gives you local long-term memory without adding another service.
+Phase 10 go-live uses the bundled `memory-core` path by default.
+
+That choice is intentional on this host: on OpenClaw `2026.4.1`, `memory-lancedb` now requires an explicit embeddings API key configuration, so it is no longer a zero-config default. `memory-core` still gives you file-backed local memory without adding another secret before Telegram + ACP are stable.
+
+If you later want richer semantic recall:
+
+- enable `memory-lancedb` only after you have an embeddings-capable API key available
+- enable Honcho only after you have decided you want service-backed memory beyond a single trusted host
 
 If you want Honcho as an extra memory layer:
 
@@ -159,6 +201,25 @@ Then verify the runtime path in Telegram:
 - Send a normal DM from the allowlisted account and confirm the bot replies.
 - Send a message that should invoke an EveryBible tool and confirm the operator uses the narrow tool surface instead of claiming raw repo or SQL authority.
 - Run `/acp status` and `/acp spawn codex --bind here` to confirm the Codex escalation path is active.
+- Visit `https://everybible.app` and confirm the floating AI launcher appears in the bottom-right and opens the configured Telegram chat target.
+
+## Verification
+
+Repo-side verification:
+
+```bash
+bash -n scripts/openclaw/bootstrap-local-host.sh scripts/openclaw/verify-local-host.sh
+npm run operator:typecheck
+npm run operator:test
+node --test --import tsx apps/site/lib/operator-launcher.test.ts
+npm run site:typecheck
+```
+
+Host-side verification:
+
+```bash
+bash scripts/openclaw/verify-local-host.sh
+```
 
 If a Telegram message is not delivered or the bot does not answer, inspect the logs:
 
