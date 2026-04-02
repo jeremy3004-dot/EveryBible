@@ -365,6 +365,7 @@ export async function downloadCatalogTextPack(params: {
   try {
     await ensureTranslationsDirectoryExists();
     await deleteDatabaseArtifactsIfExists(stagingDbPath);
+
     const resolvedDownloadUrl = resolveBibleAssetUrl(params.downloadUrl);
 
     if (!resolvedDownloadUrl) {

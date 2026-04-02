@@ -66,10 +66,8 @@ What matters is the contract:
 Current repo wiring:
 
 - mobile/runtime asset resolution uses `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`
-- translation catalogs store relative R2-backed asset paths such as `audio/bsb/{bookId}/{chapter}.m4a`, `audio/web/{bookId}/{chapter}.mp3`, and `text/{translation_id}/{translation_id}-{version}.db`
-- current text packs are exported from Supabase into versioned SQLite files by `scripts/export_translation_text_packs.py`
-- public-domain chapter audio is mirrored into R2 by `scripts/mirror_public_audio_to_r2.py`
-- general-purpose R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket and emits R2-flavored catalog files for staged imports
+- translation catalogs may now store relative asset paths such as `audio/npiulb` or `text/npiulb/app.sqlite`
+- R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket and emits R2-flavored catalog files for staged imports
 - the public delivery surface is now `https://everybible.app/api/media/...`, backed by the site app's server-side R2 proxy
 - the site app requires `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in Vercel to serve that proxy in production
 

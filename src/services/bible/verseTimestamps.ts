@@ -1319,6 +1319,7 @@ function buildRemoteTimestampUrl(
   if (!normalizedBaseUrl) {
     return null;
   }
+
   const chapterPadded = String(chapter).padStart(3, '0');
   const path = chapterPathTemplate
     .replaceAll('{bookId}', bookId)

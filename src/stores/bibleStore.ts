@@ -465,7 +465,8 @@ export const useBibleStore = create<BibleState>()(
             ),
           }));
 
-          const { downloadCatalogTextPack } = await import(
+          const textPack = translation?.catalog?.text;
+          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
             '../services/bible/cloudTranslationService'
           );
 
@@ -496,17 +497,13 @@ export const useBibleStore = create<BibleState>()(
             });
           };
 
-          if (!textPack) {
-            throw new Error(
-              `No R2 text pack is published for ${translationId.toUpperCase()} yet.`
-            );
-          }
-
-          const localPath = await downloadCatalogTextPack({
-            translationId,
-            downloadUrl: textPack.downloadUrl,
-            onProgress: handleProgress,
-          });
+          const localPath = await (textPack
+            ? downloadCatalogTextPack({
+                translationId,
+                downloadUrl: textPack.downloadUrl,
+                onProgress: handleProgress,
+              })
+            : downloadCloudTranslation(translationId, handleProgress));
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 

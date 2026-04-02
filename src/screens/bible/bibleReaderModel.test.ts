@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildReaderChapterRouteParams,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
+  getNextBibleTabBarVisibility,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
   isReaderChromeCollapsed,
@@ -79,7 +80,7 @@ test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
 });
 
-test('keeps the root tab bar visible in listen mode regardless of read-scroll actions', () => {
+test('keeps the Bible tab bar open in listen mode', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'listen',
@@ -92,17 +93,9 @@ test('keeps the root tab bar visible in listen mode regardless of read-scroll ac
     getNextBibleTabBarVisibility({
       sessionMode: 'listen',
       action: 'scrollStart',
-    }),
-    true
-  );
-
-  assert.equal(
-    getNextBibleTabBarVisibility({
-      sessionMode: 'listen',
-      action: 'scrollEndDrag',
-      previousScrollOffsetY: 180,
-      currentScrollOffsetY: 12,
-      velocityY: -2400,
+      previousScrollOffsetY: 120,
+      currentScrollOffsetY: 240,
+      velocityY: 900,
     }),
     true
   );

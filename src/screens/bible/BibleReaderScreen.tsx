@@ -497,77 +497,23 @@ export function BibleReaderScreen() {
   );
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
-  const readerTabBarVisibleShared = useSharedValue(true);
-  const readerTabBarRevealPendingShared = useSharedValue(false);
-  const readerLastScrollOffsetYShared = useSharedValue(0);
-  const setReaderTabBarVisible = useBibleStore((state) => state.setReaderTabBarVisible);
 
   const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean, reason: string) => {
-      readerTabBarVisibleShared.value = nextVisible;
-      if (nextVisible) {
-        readerTabBarRevealPendingShared.value = false;
-      }
-
-      if (__DEV__) {
-        console.log('[BibleReader] root tab bar visibility', {
-          nextVisible,
-          reason,
-          sessionMode: chapterSessionMode,
-        });
-      }
-
-      setReaderTabBarVisible(nextVisible);
+    (nextVisible: boolean) => {
       navigation.setParams({ tabBarVisible: nextVisible });
     },
-    [
-      chapterSessionMode,
-      navigation,
-      readerTabBarRevealPendingShared,
-      readerTabBarVisibleShared,
-      setReaderTabBarVisible,
-    ]
-  );
-
-  const hideRootTabBarForReaderScroll = useCallback(
-    (reason: string) => {
-      if (chapterSessionMode !== 'read' || !readerTabBarVisibleShared.value) {
-        return;
-      }
-
-      readerTabBarVisibleShared.value = false;
-      readerTabBarRevealPendingShared.value = false;
-      syncRootTabBarVisibility(false, reason);
-    },
-    [
-      chapterSessionMode,
-      readerTabBarRevealPendingShared,
-      readerTabBarVisibleShared,
-      syncRootTabBarVisibility,
-    ]
+    [navigation]
   );
 
   useEffect(() => {
-    readerTabBarVisibleShared.value = true;
-    readerTabBarRevealPendingShared.value = false;
-    readerLastScrollOffsetYShared.value = 0;
     syncRootTabBarVisibility(
       getNextBibleTabBarVisibility({
         sessionMode: chapterSessionMode,
         action: 'enter',
-      }),
-      'enter'
+      })
     );
     scrollDragStartOffsetYRef.current = 0;
-  }, [
-    bookId,
-    chapter,
-    chapterSessionMode,
-    readerLastScrollOffsetYShared,
-    readerTabBarRevealPendingShared,
-    readerTabBarVisibleShared,
-    syncRootTabBarVisibility,
-  ]);
+  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
 
   const handleReaderScrollBeginDrag = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {
@@ -576,9 +522,14 @@ export function BibleReaderScreen() {
         return;
       }
 
-      hideRootTabBarForReaderScroll('scrollStart');
+      syncRootTabBarVisibility(
+        getNextBibleTabBarVisibility({
+          sessionMode: chapterSessionMode,
+          action: 'scrollStart',
+        })
+      );
     },
-    [chapterSessionMode, hideRootTabBarForReaderScroll]
+    [chapterSessionMode, syncRootTabBarVisibility]
   );
 
   const handleReaderScrollEndDrag = useCallback(
@@ -587,49 +538,17 @@ export function BibleReaderScreen() {
         return;
       }
 
-      const currentScrollOffsetY = event.nativeEvent.contentOffset.y;
-      const velocityY = event.nativeEvent.velocity?.y ?? 0;
-      const shouldShowAtTop = getNextBibleTabBarVisibility({
-        sessionMode: chapterSessionMode,
-        action: 'scrollEndDrag',
-        previousScrollOffsetY: scrollDragStartOffsetYRef.current,
-        currentScrollOffsetY,
-        velocityY,
-      });
-
-      if (shouldShowAtTop) {
-        syncRootTabBarVisibility(true, 'scrollEndDrag');
-        return;
-      }
-
-      readerTabBarRevealPendingShared.value =
-        currentScrollOffsetY < scrollDragStartOffsetYRef.current &&
-        Math.abs(velocityY) >= SWIPE_VELOCITY_MIN;
+      syncRootTabBarVisibility(
+        getNextBibleTabBarVisibility({
+          sessionMode: chapterSessionMode,
+          action: 'scrollEndDrag',
+          previousScrollOffsetY: scrollDragStartOffsetYRef.current,
+          currentScrollOffsetY: event.nativeEvent.contentOffset.y,
+          velocityY: event.nativeEvent.velocity?.y ?? 0,
+        })
+      );
     },
-    [
-      chapterSessionMode,
-      readerTabBarRevealPendingShared,
-      syncRootTabBarVisibility,
-    ]
-  );
-
-  const handleReaderMomentumScrollEnd = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
-      if (chapterSessionMode !== 'read') {
-        return;
-      }
-
-      if (!readerTabBarRevealPendingShared.value || event.nativeEvent.contentOffset.y > 0) {
-        return;
-      }
-
-      syncRootTabBarVisibility(true, 'momentumEnd');
-    },
-    [
-      chapterSessionMode,
-      readerTabBarRevealPendingShared,
-      syncRootTabBarVisibility,
-    ]
+    [chapterSessionMode, syncRootTabBarVisibility]
   );
 
   const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
@@ -2805,38 +2724,32 @@ export function BibleReaderScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          <GestureDetector gesture={readerNativeScrollGesture}>
-            <Animated.ScrollView
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onScroll={scrollHandler}
-              onTouchMove={() => {
-                hideRootTabBarForReaderScroll('touchMove');
-              }}
-              onScrollBeginDrag={(event) => {
-                handleReaderScrollBeginDrag(event);
-                setShowFontSizeSheet((current) =>
-                  getNextFontSizeSheetVisibility(current, 'scrollStart')
-                );
-                setShowTranslationSheet((current) =>
-                  getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-                );
-              }}
-              onScrollEndDrag={handleReaderScrollEndDrag}
-              onMomentumScrollEnd={handleReaderMomentumScrollEnd}
-              contentContainerStyle={[
-                styles.premiumReaderScrollContent,
-                {
-                  paddingTop: premiumTopInset + 98,
-                  paddingBottom: premiumBottomInset + 72,
-                },
-              ]}
-            >
-              <View style={styles.premiumReaderContentShell}>{renderReaderVerses(true)}</View>
-            </Animated.ScrollView>
-          </GestureDetector>
+          <Animated.ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={scrollHandler}
+            onScrollBeginDrag={(event) => {
+              handleReaderScrollBeginDrag(event);
+              setShowFontSizeSheet((current) =>
+                getNextFontSizeSheetVisibility(current, 'scrollStart')
+              );
+              setShowTranslationSheet((current) =>
+                getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
+              );
+            }}
+            onScrollEndDrag={handleReaderScrollEndDrag}
+            contentContainerStyle={[
+              styles.premiumReaderScrollContent,
+              {
+                paddingTop: premiumTopInset + 98,
+                paddingBottom: premiumBottomInset + 72,
+              },
+            ]}
+          >
+            <View style={styles.premiumReaderContentShell}>{renderReaderVerses(true)}</View>
+          </Animated.ScrollView>
         </Animated.View>
       </GestureDetector>
     </View>
@@ -2997,42 +2910,36 @@ export function BibleReaderScreen() {
         </View>
       </View>
 
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets
-              onScroll={scrollHandler}
-              onTouchMove={() => {
-                hideRootTabBarForReaderScroll('touchMove');
-              }}
-              onScrollBeginDrag={(event) => {
-                handleReaderScrollBeginDrag(event);
-                setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
-              }}
-              onScrollEndDrag={handleReaderScrollEndDrag}
-              onMomentumScrollEnd={handleReaderMomentumScrollEnd}
-              contentContainerStyle={[
-                styles.content,
-                shouldFillReaderCanvas ? styles.immersiveContent : null,
-                {
-                  paddingBottom: 32,
-                  paddingTop: fontSize === 'large' ? 28 : 18,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.readerShell,
-                  shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
-                  { backgroundColor: colors.bibleBackground },
-                ]}
-              >
-                {renderLegacyContent()}
-              </View>
-            </ScrollView>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+            onScrollBeginDrag={(event) => {
+              handleReaderScrollBeginDrag(event);
+              setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
+            }}
+            onScrollEndDrag={handleReaderScrollEndDrag}
+        contentContainerStyle={[
+          styles.content,
+          shouldFillReaderCanvas ? styles.immersiveContent : null,
+          {
+            paddingBottom: 32,
+            paddingTop: fontSize === 'large' ? 28 : 18,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.readerShell,
+            shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
+            { backgroundColor: colors.bibleBackground },
+          ]}
+        >
+          {renderLegacyContent()}
+        </View>
+      </ScrollView>
     </>
   );
 
@@ -4394,7 +4301,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listenPlayerCard: {
-    paddingBottom: 24,
+    paddingBottom: 20,
     gap: 12,
   },
   listenProgressTouch: {

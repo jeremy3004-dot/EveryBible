@@ -75,11 +75,10 @@ export function TabNavigator() {
             shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
           const shouldHideBibleReaderTabBar =
             route.name === 'Bible' &&
-            (!bibleReaderTabBarVisible ||
-              !shouldKeepBibleTabBarVisible(route as {
-                name: string;
-                state?: NestedTabRouteState;
-              }));
+            !shouldKeepBibleTabBarVisible(route as {
+              name: string;
+              state?: NestedTabRouteState;
+            });
 
           return shouldHideNestedBibleScreen || shouldHideBibleReaderTabBar
             ? { display: 'none' }

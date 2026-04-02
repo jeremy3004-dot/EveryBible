@@ -71,7 +71,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
     env: {},
     extra: {
       publicRuntimeConfig: {
-        EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://cdn.everybible.app',
+        EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://media.everybible.app',
         EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
         EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
         EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client-id',
@@ -82,7 +82,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
 
   assert.equal(
     runtimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL,
-    'https://cdn.everybible.app'
+    'https://media.everybible.app'
   );
   assert.equal(
     runtimeConfig.EXPO_PUBLIC_SUPABASE_URL,
@@ -99,7 +99,7 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
 test('app config injects public runtime auth values into Expo extra for release builds', () => {
   const appConfig = require(toRootFilePath('app.config.js'));
   const extra = appConfig.buildPublicRuntimeConfigExtra({
-    EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: ' https://cdn.everybible.app ',
+    EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: ' https://media.everybible.app ',
     EXPO_PUBLIC_SUPABASE_URL: ' https://ganmududzdzpruvdulkg.supabase.co ',
     EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ' publishable-key ',
     EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ' ios-client-id ',
@@ -108,7 +108,7 @@ test('app config injects public runtime auth values into Expo extra for release 
 
   assert.deepEqual(extra, {
     publicRuntimeConfig: {
-      EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://cdn.everybible.app',
+      EXPO_PUBLIC_BIBLE_ASSET_BASE_URL: 'https://media.everybible.app',
       EXPO_PUBLIC_CONTENT_API_URL: 'https://everybible.app/api/mobile/content',
       EXPO_PUBLIC_SUPABASE_URL: 'https://ganmududzdzpruvdulkg.supabase.co',
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
