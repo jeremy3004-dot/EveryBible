@@ -1,0 +1,28 @@
+{
+  "name": "@everybible/admin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint app components lib next.config.mjs --ext .ts,.tsx,.js,.mjs",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.91.0",
+    "maplibre-gl": "^5.21.1",
+    "next": "^15.4.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "world-countries": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "~5.9.2"
+  }
+}

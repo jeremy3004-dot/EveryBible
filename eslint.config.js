@@ -1,4 +1,5 @@
 const js = require('@eslint/js');
+const next = require('@next/eslint-plugin-next');
 const typescript = require('@typescript-eslint/eslint-plugin');
 const typescriptParser = require('@typescript-eslint/parser');
 const react = require('eslint-plugin-react');
@@ -15,11 +16,41 @@ module.exports = [
         module: 'readonly',
       },
     },
+    plugins: {
+      '@next/next': next,
+    },
+    settings: {
+      next: {
+        rootDir: ['apps/admin/', 'apps/site/'],
+      },
+    },
     rules: {
       'no-undef': 'off',
     },
   },
   js.configs.recommended,
+  {
+    files: [
+      'apps/admin/**/*.{js,jsx,ts,tsx,mjs}',
+      'apps/site/**/*.{js,jsx,ts,tsx,mjs}',
+      'app/**/*.{js,jsx,ts,tsx,mjs}',
+      'components/**/*.{js,jsx,ts,tsx,mjs}',
+      'lib/**/*.{js,jsx,ts,tsx,mjs}',
+      'next.config.mjs',
+    ],
+    plugins: {
+      '@next/next': next,
+    },
+    settings: {
+      next: {
+        rootDir: ['apps/admin/', 'apps/site/'],
+      },
+    },
+    rules: {
+      ...next.configs.recommended.rules,
+      '@next/next/no-html-link-for-pages': 'off',
+    },
+  },
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
@@ -70,6 +101,7 @@ module.exports = [
       ...typescript.configs.recommended.rules,
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      'no-undef': 'off',
       'react/react-in-jsx-scope': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
@@ -97,6 +129,8 @@ module.exports = [
       'babel.config.js',
       '.claude/',
       '.gsd/',
+      'apps/',
+      'packages/',
       'supabase/functions/',
     ],
   },
