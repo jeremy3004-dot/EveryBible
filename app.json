@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "privacyPolicyUrl": "https://everybible.app/privacy",
     "scheme": "com.everybible.app",
     "newArchEnabled": false,
     "splash": {
@@ -77,6 +76,7 @@
       "@react-native-google-signin/google-signin"
     ],
     "extra": {
+      "privacyPolicyUrl": "https://everybible.app/privacy",
       "eas": {
         "projectId": "cfbf2bac-d680-448f-b2aa-33c4c01ad15b"
       }

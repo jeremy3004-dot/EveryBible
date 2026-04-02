@@ -8,7 +8,9 @@ interface AppConfig {
   expo: {
     version: string;
     description?: string;
-    privacyPolicyUrl?: string;
+    extra?: {
+      privacyPolicyUrl?: string;
+    };
   };
 }
 
@@ -87,7 +89,7 @@ test('release metadata stays aligned across tracked config and generated native 
   const appVersion = appConfig.expo.version;
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
   const appDescription = appConfig.expo.description?.trim() ?? '';
-  const privacyPolicyUrl = appConfig.expo.privacyPolicyUrl?.trim() ?? '';
+  const privacyPolicyUrl = appConfig.expo.extra?.privacyPolicyUrl?.trim() ?? '';
 
   assert.equal(packageJson.version, appVersion);
   assert.equal(iosMarketingVersion, appVersion);
@@ -97,7 +99,7 @@ test('release metadata stays aligned across tracked config and generated native 
   assert.match(
     privacyPolicyUrl,
     /^https:\/\//,
-    'Expected app.json expo.privacyPolicyUrl to provide the canonical HTTPS privacy policy reference'
+    'Expected app.json expo.extra.privacyPolicyUrl to provide the canonical HTTPS privacy policy reference'
   );
 
   if (infoPlist) {
