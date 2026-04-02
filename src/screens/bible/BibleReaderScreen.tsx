@@ -2816,6 +2816,42 @@ export function BibleReaderScreen() {
             style={[
               styles.iconButton,
               styles.secondaryIconButton,
+              !hasPrevChapter ? styles.disabledIconButton : null,
+            ]}
+            onPress={() => void handlePreviousReadChapter()}
+            disabled={!hasPrevChapter}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.previous')}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={hasPrevChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              styles.secondaryIconButton,
+              !hasNextChapter ? styles.disabledIconButton : null,
+            ]}
+            onPress={() => void handleNextReadChapter()}
+            disabled={!hasNextChapter}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.next')}
+          >
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              styles.secondaryIconButton,
               {
                 borderColor: showChapterActionsSheet ? colors.bibleAccent : colors.bibleDivider,
               },

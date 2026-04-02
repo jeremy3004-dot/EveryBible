@@ -20,6 +20,8 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
+  READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
+  READER_TAB_BAR_RESTORE_VELOCITY_MIN,
 } from './bibleReaderModel';
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
@@ -111,14 +113,27 @@ test('hides the Bible tab bar when read mode scrolling starts', () => {
   );
 });
 
-test('shows the Bible tab bar only on a fast upward flick in read mode', () => {
+test('shows the Bible tab bar again when the reader reaches the top', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 72,
+      currentScrollOffsetY: READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
+      velocityY: 40,
+    }),
+    true
+  );
+});
+
+test('shows the Bible tab bar on a lighter upward flick in read mode', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'read',
       action: 'scrollEndDrag',
       previousScrollOffsetY: 240,
       currentScrollOffsetY: 120,
-      velocityY: 250,
+      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN - 1,
     }),
     false
   );
@@ -129,7 +144,7 @@ test('shows the Bible tab bar only on a fast upward flick in read mode', () => {
       action: 'scrollEndDrag',
       previousScrollOffsetY: 240,
       currentScrollOffsetY: 120,
-      velocityY: 600,
+      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN,
     }),
     true
   );

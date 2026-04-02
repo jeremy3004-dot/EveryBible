@@ -232,6 +232,22 @@ test('BibleReaderScreen resolves chapter navigation targets across book boundari
   );
 });
 
+test('BibleReaderScreen keeps the read-tab chapter arrows in the legacy header actions', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /<View style=\{styles\.headerActions\}>[\s\S]*handlePreviousReadChapter\(\)[\s\S]*chevron-back[\s\S]*handleNextReadChapter\(\)[\s\S]*chevron-forward/s,
+    'BibleReaderScreen should keep the previous and next chapter arrows visible in the read header'
+  );
+
+  assert.match(
+    source,
+    /accessibilityLabel=\{t\('common\.previous'\)\}[\s\S]*accessibilityLabel=\{t\('common\.next'\)\}/s,
+    'BibleReaderScreen should expose the read header arrows with clear accessibility labels'
+  );
+});
+
 test('switching the chapter session into listen mode starts playback for the displayed chapter', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

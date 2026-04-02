@@ -19,6 +19,8 @@ interface ReaderChapterRouteParamsInput {
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
 export const READER_TOP_CHROME_DISMISS_DISTANCE = 220;
 export const READER_BOTTOM_CHROME_COLLAPSE_DISTANCE = 156;
+export const READER_TAB_BAR_RESTORE_TOP_THRESHOLD = 16;
+export const READER_TAB_BAR_RESTORE_VELOCITY_MIN = 300;
 export const READER_VERSE_LINE_HEIGHT_MULTIPLIER = 1.5;
 export const FOLLOW_ALONG_VERSE_LINE_HEIGHT = 32;
 
@@ -332,7 +334,17 @@ export const getNextBibleTabBarVisibility = ({
     case 'scrollStart':
       return false;
     case 'scrollEndDrag':
-      return currentScrollOffsetY < previousScrollOffsetY && Math.abs(velocityY) >= SWIPE_VELOCITY_MIN;
+      if (
+        currentScrollOffsetY <= READER_TAB_BAR_RESTORE_TOP_THRESHOLD &&
+        currentScrollOffsetY < previousScrollOffsetY
+      ) {
+        return true;
+      }
+
+      return (
+        currentScrollOffsetY < previousScrollOffsetY &&
+        Math.abs(velocityY) >= READER_TAB_BAR_RESTORE_VELOCITY_MIN
+      );
   }
 };
 
