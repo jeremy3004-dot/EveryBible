@@ -1,6 +1,4 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
 import { getBookById, getBookIcon } from '../../constants';
@@ -28,7 +26,6 @@ export function AudioFirstChapterCard({
   onShare,
 }: AudioFirstChapterCardProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -161,24 +158,6 @@ export function AudioFirstChapterCard({
           </Text>
         </View>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.share')}
-          activeOpacity={0.88}
-          style={[
-            styles.shareButton,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-          onPress={onShare}
-        >
-          <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
-          <Text style={[styles.shareButtonText, { color: colors.biblePrimaryText }]}>
-            {t('groups.share')}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.controlBlock}>
@@ -223,6 +202,7 @@ export function AudioFirstChapterCard({
           onCycleRepeatMode={cycleRepeatMode}
           onSetSleepTimer={startSleepTimer}
           onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
+          onShareAudio={onShare}
         />
 
         {error ? (
@@ -270,19 +250,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  shareButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   controlBlock: {
     gap: 18,

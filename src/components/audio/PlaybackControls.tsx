@@ -33,6 +33,7 @@ interface PlaybackControlsProps {
   onChangeBackgroundMusicChoice: (choice: BackgroundMusicChoice) => void;
   onShowText?: () => void;
   showTextLabel?: string;
+  onShareAudio?: () => void;
 }
 
 export function PlaybackControls({
@@ -55,6 +56,7 @@ export function PlaybackControls({
   onChangeBackgroundMusicChoice,
   onShowText,
   showTextLabel,
+  onShareAudio,
 }: PlaybackControlsProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -67,6 +69,7 @@ export function PlaybackControls({
   const isChapterOnlyTransport = variant === 'chapter-only';
   const showSkipControls = variant === 'default';
   const showTextUtility = typeof onShowText === 'function';
+  const showShareAudioUtility = typeof onShareAudio === 'function';
   const isRepeatActive = repeatMode !== 'off';
   const isBackgroundMusicActive = backgroundMusicChoice !== 'off';
   const selectedBackgroundMusic =
@@ -229,93 +232,108 @@ export function PlaybackControls({
       </View>
 
       <View style={[styles.utilityRow, isChapterOnlyTransport ? styles.chapterOnlyUtilityRow : null]}>
-        <TouchableOpacity
-          style={[
-            styles.utilityButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={() => setShowTimerModal(true)}
-        >
-          <Ionicons
-            name={sleepTimerRemaining ? 'timer' : 'timer-outline'}
-            size={18}
-            color={sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText}
-          />
-          <Text
-            style={[
-              styles.utilityText,
-              {
-                color: sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText,
-              },
-            ]}
-          >
-            {sleepTimerRemaining ? `${sleepTimerRemaining}m` : '...'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.utilityButton,
-            styles.musicUtilityButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={() => setShowBackgroundMusicModal(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Background music: ${selectedBackgroundMusic.label}`}
-          accessibilityHint="Opens the bundled background music picker"
-        >
-          <Ionicons
-            name={backgroundMusicChoice === 'off' ? 'musical-notes-outline' : 'musical-notes'}
-            size={18}
-            color={backgroundMusicIconColor}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.utilityButton,
-            styles.repeatUtilityButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={() => onCycleRepeatMode()}
-          accessibilityRole="button"
-          accessibilityLabel={repeatAccessibilityLabel}
-          accessibilityHint="Cycles repeat off, repeat chapter, and repeat book"
-        >
-          {renderRepeatModeIcon()}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.utilityButton,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-          onPress={() => setShowSpeedModal(true)}
-        >
-          <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
-            {playbackRate}x
-          </Text>
-        </TouchableOpacity>
-
-        {showTextUtility ? (
+        <View style={styles.utilityPrimaryGroup}>
           <TouchableOpacity
             style={[
               styles.utilityButton,
-              styles.textUtilityButton,
-              isChapterOnlyTransport ? styles.chapterOnlyTextUtilityButton : null,
               { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
             ]}
-            onPress={onShowText}
-            accessibilityRole="button"
-            accessibilityLabel={showTextLabel ?? 'Show text'}
-            accessibilityHint="Opens the Bible text for the currently playing chapter"
+            onPress={() => setShowTimerModal(true)}
           >
-            {renderTextUtilityIcon()}
-            <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
-              {showTextLabel}
+            <Ionicons
+              name={sleepTimerRemaining ? 'timer' : 'timer-outline'}
+              size={18}
+              color={sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText}
+            />
+            <Text
+              style={[
+                styles.utilityText,
+                {
+                  color: sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText,
+                },
+              ]}
+            >
+              {sleepTimerRemaining ? `${sleepTimerRemaining}m` : '...'}
             </Text>
           </TouchableOpacity>
-        ) : null}
+
+          <TouchableOpacity
+            style={[
+              styles.utilityButton,
+              styles.musicUtilityButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={() => setShowBackgroundMusicModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Background music: ${selectedBackgroundMusic.label}`}
+            accessibilityHint="Opens the bundled background music picker"
+          >
+            <Ionicons
+              name={backgroundMusicChoice === 'off' ? 'musical-notes-outline' : 'musical-notes'}
+              size={18}
+              color={backgroundMusicIconColor}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.utilityButton,
+              styles.repeatUtilityButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={() => onCycleRepeatMode()}
+            accessibilityRole="button"
+            accessibilityLabel={repeatAccessibilityLabel}
+            accessibilityHint="Cycles repeat off, repeat chapter, and repeat book"
+          >
+            {renderRepeatModeIcon()}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.utilityButton,
+              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            ]}
+            onPress={() => setShowSpeedModal(true)}
+          >
+            <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
+              {playbackRate}x
+            </Text>
+          </TouchableOpacity>
+
+          {showTextUtility ? (
+            <TouchableOpacity
+              style={[
+                styles.utilityButton,
+                styles.textUtilityButton,
+                isChapterOnlyTransport ? styles.chapterOnlyTextUtilityButton : null,
+                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+              ]}
+              onPress={onShowText}
+              accessibilityRole="button"
+              accessibilityLabel={showTextLabel ?? 'Show text'}
+              accessibilityHint="Opens the Bible text for the currently playing chapter"
+            >
+              {renderTextUtilityIcon()}
+            </TouchableOpacity>
+          ) : null}
+
+          {showShareAudioUtility ? (
+            <TouchableOpacity
+              style={[
+                styles.utilityButton,
+                styles.iconOnlyUtilityButton,
+                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+              ]}
+              onPress={onShareAudio}
+              accessibilityRole="button"
+              accessibilityLabel={t('bible.shareChapterAudio')}
+              accessibilityHint="Opens the audio sharing options for this chapter"
+            >
+              <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       <Modal
@@ -494,6 +512,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
+  utilityPrimaryGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 1,
+  },
   chapterOnlyUtilityRow: {
     gap: 10,
     marginTop: 4,
@@ -532,9 +556,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   textUtilityButton: {
-    minWidth: 80,
+    minWidth: 38,
+    paddingHorizontal: 10,
   },
   chapterOnlyTextUtilityButton: {
+    paddingHorizontal: 10,
+  },
+  iconOnlyUtilityButton: {
+    minWidth: 38,
     paddingHorizontal: 10,
   },
   repeatIconWrapper: {

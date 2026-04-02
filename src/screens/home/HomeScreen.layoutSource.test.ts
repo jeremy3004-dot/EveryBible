@@ -7,13 +7,13 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('HomeScreen stays fixed and sizes itself against the tab bar height', () => {
+test('HomeScreen uses a bounce-enabled scroll shell while sizing itself against the tab bar height', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
-  assert.equal(
-    source.includes('ScrollView'),
-    false,
-    'HomeScreen should not use a scroll container now that the layout is fixed to the screen'
+  assert.match(
+    source,
+    /<ScrollView[\s\S]*bounces[\s\S]*alwaysBounceVertical[\s\S]*overScrollMode="always"/,
+    'HomeScreen should wrap the fixed layout in a bounce-enabled scroll container so pull-down gestures feel responsive'
   );
 
   assert.equal(
@@ -42,6 +42,12 @@ test('HomeScreen trims the bottom padding so Chapters Read clears the tab bar', 
     source,
     /paddingBottom:\s*Math\.max\(spacing\.sm,\s*homeLayout\.screenPadding\s*-\s*spacing\.xs\)/,
     'HomeScreen should keep a little less space under the content so the bottom card sits above the tabs'
+  );
+
+  assert.match(
+    source,
+    /content:\s*{[\s\S]*flexGrow:\s*1,/,
+    'HomeScreen should use flexGrow on the scroll content so the fixed layout still fills the screen while allowing elastic bounce'
   );
 });
 

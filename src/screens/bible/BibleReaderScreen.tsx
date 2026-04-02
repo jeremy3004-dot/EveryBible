@@ -2102,41 +2102,7 @@ export function BibleReaderScreen() {
             <Text style={[styles.listenChapterTitle, { color: colors.biblePrimaryText }]}>
               {getTranslatedBookName(bookId, t)} {chapter}
             </Text>
-            <Text style={[styles.listenChapterMeta, { color: colors.bibleSecondaryText }]}>
-              {t('bible.verseCount', { count: verses.length })}
-            </Text>
           </View>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('groups.share')}
-            activeOpacity={0.88}
-            style={[
-              styles.listenShareButton,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-            onPress={() => {
-              setShowChapterAudioShareSheet(true);
-            }}
-          >
-            <View
-              style={[
-                styles.listenShareButtonIconWrap,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-            >
-              <Ionicons name="share-outline" size={15} color={colors.bibleAccent} />
-            </View>
-            <Text style={[styles.listenShareButtonText, { color: colors.biblePrimaryText }]}>
-              {t('groups.share')}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View
@@ -2193,6 +2159,7 @@ export function BibleReaderScreen() {
             onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
             onShowText={() => setShowFollowAlongText(true)}
             showTextLabel={t('audio.showText')}
+            onShareAudio={() => setShowChapterAudioShareSheet(true)}
           />
         </View>
 
@@ -4302,34 +4269,6 @@ const styles = StyleSheet.create({
   listenChapterTitle: {
     fontSize: 30,
     fontWeight: '700',
-  },
-  listenChapterMeta: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  listenShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: layout.minTouchTarget,
-    ...shadows.floating,
-  },
-  listenShareButtonIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listenShareButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.1,
   },
   listenPlayerCard: {
     marginTop: 'auto',

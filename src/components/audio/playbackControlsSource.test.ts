@@ -51,7 +51,7 @@ test('PlaybackControls exposes a repeat utility button alongside playback speed 
   );
 });
 
-test('PlaybackControls supports an inline text utility action for the chapter-only player', () => {
+test('PlaybackControls supports icon-only text and share utilities for the chapter-only player', () => {
   const source = readRelativeSource('./PlaybackControls.tsx');
 
   assert.match(
@@ -74,8 +74,44 @@ test('PlaybackControls supports an inline text utility action for the chapter-on
 
   assert.match(
     source,
-    /showTextUtility \? \([\s\S]*renderTextUtilityIcon\(\)[\s\S]*showTextLabel/s,
-    'PlaybackControls should render the Dwell-inspired text utility inline with the other controls'
+    /showTextUtility \? \([\s\S]*accessibilityLabel=\{showTextLabel \?\? 'Show text'\}[\s\S]*renderTextUtilityIcon\(\)/s,
+    'PlaybackControls should render the Dwell-inspired text utility as an icon-only button'
+  );
+
+  assert.match(
+    source,
+    /onShareAudio\?: \(\) => void;/,
+    'PlaybackControls should accept a share callback for the chapter-only audio surface'
+  );
+
+  assert.match(
+    source,
+    /const showShareAudioUtility = typeof onShareAudio === 'function';/,
+    'PlaybackControls should derive whether to render the share utility from the provided callback'
+  );
+
+  assert.match(
+    source,
+    /<View style=\{styles\.utilityPrimaryGroup\}>[\s\S]*renderTextUtilityIcon\(\)[\s\S]*share-outline[\s\S]*<\/View>/s,
+    'PlaybackControls should keep the share button inside the same centered utility group as the other controls'
+  );
+
+  assert.match(
+    source,
+    /name="share-outline"/,
+    'PlaybackControls should render the chapter-audio share utility as a single icon button'
+  );
+
+  assert.match(
+    source,
+    /accessibilityLabel=\{t\('bible\.shareChapterAudio'\)\}/,
+    'PlaybackControls should label the chapter-audio share utility for assistive technology'
+  );
+
+  assert.equal(
+    source.includes('shareUtilityButton'),
+    false,
+    'PlaybackControls should not keep a separate right-aligned share-button style once the control is centered with the other utilities'
   );
 });
 

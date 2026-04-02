@@ -41,7 +41,7 @@ test('AudioFirstChapterCard removes redundant watermark art and explanatory audi
   );
 });
 
-test('AudioFirstChapterCard exposes a visible share button beside the chapter metadata', () => {
+test('AudioFirstChapterCard moves audio sharing into the shared playback controls', () => {
   const source = readRelativeSource('./AudioFirstChapterCard.tsx');
 
   assert.match(
@@ -52,19 +52,13 @@ test('AudioFirstChapterCard exposes a visible share button beside the chapter me
 
   assert.match(
     source,
-    /metaRow:\s*{/,
-    'AudioFirstChapterCard should define a metadata row that can hold the new share affordance beside the title copy'
+    /<PlaybackControls[\s\S]*onShareAudio=\{onShare\}/s,
+    'AudioFirstChapterCard should pass the audio-share callback into PlaybackControls'
   );
 
-  assert.match(
-    source,
-    /Ionicons[\s\S]*name="share-outline"/,
-    'AudioFirstChapterCard should render a share icon for the new audio share action'
-  );
-
-  assert.match(
-    source,
-    /onPress=\{onShare\}[\s\S]*t\('groups\.share'\)/s,
-    'AudioFirstChapterCard should wire the visible share button to the provided callback and label it accessibly'
+  assert.equal(
+    source.includes('shareButton'),
+    false,
+    'AudioFirstChapterCard should not keep a separate share button in the metadata row once PlaybackControls owns it'
   );
 });

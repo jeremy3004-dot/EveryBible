@@ -66,6 +66,12 @@ test('BibleReaderScreen uses minimal listen chrome instead of repeating chapter 
     /!showMinimalListenChrome && \([\s\S]*styles\.translationChip/s,
     'BibleReaderScreen should hide the translation chip when minimal listen chrome is active'
   );
+
+  assert.equal(
+    source.includes("t('bible.verseCount'"),
+    false,
+    'BibleReaderScreen should not show the verse count under the listen-mode chapter title'
+  );
 });
 
 test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens', () => {
@@ -163,6 +169,22 @@ test('listen mode delegates bundled background-music selection to PlaybackContro
     source.includes('Ambient layers are not available for this chapter yet'),
     false,
     'BibleReaderScreen should remove the placeholder ambient-copy path once bundled music ships'
+  );
+});
+
+test('listen mode passes chapter audio sharing into the shared playback controls and removes the old header button', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /<PlaybackControls[\s\S]*onShareAudio=\{\(\) => setShowChapterAudioShareSheet\(true\)\}/s,
+    'BibleReaderScreen listen mode should move the audio-share action into PlaybackControls'
+  );
+
+  assert.equal(
+    source.includes('listenShareButton'),
+    false,
+    'BibleReaderScreen should remove the old share button from the listen-mode metadata row'
   );
 });
 

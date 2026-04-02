@@ -5,6 +5,7 @@ import {
   Image,
   ImageBackground,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   InteractionManager,
   useWindowDimensions,
@@ -519,17 +520,23 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-          <View
-            style={[
-              styles.content,
-              {
-                paddingHorizontal: homeLayout.screenPadding,
-                paddingVertical: homeLayout.screenPadding,
-                paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
-                gap: homeLayout.sectionGap,
-              },
-            ]}
-          >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: homeLayout.screenPadding,
+            paddingVertical: homeLayout.screenPadding,
+            paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
+            gap: homeLayout.sectionGap,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces
+        alwaysBounceVertical
+        overScrollMode="always"
+        contentInsetAdjustmentBehavior="never"
+      >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
           <View style={styles.headerBlock}>
             <Text
@@ -847,7 +854,7 @@ export function HomeScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -856,8 +863,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
   },
   greeting: {
     ...typography.screenTitle,
