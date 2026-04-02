@@ -20,6 +20,8 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
   shouldTransferActiveAudioOnChapterChange,
+  READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
+  READER_TAB_BAR_RESTORE_VELOCITY_MIN,
 } from './bibleReaderModel';
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
@@ -106,14 +108,40 @@ test('keeps the root tab bar visible in listen mode regardless of read-scroll ac
   );
 });
 
-test('re-opens the root tab bar only when a fast upward read scroll reaches the top', () => {
+test('hides the Bible tab bar when read mode scrolling starts', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollStart',
+      previousScrollOffsetY: 0,
+      currentScrollOffsetY: 36,
+      velocityY: 0,
+    }),
+    false
+  );
+});
+
+test('shows the Bible tab bar again when the reader reaches the top', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'read',
       action: 'scrollEndDrag',
-      previousScrollOffsetY: 180,
-      currentScrollOffsetY: 24,
-      velocityY: -2400,
+      previousScrollOffsetY: 72,
+      currentScrollOffsetY: READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
+      velocityY: 40,
+    }),
+    true
+  );
+});
+
+test('shows the Bible tab bar on a lighter upward flick in read mode', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 240,
+      currentScrollOffsetY: 120,
+      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN - 1,
     }),
     false
   );
@@ -122,9 +150,9 @@ test('re-opens the root tab bar only when a fast upward read scroll reaches the 
     getNextBibleTabBarVisibility({
       sessionMode: 'read',
       action: 'scrollEndDrag',
-      previousScrollOffsetY: 180,
-      currentScrollOffsetY: 0,
-      velocityY: -2400,
+      previousScrollOffsetY: 240,
+      currentScrollOffsetY: 120,
+      velocityY: READER_TAB_BAR_RESTORE_VELOCITY_MIN,
     }),
     true
   );
