@@ -498,25 +498,77 @@ export function BibleReaderScreen() {
   );
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
+  const readerTabBarVisibleShared = useSharedValue(true);
+  const readerTabBarRevealPendingShared = useSharedValue(false);
+  const readerLastScrollOffsetYShared = useSharedValue(0);
   const setReaderTabBarVisible = useBibleStore((state) => state.setReaderTabBarVisible);
 
   const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean) => {
+    (nextVisible: boolean, reason: string) => {
+      readerTabBarVisibleShared.value = nextVisible;
+      if (nextVisible) {
+        readerTabBarRevealPendingShared.value = false;
+      }
+
+      if (__DEV__) {
+        console.log('[BibleReader] root tab bar visibility', {
+          nextVisible,
+          reason,
+          sessionMode: chapterSessionMode,
+        });
+      }
+
       setReaderTabBarVisible(nextVisible);
       navigation.setParams({ tabBarVisible: nextVisible });
     },
-    [navigation, setReaderTabBarVisible]
+    [
+      chapterSessionMode,
+      navigation,
+      readerTabBarRevealPendingShared,
+      readerTabBarVisibleShared,
+      setReaderTabBarVisible,
+    ]
+  );
+
+  const hideRootTabBarForReaderScroll = useCallback(
+    (reason: string) => {
+      if (chapterSessionMode !== 'read' || !readerTabBarVisibleShared.value) {
+        return;
+      }
+
+      readerTabBarVisibleShared.value = false;
+      readerTabBarRevealPendingShared.value = false;
+      syncRootTabBarVisibility(false, reason);
+    },
+    [
+      chapterSessionMode,
+      readerTabBarRevealPendingShared,
+      readerTabBarVisibleShared,
+      syncRootTabBarVisibility,
+    ]
   );
 
   useEffect(() => {
+    readerTabBarVisibleShared.value = true;
+    readerTabBarRevealPendingShared.value = false;
+    readerLastScrollOffsetYShared.value = 0;
     syncRootTabBarVisibility(
       getNextBibleTabBarVisibility({
         sessionMode: chapterSessionMode,
         action: 'enter',
-      })
+      }),
+      'enter'
     );
     scrollDragStartOffsetYRef.current = 0;
-  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
+  }, [
+    bookId,
+    chapter,
+    chapterSessionMode,
+    readerLastScrollOffsetYShared,
+    readerTabBarRevealPendingShared,
+    readerTabBarVisibleShared,
+    syncRootTabBarVisibility,
+  ]);
 
   const handleReaderScrollBeginDrag = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {
@@ -525,14 +577,9 @@ export function BibleReaderScreen() {
         return;
       }
 
-      syncRootTabBarVisibility(
-        getNextBibleTabBarVisibility({
-          sessionMode: chapterSessionMode,
-          action: 'scrollStart',
-        })
-      );
+      hideRootTabBarForReaderScroll('scrollStart');
     },
-    [chapterSessionMode, syncRootTabBarVisibility]
+    [chapterSessionMode, hideRootTabBarForReaderScroll]
   );
 
   const handleReaderScrollEndDrag = useCallback(
@@ -541,17 +588,49 @@ export function BibleReaderScreen() {
         return;
       }
 
-      syncRootTabBarVisibility(
-        getNextBibleTabBarVisibility({
-          sessionMode: chapterSessionMode,
-          action: 'scrollEndDrag',
-          previousScrollOffsetY: scrollDragStartOffsetYRef.current,
-          currentScrollOffsetY: event.nativeEvent.contentOffset.y,
-          velocityY: event.nativeEvent.velocity?.y ?? 0,
-        })
-      );
+      const currentScrollOffsetY = event.nativeEvent.contentOffset.y;
+      const velocityY = event.nativeEvent.velocity?.y ?? 0;
+      const shouldShowAtTop = getNextBibleTabBarVisibility({
+        sessionMode: chapterSessionMode,
+        action: 'scrollEndDrag',
+        previousScrollOffsetY: scrollDragStartOffsetYRef.current,
+        currentScrollOffsetY,
+        velocityY,
+      });
+
+      if (shouldShowAtTop) {
+        syncRootTabBarVisibility(true, 'scrollEndDrag');
+        return;
+      }
+
+      readerTabBarRevealPendingShared.value =
+        currentScrollOffsetY < scrollDragStartOffsetYRef.current &&
+        Math.abs(velocityY) >= SWIPE_VELOCITY_MIN;
     },
-    [chapterSessionMode, syncRootTabBarVisibility]
+    [
+      chapterSessionMode,
+      readerTabBarRevealPendingShared,
+      syncRootTabBarVisibility,
+    ]
+  );
+
+  const handleReaderMomentumScrollEnd = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+      if (chapterSessionMode !== 'read') {
+        return;
+      }
+
+      if (!readerTabBarRevealPendingShared.value || event.nativeEvent.contentOffset.y > 0) {
+        return;
+      }
+
+      syncRootTabBarVisibility(true, 'momentumEnd');
+    },
+    [
+      chapterSessionMode,
+      readerTabBarRevealPendingShared,
+      syncRootTabBarVisibility,
+    ]
   );
 
   const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
@@ -793,12 +872,49 @@ export function BibleReaderScreen() {
   const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
   const premiumTopInset = 12;
   const premiumBottomInset = 18;
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      'worklet';
-      scrollY.value = event.contentOffset.y;
+  const scrollHandler = useAnimatedScrollHandler(
+    {
+      onScroll: (event) => {
+        'worklet';
+        const offsetY = event.contentOffset.y;
+        const velocityY = event.velocity?.y ?? 0;
+        const offsetDelta = offsetY - readerLastScrollOffsetYShared.value;
+        scrollY.value = offsetY;
+
+        if (chapterSessionMode !== 'read') {
+          readerLastScrollOffsetYShared.value = offsetY;
+          return;
+        }
+
+        if (offsetY > 0 && readerTabBarVisibleShared.value) {
+          runOnJS(hideRootTabBarForReaderScroll)('scrollMove');
+        }
+
+        if (
+          offsetY > 0 &&
+          offsetDelta < 0 &&
+          (Math.abs(velocityY) >= SWIPE_VELOCITY_MIN || Math.abs(offsetDelta) >= 16)
+        ) {
+          readerTabBarRevealPendingShared.value = true;
+        }
+
+        if (offsetY <= 0 && readerTabBarRevealPendingShared.value) {
+          readerTabBarRevealPendingShared.value = false;
+          runOnJS(syncRootTabBarVisibility)(true, 'scrollTop');
+        }
+
+        readerLastScrollOffsetYShared.value = offsetY;
+      },
     },
-  });
+    [
+      chapterSessionMode,
+      hideRootTabBarForReaderScroll,
+      readerLastScrollOffsetYShared,
+      readerTabBarRevealPendingShared,
+      readerTabBarVisibleShared,
+      syncRootTabBarVisibility,
+    ]
+  );
 
   const topChromeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -2758,6 +2874,9 @@ export function BibleReaderScreen() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               onScroll={scrollHandler}
+              onTouchMove={() => {
+                hideRootTabBarForReaderScroll('touchMove');
+              }}
               onScrollBeginDrag={(event) => {
                 handleReaderScrollBeginDrag(event);
                 setShowFontSizeSheet((current) =>
@@ -2768,6 +2887,7 @@ export function BibleReaderScreen() {
                 );
               }}
               onScrollEndDrag={handleReaderScrollEndDrag}
+              onMomentumScrollEnd={handleReaderMomentumScrollEnd}
               contentContainerStyle={[
                 styles.premiumReaderScrollContent,
                 {
@@ -2958,36 +3078,42 @@ export function BibleReaderScreen() {
         </View>
       </View>
 
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
-            onScrollBeginDrag={(event) => {
-              handleReaderScrollBeginDrag(event);
-              setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
-            }}
-            onScrollEndDrag={handleReaderScrollEndDrag}
-        contentContainerStyle={[
-          styles.content,
-          shouldFillReaderCanvas ? styles.immersiveContent : null,
-          {
-            paddingBottom: 32,
-            paddingTop: fontSize === 'large' ? 28 : 18,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.readerShell,
-            shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
-            { backgroundColor: colors.bibleBackground },
-          ]}
-        >
-          {renderLegacyContent()}
-        </View>
-      </ScrollView>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets
+              onScroll={scrollHandler}
+              onTouchMove={() => {
+                hideRootTabBarForReaderScroll('touchMove');
+              }}
+              onScrollBeginDrag={(event) => {
+                handleReaderScrollBeginDrag(event);
+                setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
+              }}
+              onScrollEndDrag={handleReaderScrollEndDrag}
+              onMomentumScrollEnd={handleReaderMomentumScrollEnd}
+              contentContainerStyle={[
+                styles.content,
+                shouldFillReaderCanvas ? styles.immersiveContent : null,
+                {
+                  paddingBottom: 32,
+                  paddingTop: fontSize === 'large' ? 28 : 18,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.readerShell,
+                  shouldFillReaderCanvas ? styles.immersiveReaderShell : null,
+                  { backgroundColor: colors.bibleBackground },
+                ]}
+              >
+                {renderLegacyContent()}
+              </View>
+            </ScrollView>
     </>
   );
 

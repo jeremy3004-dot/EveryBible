@@ -306,6 +306,23 @@ test('premium read mode uses animated overlay chrome with blur-backed glass surf
     /<GestureDetector gesture=\{readerNativeScrollGesture\}>[\s\S]*<Animated\.ScrollView/s,
     'BibleReaderScreen should wrap the premium read ScrollView in a native gesture detector so vertical scrolling remains responsive'
   );
+
+  assert.match(
+    source,
+    /onMomentumScrollEnd=\{handleReaderMomentumScrollEnd\}/,
+    'BibleReaderScreen should wait for momentum to finish before restoring the root tab bar at the top of read mode'
+  );
+
+  assert.ok(
+    source.split('onScroll={scrollHandler}').length >= 3,
+    'BibleReaderScreen should wire the shared scroll handler into both the premium and legacy read layouts'
+  );
+
+  assert.match(
+    source,
+    /readerTabBarRevealPendingShared\.value = false;[\s\S]*syncRootTabBarVisibility\(false, reason\);/s,
+    'BibleReaderScreen should clear any pending reveal when the read tab starts scrolling again'
+  );
 });
 
 test('premium read mode removes the old bottom audio bar and keeps the Genesis pill plus matching arrow circles', () => {

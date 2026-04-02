@@ -106,6 +106,30 @@ test('keeps the root tab bar visible in listen mode regardless of read-scroll ac
   );
 });
 
+test('re-opens the root tab bar only when a fast upward read scroll reaches the top', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 180,
+      currentScrollOffsetY: 24,
+      velocityY: -2400,
+    }),
+    false
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 180,
+      currentScrollOffsetY: 0,
+      velocityY: -2400,
+    }),
+    true
+  );
+});
+
 test('builds chapter route params that preserve the current reader session mode', () => {
   assert.deepEqual(
     buildReaderChapterRouteParams({

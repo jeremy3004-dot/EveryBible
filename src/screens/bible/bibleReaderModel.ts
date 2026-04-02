@@ -332,7 +332,11 @@ export const getNextBibleTabBarVisibility = ({
     case 'scrollStart':
       return false;
     case 'scrollEndDrag':
-      return currentScrollOffsetY < previousScrollOffsetY && Math.abs(velocityY) >= SWIPE_VELOCITY_MIN;
+      return (
+        currentScrollOffsetY <= 0 &&
+        currentScrollOffsetY < previousScrollOffsetY &&
+        Math.abs(velocityY) >= SWIPE_VELOCITY_MIN
+      );
   }
 };
 
