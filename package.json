@@ -46,7 +46,8 @@
     "generate-timestamps": "python3 scripts/batch_timestamps.py",
     "codegen-timestamps": "node scripts/codegen-timestamps.mjs",
     "extract-verse-text": "python3 scripts/extract_verse_text.py",
-    "catalog:translation": "tsx scripts/upsert-translation-catalog.ts"
+    "catalog:translation": "tsx scripts/upsert-translation-catalog.ts",
+    "import:open-bible-audio": "tsx scripts/import-open-bible-audio.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

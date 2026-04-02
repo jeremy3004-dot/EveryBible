@@ -18,6 +18,7 @@ import type {
   TranslationCatalog,
   TranslationDownloadJob,
   TranslationInstallState,
+  TranslationTimingCatalog,
   TranslationTextCatalog,
   User,
   UserPreferences,
@@ -209,6 +210,26 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
   };
 };
 
+const sanitizeTranslationTimingCatalog = (value: unknown): TranslationTimingCatalog | null => {
+  if (!isRecord(value) || value.strategy !== 'stream-template') {
+    return null;
+  }
+
+  const baseUrl = sanitizeUrlString(value.baseUrl);
+  const chapterPathTemplate = sanitizeRequiredString(value.chapterPathTemplate);
+  if (!baseUrl || !chapterPathTemplate) {
+    return null;
+  }
+
+  return {
+    strategy: 'stream-template',
+    baseUrl,
+    chapterPathTemplate,
+    fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+    mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
+  };
+};
+
 const sanitizeTranslationCatalog = (value: unknown): TranslationCatalog | null => {
   if (!isRecord(value)) {
     return null;
@@ -218,6 +239,7 @@ const sanitizeTranslationCatalog = (value: unknown): TranslationCatalog | null =
   const updatedAt = sanitizeIsoDateString(value.updatedAt);
   const text = sanitizeTranslationTextCatalog(value.text);
   const audio = sanitizeTranslationAudioCatalog(value.audio);
+  const timing = sanitizeTranslationTimingCatalog(value.timing);
 
   if (!version || !updatedAt || (!text && !audio)) {
     return null;
@@ -229,6 +251,7 @@ const sanitizeTranslationCatalog = (value: unknown): TranslationCatalog | null =
     minimumAppVersion: sanitizeOptionalString(value.minimumAppVersion) ?? undefined,
     text: text ?? undefined,
     audio: audio ?? undefined,
+    timing: timing ?? undefined,
   };
 };
 

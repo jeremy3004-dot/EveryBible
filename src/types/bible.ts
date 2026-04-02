@@ -39,6 +39,7 @@ export type TranslationInstallState =
   | 'update-available';
 export type TranslationTextFormat = 'sqlite';
 export type TranslationAudioStrategy = 'provider' | 'stream-template' | 'audio-pack';
+export type TranslationTimingStrategy = 'stream-template';
 export type TranslationDownloadJobKind =
   | 'text-pack'
   | 'audio-pack'
@@ -73,12 +74,21 @@ export interface TranslationAudioCatalog {
   signature?: string;
 }
 
+export interface TranslationTimingCatalog {
+  strategy: TranslationTimingStrategy;
+  baseUrl: string;
+  chapterPathTemplate: string;
+  fileExtension?: string;
+  mimeType?: string;
+}
+
 export interface TranslationCatalog {
   version: string;
   updatedAt: string;
   minimumAppVersion?: string;
   text?: TranslationTextCatalog;
   audio?: TranslationAudioCatalog;
+  timing?: TranslationTimingCatalog;
 }
 
 export interface TranslationDownloadJob {
@@ -107,6 +117,7 @@ export interface TranslationCatalogManifestTranslation {
   sizeInMB: number;
   text?: TranslationTextCatalog;
   audio?: TranslationAudioCatalog;
+  timing?: TranslationTimingCatalog;
 }
 
 export interface TranslationCatalogManifest {

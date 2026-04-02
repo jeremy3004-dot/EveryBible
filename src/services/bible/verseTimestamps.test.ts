@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, it } from 'node:test';
+import { afterEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 // We test the parsing logic directly by monkey-patching the require map via
@@ -29,6 +29,12 @@ function buildKey(translationId: string, bookId: string, chapter: number): strin
   const chapterPadded = String(chapter).padStart(3, '0');
   return `${translationId.toUpperCase()}/${bookId}_${chapterPadded}`;
 }
+
+afterEach(async () => {
+  const module = await import('./verseTimestamps.js');
+  module.clearVerseTimestampCache();
+  module.setVerseTimestampMetadataResolver(null);
+});
 
 describe('verseTimestamps — key builder', () => {
   it('builds correct key for WEB GEN 1', () => {
@@ -115,6 +121,46 @@ describe('verseTimestamps — getChapterTimestamps', () => {
   it('reports generated WEB timestamp coverage for common chapters', async () => {
     const { hasTimestampsForTranslation } = await import('./verseTimestamps.js');
     assert.equal(hasTimestampsForTranslation('web'), true);
+  });
+
+  it('fetches remote timestamp JSON when runtime metadata advertises a timestamp template', async () => {
+    const module = await import('./verseTimestamps.js');
+    module.setVerseTimestampMetadataResolver((translationId) => {
+      if (translationId !== 'npiulb') {
+        return null;
+      }
+
+      return {
+        id: 'npiulb',
+        hasTiming: true,
+        timing: {
+          strategy: 'stream-template',
+          baseUrl: 'https://cdn.example.com/verse-timestamps/npiulb',
+          chapterPathTemplate: '{bookId}/{chapter}.json',
+          fileExtension: 'json',
+          mimeType: 'application/json',
+        },
+      };
+    });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      assert.equal(String(input), 'https://cdn.example.com/verse-timestamps/npiulb/JHN/3.json');
+      return new Response(JSON.stringify({ '1': 0, '2': 4.2, '3': 9.8 }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }) as typeof fetch;
+
+    try {
+      const result = await module.getChapterTimestamps('npiulb', 'JHN', 3);
+      assert.deepEqual(result, { 1: 0, 2: 4.2, 3: 9.8 });
+      assert.equal(module.hasTimestampsForTranslation('npiulb'), true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

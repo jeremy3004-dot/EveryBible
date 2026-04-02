@@ -116,6 +116,13 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
             baseUrl: 'https://cdn.example.com/audio/niv',
             chapterPathTemplate: '{bookId}/{chapter}.mp3',
           },
+          timing: {
+            strategy: 'stream-template',
+            baseUrl: 'https://cdn.example.com/timestamps/niv',
+            chapterPathTemplate: '{bookId}/{chapter}.json',
+            fileExtension: 'json',
+            mimeType: 'application/json',
+          },
         },
       },
     ],
@@ -130,6 +137,7 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
   assert.equal(runtimeTranslation.activeTextPackVersion, '2026.03.21');
   assert.equal(runtimeTranslation.catalog?.text?.format, 'sqlite');
   assert.equal(runtimeTranslation.catalog?.audio?.strategy, 'stream-template');
+  assert.equal(runtimeTranslation.catalog?.timing?.strategy, 'stream-template');
   assert.deepEqual(runtimeTranslation.downloadedAudioBooks, ['MAT']);
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });

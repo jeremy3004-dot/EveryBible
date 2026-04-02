@@ -18,7 +18,22 @@
  * with a fetch call without changing the return type or callers.
  */
 
+import { getTranslationById } from '../../constants/translations';
+import type { BibleTranslation } from '../../types';
+
 export type VerseTimestamps = Record<number, number>;
+type VerseTimestampMetadata = {
+  id: string;
+  hasTiming: boolean;
+  timing?: {
+    strategy: 'stream-template';
+    baseUrl: string;
+    chapterPathTemplate: string;
+  };
+};
+export type VerseTimestampMetadataResolver = (
+  translationId: string
+) => VerseTimestampMetadata | null;
 
 // Static require map for Metro bundler — Metro needs static string paths.
 // We build this map at module load time. Unknown chapters return null.
@@ -1086,6 +1101,175 @@ const TIMESTAMP_REQUIRES: Record<string, TimestampRequireFn> = {
   'WEB/ZEP_003': () => require('../../../assets/timestamps/WEB/ZEP_003.json'),
 };
 
+const REMOTE_TIMESTAMP_FETCH_TIMEOUT_MS = 10000;
+const verseTimestampCache = new Map<string, VerseTimestamps | null>();
+const TIMING_TEMPLATE_PLACEHOLDERS = new Set([
+  '{bookId}',
+  '{chapter}',
+  '{chapterPadded}',
+]);
+
+function buildVerseTimestampMetadataFromTranslation(
+  translation: Pick<BibleTranslation, 'id' | 'catalog'> | null
+): VerseTimestampMetadata | null {
+  const catalogTiming = translation?.catalog?.timing;
+  if (!catalogTiming || catalogTiming.strategy !== 'stream-template') {
+    return translation
+      ? {
+          id: translation.id,
+          hasTiming: false,
+        }
+      : null;
+  }
+
+  return {
+    id: translation.id,
+    hasTiming: true,
+    timing: {
+      strategy: 'stream-template',
+      baseUrl: catalogTiming.baseUrl,
+      chapterPathTemplate: catalogTiming.chapterPathTemplate,
+    },
+  };
+}
+
+export function createVerseTimestampMetadataResolverFromTranslations(
+  translations: readonly BibleTranslation[]
+): VerseTimestampMetadataResolver {
+  const translationsById = new Map(translations.map((translation) => [translation.id, translation]));
+
+  return (translationId) =>
+    buildVerseTimestampMetadataFromTranslation(
+      translationsById.get(translationId) ?? getTranslationById(translationId) ?? null
+    );
+}
+
+const defaultVerseTimestampMetadataResolver: VerseTimestampMetadataResolver = (translationId) =>
+  buildVerseTimestampMetadataFromTranslation(getTranslationById(translationId) ?? null);
+
+let verseTimestampMetadataResolver: VerseTimestampMetadataResolver =
+  defaultVerseTimestampMetadataResolver;
+
+export function setVerseTimestampMetadataResolver(
+  resolver: VerseTimestampMetadataResolver | null
+): void {
+  verseTimestampMetadataResolver = resolver ?? defaultVerseTimestampMetadataResolver;
+  clearVerseTimestampCache();
+}
+
+export function syncVerseTimestampMetadataResolverWithTranslations(
+  translations: readonly BibleTranslation[]
+): void {
+  setVerseTimestampMetadataResolver(createVerseTimestampMetadataResolverFromTranslations(translations));
+}
+
+function resolveVerseTimestampMetadata(translationId: string): VerseTimestampMetadata | null {
+  try {
+    return verseTimestampMetadataResolver(translationId);
+  } catch (error) {
+    console.warn('[Bible] Failed to resolve verse timestamp metadata:', error);
+    return null;
+  }
+}
+
+function buildRemoteTimestampUrl(
+  baseUrl: string,
+  chapterPathTemplate: string,
+  bookId: string,
+  chapter: number
+): string | null {
+  if (!baseUrl || !chapterPathTemplate) {
+    return null;
+  }
+
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const chapterPadded = String(chapter).padStart(3, '0');
+  const path = chapterPathTemplate
+    .replaceAll('{bookId}', bookId)
+    .replaceAll('{chapter}', String(chapter))
+    .replaceAll('{chapterPadded}', chapterPadded);
+
+  if (Array.from(TIMING_TEMPLATE_PLACEHOLDERS).some((placeholder) => path.includes(placeholder))) {
+    return null;
+  }
+
+  return `${normalizedBaseUrl}/${path.replace(/^\/+/, '')}`;
+}
+
+function parseTimestampJson(raw: Record<string, unknown>): VerseTimestamps | null {
+  const result: VerseTimestamps = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    const verseNumber = Number(key);
+    if (!Number.isNaN(verseNumber) && typeof value === 'number' && Number.isFinite(value)) {
+      result[verseNumber] = value;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+async function fetchRemoteChapterTimestamps(
+  translationId: string,
+  bookId: string,
+  chapter: number
+): Promise<VerseTimestamps | null> {
+  const metadata = resolveVerseTimestampMetadata(translationId);
+  if (!metadata?.hasTiming || metadata.timing?.strategy !== 'stream-template') {
+    return null;
+  }
+
+  const url = buildRemoteTimestampUrl(
+    metadata.timing.baseUrl,
+    metadata.timing.chapterPathTemplate,
+    bookId,
+    chapter
+  );
+  if (!url) {
+    return null;
+  }
+
+  const cacheKey = `${translationId.toUpperCase()}/${bookId}_${String(chapter).padStart(3, '0')}`;
+  if (verseTimestampCache.has(cacheKey)) {
+    return verseTimestampCache.get(cacheKey) ?? null;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REMOTE_TIMESTAMP_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      verseTimestampCache.set(cacheKey, null);
+      return null;
+    }
+
+    const payload = (await response.json()) as unknown;
+    const parsed = isTimestampRecord(payload) ? parseTimestampJson(payload) : null;
+    verseTimestampCache.set(cacheKey, parsed);
+    return parsed;
+  } catch {
+    verseTimestampCache.set(cacheKey, null);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function isTimestampRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function clearVerseTimestampCache(): void {
+  verseTimestampCache.clear();
+}
+
 /**
  * Returns verse timestamps for a given chapter, or null if not available.
  *
@@ -1100,6 +1284,11 @@ export async function getChapterTimestamps(
   bookId: string,
   chapter: number
 ): Promise<VerseTimestamps | null> {
+  const remoteTimestamps = await fetchRemoteChapterTimestamps(translationId, bookId, chapter);
+  if (remoteTimestamps) {
+    return remoteTimestamps;
+  }
+
   try {
     const chapterPadded = String(chapter).padStart(3, '0');
     const key = `${translationId.toUpperCase()}/${bookId}_${chapterPadded}`;
@@ -1132,6 +1321,10 @@ export async function getChapterTimestamps(
  * Use to conditionally show follow-along UI affordances.
  */
 export function hasTimestampsForTranslation(translationId: string): boolean {
+  if (resolveVerseTimestampMetadata(translationId)?.hasTiming) {
+    return true;
+  }
+
   const prefix = `${translationId.toUpperCase()}/`;
   return Object.keys(TIMESTAMP_REQUIRES).some((key) => key.startsWith(prefix));
 }
