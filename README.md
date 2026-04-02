@@ -218,8 +218,8 @@ eas submit --platform android --profile production
 - The existing Expo mobile app still runs from the repository root.
 - Web work is tracked as a parallel planning/execution workstream under `.planning/workstreams/web-platform/`.
 - Shared workspace patterns for the future web apps will live under `/packages`.
-- Shared mobile-content and web-admin analytics contracts now live in Supabase RPCs so the mobile app, site, and admin all resolve against the same backend rules.
-- The admin analytics map now uses MapLibre with an open basemap and privacy-safe country-level heatmap overlays instead of the earlier Cesium globe approach.
+- Shared mobile-content and web-admin analytics now flow through a Cloudflare collector that enriches events with approximate IP-based location before storing them in Supabase for reporting.
+- The admin analytics map now uses MapLibre with an open basemap and privacy-safe approximate-location heatmap overlays instead of the earlier Cesium globe approach.
 
 ## Planned Web Workstream
 

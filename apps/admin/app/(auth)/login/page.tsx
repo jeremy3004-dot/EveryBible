@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <p className="eyebrow">EveryBible Admin</p>
         <h1>Manage content, support, distribution, and reporting in one secure place.</h1>
         <p className="lede">
-          Sign in with your EveryBible admin account to reach the dashboards, country reporting,
+          Sign in with your EveryBible admin account to reach the dashboards, location reporting,
           and operational tools that support the app and website.
         </p>
 

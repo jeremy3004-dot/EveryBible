@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <StaticPageLayout
       eyebrow="Legal"
       title="Privacy Policy"
-      intro="Last updated: January 25, 2025"
+      intro="Last updated: April 2, 2026"
     >
       <section>
         <p>
@@ -40,6 +40,17 @@ export default function PrivacyPage() {
           <li>Bookmarks and highlights</li>
           <li>App preferences and settings</li>
         </ul>
+
+        <h3>Approximate Location Data</h3>
+        <p>
+          When you use the app, our backend may derive an approximate location from your network
+          IP address and related routing information. We use this coarse location data to
+          understand where the app is being used and to power aggregate usage maps and reports.
+        </p>
+        <p>
+          We do not request, store, or use precise GPS coordinates from your device for analytics
+          or heat maps.
+        </p>
       </section>
 
       <section>
@@ -48,6 +59,7 @@ export default function PrivacyPage() {
           <li>Provide and maintain the app</li>
           <li>Sync your reading progress across devices</li>
           <li>Personalize your experience</li>
+          <li>Generate aggregate usage reporting and approximate location heat maps</li>
           <li>Send important updates about the app</li>
         </ul>
       </section>
@@ -62,12 +74,13 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2>Third-Party Services</h2>
-        <ul>
-          <li><strong>Google Sign-In</strong> for authentication</li>
-          <li><strong>Apple Sign-In</strong> for authentication</li>
-          <li><strong>Supabase</strong> for data storage and auth infrastructure</li>
-        </ul>
+      <h2>Third-Party Services</h2>
+      <ul>
+        <li><strong>Google Sign-In</strong> for authentication</li>
+        <li><strong>Apple Sign-In</strong> for authentication</li>
+        <li><strong>Cloudflare</strong> for edge request handling and approximate IP geolocation</li>
+        <li><strong>Supabase</strong> for data storage and auth infrastructure</li>
+      </ul>
       </section>
 
       <section>

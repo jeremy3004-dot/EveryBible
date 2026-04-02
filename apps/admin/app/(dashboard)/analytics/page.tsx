@@ -14,7 +14,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="analytics-page">
-      <AnalyticsGlobe metrics={analytics.countryMetrics} />
+      <AnalyticsGlobe metrics={analytics.locationMetrics} />
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">
@@ -34,8 +34,8 @@ export default async function AnalyticsPage() {
           <strong>{analytics.userCountWithListening}</strong>
         </article>
         <article className="metric-card">
-          <span>Active countries</span>
-          <strong>{analytics.activeCountryCount}</strong>
+          <span>Active locations</span>
+          <strong>{analytics.activeLocationCount}</strong>
         </article>
         <article className="metric-card">
           <span>Average engagement</span>
@@ -51,8 +51,8 @@ export default async function AnalyticsPage() {
       <section className="card">
         <div className="card__header">
           <div>
-            <p className="eyebrow">Top countries</p>
-            <h3>Country totals</h3>
+            <p className="eyebrow">Top locations</p>
+            <h3>Location totals</h3>
           </div>
         </div>
 
@@ -60,7 +60,7 @@ export default async function AnalyticsPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Country</th>
+                <th>Location</th>
                 <th>Code</th>
                 <th>Listening min</th>
                 <th>Download units</th>
@@ -68,13 +68,13 @@ export default async function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {analytics.countryMetrics.map((country) => (
-                <tr key={country.code}>
-                  <td>{country.name}</td>
-                  <td>{country.code}</td>
-                  <td>{Math.round(country.listeningMinutes)}</td>
-                  <td>{country.downloadUnits}</td>
-                  <td>{country.listenerCount}</td>
+              {analytics.locationMetrics.map((location) => (
+                <tr key={location.code}>
+                  <td>{location.name}</td>
+                  <td>{location.code}</td>
+                  <td>{Math.round(location.listeningMinutes)}</td>
+                  <td>{location.downloadUnits}</td>
+                  <td>{location.listenerCount}</td>
                 </tr>
               ))}
             </tbody>

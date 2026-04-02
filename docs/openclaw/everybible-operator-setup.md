@@ -2,7 +2,7 @@
 
 This runbook matches the Phase 10 OpenClaw operator plan: Telegram as the human-facing surface, durable memory, Codex-backed ACP escalation, and a narrow EveryBible tool boundary.
 
-Bible delivery note: the mobile app now expects Bible text/audio assets to be published from the Cloudflare R2 asset base configured through `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`. Listening analytics and download analytics stay in the existing Supabase-backed flow, so the website/admin can still report both usage streams without moving operational analytics into R2.
+Bible delivery note: the mobile app now expects Bible text/audio assets to be published from the Cloudflare R2 asset base configured through `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`. Listening analytics and download analytics still land in Supabase for reporting, but the app now sends them through a Cloudflare collector that adds coarse IP-derived location before storage.
 
 The example config in [config/openclaw/everybible-gateway.example.json](/Users/dev/Projects/EveryBible/config/openclaw/everybible-gateway.example.json) is JSON5 even though the file extension is `.json`.
 

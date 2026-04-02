@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { AnalyticsEvent, UserEngagementSummary } from '../supabase/types';
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
+import type { UserEngagementSummary } from '../supabase/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,6 +21,15 @@ export interface QueuedEvent {
   app_version: string;
   // ISO timestamp captured at queue time so ordering is accurate even before flush
   queued_at: string;
+}
+
+interface AnalyticsTransportEvent {
+  app_version: string;
+  created_at: string;
+  device_platform: string;
+  event_name: string;
+  event_properties: Record<string, unknown>;
+  session_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +93,24 @@ function buildQueuedEvent(
   };
 }
 
+function getAnalyticsCollectorBaseUrl(): string | null {
+  const rawUrl = publicRuntimeConfig.EXPO_PUBLIC_ANALYTICS_COLLECTOR_URL;
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return null;
+    }
+
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
 function requeueSnapshot(snapshot: QueuedEvent[]): void {
   const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
   if (spaceLeft > 0) {
@@ -110,11 +138,12 @@ export function trackEvent(
   }
 }
 
-// Drains the local event queue by sending all accumulated events to Supabase
-// in a single batch_track_events RPC call.
-// Returns early (success) when Supabase is not configured or no events are queued.
+// Drains the local event queue by sending all accumulated events to the
+// Cloudflare analytics collector.
+// Returns early (success) when the collector is not configured or no events are queued.
 export async function flushEvents(): Promise<AnalyticsServiceResult> {
-  if (!isSupabaseConfigured()) {
+  const collectorBaseUrl = getAnalyticsCollectorBaseUrl();
+  if (!collectorBaseUrl) {
     return { success: true };
   }
 
@@ -129,24 +158,44 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
   try {
     // Auth/session restore can fail transiently during startup, so keep the
     // drained snapshot inside the guarded path and restore it on failure.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] =
+      await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
-    const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = snapshot.map((e) => ({
-      event_name: e.event_name,
-      event_properties: e.event_properties,
-      session_id: e.session_id,
-      device_platform: e.device_platform,
-      app_version: e.app_version,
-      user_id: user?.id ?? null,
-    }));
-
-    const { error } = await supabase.rpc('batch_track_events', { events: payload });
-
-    if (error) {
+    if (sessionError || userError || !sessionData.session || !userData.user) {
       requeueSnapshot(snapshot);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: sessionError?.message ?? userError?.message ?? 'Unable to resolve the current session',
+      };
+    }
+
+    const payload: { events: AnalyticsTransportEvent[] } = {
+      events: snapshot.map((e) => ({
+        app_version: e.app_version,
+        created_at: e.queued_at,
+        device_platform: e.device_platform,
+        event_name: e.event_name,
+        event_properties: e.event_properties,
+        session_id: e.session_id,
+      })),
+    };
+
+    const response = await fetch(`${collectorBaseUrl}/analytics`, {
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+      },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      requeueSnapshot(snapshot);
+      return {
+        success: false,
+        error: errorText || `Analytics collector returned ${response.status}`,
+      };
     }
 
     return { success: true };

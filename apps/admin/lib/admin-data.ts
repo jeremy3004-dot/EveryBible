@@ -2,10 +2,10 @@ import type { OperatorAuditMetadata } from './operator-audit-metadata';
 
 import { adminNavigation } from '@/lib/admin-navigation';
 import {
-  type CountryMetric,
-  type CountryMetricRollup,
   type DailyMetricPoint,
-  mapCountryRollupsToMetrics,
+  type LocationMetric,
+  type LocationMetricRollup,
+  mapLocationRollupsToMetrics,
 } from '@/lib/analytics-reporting';
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
@@ -197,9 +197,9 @@ export interface SupportUserDetail {
 }
 
 export interface AnalyticsOverview {
-  activeCountryCount: number;
+  activeLocationCount: number;
   averageEngagementScore: number;
-  countryMetrics: CountryMetric[];
+  locationMetrics: LocationMetric[];
   dailyDownloadUnits: DailyMetricPoint[];
   dailyListeningMinutes: Array<{ day: string; minutes: number }>;
   listeningTotalMinutes: number;
@@ -209,9 +209,9 @@ export interface AnalyticsOverview {
 }
 
 interface AnalyticsOverviewRpcPayload {
-  activeCountryCount?: number;
+  activeLocationCount?: number;
   averageEngagementScore?: number;
-  countryMetrics?: CountryMetricRollup[];
+  locationMetrics?: LocationMetricRollup[];
   dailyDownloadUnits?: DailyMetricPoint[];
   dailyListeningMinutes?: DailyMetricPoint[];
   listeningTotalMinutes?: number;
@@ -746,16 +746,16 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   }
 
   const overview = ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {};
-  const countryMetrics = mapCountryRollupsToMetrics(overview.countryMetrics ?? []);
+  const locationMetrics = mapLocationRollupsToMetrics(overview.locationMetrics ?? []);
   const dailyListeningMinutes = (overview.dailyListeningMinutes ?? []).map((point) => ({
     day: point.day,
     minutes: Number(point.value ?? 0),
   }));
 
   return {
-    activeCountryCount: Number(overview.activeCountryCount ?? countryMetrics.length),
+    activeLocationCount: Number(overview.activeLocationCount ?? locationMetrics.length),
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
-    countryMetrics,
+    locationMetrics,
     dailyDownloadUnits: (overview.dailyDownloadUnits ?? []).map((point) => ({
       day: point.day,
       value: Number(point.value ?? 0),

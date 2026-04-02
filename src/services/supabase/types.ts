@@ -200,6 +200,15 @@ export interface AnalyticsEvent {
   session_id: string | null;
   device_platform: string | null;
   app_version: string | null;
+  geo_accuracy_km: number | null;
+  geo_city: string | null;
+  geo_country_code: string | null;
+  geo_latitude: number | null;
+  geo_longitude: number | null;
+  geo_region_code: string | null;
+  geo_region_name: string | null;
+  geo_source: string | null;
+  geo_timezone: string | null;
   created_at: string;
 }
 

@@ -12,7 +12,7 @@ test('analytics page puts the globe hero before secondary analytics sections', a
     'utf8'
   );
 
-  const globeIndex = pageSource.indexOf('<AnalyticsGlobe metrics={analytics.countryMetrics} />');
+  const globeIndex = pageSource.indexOf('<AnalyticsGlobe metrics={analytics.locationMetrics} />');
   const metricsIndex = pageSource.indexOf('<section className="metric-grid analytics-page__metrics">');
   const dailyTrendsIndex = pageSource.indexOf('<DailyTrendsPanel');
   const oldTrendIndex = pageSource.indexOf('<section className="two-column analytics-page__trends">');
@@ -29,5 +29,9 @@ test('analytics page puts the globe hero before secondary analytics sections', a
   assert.equal(oldTrendIndex, -1, 'expected old two-column trend section to be removed');
   assert.ok(globeIndex < metricsIndex, 'globe should appear before the metrics grid');
   assert.ok(globeIndex < dailyTrendsIndex, 'globe should appear before the daily trends panel');
-  assert.ok(dailyTrendsIndex < tableIndex, 'daily trends should appear before the country table');
+  assert.ok(dailyTrendsIndex < tableIndex, 'daily trends should appear before the location table');
+  assert.match(pageSource, /Active locations/);
+  assert.match(pageSource, /Top locations/);
+  assert.match(pageSource, /Location totals/);
+  assert.match(pageSource, /analytics\.locationMetrics\.map/);
 });
