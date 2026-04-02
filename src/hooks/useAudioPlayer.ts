@@ -14,7 +14,7 @@ import {
 } from '../services/audio';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackEvent } from '../services/analytics';
-import { getBookById } from '../constants';
+import { getAdjacentBibleChapter, getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
 import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
@@ -341,18 +341,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return;
     }
 
-    const nextChapterNum = chapterNum + 1;
-
-    // Check if there's a next chapter in this book
-    if (nextChapterNum <= currentBook.chapters && playChapterForTranslationRef.current) {
-      // Auto-advance to next chapter
+    const adjacentChapter = getAdjacentBibleChapter(bookId, chapterNum, 1);
+    if (adjacentChapter && playChapterForTranslationRef.current) {
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
-        bookId,
-        nextChapterNum
+        adjacentChapter.bookId,
+        adjacentChapter.chapter
       );
     } else {
-      // End of book - stop playback
       setStatus('idle');
     }
   }, [setStatus, translationId]);
@@ -614,13 +610,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return previousSequenceEntry;
     }
 
-    if (!currentBookId || !currentChapter || currentChapter <= 1) return null;
+    if (!currentBookId || !currentChapter) return null;
+    const adjacentChapter = getAdjacentBibleChapter(currentBookId, currentChapter, -1);
+    if (!adjacentChapter) return null;
     await playChapterForTranslation(
       currentTranslationId ?? translationId,
-      currentBookId,
-      currentChapter - 1
+      adjacentChapter.bookId,
+      adjacentChapter.chapter
     );
-    return { bookId: currentBookId, chapter: currentChapter - 1 };
+    return adjacentChapter;
   }, [
     currentBookId,
     currentChapter,
@@ -664,16 +662,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (!currentBookId || !currentChapter) return null;
-
-    const book = getBookById(currentBookId);
-    if (!book || currentChapter >= book.chapters) return null;
+    const adjacentChapter = getAdjacentBibleChapter(currentBookId, currentChapter, 1);
+    if (!adjacentChapter) return null;
 
     await playChapterForTranslation(
       currentTranslationId ?? translationId,
-      currentBookId,
-      currentChapter + 1
+      adjacentChapter.bookId,
+      adjacentChapter.chapter
     );
-    return { bookId: currentBookId, chapter: currentChapter + 1 };
+    return adjacentChapter;
   }, [
     currentBookId,
     currentChapter,

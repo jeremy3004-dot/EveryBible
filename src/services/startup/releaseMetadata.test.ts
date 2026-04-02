@@ -145,8 +145,12 @@ test('release docs match the supported distribution and Google sign-in contract'
   assert.match(readme, /EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID/);
   assert.match(readme, /EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID/);
   assert.match(readme, /npm run release:prepare/);
+  assert.match(readme, /npm run testflight:submit-and-verify/);
+  assert.match(readme, /npm run testflight:verify-distribution/);
   assert.match(readme, /scripts\/testflight_precheck\.sh/);
   assert.match(readme, /scripts\/testflight_release_guard\.ts/);
+  assert.match(claude, /npm run testflight:submit-and-verify/);
+  assert.match(claude, /npm run testflight:verify-distribution/);
   assert.match(claude, /scripts\/testflight_precheck\.sh/);
   assert.match(claude, /npm run release:prepare/);
   assert.match(claude, /scripts\/testflight_release_guard\.ts/);

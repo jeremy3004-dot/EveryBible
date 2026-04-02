@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildReaderChapterRouteParams,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
+  getNextBibleTabBarVisibility,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
   isReaderChromeCollapsed,
@@ -74,6 +75,64 @@ test('uses a slightly more open line height for reader verses', () => {
 test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'selectTranslation'), false);
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
+});
+
+test('keeps the Bible tab bar open in listen mode', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'listen',
+      action: 'enter',
+    }),
+    true
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'listen',
+      action: 'scrollStart',
+      previousScrollOffsetY: 120,
+      currentScrollOffsetY: 240,
+      velocityY: 900,
+    }),
+    true
+  );
+});
+
+test('hides the Bible tab bar when read mode scrolling starts', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollStart',
+      previousScrollOffsetY: 0,
+      currentScrollOffsetY: 36,
+      velocityY: 0,
+    }),
+    false
+  );
+});
+
+test('shows the Bible tab bar only on a fast upward flick in read mode', () => {
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 240,
+      currentScrollOffsetY: 120,
+      velocityY: 250,
+    }),
+    false
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollEndDrag',
+      previousScrollOffsetY: 240,
+      currentScrollOffsetY: 120,
+      velocityY: 600,
+    }),
+    true
+  );
 });
 
 test('builds chapter route params that preserve the current reader session mode', () => {

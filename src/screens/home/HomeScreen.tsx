@@ -5,6 +5,7 @@ import {
   Image,
   ImageBackground,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   InteractionManager,
   useWindowDimensions,
@@ -25,7 +26,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useProgressStore } from '../../stores/progressStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
-import { gatherFoundations } from '../../data/gatherFoundations';
+import {
+  FOUNDATION_DESC_KEYS,
+  FOUNDATION_TITLE_KEYS,
+  gatherFoundations,
+} from '../../data/gatherFoundations';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
@@ -95,6 +100,14 @@ export function HomeScreen() {
   })();
   const activeFoundationDone = completedLessons[activeFoundation.id]?.length ?? 0;
   const activeFoundationTotal = activeFoundation.lessons.length;
+  const activeFoundationTitle = FOUNDATION_TITLE_KEYS[activeFoundation.id]
+    ? t(FOUNDATION_TITLE_KEYS[activeFoundation.id])
+    : activeFoundation.title;
+  const activeFoundationDescription = FOUNDATION_DESC_KEYS[activeFoundation.id]
+    ? t(FOUNDATION_DESC_KEYS[activeFoundation.id])
+    : activeFoundation.description;
+  const foundationCardEyebrow =
+    activeFoundationDone > 0 ? t('gather.foundations') : t('gather.getStarted');
 
   const loadVerseOfDay = useCallback(
     async ({
@@ -519,17 +532,23 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-          <View
-            style={[
-              styles.content,
-              {
-                paddingHorizontal: homeLayout.screenPadding,
-                paddingVertical: homeLayout.screenPadding,
-                paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
-                gap: homeLayout.sectionGap,
-              },
-            ]}
-          >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: homeLayout.screenPadding,
+            paddingVertical: homeLayout.screenPadding,
+            paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
+            gap: homeLayout.sectionGap,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces
+        alwaysBounceVertical
+        overScrollMode="always"
+        contentInsetAdjustmentBehavior="never"
+      >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
           <View style={styles.headerBlock}>
             <Text
@@ -579,7 +598,7 @@ export function HomeScreen() {
               adjustsFontSizeToFit
               minimumFontScale={0.78}
             >
-              {activeFoundationDone > 0 ? 'CONTINUE IN FOUNDATIONS' : 'GET STARTED'}
+              {foundationCardEyebrow}
             </Text>
             <View
               style={[
@@ -632,7 +651,7 @@ export function HomeScreen() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.82}
                 >
-                  {`Foundations ${activeFoundation.number}: ${activeFoundation.title}`}
+                  {`${t('gather.foundationLabel', { number: activeFoundation.number })}: ${activeFoundationTitle}`}
                 </Text>
                 <Text
                   style={[styles.foundationCardSubtitle, { color: colors.secondaryText }]}
@@ -640,13 +659,16 @@ export function HomeScreen() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.82}
                 >
-                  {activeFoundation.description}
+                  {activeFoundationDescription}
                 </Text>
                 <Text
                   style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}
                   numberOfLines={1}
                 >
-                  {`${activeFoundationDone} / ${activeFoundationTotal} lessons`}
+                  {t('gather.lessonsProgress', {
+                    completed: activeFoundationDone,
+                    total: activeFoundationTotal,
+                  })}
                 </Text>
               </View>
             </View>
@@ -847,7 +869,7 @@ export function HomeScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -856,8 +878,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
   },
   greeting: {
     ...typography.screenTitle,

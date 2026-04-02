@@ -157,6 +157,40 @@ export const getTranslatedBookName = (
   return translated;
 };
 
+export interface AdjacentBibleChapter {
+  bookId: string;
+  chapter: number;
+}
+
+export const getAdjacentBibleChapter = (
+  bookId: string,
+  chapter: number,
+  direction: -1 | 1
+): AdjacentBibleChapter | null => {
+  const currentBookIndex = bibleBooks.findIndex((book) => book.id === bookId);
+  if (currentBookIndex === -1) {
+    return null;
+  }
+
+  const currentBook = bibleBooks[currentBookIndex];
+
+  if (direction === -1) {
+    if (chapter > 1) {
+      return { bookId, chapter: chapter - 1 };
+    }
+
+    const previousBook = bibleBooks[currentBookIndex - 1];
+    return previousBook ? { bookId: previousBook.id, chapter: previousBook.chapters } : null;
+  }
+
+  if (chapter < currentBook.chapters) {
+    return { bookId, chapter: chapter + 1 };
+  }
+
+  const nextBook = bibleBooks[currentBookIndex + 1];
+  return nextBook ? { bookId: nextBook.id, chapter: 1 } : null;
+};
+
 export const getBooksByTestament = (testament: Testament): BibleBook[] =>
   bibleBooks.filter((book) => book.testament === testament);
 

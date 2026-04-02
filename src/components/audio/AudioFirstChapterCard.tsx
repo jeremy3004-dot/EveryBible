@@ -1,9 +1,8 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
-import { getBookById, getBookIcon } from '../../constants';
+import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
@@ -136,6 +135,7 @@ export function AudioFirstChapterCard({
   const hasPreviousChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const remainingDuration = Math.max(displayDuration - displayPosition, 0);
+  const localizedBookName = getTranslatedBookName(bookId, t);
 
   return (
     <View style={styles.card}>
@@ -154,31 +154,13 @@ export function AudioFirstChapterCard({
       <View style={styles.metaRow}>
         <View style={styles.metaBlock}>
           <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-            {book?.name} {chapter}
+            {localizedBookName} {chapter}
           </Text>
           <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
             {translationLabel}
           </Text>
         </View>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.share')}
-          activeOpacity={0.88}
-          style={[
-            styles.shareButton,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-          onPress={onShare}
-        >
-          <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
-          <Text style={[styles.shareButtonText, { color: colors.biblePrimaryText }]}>
-            {t('groups.share')}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.controlBlock}>
@@ -198,7 +180,7 @@ export function AudioFirstChapterCard({
             {formatTime(displayPosition)}
           </Text>
           <Text style={[styles.timeCenterText, { color: colors.bibleSecondaryText }]}>
-            {book?.name} {chapter}
+            {localizedBookName} {chapter}
           </Text>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
             -{formatTime(remainingDuration)}
@@ -223,6 +205,7 @@ export function AudioFirstChapterCard({
           onCycleRepeatMode={cycleRepeatMode}
           onSetSleepTimer={startSleepTimer}
           onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
+          onShareAudio={onShare}
         />
 
         {error ? (
@@ -238,9 +221,9 @@ export function AudioFirstChapterCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    paddingBottom: 12,
+    paddingBottom: 20,
     gap: 24,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   artworkFrame: {
     alignSelf: 'stretch',
@@ -270,19 +253,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  shareButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   controlBlock: {
     gap: 18,

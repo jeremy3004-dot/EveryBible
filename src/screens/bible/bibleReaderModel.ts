@@ -8,6 +8,7 @@ export type FontSizeSheetAction =
 
 export type TranslationSheetAction = 'toggleChip' | 'selectTranslation' | 'dismiss';
 export type ChapterSessionMode = 'listen' | 'read';
+export type BibleTabBarVisibilityAction = 'enter' | 'scrollStart' | 'scrollEndDrag';
 
 interface ReaderChapterRouteParamsInput {
   bookId: string;
@@ -53,6 +54,14 @@ interface NextFollowAlongVisibilityInput {
   currentlyVisible: boolean;
   nextSessionMode: ChapterSessionMode;
   hasText: boolean;
+}
+
+interface BibleTabBarVisibilityInput {
+  sessionMode: ChapterSessionMode;
+  action: BibleTabBarVisibilityAction;
+  previousScrollOffsetY?: number;
+  currentScrollOffsetY?: number;
+  velocityY?: number;
 }
 
 interface ShouldAutoplayChapterAudioInput {
@@ -305,6 +314,27 @@ export const getNextFollowAlongVisibility = ({
   hasText,
 }: NextFollowAlongVisibilityInput): boolean =>
   currentlyVisible && nextSessionMode === 'listen' && hasText;
+
+export const getNextBibleTabBarVisibility = ({
+  sessionMode,
+  action,
+  previousScrollOffsetY = 0,
+  currentScrollOffsetY = 0,
+  velocityY = 0,
+}: BibleTabBarVisibilityInput): boolean => {
+  if (sessionMode === 'listen') {
+    return true;
+  }
+
+  switch (action) {
+    case 'enter':
+      return true;
+    case 'scrollStart':
+      return false;
+    case 'scrollEndDrag':
+      return currentScrollOffsetY < previousScrollOffsetY && Math.abs(velocityY) >= SWIPE_VELOCITY_MIN;
+  }
+};
 
 export const shouldAutoplayChapterAudio = ({
   translationId,

@@ -10,6 +10,11 @@ test('parseBibleDeepLink returns correct result for /bible/john/3/16', () => {
   assert.deepEqual(result, { bookId: 'JHN', chapter: 3, verse: 16 } satisfies BibleDeepLinkTarget);
 });
 
+test('parseBibleDeepLink also accepts a path without the leading slash', () => {
+  const result = parseBibleDeepLink('bible/john/3/16');
+  assert.deepEqual(result, { bookId: 'JHN', chapter: 3, verse: 16 } satisfies BibleDeepLinkTarget);
+});
+
 // DEEP-02: parseBibleDeepLink — multi-word book slug (1corinthians)
 test('parseBibleDeepLink returns correct result for /bible/1corinthians/13', () => {
   const result = parseBibleDeepLink('/bible/1corinthians/13');

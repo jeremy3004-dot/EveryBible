@@ -41,7 +41,17 @@ test('AudioFirstChapterCard removes redundant watermark art and explanatory audi
   );
 });
 
-test('AudioFirstChapterCard exposes a visible share button beside the chapter metadata', () => {
+test('AudioFirstChapterCard keeps the listen controls comfortably above the bottom edge', () => {
+  const source = readRelativeSource('./AudioFirstChapterCard.tsx');
+
+  assert.match(
+    source,
+    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*paddingBottom:\s*20,[\s\S]*justifyContent:\s*'flex-start'/s,
+    'AudioFirstChapterCard should top-align its content so the playback controls do not clip at the bottom of the viewport'
+  );
+});
+
+test('AudioFirstChapterCard moves audio sharing into the shared playback controls', () => {
   const source = readRelativeSource('./AudioFirstChapterCard.tsx');
 
   assert.match(
@@ -52,19 +62,29 @@ test('AudioFirstChapterCard exposes a visible share button beside the chapter me
 
   assert.match(
     source,
-    /metaRow:\s*{/,
-    'AudioFirstChapterCard should define a metadata row that can hold the new share affordance beside the title copy'
+    /<PlaybackControls[\s\S]*onShareAudio=\{onShare\}/s,
+    'AudioFirstChapterCard should pass the audio-share callback into PlaybackControls'
   );
+
+  assert.equal(
+    source.includes('shareButton'),
+    false,
+    'AudioFirstChapterCard should not keep a separate share button in the metadata row once PlaybackControls owns it'
+  );
+});
+
+test('AudioFirstChapterCard localizes the displayed Bible book name', () => {
+  const source = readRelativeSource('./AudioFirstChapterCard.tsx');
 
   assert.match(
     source,
-    /Ionicons[\s\S]*name="share-outline"/,
-    'AudioFirstChapterCard should render a share icon for the new audio share action'
+    /getTranslatedBookName\(bookId, t\)/,
+    'AudioFirstChapterCard should resolve the chapter title through the translated book-name helper'
   );
 
-  assert.match(
-    source,
-    /onPress=\{onShare\}[\s\S]*t\('groups\.share'\)/s,
-    'AudioFirstChapterCard should wire the visible share button to the provided callback and label it accessibly'
+  assert.equal(
+    source.includes('{book?.name}'),
+    false,
+    'AudioFirstChapterCard should not render the raw English book catalog name in the player chrome'
   );
 });

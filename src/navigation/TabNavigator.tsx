@@ -15,6 +15,32 @@ import { layout, spacing, typography } from '../design/system';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
+type NestedTabRouteState = {
+  index?: number;
+  routes?: Array<{
+    name: string;
+    params?: {
+      tabBarVisible?: boolean;
+    };
+  }>;
+};
+
+function shouldKeepBibleTabBarVisible(route: {
+  name: string;
+  state?: NestedTabRouteState;
+}): boolean {
+  if (route.name !== 'Bible') {
+    return true;
+  }
+
+  const focusedRoute = route.state?.routes?.[route.state.index ?? 0];
+  if (focusedRoute?.name !== 'BibleReader') {
+    return true;
+  }
+
+  return focusedRoute.params?.tabBarVisible !== false;
+}
+
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -31,18 +57,31 @@ export function TabNavigator() {
 
   return (
     <Tab.Navigator
+      id="RootTab"
       screenOptions={({ route }) => ({
         headerShown: false,
         freezeOnBlur: true,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle:
-          route.name === 'Home'
-            ? defaultTabBarStyle
-            : (route.name === 'Bible' || route.name === 'Learn') &&
-                shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route))
-              ? { display: 'none' }
-              : defaultTabBarStyle,
+        tabBarStyle: (() => {
+          if (route.name === 'Home') {
+            return defaultTabBarStyle;
+          }
+
+          const shouldHideNestedBibleScreen =
+            (route.name === 'Bible' || route.name === 'Learn') &&
+            shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
+          const shouldHideBibleReaderTabBar =
+            route.name === 'Bible' &&
+            !shouldKeepBibleTabBarVisible(route as {
+              name: string;
+              state?: NestedTabRouteState;
+            });
+
+          return shouldHideNestedBibleScreen || shouldHideBibleReaderTabBar
+            ? { display: 'none' }
+            : defaultTabBarStyle;
+        })(),
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {
           paddingTop: spacing.xs,

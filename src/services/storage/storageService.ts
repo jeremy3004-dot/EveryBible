@@ -51,7 +51,6 @@ const readImageAsUint8Array = async (uri: string): Promise<Uint8Array> => {
     encoding: 'base64' as const,
   });
 
-  // eslint-disable-next-line no-undef
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {

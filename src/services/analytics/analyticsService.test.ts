@@ -106,8 +106,17 @@ test('analyticsService flushEvents re-queues events on Supabase RPC failure', ()
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(
     source,
-    /eventQueue\.unshift/,
+    /requeueSnapshot\(snapshot\)|eventQueue\.unshift/,
     'Failed events must be re-queued via unshift to preserve ordering'
+  );
+});
+
+test('analyticsService keeps auth lookup inside guarded flush path so rejected getUser restores the queue', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+  assert.match(
+    source,
+    /try\s*{[\s\S]*await supabase\.auth\.getUser\(\)[\s\S]*catch\s*\(error\)\s*{[\s\S]*requeueSnapshot\(snapshot\)/,
+    'flushEvents must restore queued events when auth lookup fails during startup/session restore'
   );
 });
 

@@ -28,3 +28,31 @@ test('useAudioPlayer imports only the stores it needs', () => {
     'useAudioPlayer should import the library store directly'
   );
 });
+
+test('useAudioPlayer uses canonical adjacent-book chapter resolution for manual and automatic chapter transitions', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /import \{ getAdjacentBibleChapter, getBookById \} from '\.\.\/constants';/,
+    'useAudioPlayer should import the shared adjacent-chapter helper from the Bible constants module'
+  );
+
+  assert.match(
+    source,
+    /getAdjacentBibleChapter\(bookId, chapterNum, 1\)/,
+    'useAudioPlayer playback-finished handling should resolve the next chapter across book boundaries'
+  );
+
+  assert.match(
+    source,
+    /getAdjacentBibleChapter\(currentBookId, currentChapter, -1\)/,
+    'useAudioPlayer previousChapter should move into the prior book when the current chapter is chapter 1'
+  );
+
+  assert.match(
+    source,
+    /getAdjacentBibleChapter\(currentBookId, currentChapter, 1\)/,
+    'useAudioPlayer nextChapter should move into the next book when the current chapter is the last chapter'
+  );
+});

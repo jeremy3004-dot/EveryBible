@@ -37,7 +37,8 @@ const BOOK_ID_TO_SLUG: Record<string, string> = Object.fromEntries(
  *   parseBibleDeepLink('/bible/unknown/3/16') => null
  */
 export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => {
-  const match = path.match(/^\/bible\/([^/]+)\/(\d+)(?:\/(\d+))?/);
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const match = normalizedPath.match(/^\/bible\/([^/]+)\/(\d+)(?:\/(\d+))?/);
   if (!match) return null;
 
   const [, bookSlug, chapterStr, verseStr] = match;
