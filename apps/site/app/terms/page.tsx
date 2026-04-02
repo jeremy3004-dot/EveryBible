@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 import { StaticPageLayout } from '../../components/StaticPageLayout';
 
 export const metadata: Metadata = {
-  title: 'EveryBible Terms of Service',
+  title: 'Every Seven Nine Terms of Service',
   description:
-    'Read the EveryBible terms covering acceptable use, accounts, intellectual property, and limitations of liability.',
+    'Read the Every Seven Nine terms covering acceptable use, accounts, intellectual property, and limitations of liability.',
 };
 
 export default function TermsPage() {
@@ -17,7 +17,7 @@ export default function TermsPage() {
     >
       <section>
         <p>
-          Welcome to EveryBible. By downloading, installing, or using our app and related
+          Welcome to Every Seven Nine. By downloading, installing, or using our app and related
           services, you agree to these Terms of Service.
         </p>
       </section>
@@ -25,14 +25,14 @@ export default function TermsPage() {
       <section>
         <h2>1. Acceptance of Terms</h2>
         <p>
-          By using EveryBible, you agree to be bound by these Terms. If you do not agree, do not
-          use the service.
+          By using Every Seven Nine products and services, you agree to be bound by these Terms.
+          If you do not agree, do not use the service.
         </p>
       </section>
 
       <section>
         <h2>2. Description of Service</h2>
-        <p>EveryBible provides:</p>
+        <p>Every Seven Nine provides:</p>
         <ul>
           <li>Access to Bible texts</li>
           <li>Audio Bible listening</li>
@@ -64,7 +64,7 @@ export default function TermsPage() {
         <h2>5. Intellectual Property</h2>
         <p>
           The app and its original content, excluding Bible texts and other third-party content
-          distributed under their own licenses, are owned by EveryBible and protected by
+          distributed under their own licenses, are owned by Every Seven Nine and protected by
           applicable law.
         </p>
         <p>
@@ -84,7 +84,7 @@ export default function TermsPage() {
       <section>
         <h2>7. Limitation of Liability</h2>
         <p>
-          To the maximum extent permitted by law, EveryBible is not liable for indirect,
+          To the maximum extent permitted by law, Every Seven Nine is not liable for indirect,
           incidental, special, or consequential damages arising from your use of the service.
         </p>
       </section>

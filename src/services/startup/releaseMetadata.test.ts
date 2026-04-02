@@ -10,6 +10,7 @@ interface AppConfig {
     description?: string;
     extra?: {
       privacyPolicyUrl?: string;
+      termsOfServiceUrl?: string;
     };
   };
 }
@@ -90,6 +91,7 @@ test('release metadata stays aligned across tracked config and generated native 
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
   const appDescription = appConfig.expo.description?.trim() ?? '';
   const privacyPolicyUrl = appConfig.expo.extra?.privacyPolicyUrl?.trim() ?? '';
+  const termsOfServiceUrl = appConfig.expo.extra?.termsOfServiceUrl?.trim() ?? '';
 
   assert.equal(packageJson.version, appVersion);
   assert.equal(iosMarketingVersion, appVersion);
@@ -98,8 +100,13 @@ test('release metadata stays aligned across tracked config and generated native 
   assert.ok(appDescription.length > 0, 'Expected app.json expo.description for release metadata');
   assert.match(
     privacyPolicyUrl,
-    /^https:\/\//,
+    /^https:\/\/everysevennine\.tech\/privacy$/,
     'Expected app.json expo.extra.privacyPolicyUrl to provide the canonical HTTPS privacy policy reference'
+  );
+  assert.match(
+    termsOfServiceUrl,
+    /^https:\/\/everysevennine\.tech\/terms$/,
+    'Expected app.json expo.extra.termsOfServiceUrl to provide the canonical HTTPS terms reference'
   );
 
   if (infoPlist) {

@@ -7,7 +7,7 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('AboutScreen uses the EveryBible website and support contact details', () => {
+test('AboutScreen uses the Every Seven Nine website and support contact details', () => {
   const source = readRelativeSource('./AboutScreen.tsx');
 
   assert.ok(
@@ -16,13 +16,13 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
   );
 
   assert.ok(
-    source.includes('https://everybible.app'),
-    'AboutScreen should link to the EveryBible website'
+    source.includes('https://everysevennine.tech'),
+    'AboutScreen should link to the Every Seven Nine website'
   );
 
   assert.ok(
     source.includes("defaultValue: ABOUT_WEBSITE_LABEL"),
-    'AboutScreen should show the EveryBible website label instead of a raw key'
+    'AboutScreen should show the Every Seven Nine website label instead of a raw key'
   );
 
   assert.ok(
@@ -46,13 +46,13 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
   );
 
   assert.ok(
-    source.includes('https://everybible.app/privacy'),
-    'AboutScreen should link to the EveryBible privacy page'
+    source.includes('https://everysevennine.tech/privacy'),
+    'AboutScreen should link to the Every Seven Nine privacy page'
   );
 
   assert.ok(
-    source.includes('https://everybible.app/terms'),
-    'AboutScreen should link to the EveryBible terms page'
+    source.includes('https://everysevennine.tech/terms'),
+    'AboutScreen should link to the Every Seven Nine terms page'
   );
 
   assert.equal(

@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 import { StaticPageLayout } from '../../components/StaticPageLayout';
 
 export const metadata: Metadata = {
-  title: 'EveryBible Privacy Policy',
+  title: 'Every Seven Nine Privacy Policy',
   description:
-    'Read the EveryBible privacy policy covering account data, usage data, storage, third-party services, and user rights.',
+    'Read the Every Seven Nine privacy policy covering account data, usage data, storage, third-party services, and user rights.',
 };
 
 export default function PrivacyPage() {
@@ -17,9 +17,9 @@ export default function PrivacyPage() {
     >
       <section>
         <p>
-          EveryBible (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting
-          your privacy. This Privacy Policy explains how we collect, use, and safeguard your
-          information when you use our mobile application and related services.
+          Every Seven Nine (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to
+          protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard
+          your information when you use our mobile application and related services.
         </p>
       </section>
 

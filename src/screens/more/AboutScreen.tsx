@@ -7,9 +7,11 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { config } from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
 
-const ABOUT_WEBSITE_URL = 'https://everybible.app';
-const ABOUT_WEBSITE_LABEL = 'everybible.app';
+const ABOUT_WEBSITE_URL = 'https://everysevennine.tech';
+const ABOUT_WEBSITE_LABEL = 'everysevennine.tech';
 const ABOUT_SUPPORT_EMAIL = 'hello@everybible.app';
+const ABOUT_PRIVACY_POLICY_URL = 'https://everysevennine.tech/privacy';
+const ABOUT_TERMS_OF_SERVICE_URL = 'https://everysevennine.tech/terms';
 const ABOUT_RESOURCES_LABEL = 'Resources';
 const ABOUT_MADE_WITH_LOVE = 'Made with love';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
@@ -77,7 +79,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink('https://everybible.app/privacy')}
+            onPress={() => handleLink(ABOUT_PRIVACY_POLICY_URL)}
           >
             <Ionicons name="shield-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.privacyPolicy')}</Text>
@@ -86,7 +88,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={[styles.linkItem, styles.linkItemLast]}
-            onPress={() => handleLink('https://everybible.app/terms')}
+            onPress={() => handleLink(ABOUT_TERMS_OF_SERVICE_URL)}
           >
             <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>
