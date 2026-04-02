@@ -2,6 +2,11 @@
 
 A mobile Bible study app with offline access, audio playback, discipleship training, and group study features.
 
+This repository now also carries the live code for a parallel web workstream:
+
+- `everybible.app` public marketing site
+- `admin.everybible.app` internal admin platform
+
 ## Overview
 
 EveryBible is a comprehensive Bible study application built with React Native and Expo. It provides:
@@ -65,6 +70,17 @@ Optional for full features:
 
 Expo also mirrors the supported `EXPO_PUBLIC_*` auth/runtime values into `extra.publicRuntimeConfig` during builds via [`app.config.js`](./app.config.js), so preview and production bundles must be created with these variables available.
 
+For the web apps, `.env.example` also includes the required Next.js and admin variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_ADMIN_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `EVERYBIBLE_UPSTREAM_API_BASE_URL`
+- `EVERYBIBLE_UPSTREAM_API_KEY`
+
+If those admin variables are missing, `admin.everybible.app` now renders a setup screen listing the missing keys instead of crashing with a server error.
+
 ### 3. Supabase Setup
 
 1. Create a Supabase project at https://supabase.com
@@ -125,6 +141,10 @@ npm run release:verify    # Lint + typecheck + release metadata + focused releas
 npm run lint:fix          # Auto-fix ESLint issues
 npm run format            # Format code with Prettier
 npm run format:check      # Check code formatting
+npm run site:build        # Build the public Next.js site
+npm run admin:build       # Build the internal Next.js admin app
+npm run admin:lint        # Lint the admin app
+npm run admin:typecheck   # Type-check the admin app
 ```
 
 ### Building
@@ -149,11 +169,20 @@ eas build --profile production --platform android
 # Pre-build release guard for local iOS signing and branch sync
 npm run release:prepare  # runs scripts/testflight_release_guard.ts after release metadata checks
 
+# Submit and verify TestFlight distribution in one step
+TESTFLIGHT_TESTER_EMAIL=curryj@protonmail.com \
+TESTFLIGHT_GROUP_NAME='Internal Testers' \
+IPA_PATH=/absolute/path/to/app.ipa \
+npm run testflight:submit-and-verify
+
 # Preflight an iOS IPA before submission
 bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
 
-# Submit to App Store / TestFlight
-eas submit --platform ios --profile production
+# Verify an already-submitted build is visible to the intended tester/group
+TESTFLIGHT_TESTER_EMAIL=curryj@protonmail.com \
+TESTFLIGHT_GROUP_NAME='Internal Testers' \
+BUILD_VERSION=250 \
+npm run testflight:verify-distribution
 
 # Submit to Google Play
 eas submit --platform android --profile production
@@ -162,6 +191,8 @@ eas submit --platform android --profile production
 ## Project Structure
 
 ```
+/apps            - Web workspaces for the public site and internal admin
+/packages        - Shared web/mobile contracts and utilities
 /src
   /components     - Reusable UI components
   /constants      - Static data and configuration
@@ -181,6 +212,28 @@ eas submit --platform android --profile production
 /assets           - Images, icons, splash screens
 /scripts          - Build and utility scripts
 ```
+
+## Workspace Notes
+
+- The existing Expo mobile app still runs from the repository root.
+- Web work is tracked as a parallel planning/execution workstream under `.planning/workstreams/web-platform/`.
+- Shared workspace patterns for the future web apps will live under `/packages`.
+- Shared mobile-content and web-admin analytics contracts now live in Supabase RPCs so the mobile app, site, and admin all resolve against the same backend rules.
+- The admin analytics map now uses MapLibre with an open basemap and privacy-safe country-level heatmap overlays instead of the earlier Cesium globe approach.
+
+## Planned Web Workstream
+
+The web/admin initiative is documented here:
+
+- `.planning/workstreams/web-platform/PROJECT.md`
+- `.planning/workstreams/web-platform/ROADMAP.md`
+- `.planning/workstreams/web-platform/EXECUTION-LANES.md`
+
+The execution model is split intentionally:
+
+- `gpt-5.4` for architecture, backend, auth, data, sync, and risk-heavy work
+- `gpt-5.4-mini` for approved UI implementation work
+- `gpt-5.4` for integration review gates
 
 ## Key Features
 

@@ -94,7 +94,6 @@ eas build --platform ios --profile development    # Dev build with dev client (l
 eas build --platform ios --profile preview        # Internal distribution build with embedded JS bundle
 eas build --platform ios --profile production     # Store/TestFlight submission build with embedded JS bundle
 eas build --platform android --profile production # Android production build
-eas submit --platform ios --profile production    # Submit iOS to App Store/TestFlight
 eas submit --platform android --profile production # Submit Android to Play Store
 ```
 
@@ -105,6 +104,8 @@ eas build --platform ios --profile production --local
 - Default to a local EAS production build first for TestFlight releases.
 - Let EAS use remote Expo-managed iOS credentials when they are configured for the project.
 - Do not treat absent local signing artifacts (`credentials.json`, `.p12`, `.mobileprovision`) as a blocker unless the release explicitly requires manual local credentials.
+- For TestFlight, do not stop at upload/submission. Use `npm run testflight:submit-and-verify` so the build is submitted and then verified against the intended tester/group before marking the release done.
+- If a build is already uploaded, use `npm run testflight:verify-distribution` to confirm the intended tester/group can actually see it before telling anyone it is live.
 
 ### Supabase
 ```bash
