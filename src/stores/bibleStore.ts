@@ -40,7 +40,7 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
-import { trackEvent } from '../services/analytics/analyticsService';
+import { trackEvent, primeAnalyticsLocationForCurrentSession } from '../services/analytics';
 import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
@@ -419,6 +419,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadTranslation: async (translationId: string, _bookId?: string) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((t) => t.id === translationId);
         const hasInstalledTextPack = Boolean(translation?.textPackLocalPath);
         const isBundledSeed = Boolean(
@@ -557,6 +558,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadAudioForBook: async (translationId: string, bookId: string) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((item) => item.id === translationId);
         const book = getBookById(bookId);
 
@@ -621,6 +623,7 @@ export const useBibleStore = create<BibleState>()(
       },
 
       downloadAudioForBooks: async (translationId: string, bookIds: string[]) => {
+        void primeAnalyticsLocationForCurrentSession('download').catch(() => {});
         const translation = get().translations.find((item) => item.id === translationId);
         if (!translation?.hasAudio) {
           throw new Error('Audio downloads are not available for this translation.');

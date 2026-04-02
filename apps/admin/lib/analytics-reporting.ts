@@ -42,6 +42,30 @@ export interface CountryMetricRollup {
   name: string;
 }
 
+export interface LocationMetric {
+  key: string;
+  label: string;
+  countryCode: string | null;
+  countryName: string | null;
+  downloadUnits: number;
+  latitude: number;
+  listenerCount: number;
+  listeningMinutes: number;
+  longitude: number;
+}
+
+export interface LocationMetricRollup {
+  key: string;
+  label: string;
+  countryCode: string | null;
+  countryName: string | null;
+  downloadUnits: number;
+  latitude: number;
+  listenerCount: number;
+  listeningMinutes: number;
+  longitude: number;
+}
+
 export interface AnalyticsOverviewModel {
   activeCountryCount: number;
   averageEngagementScore: number;
@@ -238,4 +262,25 @@ export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]
     })
     .filter((metric): metric is CountryMetric => metric !== null)
     .sort(compareCountryMetrics);
+}
+
+export function mapLocationRollupsToMetrics(
+  locationRollups: LocationMetricRollup[]
+): LocationMetric[] {
+  return locationRollups
+    .map((rollup) => ({
+      key: rollup.key,
+      label: rollup.label,
+      countryCode: rollup.countryCode,
+      countryName: rollup.countryName,
+      downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
+      latitude: Number(rollup.latitude),
+      listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
+      listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
+      longitude: Number(rollup.longitude),
+    }))
+    .filter(
+      (metric) => Number.isFinite(metric.latitude) && Number.isFinite(metric.longitude)
+    )
+    .sort((left, right) => right.listeningMinutes - left.listeningMinutes);
 }

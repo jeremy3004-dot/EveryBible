@@ -129,6 +129,21 @@ test('analyticsService uses batch_track_events RPC for efficient bulk delivery',
   );
 });
 
+test('analyticsService merges cached coarse location properties into geography-aware events', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+
+  assert.match(
+    source,
+    /getCachedAnalyticsLocationEventProperties/,
+    'analyticsService should read cached approximate location properties before queueing geography-aware events'
+  );
+  assert.match(
+    source,
+    /audio_completed[\s\S]*audio_download_completed[\s\S]*text_translation_download_completed/s,
+    'analyticsService should treat listening and download completion events as geography-aware'
+  );
+});
+
 test('analyticsService skips flush when Supabase is not configured', () => {
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(

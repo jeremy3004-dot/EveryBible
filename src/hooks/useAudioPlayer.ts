@@ -13,7 +13,7 @@ import {
   syncBibleNowPlaying,
 } from '../services/audio';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
-import { trackEvent } from '../services/analytics';
+import { trackEvent, primeAnalyticsLocationForCurrentSession } from '../services/analytics';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
@@ -150,6 +150,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       setStatus('loading');
       setCurrentTrack(targetTranslationId, bookId, chapter);
       syncQueueToTrackInStore(targetTranslationId, bookId, chapter);
+      void primeAnalyticsLocationForCurrentSession('listening').catch(() => {});
       if (
         playbackSequence.length > 0 &&
         !hasAudioPlaybackSequenceEntry(playbackSequence, bookId, chapter)

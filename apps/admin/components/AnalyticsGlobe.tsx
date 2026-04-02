@@ -9,16 +9,18 @@ import maplibregl, {
   type Popup as MapLibrePopup,
 } from 'maplibre-gl';
 
-import type { CountryMetric } from '@/lib/analytics-reporting';
+import type { LocationMetric } from '@/lib/analytics-reporting';
 import { normalizeAdminTheme, type AdminThemeMode } from '@/lib/theme';
 
 type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
 
 interface AnalyticsGlobeProps {
-  metrics: CountryMetric[];
+  metrics: LocationMetric[];
 }
 
 interface MetricFeatureProperties {
+  hotspotKey: string;
+  hotspotLabel: string;
   countryCode: string;
   countryName: string;
   downloadUnits: number;
@@ -69,11 +71,11 @@ function getMetricProperty(mode: MapMetricMode): 'listeningMinutes' | 'downloadU
   return mode;
 }
 
-function getMetricValue(metric: CountryMetric, mode: MapMetricMode): number {
+function getMetricValue(metric: LocationMetric, mode: MapMetricMode): number {
   return metric[getMetricProperty(mode)];
 }
 
-function formatMetricValue(metric: CountryMetric, mode: MapMetricMode): string {
+function formatMetricValue(metric: LocationMetric, mode: MapMetricMode): string {
   if (mode === 'downloadUnits') {
     return `${metric.downloadUnits} downloads`;
   }
@@ -98,7 +100,7 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
-function buildMetricsFeatureCollection(metrics: CountryMetric[]): MetricFeatureCollection {
+function buildMetricsFeatureCollection(metrics: LocationMetric[]): MetricFeatureCollection {
   return {
     type: 'FeatureCollection',
     features: metrics.map((metric) => ({
@@ -108,8 +110,10 @@ function buildMetricsFeatureCollection(metrics: CountryMetric[]): MetricFeatureC
         coordinates: [metric.longitude, metric.latitude],
       },
       properties: {
-        countryCode: metric.code,
-        countryName: metric.name,
+        hotspotKey: metric.key,
+        hotspotLabel: metric.label,
+        countryCode: metric.countryCode ?? 'UNSET',
+        countryName: metric.countryName ?? 'Unattributed',
         downloadUnits: metric.downloadUnits,
         listenerCount: metric.listenerCount,
         listeningMinutes: metric.listeningMinutes,
@@ -242,7 +246,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
       return null;
     }
 
-    return rankedMetrics.some((metric) => metric.code === selectedCode)
+    return rankedMetrics.some((metric) => metric.key === selectedCode)
       ? selectedCode
       : null;
   }, [rankedMetrics, selectedCode]);
@@ -252,7 +256,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
       return null;
     }
 
-    return rankedMetrics.find((metric) => metric.code === activeSelectedCode) ?? null;
+    return rankedMetrics.find((metric) => metric.key === activeSelectedCode) ?? null;
   }, [activeSelectedCode, rankedMetrics]);
 
   const featureCollection = useMemo(() => buildMetricsFeatureCollection(metrics), [metrics]);
@@ -357,7 +361,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
     []
   );
 
-  const showMetricPopup = useCallback((metric: CountryMetric, shouldFly = false) => {
+  const showMetricPopup = useCallback((metric: LocationMetric, shouldFly = false) => {
     const map = mapRef.current;
     if (!map || !readyRef.current) {
       return;
@@ -376,8 +380,8 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
 
     const popupHtml = `
       <div class="analytics-map-popup__body">
-        <p class="analytics-map-popup__eyebrow">${escapeHtml(metric.code)}</p>
-        <h4>${escapeHtml(metric.name)}</h4>
+        <p class="analytics-map-popup__eyebrow">${escapeHtml(metric.countryCode ?? 'UNSET')}</p>
+        <h4>${escapeHtml(metric.label)}</h4>
         <p class="analytics-map-popup__value">${escapeHtml(formatMetricValue(metric, currentMode))}</p>
         <dl>
           <div><dt>Listening</dt><dd>${Math.round(metric.listeningMinutes)} min</dd></div>
@@ -479,17 +483,17 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
     });
 
     map.on('click', HIT_LAYER_ID, (event) => {
-      const countryCode = event.features?.[0]?.properties?.countryCode;
-      if (typeof countryCode !== 'string') {
+      const hotspotKey = event.features?.[0]?.properties?.hotspotKey;
+      if (typeof hotspotKey !== 'string') {
         return;
       }
 
-      const metric = latestMetricsRef.current.find((entry) => entry.code === countryCode);
+      const metric = latestMetricsRef.current.find((entry) => entry.key === hotspotKey);
       if (!metric) {
         return;
       }
 
-      setSelectedCode(countryCode);
+      setSelectedCode(hotspotKey);
       showMetricPopup(metric, true);
     });
 
@@ -635,26 +639,26 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
             {topCountry ? (
               <>
                 <h4>
-                  {topCountry.name} leads in {modeLabel}.
+                  {topCountry.label} leads in {modeLabel}.
                 </h4>
                 <p>
-                  Click a country bubble or row to open the detailed country card and compare
+                  Click an activity area or row to open the detailed hotspot card and compare
                   listening, downloads, and listeners.
                 </p>
               </>
             ) : (
               <>
-                <h4>Click any country to open its detail card.</h4>
-                <p>Use the globe or the country list to drill into the geography data.</p>
+                <h4>Click any activity area to open its detail card.</h4>
+                <p>Use the globe or the hotspot list to drill into the geography data.</p>
               </>
             )}
           </div>
 
           {selectedMetric ? (
             <div className="globe-card__selected">
-              <p className="eyebrow">Selected country</p>
+              <p className="eyebrow">Selected activity area</p>
               <h4>
-                {selectedMetric.name} <span>{selectedMetric.code}</span>
+                {selectedMetric.label} <span>{selectedMetric.countryCode ?? 'UNSET'}</span>
               </h4>
               <p>{formatMetricValue(selectedMetric, mode)}</p>
               <dl>
@@ -675,19 +679,19 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
           ) : null}
 
           <div className="globe-card__toplist">
-            <p className="eyebrow">Top countries</p>
+            <p className="eyebrow">Top activity areas</p>
             <ul>
               {rankedMetrics.slice(0, 6).map((metric) => (
-                <li key={metric.code}>
+                <li key={metric.key}>
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedCode(metric.code);
+                      setSelectedCode(metric.key);
                       showMetricPopup(metric, true);
                     }}
                   >
                     <span>
-                      {metric.name} <small>{metric.code}</small>
+                      {metric.label} <small>{metric.countryCode ?? 'UNSET'}</small>
                     </span>
                     <strong>{formatMetricValue(metric, mode)}</strong>
                   </button>

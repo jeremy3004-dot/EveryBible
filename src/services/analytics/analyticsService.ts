@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { AnalyticsEvent, UserEngagementSummary } from '../supabase/types';
+import { getCachedAnalyticsLocationEventProperties } from './activityLocation';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +32,11 @@ const eventQueue: QueuedEvent[] = [];
 
 const AUTO_FLUSH_SIZE = 20;
 const MAX_QUEUE_SIZE = 500;
+const LOCATION_AWARE_EVENT_NAMES = new Set([
+  'audio_completed',
+  'audio_download_completed',
+  'text_translation_download_completed',
+]);
 
 // Session state — null until startSession() is called.
 let currentSessionId: string | null = null;
@@ -73,9 +79,16 @@ function buildQueuedEvent(
   eventName: string,
   properties: Record<string, unknown> = {}
 ): QueuedEvent {
+  const eventProperties = LOCATION_AWARE_EVENT_NAMES.has(eventName)
+    ? {
+        ...getCachedAnalyticsLocationEventProperties(),
+        ...properties,
+      }
+    : properties;
+
   return {
     event_name: eventName,
-    event_properties: properties,
+    event_properties: eventProperties,
     session_id: currentSessionId,
     device_platform: Platform.OS,
     app_version: getAppVersion(),

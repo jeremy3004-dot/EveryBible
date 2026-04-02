@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildAnalyticsOverviewModel,
+  mapLocationRollupsToMetrics,
   mapCountryRollupsToMetrics,
 } from './analytics-reporting';
 
@@ -101,4 +102,38 @@ test('mapCountryRollupsToMetrics enriches backend country rollups with globe coo
   assert.equal(metrics[0]?.longitude > 0, true);
   assert.equal(metrics[1]?.code, 'US');
   assert.equal(metrics[1]?.downloadUnits, 5);
+});
+
+test('mapLocationRollupsToMetrics preserves coarse hotspot coordinates for the analytics globe', () => {
+  const metrics = mapLocationRollupsToMetrics([
+    {
+      key: '28:86:NP',
+      label: 'Approximate area near Kathmandu, Nepal',
+      countryCode: 'NP',
+      countryName: 'Nepal',
+      latitude: 28,
+      longitude: 86,
+      listeningMinutes: 40,
+      downloadUnits: 1,
+      listenerCount: 2,
+    },
+    {
+      key: '40:-74:US',
+      label: 'Approximate area near Newark, United States',
+      countryCode: 'US',
+      countryName: 'United States',
+      latitude: 40,
+      longitude: -74,
+      listeningMinutes: 10,
+      downloadUnits: 3,
+      listenerCount: 1,
+    },
+  ]);
+
+  assert.equal(metrics.length, 2);
+  assert.equal(metrics[0]?.key, '28:86:NP');
+  assert.equal(metrics[0]?.latitude, 28);
+  assert.equal(metrics[0]?.longitude, 86);
+  assert.equal(metrics[0]?.countryCode, 'NP');
+  assert.equal(metrics[0]?.listenerCount, 2);
 });

@@ -83,6 +83,8 @@
 	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow Every Bible to access your camera if you choose to take a profile photo.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allow Every Bible to use your approximate location while you listen or download Scripture so the activity map reflects real listening areas without storing precise GPS.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
 	<key>NSPhotoLibraryUsageDescription</key>
