@@ -1,7 +1,11 @@
 import type { BibleTranslation } from '../types';
-import { getBibleAudioAssetBaseUrl } from '../services/bible/bibleAssetBaseUrl';
+import {
+  getBibleAudioAssetBaseUrl,
+  resolveBibleAssetBaseUrl,
+} from '../services/bible/bibleAssetBaseUrl';
 
 const AUDIO_BUCKET_BASE = getBibleAudioAssetBaseUrl();
+const TIMING_BUCKET_BASE = resolveBibleAssetBaseUrl('timing');
 
 export const bibleTranslations: BibleTranslation[] = [
   {
