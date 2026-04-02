@@ -45,7 +45,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
+import {
+  getAdjacentBibleChapter,
+  getBookById,
+  getBookIcon,
+  getTranslatedBookName,
+} from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
@@ -1132,9 +1137,8 @@ export function BibleReaderScreen() {
     1
   );
   const previousNavigationTarget =
-    previousSequenceEntry ?? (chapter > 1 ? { bookId, chapter: chapter - 1 } : null);
-  const nextNavigationTarget =
-    nextSequenceEntry ?? (chapter < book.chapters ? { bookId, chapter: chapter + 1 } : null);
+    previousSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, -1);
+  const nextNavigationTarget = nextSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, 1);
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas =

@@ -62,3 +62,19 @@ test('AudioFirstChapterCard moves audio sharing into the shared playback control
     'AudioFirstChapterCard should not keep a separate share button in the metadata row once PlaybackControls owns it'
   );
 });
+
+test('AudioFirstChapterCard localizes the displayed Bible book name', () => {
+  const source = readRelativeSource('./AudioFirstChapterCard.tsx');
+
+  assert.match(
+    source,
+    /getTranslatedBookName\(bookId, t\)/,
+    'AudioFirstChapterCard should resolve the chapter title through the translated book-name helper'
+  );
+
+  assert.equal(
+    source.includes('{book?.name}'),
+    false,
+    'AudioFirstChapterCard should not render the raw English book catalog name in the player chrome'
+  );
+});

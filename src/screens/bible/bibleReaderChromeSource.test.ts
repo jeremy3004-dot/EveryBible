@@ -188,6 +188,22 @@ test('listen mode passes chapter audio sharing into the shared playback controls
   );
 });
 
+test('BibleReaderScreen resolves chapter navigation targets across book boundaries', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /getAdjacentBibleChapter\(bookId, chapter, -1\)/,
+    'BibleReaderScreen should resolve the previous chapter target through the canonical adjacent-book helper'
+  );
+
+  assert.match(
+    source,
+    /getAdjacentBibleChapter\(bookId, chapter, 1\)/,
+    'BibleReaderScreen should resolve the next chapter target through the canonical adjacent-book helper'
+  );
+});
+
 test('switching the chapter session into listen mode starts playback for the displayed chapter', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

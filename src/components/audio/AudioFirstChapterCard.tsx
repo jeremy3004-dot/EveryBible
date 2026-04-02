@@ -1,7 +1,8 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
-import { getBookById, getBookIcon } from '../../constants';
+import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
@@ -26,6 +27,7 @@ export function AudioFirstChapterCard({
   onShare,
 }: AudioFirstChapterCardProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -133,6 +135,7 @@ export function AudioFirstChapterCard({
   const hasPreviousChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const remainingDuration = Math.max(displayDuration - displayPosition, 0);
+  const localizedBookName = getTranslatedBookName(bookId, t);
 
   return (
     <View style={styles.card}>
@@ -151,7 +154,7 @@ export function AudioFirstChapterCard({
       <View style={styles.metaRow}>
         <View style={styles.metaBlock}>
           <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
-            {book?.name} {chapter}
+            {localizedBookName} {chapter}
           </Text>
           <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
             {translationLabel}
@@ -177,7 +180,7 @@ export function AudioFirstChapterCard({
             {formatTime(displayPosition)}
           </Text>
           <Text style={[styles.timeCenterText, { color: colors.bibleSecondaryText }]}>
-            {book?.name} {chapter}
+            {localizedBookName} {chapter}
           </Text>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
             -{formatTime(remainingDuration)}

@@ -60,3 +60,37 @@ test('HomeScreen removes the extra welcome subtitle so the fixed layout can sit 
     'HomeScreen should remove the extra welcome subtitle to free vertical space for the fixed layout'
   );
 });
+
+test('HomeScreen localizes the foundation continuation card instead of hardcoding English copy', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  assert.match(
+    source,
+    /FOUNDATION_TITLE_KEYS\[activeFoundation\.id\]/,
+    'HomeScreen should resolve the active foundation title through the gather locale key map'
+  );
+
+  assert.match(
+    source,
+    /FOUNDATION_DESC_KEYS\[activeFoundation\.id\]/,
+    'HomeScreen should resolve the active foundation description through the gather locale key map'
+  );
+
+  assert.match(
+    source,
+    /t\('gather\.lessonsProgress',\s*{\s*completed:\s*activeFoundationDone,\s*total:\s*activeFoundationTotal/s,
+    'HomeScreen should localize the foundation lesson progress string'
+  );
+
+  assert.equal(
+    source.includes('CONTINUE IN FOUNDATIONS'),
+    false,
+    'HomeScreen should not hardcode the continuation eyebrow in English'
+  );
+
+  assert.equal(
+    source.includes('GET STARTED'),
+    false,
+    'HomeScreen should not hardcode the foundation CTA eyebrow in English'
+  );
+});

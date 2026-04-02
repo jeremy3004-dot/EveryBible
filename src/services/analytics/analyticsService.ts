@@ -41,10 +41,9 @@ let currentSessionId: string | null = null;
 
 // Uses the Crypto API available in Hermes / React Native's polyfill.
 function generateUUID(): string {
-  // eslint-disable-next-line no-undef
-  if (typeof crypto !== 'undefined' && typeof (crypto as Crypto).randomUUID === 'function') {
-    // eslint-disable-next-line no-undef
-    return (crypto as Crypto).randomUUID();
+  const webCrypto = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (typeof webCrypto?.randomUUID === 'function') {
+    return webCrypto.randomUUID();
   }
 
   // Fallback: manual v4 UUID construction via Math.random()
@@ -84,6 +83,13 @@ function buildQueuedEvent(
   };
 }
 
+function requeueSnapshot(snapshot: QueuedEvent[]): void {
+  const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
+  if (spaceLeft > 0) {
+    eventQueue.unshift(...snapshot.slice(0, spaceLeft));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -120,39 +126,32 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
   // NOT lost — they remain in the queue for the next call.
   const snapshot = eventQueue.splice(0, eventQueue.length);
 
-  // Resolve the optional current user (analytics accepts anonymous events).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = snapshot.map((e) => ({
-    event_name: e.event_name,
-    event_properties: e.event_properties,
-    session_id: e.session_id,
-    device_platform: e.device_platform,
-    app_version: e.app_version,
-    user_id: user?.id ?? null,
-  }));
-
   try {
+    // Auth/session restore can fail transiently during startup, so keep the
+    // drained snapshot inside the guarded path and restore it on failure.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = snapshot.map((e) => ({
+      event_name: e.event_name,
+      event_properties: e.event_properties,
+      session_id: e.session_id,
+      device_platform: e.device_platform,
+      app_version: e.app_version,
+      user_id: user?.id ?? null,
+    }));
+
     const { error } = await supabase.rpc('batch_track_events', { events: payload });
 
     if (error) {
-      // Re-queue the snapshot so events are not silently dropped, but cap total size.
-      const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
-      if (spaceLeft > 0) {
-        eventQueue.unshift(...snapshot.slice(0, spaceLeft));
-      }
+      requeueSnapshot(snapshot);
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (error) {
-    // Re-queue on unexpected failure so events survive the error, but cap total size.
-    const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
-    if (spaceLeft > 0) {
-      eventQueue.unshift(...snapshot.slice(0, spaceLeft));
-    }
+    requeueSnapshot(snapshot);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
