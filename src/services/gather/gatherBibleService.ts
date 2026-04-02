@@ -1,11 +1,16 @@
 import type { BibleReference } from '../../types/gather';
 import type { Verse } from '../../types';
 import { getChapter } from '../bible/bibleService';
-import { getBookById } from '../../constants';
+import { getBookById } from '../../constants/books';
+import { formatBibleReference } from './gatherReferenceLabel';
 
 export interface PassageBlock {
   label: string; // e.g. "Genesis 1:1-25"
   verses: Verse[]; // filtered verses for this reference
+}
+
+export interface PassageLabelOptions {
+  bookNameResolver?: (bookId: string) => string;
 }
 
 /**
@@ -17,13 +22,14 @@ export interface PassageBlock {
  */
 export async function getPassageText(
   references: BibleReference[],
-  translationId: string = 'bsb'
+  translationId: string = 'bsb',
+  options: PassageLabelOptions = {}
 ): Promise<PassageBlock[]> {
   const blocks: PassageBlock[] = [];
+  const bookNameResolver =
+    options.bookNameResolver ?? ((bookId: string) => getBookById(bookId)?.name ?? bookId);
 
   for (const ref of references) {
-    const bookInfo = getBookById(ref.bookId);
-    const bookName = bookInfo?.name ?? ref.bookId;
     const chapterVerses = await getChapter(translationId, ref.bookId, ref.chapter);
 
     let filtered: Verse[];
@@ -38,12 +44,7 @@ export async function getPassageText(
     }
 
     // Build label
-    let label = `${bookName} ${ref.chapter}`;
-    if (ref.startVerse != null && ref.endVerse != null) {
-      label = `${bookName} ${ref.chapter}:${ref.startVerse}-${ref.endVerse}`;
-    } else if (ref.startVerse != null) {
-      label = `${bookName} ${ref.chapter}:${ref.startVerse}+`;
-    }
+    const label = formatBibleReference(ref, bookNameResolver);
 
     blocks.push({ label, verses: filtered });
   }

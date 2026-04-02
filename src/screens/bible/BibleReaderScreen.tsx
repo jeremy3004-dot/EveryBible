@@ -2374,9 +2374,7 @@ export function BibleReaderScreen() {
     const verseNumberSize = usePremiumTypography
       ? scaleValue(typography.readingVerseNumber.fontSize)
       : scaleValue(12);
-    const headingFontSize = usePremiumTypography
-      ? scaleValue(typography.readingHeading.fontSize)
-      : scaleValue(15);
+    const headingFontSize = scaleValue(typography.readingHeading.fontSize);
 
     // Group verses into paragraphs split by section headings
     const paragraphs: { heading: string | null; verses: typeof verses }[] = [];
@@ -2438,7 +2436,7 @@ export function BibleReaderScreen() {
                   usePremiumTypography ? styles.premiumSectionHeading : null,
                   {
                     fontSize: headingFontSize,
-                    color: colors.bibleSecondaryText,
+                    color: colors.biblePrimaryText,
                   },
                 ]}
               >
@@ -4443,15 +4441,13 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   sectionHeading: {
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.1,
+    ...typography.readingHeading,
     marginTop: 8,
+    marginBottom: 4,
   },
   premiumSectionHeading: {
     ...typography.readingHeading,
     textTransform: 'none',
-    letterSpacing: -0.1,
     marginTop: 8,
     marginBottom: 4,
   },

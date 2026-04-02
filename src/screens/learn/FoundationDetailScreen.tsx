@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Share,
-} from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { gatherFoundations, FOUNDATION_TITLE_KEYS, FOUNDATION_DESC_KEYS, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
+import {
+  gatherFoundations,
+  FOUNDATION_TITLE_KEYS,
+  FOUNDATION_DESC_KEYS,
+  FOUNDATION_LESSON_TITLE_KEYS,
+} from '../../data/gatherFoundations';
 import { gatherWisdomCategories, WISDOM_TITLE_KEYS } from '../../data/gatherWisdom';
 import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
+import { getTranslatedBookName } from '../../constants';
+import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import type { GatherLesson } from '../../types/gather';
 import type { FoundationDetailScreenProps } from '../../navigation/types';
 
@@ -44,7 +43,10 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}
+          style={[
+            styles.headerBar,
+            { borderBottomColor: colors.cardBorder, paddingTop: insets.top },
+          ]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
@@ -62,9 +64,10 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const isFoundation = foundationId.startsWith('foundation-');
   const completedCount = getCompletedCount(foundationId);
   const totalLessons = foundation.lessons.length;
+  const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
 
   // Find the next foundation (only for foundations)
-  const foundationNumber = isFoundation ? (foundation as typeof gatherFoundations[0]).number : 0;
+  const foundationNumber = isFoundation ? (foundation as (typeof gatherFoundations)[0]).number : 0;
   const nextFoundation = isFoundation
     ? gatherFoundations.find((f) => f.number === foundationNumber + 1)
     : null;
@@ -96,20 +99,23 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header bar */}
-      <View style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}>
+      <View
+        style={[styles.headerBar, { borderBottomColor: colors.cardBorder, paddingTop: insets.top }]}
+      >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[
+            styles.headerBackButton,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
+          <Ionicons name="arrow-back" size={18} color={colors.primaryText} />
         </TouchableOpacity>
 
-        <Text
-          style={[styles.headerTitle, { color: colors.primaryText }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]} numberOfLines={1}>
           {FOUNDATION_TITLE_KEYS[foundation.id]
             ? t(FOUNDATION_TITLE_KEYS[foundation.id])
             : WISDOM_TITLE_KEYS[foundation.id]
@@ -141,10 +147,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             ]}
           >
             {foundation.iconImage && gatherIconImages[foundation.iconImage] ? (
-              <Image
-                source={gatherIconImages[foundation.iconImage]}
-                style={styles.heroIconImage}
-              />
+              <Image source={gatherIconImages[foundation.iconImage]} style={styles.heroIconImage} />
             ) : (
               <Ionicons
                 name={
@@ -166,7 +169,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           {isFoundation && (
             <Text style={[styles.foundationLabel, { color: colors.secondaryText }]}>
               {t('gather.foundationLabel', {
-                number: (foundation as typeof gatherFoundations[0]).number,
+                number: (foundation as (typeof gatherFoundations)[0]).number,
               })}
             </Text>
           )}
@@ -175,9 +178,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
             {FOUNDATION_TITLE_KEYS[foundation.id]
               ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-            : WISDOM_TITLE_KEYS[foundation.id]
-              ? t(WISDOM_TITLE_KEYS[foundation.id])
-              : foundation.title}
+              : WISDOM_TITLE_KEYS[foundation.id]
+                ? t(WISDOM_TITLE_KEYS[foundation.id])
+                : foundation.title}
           </Text>
         </View>
 
@@ -185,7 +188,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         {'description' in foundation && !!foundation.description && (
           <View style={styles.descriptionSection}>
             <Text style={[styles.descriptionText, { color: colors.secondaryText }]}>
-              {FOUNDATION_DESC_KEYS[foundation.id] ? t(FOUNDATION_DESC_KEYS[foundation.id]) : foundation.description}
+              {FOUNDATION_DESC_KEYS[foundation.id]
+                ? t(FOUNDATION_DESC_KEYS[foundation.id])
+                : foundation.description}
             </Text>
           </View>
         )}
@@ -221,7 +226,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         {foundation.lessons.map((lesson) => {
           const complete = isLessonComplete(foundationId, lesson.id);
           const lessonTitleKey = FOUNDATION_LESSON_TITLE_KEYS[lesson.id];
-          const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : lesson.title;
+          const lessonTitle = lessonTitleKey
+            ? t(lessonTitleKey as Parameters<typeof t>[0])
+            : lesson.title;
           return (
             <TouchableOpacity
               key={lesson.id}
@@ -246,7 +253,11 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                   styles.numberBadge,
                   complete
                     ? { backgroundColor: colors.accentPrimary }
-                    : { backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.cardBorder },
+                    : {
+                        backgroundColor: colors.cardBackground,
+                        borderWidth: 1,
+                        borderColor: colors.cardBorder,
+                      },
                 ]}
               >
                 <Text
@@ -265,7 +276,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                   {lessonTitle}
                 </Text>
                 <Text style={[styles.lessonReference, { color: colors.secondaryText }]}>
-                  {lesson.referenceLabel}
+                  {formatBibleReferenceLabel(lesson.references, resolveBookName)}
                 </Text>
               </View>
 
@@ -363,6 +374,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
     borderBottomWidth: 1,
     gap: spacing.md,
+  },
+  headerBackButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   headerTitle: {
     ...typography.bodyStrong,

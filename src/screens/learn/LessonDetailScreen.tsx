@@ -20,10 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, radius, spacing, typography } from '../../design/system';
-import {
-  gatherFoundations,
-  FOUNDATION_LESSON_TITLE_KEYS,
-} from '../../data/gatherFoundations';
+import { gatherFoundations, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
 import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
 import { gatherIconImages } from '../../data/gatherIcons';
 import {
@@ -31,7 +28,9 @@ import {
   getPrimaryAudioReference,
   type PassageBlock,
 } from '../../services/gather/gatherBibleService';
+import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import { getChapterAudioUrl } from '../../services/audio/audioService';
+import { getTranslatedBookName } from '../../constants';
 import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -73,6 +72,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     t('gather.applicationQ6'),
     t('gather.applicationQ7'),
   ];
+  const resolveBookName = useCallback((bookId: string) => getTranslatedBookName(bookId, t), [t]);
 
   // -------------------------------------------------------------------------
   // Lesson resolution
@@ -89,7 +89,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const lessonTitleKey = lesson
     ? (FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? WISDOM_LESSON_TITLE_KEYS[lesson.id])
     : undefined;
-  const lessonTitle = lessonTitleKey ? t(lessonTitleKey as Parameters<typeof t>[0]) : (lesson?.title ?? '');
+  const lessonTitle = lessonTitleKey
+    ? t(lessonTitleKey as Parameters<typeof t>[0])
+    : (lesson?.title ?? '');
 
   // -------------------------------------------------------------------------
   // State
@@ -139,7 +141,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     setIsLoadingPassage(true);
     setPassageBlocks([]);
 
-    getPassageText(lesson.references, currentTranslation)
+    getPassageText(lesson.references, currentTranslation, { bookNameResolver: resolveBookName })
       .then((blocks) => {
         if (!cancelled) {
           setPassageBlocks(blocks);
@@ -159,7 +161,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [currentTranslation, lesson]);
+  }, [currentTranslation, lesson, resolveBookName]);
 
   // Resolve audio URL
   useEffect(() => {
@@ -321,12 +323,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       if (y + 120 >= application) {
         setHeaderTitle(t('gather.application'));
       } else if (y + 120 >= story) {
-        setHeaderTitle(lesson.referenceLabel);
+        setHeaderTitle(formatBibleReferenceLabel(lesson.references, resolveBookName));
       } else {
         setHeaderTitle(lessonTitle);
       }
     },
-    [lesson, lessonTitle, t]
+    [lesson, lessonTitle, resolveBookName, t]
   );
 
   // -------------------------------------------------------------------------
@@ -360,7 +362,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const adjustPlaybackSpeed = useCallback(
     async (delta: number) => {
-      const newSpeed = Math.min(2.0, Math.max(0.5, Math.round((playbackSpeed + delta) * 100) / 100));
+      const newSpeed = Math.min(
+        2.0,
+        Math.max(0.5, Math.round((playbackSpeed + delta) * 100) / 100)
+      );
       setPlaybackSpeed(newSpeed);
       try {
         await soundRef.current?.setRateAsync(newSpeed, true);
@@ -435,16 +440,22 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: colors.cardBackground,
+              borderColor: colors.cardBorder,
+              borderWidth: 1,
+            },
+          ]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
+          <Ionicons name="arrow-back" size={18} color={colors.primaryText} />
         </TouchableOpacity>
 
-        <Text
-          style={[styles.headerTitle, { color: colors.primaryText }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]} numberOfLines={1}>
           {headerTitle}
         </Text>
 
@@ -494,11 +505,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               />
             )}
           </View>
-          <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>
-            {lessonTitle}
-          </Text>
+          <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
           <Text style={[styles.heroReference, { color: colors.secondaryText }]}>
-            {lesson.referenceLabel}
+            {formatBibleReferenceLabel(lesson.references, resolveBookName)}
           </Text>
         </View>
 
@@ -511,10 +520,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           <Text style={[styles.sectionHeading, { color: colors.primaryText, paddingTop: 32 }]}>
             {t('gather.fellowship')}
           </Text>
-          <FellowshipSection
-            questions={translatedFellowshipQuestions}
-            colors={colors}
-          />
+          <FellowshipSection questions={translatedFellowshipQuestions} colors={colors} />
         </View>
 
         {/* Story section */}
@@ -524,7 +530,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           }}
         >
           <Text style={[styles.sectionHeading, { color: colors.primaryText, paddingTop: 32 }]}>
-            {lesson.referenceLabel}
+            {formatBibleReferenceLabel(lesson.references, resolveBookName)}
           </Text>
           <StorySection
             isLoading={isLoadingPassage}
@@ -579,10 +585,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             color={isComplete ? colors.accentGreen : '#fff'}
           />
           <Text
-            style={[
-              styles.completeButtonText,
-              { color: isComplete ? colors.accentGreen : '#fff' },
-            ]}
+            style={[styles.completeButtonText, { color: isComplete ? colors.accentGreen : '#fff' }]}
           >
             {isComplete ? t('gather.completed') : t('gather.markComplete')}
           </Text>
@@ -614,10 +617,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                   setActiveSection(section.key);
                   scrollToSection(section.key);
                 }}
-                style={[
-                  styles.tabPill,
-                  isActive && { backgroundColor: colors.accentPrimary },
-                ]}
+                style={[styles.tabPill, isActive && { backgroundColor: colors.accentPrimary }]}
                 activeOpacity={0.7}
               >
                 <Text
@@ -772,9 +772,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           {/* Font Size */}
           <View style={[styles.sheetRow, { borderBottomColor: 'transparent' }]}>
             <Text style={[styles.sheetRowIcon]}>Tt</Text>
-            <Text style={[styles.sheetRowLabel, { color: colors.primaryText }]}>
-              Font Size
-            </Text>
+            <Text style={[styles.sheetRowLabel, { color: colors.primaryText }]}>Font Size</Text>
             <View style={styles.sheetRowControls}>
               <TouchableOpacity
                 onPress={() => adjustFontSize(-0.1)}
@@ -797,13 +795,8 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           </View>
 
           {/* Close */}
-          <TouchableOpacity
-            style={styles.sheetCloseButton}
-            onPress={() => setShowSettings(false)}
-          >
-            <Text style={[styles.sheetCloseText, { color: colors.accentPrimary }]}>
-              ✕  Close
-            </Text>
+          <TouchableOpacity style={styles.sheetCloseButton} onPress={() => setShowSettings(false)}>
+            <Text style={[styles.sheetCloseText, { color: colors.accentPrimary }]}>✕ Close</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -835,15 +828,8 @@ function QuestionCard({ number, text, colors, actionButton }: QuestionCardProps)
         },
       ]}
     >
-      <View
-        style={[
-          styles.questionBadge,
-          { backgroundColor: colors.accentPrimary + '18' },
-        ]}
-      >
-        <Text style={[styles.questionBadgeText, { color: colors.accentPrimary }]}>
-          {number}
-        </Text>
+      <View style={[styles.questionBadge, { backgroundColor: colors.accentPrimary + '18' }]}>
+        <Text style={[styles.questionBadgeText, { color: colors.accentPrimary }]}>{number}</Text>
       </View>
       <Text style={[styles.questionText, { color: colors.primaryText }]}>{text}</Text>
       {actionButton}
@@ -860,14 +846,7 @@ function FellowshipSection({ questions, colors }: FellowshipSectionProps) {
   return (
     <View style={styles.sectionContainer}>
       {questions.map((q, idx) => {
-        return (
-          <QuestionCard
-            key={idx}
-            number={idx + 1}
-            text={q}
-            colors={colors}
-          />
-        );
+        return <QuestionCard key={idx} number={idx + 1} text={q} colors={colors} />;
       })}
     </View>
   );
@@ -906,9 +885,7 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
     <View style={styles.sectionContainer}>
       {passageBlocks.map((block, blockIdx) => (
         <View key={blockIdx} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
-          <Text style={[styles.passageLabel, { color: colors.primaryText }]}>
-            {block.label}
-          </Text>
+          <Text style={[styles.passageLabel, { color: colors.primaryText }]}>{block.label}</Text>
           <Text
             style={[
               styles.versesParagraph,
@@ -922,7 +899,9 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
                 <React.Fragment key={verse.id}>
                   {hasHeading && (
                     <Text style={[styles.verseHeading, { color: colors.secondaryText }]}>
-                      {'\n'}{verse.heading}{'\n'}
+                      {'\n'}
+                      {verse.heading}
+                      {'\n'}
                     </Text>
                   )}
                   {!isFirst && !hasHeading && ' '}
@@ -935,9 +914,7 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
                     >
                       {verse.verse}{' '}
                     </Text>
-                    <Text
-                      style={{ color: colors.primaryText, lineHeight: scaledLineHeight }}
-                    >
+                    <Text style={{ color: colors.primaryText, lineHeight: scaledLineHeight }}>
                       {verse.text}
                     </Text>
                   </Text>
@@ -1054,8 +1031,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

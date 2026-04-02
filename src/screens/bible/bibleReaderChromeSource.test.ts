@@ -100,6 +100,28 @@ test('listen mode no longer renders the extra eyebrow and play-CTA card copy abo
   );
 });
 
+test('BibleReaderScreen renders scripture section headings with the shared reading heading token', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const headingFontSize = scaleValue\(typography\.readingHeading\.fontSize\);/,
+    'BibleReaderScreen should size scripture section headings from the shared reading heading token'
+  );
+
+  assert.match(
+    source,
+    /sectionHeading:\s*{\s*\.\.\.typography\.readingHeading,\s*marginTop:\s*8,/s,
+    'BibleReaderScreen should style section headings with the shared reading heading typography'
+  );
+
+  assert.match(
+    source,
+    /color:\s*colors\.biblePrimaryText/,
+    'BibleReaderScreen section headings should read like primary scripture text rather than secondary metadata'
+  );
+});
+
 test('listen mode moves the show-text action into the inline utility row and anchors controls lower', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
