@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "privacyPolicyUrl": "https://everysevennine.tech/privacy",
+    "privacyPolicyUrl": "https://everybible.app/privacy",
     "scheme": "com.everybible.app",
     "newArchEnabled": false,
     "splash": {
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "275",
+      "buildNumber": "281",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
@@ -77,8 +77,8 @@
       "@react-native-google-signin/google-signin"
     ],
     "extra": {
-      "privacyPolicyUrl": "https://everysevennine.tech/privacy",
-      "termsOfServiceUrl": "https://everysevennine.tech/terms",
+      "privacyPolicyUrl": "https://everybible.app/privacy",
+      "termsOfServiceUrl": "https://everybible.app/terms",
       "eas": {
         "projectId": "cfbf2bac-d680-448f-b2aa-33c4c01ad15b"
       }

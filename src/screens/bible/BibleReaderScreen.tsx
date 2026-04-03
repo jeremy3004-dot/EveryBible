@@ -53,6 +53,7 @@ import {
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import { getCurrentSession } from '../../services/auth';
 import {
@@ -408,6 +409,7 @@ export function BibleReaderScreen() {
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
+  const chapterCompletionGuardRef = useRef<string | null>(null);
   const previousActiveAudioBookIdRef = useRef<string | null>(null);
   const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
@@ -835,6 +837,7 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
     lastFollowAlongVerseRef.current = null;
+    chapterCompletionGuardRef.current = null;
     if (focusVerse == null) {
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }
@@ -1806,6 +1809,20 @@ export function BibleReaderScreen() {
   ) => {
     if (!target) {
       return;
+    }
+
+    if (chapterSessionMode === 'read' && verses.length > 0) {
+      const completionKey = `${bookId}:${chapter}:${currentTranslation}`;
+      if (chapterCompletionGuardRef.current !== completionKey) {
+        chapterCompletionGuardRef.current = completionKey;
+        trackAnonymousUsageEvent('chapter_completed', {
+          book_id: bookId,
+          chapter,
+          mode: 'read',
+          translation_id: currentTranslation,
+          source: 'navigation',
+        });
+      }
     }
 
     setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));

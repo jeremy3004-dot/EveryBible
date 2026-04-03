@@ -100,12 +100,12 @@ test('release metadata stays aligned across tracked config and generated native 
   assert.ok(appDescription.length > 0, 'Expected app.json expo.description for release metadata');
   assert.match(
     privacyPolicyUrl,
-    /^https:\/\/everysevennine\.tech\/privacy$/,
+    /^https:\/\/everybible\.app\/privacy$/,
     'Expected app.json expo.extra.privacyPolicyUrl to provide the canonical HTTPS privacy policy reference'
   );
   assert.match(
     termsOfServiceUrl,
-    /^https:\/\/everysevennine\.tech\/terms$/,
+    /^https:\/\/everybible\.app\/terms$/,
     'Expected app.json expo.extra.termsOfServiceUrl to provide the canonical HTTPS terms reference'
   );
 

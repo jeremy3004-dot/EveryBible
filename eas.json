@@ -46,6 +46,18 @@
         "track": "production",
         "releaseStatus": "draft"
       }
+    },
+    "internal": {
+      "ios": {
+        "appleId": "curryj@protonmail.com",
+        "ascAppId": "6758254335",
+        "appleTeamId": "NVC9N47PRH"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "completed"
+      }
     }
   }
 }

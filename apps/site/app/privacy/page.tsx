@@ -86,10 +86,13 @@ export default function PrivacyPage() {
       <section>
         <h2>Analytics and diagnostics</h2>
         <p>
-          We may collect product analytics and basic operational diagnostics, such as platform,
-          app version, and feature usage, to understand what is working and what needs to improve.
-          We use this information to keep the app stable and useful, not to build advertising
-          profiles.
+          We may collect product analytics and basic operational diagnostics, such as minutes
+          listened, sessions or time spent, chapter completion, playback progress, platform, app
+          version, and feature engagement, to understand what is working and what needs to
+          improve. Where possible, we keep this usage data separate from your account and use it
+          only for analytics and app improvements, not for advertising profiles or cross-app
+          tracking. If you sign in, we separately store reading progress, bookmarks, and
+          preferences linked to your account so your experience can sync across devices.
         </p>
       </section>
 

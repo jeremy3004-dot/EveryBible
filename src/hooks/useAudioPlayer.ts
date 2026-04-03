@@ -14,7 +14,7 @@ import {
   syncBibleNowPlaying,
 } from '../services/audio';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
-import { trackEvent } from '../services/analytics';
+import { trackAnonymousUsageEvent, trackEvent } from '../services/analytics';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
@@ -25,6 +25,7 @@ import {
 } from '../stores/audioPlaybackSequenceModel';
 
 export function useAudioPlayer(translationId: string = 'bsb') {
+  const AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS = 30000;
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
   const isChapterTransitioningRef = useRef(false);
@@ -39,6 +40,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const lastPollPositionRef = useRef<number>(0);
   const lastPollTimeRef = useRef<number>(0);
   const interpolationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioProgressTelemetryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioProgressTelemetryLastEmittedAtRef = useRef<number>(0);
   const lastNowPlayingSignatureRef = useRef<string | null>(null);
 
   const {
@@ -177,6 +180,73 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     [translationId]
   );
 
+  const stopAudioProgressTelemetryTimer = useCallback(() => {
+    if (audioProgressTelemetryTimerRef.current) {
+      clearInterval(audioProgressTelemetryTimerRef.current);
+      audioProgressTelemetryTimerRef.current = null;
+    }
+  }, []);
+
+  const resetAudioProgressTelemetryClock = useCallback(() => {
+    audioProgressTelemetryLastEmittedAtRef.current = Date.now();
+  }, []);
+
+  const emitAudioPlaybackProgress = useCallback(
+    (reason: 'tick' | 'pause' | 'stop' | 'chapter-change' | 'finish', force = false) => {
+      const state = useAudioStore.getState();
+      const bookId = state.currentBookId;
+      const chapter = state.currentChapter;
+      const durationMs = state.duration;
+      if (!bookId || !chapter || durationMs <= 0) {
+        return;
+      }
+
+      const now = Date.now();
+      const lastEmittedAt = audioProgressTelemetryLastEmittedAtRef.current || now;
+      const elapsedMs = Math.max(0, now - lastEmittedAt);
+      const listenedMs = Math.round(elapsedMs * (state.playbackRate ?? 1));
+
+      if (!force && reason === 'tick' && listenedMs < AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS / 2) {
+        return;
+      }
+
+      if (!force && listenedMs <= 0) {
+        return;
+      }
+
+      const resolvedPositionMs = state.currentPosition;
+      const progressPercent =
+        durationMs > 0 ? Math.min(100, Math.round((resolvedPositionMs / durationMs) * 1000) / 10) : 0;
+
+      trackAnonymousUsageEvent('audio_playback_progress', {
+        book_id: bookId,
+        chapter,
+        duration_ms: durationMs,
+        listened_ms: Math.max(0, listenedMs),
+        mode: 'listen',
+        playback_rate: state.playbackRate ?? 1,
+        position_ms: resolvedPositionMs,
+        progress_percent: progressPercent,
+        reason,
+        translation_id: state.currentTranslationId ?? translationId,
+      });
+
+      audioProgressTelemetryLastEmittedAtRef.current = now;
+    },
+    [translationId]
+  );
+
+  const startAudioProgressTelemetry = useCallback(() => {
+    if (audioProgressTelemetryTimerRef.current) {
+      return;
+    }
+
+    resetAudioProgressTelemetryClock();
+    audioProgressTelemetryTimerRef.current = setInterval(() => {
+      emitAudioPlaybackProgress('tick');
+    }, AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS);
+  }, [emitAudioPlaybackProgress, resetAudioProgressTelemetryClock]);
+
   const playChapterForTranslation = useCallback(
     async (targetTranslationId: string, bookId: string, chapter: number, verse?: number) => {
       if (!isAudioAvailable(targetTranslationId)) {
@@ -307,6 +377,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       if (snapshot.isPlaying) {
         setStatus('playing');
+        startAudioProgressTelemetry();
 
         // Start 50ms interpolation timer if not already running
         if (!interpolationTimerRef.current) {
@@ -327,6 +398,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           clearInterval(interpolationTimerRef.current);
           interpolationTimerRef.current = null;
         }
+        stopAudioProgressTelemetryTimer();
 
         if (snapshot.isBuffering) {
           setStatus('loading');
@@ -335,7 +407,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         }
       }
     },
-    [setPosition, setDuration, setStatus, syncCurrentNowPlaying, translationId]
+    [
+      setPosition,
+      setDuration,
+      setStatus,
+      startAudioProgressTelemetry,
+      stopAudioProgressTelemetryTimer,
+      syncCurrentNowPlaying,
+      translationId,
+    ]
   );
 
   // Handle playback finished - auto-advance to next chapter
@@ -353,6 +433,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       setQueueIndex,
       playbackSequence,
     } = store;
+
+    emitAudioPlaybackProgress('finish', true);
+    stopAudioProgressTelemetryTimer();
 
     // Fire analytics event for the chapter that just finished
     if (bookId && chapterNum) {
@@ -427,7 +510,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       void clearBibleNowPlaying();
       setStatus('idle');
     }
-  }, [setStatus, translationId]);
+  }, [emitAudioPlaybackProgress, setStatus, stopAudioProgressTelemetryTimer, translationId]);
 
   // Set up audio player callbacks
   useEffect(() => {
@@ -532,6 +615,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       interpolationTimerRef.current = null;
     }
     await audioPlayer.pause();
+    emitAudioPlaybackProgress('pause', true);
+    stopAudioProgressTelemetryTimer();
     setStatus('paused');
     if (currentBookId && currentChapter && duration > 0) {
       useLibraryStore.getState().recordHistory(
@@ -553,7 +638,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentChapter,
     currentPosition,
     duration,
+    emitAudioPlaybackProgress,
     setStatus,
+    stopAudioProgressTelemetryTimer,
     syncCurrentNowPlaying,
   ]);
 
@@ -580,6 +667,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       clearInterval(interpolationTimerRef.current);
       interpolationTimerRef.current = null;
     }
+    emitAudioPlaybackProgress('stop', true);
+    stopAudioProgressTelemetryTimer();
     if (currentBookId && currentChapter && duration > 0) {
       useLibraryStore.getState().recordHistory(
         currentBookId,
@@ -591,7 +680,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     await backgroundMusicPlayer.stop();
     void clearBibleNowPlaying();
     resetPlayback();
-  }, [currentBookId, currentChapter, currentPosition, duration, resetPlayback]);
+  }, [
+    currentBookId,
+    currentChapter,
+    currentPosition,
+    duration,
+    emitAudioPlaybackProgress,
+    resetPlayback,
+    stopAudioProgressTelemetryTimer,
+  ]);
 
   // Toggle play/pause
   const togglePlayPause = useCallback(async () => {

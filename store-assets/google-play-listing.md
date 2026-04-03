@@ -108,8 +108,20 @@ Welcome to Every Bible! This initial release includes:
 ## Data Safety Section
 
 **Data Collection:**
-- Account info (email, name) - Optional, for sync features
-- App activity (reading history) - Stored locally and optionally synced
+- App activity / App interactions - Anonymous analytics for:
+  - minutes listened
+  - sessions or time spent
+  - chapter completion
+  - playback progress
+  - feature engagement
+  - Not linked to the user
+- Account info - Optional, for sync features:
+  - email
+  - name
+- Account-linked app data - Stored locally and optionally synced:
+  - reading history
+  - bookmarks
+  - preferences
 
 **Data Sharing:**
 - No data is shared with third parties

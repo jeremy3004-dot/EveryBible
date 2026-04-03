@@ -25,6 +25,11 @@ import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
 import {
+  endAnonymousUsageSession,
+  flushAnonymousUsageEvents,
+  startAnonymousUsageSession,
+} from './src/services/analytics';
+import {
   setupNotificationHandler,
   setupAndroidChannels,
   registerPushToken,
@@ -243,12 +248,48 @@ function AppContent() {
   const onboardingCompleted = useAuthStore((state) => state.preferences.onboardingCompleted);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const pendingInitialAuthModeRef = useRef<PendingAuthMode | null>(null);
   const onboardingCompletedRef = useRef(onboardingCompleted);
   const prevAuthRef = useRef(isAuthenticated);
   const prevUserUidRef = useRef(user?.uid ?? null);
+  const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
   useSync();
   usePrivacyLock();
+
+  useEffect(() => {
+    if (!onboardingCompleted || isPrivacyLocked) {
+      return;
+    }
+
+    if (AppState.currentState === 'active') {
+      startAnonymousUsageSession();
+    }
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const previousAppState = anonymousUsageAppStateRef.current;
+
+      if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
+        startAnonymousUsageSession();
+      }
+
+      if (previousAppState === 'active' && nextAppState.match(/inactive|background/)) {
+        endAnonymousUsageSession();
+        void flushAnonymousUsageEvents();
+      }
+
+      anonymousUsageAppStateRef.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+
+      if (anonymousUsageAppStateRef.current === 'active') {
+        endAnonymousUsageSession();
+        void flushAnonymousUsageEvents();
+      }
+    };
+  }, [isPrivacyLocked, onboardingCompleted]);
 
   // Set up Android notification channels on mount (idempotent, no-op on iOS).
   useEffect(() => {

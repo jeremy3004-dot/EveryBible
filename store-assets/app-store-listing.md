@@ -72,6 +72,7 @@ https://everybible.app/privacy
 - Uses Supabase for authentication and data sync
 - Audio content provided via direct public-domain sources from Berean/OpenBible and eBible.org
 - BSB translation is public domain
+- App Privacy: Usage Data (Product Interaction) for analytics includes minutes listened, sessions/time spent, chapter completion, playback progress, and engagement; not linked to identity. Account-linked sync data (reading progress, bookmarks, preferences) is disclosed separately.
 
 ## Age Rating
 4+ (No objectionable content)

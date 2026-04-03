@@ -50,6 +50,24 @@ Apple currently allows `1` to `10` screenshots in `.jpeg`, `.jpg`, or `.png` for
 - The version metadata still points to the right subtitle, keywords, and description from:
   - `store-assets/app-store-listing.md`
 
+### App Store Privacy
+
+Official references:
+- Apple privacy details: [App privacy details on the App Store](https://developer.apple.com/app-store/app-privacy-details/)
+- Apple privacy management: [Manage app privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy)
+
+Use the App Privacy form in App Store Connect to match the current analytics behavior:
+
+1. Open [App Store Connect](https://appstoreconnect.apple.com/) and go to `Apps` → `Every Bible`.
+2. Open `App Privacy` and click `Edit` next to `Data Types`.
+3. Add `Usage Data` → `Product Interaction` for the anonymous usage analytics stream.
+4. Mark that usage data as `Not linked to the user` and `Analytics`.
+5. Keep the account-linked sync data separate if it is still present in the app:
+   - reading progress
+   - bookmarks
+   - preferences
+6. Publish the updated privacy details after confirming the selections.
+
 ## Google Play Console
 
 Official references:
@@ -88,6 +106,27 @@ Google currently requires:
 - The Play listing copy matches:
   - `store-assets/google-play-listing.md`
 - The feature graphic stays text-light and uses the same rust / ivory visual system as the screenshots.
+
+### Google Play Data Safety
+
+Use the Google Play Data safety form to mirror the listing copy in `store-assets/google-play-listing.md`:
+
+1. Open [Google Play Console](https://play.google.com/console/).
+2. Open the app's `Data safety` form.
+3. Record the anonymous usage analytics as `App activity` / `App interactions` with:
+   - minutes listened
+   - sessions or time spent
+   - chapter completion
+   - playback progress
+   - feature engagement
+   - mark it `Not linked to the user` and `Analytics`
+4. Keep the optional sync data separate under account-related data:
+   - email
+   - name
+   - reading history
+   - bookmarks
+   - preferences
+5. Publish the updated data safety details after confirming they match the privacy policy and store listing.
 
 ### Recommended Alt Text
 

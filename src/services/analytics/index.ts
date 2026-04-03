@@ -18,3 +18,15 @@ export {
   type BibleExperienceEvent,
   type BibleExperienceEventName,
 } from './bibleExperienceAnalytics';
+
+export {
+  trackAnonymousUsageEvent,
+  flushAnonymousUsageEvents,
+  startAnonymousUsageSession,
+  endAnonymousUsageSession,
+  getCurrentAnonymousUsageSessionId,
+  getPendingAnonymousUsageEventCount,
+  type AnonymousUsageEvent,
+  type AnonymousUsageEventName,
+  type AnonymousUsageServiceResult,
+} from './anonymousUsageAnalytics';

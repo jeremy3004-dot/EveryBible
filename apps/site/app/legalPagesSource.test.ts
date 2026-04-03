@@ -25,6 +25,10 @@ test('site legal pages use canonical support and legal links', async () => {
   assert.match(privacyPage, /EVERYBIBLE_SUPPORT_EMAIL_ADDRESS/);
   assert.match(privacyPage, /EVERYBIBLE_TERMS_PATH/);
   assert.match(privacyPage, /EVERYBIBLE_SUPPORT_PATH/);
+  assert.match(
+    privacyPage,
+    /minutes\s+listened.*sessions\s+or\s+time\s+spent.*chapter\s+completion.*playback\s+progress.*feature\s+engagement/s
+  );
 
   assert.match(termsPage, /Last updated: April 3, 2026/);
   assert.match(termsPage, /EVERYBIBLE_SUPPORT_EMAIL_ADDRESS/);
