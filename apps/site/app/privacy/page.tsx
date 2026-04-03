@@ -1,11 +1,21 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import {
+  EVERYBIBLE_PRIVACY_PATH,
+  EVERYBIBLE_SUPPORT_EMAIL,
+  EVERYBIBLE_SUPPORT_EMAIL_ADDRESS,
+  EVERYBIBLE_SUPPORT_PATH,
+  EVERYBIBLE_TERMS_PATH,
+} from '../../lib/site-links';
 
 export const metadata: Metadata = {
-  title: 'Every Seven Nine Privacy Policy',
+  title: 'EveryBible Privacy Policy',
   description:
-    'Read the Every Seven Nine privacy policy covering account data, usage data, storage, third-party services, and user rights.',
+    'Read the EveryBible privacy policy covering account data, reading activity, support requests, analytics, and your choices.',
+  alternates: {
+    canonical: EVERYBIBLE_PRIVACY_PATH,
+  },
 };
 
 export default function PrivacyPage() {
@@ -13,107 +23,131 @@ export default function PrivacyPage() {
     <StaticPageLayout
       eyebrow="Legal"
       title="Privacy Policy"
-      intro="Last updated: April 2, 2026"
+      intro="Last updated: April 3, 2026"
     >
       <section>
         <p>
-          Every Seven Nine (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to
-          protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard
-          your information when you use our mobile application and related services.
+          EveryBible (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) exists to help people read,
+          listen to, and share Scripture. This Privacy Policy explains what information we collect,
+          how we use it, when it is shared with service providers, and the choices you have when
+          you use the EveryBible app, website, and related support services.
         </p>
       </section>
 
       <section>
         <h2>Information We Collect</h2>
-        <h3>Account Information</h3>
-        <p>When you create an account using Google Sign-In or Apple Sign-In, we may receive:</p>
+        <h3>Account details</h3>
+        <p>When you sign in with Apple or Google, we may receive:</p>
         <ul>
           <li>Your name</li>
           <li>Email address</li>
-          <li>Profile picture, if available from the provider</li>
+          <li>Profile photo, if your sign-in provider shares it</li>
         </ul>
 
-        <h3>Usage Data</h3>
-        <p>We collect information about how you use the app, including:</p>
+        <h3>Reading and app activity</h3>
+        <p>We may store information needed to run the app and keep your experience in sync, such as:</p>
         <ul>
           <li>Reading progress and history</li>
           <li>Bookmarks and highlights</li>
-          <li>App preferences and settings</li>
+          <li>Notes, preferences, and downloaded content metadata</li>
+          <li>Basic engagement events and app version information</li>
         </ul>
 
-        <h3>Approximate Location Data</h3>
+        <h3>Support messages</h3>
+        <p>If you contact us, we may keep your message and the troubleshooting details you send.</p>
+
+        <h3>Local device storage</h3>
         <p>
-          When you use the app, our backend may derive an approximate location from your network
-          IP address and related routing information. We use this coarse location data to
-          understand where the app is being used and to power aggregate usage maps and reports.
-        </p>
-        <p>
-          We do not request, store, or use precise GPS coordinates from your device for analytics
-          or heat maps.
+          Some information, including downloaded Bible content, reading state, and privacy
+          preferences, may be stored on your device so EveryBible works offline.
         </p>
       </section>
 
       <section>
-        <h2>How We Use Your Information</h2>
+        <h2>How We Use Information</h2>
         <ul>
-          <li>Provide and maintain the app</li>
-          <li>Sync your reading progress across devices</li>
-          <li>Personalize your experience</li>
-          <li>Generate aggregate usage reporting and approximate location heat maps</li>
-          <li>Send important updates about the app</li>
+          <li>Provide Bible reading, listening, search, and sharing features</li>
+          <li>Sync your content and progress across devices when you sign in</li>
+          <li>Understand reliability and improve app performance</li>
+          <li>Respond to support requests and protect the service from misuse</li>
         </ul>
       </section>
 
       <section>
-        <h2>Data Storage</h2>
-        <p>
-          Your data is stored using Supabase and related infrastructure providers that help us run
-          authentication, storage, and operational services. We use appropriate security controls
-          to protect personal information.
-        </p>
-      </section>
-
-      <section>
-      <h2>Third-Party Services</h2>
-      <ul>
-        <li><strong>Google Sign-In</strong> for authentication</li>
-        <li><strong>Apple Sign-In</strong> for authentication</li>
-        <li><strong>Cloudflare</strong> for edge request handling and approximate IP geolocation</li>
-        <li><strong>Supabase</strong> for data storage and auth infrastructure</li>
-      </ul>
-      </section>
-
-      <section>
-        <h2>Your Rights</h2>
+        <h2>How We Share Information</h2>
+        <p>We do not sell your personal information. We may share limited information with service providers that help us operate EveryBible, including:</p>
         <ul>
-          <li>Access your personal data</li>
-          <li>Request deletion of your data</li>
-          <li>Export your data</li>
-          <li>Opt out of non-essential data collection where applicable</li>
+          <li><strong>Supabase</strong> for authentication, database, and storage services</li>
+          <li><strong>Apple</strong> and <strong>Google</strong> for sign-in and app distribution services</li>
+          <li>Infrastructure providers that securely deliver website and app content</li>
         </ul>
       </section>
 
       <section>
-        <h2>Children&apos;s Privacy</h2>
+        <h2>Analytics and diagnostics</h2>
         <p>
-          Our app is intended to be usable by all ages. We do not knowingly collect personal
-          information from children under 13 without appropriate consent.
+          We may collect product analytics and basic operational diagnostics, such as platform,
+          app version, and feature usage, to understand what is working and what needs to improve.
+          We use this information to keep the app stable and useful, not to build advertising
+          profiles.
         </p>
       </section>
 
       <section>
-        <h2>Changes to This Policy</h2>
+        <h2>Retention and deletion</h2>
         <p>
-          We may update this Privacy Policy from time to time. We will update the published date
-          on this page when material changes are made.
+          We keep personal information for as long as it is needed to operate the service,
+          comply with legal obligations, resolve disputes, or enforce our agreements. You can
+          request account or data deletion by contacting us at{' '}
+          <a href={EVERYBIBLE_SUPPORT_EMAIL}>{EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}</a>.
         </p>
       </section>
 
       <section>
-        <h2>Contact Us</h2>
+        <h2>Your choices</h2>
+        <ul>
+          <li>Update or correct account information through your sign-in provider where available</li>
+          <li>Remove locally stored content by deleting downloads or uninstalling the app</li>
+          <li>Request access to or deletion of your personal data by contacting us</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Children&apos;s privacy</h2>
+        <p>
+          EveryBible is built to be used by people of all ages. We do not knowingly collect
+          personal information from children in violation of applicable law. If you believe a
+          child provided personal information improperly, contact us so we can review and remove
+          it if needed.
+        </p>
+      </section>
+
+      <section>
+        <h2>Changes to this policy</h2>
+        <p>
+          We may update this Privacy Policy from time to time. When we make material changes, we
+          will update the published date on this page and may also communicate the change through
+          the app or website.
+        </p>
+      </section>
+
+      <section>
+        <h2>Related legal pages</h2>
+        <ul>
+          <li>
+            <a href={EVERYBIBLE_TERMS_PATH}>Terms of Service</a>
+          </li>
+          <li>
+            <a href={EVERYBIBLE_SUPPORT_PATH}>Support</a>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Contact us</h2>
         <p>
           If you have questions about this Privacy Policy, contact us at{' '}
-          <a href="mailto:curryj@protonmail.com">curryj@protonmail.com</a>.
+          <a href={EVERYBIBLE_SUPPORT_EMAIL}>{EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}</a>.
         </p>
       </section>
     </StaticPageLayout>

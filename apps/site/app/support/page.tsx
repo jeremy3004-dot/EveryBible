@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
 import { supportChannels } from '../../lib/site-content';
+import {
+  EVERYBIBLE_PRIVACY_PATH,
+  EVERYBIBLE_SUPPORT_EMAIL_ADDRESS,
+  EVERYBIBLE_TERMS_PATH,
+} from '../../lib/site-links';
 
 export const metadata: Metadata = {
   title: 'Support EveryBible',
@@ -35,7 +40,7 @@ export default function SupportPage() {
           include as much context as you can about your device, language, and what went wrong.
         </p>
         <p>
-          <a href={supportChannels.supportEmail}>curryj@protonmail.com</a>
+          <a href={supportChannels.supportEmail}>{EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}</a>
         </p>
       </section>
 
@@ -43,10 +48,10 @@ export default function SupportPage() {
         <h2>Helpful links</h2>
         <ul>
           <li>
-            <a href="/privacy">Privacy Policy</a>
+            <a href={EVERYBIBLE_PRIVACY_PATH}>Privacy Policy</a>
           </li>
           <li>
-            <a href="/terms">Terms of Service</a>
+            <a href={EVERYBIBLE_TERMS_PATH}>Terms of Service</a>
           </li>
           <li>
             <a href="/about">About EveryBible</a>

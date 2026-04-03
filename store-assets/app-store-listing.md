@@ -42,10 +42,10 @@ Download Every Bible and make Scripture part of your everyday rhythm.
 This release sharpens the Bible reading experience with improved highlights and notes, smoother chapter controls, cleaner translation browsing, and a more polished reader throughout the app.
 
 ## Support URL
-https://jeremy3004-dot.github.io/EveryBible/
+https://everybible.app/support
 
 ## Privacy Policy URL
-https://jeremy3004-dot.github.io/EveryBible/privacy.html
+https://everybible.app/privacy
 
 ## App Store Review Notes
 - No login required to use the app

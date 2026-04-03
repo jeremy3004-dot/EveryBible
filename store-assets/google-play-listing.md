@@ -59,10 +59,10 @@ Everyone
 bible, scripture, audio bible, devotional, christian, discipleship, reading, church, spiritual growth, verse of the day
 
 ## Contact Email
-curryj@protonmail.com
+hello@everybible.app
 
 ## Privacy Policy URL
-https://jeremy3004-dot.github.io/EveryBible/privacy.html
+https://everybible.app/privacy
 
 ## Feature Graphic Text (for 1024x500 image)
 "Every Bible - Read. Listen. Grow."

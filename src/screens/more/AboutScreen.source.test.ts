@@ -7,8 +7,33 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('AboutScreen uses the Every Seven Nine website and support contact details', () => {
+test('AboutScreen uses the EveryBible website and support contact details', () => {
   const source = readRelativeSource('./AboutScreen.tsx');
+
+  assert.ok(
+    source.includes('EVERYBIBLE_SITE_URL'),
+    'AboutScreen should import the canonical EveryBible website URL'
+  );
+
+  assert.ok(
+    source.includes('EVERYBIBLE_PRIVACY_URL'),
+    'AboutScreen should import the canonical privacy URL'
+  );
+
+  assert.ok(
+    source.includes('EVERYBIBLE_TERMS_URL'),
+    'AboutScreen should import the canonical terms URL'
+  );
+
+  assert.ok(
+    source.includes('EVERYBIBLE_SUPPORT_EMAIL'),
+    'AboutScreen should import the canonical support email address'
+  );
+
+  assert.ok(
+    source.includes('EVERYBIBLE_SUPPORT_EMAIL_URL'),
+    'AboutScreen should import the canonical support email mailto link'
+  );
 
   assert.ok(
     source.includes("defaultValue: ABOUT_RESOURCES_LABEL"),
@@ -16,22 +41,22 @@ test('AboutScreen uses the Every Seven Nine website and support contact details'
   );
 
   assert.ok(
-    source.includes('https://everysevennine.tech'),
-    'AboutScreen should link to the Every Seven Nine website'
+    source.includes('handleLink(EVERYBIBLE_SITE_URL)'),
+    'AboutScreen should link to the EveryBible website through the canonical constant'
   );
 
   assert.ok(
     source.includes("defaultValue: ABOUT_WEBSITE_LABEL"),
-    'AboutScreen should show the Every Seven Nine website label instead of a raw key'
+    'AboutScreen should show the EveryBible website label instead of a raw key'
   );
 
   assert.ok(
-    source.includes('mailto:${ABOUT_SUPPORT_EMAIL}'),
+    source.includes('handleLink(EVERYBIBLE_SUPPORT_EMAIL_URL)'),
     'AboutScreen should open the hello@everybible.app support inbox'
   );
 
   assert.ok(
-    source.includes("defaultValue: ABOUT_SUPPORT_EMAIL"),
+    source.includes("defaultValue: EVERYBIBLE_SUPPORT_EMAIL"),
     'AboutScreen should show the support email instead of a raw key'
   );
 
@@ -46,13 +71,13 @@ test('AboutScreen uses the Every Seven Nine website and support contact details'
   );
 
   assert.ok(
-    source.includes('https://everysevennine.tech/privacy'),
-    'AboutScreen should link to the Every Seven Nine privacy page'
+    source.includes('handleLink(EVERYBIBLE_PRIVACY_URL)'),
+    'AboutScreen should link to the EveryBible privacy page'
   );
 
   assert.ok(
-    source.includes('https://everysevennine.tech/terms'),
-    'AboutScreen should link to the Every Seven Nine terms page'
+    source.includes('handleLink(EVERYBIBLE_TERMS_URL)'),
+    'AboutScreen should link to the EveryBible terms page'
   );
 
   assert.equal(

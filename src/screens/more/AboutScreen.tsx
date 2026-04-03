@@ -4,14 +4,17 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
-import { config } from '../../constants';
+import {
+  config,
+  EVERYBIBLE_PRIVACY_URL,
+  EVERYBIBLE_SITE_URL,
+  EVERYBIBLE_SUPPORT_EMAIL,
+  EVERYBIBLE_SUPPORT_EMAIL_URL,
+  EVERYBIBLE_TERMS_URL,
+} from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
 
-const ABOUT_WEBSITE_URL = 'https://everysevennine.tech';
-const ABOUT_WEBSITE_LABEL = 'everysevennine.tech';
-const ABOUT_SUPPORT_EMAIL = 'hello@everybible.app';
-const ABOUT_PRIVACY_POLICY_URL = 'https://everysevennine.tech/privacy';
-const ABOUT_TERMS_OF_SERVICE_URL = 'https://everysevennine.tech/terms';
+const ABOUT_WEBSITE_LABEL = 'everybible.app';
 const ABOUT_RESOURCES_LABEL = 'Resources';
 const ABOUT_MADE_WITH_LOVE = 'Made with love';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
@@ -57,7 +60,7 @@ export function AboutScreen() {
         <View style={styles.linksCard}>
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink(ABOUT_WEBSITE_URL)}
+            onPress={() => handleLink(EVERYBIBLE_SITE_URL)}
           >
             <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>
@@ -68,18 +71,18 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink(`mailto:${ABOUT_SUPPORT_EMAIL}`)}
+            onPress={() => handleLink(EVERYBIBLE_SUPPORT_EMAIL_URL)}
           >
             <Ionicons name="mail-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>
-              {t('about.contactSupport', { defaultValue: ABOUT_SUPPORT_EMAIL })}
+              {t('about.contactSupport', { defaultValue: EVERYBIBLE_SUPPORT_EMAIL })}
             </Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.linkItem}
-            onPress={() => handleLink(ABOUT_PRIVACY_POLICY_URL)}
+            onPress={() => handleLink(EVERYBIBLE_PRIVACY_URL)}
           >
             <Ionicons name="shield-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.privacyPolicy')}</Text>
@@ -88,7 +91,7 @@ export function AboutScreen() {
 
           <TouchableOpacity
             style={[styles.linkItem, styles.linkItemLast]}
-            onPress={() => handleLink(ABOUT_TERMS_OF_SERVICE_URL)}
+            onPress={() => handleLink(EVERYBIBLE_TERMS_URL)}
           >
             <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>

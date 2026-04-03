@@ -1,3 +1,9 @@
+import {
+  EVERYBIBLE_PRIVACY_PATH,
+  EVERYBIBLE_SUPPORT_EMAIL,
+  EVERYBIBLE_TERMS_PATH,
+} from './site-links';
+
 export interface SiteNavigationItem {
   label: string;
   href: string;
@@ -5,8 +11,6 @@ export interface SiteNavigationItem {
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6758254335';
 const GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.everybible.app';
-const SUPPORT_EMAIL = 'mailto:curryj@protonmail.com';
-
 export interface HeroContent {
   title: string;
   description: string;
@@ -173,8 +177,8 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: 'Bible Languages', href: '/about#languages' },
       { label: 'Verse of the Day', href: '#verse-of-the-day' },
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms of Service', href: '/terms' },
+      { label: 'Privacy Policy', href: EVERYBIBLE_PRIVACY_PATH },
+      { label: 'Terms of Service', href: EVERYBIBLE_TERMS_PATH },
       { label: 'Get the app', href: '/support' },
     ],
   },
@@ -192,5 +196,5 @@ export const mobileTabs: MobileTabItem[] = [
 export const supportChannels = {
   appStoreUrl: APP_STORE_URL,
   googlePlayUrl: GOOGLE_PLAY_URL,
-  supportEmail: SUPPORT_EMAIL,
+  supportEmail: EVERYBIBLE_SUPPORT_EMAIL,
 };
