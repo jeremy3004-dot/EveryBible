@@ -3,6 +3,11 @@ set -euo pipefail
 
 echo "[eas-preinstall] PATH=$PATH"
 
+if [[ "${EAS_BUILD_PLATFORM:-}" != "ios" ]]; then
+  echo "[eas-preinstall] Skipping CocoaPods bootstrap for ${EAS_BUILD_PLATFORM:-unknown} build"
+  exit 0
+fi
+
 if command -v pod >/dev/null 2>&1; then
   echo "[eas-preinstall] CocoaPods available: $(pod --version)"
   exit 0
