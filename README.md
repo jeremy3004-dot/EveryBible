@@ -78,6 +78,7 @@ For the web apps, `.env.example` also includes the required Next.js and admin va
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `EVERYBIBLE_UPSTREAM_API_BASE_URL`
 - `EVERYBIBLE_UPSTREAM_API_KEY`
+- `OPENAI_API_KEY` - optional for the admin-side AI helper chat
 
 If those admin variables are missing, `admin.everybible.app` now renders a setup screen listing the missing keys instead of crashing with a server error.
 
@@ -187,6 +188,17 @@ npm run testflight:verify-distribution
 # Submit to Google Play
 eas submit --platform android --profile production
 ```
+
+### GitHub Actions Release Flow
+
+- Pushes to `main` build a production Android App Bundle and upload it as a GitHub Actions artifact.
+- Manually dispatch the `Android Production Release` workflow with `submit = true` after your first Play Console upload if you want GitHub to submit future builds.
+- Add these GitHub secrets:
+  - `EXPO_TOKEN`
+  - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
+
+For the first Play Console submission, download the AAB artifact from the workflow run and upload it manually in Play Console.
+The Play service-account JSON is written to `google-play-service-account.json` during submit runs, so the same file path works locally too if you ever run `eas submit` by hand.
 
 ## Project Structure
 

@@ -1,0 +1,81 @@
+name: Android Production Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: Submit the build to Google Play after building
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Build Android app bundle
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production AAB locally
+        id: build
+        run: |
+          set -euo pipefail
+          rm -f build-*.aab
+          npx -y eas-cli build --platform android --profile production --local --non-interactive
+          AAB_PATH="$(ls -t "$PWD"/build-*.aab | head -n 1)"
+          echo "aab_path=$AAB_PATH" >> "$GITHUB_OUTPUT"
+          echo "Built AAB: $AAB_PATH"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: everybible-android-aab
+          path: ${{ steps.build.outputs.aab_path }}
+          if-no-files-found: error
+
+      - name: Write Google Play service account key
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.submit }}
+        run: |
+          set -euo pipefail
+          printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > ./google-play-service-account.json
+
+      - name: Submit build to Google Play
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.submit }}
+        run: |
+          set -euo pipefail
+          npx -y eas-cli submit --platform android --profile production --path "${{ steps.build.outputs.aab_path }}" --non-interactive --no-wait

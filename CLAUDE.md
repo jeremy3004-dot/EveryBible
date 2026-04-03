@@ -598,8 +598,8 @@ eas submit --platform android --profile production
 
 **Android:**
 - Package: com.everybible.app
-- Service account: every-bible-485319-82e2f287e3f8.json
-- Uploads to internal track as draft
+- Service account: google-play-service-account.json
+- Uploads to production track as draft
 
 ### Release Checklist
 1. Update version in app.json

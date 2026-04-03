@@ -42,8 +42,8 @@
         "appleTeamId": "NVC9N47PRH"
       },
       "android": {
-        "serviceAccountKeyPath": "./every-bible-485319-82e2f287e3f8.json",
-        "track": "internal",
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production",
         "releaseStatus": "draft"
       }
     }
