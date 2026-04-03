@@ -40,7 +40,7 @@ test('berean standard bible audio resolves psalms chapters through the EveryBibl
   });
 });
 
-test('berean standard bible audio resolves through injected stream-template metadata', async () => {
+test('runtime stream-template audio can still resolve through a custom remote base url', async () => {
   setRemoteAudioMetadataResolver((translationId) => {
     if (translationId !== 'bsb') {
       return null;
@@ -75,7 +75,7 @@ test('world english bible audio resolves through the EveryBible media route', as
   });
 });
 
-test('world english bible audio resolves psalms chapters through the EveryBible media route', async () => {
+test('world english bible audio supports psalms chapter filenames through the EveryBible media route', async () => {
   const audio = await fetchRemoteChapterAudio('web', 'PSA', 150);
 
   assert.deepEqual(audio, {

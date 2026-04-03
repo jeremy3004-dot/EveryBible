@@ -1,11 +1,7 @@
 import type { BibleTranslation } from '../types';
-import {
-  getBibleAudioAssetBaseUrl,
-  resolveBibleAssetBaseUrl,
-} from '../services/bible/bibleAssetBaseUrl';
+import { getBibleAudioAssetBaseUrl } from '../services/bible/bibleAssetBaseUrl';
 
 const AUDIO_BUCKET_BASE = getBibleAudioAssetBaseUrl();
-const TIMING_BUCKET_BASE = resolveBibleAssetBaseUrl('timing');
 
 export const bibleTranslations: BibleTranslation[] = [
   {
@@ -42,7 +38,7 @@ export const bibleTranslations: BibleTranslation[] = [
     name: 'World English Bible',
     abbreviation: 'WEB',
     language: 'English',
-    description: 'Public-domain British-edition text and chapter audio mirrored through EveryBible',
+    description: 'Public-domain British-edition text and chapter audio from the EveryBible library',
     copyright: 'Public Domain',
     isDownloaded: false,
     downloadedBooks: [],
@@ -52,27 +48,19 @@ export const bibleTranslations: BibleTranslation[] = [
     hasText: true,
     hasAudio: true,
     audioGranularity: 'chapter',
-    catalog:
-      AUDIO_BUCKET_BASE && TIMING_BUCKET_BASE
-        ? {
-            version: '2026.04.02',
-            updatedAt: '2026-04-02T00:00:00.000Z',
-            audio: {
-              strategy: 'stream-template',
-              baseUrl: `${AUDIO_BUCKET_BASE}/web`,
-              chapterPathTemplate: '{bookId}/{chapter}.mp3',
-              fileExtension: 'mp3',
-              mimeType: 'audio/mpeg',
-            },
-            timing: {
-              strategy: 'stream-template',
-              baseUrl: `${TIMING_BUCKET_BASE}/web`,
-              chapterPathTemplate: '{bookId}_{chapterPadded}.json',
-              fileExtension: 'json',
-              mimeType: 'application/json',
-            },
-          }
-        : undefined,
+    catalog: AUDIO_BUCKET_BASE
+      ? {
+          version: '2026.04.03',
+          updatedAt: '2026-04-03T00:00:00.000Z',
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: `${AUDIO_BUCKET_BASE}/web`,
+            chapterPathTemplate: '{bookId}/{chapter}.mp3',
+            fileExtension: 'mp3',
+            mimeType: 'audio/mpeg',
+          },
+        }
+      : undefined,
   },
   {
     id: 'kjv',
@@ -138,7 +126,7 @@ export const bibleTranslations: BibleTranslation[] = [
     hasAudio: false,
     audioGranularity: 'none',
   },
-  // ── Other languages (runtime catalog controls the download source) ──────────
+  // ── Other languages (cloud-downloadable from Supabase) ──────────────────────
   {
     id: 'sparv1909',  // resolves to 'spaRV1909' in Supabase via case-insensitive lookup
     name: 'Reina Valera 1909',

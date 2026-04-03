@@ -473,9 +473,7 @@ export const useBibleStore = create<BibleState>()(
           }));
 
           const textPack = translation?.catalog?.text;
-          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
-            '../services/bible/cloudTranslationService'
-          );
+          const { downloadCatalogTextPack } = await import('../services/bible/cloudTranslationService');
 
           const handleProgress = (progress: {
             error?: string;
@@ -504,13 +502,15 @@ export const useBibleStore = create<BibleState>()(
             });
           };
 
-          const localPath = await (textPack
-            ? downloadCatalogTextPack({
-                translationId,
-                downloadUrl: textPack.downloadUrl,
-                onProgress: handleProgress,
-              })
-            : downloadCloudTranslation(translationId, handleProgress));
+          if (!textPack?.downloadUrl) {
+            throw new Error('This Bible is not published to the EveryBible library yet.');
+          }
+
+          const localPath = await downloadCatalogTextPack({
+            translationId,
+            downloadUrl: textPack.downloadUrl,
+            onProgress: handleProgress,
+          });
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 
