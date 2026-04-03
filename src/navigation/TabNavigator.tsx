@@ -20,27 +20,9 @@ type NestedTabRouteState = {
   index?: number;
   routes?: Array<{
     name: string;
-    params?: {
-      tabBarVisible?: boolean;
-    };
+    params?: Record<string, unknown>;
   }>;
 };
-
-function shouldKeepBibleTabBarVisible(route: {
-  name: string;
-  state?: NestedTabRouteState;
-}): boolean {
-  if (route.name !== 'Bible') {
-    return true;
-  }
-
-  const focusedRoute = route.state?.routes?.[route.state.index ?? 0];
-  if (focusedRoute?.name !== 'BibleReader') {
-    return true;
-  }
-
-  return focusedRoute.params?.tabBarVisible !== false;
-}
 
 export function TabNavigator() {
   const { colors } = useTheme();
@@ -76,16 +58,8 @@ export function TabNavigator() {
           const shouldHideNestedBibleScreen =
             (route.name === 'Bible' || route.name === 'Learn') &&
             shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
-          const shouldHideBibleReaderTabBar =
-            route.name === 'Bible' &&
-            !shouldKeepBibleTabBarVisible(route as {
-              name: string;
-              state?: NestedTabRouteState;
-            });
 
-          return shouldHideNestedBibleScreen || shouldHideBibleReaderTabBar
-            ? { display: 'none' }
-            : defaultTabBarStyle;
+          return shouldHideNestedBibleScreen ? { display: 'none' } : defaultTabBarStyle;
         })(),
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {

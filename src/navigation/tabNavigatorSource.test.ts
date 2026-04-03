@@ -104,13 +104,19 @@ test('TabNavigator keeps Home in the normal tab bar instead of floating it over 
   assert.equal(source.includes("position: 'absolute'"), false);
 });
 
-test('TabNavigator respects Bible reader tab-bar visibility when the reader updates its route params', () => {
+test('TabNavigator keeps BibleReader in the shared bottom tab bar instead of relying on route params', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.equal(
+    source.includes('tabBarVisible'),
+    false,
+    'TabNavigator should not hide the BibleReader tab bar from route params that can get stuck after transitions'
+  );
 
   assert.match(
     source,
-    /focusedRoute\.params\?\.tabBarVisible !== false/,
-    'TabNavigator should treat the Bible reader route param as the source of truth for showing the root tab bar'
+    /shouldHideTabBarOnNestedRoute/,
+    'TabNavigator should only hide the root tab bar for explicit nested routes like picker/modals'
   );
 });
 

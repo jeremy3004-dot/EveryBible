@@ -23,7 +23,6 @@ export type BibleStackParamList = {
     preferredMode?: 'listen' | 'read';
     focusVerse?: number;
     playbackSequenceEntries?: AudioPlaybackSequenceEntry[];
-    tabBarVisible?: boolean;
   };
   ChapterSelector: {
     bookId: string;

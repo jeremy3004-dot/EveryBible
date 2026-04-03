@@ -111,7 +111,6 @@ import {
   SWIPE_VELOCITY_MIN,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
-  getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
   getReaderVerseLineHeight,
@@ -455,7 +454,6 @@ export function BibleReaderScreen() {
   const [premiumReaderViewportHeight, setPremiumReaderViewportHeight] = useState(0);
   const [premiumReaderContentHeight, setPremiumReaderContentHeight] = useState(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
-  const scrollDragStartOffsetYRef = useRef(0);
   const premiumReaderBaseBottomPadding = layout.tabBarBaseHeight + spacing.md;
   const premiumReaderBottomPadding = useMemo(() => {
     if (premiumReaderViewportHeight <= 0 || premiumReaderContentHeight <= 0) {
@@ -467,52 +465,6 @@ export function BibleReaderScreen() {
       premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderBaseBottomPadding
     );
   }, [premiumReaderBaseBottomPadding, premiumReaderContentHeight, premiumReaderViewportHeight]);
-
-  const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean) => {
-      navigation.setParams({ tabBarVisible: nextVisible });
-    },
-    [navigation]
-  );
-
-  useEffect(() => {
-    syncRootTabBarVisibility(
-      getNextBibleTabBarVisibility({
-        sessionMode: chapterSessionMode,
-        action: 'enter',
-      })
-    );
-    scrollDragStartOffsetYRef.current = 0;
-  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
-
-  const handleReaderScrollBeginDrag = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
-      scrollDragStartOffsetYRef.current = event.nativeEvent.contentOffset.y;
-      if (chapterSessionMode !== 'read') {
-        return;
-      }
-    },
-    [chapterSessionMode]
-  );
-
-  const handleReaderScrollEndDrag = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number }; velocity?: { y: number } } }) => {
-      if (chapterSessionMode !== 'read') {
-        return;
-      }
-
-      syncRootTabBarVisibility(
-        getNextBibleTabBarVisibility({
-          sessionMode: chapterSessionMode,
-          action: 'scrollEndDrag',
-          previousScrollOffsetY: scrollDragStartOffsetYRef.current,
-          currentScrollOffsetY: event.nativeEvent.contentOffset.y,
-          velocityY: event.nativeEvent.velocity?.y ?? 0,
-        })
-      );
-    },
-    [chapterSessionMode, syncRootTabBarVisibility]
-  );
 
   const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
   const selectedVerseImageBackground =
@@ -747,10 +699,10 @@ export function BibleReaderScreen() {
     !isLoading &&
     error == null;
   const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
-  const premiumTopInset = 18;
+  const premiumTopInset = spacing.sm;
   const premiumBottomInset = 18;
   const sharedTopChromeTop = safeInsets.top + premiumTopInset;
-  const readerContentTopPadding = sharedTopChromeTop + 98;
+  const readerContentTopPadding = sharedTopChromeTop + layout.minTouchTarget + spacing.sm;
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       'worklet';
@@ -2480,8 +2432,7 @@ export function BibleReaderScreen() {
             setPremiumReaderViewportHeight(event.nativeEvent.layout.height);
           }}
           onScroll={scrollHandler}
-          onScrollBeginDrag={(event) => {
-              handleReaderScrollBeginDrag(event);
+          onScrollBeginDrag={() => {
               setShowFontSizeSheet((current) =>
                 getNextFontSizeSheetVisibility(current, 'scrollStart')
               );
@@ -2489,7 +2440,6 @@ export function BibleReaderScreen() {
                 getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
               );
             }}
-          onScrollEndDrag={handleReaderScrollEndDrag}
           contentContainerStyle={[
             styles.premiumReaderScrollContent,
             {
@@ -2708,14 +2658,12 @@ export function BibleReaderScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
-        onScrollBeginDrag={(event) => {
-          handleReaderScrollBeginDrag(event);
+        onScrollBeginDrag={() => {
           setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'scrollStart'));
           setShowTranslationSheet((current) =>
             getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
           );
         }}
-        onScrollEndDrag={handleReaderScrollEndDrag}
         contentContainerStyle={[
           styles.content,
           shouldFillReaderCanvas ? styles.immersiveContent : null,
@@ -3973,7 +3921,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   listenPlayerCard: {
-    paddingBottom: 0,
+    paddingBottom: 20,
     gap: 12,
   },
   listenProgressTouch: {
