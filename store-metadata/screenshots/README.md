@@ -56,6 +56,10 @@ Recommended upload order:
 6. `06-grow-foundations.png`
 7. `07-find-wisdom.png`
 
+Use the matching Play feature graphic:
+
+- `google-play/feature-graphic.png`
+
 ### Approved Source Screenshots (iOS)
 Raw simulator sources live in `ios/` and should be treated as source material, not the final upload set:
 1. `1_bible_browser.png`
@@ -141,3 +145,4 @@ Store listing metadata is in:
 
 Cross-store upload guidance:
 - [AUTHORITATIVE.md](/Users/dev/Projects/EveryBible/store-metadata/screenshots/AUTHORITATIVE.md)
+- [UPLOAD-CHECKLIST.md](/Users/dev/Projects/EveryBible/store-metadata/screenshots/UPLOAD-CHECKLIST.md)

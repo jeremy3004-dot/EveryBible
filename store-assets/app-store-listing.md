@@ -58,6 +58,7 @@ Recommended order:
 
 Authoritative cross-store upload guide:
 - `store-metadata/screenshots/AUTHORITATIVE.md`
+- `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
 
 ## Support URL
 https://everybible.app/support

@@ -25,6 +25,10 @@ Upload only the seven-shot pack in:
 
 - `store-metadata/screenshots/google-play/`
 
+Upload the matching feature graphic:
+
+- `store-metadata/screenshots/google-play/feature-graphic.png`
+
 Use these files in order:
 
 1. `01-read-offline.png`
@@ -35,6 +39,12 @@ Use these files in order:
 6. `06-grow-foundations.png`
 7. `07-find-wisdom.png`
 
+## Console Checklist
+
+Before uploading, use:
+
+- `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
+
 ## Source Rule
 
 The polished iOS 6.7-inch pack is the master source for all submission variants.
@@ -42,5 +52,6 @@ The polished iOS 6.7-inch pack is the master source for all submission variants.
 - Master artwork: `store-metadata/screenshots/ios/iphone-67-2026-04-03/`
 - Derived App Store 6.5-inch pack: `store-metadata/screenshots/ios/iphone-65-2026-04-03/`
 - Derived Google Play pack: `store-metadata/screenshots/google-play/`
+- Derived Google Play feature graphic: `store-metadata/screenshots/google-play/feature-graphic.png`
 
 Do not upload older iOS root captures or the retired five-shot Google Play set.

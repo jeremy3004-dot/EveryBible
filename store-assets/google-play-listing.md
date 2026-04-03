@@ -83,9 +83,11 @@ Recommended order:
 
 Feature graphic:
 - `feature-graphic.png`
+- `feature-graphic.svg`
 
 Authoritative cross-store upload guide:
 - `store-metadata/screenshots/AUTHORITATIVE.md`
+- `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
 
 ## Promo Video
 (Not required for initial release)

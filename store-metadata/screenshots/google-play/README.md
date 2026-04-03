@@ -24,3 +24,8 @@ Do not upload older five-shot sets for this release. Use this seven-shot pack.
 
 - Final exports: `1290 x 2796`
 - Suitable for Play Store phone screenshot uploads
+
+## Feature Graphic
+
+- `feature-graphic.png` - upload-ready Play feature graphic, `1024 x 500`
+- `feature-graphic.svg` - editable source
