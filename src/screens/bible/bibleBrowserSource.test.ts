@@ -59,6 +59,12 @@ test('Bible browser modal picker shows a dismiss control and opens on the reques
     /initialBookId/,
     'BibleBrowserScreen should accept an initial book id so the picker can open on the current book'
   );
+
+  assert.match(
+    source,
+    /const canOpenTranslationPicker =\s*!canDismissModal && config\.features\.multipleTranslations;/,
+    'BibleBrowserScreen should hide the translation entry point when it is acting as the chapter picker modal'
+  );
 });
 
 test('Bible browser debounces full-text search requests and ignores stale completions', () => {

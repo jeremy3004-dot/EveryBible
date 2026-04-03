@@ -78,6 +78,8 @@ export function BibleBrowserScreen() {
 
   const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
   const canDismissModal = navigation.canGoBack();
+  const canOpenTranslationPicker =
+    !canDismissModal && config.features.multipleTranslations;
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
     [currentLanguage],
@@ -327,26 +329,24 @@ export function BibleBrowserScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.translationButton,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-            onPress={() => {
-              if (config.features.multipleTranslations) {
+          {canOpenTranslationPicker ? (
+            <TouchableOpacity
+              style={[
+                styles.translationButton,
+                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+              ]}
+              onPress={() => {
                 setShowTranslationModal(true);
-              }
-            }}
-            activeOpacity={config.features.multipleTranslations ? 0.85 : 1}
-          >
-            <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
-            <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
-              {currentTranslationInfo?.abbreviation || 'BSB'}
-            </Text>
-            {config.features.multipleTranslations ? (
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
+              <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
+                {currentTranslationInfo?.abbreviation || 'BSB'}
+              </Text>
               <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
-            ) : null}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View

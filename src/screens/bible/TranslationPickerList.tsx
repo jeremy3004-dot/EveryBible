@@ -27,15 +27,18 @@ import {
   hasRuntimeCatalogTranslations,
 } from '../../services/translations';
 import {
+  buildTranslationPickerSections,
   buildTranslationLanguageFilters,
   filterTranslationsByLanguage,
   getVisibleTranslationsForPicker,
+  getTranslationLanguageDisplayLabel,
   getTranslationSelectionState,
+  resolvePreferredTranslationLanguage,
 } from './bibleTranslationModel';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
-  onTranslationActivated?: () => void;
+  onTranslationActivated?: (translation: BibleTranslation) => void;
 }
 
 export function TranslationPickerList({
@@ -46,15 +49,17 @@ export function TranslationPickerList({
   const { t } = useI18n();
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const preferredTranslationLanguage = useBibleStore((state) => state.preferredTranslationLanguage);
   const translations = useBibleStore((state) => state.translations);
   const downloadProgress = useBibleStore((state) => state.downloadProgress);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
+  const setPreferredTranslationLanguage = useBibleStore((state) => state.setPreferredTranslationLanguage);
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
+  const [pickerMode, setPickerMode] = useState<'translations' | 'languages'>('translations');
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
   const [activeAudioDownloadKey, setActiveAudioDownloadKey] = useState<string | null>(null);
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(false);
@@ -86,31 +91,58 @@ export function TranslationPickerList({
     ? getTranslationAudioAvailability(audioManagerTranslation)
     : null;
 
-  const languageFilters = useMemo(
-    () => buildTranslationLanguageFilters(translations),
-    [translations]
-  );
-  const filteredTranslations = useMemo(
-    () => filterTranslationsByLanguage(translations, selectedLanguage),
-    [translations, selectedLanguage]
-  );
   const visibleTranslations = useMemo(
     () =>
-      getVisibleTranslationsForPicker(filteredTranslations, {
+      getVisibleTranslationsForPicker(translations, {
         isHydratingRuntimeCatalog,
         hasHydratedRuntimeCatalog,
       }),
-    [filteredTranslations, hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog]
+    [translations, hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog]
+  );
+  const languageFilters = useMemo(
+    () => buildTranslationLanguageFilters(visibleTranslations),
+    [visibleTranslations]
+  );
+  const resolvedPreferredLanguage = useMemo(
+    () =>
+      resolvePreferredTranslationLanguage(
+        visibleTranslations,
+        preferredTranslationLanguage,
+        currentTranslation
+      ),
+    [currentTranslation, preferredTranslationLanguage, visibleTranslations]
+  );
+  const sections = useMemo(
+    () => buildTranslationPickerSections(visibleTranslations, resolvedPreferredLanguage),
+    [resolvedPreferredLanguage, visibleTranslations]
+  );
+  const languageOptions = useMemo(
+    () =>
+      languageFilters.map((filter) => ({
+        ...filter,
+        count: filterTranslationsByLanguage(visibleTranslations, filter.value).length,
+      })),
+    [languageFilters, visibleTranslations]
   );
 
   useEffect(() => {
     if (
-      selectedLanguage !== 'all' &&
-      !languageFilters.some((filter) => filter.value === selectedLanguage)
+      resolvedPreferredLanguage &&
+      preferredTranslationLanguage !== resolvedPreferredLanguage
     ) {
-      setSelectedLanguage('all');
+      setPreferredTranslationLanguage(resolvedPreferredLanguage);
     }
-  }, [languageFilters, selectedLanguage]);
+  }, [
+    preferredTranslationLanguage,
+    resolvedPreferredLanguage,
+    setPreferredTranslationLanguage,
+  ]);
+
+  useEffect(() => {
+    if (pickerMode === 'languages' && languageOptions.length <= 1) {
+      setPickerMode('translations');
+    }
+  }, [languageOptions.length, pickerMode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -171,7 +203,7 @@ export function TranslationPickerList({
     if (selectionState.isSelectable) {
       setCurrentTranslation(nextTranslation.id);
       onRequestClose?.();
-      onTranslationActivated?.();
+      onTranslationActivated?.(nextTranslation);
       return;
     }
 
@@ -268,48 +300,310 @@ export function TranslationPickerList({
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {languageFilters.length > 1 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={styles.translationLanguageFilters}
-          style={styles.translationLanguageScroller}
+  const renderTranslationCard = (translation: BibleTranslation) => {
+    const isSelected = currentTranslation === translation.id;
+    const audioAvailability = getTranslationAudioAvailability(translation);
+    const isTextDownloadActive =
+      downloadProgress?.translationId === translation.id && !downloadProgress.bookId;
+    const textDownloadProgress = isTextDownloadActive ? downloadProgress.progress : 0;
+    const textDownloadStatusLabel = isTextDownloadActive
+      ? `${t('translations.downloading')} ${downloadProgress.progress}%`
+      : null;
+    const selectionState = getTranslationSelectionState({
+      isDownloaded: translation.isDownloaded,
+      hasText: translation.hasText,
+      hasAudio: translation.hasAudio,
+      canPlayAudio: audioAvailability.canPlayAudio,
+      source: translation.source,
+      textPackLocalPath: translation.textPackLocalPath,
+    });
+
+    return (
+      <View
+        key={translation.id}
+        style={[
+          styles.translationCard,
+          {
+            backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
+            borderColor: colors.bibleDivider,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.translationItem, { borderBottomColor: colors.bibleDivider }]}
+          onPress={() => {
+            void handleTranslationSelect(translation);
+          }}
+          activeOpacity={0.85}
+          disabled={(isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) || isTextDownloadActive}
         >
-          {[{ value: 'all', label: t('common.all') }, ...languageFilters].map((filter) => {
-            const isSelected = selectedLanguage === filter.value;
-            return (
-              <TouchableOpacity
-                key={filter.value}
-                style={[
-                  styles.translationLanguageChip,
-                  {
-                    backgroundColor: isSelected ? colors.bibleAccent : colors.bibleElevatedSurface,
-                    borderColor: isSelected ? colors.bibleAccent : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => setSelectedLanguage(filter.value)}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={filter.label}
-              >
-                <Text
+          <View style={styles.translationInfo}>
+            <View style={styles.translationNameRow}>
+              <Text style={[styles.translationName, { color: colors.biblePrimaryText }]}>
+                {translation.name}
+              </Text>
+              <Text style={[styles.translationAbbr, { color: colors.bibleAccent }]}>
+                {translation.abbreviation}
+              </Text>
+            </View>
+            <Text style={[styles.translationDescription, { color: colors.bibleSecondaryText }]}>
+              {translation.description}
+            </Text>
+            <View style={styles.translationMeta}>
+              <Text style={[styles.translationSize, { color: colors.bibleSecondaryText }]}>
+                {translation.sizeInMB} MB
+              </Text>
+              {selectionState.isSelectable ? (
+                <View style={styles.downloadedBadge}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={14}
+                    color={translation.isDownloaded ? colors.success : colors.bibleAccent}
+                  />
+                  <Text
+                    style={[
+                      styles.downloadedText,
+                      {
+                        color: translation.isDownloaded ? colors.success : colors.bibleAccent,
+                      },
+                    ]}
+                  >
+                    {t('bible.available')}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.downloadedBadge}>
+                  <Ionicons name="time-outline" size={14} color={colors.bibleSecondaryText} />
+                  <Text style={[styles.downloadedText, { color: colors.bibleSecondaryText }]}>
+                    {selectionState.reason === 'download-required'
+                      ? t('translations.download')
+                      : t('common.comingSoon')}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {isTextDownloadActive ? (
+              <View style={styles.translationDownloadProgress}>
+                <View style={styles.translationDownloadProgressHeader}>
+                  <ActivityIndicator size="small" color={colors.bibleAccent} />
+                  <Text
+                    style={[
+                      styles.translationDownloadProgressText,
+                      { color: colors.bibleAccent },
+                    ]}
+                  >
+                    {textDownloadStatusLabel}
+                  </Text>
+                </View>
+                <View
                   style={[
-                    styles.translationLanguageChipText,
-                    { color: isSelected ? '#FFFFFF' : colors.biblePrimaryText },
+                    styles.downloadProgressTrack,
+                    {
+                      backgroundColor: colors.bibleDivider,
+                      marginTop: 0,
+                    },
                   ]}
                 >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      ) : null}
+                  <View
+                    style={[
+                      styles.downloadProgressFill,
+                      {
+                        backgroundColor: colors.bibleAccent,
+                        width: `${textDownloadProgress}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            ) : null}
+          </View>
+          {isSelected ? <Ionicons name="checkmark" size={22} color={colors.bibleAccent} /> : null}
+        </TouchableOpacity>
 
+        {audioAvailability.canManageAudio ? (
+          <View style={[styles.audioDownloadSection, { borderTopColor: colors.bibleDivider }]}>
+            <View style={styles.audioDownloadHeader}>
+              <Ionicons name="headset-outline" size={14} color={colors.bibleSecondaryText} />
+              <Text style={[styles.audioDownloadTitle, { color: colors.bibleSecondaryText }]}>
+                Audio Bible — {translation.downloadedAudioBooks.length}/{translation.totalBooks}{' '}
+                books offline
+              </Text>
+            </View>
+
+            <View style={styles.audioDownloadButtons}>
+              {(() => {
+                const allDone = translation.downloadedAudioBooks.length === translation.totalBooks;
+                const isActive = activeAudioDownloadKey === `all-${translation.id}`;
+                const pct =
+                  translation.totalBooks > 0
+                    ? Math.round(
+                        (translation.downloadedAudioBooks.length / translation.totalBooks) * 100
+                      )
+                    : 0;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.audioDownloadChip,
+                      {
+                        backgroundColor: allDone
+                          ? colors.success + '22'
+                          : colors.bibleElevatedSurface,
+                        borderColor: allDone ? colors.success : colors.bibleDivider,
+                      },
+                    ]}
+                    disabled={
+                      allDone || activeAudioDownloadKey !== null || !audioAvailability.canDownloadAudio
+                    }
+                    activeOpacity={0.8}
+                    onPress={async () => {
+                      if (!audioAvailability.canDownloadAudio) return;
+                      setActiveAudioDownloadKey(`all-${translation.id}`);
+                      try {
+                        await downloadAudioForTranslation(translation.id);
+                      } catch (error) {
+                        Alert.alert(
+                          t('common.error'),
+                          error instanceof Error ? error.message : t('bible.audioDownloadFailed')
+                        );
+                      } finally {
+                        setActiveAudioDownloadKey(null);
+                      }
+                    }}
+                  >
+                    {isActive ? (
+                      <View style={styles.chipProgressWrapper}>
+                        <ActivityIndicator size="small" color={colors.bibleAccent} />
+                        <Text
+                          style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}
+                        >
+                          {translation.downloadedAudioBooks.length}/{translation.totalBooks} ({pct}%)
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={allDone ? 'checkmark-circle' : 'download-outline'}
+                          size={14}
+                          color={allDone ? colors.success : colors.bibleAccent}
+                        />
+                        <Text
+                          style={[
+                            styles.audioDownloadChipLabel,
+                            {
+                              color: allDone ? colors.success : colors.biblePrimaryText,
+                            },
+                          ]}
+                        >
+                          Whole Bible
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {(['OT', 'NT'] as const).map((testament) => {
+                const testamentBooks = bibleBooks.filter((book) => book.testament === testament);
+                const doneCount = testamentBooks.filter((book) =>
+                  isAudioBookDownloaded(translation.downloadedAudioBooks, book.id)
+                ).length;
+                const allDone = doneCount === testamentBooks.length;
+                const isActive =
+                  activeAudioDownloadKey === `testament-inline:${testament}:${translation.id}`;
+                const pct =
+                  testamentBooks.length > 0
+                    ? Math.round((doneCount / testamentBooks.length) * 100)
+                    : 0;
+
+                return (
+                  <TouchableOpacity
+                    key={testament}
+                    style={[
+                      styles.audioDownloadChip,
+                      {
+                        backgroundColor: allDone
+                          ? colors.success + '22'
+                          : colors.bibleElevatedSurface,
+                        borderColor: allDone ? colors.success : colors.bibleDivider,
+                      },
+                    ]}
+                    disabled={
+                      allDone || activeAudioDownloadKey !== null || !audioAvailability.canDownloadAudio
+                    }
+                    activeOpacity={0.8}
+                    onPress={async () => {
+                      if (!audioAvailability.canDownloadAudio) return;
+                      setActiveAudioDownloadKey(`testament-inline:${testament}:${translation.id}`);
+                      try {
+                        await downloadAudioForBooks(
+                          translation.id,
+                          testamentBooks
+                            .filter(
+                              (book) =>
+                                !isAudioBookDownloaded(translation.downloadedAudioBooks, book.id)
+                            )
+                            .map((book) => book.id)
+                        );
+                      } catch (error) {
+                        Alert.alert(
+                          t('common.error'),
+                          error instanceof Error ? error.message : t('bible.audioDownloadFailed')
+                        );
+                      } finally {
+                        setActiveAudioDownloadKey(null);
+                      }
+                    }}
+                  >
+                    {isActive ? (
+                      <View style={styles.chipProgressWrapper}>
+                        <ActivityIndicator size="small" color={colors.bibleAccent} />
+                        <Text
+                          style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}
+                        >
+                          {doneCount}/{testamentBooks.length} ({pct}%)
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={allDone ? 'checkmark-circle' : 'download-outline'}
+                          size={14}
+                          color={allDone ? colors.success : colors.bibleAccent}
+                        />
+                        <Text
+                          style={[
+                            styles.audioDownloadChipLabel,
+                            {
+                              color: allDone ? colors.success : colors.biblePrimaryText,
+                            },
+                          ]}
+                        >
+                          {testament === 'OT' ? t('bible.oldTestament') : t('bible.newTestament')}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.audioDownloadByBook}
+              onPress={() => setAudioManagerTranslationId(translation.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.audioDownloadByBookLabel, { color: colors.bibleAccent }]}>
+                Download by book →
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
       {isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog ? (
         <View style={styles.catalogHydrationRow}>
           <ActivityIndicator size="small" color={colors.bibleAccent} />
@@ -319,365 +613,119 @@ export function TranslationPickerList({
         </View>
       ) : null}
 
-      <ScrollView
-        style={styles.translationList}
-        contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={styles.translationListContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {visibleTranslations.map((translation) => {
-          const isSelected = currentTranslation === translation.id;
-          const audioAvailability = getTranslationAudioAvailability(translation);
-          const isTextDownloadActive =
-            downloadProgress?.translationId === translation.id && !downloadProgress.bookId;
-          const textDownloadProgress = isTextDownloadActive ? downloadProgress.progress : 0;
-          const textDownloadStatusLabel = isTextDownloadActive
-            ? `${t('translations.downloading')} ${downloadProgress.progress}%`
-            : null;
-          const selectionState = getTranslationSelectionState({
-            isDownloaded: translation.isDownloaded,
-            hasText: translation.hasText,
-            hasAudio: translation.hasAudio,
-            canPlayAudio: audioAvailability.canPlayAudio,
-            source: translation.source,
-            textPackLocalPath: translation.textPackLocalPath,
-          });
+      {pickerMode === 'languages' ? (
+        <ScrollView
+          style={styles.translationList}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={styles.translationListContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            style={styles.languageModeBackButton}
+            onPress={() => setPickerMode('translations')}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="chevron-back" size={16} color={colors.bibleAccent} />
+            <Text style={[styles.languageModeBackText, { color: colors.bibleAccent }]}>
+              {t('translations.languagePreference')}
+            </Text>
+          </TouchableOpacity>
 
-          return (
-            <View
-              key={translation.id}
-              style={[
-                styles.translationCard,
-                {
-                  backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-            >
+          {languageOptions.map((language) => {
+            const isSelected = resolvedPreferredLanguage === language.value;
+
+            return (
               <TouchableOpacity
-                style={[styles.translationItem, { borderBottomColor: colors.bibleDivider }]}
-                onPress={() => handleTranslationSelect(translation)}
-                activeOpacity={0.85}
-                disabled={
-                  (isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) || isTextDownloadActive
-                }
+                key={language.value}
+                style={[
+                  styles.languageOptionCard,
+                  {
+                    backgroundColor: isSelected
+                      ? colors.bibleElevatedSurface
+                      : 'transparent',
+                    borderColor: colors.bibleDivider,
+                  },
+                ]}
+                onPress={() => {
+                  setPreferredTranslationLanguage(language.value);
+                  setPickerMode('translations');
+                }}
+                activeOpacity={0.82}
               >
-                <View style={styles.translationInfo}>
-                  <View style={styles.translationNameRow}>
-                    <Text style={[styles.translationName, { color: colors.biblePrimaryText }]}>
-                      {translation.name}
-                    </Text>
-                    <Text style={[styles.translationAbbr, { color: colors.bibleAccent }]}>
-                      {translation.abbreviation}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.translationDescription, { color: colors.bibleSecondaryText }]}
-                  >
-                    {translation.description}
+                <View style={styles.languageOptionInfo}>
+                  <Text style={[styles.languageOptionTitle, { color: colors.biblePrimaryText }]}>
+                    {language.label}
                   </Text>
-                  <View style={styles.translationMeta}>
-                    <Text style={[styles.translationSize, { color: colors.bibleSecondaryText }]}>
-                      {translation.sizeInMB} MB
-                    </Text>
-                    {selectionState.isSelectable ? (
-                      <View style={styles.downloadedBadge}>
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={14}
-                          color={translation.isDownloaded ? colors.success : colors.bibleAccent}
-                        />
-                        <Text
-                          style={[
-                            styles.downloadedText,
-                            {
-                              color: translation.isDownloaded
-                                ? colors.success
-                                : colors.bibleAccent,
-                            },
-                          ]}
-                        >
-                          {t('bible.available')}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.downloadedBadge}>
-                        <Ionicons
-                          name="time-outline"
-                          size={14}
-                          color={colors.bibleSecondaryText}
-                        />
-                        <Text
-                          style={[
-                            styles.downloadedText,
-                            { color: colors.bibleSecondaryText },
-                          ]}
-                        >
-                          {selectionState.reason === 'download-required'
-                            ? t('translations.download')
-                            : t('common.comingSoon')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {isTextDownloadActive ? (
-                    <View style={styles.translationDownloadProgress}>
-                      <View style={styles.translationDownloadProgressHeader}>
-                        <ActivityIndicator size="small" color={colors.bibleAccent} />
-                        <Text
-                          style={[
-                            styles.translationDownloadProgressText,
-                            { color: colors.bibleAccent },
-                          ]}
-                        >
-                          {textDownloadStatusLabel}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.downloadProgressTrack,
-                          {
-                            backgroundColor: colors.bibleDivider,
-                            marginTop: 0,
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.downloadProgressFill,
-                            {
-                              backgroundColor: colors.bibleAccent,
-                              width: `${textDownloadProgress}%`,
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-                {isSelected ? (
-                  <Ionicons name="checkmark" size={22} color={colors.bibleAccent} />
-                ) : null}
-              </TouchableOpacity>
-
-              {audioAvailability.canManageAudio ? (
-                <View
-                  style={[styles.audioDownloadSection, { borderTopColor: colors.bibleDivider }]}
-                >
-                  <View style={styles.audioDownloadHeader}>
-                    <Ionicons
-                      name="headset-outline"
-                      size={14}
-                      color={colors.bibleSecondaryText}
-                    />
-                    <Text style={[styles.audioDownloadTitle, { color: colors.bibleSecondaryText }]}>
-                      Audio Bible — {translation.downloadedAudioBooks.length}/
-                      {translation.totalBooks} books offline
-                    </Text>
-                  </View>
-
-                  <View style={styles.audioDownloadButtons}>
-                    {(() => {
-                      const allDone =
-                        translation.downloadedAudioBooks.length === translation.totalBooks;
-                      const isActive = activeAudioDownloadKey === `all-${translation.id}`;
-                      const pct =
-                        translation.totalBooks > 0
-                          ? Math.round(
-                              (translation.downloadedAudioBooks.length / translation.totalBooks) *
-                                100
-                            )
-                          : 0;
-                      return (
-                        <TouchableOpacity
-                          style={[
-                            styles.audioDownloadChip,
-                            {
-                              backgroundColor: allDone
-                                ? colors.success + '22'
-                                : colors.bibleElevatedSurface,
-                              borderColor: allDone ? colors.success : colors.bibleDivider,
-                            },
-                          ]}
-                          disabled={
-                            allDone ||
-                            activeAudioDownloadKey !== null ||
-                            !audioAvailability.canDownloadAudio
-                          }
-                          activeOpacity={0.8}
-                          onPress={async () => {
-                            if (!audioAvailability.canDownloadAudio) return;
-                            setActiveAudioDownloadKey(`all-${translation.id}`);
-                            try {
-                              await downloadAudioForTranslation(translation.id);
-                            } catch (error) {
-                              Alert.alert(
-                                t('common.error'),
-                                error instanceof Error
-                                  ? error.message
-                                  : t('bible.audioDownloadFailed')
-                              );
-                            } finally {
-                              setActiveAudioDownloadKey(null);
-                            }
-                          }}
-                        >
-                          {isActive ? (
-                            <View style={styles.chipProgressWrapper}>
-                              <ActivityIndicator size="small" color={colors.bibleAccent} />
-                              <Text
-                                style={[
-                                  styles.audioDownloadChipLabel,
-                                  { color: colors.bibleAccent },
-                                ]}
-                              >
-                                {translation.downloadedAudioBooks.length}/{translation.totalBooks}{' '}
-                                ({pct}%)
-                              </Text>
-                            </View>
-                          ) : (
-                            <>
-                              <Ionicons
-                                name={allDone ? 'checkmark-circle' : 'download-outline'}
-                                size={14}
-                                color={allDone ? colors.success : colors.bibleAccent}
-                              />
-                              <Text
-                                style={[
-                                  styles.audioDownloadChipLabel,
-                                  {
-                                    color: allDone
-                                      ? colors.success
-                                      : colors.biblePrimaryText,
-                                  },
-                                ]}
-                              >
-                                Whole Bible
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })()}
-
-                    {(['OT', 'NT'] as const).map((testament) => {
-                      const testamentBooks = bibleBooks.filter((book) => book.testament === testament);
-                      const doneCount = testamentBooks.filter((book) =>
-                        isAudioBookDownloaded(translation.downloadedAudioBooks, book.id)
-                      ).length;
-                      const allDone = doneCount === testamentBooks.length;
-                      const isActive =
-                        activeAudioDownloadKey === `testament-inline:${testament}:${translation.id}`;
-                      const pct =
-                        testamentBooks.length > 0
-                          ? Math.round((doneCount / testamentBooks.length) * 100)
-                          : 0;
-
-                      return (
-                        <TouchableOpacity
-                          key={testament}
-                          style={[
-                            styles.audioDownloadChip,
-                            {
-                              backgroundColor: allDone
-                                ? colors.success + '22'
-                                : colors.bibleElevatedSurface,
-                              borderColor: allDone ? colors.success : colors.bibleDivider,
-                            },
-                          ]}
-                          disabled={
-                            allDone ||
-                            activeAudioDownloadKey !== null ||
-                            !audioAvailability.canDownloadAudio
-                          }
-                          activeOpacity={0.8}
-                          onPress={async () => {
-                            if (!audioAvailability.canDownloadAudio) return;
-                            setActiveAudioDownloadKey(
-                              `testament-inline:${testament}:${translation.id}`
-                            );
-                            try {
-                              await downloadAudioForBooks(
-                                translation.id,
-                                testamentBooks
-                                  .filter(
-                                    (book) =>
-                                      !isAudioBookDownloaded(
-                                        translation.downloadedAudioBooks,
-                                        book.id
-                                      )
-                                  )
-                                  .map((book) => book.id)
-                              );
-                            } catch (error) {
-                              Alert.alert(
-                                t('common.error'),
-                                error instanceof Error
-                                  ? error.message
-                                  : t('bible.audioDownloadFailed')
-                              );
-                            } finally {
-                              setActiveAudioDownloadKey(null);
-                            }
-                          }}
-                        >
-                          {isActive ? (
-                            <View style={styles.chipProgressWrapper}>
-                              <ActivityIndicator size="small" color={colors.bibleAccent} />
-                              <Text
-                                style={[
-                                  styles.audioDownloadChipLabel,
-                                  { color: colors.bibleAccent },
-                                ]}
-                              >
-                                {doneCount}/{testamentBooks.length} ({pct}%)
-                              </Text>
-                            </View>
-                          ) : (
-                            <>
-                              <Ionicons
-                                name={allDone ? 'checkmark-circle' : 'download-outline'}
-                                size={14}
-                                color={allDone ? colors.success : colors.bibleAccent}
-                              />
-                              <Text
-                                style={[
-                                  styles.audioDownloadChipLabel,
-                                  {
-                                    color: allDone
-                                      ? colors.success
-                                      : colors.biblePrimaryText,
-                                  },
-                                ]}
-                              >
-                                {testament === 'OT'
-                                  ? t('bible.oldTestament')
-                                  : t('bible.newTestament')}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.audioDownloadByBook}
-                    onPress={() => setAudioManagerTranslationId(translation.id)}
-                    activeOpacity={0.7}
+                  <Text
+                    style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}
                   >
-                    <Text
-                      style={[styles.audioDownloadByBookLabel, { color: colors.bibleAccent }]}
-                    >
-                      Download by book →
-                    </Text>
-                  </TouchableOpacity>
+                    {language.count}
+                  </Text>
                 </View>
-              ) : null}
-              </View>
+                <Ionicons
+                  name={isSelected ? 'checkmark' : 'chevron-forward'}
+                  size={18}
+                  color={isSelected ? colors.bibleAccent : colors.bibleSecondaryText}
+                />
+              </TouchableOpacity>
             );
           })}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          style={styles.translationList}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={styles.translationListContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.preferenceCard,
+              {
+                backgroundColor: colors.bibleElevatedSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+          >
+            <Text style={[styles.preferenceEyebrow, { color: colors.bibleSecondaryText }]}>
+              {t('translations.languagePreference')}
+            </Text>
+            <TouchableOpacity
+              style={styles.preferenceRow}
+              onPress={() => setPickerMode('languages')}
+              activeOpacity={0.82}
+            >
+              <Text style={[styles.preferenceValue, { color: colors.biblePrimaryText }]}>
+                {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.bibleSecondaryText} />
+            </TouchableOpacity>
+          </View>
+
+          {sections.myTranslations.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+                {t('translations.myTranslations')}
+              </Text>
+              {sections.myTranslations.map((translation) => renderTranslationCard(translation))}
+            </View>
+          ) : null}
+
+          {sections.availableTranslations.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+                {t('translations.available')}
+              </Text>
+              <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
+                {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+              </Text>
+              {sections.availableTranslations.map((translation) =>
+                renderTranslationCard(translation)
+              )}
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
 
       <Modal
         visible={audioManagerTranslation != null}
@@ -1049,6 +1097,76 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.cardTitle,
+  },
+  preferenceCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: spacing.md,
+  },
+  preferenceEyebrow: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  preferenceValue: {
+    ...typography.cardTitle,
+  },
+  sectionBlock: {
+    marginBottom: spacing.md,
+  },
+  sectionEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  sectionTitle: {
+    ...typography.cardTitle,
+    marginBottom: spacing.sm,
+  },
+  languageModeBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  languageModeBackText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  languageOptionCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  languageOptionInfo: {
+    flex: 1,
+  },
+  languageOptionTitle: {
+    ...typography.cardTitle,
+    marginBottom: 2,
+  },
+  languageOptionMeta: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   translationLanguageScroller: {
     flexGrow: 0,

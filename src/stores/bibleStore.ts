@@ -58,6 +58,7 @@ interface BibleState {
 
   // Translation state
   currentTranslation: string;
+  preferredTranslationLanguage: string | null;
   translations: BibleTranslation[];
   downloadProgress: TranslationDownloadProgress | null;
   readerTabBarVisible: boolean;
@@ -74,6 +75,7 @@ interface BibleState {
   // Translation actions
   setCurrentTranslation: (translationId: string) => void;
   setReaderTabBarVisible: (visible: boolean) => void;
+  setPreferredTranslationLanguage: (language: string | null) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
   reconcileTranslationPacks: () => Promise<void>;
   reattachAudioDownloads: () => Promise<void>;
@@ -188,6 +190,7 @@ export const useBibleStore = create<BibleState>()(
       isLoading: false,
       error: null,
       currentTranslation: 'bsb',
+      preferredTranslationLanguage: 'English',
       translations: getDefaultBibleTranslations(),
       downloadProgress: null,
       readerTabBarVisible: true,
@@ -219,11 +222,13 @@ export const useBibleStore = create<BibleState>()(
           return;
         }
 
+        const preferredTranslationLanguage = translation.language?.trim() || null;
+
         const hasInstalledTextPack = Boolean(translation.textPackLocalPath);
         const hasReadableText = translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
 
         if (translation.isDownloaded || hasReadableText) {
-          set({ currentTranslation: translationId, error: null });
+          set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
           return;
         }
 
@@ -236,12 +241,19 @@ export const useBibleStore = create<BibleState>()(
           });
 
           if (availability.canPlayAudio) {
-            set({ currentTranslation: translationId, error: null });
+            set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
           }
         }
       },
-
       setReaderTabBarVisible: (readerTabBarVisible) => set({ readerTabBarVisible }),
+      setPreferredTranslationLanguage: (preferredTranslationLanguage) =>
+        set({
+          preferredTranslationLanguage:
+            typeof preferredTranslationLanguage === 'string' &&
+            preferredTranslationLanguage.trim().length > 0
+              ? preferredTranslationLanguage.trim()
+              : null,
+        }),
 
       applyRuntimeCatalog: (runtimeTranslations) => {
         let nextTranslationsSnapshot: BibleTranslation[] = [];
@@ -773,6 +785,7 @@ export const useBibleStore = create<BibleState>()(
         hasReaderHistory: state.hasReaderHistory,
         preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,
+        preferredTranslationLanguage: state.preferredTranslationLanguage,
         translations: state.translations,
       }),
       merge: (persistedState, currentState) => ({

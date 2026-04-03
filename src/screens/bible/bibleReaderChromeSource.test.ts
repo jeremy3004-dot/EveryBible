@@ -643,6 +643,22 @@ test('BibleReaderScreen keeps translation selection reachable from overflow afte
     /key: 'translation'[\s\S]*label: t\('bible\.selectTranslation'\)[\s\S]*onPress: handleOpenTranslationOptions/s,
     'BibleReaderScreen should expose translation selection in the overflow menu'
   );
+
+  assert.equal(
+    source.includes('TranslationPickerList'),
+    true,
+    'BibleReaderScreen should render the shared TranslationPickerList so the reader uses the same selector structure as Bible and Settings'
+  );
+});
+
+test('BibleReaderScreen gives the translation sheet a fixed-height modal body so the shared picker list stays visible', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /modalContent:\s*{[\s\S]*height:\s*'78%',[\s\S]*overflow:\s*'hidden'/,
+    'BibleReaderScreen should keep the translation modal tall enough for the shared picker contents on device'
+  );
 });
 
 test('premium read chapter arrows transfer active audio before syncing the displayed chapter', () => {

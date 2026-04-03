@@ -1177,6 +1177,8 @@ export const ne = {
   },
   translations: {
     title: 'बाइबल अनुवादहरू',
+    languagePreference: 'भाषा प्राथमिकता',
+    myTranslations: 'मेरो अनुवादहरू',
     primary: 'प्राथमिक अनुवाद',
     secondary: 'तुलना अनुवाद',
     audioPreference: 'अडियो अनुवाद',

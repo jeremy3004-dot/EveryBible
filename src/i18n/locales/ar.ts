@@ -650,6 +650,8 @@ export const ar = {
   },
   translations: {
     title: 'Bible Translations',
+    languagePreference: 'Language Preference',
+    myTranslations: 'My Translations',
     primary: 'Primary Translation',
     secondary: 'Comparison Translation',
     audioPreference: 'Audio Translation',

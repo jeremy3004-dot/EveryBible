@@ -1177,6 +1177,8 @@ export const es = {
   },
   translations: {
     title: 'Traducciones bíblicas',
+    languagePreference: 'Preferencia de idioma',
+    myTranslations: 'Mis traducciones',
     primary: 'Traducción principal',
     secondary: 'Traducción de comparación',
     audioPreference: 'Traducción de audio',

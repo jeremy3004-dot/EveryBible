@@ -588,6 +588,11 @@ export const sanitizePersistedBibleState = (value: unknown) => {
   const currentChapter = persistedCurrentChapter ?? 1;
   const preferredChapterLaunchMode: 'listen' | 'read' =
     persisted.preferredChapterLaunchMode === 'listen' ? 'listen' : 'read';
+  const preferredTranslationLanguage =
+    typeof persisted.preferredTranslationLanguage === 'string' &&
+    persisted.preferredTranslationLanguage.trim().length > 0
+      ? persisted.preferredTranslationLanguage.trim()
+      : null;
   const normalizedCurrentTranslation =
     typeof persisted.currentTranslation === 'string'
       ? persisted.currentTranslation.trim().toLowerCase()
@@ -601,6 +606,7 @@ export const sanitizePersistedBibleState = (value: unknown) => {
     currentChapter,
     hasReaderHistory: persistedCurrentBook != null && persistedCurrentChapter != null,
     preferredChapterLaunchMode,
+    preferredTranslationLanguage,
     currentTranslation:
       normalizedCurrentTranslation &&
       translationIds.has(normalizedCurrentTranslation) &&

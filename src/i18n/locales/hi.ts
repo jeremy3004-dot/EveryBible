@@ -713,6 +713,8 @@ export const hi = {
   },
   translations: {
     title: 'बाइबल अनुवाद',
+    languagePreference: 'भाषा प्राथमिकता',
+    myTranslations: 'मेरे अनुवाद',
     primary: 'प्राथमिक अनुवाद',
     secondary: 'तुलनात्मक अनुवाद',
     audioPreference: 'ऑडियो अनुवाद',

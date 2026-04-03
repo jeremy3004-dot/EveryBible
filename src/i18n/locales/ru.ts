@@ -699,6 +699,8 @@ export const ru = {
   },
   translations: {
     title: 'Переводы Библии',
+    languagePreference: 'Предпочитаемый язык',
+    myTranslations: 'Мои переводы',
     primary: 'Основной перевод',
     secondary: 'Сравнительный перевод',
     audioPreference: 'Аудиоперевод',
