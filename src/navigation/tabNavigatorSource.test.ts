@@ -55,13 +55,13 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
   );
 });
 
-test('TabNavigator reads Bible reader tab-bar visibility from the shared Bible store', () => {
+test('TabNavigator does not depend on a shared reader tab-bar store flag', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.readerTabBarVisible\)/,
-    'TabNavigator should subscribe to the shared readerTabBarVisible flag so Bible scrolling can hide the root tab bar'
+  assert.equal(
+    source.includes('readerTabBarVisible'),
+    false,
+    'TabNavigator should not depend on a shared readerTabBarVisible store flag now that BibleReader keeps the root tabs stable directly'
   );
 });
 
