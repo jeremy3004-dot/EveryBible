@@ -1,32 +1,97 @@
-import TrackPlayer, { Event, type Subscription } from './trackPlayer';
-import {
-  buildBibleNowPlayingPayload,
-  type BibleNowPlayingInput,
-  type BibleNowPlayingPayload,
+import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
+import type {
+  BibleNowPlayingInput,
+  BibleNowPlayingPayload,
 } from './audioNowPlayingModel';
+import { buildBibleNowPlayingPayload } from './audioNowPlayingModel';
 
-type MaybePromise = void | Promise<void>;
+type RemoteCommandName =
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'next'
+  | 'previous'
+  | 'seek-forward'
+  | 'seek-backward'
+  | 'seek-position';
 
-export type BibleNowPlayingRemoteCommandHandlers = {
-  onPlay?: () => MaybePromise;
-  onPause?: () => MaybePromise;
-  onStop?: () => MaybePromise;
-  onSeek?: (positionMs: number) => MaybePromise;
-  onNext?: () => MaybePromise;
-  onPrevious?: () => MaybePromise;
-};
+export interface BibleNowPlayingRemoteCommand {
+  command: RemoteCommandName;
+  positionSeconds?: number;
+}
+
+interface NativeBibleNowPlayingModule {
+  syncBibleNowPlaying?: (payload: BibleNowPlayingPayload) => void;
+  clearBibleNowPlaying?: () => void;
+  addListener: (eventName: string) => void;
+  removeListeners: (count: number) => void;
+}
+
+const EVENT_NAME = 'EveryBibleAudioNowPlayingCommand';
+const nativeModule = NativeModules.EveryBibleAudioNowPlayingModule as
+  | NativeBibleNowPlayingModule
+  | undefined;
+const emitter =
+  Platform.OS === 'ios' && nativeModule ? new NativeEventEmitter(nativeModule) : null;
+let didWarnAboutMissingNativeModule = false;
 
 let currentBibleNowPlayingPayload: BibleNowPlayingPayload | null = null;
 
-export function syncBibleNowPlaying(
-  input: BibleNowPlayingInput
-): BibleNowPlayingPayload | null {
-  currentBibleNowPlayingPayload = buildBibleNowPlayingPayload(input);
-  return currentBibleNowPlayingPayload;
+function isDevMode(): boolean {
+  return Boolean((globalThis as { __DEV__?: boolean }).__DEV__);
 }
 
-export function clearBibleNowPlaying(): void {
+function warnAboutMissingNativeModule(): void {
+  if (!isDevMode() || didWarnAboutMissingNativeModule) {
+    return;
+  }
+
+  didWarnAboutMissingNativeModule = true;
+  console.warn('[audioNowPlaying] EveryBibleAudioNowPlayingModule is missing on iOS');
+}
+
+function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
+  if (
+    value === 'play' ||
+    value === 'pause' ||
+    value === 'stop' ||
+    value === 'next' ||
+    value === 'previous' ||
+    value === 'seek-forward' ||
+    value === 'seek-backward' ||
+    value === 'seek-position'
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<void> {
+  currentBibleNowPlayingPayload = buildBibleNowPlayingPayload(input);
+
+  if (Platform.OS !== 'ios' || !nativeModule?.syncBibleNowPlaying) {
+    warnAboutMissingNativeModule();
+    return;
+  }
+
+  if (!currentBibleNowPlayingPayload) {
+    await clearBibleNowPlaying();
+    return;
+  }
+
+  nativeModule.syncBibleNowPlaying(currentBibleNowPlayingPayload);
+}
+
+export async function clearBibleNowPlaying(): Promise<void> {
   currentBibleNowPlayingPayload = null;
+
+  if (Platform.OS !== 'ios' || !nativeModule?.clearBibleNowPlaying) {
+    warnAboutMissingNativeModule();
+    return;
+  }
+
+  nativeModule.clearBibleNowPlaying();
 }
 
 export function getBibleNowPlayingSnapshot(): BibleNowPlayingPayload | null {
@@ -34,61 +99,28 @@ export function getBibleNowPlayingSnapshot(): BibleNowPlayingPayload | null {
 }
 
 export function subscribeBibleNowPlayingRemoteCommands(
-  handlers: BibleNowPlayingRemoteCommandHandlers
+  listener: (command: BibleNowPlayingRemoteCommand) => void
 ): () => void {
-  const subscriptions: Subscription[] = [];
-
-  if (handlers.onPlay) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemotePlay, () => {
-        void handlers.onPlay?.();
-      })
-    );
+  if (!emitter) {
+    return () => {};
   }
 
-  if (handlers.onPause) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemotePause, () => {
-        void handlers.onPause?.();
-      })
-    );
-  }
+  const subscription = emitter.addListener(EVENT_NAME, (event: Record<string, unknown>) => {
+    const command = coerceRemoteCommandName(event.command);
+    if (!command) {
+      return;
+    }
 
-  if (handlers.onStop) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemoteStop, () => {
-        void handlers.onStop?.();
-      })
-    );
-  }
+    const positionSeconds =
+      typeof event.positionSeconds === 'number' ? event.positionSeconds : undefined;
 
-  if (handlers.onSeek) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
-        void handlers.onSeek?.(position * 1000);
-      })
-    );
-  }
-
-  if (handlers.onNext) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemoteNext, () => {
-        void handlers.onNext?.();
-      })
-    );
-  }
-
-  if (handlers.onPrevious) {
-    subscriptions.push(
-      TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-        void handlers.onPrevious?.();
-      })
-    );
-  }
+    listener({
+      command,
+      positionSeconds,
+    });
+  });
 
   return () => {
-    for (const subscription of subscriptions) {
-      subscription.remove();
-    }
+    subscription.remove();
   };
 }
