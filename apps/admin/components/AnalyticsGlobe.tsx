@@ -9,21 +9,21 @@ import maplibregl, {
   type Popup as MapLibrePopup,
 } from 'maplibre-gl';
 
-import type { LocationMetric } from '@/lib/analytics-reporting';
+import type { CountryMetric } from '@/lib/analytics-reporting';
 import { normalizeAdminTheme, type AdminThemeMode } from '@/lib/theme';
 
 type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
 
 interface AnalyticsGlobeProps {
-  metrics: LocationMetric[];
+  metrics: CountryMetric[];
 }
 
 interface MetricFeatureProperties {
-  code: string;
+  countryCode: string;
+  countryName: string;
   downloadUnits: number;
   listenerCount: number;
   listeningMinutes: number;
-  name: string;
 }
 
 interface MetricFeature {
@@ -42,10 +42,10 @@ interface MetricFeatureCollection {
 
 const LIGHT_MAP_STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const DARK_MAP_STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-const METRIC_SOURCE_ID = 'location-metrics';
-const HEAT_LAYER_ID = 'location-metrics-heat';
-const CIRCLE_LAYER_ID = 'location-metrics-circles';
-const HIT_LAYER_ID = 'location-metrics-hit-area';
+const METRIC_SOURCE_ID = 'country-metrics';
+const HEAT_LAYER_ID = 'country-metrics-heat';
+const CIRCLE_LAYER_ID = 'country-metrics-circles';
+const HIT_LAYER_ID = 'country-metrics-hit-area';
 const INITIAL_CENTER: [number, number] = [12, 18];
 const INITIAL_ZOOM = 3.3;
 const WORLD_BOUNDS: [[number, number], [number, number]] = [
@@ -69,11 +69,11 @@ function getMetricProperty(mode: MapMetricMode): 'listeningMinutes' | 'downloadU
   return mode;
 }
 
-function getMetricValue(metric: LocationMetric, mode: MapMetricMode): number {
+function getMetricValue(metric: CountryMetric, mode: MapMetricMode): number {
   return metric[getMetricProperty(mode)];
 }
 
-function formatMetricValue(metric: LocationMetric, mode: MapMetricMode): string {
+function formatMetricValue(metric: CountryMetric, mode: MapMetricMode): string {
   if (mode === 'downloadUnits') {
     return `${metric.downloadUnits} downloads`;
   }
@@ -98,7 +98,7 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
-function buildMetricsFeatureCollection(metrics: LocationMetric[]): MetricFeatureCollection {
+function buildMetricsFeatureCollection(metrics: CountryMetric[]): MetricFeatureCollection {
   return {
     type: 'FeatureCollection',
     features: metrics.map((metric) => ({
@@ -108,11 +108,11 @@ function buildMetricsFeatureCollection(metrics: LocationMetric[]): MetricFeature
         coordinates: [metric.longitude, metric.latitude],
       },
       properties: {
-        code: metric.code,
+        countryCode: metric.code,
+        countryName: metric.name,
         downloadUnits: metric.downloadUnits,
         listenerCount: metric.listenerCount,
         listeningMinutes: metric.listeningMinutes,
-        name: metric.name,
       },
     })),
   };
@@ -261,19 +261,19 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
   }, [rankedMetrics, mode]);
 
   const overviewMetrics = useMemo(() => {
-    const activeLocationCount = metrics.filter(
+    const activeCountryCount = metrics.filter(
       (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
     ).length;
 
     return {
-      activeLocationCount,
+      activeCountryCount,
       listeningMinutes: metrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
       listenerCount: metrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
       downloadUnits: metrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
     };
   }, [metrics]);
 
-  const topLocation = rankedMetrics[0] ?? null;
+  const topCountry = rankedMetrics[0] ?? null;
   const modeLabel = getModeLabel(mode);
 
   const syncVisualizationLayers = useCallback(
@@ -357,7 +357,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
     []
   );
 
-  const showMetricPopup = useCallback((metric: LocationMetric, shouldFly = false) => {
+  const showMetricPopup = useCallback((metric: CountryMetric, shouldFly = false) => {
     const map = mapRef.current;
     if (!map || !readyRef.current) {
       return;
@@ -479,17 +479,17 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
     });
 
     map.on('click', HIT_LAYER_ID, (event) => {
-      const locationCode = event.features?.[0]?.properties?.code;
-      if (typeof locationCode !== 'string') {
+      const countryCode = event.features?.[0]?.properties?.countryCode;
+      if (typeof countryCode !== 'string') {
         return;
       }
 
-      const metric = latestMetricsRef.current.find((entry) => entry.code === locationCode);
+      const metric = latestMetricsRef.current.find((entry) => entry.code === countryCode);
       if (!metric) {
         return;
       }
 
-      setSelectedCode(locationCode);
+      setSelectedCode(countryCode);
       showMetricPopup(metric, true);
     });
 
@@ -550,7 +550,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
   if (!metrics.length) {
     return (
       <section className="globe-card globe-card--empty">
-        <p>No approximate location data is available yet.</p>
+        <p>No coarse geography data is available yet.</p>
       </section>
     );
   }
@@ -603,8 +603,8 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
             <p className="eyebrow">Coverage snapshot</p>
             <div className="globe-card__summary-grid" aria-label="Coverage summary">
               <div>
-                <span>Locations</span>
-                <strong>{overviewMetrics.activeLocationCount}</strong>
+                <span>Countries</span>
+                <strong>{overviewMetrics.activeCountryCount}</strong>
               </div>
               <div>
                 <span>Listeners</span>
@@ -632,27 +632,27 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
 
           <div className="globe-card__explore">
             <p className="eyebrow">Explore</p>
-            {topLocation ? (
+            {topCountry ? (
               <>
                 <h4>
-                  {topLocation.name} leads in {modeLabel}.
+                  {topCountry.name} leads in {modeLabel}.
                 </h4>
                 <p>
-                  Click a location bubble or row to open the detailed location card and compare
+                  Click a country bubble or row to open the detailed country card and compare
                   listening, downloads, and listeners.
                 </p>
               </>
             ) : (
               <>
-                <h4>Click any location to open its detail card.</h4>
-                <p>Use the globe or the location list to drill into the geography data.</p>
+                <h4>Click any country to open its detail card.</h4>
+                <p>Use the globe or the country list to drill into the geography data.</p>
               </>
             )}
           </div>
 
           {selectedMetric ? (
             <div className="globe-card__selected">
-              <p className="eyebrow">Selected location</p>
+              <p className="eyebrow">Selected country</p>
               <h4>
                 {selectedMetric.name} <span>{selectedMetric.code}</span>
               </h4>
@@ -675,7 +675,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
           ) : null}
 
           <div className="globe-card__toplist">
-            <p className="eyebrow">Top locations</p>
+            <p className="eyebrow">Top countries</p>
             <ul>
               {rankedMetrics.slice(0, 6).map((metric) => (
                 <li key={metric.code}>

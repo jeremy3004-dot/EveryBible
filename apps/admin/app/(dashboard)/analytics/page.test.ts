@@ -12,7 +12,7 @@ test('analytics page puts the globe hero before secondary analytics sections', a
     'utf8'
   );
 
-  const globeIndex = pageSource.indexOf('<AnalyticsGlobe metrics={analytics.locationMetrics} />');
+  const globeIndex = pageSource.indexOf('<AnalyticsGlobe metrics={analytics.countryMetrics} />');
   const metricsIndex = pageSource.indexOf('<section className="metric-grid analytics-page__metrics">');
   const dailyTrendsIndex = pageSource.indexOf('<DailyTrendsPanel');
   const oldTrendIndex = pageSource.indexOf('<section className="two-column analytics-page__trends">');

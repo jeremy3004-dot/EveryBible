@@ -23,7 +23,6 @@
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
         "NSCameraUsageDescription": "Allow Every Bible to access your camera if you choose to take a profile photo.",
-        "NSLocationWhenInUseUsageDescription": "Allow Every Bible to use your approximate location while you listen or download Scripture so the activity map reflects real listening areas without storing precise GPS.",
         "NSPhotoLibraryUsageDescription": "Allow Every Bible to access your photo library so you can choose a profile photo.",
         "UIBackgroundModes": [
           "audio",
@@ -41,13 +40,9 @@
       },
       "package": "com.everybible.app",
       "edgeToEdgeEnabled": true,
-      "blockedPermissions": [
-        "android.permission.ACCESS_FINE_LOCATION"
-      ],
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE"
       ]
     },
     "web": {
@@ -66,12 +61,6 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Allow Every Bible to use your approximate location while you listen or download Scripture so the activity map reflects real listening areas without storing precise GPS."
-        }
-      ],
       "expo-apple-authentication",
       "expo-av",
       "@kesha-antonov/react-native-background-downloader",

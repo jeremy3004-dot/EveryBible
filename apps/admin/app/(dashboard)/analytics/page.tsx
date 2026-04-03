@@ -14,7 +14,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="analytics-page">
-      <AnalyticsGlobe metrics={analytics.locationMetrics} />
+      <AnalyticsGlobe metrics={analytics.countryMetrics} />
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">

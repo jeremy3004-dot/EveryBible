@@ -115,40 +115,17 @@ test('analyticsService keeps auth lookup inside guarded flush path so rejected g
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(
     source,
-    /Promise\.all\(\[supabase\.auth\.getSession\(\),\s*supabase\.auth\.getUser\(\)\]\)/,
-    'flushEvents must resolve session state inside the guarded flush path'
-  );
-  assert.match(
-    source,
-    /requeueSnapshot\(snapshot\)[\s\S]*Unable to resolve the current session/,
+    /try\s*{[\s\S]*await supabase\.auth\.getUser\(\)[\s\S]*catch\s*\(error\)\s*{[\s\S]*requeueSnapshot\(snapshot\)/,
     'flushEvents must restore queued events when auth lookup fails during startup/session restore'
   );
 });
 
-test('analyticsService posts queued events to the analytics collector with bearer auth', () => {
+test('analyticsService uses batch_track_events RPC for efficient bulk delivery', () => {
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(
     source,
-    /EXPO_PUBLIC_ANALYTICS_COLLECTOR_URL/,
-    'flushEvents must read the analytics collector URL from runtime config'
-  );
-  assert.match(source, /fetch\(/, 'flushEvents must use fetch to reach the collector');
-  assert.match(source, /Authorization/, 'collector requests must send bearer auth');
-  assert.doesNotMatch(source, /batch_track_events/, 'collector flow should replace the old RPC');
-});
-
-test('analyticsService keeps queueing location-agnostic before backend enrichment', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-
-  assert.doesNotMatch(
-    source,
-    /getCachedAnalyticsLocationEventProperties/,
-    'analyticsService should not read device-location helpers before queueing analytics events'
-  );
-  assert.doesNotMatch(
-    source,
-    /LOCATION_AWARE_EVENT_NAMES/,
-    'analyticsService should not special-case event names for device-location enrichment'
+    /\.rpc\(\s*['"]batch_track_events['"]/,
+    'flushEvents must use the batch_track_events RPC endpoint'
   );
 });
 

@@ -39,10 +39,6 @@ export default function PrivacyPage() {
           <li>Reading progress and history</li>
           <li>Bookmarks and highlights</li>
           <li>App preferences and settings</li>
-          <li>
-            Approximate location data when you grant permission so activity maps reflect where
-            listening and downloads actually happen without storing precise GPS trails
-          </li>
         </ul>
 
         <h3>Approximate Location Data</h3>
@@ -65,22 +61,7 @@ export default function PrivacyPage() {
           <li>Personalize your experience</li>
           <li>Generate aggregate usage reporting and approximate location heat maps</li>
           <li>Send important updates about the app</li>
-          <li>Display privacy-safe ministry activity maps based on approximate device location</li>
         </ul>
-      </section>
-
-      <section>
-        <h2>Approximate Location for Activity Maps</h2>
-        <p>
-          If you allow location access, EveryBible may collect your approximate location while you
-          actively listen to or download Scripture. We use this to place listening and download
-          activity on aggregated maps.
-        </p>
-        <p>
-          We do not use background location for this feature, and we intentionally coarsen the
-          location before storing it so the map reflects a broad area rather than a precise GPS
-          point.
-        </p>
       </section>
 
       <section>
