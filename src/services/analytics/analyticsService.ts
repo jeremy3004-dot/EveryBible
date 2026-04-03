@@ -139,6 +139,15 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
       session_id: e.session_id,
       device_platform: e.device_platform,
       app_version: e.app_version,
+      geo_accuracy_km: null,
+      geo_city: null,
+      geo_country_code: null,
+      geo_latitude: null,
+      geo_longitude: null,
+      geo_region_code: null,
+      geo_region_name: null,
+      geo_source: null,
+      geo_timezone: null,
       user_id: user?.id ?? null,
     }));
 
