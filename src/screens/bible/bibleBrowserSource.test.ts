@@ -68,8 +68,14 @@ test('Bible browser modal picker shows a dismiss control and opens on the reques
 
   assert.match(
     source,
+    /navigation\.popTo\('BibleReader', params\);/,
+    'BibleBrowserScreen should pop the modal picker directly to BibleReader so picker chapter selection exits modal presentation context deterministically'
+  );
+
+  assert.match(
+    source,
     /navigation\.navigate\('BibleReader', params\);/,
-    'BibleBrowserScreen should navigate back to BibleReader from picker selection so the destination reader stays in the normal tab stack'
+    'BibleBrowserScreen should still support direct non-modal browser launches into BibleReader'
   );
 
   assert.equal(

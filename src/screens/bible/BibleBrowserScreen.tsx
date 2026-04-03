@@ -164,8 +164,13 @@ export function BibleBrowserScreen() {
   };
 
   const navigateToReader = (params: BibleStackParamList['BibleReader']) => {
-    // Use navigate so BiblePicker returns to the in-tab reader route instead
-    // of replacing inside modal presentation (which can keep tabs hidden on iOS).
+    if (isPickerModal) {
+      // Pop directly to the reader route so chapter selection exits modal
+      // presentation in one deterministic stack operation.
+      navigation.popTo('BibleReader', params);
+      return;
+    }
+
     navigation.navigate('BibleReader', params);
   };
 
