@@ -496,7 +496,7 @@ export function TranslationPickerList({
                             },
                           ]}
                         >
-                          Whole Bible
+                          Full Bible
                         </Text>
                       </>
                     )}
@@ -1303,21 +1303,24 @@ const styles = StyleSheet.create({
   },
   audioDownloadButtons: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexWrap: 'nowrap',
+    gap: 6,
   },
   audioDownloadChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radius.pill,
     borderWidth: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
   audioDownloadChipLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+    flexShrink: 1,
   },
   audioDownloadByBook: {
     alignSelf: 'flex-start',

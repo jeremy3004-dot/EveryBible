@@ -83,6 +83,18 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes('Full Bible'),
+    true,
+    'TranslationPickerList should use the shorter Full Bible label to help the audio chips stay on one row'
+  );
+
+  assert.match(
+    source,
+    /audioDownloadButtons:[\s\S]*flexWrap:\s*'nowrap'/,
+    'TranslationPickerList should keep the audio download chip row on a single line'
+  );
+
+  assert.equal(
     source.includes("t('translations.languagePreference')"),
     true,
     "TranslationPickerList should label the top row as the user's language preference"
