@@ -12,6 +12,18 @@ interface NormalizedVersion {
   versionNumber: number;
 }
 
+interface ExistingVersion {
+  changelog: string | null;
+  data_checksum: string | null;
+  is_current: boolean | null;
+  published_at: string | null;
+  total_books: number | null;
+  total_chapters: number | null;
+  total_verses: number | null;
+  translation_id: string;
+  version_number: number;
+}
+
 interface NormalizedTranslation {
   abbreviation: string;
   adminNotes: string | null;
@@ -57,6 +69,42 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
+function mergeCatalogObjects(
+  existingCatalog: Record<string, unknown> | null,
+  incomingCatalog: Record<string, unknown> | null
+): Record<string, unknown> | null {
+  if (!existingCatalog && !incomingCatalog) {
+    return null;
+  }
+
+  if (!existingCatalog) {
+    return incomingCatalog;
+  }
+
+  if (!incomingCatalog) {
+    return existingCatalog;
+  }
+
+  const merged: Record<string, unknown> = {
+    ...existingCatalog,
+    ...incomingCatalog,
+  };
+
+  for (const key of ['text', 'audio', 'timing'] as const) {
+    const existingSection = asRecord(existingCatalog[key]);
+    const incomingSection = asRecord(incomingCatalog[key]);
+
+    if (Object.keys(existingSection).length > 0 || Object.keys(incomingSection).length > 0) {
+      merged[key] = {
+        ...existingSection,
+        ...incomingSection,
+      };
+    }
+  }
+
+  return merged;
+}
+
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
@@ -67,6 +115,26 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
 
 function asNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function mergeNormalizedVersion(
+  existingVersion: ExistingVersion | null,
+  incomingVersion: NormalizedVersion
+): NormalizedVersion {
+  if (!existingVersion) {
+    return incomingVersion;
+  }
+
+  return {
+    changelog: incomingVersion.changelog ?? existingVersion.changelog,
+    dataChecksum: incomingVersion.dataChecksum ?? existingVersion.data_checksum,
+    isCurrent: incomingVersion.isCurrent,
+    publishedAt: incomingVersion.publishedAt || existingVersion.published_at || new Date().toISOString(),
+    totalBooks: incomingVersion.totalBooks ?? existingVersion.total_books,
+    totalChapters: incomingVersion.totalChapters ?? existingVersion.total_chapters,
+    totalVerses: incomingVersion.totalVerses ?? existingVersion.total_verses,
+    versionNumber: incomingVersion.versionNumber,
+  };
 }
 
 function normalizeDistributionState(
@@ -224,29 +292,52 @@ export async function runUpstreamTranslationSync(actorUserId: string) {
     const translationIds = normalized.map((item) => item.translationId);
     const { data: existingTranslations, error: existingError } = await service
       .from('translation_catalog')
-      .select('translation_id')
+      .select('translation_id,catalog')
       .in('translation_id', translationIds);
 
     if (existingError) {
       throw new Error(`Unable to inspect translation catalog: ${existingError.message}`);
     }
 
-    const existingSet = new Set(
-      (existingTranslations ?? []).map((item) => item.translation_id as string)
+    const existingCatalogById = new Map(
+      (existingTranslations ?? []).map((item) => [
+        item.translation_id as string,
+        asRecord(item.catalog),
+      ])
+    );
+    const { data: existingVersions, error: existingVersionsError } = await service
+      .from('translation_versions')
+      .select(
+        'translation_id,version_number,changelog,data_checksum,is_current,published_at,total_books,total_chapters,total_verses'
+      )
+      .in('translation_id', translationIds);
+
+    if (existingVersionsError) {
+      throw new Error(`Unable to inspect translation versions: ${existingVersionsError.message}`);
+    }
+
+    const existingVersionByKey = new Map(
+      ((existingVersions ?? []) as ExistingVersion[]).map((version) => [
+        `${version.translation_id}:${version.version_number}`,
+        version,
+      ])
     );
 
     let insertedCount = 0;
     let updatedCount = 0;
 
     for (const translation of normalized) {
-      const existed = existingSet.has(translation.translationId);
+      const existed = existingCatalogById.has(translation.translationId);
+      const mergedCatalog = mergeCatalogObjects(
+        existingCatalogById.get(translation.translationId) ?? null,
+        translation.catalog
+      );
       const { error: upsertCatalogError } = await service
         .from('translation_catalog')
         .upsert(
           {
             abbreviation: translation.abbreviation,
             admin_notes: translation.adminNotes,
-            catalog: translation.catalog,
             distribution_state: translation.distributionState,
             has_audio: translation.hasAudio,
             has_text: translation.hasText,
@@ -262,6 +353,7 @@ export async function runUpstreamTranslationSync(actorUserId: string) {
             upstream_external_id: translation.upstreamExternalId,
             upstream_last_synced_at: new Date().toISOString(),
             upstream_payload: translation.upstreamPayload,
+            catalog: mergedCatalog,
           },
           { onConflict: 'translation_id' }
         );
@@ -279,19 +371,23 @@ export async function runUpstreamTranslationSync(actorUserId: string) {
       }
 
       for (const version of translation.versions) {
+        const mergedVersion = mergeNormalizedVersion(
+          existingVersionByKey.get(`${translation.translationId}:${version.versionNumber}`) ?? null,
+          version
+        );
         const { error: versionError } = await service
           .from('translation_versions')
           .upsert(
             {
-              changelog: version.changelog,
-              data_checksum: version.dataChecksum,
-              is_current: version.isCurrent,
-              published_at: version.publishedAt,
-              total_books: version.totalBooks,
-              total_chapters: version.totalChapters,
-              total_verses: version.totalVerses,
+              changelog: mergedVersion.changelog,
+              data_checksum: mergedVersion.dataChecksum,
+              is_current: mergedVersion.isCurrent,
+              published_at: mergedVersion.publishedAt,
+              total_books: mergedVersion.totalBooks,
+              total_chapters: mergedVersion.totalChapters,
+              total_verses: mergedVersion.totalVerses,
               translation_id: translation.translationId,
-              version_number: version.versionNumber,
+              version_number: mergedVersion.versionNumber,
             },
             { onConflict: 'translation_id,version_number' }
           );

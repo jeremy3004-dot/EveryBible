@@ -1,0 +1,83 @@
+{
+  "generatedAt": "2026-04-03T08:20:16Z",
+  "version": "2026.04.03-v1",
+  "items": [
+    {
+      "translationId": "kjv",
+      "sourceTranslationId": "eng-kjv",
+      "name": "King James Version",
+      "abbreviation": "KJV",
+      "verseCount": 31102,
+      "sha256": "aee3c28a7da8c074a1a7f1415cd71d2bab9008bfd30ab96ca479317eef2e0afe",
+      "downloadUrl": "text/kjv/kjv-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T07:41:42Z"
+    },
+    {
+      "translationId": "eng-kjv2006",
+      "sourceTranslationId": "eng-kjv2006",
+      "name": "King James Version (2006)",
+      "abbreviation": "KJV2006",
+      "verseCount": 31102,
+      "sha256": "22e89ceff592a162895c86b472c2b3fbe7304927026d79024c6164c174ce4beb",
+      "downloadUrl": "text/eng-kjv2006/eng-kjv2006-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T07:41:42Z"
+    },
+    {
+      "translationId": "engkjvcpb",
+      "sourceTranslationId": "engkjvcpb",
+      "name": "KJV Cambridge Paragraph Bible",
+      "abbreviation": "KJVCPB",
+      "verseCount": 31102,
+      "sha256": "1c4d7bcf2104440361777195022cf7801db5f641fc3cb1355eb29bca7e179ac9",
+      "downloadUrl": "text/engkjvcpb/engkjvcpb-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T07:41:42Z"
+    },
+    {
+      "translationId": "engmsb",
+      "sourceTranslationId": "engmsb",
+      "name": "Majority Standard Bible",
+      "abbreviation": "MSB",
+      "verseCount": 31102,
+      "sha256": "60e45446652c9bf310f3da5961013a01ba864b47a997fb98e1a69bfe2c01ce8a",
+      "downloadUrl": "text/engmsb/engmsb-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T08:17:57Z"
+    },
+    {
+      "translationId": "eng-web",
+      "sourceTranslationId": "eng-web",
+      "name": "World English Bible Classic",
+      "abbreviation": "WEB",
+      "verseCount": 31103,
+      "sha256": "236fc8f3b197ac9247add83ef291e0827347d4bae6cf1e62f9276bd1c0722034",
+      "downloadUrl": "text/eng-web/eng-web-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T08:18:04Z"
+    },
+    {
+      "translationId": "enggnv",
+      "sourceTranslationId": "enggnv",
+      "name": "Geneva Bible 1599",
+      "abbreviation": "GNV",
+      "verseCount": 31090,
+      "sha256": "b6b3cfc5684ab3c828367635ef219b8a32bc295c7bede3896fe9b52855a2ce61",
+      "downloadUrl": "text/enggnv/enggnv-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T08:17:49Z"
+    },
+    {
+      "translationId": "engwebster",
+      "sourceTranslationId": "engwebster",
+      "name": "Webster Bible",
+      "abbreviation": "WEBSTER",
+      "verseCount": 31102,
+      "sha256": "7578c2f962e1d12b313fcd1e0c5f9f8682692a597aa77b7d4671daced4a0012c",
+      "downloadUrl": "text/engwebster/engwebster-2026.04.03-v1.db",
+      "version": "2026.04.03-v1",
+      "updatedAt": "2026-04-03T08:17:33Z"
+    }
+  ]
+}

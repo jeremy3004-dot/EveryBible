@@ -1,20 +1,62 @@
+import { readFile } from 'node:fs/promises';
+
+import { buildBibleMediaUrl } from './bible-media';
+
 const TRANSLATIONS_CSV_URL = 'https://ebible.org/Scriptures/translations.csv';
+const R2_TEXT_PACK_MANIFEST_URL = new URL('./r2-text-pack-manifest.json', import.meta.url);
+const R2_TEXT_PACK_CATALOG_VERSION_SUFFIX = 'r2-text-v1';
 
 interface TranslationCsvRow {
-  translationId: string;
-  shortTitle: string;
+  copyright: string;
+  downloadable: boolean;
   languageCode: string;
   languageNameInEnglish: string;
-  otBooks: number;
   ntBooks: number;
+  otBooks: number;
   redistributable: boolean;
-  downloadable: boolean;
+  shortTitle: string;
   textDirection: string;
-  copyright: string;
+  translationId: string;
+}
+
+interface TextPackManifestItem {
+  abbreviation?: string;
+  downloadUrl: string;
+  name: string;
+  sha256: string;
+  sourceTranslationId: string;
+  translationId: string;
+  updatedAt: string;
+  verseCount: number;
+  version: string;
+}
+
+interface TextPackManifestFile {
+  generatedAt: string;
+  items: TextPackManifestItem[];
+  version: string;
+}
+
+interface FeedOverride {
+  abbreviation: string;
+  name: string;
+  sourceTranslationId: string;
+  translationId: string;
 }
 
 export interface UpstreamTranslationRecord {
   abbreviation: string;
+  catalog?: {
+    minimumAppVersion?: string;
+    text?: {
+      downloadUrl: string;
+      format: 'sqlite';
+      sha256: string;
+      version: string;
+    };
+    updatedAt: string;
+    version: string;
+  };
   hasAudio: boolean;
   hasText: boolean;
   isAvailable: boolean;
@@ -36,6 +78,15 @@ export interface UpstreamTranslationRecord {
     versionNumber: number;
   }>;
 }
+
+const FEED_OVERRIDES: FeedOverride[] = [
+  {
+    abbreviation: 'KJV',
+    name: 'King James Version',
+    sourceTranslationId: 'eng-kjv',
+    translationId: 'kjv',
+  },
+];
 
 const LANGUAGE_NAME_MAP: Record<string, string> = {
   arb: 'Arabic',
@@ -159,11 +210,78 @@ function filterEligibleTranslations(rows: TranslationCsvRow[]): TranslationCsvRo
   );
 }
 
-function mapToUpstreamRecord(row: TranslationCsvRow): UpstreamTranslationRecord {
-  const title = row.shortTitle || row.translationId;
+function parseTextPackManifest(raw: string): Map<string, TextPackManifestItem> {
+  const parsed = JSON.parse(raw) as Partial<TextPackManifestFile>;
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+
+  return new Map(
+    items
+      .filter(
+        (item): item is TextPackManifestItem =>
+          typeof item?.translationId === 'string' &&
+          item.translationId.trim().length > 0 &&
+          typeof item.downloadUrl === 'string' &&
+          item.downloadUrl.trim().length > 0 &&
+          typeof item.sha256 === 'string' &&
+          item.sha256.trim().length > 0 &&
+          typeof item.updatedAt === 'string' &&
+          item.updatedAt.trim().length > 0 &&
+          typeof item.version === 'string' &&
+          item.version.trim().length > 0 &&
+          typeof item.verseCount === 'number' &&
+          Number.isFinite(item.verseCount) &&
+          item.verseCount > 0 &&
+          typeof item.sourceTranslationId === 'string' &&
+          item.sourceTranslationId.trim().length > 0 &&
+          typeof item.name === 'string' &&
+          item.name.trim().length > 0
+      )
+      .map((item) => [item.translationId, item])
+  );
+}
+
+async function loadTextPackManifest(): Promise<Map<string, TextPackManifestItem>> {
+  try {
+    const raw = await readFile(R2_TEXT_PACK_MANIFEST_URL, 'utf8');
+    return parseTextPackManifest(raw);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return new Map();
+    }
+
+    throw error;
+  }
+}
+
+function buildCatalogPayload(textPack: TextPackManifestItem | null) {
+  if (!textPack) {
+    return undefined;
+  }
 
   return {
-    abbreviation: row.translationId.toUpperCase(),
+    text: {
+      downloadUrl: buildBibleMediaUrl(textPack.downloadUrl),
+      format: 'sqlite' as const,
+      sha256: textPack.sha256,
+      version: textPack.version,
+    },
+    updatedAt: textPack.updatedAt,
+    version: `${textPack.version}-${R2_TEXT_PACK_CATALOG_VERSION_SUFFIX}`,
+  };
+}
+
+function mapToUpstreamRecord(
+  row: TranslationCsvRow,
+  textPack: TextPackManifestItem | null,
+  override?: FeedOverride
+): UpstreamTranslationRecord {
+  const title = override?.name ?? textPack?.name ?? (row.shortTitle || row.translationId);
+  const translationId = override?.translationId ?? textPack?.translationId ?? row.translationId;
+
+  return {
+    abbreviation:
+      override?.abbreviation ?? textPack?.abbreviation ?? row.translationId.toUpperCase(),
+    catalog: buildCatalogPayload(textPack),
     hasAudio: row.languageCode === 'eng',
     hasText: true,
     isAvailable: true,
@@ -173,16 +291,16 @@ function mapToUpstreamRecord(row: TranslationCsvRow): UpstreamTranslationRecord 
     licenseUrl: `https://ebible.org/Scriptures/${row.translationId}`,
     name: title,
     sourceUrl: `https://ebible.org/Scriptures/${row.translationId}`,
-    translationId: row.translationId,
+    translationId,
     versions: [
       {
         changelog: null,
-        dataChecksum: null,
+        dataChecksum: textPack?.sha256 ?? null,
         isCurrent: true,
-        publishedAt: new Date().toISOString(),
+        publishedAt: textPack?.updatedAt ?? new Date().toISOString(),
         totalBooks: row.otBooks + row.ntBooks,
         totalChapters: null,
-        totalVerses: null,
+        totalVerses: textPack?.verseCount ?? null,
         versionNumber: 1,
       },
     ],
@@ -202,5 +320,29 @@ export async function fetchUpstreamTranslations(): Promise<UpstreamTranslationRe
   }
 
   const csvText = await response.text();
-  return filterEligibleTranslations(parseTranslationsCsv(csvText)).map(mapToUpstreamRecord);
+  const eligibleRows = filterEligibleTranslations(parseTranslationsCsv(csvText));
+  const eligibleById = new Map(eligibleRows.map((row) => [row.translationId, row]));
+  const textPackManifest = await loadTextPackManifest();
+  const skippedSourceIds = new Set(FEED_OVERRIDES.map((override) => override.sourceTranslationId));
+
+  const records = eligibleRows
+    .filter((row) => !skippedSourceIds.has(row.translationId))
+    .map((row) => mapToUpstreamRecord(row, textPackManifest.get(row.translationId) ?? null));
+
+  for (const override of FEED_OVERRIDES) {
+    const sourceRow = eligibleById.get(override.sourceTranslationId);
+    if (!sourceRow) {
+      continue;
+    }
+
+    records.push(
+      mapToUpstreamRecord(
+        sourceRow,
+        textPackManifest.get(override.translationId) ?? null,
+        override
+      )
+    );
+  }
+
+  return records;
 }

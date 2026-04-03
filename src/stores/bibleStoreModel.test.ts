@@ -131,6 +131,8 @@ test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog over
   assert.equal(kjv.source, 'runtime');
   assert.equal(kjv.hasText, true);
   assert.equal(kjv.installState, 'remote-only');
+  assert.equal(kjv.catalog?.text?.downloadUrl, 'https://cdn.example.com/kjv.sqlite');
+  assert.equal(kjv.catalog?.text?.sha256, 'sha-kjv');
 });
 
 test('reconcileMissingRuntimeTranslationPacks resets a stale selected runtime translation to bsb', () => {

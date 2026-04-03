@@ -102,6 +102,16 @@ async function buildMappings(repoRoot: string): Promise<Mapping[]> {
     }
   }
 
+  const textPackDir = path.join(repoRoot, 'tmp', 'r2-text-packs', 'text');
+
+  if (await pathExists(textPackDir)) {
+    mappings.push({
+      kind: 'dir',
+      source: textPackDir,
+      destination: 'text',
+    });
+  }
+
   return mappings;
 }
 
