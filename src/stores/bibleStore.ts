@@ -61,7 +61,6 @@ interface BibleState {
   preferredTranslationLanguage: string | null;
   translations: BibleTranslation[];
   downloadProgress: TranslationDownloadProgress | null;
-  readerTabBarVisible: boolean;
 
   // Basic actions
   setCurrentBook: (bookId: string) => void;
@@ -74,7 +73,6 @@ interface BibleState {
 
   // Translation actions
   setCurrentTranslation: (translationId: string) => void;
-  setReaderTabBarVisible: (visible: boolean) => void;
   setPreferredTranslationLanguage: (language: string | null) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
   reconcileTranslationPacks: () => Promise<void>;
@@ -193,7 +191,6 @@ export const useBibleStore = create<BibleState>()(
       preferredTranslationLanguage: 'English',
       translations: getDefaultBibleTranslations(),
       downloadProgress: null,
-      readerTabBarVisible: true,
 
       setCurrentBook: (bookId) => set({ currentBook: bookId, hasReaderHistory: true }),
       setCurrentChapter: (chapter) => set({ currentChapter: chapter, hasReaderHistory: true }),
@@ -245,7 +242,7 @@ export const useBibleStore = create<BibleState>()(
           }
         }
       },
-      setReaderTabBarVisible: (readerTabBarVisible) => set({ readerTabBarVisible }),
+
       setPreferredTranslationLanguage: (preferredTranslationLanguage) =>
         set({
           preferredTranslationLanguage:
@@ -437,16 +434,10 @@ export const useBibleStore = create<BibleState>()(
           translation?.hasText && translation?.source !== 'runtime' && !hasInstalledTextPack
         );
 
-        const textPack = translation?.catalog?.text;
-        const bundledSeedMatchesCurrentCatalog =
-          isBundledSeed &&
-          Boolean(textPack) &&
-          translation?.activeTextPackVersion === textPack?.version;
-
-        // Bundled seeded translations stay readable without any network hop.
-        // If the catalog now advertises a newer R2 text pack, fall through and
-        // install it so the seeded copy no longer acts as the source of truth.
-        if (translation && isBundledSeed && (!textPack || bundledSeedMatchesCurrentCatalog)) {
+        // Bundled seeded translations are already present in the app's bundled database.
+        // Mark them available, but do not pretend runtime/cloud translations are installed
+        // unless a local pack path exists.
+        if (translation && isBundledSeed) {
           set((state) => ({
             error: null,
             translations: state.translations.map((t) =>
@@ -463,6 +454,7 @@ export const useBibleStore = create<BibleState>()(
           return;
         }
 
+        // Cloud download from Supabase bible_verses table
         try {
           if (translation?.textPackLocalPath) {
             await invalidateInstalledBibleDatabaseAtPath(translation.textPackLocalPath);
@@ -481,7 +473,9 @@ export const useBibleStore = create<BibleState>()(
           }));
 
           const textPack = translation?.catalog?.text;
-          const { downloadCatalogTextPack } = await import('../services/bible/cloudTranslationService');
+          const { downloadCatalogTextPack, downloadCloudTranslation } = await import(
+            '../services/bible/cloudTranslationService'
+          );
 
           const handleProgress = (progress: {
             error?: string;
@@ -510,15 +504,13 @@ export const useBibleStore = create<BibleState>()(
             });
           };
 
-          if (!textPack?.downloadUrl) {
-            throw new Error('This Bible is not published to the EveryBible library yet.');
-          }
-
-          const localPath = await downloadCatalogTextPack({
-            translationId,
-            downloadUrl: textPack.downloadUrl,
-            onProgress: handleProgress,
-          });
+          const localPath = await (textPack
+            ? downloadCatalogTextPack({
+                translationId,
+                downloadUrl: textPack.downloadUrl,
+                onProgress: handleProgress,
+              })
+            : downloadCloudTranslation(translationId, handleProgress));
 
           await invalidateInstalledBibleDatabaseAtPath(localPath);
 
