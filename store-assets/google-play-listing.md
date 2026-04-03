@@ -67,6 +67,26 @@ https://everybible.app/privacy
 ## Feature Graphic Text (for 1024x500 image)
 "Every Bible - Read. Listen. Grow."
 
+## Screenshot Pack
+
+Use the upload-ready set in:
+- `store-metadata/screenshots/google-play/`
+
+Recommended order:
+1. `01-read-offline.png`
+2. `02-track-habit.png`
+3. `03-highlight-verses.png`
+4. `04-share-verse-cards.png`
+5. `05-save-notes.png`
+6. `06-grow-foundations.png`
+7. `07-find-wisdom.png`
+
+Feature graphic:
+- `feature-graphic.png`
+
+Authoritative cross-store upload guide:
+- `store-metadata/screenshots/AUTHORITATIVE.md`
+
 ## Promo Video
 (Not required for initial release)
 

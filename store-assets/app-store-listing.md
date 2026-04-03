@@ -41,6 +41,24 @@ Download Every Bible and make Scripture part of your everyday rhythm.
 **Version 1.0.0**
 This release sharpens the Bible reading experience with improved highlights and notes, smoother chapter controls, cleaner translation browsing, and a more polished reader throughout the app.
 
+## Screenshot Pack
+
+Use the upload-ready iOS sets in:
+- `store-metadata/screenshots/ios/iphone-67-2026-04-03/`
+- `store-metadata/screenshots/ios/iphone-65-2026-04-03/`
+
+Recommended order:
+1. `01-read-offline.png`
+2. `02-track-habit.png`
+3. `03-highlight-verses.png`
+4. `04-share-verse-cards.png`
+5. `05-save-notes.png`
+6. `06-grow-foundations.png`
+7. `07-find-wisdom.png`
+
+Authoritative cross-store upload guide:
+- `store-metadata/screenshots/AUTHORITATIVE.md`
+
 ## Support URL
 https://everybible.app/support
 
