@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { AdminSetupCard } from '@/components/AdminSetupCard';
+import { OperatorLauncher } from '@/components/OperatorLauncher';
 import { StatusPill } from '@/components/StatusPill';
 import { requireAdminIdentity } from '@/lib/admin-auth';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
@@ -54,6 +55,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </aside>
 
       <main className="dashboard-main">{children}</main>
+      <OperatorLauncher />
     </div>
   );
 }
