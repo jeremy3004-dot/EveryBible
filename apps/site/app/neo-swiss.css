@@ -5,37 +5,37 @@
 :root {
   color-scheme: light;
 
-  /* Brand palette — warm sand / parchment */
-  --accent: #b07d4a;
-  --accent-strong: #8a5e32;
-  --accent-subtle: rgba(176, 125, 74, 0.10);
-  --accent-glow: rgba(176, 125, 74, 0.20);
+  /* Brand palette */
+  --accent: #4f46e5;
+  --accent-strong: #3730a3;
+  --accent-subtle: rgba(79, 70, 229, 0.08);
+  --accent-glow: rgba(79, 70, 229, 0.18);
 
   /* Surfaces */
-  --page-bg: #fdf8f0;
-  --surface: #fffcf7;
-  --surface-soft: #f7f0e4;
-  --surface-muted: #ede3d0;
-  --surface-glass: rgba(253, 248, 240, 0.88);
+  --page-bg: #f8f7fc;
+  --surface: #ffffff;
+  --surface-soft: #f3f2f8;
+  --surface-muted: #ede9f7;
+  --surface-glass: rgba(255, 255, 255, 0.82);
 
   /* Text */
-  --text: #2a1f0e;
-  --text-heading: #1a1208;
-  --muted: #7a6a52;
-  --muted-soft: #b0a08a;
+  --text: #18181b;
+  --text-heading: #0f0f14;
+  --muted: #6b7280;
+  --muted-soft: #9ca3af;
   --on-accent: #ffffff;
 
   /* Borders */
-  --line: rgba(160, 120, 70, 0.15);
-  --line-strong: rgba(42, 31, 14, 0.16);
-  --border: rgba(160, 120, 70, 0.15);
+  --line: rgba(79, 70, 229, 0.14);
+  --line-strong: rgba(18, 18, 30, 0.14);
+  --border: rgba(79, 70, 229, 0.14);
 
-  /* Shadows — warm-tinted */
-  --shadow-xs: 0 1px 2px rgba(60, 40, 10, 0.07);
-  --shadow-sm: 0 1px 3px rgba(60, 40, 10, 0.08), 0 4px 12px rgba(60, 40, 10, 0.05);
-  --shadow-md: 0 4px 12px rgba(60, 40, 10, 0.09), 0 12px 40px rgba(60, 40, 10, 0.06);
-  --shadow-lg: 0 8px 24px rgba(60, 40, 10, 0.10), 0 24px 64px rgba(60, 40, 10, 0.08);
-  --shadow-accent: 0 4px 16px rgba(176, 125, 74, 0.30);
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(17, 17, 59, 0.06);
+  --shadow-sm: 0 1px 3px rgba(17, 17, 59, 0.08), 0 4px 12px rgba(17, 17, 59, 0.05);
+  --shadow-md: 0 4px 12px rgba(17, 17, 59, 0.08), 0 12px 40px rgba(17, 17, 59, 0.06);
+  --shadow-lg: 0 8px 24px rgba(17, 17, 59, 0.10), 0 24px 64px rgba(17, 17, 59, 0.08);
+  --shadow-accent: 0 4px 16px rgba(79, 70, 229, 0.28);
 
   /* Radii */
   --radius-xs: 4px;
@@ -66,10 +66,10 @@
 
 body {
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201, 169, 110, 0.10), transparent),
-    radial-gradient(ellipse 60% 40% at 90% 30%, rgba(176, 125, 74, 0.07), transparent),
-    radial-gradient(ellipse 50% 40% at 10% 70%, rgba(220, 190, 140, 0.05), transparent),
-    linear-gradient(180deg, #fdf8f0 0%, #f9f0e2 50%, #fdf8f0 100%);
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79, 70, 229, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 30%, rgba(139, 92, 246, 0.06), transparent),
+    radial-gradient(ellipse 50% 40% at 10% 70%, rgba(99, 102, 241, 0.04), transparent),
+    linear-gradient(180deg, #f5f4fc 0%, #f0eef8 50%, #faf9fd 100%);
   color: var(--text);
   font-family: var(--font-body);
 }
@@ -247,7 +247,7 @@ body {
 .site-nav__link--cta:focus-visible {
   background: var(--accent-strong);
   color: var(--on-accent);
-  box-shadow: 0 4px 20px rgba(176, 125, 74, 0.38);
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35);
   transform: translateY(-1px);
 }
 
@@ -464,7 +464,7 @@ body {
   color: var(--on-accent);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(176, 125, 74, 0.28);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
 }
 
 .store-badge__logo svg {
@@ -740,7 +740,7 @@ body {
 
 .cta-pill.primary:hover {
   background: var(--accent-strong);
-  box-shadow: 0 4px 20px rgba(176, 125, 74, 0.40);
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.38);
   transform: translateY(-1px);
 }
 
@@ -894,7 +894,7 @@ body {
 
 .download-button:hover {
   background: var(--accent-strong);
-  box-shadow: 0 4px 20px rgba(176, 125, 74, 0.42);
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.38);
   transform: translateY(-2px);
 }
 
@@ -1020,8 +1020,8 @@ body {
 .static-page {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201, 169, 110, 0.09), transparent),
-    linear-gradient(180deg, #fdf8f0 0%, #f9f0e2 50%, #fdf8f0 100%);
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(79, 70, 229, 0.07), transparent),
+    linear-gradient(180deg, #f5f4fc 0%, #f0eef8 50%, #faf9fd 100%);
   color: var(--text);
 }
 
