@@ -200,11 +200,13 @@ export interface SupportUserDetail {
 
 export interface AnalyticsOverview {
   activeCountryCount: number;
+  activeLocationCount: number;
   averageEngagementScore: number;
   countryMetrics: CountryMetric[];
   dailyDownloadUnits: DailyMetricPoint[];
   dailyListeningMinutes: Array<{ day: string; minutes: number }>;
   listeningTotalMinutes: number;
+  locationMetrics: CountryMetric[];
   totalDownloadUnits: number;
   totalTrackedSessions: number;
   userCountWithListening: number;
@@ -212,6 +214,7 @@ export interface AnalyticsOverview {
 
 interface AnalyticsOverviewRpcPayload {
   activeCountryCount?: number;
+  activeLocationCount?: number;
   averageEngagementScore?: number;
   countryMetrics?: CountryMetricRollup[];
   dailyDownloadUnits?: DailyMetricPoint[];
@@ -752,6 +755,9 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   const countryMetrics = overview.countryMetrics?.length
     ? mapCountryRollupsToMetrics(overview.countryMetrics)
     : mapLocationRollupsToMetrics(overview.locationMetrics ?? []);
+  const locationMetrics = overview.locationMetrics?.length
+    ? mapLocationRollupsToMetrics(overview.locationMetrics)
+    : countryMetrics;
   const dailyListeningMinutes = (overview.dailyListeningMinutes ?? []).map((point) => ({
     day: point.day,
     minutes: Number(point.value ?? 0),
@@ -759,6 +765,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
 
   return {
     activeCountryCount: Number(overview.activeCountryCount ?? countryMetrics.length),
+    activeLocationCount: Number(overview.activeLocationCount ?? locationMetrics.length),
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
     countryMetrics,
     dailyDownloadUnits: (overview.dailyDownloadUnits ?? []).map((point) => ({
@@ -767,6 +774,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
     })),
     dailyListeningMinutes,
     listeningTotalMinutes: Number(overview.listeningTotalMinutes ?? 0),
+    locationMetrics,
     totalDownloadUnits: Number(overview.totalDownloadUnits ?? 0),
     totalTrackedSessions: Number(overview.totalTrackedSessions ?? 0),
     userCountWithListening: Number(overview.userCountWithListening ?? 0),
