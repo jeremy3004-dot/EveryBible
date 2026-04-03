@@ -34,13 +34,29 @@ test('root navigator owns the current route name for the global mini player', ()
 
   assert.match(
     rootNavigatorSource,
-    /onStateChange=\{\(\) => setCurrentRouteName\(getCurrentRouteName\(\)\)\}/,
-    'RootNavigator should update currentRouteName when navigation state changes'
+    /onStateChange=\{\(\) => \{[\s\S]*?setCurrentRouteName\(routeState\.name\);[\s\S]*?setCurrentRouteParams\(routeState\.params\);[\s\S]*?\}\}/,
+    'RootNavigator should update current route name and params when navigation state changes'
   );
 
   assert.match(
     rootNavigatorSource,
-    /<MiniPlayerHost currentRouteName=\{currentRouteName\} \/>/,
-    'RootNavigator should pass the current route name into the mini player host'
+    /<MiniPlayerHost currentRouteName=\{currentRouteName\} currentRouteParams=\{currentRouteParams\} \/>/,
+    'RootNavigator should pass both current route name and params into the mini player host'
+  );
+});
+
+test('mini player is not globally hidden on BibleReader when audio may still be active from another chapter', () => {
+  const miniPlayerSource = readRelativeSource('./MiniPlayer.tsx');
+
+  assert.equal(
+    /if \(!book \|\| !displayChapter \|\| currentRouteName === 'BibleReader'\)/.test(miniPlayerSource),
+    false,
+    'MiniPlayer should not disappear for every BibleReader route because users need a visible pause surface when old chapter audio is still playing in the background'
+  );
+
+  assert.match(
+    miniPlayerSource,
+    /const isViewingActiveAudioChapter =[\s\S]*?currentRouteName === 'BibleReader'[\s\S]*?routeBookId === displayBookId[\s\S]*?routeChapter === displayChapter;/,
+    'MiniPlayer should hide itself only when the reader is already showing the active audio chapter'
   );
 });

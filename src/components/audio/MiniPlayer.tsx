@@ -11,9 +11,23 @@ import { layout, radius, spacing, shadows, typography } from '../../design/syste
 
 interface MiniPlayerProps {
   currentRouteName: string | null;
+  currentRouteParams?: Record<string, unknown>;
 }
 
-export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
+function getRouteChapterParam(routeChapter: unknown): number | null {
+  if (typeof routeChapter === 'number' && Number.isFinite(routeChapter)) {
+    return routeChapter;
+  }
+
+  if (typeof routeChapter === 'string' && routeChapter.trim().length > 0) {
+    const parsedChapter = Number(routeChapter);
+    return Number.isFinite(parsedChapter) ? parsedChapter : null;
+  }
+
+  return null;
+}
+
+export function MiniPlayer({ currentRouteName, currentRouteParams }: MiniPlayerProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const tabBarHeight = layout.tabBarBaseHeight;
@@ -40,11 +54,20 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const displayTranslationId = currentTranslationId ?? lastPlayedTranslationId;
   const displayBookId = currentBookId ?? lastPlayedBookId;
   const displayChapter = currentChapter ?? lastPlayedChapter;
+  const routeBookId =
+    typeof currentRouteParams?.bookId === 'string' ? currentRouteParams.bookId : null;
+  const routeChapter = getRouteChapterParam(currentRouteParams?.chapter);
+  const isViewingActiveAudioChapter =
+    currentRouteName === 'BibleReader' &&
+    routeBookId != null &&
+    routeChapter != null &&
+    routeBookId === displayBookId &&
+    routeChapter === displayChapter;
   const book = displayBookId ? getBookById(displayBookId) : null;
   const progress =
     duration > 0 ? currentPosition / duration : status === 'idle' ? 0 : 0.05;
 
-  if (!book || !displayChapter || currentRouteName === 'BibleReader') {
+  if (!book || !displayChapter || isViewingActiveAudioChapter) {
     return null;
   }
 
