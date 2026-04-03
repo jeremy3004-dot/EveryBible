@@ -58,25 +58,6 @@ export function buildBibleMediaUrl(
   return `${getBibleMediaPublicBaseUrl(siteUrl)}/${objectKey}`;
 }
 
-export function resolveLegacyBibleMediaUrl(
-  objectKey: string,
-  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-): string | null {
-  const normalizedObjectKey = resolveBibleMediaObjectKey(objectKey);
-  const normalizedSupabaseUrl = supabaseUrl?.trim().replace(/\/+$/, '') ?? '';
-
-  if (!normalizedObjectKey || !normalizedSupabaseUrl) {
-    return null;
-  }
-
-  if (normalizedObjectKey.startsWith('audio/bsb/')) {
-    const legacyPath = normalizedObjectKey.replace(/^audio\/bsb\//, '');
-    return `${normalizedSupabaseUrl}/storage/v1/object/public/bible-audio/bsb/${legacyPath}`;
-  }
-
-  return null;
-}
-
 export function getBibleMediaEnv(env: EnvMap = process.env): BibleMediaEnv {
   assertEnv(
     ['R2_ACCESS_KEY_ID', 'R2_BUCKET', 'R2_ENDPOINT', 'R2_SECRET_ACCESS_KEY'],

@@ -92,6 +92,7 @@ test('runtime text translations without an installed local pack require download
     hasText: true,
     hasAudio: false,
     canPlayAudio: false,
+    hasDownloadableTextPack: true,
     source: 'runtime',
     textPackLocalPath: null,
   });
@@ -108,6 +109,7 @@ test('runtime text translations become selectable once the local pack exists', (
     hasText: true,
     hasAudio: false,
     canPlayAudio: false,
+    hasDownloadableTextPack: true,
     source: 'runtime',
     textPackLocalPath: 'file:///translations/niv.db',
   });
@@ -115,6 +117,23 @@ test('runtime text translations become selectable once the local pack exists', (
   assert.deepEqual(state, {
     isSelectable: true,
     reason: null,
+  });
+});
+
+test('runtime text translations without an R2 text pack stay marked as coming soon', () => {
+  const state = getTranslationSelectionState({
+    isDownloaded: false,
+    hasText: true,
+    hasAudio: false,
+    canPlayAudio: false,
+    hasDownloadableTextPack: false,
+    source: 'runtime',
+    textPackLocalPath: null,
+  });
+
+  assert.deepEqual(state, {
+    isSelectable: false,
+    reason: 'coming-soon',
   });
 });
 

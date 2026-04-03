@@ -74,9 +74,14 @@ test('catalog text-pack downloads fetch the sqlite file directly before activati
   assert.match(source, /await FileSystem\.downloadAsync\(resolvedDownloadUrl,\s*stagingDbPath\);/);
 });
 
-test('bible store prefers catalog text packs over row-by-row Supabase downloads when available', () => {
+test('bible store requires a catalog text pack for runtime translation downloads', () => {
   const source = readRelativeSource('../../stores/bibleStore.ts');
 
   assert.match(source, /const textPack = translation\?\.catalog\?\.text;/);
-  assert.match(source, /textPack\s*\?\s*downloadCatalogTextPack\(/);
+  assert.match(source, /if \(!textPack\?\.downloadUrl\) \{/);
+  assert.match(
+    source,
+    /throw new Error\('This Bible is not published to the EveryBible library yet\.'\);/
+  );
+  assert.doesNotMatch(source, /downloadCloudTranslation\(/);
 });

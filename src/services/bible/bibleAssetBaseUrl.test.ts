@@ -51,9 +51,9 @@ test('getBibleAudioAssetBaseUrl falls back to the EveryBible media route audio p
   assert.equal(getBibleAudioAssetBaseUrl(), 'https://everybible.app/api/media/audio');
 });
 
-test('getBibleAudioAssetBaseUrl keeps the legacy Supabase audio bucket when only Supabase is configured', () => {
+test('getBibleAudioAssetBaseUrl prefers the EveryBible media route even when Supabase is configured', () => {
   assert.equal(
     getBibleAudioAssetBaseUrl(undefined, 'https://ganmududzdzpruvdulkg.supabase.co'),
-    'https://ganmududzdzpruvdulkg.supabase.co/storage/v1/object/public/bible-audio'
+    'https://everybible.app/api/media/audio'
   );
 });

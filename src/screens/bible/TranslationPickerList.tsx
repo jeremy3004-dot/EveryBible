@@ -196,6 +196,7 @@ export function TranslationPickerList({
       hasText: nextTranslation.hasText,
       hasAudio: nextTranslation.hasAudio,
       canPlayAudio: audioAvailability.canPlayAudio,
+      hasDownloadableTextPack: Boolean(nextTranslation.catalog?.text?.downloadUrl),
       source: nextTranslation.source,
       textPackLocalPath: nextTranslation.textPackLocalPath,
     });
@@ -314,6 +315,7 @@ export function TranslationPickerList({
       hasText: translation.hasText,
       hasAudio: translation.hasAudio,
       canPlayAudio: audioAvailability.canPlayAudio,
+      hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
       source: translation.source,
       textPackLocalPath: translation.textPackLocalPath,
     });

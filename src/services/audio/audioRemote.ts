@@ -301,6 +301,10 @@ function buildStreamTemplateAudioUrl(
     return null;
   }
 
+  if (!Number.isInteger(chapter) || chapter < 1) {
+    return null;
+  }
+
   const normalizedBaseUrl = resolveBibleAssetBaseUrl(baseUrl);
   if (!normalizedBaseUrl) {
     return null;

@@ -66,7 +66,7 @@ test('berean standard bible audio resolves through injected stream-template meta
   assert.equal(isRemoteAudioAvailable('bsb'), true);
 });
 
-test('world english bible audio resolves a direct public-domain chapter file without Bible.is credentials', async () => {
+test('world english bible audio resolves through the EveryBible media route', async () => {
   const audio = await fetchRemoteChapterAudio('web', 'GEN', 1);
 
   assert.deepEqual(audio, {
@@ -84,7 +84,22 @@ test('world english bible audio resolves psalms chapters through the EveryBible 
   });
 });
 
-test('public-domain web audio remains remotely available without Bible.is credentials', () => {
+test('world english bible audio resolves any direct chapter path the R2 catalog provides', async () => {
+  const audio = await fetchRemoteChapterAudio('web', 'XXX', 1);
+
+  assert.deepEqual(audio, {
+    url: 'https://everybible.app/api/media/audio/web/XXX/1.mp3',
+    duration: 0,
+  });
+});
+
+test('world english bible audio returns null for invalid chapters', async () => {
+  const audio = await fetchRemoteChapterAudio('web', 'GEN', 0);
+
+  assert.equal(audio, null);
+});
+
+test('world english bible audio remains remotely available through the EveryBible media route', () => {
   assert.equal(isRemoteAudioAvailable('web'), true);
 });
 

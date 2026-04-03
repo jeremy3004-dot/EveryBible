@@ -8,6 +8,7 @@ interface TranslationSelectionOptions {
   hasText: boolean;
   hasAudio: boolean;
   canPlayAudio: boolean;
+  hasDownloadableTextPack?: boolean;
   source?: 'bundled' | 'runtime';
   textPackLocalPath?: string | null;
 }
@@ -209,6 +210,7 @@ export const getTranslationSelectionState = ({
   hasText,
   hasAudio,
   canPlayAudio,
+  hasDownloadableTextPack,
   source,
   textPackLocalPath,
 }: TranslationSelectionOptions): TranslationSelectionState => {
@@ -229,7 +231,7 @@ export const getTranslationSelectionState = ({
       : { isSelectable: false, reason: 'audio-unavailable' };
   }
 
-  if (hasText && source === 'runtime') {
+  if (hasText && source === 'runtime' && hasDownloadableTextPack) {
     return { isSelectable: false, reason: 'download-required' };
   }
 
