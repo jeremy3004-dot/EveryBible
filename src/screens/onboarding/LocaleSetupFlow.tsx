@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,13 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LANGUAGES, type Language, type LanguageCode } from '../../constants/languages';
 import { useAuthStore } from '../../stores/authStore';
-import { usePrivacyStore } from '../../stores/privacyStore';
 import { changeLanguage } from '../../i18n';
-import { normalizePrivacyPin } from '../../services/privacy';
 import { interfaceLanguageSearchEngine } from '../../services/onboarding/interfaceLanguageSelection';
 import { syncPreferences } from '../../services/sync';
 import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
-import type { PrivacyAppIconMode } from '../../types';
 import { getLocaleSetupSteps, type SetupMode, type SetupStep } from './localeSetupModel';
 import { radius } from '../../design/system';
 
@@ -32,9 +28,6 @@ interface LocaleSetupFlowProps {
   onClose?: () => void;
   onComplete?: (result?: { accessMode?: InitialAccessMode | null }) => void;
 }
-
-const standardIconPreview = require('../../../assets/icon.png');
-const discreetIconPreview = require('../../../assets/icon-discreet.png');
 
 const getFlagEmoji = (countryCode: string): string => {
   if (!/^[A-Z]{2}$/.test(countryCode)) {
@@ -49,8 +42,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const { t } = useTranslation();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
-  const privacyMode = usePrivacyStore((state) => state.mode);
-  const savePrivacyConfiguration = usePrivacyStore((state) => state.saveConfiguration);
   const steps = useMemo(() => getLocaleSetupSteps(mode), [mode]);
 
   const deviceCountryCode = Localization.getLocales()[0]?.regionCode ?? null;
@@ -74,14 +65,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string | null>(
     initialLanguage?.code ?? null
   );
-  const [selectedPrivacyMode, setSelectedPrivacyMode] = useState<PrivacyAppIconMode>(privacyMode);
   const [selectedAccessMode, setSelectedAccessMode] = useState<InitialAccessMode | null>(null);
-  const [hasConfirmedPrivacySelection, setHasConfirmedPrivacySelection] = useState(
-    mode !== 'initial'
-  );
-  const [privacyPinInput, setPrivacyPinInput] = useState('');
-  const [privacyPinConfirmation, setPrivacyPinConfirmation] = useState('');
-  const [privacyErrorKey, setPrivacyErrorKey] = useState<string | null>(null);
 
   const selectedInterfaceLanguage =
     interfaceLanguageSearchEngine.getLanguageByCode(selectedInterfaceLanguageCode) ?? LANGUAGES.en;
@@ -91,6 +75,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     ? localeSearchEngine.getCountryDisplayName(selectedCountry.code, selectedInterfaceLanguageCode)
     : '';
   const currentStepNumber = Math.max(steps.indexOf(step) + 1, 1);
+  const isFinalStep = step === steps[steps.length - 1];
 
   const interfaceLanguageResults = useMemo(
     () => interfaceLanguageSearchEngine.search(interfaceLanguageQuery, 24),
@@ -110,30 +95,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const completeSetup = async () => {
     if (!selectedCountry || !selectedLanguage) {
       return;
-    }
-
-    if (mode === 'initial') {
-      if (selectedPrivacyMode === 'discreet') {
-        const normalizedPin = normalizePrivacyPin(privacyPinInput);
-        const normalizedConfirmation = normalizePrivacyPin(privacyPinConfirmation);
-
-        if (normalizedPin !== normalizedConfirmation) {
-          setPrivacyErrorKey('privacy.pinMismatch');
-          return;
-        }
-
-        const privacyResult = await savePrivacyConfiguration({
-          mode: 'discreet',
-          pinInput: normalizedPin,
-        });
-
-        if (!privacyResult.success) {
-          setPrivacyErrorKey(privacyResult.errorKey);
-          return;
-        }
-      } else {
-        await savePrivacyConfiguration({ mode: 'standard' });
-      }
     }
 
     await changeLanguage(selectedInterfaceLanguageCode);
@@ -348,75 +309,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       </TouchableOpacity>
     );
   };
-
-  const renderPrivacyOption = (modeOption: PrivacyAppIconMode) => {
-    const isSelected = hasConfirmedPrivacySelection && selectedPrivacyMode === modeOption;
-    const isDiscreet = modeOption === 'discreet';
-
-    return (
-      <TouchableOpacity
-        key={modeOption}
-        style={[
-          styles.privacyOptionCard,
-          {
-            backgroundColor: colors.cardBackground,
-            borderColor: isSelected ? colors.accentPrimary : colors.cardBorder,
-          },
-        ]}
-        testID={`onboarding-privacy-${modeOption}`}
-        accessibilityRole="button"
-        accessibilityLabel={
-          isDiscreet ? t('onboarding.discreetIconTitle') : t('onboarding.standardIconTitle')
-        }
-        onPress={() => {
-          setSelectedPrivacyMode(modeOption);
-          setHasConfirmedPrivacySelection(true);
-          setPrivacyErrorKey(null);
-
-          if (modeOption === 'standard') {
-            setPrivacyPinInput('');
-            setPrivacyPinConfirmation('');
-          }
-        }}
-        activeOpacity={0.92}
-      >
-        <View
-          style={[
-            styles.privacyPreviewShell,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.cardBorder,
-            },
-          ]}
-        >
-          <Image
-            source={isDiscreet ? discreetIconPreview : standardIconPreview}
-            style={[styles.standardPreview, { borderColor: colors.cardBorder }]}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View style={styles.optionCopy}>
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
-            {isDiscreet ? t('onboarding.discreetIconTitle') : t('onboarding.standardIconTitle')}
-          </Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
-            {isDiscreet ? t('onboarding.discreetIconBody') : t('onboarding.standardIconBody')}
-          </Text>
-        </View>
-
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={24} color={colors.accentPrimary} />
-        ) : null}
-      </TouchableOpacity>
-    );
-  };
-
-  const canFinishPrivacySetup =
-    hasConfirmedPrivacySelection &&
-    (selectedPrivacyMode === 'standard'
-      ? true
-      : privacyPinInput.trim().length > 0 && privacyPinConfirmation.trim().length > 0);
 
   const stepSubtitle = t('onboarding.stepProgress', {
     current: currentStepNumber,
@@ -637,97 +529,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </View>
             ) : null}
           </>
-        ) : (
-          <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-              {t('onboarding.privacyTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('onboarding.privacyBody')}
-            </Text>
-
-            <View style={styles.listSection}>
-              {renderPrivacyOption('standard')}
-              {renderPrivacyOption('discreet')}
-            </View>
-
-            {selectedPrivacyMode === 'discreet' ? (
-              <View
-                style={[
-                  styles.privacySetupCard,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                  {t('onboarding.pinTitle')}
-                </Text>
-                <Text style={[styles.privacyBodyText, { color: colors.secondaryText }]}>
-                  {t('onboarding.pinBody')}
-                </Text>
-
-                <TextInput
-                  value={privacyPinInput}
-                  onChangeText={(value) => {
-                    setPrivacyPinInput(value);
-                    setPrivacyErrorKey(null);
-                  }}
-                  testID="onboarding-pin-input"
-                  accessibilityLabel={t('onboarding.pinPlaceholder')}
-                  placeholder={t('onboarding.pinPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
-                  style={[
-                    styles.searchInput,
-                    {
-                      backgroundColor: colors.bibleElevatedSurface,
-                      borderColor: colors.cardBorder,
-                      color: colors.primaryText,
-                    },
-                  ]}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  secureTextEntry
-                />
-
-                <TextInput
-                  value={privacyPinConfirmation}
-                  onChangeText={(value) => {
-                    setPrivacyPinConfirmation(value);
-                    setPrivacyErrorKey(null);
-                  }}
-                  testID="onboarding-pin-confirmation"
-                  accessibilityLabel={t('onboarding.pinConfirmPlaceholder')}
-                  placeholder={t('onboarding.pinConfirmPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
-                  style={[
-                    styles.searchInput,
-                    styles.privacyPinConfirmInput,
-                    {
-                      backgroundColor: colors.bibleElevatedSurface,
-                      borderColor: colors.cardBorder,
-                      color: colors.primaryText,
-                    },
-                  ]}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  secureTextEntry
-                />
-
-                <Text style={[styles.pinLegend, { color: colors.secondaryText }]}>
-                  {t('onboarding.pinLegend')}
-                </Text>
-
-                {privacyErrorKey ? (
-                  <Text style={[styles.errorText, { color: colors.error }]}>
-                    {t(privacyErrorKey)}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-          </>
-        )}
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: colors.cardBorder }]}>
@@ -764,15 +566,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                     ? selectedAccessMode
                       ? 1
                       : 0.45
-                  : step === 'country'
-                    ? selectedCountry
-                      ? 1
-                      : 0.45
-                    : step === 'contentLanguage'
-                      ? selectedLanguage
+                    : step === 'country'
+                      ? selectedCountry
                         ? 1
                         : 0.45
-                      : canFinishPrivacySetup
+                      : selectedLanguage
                         ? 1
                         : 0.45,
             },
@@ -780,9 +578,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           testID="onboarding-primary-action"
           accessibilityRole="button"
           accessibilityLabel={
-            step === 'privacy' || (step === 'contentLanguage' && mode !== 'initial')
-              ? t('onboarding.finish')
-              : t('common.continue')
+            isFinalStep ? t('onboarding.finish') : t('common.continue')
           }
           onPress={async () => {
             if (step === 'interface') {
@@ -807,23 +603,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
             if (step === 'contentLanguage') {
               if (selectedLanguage) {
-                if (mode === 'initial') {
-                  setSelectedPrivacyMode(privacyMode);
-                  setHasConfirmedPrivacySelection(false);
-                  setPrivacyPinInput('');
-                  setPrivacyPinConfirmation('');
-                  setPrivacyErrorKey(null);
-                  goToNextStep();
-                  return;
-                }
-
                 void completeSetup();
               }
               return;
-            }
-
-            if (canFinishPrivacySetup) {
-              void completeSetup();
             }
           }}
           disabled={
@@ -831,17 +613,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               ? !selectedInterfaceLanguage
               : step === 'account'
                 ? !selectedAccessMode
-              : step === 'country'
-                ? !selectedCountry
-                : step === 'contentLanguage'
-                  ? !selectedLanguage
-                  : !canFinishPrivacySetup
+                : step === 'country'
+                  ? !selectedCountry
+                  : !selectedLanguage
           }
         >
           <Text style={[styles.primaryButtonText, { color: colors.bibleBackground }]}>
-            {step === 'privacy' || (step === 'contentLanguage' && mode !== 'initial')
-              ? t('onboarding.finish')
-              : t('common.continue')}
+            {isFinalStep ? t('onboarding.finish') : t('common.continue')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -928,25 +706,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  privacyOptionCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    gap: 16,
-  },
-  privacyPreviewShell: {
-    height: 136,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  standardPreview: {
-    width: 96,
-    height: 96,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
   optionCopy: {
     flex: 1,
     gap: 4,
@@ -1024,31 +783,6 @@ const styles = StyleSheet.create({
   emptyBody: {
     fontSize: 14,
     lineHeight: 22,
-  },
-  privacySetupCard: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 20,
-  },
-  privacyBodyText: {
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  privacyPinConfirmInput: {
-    marginTop: 12,
-  },
-  pinLegend: {
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  errorText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 12,
   },
   footer: {
     borderTopWidth: 1,

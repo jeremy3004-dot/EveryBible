@@ -8,7 +8,6 @@ test('initial onboarding asks for interface language first and account choice se
     'account',
     'country',
     'contentLanguage',
-    'privacy',
   ]);
 });
 
