@@ -5,7 +5,9 @@ import {
   type CountryMetric,
   type CountryMetricRollup,
   type DailyMetricPoint,
+  type LocationMetricRollup,
   mapCountryRollupsToMetrics,
+  mapLocationRollupsToMetrics,
 } from '@/lib/analytics-reporting';
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
@@ -215,6 +217,7 @@ interface AnalyticsOverviewRpcPayload {
   dailyDownloadUnits?: DailyMetricPoint[];
   dailyListeningMinutes?: DailyMetricPoint[];
   listeningTotalMinutes?: number;
+  locationMetrics?: LocationMetricRollup[];
   totalDownloadUnits?: number;
   totalTrackedSessions?: number;
   userCountWithListening?: number;
@@ -746,7 +749,9 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   }
 
   const overview = ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {};
-  const countryMetrics = mapCountryRollupsToMetrics(overview.countryMetrics ?? []);
+  const countryMetrics = overview.countryMetrics?.length
+    ? mapCountryRollupsToMetrics(overview.countryMetrics)
+    : mapLocationRollupsToMetrics(overview.locationMetrics ?? []);
   const dailyListeningMinutes = (overview.dailyListeningMinutes ?? []).map((point) => ({
     day: point.day,
     minutes: Number(point.value ?? 0),

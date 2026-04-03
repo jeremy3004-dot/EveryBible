@@ -42,6 +42,14 @@ export interface CountryMetricRollup {
   name: string;
 }
 
+export interface LocationMetricRollup {
+  countryCode: string | null;
+  countryName?: string | null;
+  downloadUnits: number;
+  listenerCount: number;
+  listeningMinutes: number;
+}
+
 export interface AnalyticsOverviewModel {
   activeCountryCount: number;
   averageEngagementScore: number;
@@ -221,7 +229,7 @@ export function buildAnalyticsOverviewModel({
 export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]): CountryMetric[] {
   return countryRollups
     .map((rollup) => {
-      const geography = getCountryGeography(rollup.code, rollup.name);
+      const geography = getCountryGeography(rollup.code);
       if (!geography) {
         return null;
       }
@@ -238,4 +246,37 @@ export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]
     })
     .filter((metric): metric is CountryMetric => metric !== null)
     .sort(compareCountryMetrics);
+}
+
+export function mapLocationRollupsToMetrics(
+  locationRollups: LocationMetricRollup[]
+): CountryMetric[] {
+  const countryMetrics = new Map<string, CountryMetric>();
+
+  for (const rollup of locationRollups) {
+    const geography = getCountryGeography(rollup.countryCode);
+    if (!geography) {
+      continue;
+    }
+
+    const existing = countryMetrics.get(geography.code);
+    if (existing) {
+      existing.downloadUnits += Math.max(0, Math.round(Number(rollup.downloadUnits) || 0));
+      existing.listenerCount += Math.max(0, Math.round(Number(rollup.listenerCount) || 0));
+      existing.listeningMinutes += roundToSingleDecimal(Number(rollup.listeningMinutes) || 0);
+      continue;
+    }
+
+    countryMetrics.set(geography.code, {
+      code: geography.code,
+      downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
+      listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
+      listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
+      longitude: geography.longitude,
+      name: geography.name,
+      latitude: geography.latitude,
+    });
+  }
+
+  return Array.from(countryMetrics.values()).sort(compareCountryMetrics);
 }

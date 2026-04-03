@@ -120,12 +120,12 @@ test('analyticsService keeps auth lookup inside guarded flush path so rejected g
   );
 });
 
-test('analyticsService uses batch_track_events RPC for efficient bulk delivery', () => {
+test('analyticsService uses the analytics Edge Function for bulk delivery', () => {
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(
     source,
-    /\.rpc\(\s*['"]batch_track_events['"]/,
-    'flushEvents must use the batch_track_events RPC endpoint'
+    /functions\.invoke\(\s*['"]track-analytics-events['"]/,
+    'flushEvents must use the track-analytics-events Edge Function'
   );
 });
 

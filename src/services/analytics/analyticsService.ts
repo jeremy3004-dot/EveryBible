@@ -110,8 +110,8 @@ export function trackEvent(
   }
 }
 
-// Drains the local event queue by sending all accumulated events to Supabase
-// in a single batch_track_events RPC call.
+// Drains the local event queue by sending all accumulated events to the
+// analytics Edge Function, with a legacy RPC fallback for rollout safety.
 // Returns early (success) when Supabase is not configured or no events are queued.
 export async function flushEvents(): Promise<AnalyticsServiceResult> {
   if (!isSupabaseConfigured()) {
@@ -127,6 +127,17 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
   const snapshot = eventQueue.splice(0, eventQueue.length);
 
   try {
+    const { error: edgeFunctionError } = await supabase.functions.invoke(
+      'track-analytics-events',
+      {
+        body: { events: snapshot },
+      }
+    );
+
+    if (!edgeFunctionError) {
+      return { success: true };
+    }
+
     // Auth/session restore can fail transiently during startup, so keep the
     // drained snapshot inside the guarded path and restore it on failure.
     const {

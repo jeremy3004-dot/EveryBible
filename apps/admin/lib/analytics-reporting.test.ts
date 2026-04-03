@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildAnalyticsOverviewModel,
   mapCountryRollupsToMetrics,
+  mapLocationRollupsToMetrics,
 } from './analytics-reporting';
 
 test('buildAnalyticsOverviewModel aggregates coarse country listening and download activity', () => {
@@ -101,4 +102,41 @@ test('mapCountryRollupsToMetrics enriches backend country rollups with globe coo
   assert.equal(metrics[0]?.longitude > 0, true);
   assert.equal(metrics[1]?.code, 'US');
   assert.equal(metrics[1]?.downloadUnits, 5);
+});
+
+test('mapLocationRollupsToMetrics collapses location rows into country-level globe metrics', () => {
+  const metrics = mapLocationRollupsToMetrics([
+    {
+      countryCode: 'NP',
+      countryName: 'Nepal',
+      downloadUnits: 1,
+      listenerCount: 1,
+      listeningMinutes: 12.5,
+    },
+    {
+      countryCode: 'NP',
+      countryName: 'Nepal',
+      downloadUnits: 2,
+      listenerCount: 1,
+      listeningMinutes: 7.5,
+    },
+    {
+      countryCode: 'US',
+      countryName: 'United States',
+      downloadUnits: 4,
+      listenerCount: 3,
+      listeningMinutes: 24,
+    },
+  ]);
+
+  assert.equal(metrics.length, 2);
+
+  const nepal = metrics.find((country) => country.code === 'NP');
+  const unitedStates = metrics.find((country) => country.code === 'US');
+
+  assert.equal(nepal?.downloadUnits, 3);
+  assert.equal(nepal?.listenerCount, 2);
+  assert.equal(nepal?.listeningMinutes, 20);
+  assert.equal(unitedStates?.downloadUnits, 4);
+  assert.equal(unitedStates?.listenerCount, 3);
 });
