@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
@@ -35,7 +35,7 @@ import {
   type BibleBrowserRow,
   type PassageReferenceTarget,
 } from '../../services/bible';
-import type { BibleBrowserScreenProps, BibleStackParamList } from '../../navigation/types';
+import type { BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
 import {
   BIBLE_SEARCH_DEBOUNCE_MS,
@@ -47,6 +47,9 @@ import { getBookIcon } from '../../constants/bookIcons';
 import { TranslationPickerList } from './TranslationPickerList';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
+type BibleBrowserRoute =
+  | RouteProp<BibleStackParamList, 'BibleBrowser'>
+  | RouteProp<BibleStackParamList, 'BiblePicker'>;
 
 const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
@@ -58,7 +61,7 @@ if (Platform.OS === 'android') {
 
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<BibleBrowserScreenProps['route']>();
+  const route = useRoute<BibleBrowserRoute>();
   const { colors } = useTheme();
   const { t, currentLanguage } = useI18n();
   const initialBookId = route.params?.initialBookId ?? null;
@@ -75,11 +78,13 @@ export function BibleBrowserScreen() {
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
+  const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
 
   const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
-  const canDismissModal = navigation.canGoBack();
+  const isPickerModal = route.name === 'BiblePicker';
+  const canDismissModal = isPickerModal;
   const canOpenTranslationPicker =
-    !canDismissModal && config.features.multipleTranslations;
+    !isPickerModal && config.features.multipleTranslations;
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
     [currentLanguage],
@@ -158,24 +163,42 @@ export function BibleBrowserScreen() {
     setExpandedBookId((prev) => (prev === book.id ? null : book.id));
   };
 
+  const navigateToReader = (params: BibleStackParamList['BibleReader']) => {
+    // Use navigate so BiblePicker returns to the in-tab reader route instead
+    // of replacing inside modal presentation (which can keep tabs hidden on iOS).
+    navigation.navigate('BibleReader', params);
+  };
+
+  const buildReaderLaunchParams = (
+    params: Pick<BibleStackParamList['BibleReader'], 'bookId' | 'chapter' | 'focusVerse'>
+  ): BibleStackParamList['BibleReader'] => ({
+    ...params,
+    ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+    preferredMode: preferredChapterLaunchMode,
+  });
+
   const handleChapterPress = (bookId: string, chapter: number) => {
-    navigation.navigate('BibleReader', { bookId, chapter });
+    navigateToReader(buildReaderLaunchParams({ bookId, chapter, focusVerse: undefined }));
   };
 
   const handleReferencePress = (target: PassageReferenceTarget) => {
-    navigation.navigate('BibleReader', {
-      bookId: target.bookId,
-      chapter: target.chapter,
-      focusVerse: target.focusVerse,
-    });
+    navigateToReader(
+      buildReaderLaunchParams({
+        bookId: target.bookId,
+        chapter: target.chapter,
+        focusVerse: target.focusVerse,
+      })
+    );
   };
 
   const handleSearchResultPress = (verse: Verse) => {
-    navigation.navigate('BibleReader', {
-      bookId: verse.bookId,
-      chapter: verse.chapter,
-      focusVerse: verse.verse,
-    });
+    navigateToReader(
+      buildReaderLaunchParams({
+        bookId: verse.bookId,
+        chapter: verse.chapter,
+        focusVerse: verse.verse,
+      })
+    );
   };
 
   const handleSearchSubmit = () => {

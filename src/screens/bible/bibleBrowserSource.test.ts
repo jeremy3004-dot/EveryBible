@@ -44,8 +44,8 @@ test('Bible browser modal picker shows a dismiss control and opens on the reques
 
   assert.match(
     source,
-    /navigation\.canGoBack\(\)/,
-    'BibleBrowserScreen should detect modal presentation so it can show a close control in picker mode'
+    /route\.name === 'BiblePicker'/,
+    'BibleBrowserScreen should detect picker modal presentation from the route name so root BibleBrowser history does not masquerade as modal state'
   );
 
   assert.match(
@@ -62,8 +62,42 @@ test('Bible browser modal picker shows a dismiss control and opens on the reques
 
   assert.match(
     source,
-    /const canOpenTranslationPicker =\s*!canDismissModal && config\.features\.multipleTranslations;/,
+    /const canOpenTranslationPicker =\s*!isPickerModal && config\.features\.multipleTranslations;/,
     'BibleBrowserScreen should hide the translation entry point when it is acting as the chapter picker modal'
+  );
+
+  assert.match(
+    source,
+    /navigation\.navigate\('BibleReader', params\);/,
+    'BibleBrowserScreen should navigate back to BibleReader from picker selection so the destination reader stays in the normal tab stack'
+  );
+
+  assert.equal(
+    source.includes("navigation.replace('BibleReader', params)"),
+    false,
+    'BibleBrowserScreen should not replace BiblePicker with BibleReader in-place because that can preserve modal presentation on iOS'
+  );
+});
+
+test('Bible browser preserves the listen-or-read launch mode when opening a chapter from picker/search', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /preferredChapterLaunchMode/,
+    'BibleBrowserScreen should read the preferred chapter launch mode from the bible store'
+  );
+
+  assert.match(
+    source,
+    /preferredMode:\s*preferredChapterLaunchMode/,
+    'BibleBrowserScreen should forward preferredMode into BibleReader params so chapter switches preserve listen/read intent'
+  );
+
+  assert.match(
+    source,
+    /preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true } : \{\}/,
+    'BibleBrowserScreen should keep autoplayAudio when the preferred launch mode is listen'
   );
 });
 
