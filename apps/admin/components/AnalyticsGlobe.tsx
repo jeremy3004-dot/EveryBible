@@ -228,8 +228,8 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
   const modeRef = useRef<MapMetricMode>('listeningMinutes');
   const themeRef = useRef<AdminThemeMode>(getDocumentTheme());
   const [theme, setTheme] = useState<AdminThemeMode>(getDocumentTheme);
-  const [mode, setMode] = useState<MapMetricMode>('listeningMinutes');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const mode: MapMetricMode = 'listeningMinutes';
 
   const rankedMetrics = useMemo(() => {
     return [...metrics]
@@ -415,10 +415,6 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
   }, [maxMetricValue]);
 
   useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
 
@@ -510,7 +506,7 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
       map.remove();
       mapRef.current = null;
     };
-  }, [mode, selectedMetric, showMetricPopup, syncVisualizationLayers, theme]);
+  }, [showMetricPopup, syncVisualizationLayers, theme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -568,27 +564,6 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
             <h3>World reach globe</h3>
           </div>
         </div>
-
-        <div className="segmented-control" role="tablist" aria-label="Heatmap metric">
-          <button
-            type="button"
-            className={`segmented-control__button ${
-              mode === 'listeningMinutes' ? 'segmented-control__button--active' : ''
-            }`}
-            onClick={() => setMode('listeningMinutes')}
-          >
-            Minutes listened
-          </button>
-          <button
-            type="button"
-            className={`segmented-control__button ${
-              mode === 'downloadUnits' ? 'segmented-control__button--active' : ''
-            }`}
-            onClick={() => setMode('downloadUnits')}
-          >
-            Downloads
-          </button>
-        </div>
       </div>
 
       <div className="globe-card__content">
@@ -638,14 +613,14 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
                   {topCountry.name} leads in {modeLabel}.
                 </h4>
                 <p>
-                  Click a country bubble or row to open the detailed country card and compare
-                  listening, downloads, and listeners.
+                  Click a country bubble to open the detailed country card and compare listening,
+                  downloads, and listeners.
                 </p>
               </>
             ) : (
               <>
                 <h4>Click any country to open its detail card.</h4>
-                <p>Use the globe or the country list to drill into the geography data.</p>
+                <p>Use the globe to drill into the geography data.</p>
               </>
             )}
           </div>
@@ -673,28 +648,6 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
               </dl>
             </div>
           ) : null}
-
-          <div className="globe-card__toplist">
-            <p className="eyebrow">Top countries</p>
-            <ul>
-              {rankedMetrics.slice(0, 6).map((metric) => (
-                <li key={metric.code}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCode(metric.code);
-                      showMetricPopup(metric, true);
-                    }}
-                  >
-                    <span>
-                      {metric.name} <small>{metric.code}</small>
-                    </span>
-                    <strong>{formatMetricValue(metric, mode)}</strong>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
         </aside>
       </div>
     </section>

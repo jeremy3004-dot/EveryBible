@@ -726,7 +726,9 @@ label {
   min-height: 48px;
   padding: 0.75rem 1rem 0.75rem 0.9rem;
   border-radius: var(--radius-md);
-  border: 1px solid var(--line);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--line);
   background: var(--surface-1);
   box-shadow: var(--shadow);
   color: var(--text);
@@ -938,36 +940,6 @@ label {
   gap: 0.85rem;
 }
 
-.operator-launcher__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.operator-launcher__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--surface-3);
-  color: var(--text);
-  font-size: 0.82rem;
-  font-weight: 500;
-  transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease;
-}
-
-.operator-launcher__link:hover {
-  background: var(--accent-subtle);
-  border-color: rgba(79, 70, 229, 0.18);
-  color: var(--accent);
-}
-
-.operator-launcher__links,
 .operator-chat__composer,
 .operator-launcher__status {
   min-width: 0;
@@ -980,13 +952,11 @@ label {
 }
 
 .operator-launcher__toggle:active,
-.operator-launcher__link:active,
 .operator-launcher__reset:active {
   transform: translateY(0) scale(0.97);
 }
 
 .operator-launcher__toggle:focus-visible,
-.operator-launcher__link:focus-visible,
 .operator-launcher__reset:focus-visible,
 .operator-chat__input:focus-visible,
 .button:focus-visible,

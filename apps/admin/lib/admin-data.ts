@@ -61,6 +61,34 @@ interface ContentImageRow {
   updated_at: string;
 }
 
+export interface ContentImageDetail {
+  altText: string;
+  caption: string | null;
+  endsAt: string | null;
+  id: string;
+  kind: 'hero' | 'verse_of_day' | 'promo' | 'feature' | 'social';
+  publicUrl: string;
+  startsAt: string | null;
+  state: 'draft' | 'scheduled' | 'live' | 'archived';
+  storagePath: string | null;
+  title: string;
+  updatedAt: string;
+}
+
+interface ContentImageDetailRow {
+  alt_text: string;
+  caption: string | null;
+  ends_at: string | null;
+  id: string;
+  kind: 'hero' | 'verse_of_day' | 'promo' | 'feature' | 'social';
+  public_url: string;
+  starts_at: string | null;
+  state: 'draft' | 'scheduled' | 'live' | 'archived';
+  storage_path: string | null;
+  title: string;
+  updated_at: string;
+}
+
 interface ProfileRow {
   admin_role: string | null;
   created_at: string;
@@ -163,6 +191,32 @@ export interface VerseOfDayListItem {
   translationId: string;
   updatedAt: string;
   verseText: string;
+}
+
+export interface VerseOfDayDetail extends VerseOfDayListItem {
+  bookId: string;
+  chapter: number;
+  endsAt: string | null;
+  imageId: string | null;
+  verse: number;
+}
+
+interface VerseOfDayDetailRow {
+  book_id: string;
+  chapter: number;
+  created_at: string;
+  ends_at: string | null;
+  id: string;
+  image_id: string | null;
+  reference_label: string;
+  reflection: string | null;
+  starts_at: string | null;
+  state: VerseOfDayListItem['state'];
+  title: string | null;
+  translation_id: string;
+  updated_at: string;
+  verse: number;
+  verse_text: string;
 }
 
 export interface HealthIssue {
@@ -488,6 +542,76 @@ export async function listContentImages(): Promise<ContentImageRow[]> {
   }
 
   return (data ?? []) as ContentImageRow[];
+}
+
+export async function getContentImageDetail(id: string): Promise<ContentImageDetail | null> {
+  const service = createAdminServiceClient();
+  const { data, error } = await service
+    .from('content_images')
+    .select(
+      'id, title, kind, state, alt_text, caption, public_url, starts_at, ends_at, storage_path, updated_at'
+    )
+    .eq('id', id)
+    .maybeSingle<ContentImageDetailRow>();
+
+  if (error) {
+    throw new Error(`Unable to load content image: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    altText: data.alt_text,
+    caption: data.caption,
+    endsAt: data.ends_at,
+    id: data.id,
+    kind: data.kind,
+    publicUrl: data.public_url,
+    startsAt: data.starts_at,
+    state: data.state,
+    storagePath: data.storage_path,
+    title: data.title,
+    updatedAt: data.updated_at,
+  };
+}
+
+export async function getVerseOfDayDetail(id: string): Promise<VerseOfDayDetail | null> {
+  const service = createAdminServiceClient();
+  const { data, error } = await service
+    .from('verse_of_day_entries')
+    .select(
+      'id, title, translation_id, book_id, chapter, verse, reference_label, verse_text, reflection, state, starts_at, ends_at, created_at, updated_at, image_id'
+    )
+    .eq('id', id)
+    .maybeSingle<VerseOfDayDetailRow>();
+
+  if (error) {
+    throw new Error(`Unable to load verse-of-day entry: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    bookId: data.book_id,
+    chapter: data.chapter,
+    createdAt: data.created_at,
+    endsAt: data.ends_at,
+    id: data.id,
+    imageId: data.image_id,
+    referenceLabel: data.reference_label,
+    reflection: data.reflection,
+    startsAt: data.starts_at,
+    state: data.state,
+    title: data.title,
+    translationId: data.translation_id,
+    updatedAt: data.updated_at,
+    verse: data.verse,
+    verseText: data.verse_text,
+  };
 }
 
 export async function getHealthIssues(): Promise<HealthIssue[]> {
