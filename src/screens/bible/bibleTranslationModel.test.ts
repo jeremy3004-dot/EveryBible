@@ -5,6 +5,7 @@ import {
   buildTranslationLanguageFilters,
   filterTranslationsBySearchQuery,
   getTranslationAudioCollectionActions,
+  getTranslationAudioBookIds,
   getVisibleTranslationsForPicker,
   getTranslationLanguageDisplayLabel,
   resolvePreferredTranslationLanguage,
@@ -173,6 +174,28 @@ test('known full-audio translations expose full Bible and New Testament collecti
   );
 });
 
+test('explicit audio book manifests are honored when determining translation coverage', () => {
+  const translation = {
+    id: 'npiulb',
+    catalog: {
+      version: '2026.04.04-open-bible-nt-media-v1',
+      updatedAt: '2026-04-04T00:00:00.000Z',
+      audio: {
+        strategy: 'stream-template',
+        books: {
+          MAT: { totalChapters: 28 },
+          MRK: { totalChapters: 16 },
+          LUK: { totalChapters: 24 },
+          JHN: { totalChapters: 21 },
+        },
+      },
+    },
+  } satisfies Parameters<typeof getTranslationAudioBookIds>[0];
+
+  assert.deepEqual(getTranslationAudioBookIds(translation), ['MAT', 'MRK', 'LUK', 'JHN']);
+  assert.deepEqual(getTranslationAudioCollectionActions(translation), ['new-testament']);
+});
+
 test('NT-only audio catalogs expose a New Testament collection action', () => {
   assert.deepEqual(
     getTranslationAudioCollectionActions({
@@ -189,7 +212,7 @@ test('NT-only audio catalogs expose a New Testament collection action', () => {
   );
 });
 
-test('translations without collection coverage fall back to by-book audio only', () => {
+test('partial audio manifests do not claim whole-testament collection coverage', () => {
   assert.deepEqual(
     getTranslationAudioCollectionActions({
       id: 'mystery-audio',
@@ -198,10 +221,34 @@ test('translations without collection coverage fall back to by-book audio only',
         updatedAt: '2026-04-04T00:00:00.000Z',
         audio: {
           strategy: 'stream-template',
+          books: {
+            GEN: { totalChapters: 31 },
+            EXO: { totalChapters: 40 },
+            MAT: { totalChapters: 28 },
+          },
         },
       },
     }),
     []
+  );
+
+  assert.deepEqual(
+    getTranslationAudioBookIds({
+      id: 'mystery-audio',
+      catalog: {
+        version: '2026.04.04',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+          books: {
+            GEN: { totalChapters: 31 },
+            EXO: { totalChapters: 40 },
+            MAT: { totalChapters: 28 },
+          },
+        },
+      },
+    }),
+    ['GEN', 'EXO', 'MAT']
   );
 });
 

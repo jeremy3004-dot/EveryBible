@@ -149,6 +149,12 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes('getTranslationAudioBookIds'),
+    true,
+    'TranslationPickerList should read explicit audio book coverage when deciding which books to show'
+  );
+
+  assert.equal(
     source.includes("t('bible.fullBible')"),
     true,
     'TranslationPickerList should use the localized full-bible label when the row can wrap cleanly'
@@ -188,6 +194,12 @@ test('shared translation picker can filter by language and download runtime tran
     source.includes('audioDownloadByBook'),
     false,
     'TranslationPickerList should render the book-by-book action as the same chip style as Full Bible'
+  );
+
+  assert.equal(
+    source.includes('translationAudioBooks.length > 0'),
+    true,
+    'TranslationPickerList should hide audio chips when the translation has no known book coverage'
   );
 
   assert.match(

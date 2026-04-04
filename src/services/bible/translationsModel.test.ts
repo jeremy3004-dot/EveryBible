@@ -325,3 +325,41 @@ test('parseTranslationCatalogManifest parses a translation with audio stream-tem
   assert.equal(result.translations.length, 1);
   assert.equal(result.translations[0]?.id, 'kjv-audio');
 });
+
+test('parseTranslationCatalogManifest preserves explicit audio book coverage when present', () => {
+  const payload = {
+    ...validManifestPayload,
+    translations: [
+      {
+        id: 'npiulb',
+        name: 'Nepali Bible',
+        abbreviation: 'NPB',
+        language: 'Nepali',
+        description: 'Open Bible NT audio',
+        copyright: 'Public Domain',
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        totalBooks: 66,
+        sizeInMB: 5,
+        audio: {
+          strategy: 'stream-template',
+          baseUrl: 'https://cdn.example.com/npiulb',
+          chapterPathTemplate: '{bookId}/{chapter}.mp3',
+          books: {
+            MAT: { totalChapters: 28 },
+            MRK: { totalChapters: 16 },
+            LUK: { totalChapters: 24 },
+            JHN: { totalChapters: 21 },
+          },
+        },
+      },
+    ],
+  };
+
+  const result = parseTranslationCatalogManifest(payload);
+  assert.deepEqual(
+    Object.keys(result.translations[0]?.audio?.books ?? {}),
+    ['MAT', 'MRK', 'LUK', 'JHN']
+  );
+});

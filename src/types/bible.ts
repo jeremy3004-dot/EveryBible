@@ -63,6 +63,11 @@ export interface TranslationTextCatalog {
   signature?: string;
 }
 
+export interface TranslationAudioBookCatalog {
+  totalChapters?: number;
+  totalBytes?: number;
+}
+
 export interface TranslationAudioCatalog {
   strategy: TranslationAudioStrategy;
   coverage?: TranslationAudioCoverage;
@@ -74,6 +79,7 @@ export interface TranslationAudioCatalog {
   downloadUrl?: string;
   sha256?: string;
   signature?: string;
+  books?: Record<string, TranslationAudioBookCatalog>;
 }
 
 export interface TranslationTimingCatalog {

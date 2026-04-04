@@ -3,6 +3,7 @@ import type {
   AudioProvider,
   BibleTranslation,
   SignedCatalogEnvelope,
+  TranslationAudioBookCatalog,
   TranslationAudioCatalog,
   TranslationCatalogManifest,
   TranslationCatalogManifestTranslation,
@@ -48,6 +49,49 @@ const sanitizeIsoDateString = (value: unknown): string | null => {
 const sanitizeUrlString = (value: unknown): string | null =>
   sanitizeBibleAssetReference(value);
 
+const parseAudioBooks = (
+  value: unknown
+): Record<string, TranslationAudioBookCatalog> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const books = Object.entries(value).reduce<Record<string, TranslationAudioBookCatalog>>(
+    (accumulator, [bookId, bookValue]) => {
+      if (!isRecord(bookValue)) {
+        return accumulator;
+      }
+
+      const catalog: TranslationAudioBookCatalog = {};
+
+      if (
+        typeof bookValue.totalChapters === 'number' &&
+        Number.isFinite(bookValue.totalChapters) &&
+        bookValue.totalChapters > 0
+      ) {
+        catalog.totalChapters = bookValue.totalChapters;
+      }
+
+      if (
+        typeof bookValue.totalBytes === 'number' &&
+        Number.isFinite(bookValue.totalBytes) &&
+        bookValue.totalBytes >= 0
+      ) {
+        catalog.totalBytes = bookValue.totalBytes;
+      }
+
+      if (Object.keys(catalog).length > 0) {
+        accumulator[bookId] = catalog;
+      }
+
+      return accumulator;
+    },
+    {}
+  );
+
+  return Object.keys(books).length > 0 ? books : undefined;
+};
+
 const parseTextCatalog = (value: unknown): TranslationTextCatalog | null => {
   if (!isRecord(value)) {
     return null;
@@ -83,6 +127,8 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       return null;
     }
 
+    const books = parseAudioBooks(value.books);
+
     return {
       strategy,
       provider: value.provider as AudioProvider,
@@ -95,6 +141,7 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       ...(sanitizeRequiredString(value.signature)
         ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
         : {}),
+      ...(books ? { books } : {}),
     };
   }
 
@@ -104,6 +151,8 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
     if (!baseUrl || !chapterPathTemplate) {
       return null;
     }
+
+    const books = parseAudioBooks(value.books);
 
     return {
       strategy,
@@ -118,6 +167,7 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       ...(sanitizeRequiredString(value.signature)
         ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
         : {}),
+      ...(books ? { books } : {}),
     };
   }
 
@@ -126,6 +176,8 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
   if (!downloadUrl || !sha256) {
     return null;
   }
+
+  const books = parseAudioBooks(value.books);
 
   return {
     strategy,
@@ -140,6 +192,7 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
     ...(sanitizeRequiredString(value.signature)
       ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
       : {}),
+    ...(books ? { books } : {}),
   };
 };
 
