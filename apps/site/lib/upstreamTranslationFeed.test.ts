@@ -9,7 +9,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 test('upstream translation feed reads the committed R2 text-pack manifest and publishes a canonical kjv row', async () => {
   const source = await readFile(path.join(repoRoot, 'apps/site/lib/upstreamTranslationFeed.ts'), 'utf8');
 
-  assert.match(source, /R2_TEXT_PACK_MANIFEST_URL = new URL\('\.\/r2-text-pack-manifest\.json', import\.meta\.url\)/);
+  assert.match(source, /import r2TextPackManifestData from '\.\/r2-text-pack-manifest\.json'/);
   assert.match(source, /buildBibleMediaUrl\(textPack\.downloadUrl\)/);
   assert.match(source, /sourceTranslationId: 'eng-kjv'/);
   assert.match(source, /translationId: 'kjv'/);

@@ -1,9 +1,7 @@
-import { readFile } from 'node:fs/promises';
-
 import { buildBibleMediaUrl } from './bible-media';
+import r2TextPackManifestData from './r2-text-pack-manifest.json';
 
 const TRANSLATIONS_CSV_URL = 'https://ebible.org/Scriptures/translations.csv';
-const R2_TEXT_PACK_MANIFEST_URL = new URL('./r2-text-pack-manifest.json', import.meta.url);
 const R2_TEXT_PACK_CATALOG_VERSION_SUFFIX = 'r2-text-v1';
 
 interface TranslationCsvRow {
@@ -87,6 +85,8 @@ const FEED_OVERRIDES: FeedOverride[] = [
     translationId: 'kjv',
   },
 ];
+
+const R2_TEXT_PACK_MANIFEST = r2TextPackManifestData as TextPackManifestFile;
 
 const LANGUAGE_NAME_MAP: Record<string, string> = {
   arb: 'Arabic',
@@ -241,16 +241,30 @@ function parseTextPackManifest(raw: string): Map<string, TextPackManifestItem> {
 }
 
 async function loadTextPackManifest(): Promise<Map<string, TextPackManifestItem>> {
-  try {
-    const raw = await readFile(R2_TEXT_PACK_MANIFEST_URL, 'utf8');
-    return parseTextPackManifest(raw);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return new Map();
-    }
-
-    throw error;
-  }
+  return new Map(
+    (Array.isArray(R2_TEXT_PACK_MANIFEST.items) ? R2_TEXT_PACK_MANIFEST.items : [])
+      .filter(
+        (item): item is TextPackManifestItem =>
+          typeof item?.translationId === 'string' &&
+          item.translationId.trim().length > 0 &&
+          typeof item.downloadUrl === 'string' &&
+          item.downloadUrl.trim().length > 0 &&
+          typeof item.sha256 === 'string' &&
+          item.sha256.trim().length > 0 &&
+          typeof item.updatedAt === 'string' &&
+          item.updatedAt.trim().length > 0 &&
+          typeof item.version === 'string' &&
+          item.version.trim().length > 0 &&
+          typeof item.verseCount === 'number' &&
+          Number.isFinite(item.verseCount) &&
+          item.verseCount > 0 &&
+          typeof item.sourceTranslationId === 'string' &&
+          item.sourceTranslationId.trim().length > 0 &&
+          typeof item.name === 'string' &&
+          item.name.trim().length > 0
+      )
+      .map((item) => [item.translationId, item])
+  );
 }
 
 function buildCatalogPayload(textPack: TextPackManifestItem | null) {
