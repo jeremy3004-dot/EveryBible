@@ -33,6 +33,7 @@ import {
   filterTranslationsByLanguage,
   filterTranslationsBySearchQuery,
   getTranslationAudioCollectionActions,
+  getTranslationAudioBookIds,
   getVisibleTranslationsForPicker,
   getTranslationLanguageDisplayLabel,
   getTranslationSelectionState,
@@ -78,14 +79,14 @@ export function TranslationPickerList({
   const audioManagerCollectionActions = audioManagerTranslation
     ? getTranslationAudioCollectionActions(audioManagerTranslation)
     : [];
+  const audioManagerBookIds = audioManagerTranslation
+    ? getTranslationAudioBookIds(audioManagerTranslation)
+    : [];
   const audioManagerCollectionAction = audioManagerCollectionActions[0] ?? null;
-  const audioManagerCollectionBooks =
-    audioManagerCollectionAction === 'new-testament' ? newTestamentBooks : bibleBooks;
-  const audioManagerBooks = audioManagerCollectionActions.includes('full-bible')
-    ? bibleBooks
-    : audioManagerCollectionActions.includes('new-testament')
-      ? newTestamentBooks
-      : bibleBooks;
+  const audioManagerBooks =
+    audioManagerBookIds.length > 0
+      ? bibleBooks.filter((book) => audioManagerBookIds.includes(book.id))
+      : [];
 
   const getTranslationAudioAvailability = (
     translation: Pick<BibleTranslation, 'id' | 'hasAudio' | 'downloadedAudioBooks'>,
@@ -100,10 +101,7 @@ export function TranslationPickerList({
     });
 
   const translationAudioDownloaded = audioManagerTranslation
-    ? isTranslationAudioDownloaded(
-        audioManagerTranslation.downloadedAudioBooks,
-        audioManagerCollectionBooks
-      )
+    ? isTranslationAudioDownloaded(audioManagerTranslation.downloadedAudioBooks, audioManagerBooks)
     : false;
   const audioManagerAvailability = audioManagerTranslation
     ? getTranslationAudioAvailability(audioManagerTranslation)
@@ -320,6 +318,11 @@ export function TranslationPickerList({
     const isSelected = currentTranslation === translation.id;
     const audioAvailability = getTranslationAudioAvailability(translation);
     const audioCollectionActions = getTranslationAudioCollectionActions(translation);
+    const translationAudioBookIds = getTranslationAudioBookIds(translation);
+    const translationAudioBooks =
+      translationAudioBookIds.length > 0
+        ? bibleBooks.filter((book) => translationAudioBookIds.includes(book.id))
+        : [];
     const activeAudioJob = translation.activeDownloadJob;
     const isActiveAudioJob =
       activeAudioJob != null &&
@@ -333,7 +336,10 @@ export function TranslationPickerList({
       !downloadProgress.bookId &&
       !isActiveAudioJob;
     const isTextDownloaded = translation.isDownloaded || Boolean(translation.textPackLocalPath);
-    const isAudioDownloaded = isTranslationAudioDownloaded(translation.downloadedAudioBooks, bibleBooks);
+    const isAudioDownloaded = isTranslationAudioDownloaded(
+      translation.downloadedAudioBooks,
+      translationAudioBooks
+    );
     const isNewTestamentAudioDownloaded = isTranslationAudioDownloaded(
       translation.downloadedAudioBooks,
       newTestamentBooks
@@ -349,7 +355,7 @@ export function TranslationPickerList({
           : null;
     const isTextChipVisible =
       translation.hasText || Boolean(translation.catalog?.text?.downloadUrl) || isTextDownloaded;
-    const shouldShowAudioChips = audioAvailability.canManageAudio;
+    const shouldShowAudioChips = audioAvailability.canManageAudio && translationAudioBooks.length > 0;
     return (
       <View
         key={translation.id}
@@ -896,15 +902,15 @@ export function TranslationPickerList({
                             ]}
                           >
                             {audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                              audioManagerCollectionBooks.some((book) => book.id === bookId)
+                              audioManagerBooks.some((book) => book.id === bookId)
                             ).length}
-                            /{audioManagerCollectionBooks.length} books (
-                            {audioManagerCollectionBooks.length > 0
+                            /{audioManagerBooks.length} books (
+                            {audioManagerBooks.length > 0
                               ? Math.round(
                                   (audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                                    audioManagerCollectionBooks.some((book) => book.id === bookId)
+                                    audioManagerBooks.some((book) => book.id === bookId)
                                   ).length /
-                                    audioManagerCollectionBooks.length) *
+                                    audioManagerBooks.length) *
                                     100
                                 )
                               : 0}
@@ -922,15 +928,15 @@ export function TranslationPickerList({
                                 {
                                   backgroundColor: colors.bibleAccent,
                                   width: `${
-                                    audioManagerCollectionBooks.length > 0
-                                      ? Math.round(
-                                          (audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                                            audioManagerCollectionBooks.some((book) => book.id === bookId)
-                                          ).length /
-                                            audioManagerCollectionBooks.length) *
+                                  audioManagerBooks.length > 0
+                                    ? Math.round(
+                                        (audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
+                                          audioManagerBooks.some((book) => book.id === bookId)
+                                        ).length /
+                                          audioManagerBooks.length) *
                                             100
-                                        )
-                                      : 0
+                                      )
+                                    : 0
                                   }%`,
                                 },
                               ]}
@@ -946,10 +952,10 @@ export function TranslationPickerList({
                         >
                           {
                             audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                              audioManagerCollectionBooks.some((book) => book.id === bookId)
+                              audioManagerBooks.some((book) => book.id === bookId)
                             ).length
                           }
-                          /{audioManagerCollectionBooks.length}
+                          /{audioManagerBooks.length}
                         </Text>
                       )}
                     </View>

@@ -1,3 +1,4 @@
+import { bibleBooks, newTestamentBooks } from '../../constants/books';
 import type { BibleTranslation, TranslationAudioCoverage } from '../../types';
 
 export interface TranslationSelectionState {
@@ -31,6 +32,19 @@ interface TranslationPickerVisibilityOptions {
 }
 
 export type TranslationAudioCollectionAction = 'full-bible' | 'new-testament';
+
+const ALL_BIBLE_BOOK_IDS = new Set(bibleBooks.map((book) => book.id));
+const NEW_TESTAMENT_BOOK_IDS = new Set(newTestamentBooks.map((book) => book.id));
+
+function sortAudioBookIds(bookIds: string[]): string[] {
+  const order = new Map(bibleBooks.map((book, index) => [book.id, index]));
+
+  return [...bookIds].sort((left, right) => {
+    const leftOrder = order.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = order.get(right) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder;
+  });
+}
 
 const TRANSLATION_LANGUAGE_NATIVE_LABELS: Record<string, string> = {
   arabic: 'العربية',
@@ -265,11 +279,45 @@ function inferTranslationAudioCoverage(
   return null;
 }
 
+export function getTranslationAudioBookIds(
+  translation: Pick<BibleTranslation, 'id' | 'catalog'>
+): string[] {
+  const explicitAudioBooks = translation.catalog?.audio?.books;
+  if (explicitAudioBooks && Object.keys(explicitAudioBooks).length > 0) {
+    return sortAudioBookIds(
+      Object.keys(explicitAudioBooks).filter((bookId) => ALL_BIBLE_BOOK_IDS.has(bookId))
+    );
+  }
+
+  const coverage = inferTranslationAudioCoverage(translation);
+  if (coverage === 'full-bible') {
+    return bibleBooks.map((book) => book.id);
+  }
+
+  if (coverage === 'new-testament') {
+    return newTestamentBooks.map((book) => book.id);
+  }
+
+  return [];
+}
+
 export function getTranslationAudioCollectionActions(
   translation: Pick<BibleTranslation, 'id' | 'catalog'>
 ): TranslationAudioCollectionAction[] {
-  const coverage = inferTranslationAudioCoverage(translation);
+  const audioBookIds = getTranslationAudioBookIds(translation);
 
+  if (audioBookIds.length === bibleBooks.length) {
+    return ['full-bible', 'new-testament'];
+  }
+
+  if (
+    audioBookIds.length === newTestamentBooks.length &&
+    audioBookIds.every((bookId) => NEW_TESTAMENT_BOOK_IDS.has(bookId))
+  ) {
+    return ['new-testament'];
+  }
+
+  const coverage = inferTranslationAudioCoverage(translation);
   if (coverage === 'full-bible') {
     return ['full-bible', 'new-testament'];
   }
