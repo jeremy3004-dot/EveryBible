@@ -588,7 +588,7 @@ export function TranslationPickerList({
                 >
                   <ActivityIndicator size="small" color={colors.bibleAccent} />
                   <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
-                    {t('common.downloading')}
+                    {t('common.loading')}
                   </Text>
                   <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
                     {activeDownloadProgress}%

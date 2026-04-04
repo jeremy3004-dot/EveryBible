@@ -53,6 +53,18 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes("t('common.loading')"),
+    true,
+    'TranslationPickerList should use the shared loading copy for download progress instead of an undefined downloading key'
+  );
+
+  assert.equal(
+    source.includes("t('common.downloading')"),
+    false,
+    'TranslationPickerList should not reference the missing common.downloading key'
+  );
+
+  assert.equal(
     source.includes('filterTranslationsBySearchQuery'),
     true,
     'TranslationPickerList should filter the visible translation list through the shared fuzzy search helper'
