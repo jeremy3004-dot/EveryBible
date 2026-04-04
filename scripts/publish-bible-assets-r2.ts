@@ -2,6 +2,8 @@ import { access, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
+import { generateR2TextPackManifest } from './generate-r2-text-pack-manifest';
+
 type Mapping = {
   kind: 'dir' | 'file';
   source: string;
@@ -238,10 +240,18 @@ async function main(): Promise<void> {
     );
   }
 
+  const textPackManifestPath = path.join(
+    repoRoot,
+    'apps',
+    'site',
+    'lib',
+    'r2-text-pack-manifest.json'
+  );
+  const textPackManifest = await generateR2TextPackManifest(textPackManifestPath);
   const uploadedSummaryPath = path.join(repoRoot, 'tmp', 'r2-publish-summary.json');
   await writeFile(
     uploadedSummaryPath,
-    `${JSON.stringify({ bucket, endpoint, mappings, generatedCatalogs }, null, 2)}\n`
+    `${JSON.stringify({ bucket, endpoint, mappings, generatedCatalogs, textPackManifest }, null, 2)}\n`
   );
 
   console.log(
@@ -250,6 +260,7 @@ async function main(): Promise<void> {
         bucket,
         uploadedMappings: mappings.length,
         generatedCatalogs: generatedCatalogs.map((item) => item.outputFile),
+        textPackManifest: textPackManifest.outputPath,
         summaryFile: uploadedSummaryPath,
       },
       null,
