@@ -27,8 +27,8 @@ export function AdminSetupCard({ missingKeys }: AdminSetupCardProps) {
         <div className="notice">
           <p className="setup-copy">
             Copy the admin values from <code>.env.example</code> into the deployment or local env,
-            then reload this page. Once those keys are present, the normal login and dashboard
-            flows will come online automatically.
+            then reload this page. Once those keys are present, the normal login and dashboard flows
+            will come online automatically.
           </p>
         </div>
       </section>

@@ -38,9 +38,16 @@ export default async function SettingsPage() {
           </div>
 
           <ul className="bullet-list">
-            <li>`profiles.admin_role = super_admin` is now the single trusted gate for admin access.</li>
-            <li>Public and admin sessions stay isolated to the admin domain and protected proxy flow.</li>
-            <li>Admin mutations run with service role only after a validated authenticated admin identity.</li>
+            <li>
+              `profiles.admin_role = super_admin` is now the single trusted gate for admin access.
+            </li>
+            <li>
+              Public and admin sessions stay isolated to the admin domain and protected proxy flow.
+            </li>
+            <li>
+              Admin mutations run with service role only after a validated authenticated admin
+              identity.
+            </li>
           </ul>
         </article>
 
@@ -53,14 +60,20 @@ export default async function SettingsPage() {
           </div>
 
           <ul className="bullet-list">
-            <li>Dedicated `site:*` and `admin:*` build, lint, and typecheck commands remain available at repo root.</li>
-            <li>Admin write paths are centralized in server actions so audit logging and revalidation are consistent.</li>
+            <li>
+              Dedicated `site:*` and `admin:*` build, lint, and typecheck commands remain available
+              at repo root.
+            </li>
+            <li>
+              Admin write paths are centralized in server actions so audit logging and revalidation
+              are consistent.
+            </li>
             <li>The public mobile override API can be verified independently from the admin UI.</li>
           </ul>
         </article>
       </section>
 
-      <section className="card">
+      <section className="card" id="operator-audit">
         <div className="card__header">
           <div>
             <p className="eyebrow">Operator audit</p>

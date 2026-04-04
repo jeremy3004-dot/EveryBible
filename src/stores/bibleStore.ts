@@ -22,6 +22,7 @@ import {
   isRemoteAudioAvailable,
   syncRemoteAudioMetadataResolverWithTranslations,
   type AudioDownloadBookProgress,
+  type AudioDownloadCollectionProgress,
   type AudioDownloadJobRecord,
 } from '../services/audio';
 import {
@@ -145,6 +146,14 @@ function mapAudioDownloadProgress(job: AudioDownloadJobRecord): TranslationDownl
   };
 }
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function updateTranslationAudioJobState(
   translation: BibleTranslation,
   job: AudioDownloadJobRecord | null
@@ -159,6 +168,24 @@ function updateTranslationAudioJobState(
   return {
     ...translation,
     activeDownloadJob: job.status === 'completed' ? null : mapAudioDownloadJob(job),
+  };
+}
+
+function updateTranslationAudioJobProgress(
+  translation: BibleTranslation,
+  progress: number
+): BibleTranslation {
+  if (!translation.activeDownloadJob) {
+    return translation;
+  }
+
+  return {
+    ...translation,
+    activeDownloadJob: {
+      ...translation.activeDownloadJob,
+      progress: clampPercent(progress),
+      updatedAt: Date.now(),
+    },
   };
 }
 
@@ -581,6 +608,25 @@ export const useBibleStore = create<BibleState>()(
             downloadProgress: mapAudioDownloadProgress(job),
           }));
         };
+        const handleAudioBookProgress = ({
+          bookId: activeBookId,
+          progress,
+          translationId: activeTranslationId,
+        }: AudioDownloadBookProgress) => {
+          set((state) => ({
+            translations: state.translations.map((item) =>
+              item.id === activeTranslationId
+                ? updateTranslationAudioJobProgress(item, progress)
+                : item
+            ),
+            downloadProgress: {
+              translationId: activeTranslationId,
+              bookId: activeBookId,
+              progress: clampPercent(progress),
+              status: 'downloading',
+            },
+          }));
+        };
 
         await downloadAudioBook({
           rootUri: AUDIO_DOWNLOAD_ROOT_URI,
@@ -595,6 +641,7 @@ export const useBibleStore = create<BibleState>()(
             onReattach: handleAudioJobUpdate,
             onFailure: (job) => handleAudioJobUpdate(job),
             onComplete: handleAudioJobUpdate,
+            onProgress: handleAudioBookProgress,
           },
         });
 
@@ -648,13 +695,27 @@ export const useBibleStore = create<BibleState>()(
             downloadProgress: mapAudioDownloadProgress(job),
           }));
         };
-        const handleAudioBookComplete = ({ bookId: completedBookId }: AudioDownloadBookProgress) => {
+        const handleAudioBookComplete = ({
+          bookId: completedBookId,
+          completedBooks,
+          totalBooks,
+          translationId: completedTranslationId,
+        }: AudioDownloadCollectionProgress) => {
+          const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
           set((state) => ({
             translations: state.translations.map((item) =>
-              item.id === translationId
-                ? mergeDownloadedAudioBook(item, completedBookId)
+              item.id === completedTranslationId
+                ? updateTranslationAudioJobProgress(
+                    mergeDownloadedAudioBook(item, completedBookId),
+                    collectionProgress
+                  )
                 : item
             ),
+            downloadProgress: {
+              translationId: completedTranslationId,
+              progress: collectionProgress,
+              status: 'downloading',
+            },
           }));
         };
 

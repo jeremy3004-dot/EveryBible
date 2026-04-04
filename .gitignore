@@ -91,3 +91,4 @@ vendor/
 coverage/
 .cache/
 tmp/
+.gstack/

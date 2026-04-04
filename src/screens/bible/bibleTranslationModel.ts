@@ -58,16 +58,45 @@ const TRANSLATION_LANGUAGE_NATIVE_LABELS: Record<string, string> = {
 
 const KNOWN_FULL_AUDIO_TRANSLATION_IDS = new Set(['bsb', 'web']);
 
+const SEARCHABLE_CODE_POINT_RANGES: Array<readonly [number, number]> = [
+  [0x0030, 0x0039], // 0-9
+  [0x0061, 0x007a], // a-z
+  [0x0400, 0x04ff], // Cyrillic
+  [0x0600, 0x06ff], // Arabic
+  [0x0900, 0x097f], // Devanagari
+  [0x0980, 0x09ff], // Bengali
+  [0x0b80, 0x0bff], // Tamil
+  [0x0c00, 0x0c7f], // Telugu
+  [0x0c80, 0x0cff], // Kannada
+  [0x0d00, 0x0d7f], // Malayalam
+  [0x0e00, 0x0e7f], // Thai
+  [0x3040, 0x30ff], // Hiragana and Katakana
+  [0x3400, 0x9fff], // CJK Unified Ideographs
+  [0xac00, 0xd7af], // Hangul syllables
+] as const;
+
+function isSearchableCharacter(char: string): boolean {
+  const codePoint = char.codePointAt(0);
+  if (codePoint == null) {
+    return false;
+  }
+
+  return SEARCHABLE_CODE_POINT_RANGES.some(([start, end]) => codePoint >= start && codePoint <= end);
+}
+
 export function normalizeTranslationLanguage(language: string | null | undefined): string {
   return language?.trim() || 'Other';
 }
 
 function normalizeTranslationSearchText(value: string | null | undefined): string {
-  return (value ?? '')
+  const normalized = (value ?? '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0900-\u097f\u0980-\u09ff\u0600-\u06ff\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff]+/g, ' ')
+    .toLowerCase();
+
+  return Array.from(normalized, (char) => (isSearchableCharacter(char) ? char : ' '))
+    .join('')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

@@ -34,3 +34,13 @@ test('FoundationDetailScreen shows the full foundation description without a tog
     'FoundationDetailScreen should not reference the removed show-less translation key'
   );
 });
+
+test('FoundationDetailScreen lowers the back button below the safe-area cutout', () => {
+  const source = readRelativeSource('./FoundationDetailScreen.tsx');
+
+  assert.equal(
+    source.includes('height: 56 + insets.top'),
+    true,
+    'FoundationDetailScreen should expand the header height to include the top safe-area inset'
+  );
+});

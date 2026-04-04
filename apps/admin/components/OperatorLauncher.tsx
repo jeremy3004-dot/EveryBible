@@ -2,8 +2,6 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
-import { StatusPill } from './StatusPill';
-
 interface ChatMessage {
   content: string;
   id: string;
@@ -20,7 +18,7 @@ const CHAT_STORAGE_KEY = 'everybible.admin.operator-helper.chat.v1';
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     content:
-      'Ask me about admin health, audit trail, translations, or what to look at next. I can ground the answer in the live EveryBible admin data.',
+      'Ask me about admin health, audit trail, or translations. I’ll keep it grounded in the live EveryBible admin data.',
     id: 'welcome',
     role: 'assistant',
   },
@@ -68,7 +66,6 @@ function ChevronGlyph() {
 export function OperatorLauncher() {
   const [isOpen, setIsOpen] = useState(false);
   const [availability, setAvailability] = useState<ChatAvailability | null>(null);
-  const [chatError, setChatError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
@@ -185,16 +182,6 @@ export function OperatorLauncher() {
   }, [isOpen]);
 
   const readyState = availability?.available ?? false;
-  const statusLabel =
-    availability === null
-      ? 'Checking AI'
-      : readyState
-        ? 'AI ready'
-        : availability.reason === 'unauthorized'
-          ? 'Sign in'
-          : 'AI offline';
-  const statusTone: 'default' | 'success' | 'warning' =
-    availability === null ? 'default' : readyState ? 'success' : 'warning';
   const canSend = readyState && inputValue.trim().length > 0 && !isSending;
 
   async function refreshAvailability() {
@@ -211,7 +198,6 @@ export function OperatorLauncher() {
           model: 'gpt-5.4-mini',
           reason: 'unauthorized',
         });
-        setChatError(null);
         return;
       }
 
@@ -227,15 +213,13 @@ export function OperatorLauncher() {
           model: typeof payload.model === 'string' ? payload.model : 'gpt-5.4-mini',
           reason: 'reason' in payload ? payload.reason ?? null : null,
         });
-        setChatError(null);
       }
-    } catch (error) {
+    } catch {
       setAvailability({
         available: false,
         model: 'gpt-5.4-mini',
         reason: 'status_check_failed',
       });
-      setChatError(error instanceof Error ? error.message : 'Unable to load AI helper status.');
     }
   }
 
@@ -253,7 +237,6 @@ export function OperatorLauncher() {
       return;
     }
 
-    setChatError(null);
     setInputValue('');
 
     const userMessage: ChatMessage = {
@@ -302,7 +285,6 @@ export function OperatorLauncher() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'The AI helper could not answer right now.';
-      setChatError(message);
       appendMessage({
         content: message,
         id: createMessageId(),
@@ -327,13 +309,6 @@ export function OperatorLauncher() {
     void submitPrompt(inputValue);
   }
 
-  function resetConversation() {
-    messagesRef.current = INITIAL_MESSAGES;
-    setMessages(INITIAL_MESSAGES);
-    setInputValue('');
-    setChatError(null);
-  }
-
   return (
     <div ref={launcherRef} className="operator-launcher" data-open={isOpen ? 'true' : 'false'}>
       <button
@@ -348,11 +323,7 @@ export function OperatorLauncher() {
           <OperatorGlyph />
         </span>
         <span className="operator-launcher__toggle-copy">
-          <span className="operator-launcher__toggle-eyebrow">Operator</span>
           <span className="operator-launcher__toggle-label">AI helper</span>
-        </span>
-        <span className="operator-launcher__toggle-status" aria-hidden="true">
-          <StatusPill tone={statusTone}>{statusLabel}</StatusPill>
         </span>
         <span className="operator-launcher__toggle-chevron" aria-hidden="true">
           <ChevronGlyph />
@@ -365,33 +336,6 @@ export function OperatorLauncher() {
             <h3>AI helper</h3>
             <p>Read-only answers grounded in live admin data.</p>
           </div>
-          <div className="operator-launcher__header-actions">
-            <button
-              type="button"
-              className="button operator-launcher__reset"
-              onClick={resetConversation}
-            >
-              New chat
-            </button>
-          </div>
-        </div>
-
-        {chatError ? (
-          <div className="operator-launcher__status operator-launcher__status--danger" role="status">
-            {chatError}
-          </div>
-        ) : null}
-
-        <div className="operator-launcher__status" role="status">
-          {availability === null
-            ? 'Checking AI helper status...'
-            : readyState
-              ? `Live chat is ready with ${availability.model}.`
-              : availability.reason === 'missing_openai_api_key'
-                ? 'Chat is offline until OPENAI_API_KEY is set in Vercel. You can still draft prompts here, but send is disabled.'
-                : availability.reason === 'unauthorized'
-                  ? 'Sign in to use the AI helper.'
-                : 'Chat status could not be loaded. Refresh the page to try again.'}
         </div>
 
         <div
@@ -430,7 +374,6 @@ export function OperatorLauncher() {
           />
 
           <div className="operator-chat__composer-footer">
-            <p className="operator-launcher__note">Read-only helper.</p>
             <button type="submit" className="button button--primary" disabled={!canSend}>
               {isSending ? 'Sending…' : readyState ? 'Send' : 'Chat offline'}
             </button>

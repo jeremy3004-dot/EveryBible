@@ -320,8 +320,18 @@ export function TranslationPickerList({
     const isSelected = currentTranslation === translation.id;
     const audioAvailability = getTranslationAudioAvailability(translation);
     const audioCollectionActions = getTranslationAudioCollectionActions(translation);
+    const activeAudioJob = translation.activeDownloadJob;
+    const isActiveAudioJob =
+      activeAudioJob != null &&
+      activeAudioJob.state !== 'completed' &&
+      activeAudioJob.state !== 'failed';
+    const isTranslationAudioJobActive =
+      isActiveAudioJob && activeAudioJob.kind === 'translation-audio';
+    const isBookAudioJobActive = isActiveAudioJob && activeAudioJob.kind === 'audio-book';
     const isTextDownloadActive =
-      downloadProgress?.translationId === translation.id && !downloadProgress.bookId;
+      downloadProgress?.translationId === translation.id &&
+      !downloadProgress.bookId &&
+      !isActiveAudioJob;
     const isTextDownloaded = translation.isDownloaded || Boolean(translation.textPackLocalPath);
     const isAudioDownloaded = isTranslationAudioDownloaded(translation.downloadedAudioBooks, bibleBooks);
     const isNewTestamentAudioDownloaded = isTranslationAudioDownloaded(
@@ -330,6 +340,13 @@ export function TranslationPickerList({
     );
     const isFullBibleAudioDownloading = activeAudioDownloadKey === `all-${translation.id}`;
     const isNewTestamentAudioDownloading = activeAudioDownloadKey === `nt-${translation.id}`;
+    const isBookAudioDownloading = activeAudioDownloadKey?.startsWith('book:') || isBookAudioJobActive;
+    const activeDownloadProgress =
+      isBookAudioJobActive || isTranslationAudioJobActive
+        ? activeAudioJob.progress
+        : isTextDownloadActive
+          ? downloadProgress?.progress ?? 0
+          : null;
     const isTextChipVisible =
       translation.hasText || Boolean(translation.catalog?.text?.downloadUrl) || isTextDownloaded;
     const shouldShowAudioChips = audioAvailability.canManageAudio;
@@ -387,7 +404,7 @@ export function TranslationPickerList({
                     },
                   ]}
                   disabled={
-                    activeAudioDownloadKey !== null ||
+                    isBookAudioDownloading ||
                     !audioAvailability.canDownloadAudio ||
                     isAudioDownloaded
                   }
@@ -406,11 +423,14 @@ export function TranslationPickerList({
                       setActiveAudioDownloadKey(null);
                     }
                   }}
-                >
+                  >
                   {isFullBibleAudioDownloading ? (
                     <>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                       <Ionicons name="headset-outline" size={14} color={colors.bibleAccent} />
+                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                        {translation.activeDownloadJob?.progress ?? 0}%
+                      </Text>
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
                         {t('bible.fullBible')}
                       </Text>
@@ -452,7 +472,7 @@ export function TranslationPickerList({
                     },
                   ]}
                   disabled={
-                    activeAudioDownloadKey !== null ||
+                    isBookAudioDownloading ||
                     !audioAvailability.canDownloadAudio ||
                     isNewTestamentAudioDownloaded
                   }
@@ -474,11 +494,14 @@ export function TranslationPickerList({
                       setActiveAudioDownloadKey(null);
                     }
                   }}
-                >
+                  >
                   {isNewTestamentAudioDownloading ? (
                     <>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                       <Ionicons name="headset-outline" size={14} color={colors.bibleAccent} />
+                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                        {translation.activeDownloadJob?.progress ?? 0}%
+                      </Text>
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
                         {t('bible.newTestament')}
                       </Text>
@@ -525,7 +548,7 @@ export function TranslationPickerList({
                   ]}
                   onPress={() => setAudioManagerTranslationId(translation.id)}
                   activeOpacity={0.85}
-                >
+                  >
                   <Ionicons
                     name="headset-outline"
                     size={14}
@@ -547,6 +570,26 @@ export function TranslationPickerList({
                 </TouchableOpacity>
               ) : null}
 
+              {activeDownloadProgress != null ? (
+                <View
+                  style={[
+                    styles.audioDownloadChip,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                >
+                  <ActivityIndicator size="small" color={colors.bibleAccent} />
+                  <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
+                    {t('common.downloading')}
+                  </Text>
+                  <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                    {activeDownloadProgress}%
+                  </Text>
+                </View>
+              ) : null}
+
               {isTextChipVisible ? (
                 <TouchableOpacity
                   style={[
@@ -558,7 +601,7 @@ export function TranslationPickerList({
                       borderColor: isTextDownloaded ? colors.success : colors.bibleDivider,
                     },
                   ]}
-                  disabled={isTextDownloaded || isTextDownloadActive || activeAudioDownloadKey !== null}
+                  disabled={isTextDownloaded || isTextDownloadActive || isBookAudioDownloading}
                   activeOpacity={0.85}
                   onPress={() => {
                     void handleDownloadTextTranslation(translation);
@@ -573,6 +616,9 @@ export function TranslationPickerList({
                       />
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
                         {t('audio.showText')}
+                      </Text>
+                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                        {downloadProgress?.progress ?? 0}%
                       </Text>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                     </>
@@ -1240,6 +1286,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  audioDownloadChipProgress: {
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 0,
+    fontVariant: ['tabular-nums'],
   },
   audioModalSubtitle: {
     fontSize: 13,

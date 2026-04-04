@@ -1,5 +1,6 @@
 import './globals.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import './neo-swiss.css';
 
 import Script from 'next/script';
 import type { ReactNode } from 'react';

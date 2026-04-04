@@ -39,9 +39,18 @@ test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async
   assert.match(componentSource, /globe-card__back-link/);
   assert.match(componentSource, /globe-card__summary/);
   assert.match(componentSource, /globe-card__explore/);
+  assert.match(componentSource, /const \[mode, setMode\] = useState<MapMetricMode>\('listeningMinutes'\);/);
+  assert.match(componentSource, /modeRef\.current = mode;/);
+  assert.match(componentSource, /aria-label="Select globe metric"/);
+  assert.match(componentSource, /onClick=\{\(\) => setMode\('listeningMinutes'\)\}/);
+  assert.match(componentSource, /onClick=\{\(\) => setMode\('downloadUnits'\)\}/);
+  assert.match(componentSource, /segmented-control__button--active/);
+  assert.match(componentSource, /<button[\s\S]*type="button"/);
+  assert.match(componentSource, /Click a country bubble to open the detailed country card/);
   assert.match(componentSource, /#34d399/);
   assert.match(componentSource, /#fb923c/);
   assert.match(componentSource, /#ef4444/);
+  assert.doesNotMatch(componentSource, /globe-card__toplist/);
   assert.doesNotMatch(componentSource, /openfreemap/i);
   assert.match(layoutSource, /maplibre-gl\/dist\/maplibre-gl\.css/);
   assert.match(packageSource, /"maplibre-gl":/);
