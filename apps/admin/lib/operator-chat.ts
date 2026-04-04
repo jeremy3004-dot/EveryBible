@@ -1,11 +1,18 @@
 import type { AdminIdentity } from './admin-auth';
 import {
   getDashboardSummary,
+  getHealthIssues,
   getRecentAuditLogs,
   getRecentOperatorAuditLogs,
   type DashboardSummary,
+  type HealthIssue,
   type OperatorAuditLogRow,
 } from './admin-data';
+import {
+  buildOperatorChatTools,
+  executeOperatorChatTool,
+  type OperatorChatToolCall,
+} from './operator-chat-tools';
 
 export interface OperatorChatMessage {
   content: string;
@@ -20,16 +27,59 @@ export interface OperatorChatAvailability {
 
 export interface OperatorChatContext {
   adminEmail: string;
+  adminId: string;
   adminName: string;
   dashboardSummary: DashboardSummary;
   generatedAt: string;
+  healthIssues: HealthIssue[];
   recentAdminActions: Awaited<ReturnType<typeof getRecentAuditLogs>>;
   recentOperatorActions: OperatorAuditLogRow[];
+}
+
+export interface OperatorChatToolExecutor {
+  (call: OperatorChatToolCall, context: OperatorChatContext): Promise<unknown>;
+}
+
+interface OpenAIChatCompletionToolCall {
+  function?: {
+    arguments?: string;
+    name?: string;
+  } | null;
+  id?: string;
+  type?: string;
+}
+
+interface OpenAIChatCompletionMessage {
+  content?: unknown;
+  tool_calls?: OpenAIChatCompletionToolCall[];
+}
+
+interface OpenAIChatCompletionChoice {
+  message?: OpenAIChatCompletionMessage | null;
+}
+
+interface OpenAIChatCompletionPayload {
+  choices?: OpenAIChatCompletionChoice[];
+}
+
+interface OpenAIChatCompletionRequestMessage {
+  content: string | null;
+  role: 'assistant' | 'system' | 'tool' | 'user';
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    function: {
+      arguments: string;
+      name: string;
+    };
+    id: string;
+    type: 'function';
+  }>;
 }
 
 const DEFAULT_OPERATOR_CHAT_MODEL = 'gpt-5.4-mini';
 const MAX_CHAT_MESSAGES = 12;
 const MAX_MESSAGE_LENGTH = 4000;
+const MAX_TOOL_ROUNDS = 4;
 
 function trimText(value: unknown): string {
   if (typeof value !== 'string') {
@@ -45,7 +95,9 @@ function formatAdminActions(actions: Awaited<ReturnType<typeof getRecentAuditLog
   }
 
   return actions
-    .map((action) => `- ${action.created_at} | ${action.action} | ${action.entity_type} | ${action.summary}`)
+    .map(
+      (action) => `- ${action.created_at} | ${action.action} | ${action.entity_type} | ${action.summary}`
+    )
     .join('\n');
 }
 
@@ -61,6 +113,86 @@ function formatOperatorActions(actions: OperatorAuditLogRow[]): string {
       return `- ${action.created_at} | ${toolName} | ${channel} | ${action.summary}`;
     })
     .join('\n');
+}
+
+function formatHealthIssues(issues: HealthIssue[]): string {
+  if (issues.length === 0) {
+    return '- No active health issues were reported.';
+  }
+
+  return issues
+    .map((issue) => `- ${issue.severity} | ${issue.title} | ${issue.description}`)
+    .join('\n');
+}
+
+function extractMessageText(content: unknown): string {
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return '';
+  }
+
+  return content
+    .map((part) => {
+      if (typeof part === 'string') {
+        return part;
+      }
+
+      if (part && typeof part === 'object' && 'text' in part) {
+        const textValue = (part as { text?: unknown }).text;
+        return typeof textValue === 'string' ? textValue : '';
+      }
+
+      return '';
+    })
+    .join('')
+    .trim();
+}
+
+function parseToolArguments(rawArguments: string | undefined): Record<string, unknown> {
+  if (!rawArguments || rawArguments.trim().length === 0) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(rawArguments);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Ignore malformed tool arguments and let the executor surface a readable error.
+  }
+
+  return {};
+}
+
+function normalizeToolCall(
+  call: OpenAIChatCompletionToolCall,
+  index: number
+): OperatorChatToolCall | null {
+  if (!call || call.type !== 'function' || !call.function?.name) {
+    return null;
+  }
+
+  return {
+    arguments: parseToolArguments(call.function.arguments),
+    id: call.id ?? `tool_call_${index}`,
+    name: call.function.name,
+  };
+}
+
+function serializeToolResult(result: unknown): string {
+  if (typeof result === 'string') {
+    return result;
+  }
+
+  try {
+    return JSON.stringify(result, null, 2);
+  } catch {
+    return String(result);
+  }
 }
 
 export function getOperatorChatModel(): string {
@@ -106,11 +238,12 @@ export function sanitizeOperatorChatMessages(messages: unknown): OperatorChatMes
 export function buildOperatorChatSystemPrompt(context: OperatorChatContext): string {
   return [
     'You are the EveryBible Admin AI helper inside the internal admin shell.',
+    'Use the live tools whenever the user asks about current state or a live action.',
     'Speak directly to the operator. Be concise, specific, and honest about uncertainty.',
-    'Use the admin snapshot below as grounding. If a detail is not present, say so instead of inventing it.',
-    'Do not claim you changed data or code unless the conversation context explicitly shows that you did.',
-    'If the user asks for a live mutation or source-code change, explain the safe path: Telegram/OpenClaw for approved content and data changes, or the reviewable git workflow for source code.',
+    'If a detail is not present in the prompt or a tool result, say so instead of inventing it.',
+    'If the user asks for a live mutation, use the approved tool only when the request is explicit.',
     'Prefer short bullets and concrete next steps when useful.',
+    'Live tools available: inspect_dashboard, search_translations, get_translation, search_users, get_user, list_sync_runs, list_verse_of_day_entries, list_content_images, run_translation_sync.',
     '',
     `Operator identity: ${context.adminName} <${context.adminEmail}>`,
     `Snapshot generated at: ${context.generatedAt}`,
@@ -123,6 +256,9 @@ export function buildOperatorChatSystemPrompt(context: OperatorChatContext): str
     `- Support users: ${context.dashboardSummary.supportUserCount}`,
     `- Translation catalog rows: ${context.dashboardSummary.translationCount}`,
     '',
+    'Known health issues:',
+    formatHealthIssues(context.healthIssues),
+    '',
     'Recent OpenClaw actions:',
     formatOperatorActions(context.recentOperatorActions),
     '',
@@ -132,17 +268,20 @@ export function buildOperatorChatSystemPrompt(context: OperatorChatContext): str
 }
 
 export async function buildOperatorChatContext(identity: AdminIdentity): Promise<OperatorChatContext> {
-  const [dashboardSummary, recentAdminActions, recentOperatorActions] = await Promise.all([
+  const [dashboardSummary, healthIssues, recentAdminActions, recentOperatorActions] = await Promise.all([
     getDashboardSummary(),
+    getHealthIssues(),
     getRecentAuditLogs(5),
     getRecentOperatorAuditLogs(5),
   ]);
 
   return {
     adminEmail: identity.email,
+    adminId: identity.id,
     adminName: identity.name,
     dashboardSummary,
     generatedAt: new Date().toISOString(),
+    healthIssues,
     recentAdminActions,
     recentOperatorActions,
   };
@@ -150,79 +289,96 @@ export async function buildOperatorChatContext(identity: AdminIdentity): Promise
 
 export async function requestOperatorChatCompletion(params: {
   apiKey: string;
+  context: OperatorChatContext;
+  executeTool?: OperatorChatToolExecutor;
   messages: OperatorChatMessage[];
   model?: string;
   systemPrompt: string;
 }): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${params.apiKey}`,
-      'Content-Type': 'application/json',
+  const executeTool = params.executeTool ?? executeOperatorChatTool;
+  const conversation: OpenAIChatCompletionRequestMessage[] = [
+    {
+      content: params.systemPrompt,
+      role: 'system',
     },
-    body: JSON.stringify({
-      messages: [
-        {
-          content: params.systemPrompt,
-          role: 'system',
+    ...params.messages.map((message) => ({
+      content: message.content,
+      role: message.role,
+    })),
+  ];
+  const tools = buildOperatorChatTools();
+
+  for (let toolRound = 0; toolRound < MAX_TOOL_ROUNDS; toolRound += 1) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${params.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: conversation,
+        model: params.model ?? getOperatorChatModel(),
+        parallel_tool_calls: true,
+        tool_choice: 'auto',
+        tools,
+      }),
+    });
+
+    if (!response.ok) {
+      const fallbackError = `OpenAI chat request failed with status ${response.status}`;
+      const errorPayload = (await response.json().catch(() => null)) as
+        | { error?: { message?: string } | string }
+        | null;
+      const errorMessage =
+        typeof errorPayload?.error === 'string'
+          ? errorPayload.error
+          : errorPayload?.error?.message ?? fallbackError;
+
+      throw new Error(errorMessage);
+    }
+
+    const payload = (await response.json()) as OpenAIChatCompletionPayload;
+    const assistantMessage = payload.choices?.[0]?.message ?? null;
+
+    if (!assistantMessage) {
+      throw new Error('OpenAI returned an empty assistant response.');
+    }
+
+    const toolCalls = (assistantMessage.tool_calls ?? [])
+      .map((call, index) => normalizeToolCall(call, index))
+      .filter((call): call is OperatorChatToolCall => Boolean(call));
+    const assistantText = extractMessageText(assistantMessage.content);
+
+    if (toolCalls.length === 0) {
+      if (assistantText.length > 0) {
+        return assistantText;
+      }
+
+      throw new Error('OpenAI returned an empty assistant response.');
+    }
+
+    conversation.push({
+      content: assistantText.length > 0 ? assistantText : null,
+      role: 'assistant',
+      tool_calls: toolCalls.map((call) => ({
+        function: {
+          arguments: JSON.stringify(call.arguments),
+          name: call.name,
         },
-        ...params.messages.map((message) => ({
-          content: message.content,
-          role: message.role,
-        })),
-      ],
-      model: params.model ?? getOperatorChatModel(),
-    }),
-  });
+        id: call.id,
+        type: 'function',
+      })),
+    });
 
-  if (!response.ok) {
-    const fallbackError = `OpenAI chat request failed with status ${response.status}`;
-    const errorPayload = (await response.json().catch(() => null)) as
-      | { error?: { message?: string } | string }
-      | null;
-    const errorMessage =
-      typeof errorPayload?.error === 'string'
-        ? errorPayload.error
-        : errorPayload?.error?.message ?? fallbackError;
-
-    throw new Error(errorMessage);
-  }
-
-  const payload = (await response.json()) as {
-    choices?: Array<{
-      message?: {
-        content?: unknown;
-      } | null;
-    }>;
-  };
-
-  const content = payload.choices?.[0]?.message?.content;
-
-  if (typeof content === 'string' && content.trim().length > 0) {
-    return content.trim();
-  }
-
-  if (Array.isArray(content)) {
-    const text = content
-      .map((part) => {
-        if (typeof part === 'string') {
-          return part;
-        }
-
-        if (part && typeof part === 'object' && 'text' in part) {
-          const textValue = (part as { text?: unknown }).text;
-          return typeof textValue === 'string' ? textValue : '';
-        }
-
-        return '';
-      })
-      .join('')
-      .trim();
-
-    if (text.length > 0) {
-      return text;
+    for (const toolCall of toolCalls) {
+      const toolResult = await executeTool(toolCall, params.context);
+      conversation.push({
+        content: serializeToolResult(toolResult),
+        role: 'tool',
+        tool_call_id: toolCall.id,
+      });
     }
   }
 
-  throw new Error('OpenAI returned an empty assistant response.');
+  throw new Error('Operator chat exceeded the maximum tool rounds.');
 }

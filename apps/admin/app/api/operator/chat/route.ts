@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     const context = await buildOperatorChatContext(identity);
     const reply = await requestOperatorChatCompletion({
       apiKey,
+      context,
       messages,
       model: getOperatorChatModel(),
       systemPrompt: buildOperatorChatSystemPrompt(context),

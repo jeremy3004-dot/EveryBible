@@ -17,7 +17,7 @@ interface ChatMessage {
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
-    content: 'Ask me about admin health, audit trail, or translations.',
+    content: 'Ask me about health, translations, audit logs, support users, or a translation sync.',
     id: 'welcome',
     role: 'assistant',
   },
@@ -224,7 +224,7 @@ export function OperatorLauncher() {
         <div className="operator-launcher__header">
           <div className="operator-launcher__title">
             <h3>AI helper</h3>
-            <p>Simple read-only chat grounded in live admin data.</p>
+            <p>Ask a plain question about live admin data.</p>
           </div>
         </div>
 
@@ -256,7 +256,7 @@ export function OperatorLauncher() {
             id={composerId}
             ref={inputRef}
             className="operator-chat__input"
-            placeholder="Ask a question..."
+            placeholder="Ask about live admin data..."
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleComposerKeyDown}
@@ -264,9 +264,13 @@ export function OperatorLauncher() {
           />
 
           <div className="operator-chat__composer-footer">
-            <span className="operator-chat__hint">Ask a plain question about the dashboard.</span>
-            <button type="submit" className="button button--primary" disabled={inputValue.trim().length === 0 || isSending}>
-              {isSending ? 'Sending...' : 'Send'}
+            <span className="operator-chat__hint">Ask a plain question about live admin data.</span>
+            <button
+              type="submit"
+              className="button button--primary"
+              disabled={inputValue.trim().length === 0 || isSending}
+            >
+              {isSending ? 'Sending…' : 'Send'}
             </button>
           </div>
         </form>
