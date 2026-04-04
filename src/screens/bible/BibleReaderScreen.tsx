@@ -124,7 +124,6 @@ import {
   shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
-  shouldTransferActiveAudioOnChapterChange,
 } from './bibleReaderModel';
 import {
   getChapterFeedbackResultVariant,
@@ -1830,15 +1829,6 @@ export function BibleReaderScreen() {
       getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
     );
     setShowChapterActionsSheet(false);
-
-    if (
-      shouldTransferActiveAudioOnChapterChange({
-        audioEnabled,
-        isCurrentAudioChapter,
-      })
-    ) {
-      await playChapter(target.bookId, target.chapter);
-    }
 
     syncReaderReference(target.bookId, target.chapter);
   };

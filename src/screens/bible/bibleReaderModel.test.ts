@@ -19,7 +19,6 @@ import {
   shouldReplayActiveAudioForTranslationChange,
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
-  shouldTransferActiveAudioOnChapterChange,
 } from './bibleReaderModel';
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
@@ -536,32 +535,6 @@ test('replays the displayed chapter when the user switches translations away fro
       activeAudioTranslationId: 'web',
       activeAudioBookId: 'JHN',
       activeAudioChapter: 4,
-    }),
-    false
-  );
-});
-
-test('reader chapter rail only transfers audio when the displayed chapter is currently playing', () => {
-  assert.equal(
-    shouldTransferActiveAudioOnChapterChange({
-      audioEnabled: true,
-      isCurrentAudioChapter: true,
-    }),
-    true
-  );
-
-  assert.equal(
-    shouldTransferActiveAudioOnChapterChange({
-      audioEnabled: true,
-      isCurrentAudioChapter: false,
-    }),
-    false
-  );
-
-  assert.equal(
-    shouldTransferActiveAudioOnChapterChange({
-      audioEnabled: false,
-      isCurrentAudioChapter: true,
     }),
     false
   );

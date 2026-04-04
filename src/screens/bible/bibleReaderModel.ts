@@ -99,11 +99,6 @@ interface ShouldReplayActiveAudioForTranslationChangeInput {
   activeAudioChapter: number | null;
 }
 
-interface ShouldTransferActiveAudioOnChapterChangeInput {
-  audioEnabled: boolean;
-  isCurrentAudioChapter: boolean;
-}
-
 interface ShouldSyncReaderToActiveAudioChapterInput {
   audioEnabled: boolean;
   bookId: string;
@@ -372,11 +367,6 @@ export const shouldReplayActiveAudioForTranslationChange = ({
     activeAudioChapter,
   });
 };
-
-export const shouldTransferActiveAudioOnChapterChange = ({
-  audioEnabled,
-  isCurrentAudioChapter,
-}: ShouldTransferActiveAudioOnChapterChangeInput): boolean => audioEnabled && isCurrentAudioChapter;
 
 export const shouldSyncReaderToActiveAudioChapter = ({
   audioEnabled,
