@@ -85,6 +85,44 @@ test('Bible browser modal picker shows a dismiss control and opens on the reques
   );
 });
 
+test('Bible browser restores the saved book when no explicit initial book is supplied', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.currentBook\)/,
+    'BibleBrowserScreen should read the last visited book from the bible store so the browser can reopen where the user left off'
+  );
+
+  assert.match(
+    source,
+    /const hasExplicitInitialBook = initialBookId != null && Boolean\(getBookById\(initialBookId\)\);/,
+    'BibleBrowserScreen should only treat a valid route override as explicit'
+  );
+
+  assert.match(
+    source,
+    /const resolvedInitialBookId = hasExplicitInitialBook \? initialBookId : currentBook;/,
+    'BibleBrowserScreen should fall back to the persisted book when the browser is opened without a route override'
+  );
+});
+
+test('Bible browser scrolls the restored book into view on open', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /initialScrollIndex=\{initialScrollIndex\}/,
+    'BibleBrowserScreen should seed the list near the restored book instead of always starting at Genesis'
+  );
+
+  assert.match(
+    source,
+    /scrollToIndex\(\{\s*index:\s*rowIndex,\s*animated:\s*false,\s*viewPosition:\s*0\.15,\s*\}\)/s,
+    'BibleBrowserScreen should actively scroll the browser list to the restored book when the screen reopens'
+  );
+});
+
 test('Bible browser preserves the listen-or-read launch mode when opening a chapter from picker/search', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 
