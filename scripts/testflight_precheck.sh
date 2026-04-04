@@ -93,6 +93,5 @@ echo "origin_main_sha=${ORIGIN_MAIN_SHA:-missing}"
 echo "head_matches_origin_main=$HEAD_MATCHES_ORIGIN_MAIN"
 
 if [[ "$HEAD_MATCHES_ORIGIN_MAIN" == "false" ]]; then
-  echo "HEAD does not match origin/main. Sync origin/main, rebuild, and rerun precheck." >&2
-  exit 1
+  echo "HEAD does not match origin/main. Side-branch TestFlight submissions are allowed; make sure this branch build is the one you intend to distribute." >&2
 fi

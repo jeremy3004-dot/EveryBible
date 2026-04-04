@@ -10,6 +10,7 @@ Environment:
   TESTFLIGHT_TESTER_EMAIL            Exact tester email to verify
   TESTFLIGHT_GROUP_NAME              Beta group to verify and attach (default: Internal Testers)
   TESTFLIGHT_APP_ID                  App Store Connect app id (default: 6758254335)
+  TESTFLIGHT_ATTACH_GROUP_IF_MISSING Attach the build to the beta group if missing (default: true)
   TESTFLIGHT_VERIFY_TIMEOUT_SECONDS  Max seconds to wait for App Store Connect processing (default: 1800)
 
 Behavior:
@@ -97,6 +98,7 @@ eas submit --platform ios --profile production --path "$IPA_PATH" --non-interact
 
 deadline=$((SECONDS + VERIFY_TIMEOUT_SECONDS))
 build_ready="false"
+last_reported_state=""
 
 while (( SECONDS < deadline )); do
   BUILD_JSON="$TMP_DIR/builds.json"
@@ -127,6 +129,12 @@ PY
   else
     BUILD_ID=""
     BUILD_STATE=""
+  fi
+
+  CURRENT_REPORT_STATE="${BUILD_STATE:-NOT_FOUND}"
+  if [[ "$CURRENT_REPORT_STATE" != "$last_reported_state" ]]; then
+    echo "testflight_processing_state=$CURRENT_REPORT_STATE"
+    last_reported_state="$CURRENT_REPORT_STATE"
   fi
 
   if [[ -n "$BUILD_ID" && "$BUILD_STATE" == "VALID" ]]; then

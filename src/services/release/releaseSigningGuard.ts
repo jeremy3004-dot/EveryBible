@@ -1,6 +1,4 @@
 export interface ReleaseSigningState {
-  currentSha: string;
-  originMainSha: string;
   profileFingerprint: string;
   certFingerprint: string;
   appleDistributionFingerprints: string[];
@@ -34,17 +32,11 @@ export const parseAppleDistributionFingerprints = (securityOutput: string): stri
 
 export const evaluateReleaseSigningState = (state: ReleaseSigningState): ReleaseSigningResult => {
   const errors: string[] = [];
-  const currentSha = normalizeSha1Fingerprint(state.currentSha);
-  const originMainSha = normalizeSha1Fingerprint(state.originMainSha);
   const profileFingerprint = normalizeSha1Fingerprint(state.profileFingerprint);
   const certFingerprint = normalizeSha1Fingerprint(state.certFingerprint);
   const appleDistributionFingerprints = state.appleDistributionFingerprints.map(
     normalizeSha1Fingerprint
   );
-
-  if (currentSha !== originMainSha) {
-    errors.push('HEAD does not match origin/main. Sync origin/main, rebuild, and rerun the guard.');
-  }
 
   if (profileFingerprint !== certFingerprint) {
     errors.push(

@@ -160,15 +160,15 @@ eas build --profile preview --platform ios
 eas build --profile preview --platform android
 
 # Production builds (store / TestFlight submission candidates with embedded JS bundle)
-eas build --profile production --platform ios
+eas build --platform ios --profile production --local
 eas build --profile production --platform android
 ```
 
 ### Deployment
 
 ```bash
-# Pre-build release guard for local iOS signing and branch sync
-npm run release:prepare  # runs scripts/testflight_release_guard.ts after release metadata checks
+# Pre-build release guard for iOS release state
+npm run release:prepare  # runs scripts/testflight_release_guard.ts to check remote build-number drift, signing mode, and log whether HEAD matches origin/main
 
 # Submit and verify TestFlight distribution in one step
 TESTFLIGHT_TESTER_EMAIL=curryj@protonmail.com \
@@ -179,6 +179,9 @@ npm run testflight:submit-and-verify
 # Preflight an iOS IPA before submission
 bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
 
+# Manual TestFlight submit by IPA path only
+eas submit --platform ios --profile production --path /absolute/path/to/app.ipa --non-interactive --no-wait
+
 # Verify an already-submitted build is visible to the intended tester/group
 TESTFLIGHT_TESTER_EMAIL=curryj@protonmail.com \
 TESTFLIGHT_GROUP_NAME='Internal Testers' \
@@ -188,6 +191,9 @@ npm run testflight:verify-distribution
 # Submit to Google Play
 eas submit --platform android --profile production
 ```
+
+`ship` still defaults to landing release work on `main` first, but intentional side-branch TestFlight builds are allowed for branch testing and review.
+The TestFlight verify flow now auto-attaches a valid build to the requested beta group and tester when App Store Connect already has the build but the distribution links are missing.
 
 ### GitHub Actions Release Flow
 

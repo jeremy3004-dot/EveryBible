@@ -22,8 +22,6 @@ test('parseAppleDistributionFingerprints keeps only Apple Distribution identitie
 
 test('evaluateReleaseSigningState rejects stale Apple Distribution identities before build', () => {
   const result = evaluateReleaseSigningState({
-    currentSha: 'b367ecd',
-    originMainSha: 'b367ecd',
     profileFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
     certFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
     appleDistributionFingerprints: [
@@ -42,8 +40,6 @@ test('evaluateReleaseSigningState rejects stale Apple Distribution identities be
 
 test('evaluateReleaseSigningState accepts a single matching release identity', () => {
   const result = evaluateReleaseSigningState({
-    currentSha: 'b367ecd',
-    originMainSha: 'b367ecd',
     profileFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
     certFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
     appleDistributionFingerprints: ['A1483EC32D67279C512DF857DD042A3EC5C64214'],

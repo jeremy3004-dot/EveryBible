@@ -661,13 +661,19 @@ test('BibleReaderScreen gives the translation sheet a fixed-height modal body so
   );
 });
 
-test('premium read chapter arrows transfer active audio before syncing the displayed chapter', () => {
+test('premium read chapter arrows only sync the displayed chapter without starting audio', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.doesNotMatch(
+    source,
+    /const handleReadChapterNavigation = async \([\s\S]*?target:\s*\{ bookId: string; chapter: number \} \| null[\s\S]*?=> \{[\s\S]*?await playChapter\(target\.bookId, target\.chapter\);/s,
+    'BibleReaderScreen should not start audio playback from the read-tab chapter arrows'
+  );
 
   assert.match(
     source,
-    /const handleReadChapterNavigation = async \([\s\S]*?target:\s*\{ bookId: string; chapter: number \} \| null[\s\S]*?=> \{[\s\S]*?shouldTransferActiveAudioOnChapterChange\([\s\S]*?await playChapter\(target\.bookId, target\.chapter\);[\s\S]*?syncReaderReference\(target\.bookId, target\.chapter\);/s,
-    'BibleReaderScreen should hand active audio off to the next chapter before syncing the read view'
+    /const handleReadChapterNavigation = async \([\s\S]*?target:\s*\{ bookId: string; chapter: number \} \| null[\s\S]*?=> \{[\s\S]*?syncReaderReference\(target\.bookId, target\.chapter\);/s,
+    'BibleReaderScreen should still update the displayed chapter when the user navigates in read mode'
   );
 });
 
