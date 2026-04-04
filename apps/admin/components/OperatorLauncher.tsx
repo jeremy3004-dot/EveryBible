@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 
 interface ChatMessage {
   content: string;
@@ -8,17 +15,9 @@ interface ChatMessage {
   role: 'assistant' | 'user';
 }
 
-interface ChatAvailability {
-  available: boolean;
-  model: string;
-  reason?: string | null;
-}
-
-const CHAT_STORAGE_KEY = 'everybible.admin.operator-helper.chat.v1';
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
-    content:
-      'Ask me about admin health, audit trail, or translations. I’ll keep it grounded in the live EveryBible admin data.',
+    content: 'Ask me about admin health, audit trail, or translations.',
     id: 'welcome',
     role: 'assistant',
   },
@@ -65,11 +64,9 @@ function ChevronGlyph() {
 
 export function OperatorLauncher() {
   const [isOpen, setIsOpen] = useState(false);
-  const [availability, setAvailability] = useState<ChatAvailability | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [hasHydrated, setHasHydrated] = useState(false);
   const launcherId = useId();
   const composerId = useId();
   const launcherRef = useRef<HTMLDivElement>(null);
@@ -78,53 +75,6 @@ export function OperatorLauncher() {
   const messagesRef = useRef<ChatMessage[]>(INITIAL_MESSAGES);
 
   useEffect(() => {
-    try {
-      const storedMessages = window.localStorage.getItem(CHAT_STORAGE_KEY);
-
-      if (storedMessages) {
-        const parsed = JSON.parse(storedMessages) as unknown;
-        if (Array.isArray(parsed)) {
-          const normalized = parsed
-            .flatMap((message) => {
-              if (!message || typeof message !== 'object') {
-                return [];
-              }
-
-              const record = message as Record<string, unknown>;
-              if (record.role !== 'assistant' && record.role !== 'user') {
-                return [];
-              }
-
-              if (typeof record.content !== 'string' || record.content.trim().length === 0) {
-                return [];
-              }
-
-              return [
-                {
-                  content: record.content.trim(),
-                  id: typeof record.id === 'string' && record.id ? record.id : createMessageId(),
-                  role: record.role as ChatMessage['role'],
-                } satisfies ChatMessage,
-              ];
-            })
-            .slice(-20);
-
-          if (normalized.length > 0) {
-            messagesRef.current = normalized;
-            setMessages(normalized);
-          }
-        }
-      }
-    } catch {
-      try {
-        window.localStorage.removeItem(CHAT_STORAGE_KEY);
-      } catch {
-        // Ignore storage failures and fall back to the in-memory conversation.
-      }
-    }
-
-    setHasHydrated(true);
-
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
@@ -151,29 +101,6 @@ export function OperatorLauncher() {
   }, []);
 
   useEffect(() => {
-    if (!hasHydrated) {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
-    } catch {
-      // Ignore storage failures and keep the in-memory conversation only.
-    }
-    messagesRef.current = messages;
-
-    if (transcriptRef.current) {
-      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
-    }
-  }, [hasHydrated, messages]);
-
-  useEffect(() => {
-    if (availability === null) {
-      void refreshAvailability();
-    }
-  }, [availability]);
-
-  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -181,47 +108,12 @@ export function OperatorLauncher() {
     inputRef.current?.focus();
   }, [isOpen]);
 
-  const readyState = availability?.available ?? false;
-  const canSend = readyState && inputValue.trim().length > 0 && !isSending;
-
-  async function refreshAvailability() {
-    try {
-      const response = await fetch('/api/operator/chat', { cache: 'no-store' });
-      const payload = (await response.json().catch(() => null)) as
-        | ChatAvailability
-        | { error?: string }
-        | null;
-
-      if (response.status === 401) {
-        setAvailability({
-          available: false,
-          model: 'gpt-5.4-mini',
-          reason: 'unauthorized',
-        });
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          (payload && 'error' in payload && payload.error) || 'Unable to load AI helper status.'
-        );
-      }
-
-      if (payload && typeof payload === 'object' && 'available' in payload) {
-        setAvailability({
-          available: Boolean(payload.available),
-          model: typeof payload.model === 'string' ? payload.model : 'gpt-5.4-mini',
-          reason: 'reason' in payload ? payload.reason ?? null : null,
-        });
-      }
-    } catch {
-      setAvailability({
-        available: false,
-        model: 'gpt-5.4-mini',
-        reason: 'status_check_failed',
-      });
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
-  }
+    messagesRef.current = messages;
+  }, [messages]);
 
   function appendMessage(message: ChatMessage) {
     setMessages((current) => {
@@ -233,7 +125,7 @@ export function OperatorLauncher() {
 
   async function submitPrompt(prompt: string) {
     const content = prompt.trim();
-    if (!content || isSending || !readyState) {
+    if (!content || isSending) {
       return;
     }
 
@@ -268,9 +160,7 @@ export function OperatorLauncher() {
         | null;
 
       if (!response.ok) {
-        throw new Error(
-          payload?.error ?? 'The AI helper could not answer just now. Please try again.'
-        );
+        throw new Error(payload?.error ?? 'The AI helper could not answer right now.');
       }
 
       if (typeof payload?.reply !== 'string' || payload.reply.trim().length === 0) {
@@ -334,7 +224,7 @@ export function OperatorLauncher() {
         <div className="operator-launcher__header">
           <div className="operator-launcher__title">
             <h3>AI helper</h3>
-            <p>Read-only answers grounded in live admin data.</p>
+            <p>Simple read-only chat grounded in live admin data.</p>
           </div>
         </div>
 
@@ -374,12 +264,12 @@ export function OperatorLauncher() {
           />
 
           <div className="operator-chat__composer-footer">
-            <button type="submit" className="button button--primary" disabled={!canSend}>
-              {isSending ? 'Sending…' : readyState ? 'Send' : 'Chat offline'}
+            <span className="operator-chat__hint">Ask a plain question about the dashboard.</span>
+            <button type="submit" className="button button--primary" disabled={inputValue.trim().length === 0 || isSending}>
+              {isSending ? 'Sending...' : 'Send'}
             </button>
           </div>
         </form>
-
       </div>
     </div>
   );
