@@ -243,7 +243,7 @@ export function buildOperatorChatSystemPrompt(context: OperatorChatContext): str
     'If a detail is not present in the prompt or a tool result, say so instead of inventing it.',
     'If the user asks for a live mutation, use the approved tool only when the request is explicit.',
     'Prefer short bullets and concrete next steps when useful.',
-    'Live tools available: inspect_dashboard, search_translations, get_translation, search_users, get_user, list_sync_runs, list_verse_of_day_entries, list_content_images, run_translation_sync.',
+    'Live tools available: inspect_dashboard, get_health_issues, get_analytics_overview, search_translations, get_translation, update_translation_metadata, search_users, get_user, list_recent_admin_audit_logs, list_recent_operator_audit_logs, list_sync_runs, run_translation_sync, list_verse_of_day_entries, get_verse_of_day_entry, save_verse_of_day, archive_verse_of_day, list_content_images, get_content_image, update_content_image.',
     '',
     `Operator identity: ${context.adminName} <${context.adminEmail}>`,
     `Snapshot generated at: ${context.generatedAt}`,

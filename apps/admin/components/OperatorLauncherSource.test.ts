@@ -27,10 +27,10 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
 
   assert.match(componentSource, /const \[isOpen, setIsOpen\] = useState\(false\);/);
   assert.match(componentSource, /aria-expanded=\{isOpen\}/);
-  assert.match(componentSource, /Ask a plain question about live admin data\./);
+  assert.match(componentSource, /Plain answers from live admin data\./);
   assert.match(
     componentSource,
-    /Ask me about health, translations, audit logs, support users, or a translation sync\./
+    /Ask me about health, analytics, translations, users, content, or syncs\./
   );
   assert.match(componentSource, /\/api\/operator\/chat/);
   assert.doesNotMatch(componentSource, /Open audit trail/);

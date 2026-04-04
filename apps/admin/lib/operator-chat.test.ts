@@ -39,64 +39,41 @@ test('operator chat can call a live admin tool before answering', async () => {
 
     if (requests.length === 1) {
       const tools = Array.isArray(body.tools) ? body.tools : [];
-      assert.ok(
-        tools.some((tool) => {
-          if (!tool || typeof tool !== 'object') {
-            return false;
-          }
-
+      const toolNames = tools
+        .filter((tool) => tool && typeof tool === 'object')
+        .map((tool) => {
           const record = tool as Record<string, unknown>;
-          return (
-            record.type === 'function' &&
-            (record.function as Record<string, unknown> | undefined)?.name === 'inspect_dashboard'
-          );
-        }),
-        'expected inspect_dashboard to be exposed as an OpenAI tool'
-      );
-      assert.ok(
-        tools.some((tool) => {
-          if (!tool || typeof tool !== 'object') {
-            return false;
-          }
+          return record.type === 'function'
+            ? (record.function as Record<string, unknown> | undefined)?.name
+            : null;
+        })
+        .filter((name): name is string => typeof name === 'string');
 
-          const record = tool as Record<string, unknown>;
-          return (
-            record.type === 'function' &&
-            (record.function as Record<string, unknown> | undefined)?.name === 'run_translation_sync'
-          );
-        }),
-        'expected run_translation_sync to be exposed as an OpenAI tool'
-      );
-      assert.ok(
-        tools.some((tool) => {
-          if (!tool || typeof tool !== 'object') {
-            return false;
-          }
+      const expectedTools = [
+        'inspect_dashboard',
+        'get_health_issues',
+        'get_analytics_overview',
+        'search_translations',
+        'get_translation',
+        'update_translation_metadata',
+        'search_users',
+        'get_user',
+        'list_recent_admin_audit_logs',
+        'list_recent_operator_audit_logs',
+        'list_sync_runs',
+        'run_translation_sync',
+        'list_verse_of_day_entries',
+        'get_verse_of_day_entry',
+        'save_verse_of_day',
+        'archive_verse_of_day',
+        'list_content_images',
+        'get_content_image',
+        'update_content_image',
+      ];
 
-          const record = tool as Record<string, unknown>;
-          return (
-            record.type === 'function' &&
-            (record.function as Record<string, unknown> | undefined)?.name ===
-              'list_verse_of_day_entries'
-          );
-        }),
-        'expected list_verse_of_day_entries to be exposed as an OpenAI tool'
-      );
-      assert.ok(
-        tools.some((tool) => {
-          if (!tool || typeof tool !== 'object') {
-            return false;
-          }
-
-          const record = tool as Record<string, unknown>;
-          return (
-            record.type === 'function' &&
-            (record.function as Record<string, unknown> | undefined)?.name ===
-              'list_content_images'
-          );
-        }),
-        'expected list_content_images to be exposed as an OpenAI tool'
-      );
+      for (const toolName of expectedTools) {
+        assert.ok(toolNames.includes(toolName), `expected ${toolName} to be exposed as an OpenAI tool`);
+      }
 
       return new Response(
         JSON.stringify({

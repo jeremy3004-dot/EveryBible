@@ -17,7 +17,7 @@ interface ChatMessage {
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
-    content: 'Ask me about health, translations, audit logs, support users, or a translation sync.',
+    content: 'Ask me about health, analytics, translations, users, content, or syncs.',
     id: 'welcome',
     role: 'assistant',
   },
@@ -224,7 +224,7 @@ export function OperatorLauncher() {
         <div className="operator-launcher__header">
           <div className="operator-launcher__title">
             <h3>AI helper</h3>
-            <p>Ask a plain question about live admin data.</p>
+            <p>Plain answers from live admin data.</p>
           </div>
         </div>
 
@@ -256,7 +256,7 @@ export function OperatorLauncher() {
             id={composerId}
             ref={inputRef}
             className="operator-chat__input"
-            placeholder="Ask about live admin data..."
+            placeholder="Ask about dashboard, content, users, or syncs..."
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleComposerKeyDown}
@@ -264,7 +264,7 @@ export function OperatorLauncher() {
           />
 
           <div className="operator-chat__composer-footer">
-            <span className="operator-chat__hint">Ask a plain question about live admin data.</span>
+            <span className="operator-chat__hint">Plain answers from live admin data.</span>
             <button
               type="submit"
               className="button button--primary"
