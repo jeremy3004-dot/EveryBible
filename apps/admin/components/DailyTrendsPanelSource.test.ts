@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-test('daily trends panel stays collapsed by default and only expands on click', async () => {
+test('daily trends panel renders without interactive button controls', async () => {
   const source = await readFile(path.join(repoRoot, 'apps/admin/components/DailyTrendsPanel.tsx'), 'utf8');
 
-  assert.match(source, /const \[isOpen, setIsOpen\] = useState\(false\);/);
-  assert.match(source, /aria-expanded=\{isOpen\}/);
-  assert.match(source, /Keep the 30-day trend collapsed until you need the detail\./);
-  assert.match(source, /daily-trends__summary/);
+  assert.match(source, /Daily listening minutes/);
+  assert.match(source, /Daily download units/);
+  assert.doesNotMatch(source, /<button\b/);
+  assert.doesNotMatch(source, /segmented-control__button/);
+  assert.doesNotMatch(source, /aria-expanded=\{isOpen\}/);
+  assert.doesNotMatch(source, /useState<TrendMode>|useState\(false\)/);
 });

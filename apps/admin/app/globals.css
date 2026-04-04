@@ -1138,19 +1138,6 @@ textarea {
   background: transparent;
   color: inherit;
   text-align: left;
-  cursor: pointer;
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-
-.analytics-page .daily-trends__summary:hover {
-  transform: translateY(-1px);
-}
-
-.analytics-page .daily-trends__summary:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
-  outline-offset: 8px;
 }
 
 .analytics-page .daily-trends__summary-copy {
@@ -1179,35 +1166,11 @@ textarea {
   white-space: nowrap;
 }
 
-.analytics-page .daily-trends__summary-meta span:first-child {
-  font-size: 0.9rem;
-}
-
-.analytics-page .daily-trends__chevron {
-  width: 0.7rem;
-  height: 0.7rem;
-  margin-top: -0.15rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg);
-  transition:
-    transform 160ms ease,
-    color 160ms ease;
-}
-
-.analytics-page .daily-trends__chevron--open {
-  transform: rotate(-135deg);
-}
-
 .analytics-page .daily-trends__body {
   display: grid;
   gap: 0.95rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
-}
-
-.analytics-page .daily-trends__switch {
-  width: fit-content;
 }
 
 .analytics-page .daily-trends__headline {
