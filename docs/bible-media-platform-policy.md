@@ -67,7 +67,8 @@ Current repo wiring:
 
 - mobile/runtime asset resolution uses `EXPO_PUBLIC_BIBLE_ASSET_BASE_URL`
 - translation catalogs may now store relative asset paths such as `audio/npiulb` or `text/npiulb/app.sqlite`
-- R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket and emits R2-flavored catalog files for staged imports
+- R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket, emits R2-flavored catalog files for staged imports, and regenerates `apps/site/lib/r2-text-pack-manifest.json` from the live `text/` objects in R2
+- the manifest can also be regenerated directly with `npm run manifest:text-packs` when operators need to realign the committed control-plane metadata with the bucket contents
 - the public delivery surface is now `https://everybible.app/api/media/...`, backed by the site app's server-side R2 proxy
 - the site app requires `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in Vercel to serve that proxy in production
 

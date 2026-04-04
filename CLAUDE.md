@@ -614,15 +614,17 @@ eas submit --platform android --profile production
 
 ### ⛔ TestFlight Distribution — MANDATORY 4-Step Flow
 
+**Default for `ship it`: Internal Testers only.**
+Do not mark a release done until the build is attached to the `Internal Testers` group and visible in TestFlight. `eas submit` only uploads the binary; upload success is not the finish line.
+
 `eas submit` only uploads the binary. **Build is invisible to ALL testers until these 4 steps are done.**
 This mistake has been made 4 times (builds 113, 115, 138, 142). Do not skip.
 
 **Step 1 — Poll until `processingState=VALID`** (~5-10 min after upload)
-**Step 2 — Attach to BOTH beta groups** via POST `/v1/builds/<id>/relationships/betaGroups`
+**Step 2 — Attach to the Internal Testers beta group** via POST `/v1/builds/<id>/relationships/betaGroups`
   - Internal: `3a75b4d5-cae0-4c9a-8880-890f486f605a`
-  - External: `f32e3138-d64b-4d40-9337-18a3a9096010`
-**Step 3 — Submit for external review** via POST `/v1/betaAppReviewSubmissions`
-**Step 4 — Verify** `internalBuildState=IN_BETA_TESTING` before telling user anything
+**Step 3 — Verify** the build appears in the Internal Testers group before telling user anything
+**Step 4 — Only if the user explicitly wants external testers:** attach the external beta group and submit for external review
 
 Use the Python JWT script in `~/.claude/projects/-Users-dev-Projects-EveryBible/memory/feedback_testflight_distribution.md`.
 ASC key: `~/.asc/AuthKey_766CTDMG96.p8` | App ID: `6758254335`

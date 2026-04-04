@@ -31,6 +31,15 @@ export interface AudioDownloadJobStore {
 export interface AudioDownloadBookProgress {
   translationId: string;
   bookId: string;
+  chapter?: number;
+  progress: number;
+  completedChapters: number;
+  totalChapters: number;
+}
+
+export interface AudioDownloadCollectionProgress {
+  translationId: string;
+  bookId: string;
   completedBooks: number;
   totalBooks: number;
 }
@@ -40,7 +49,8 @@ export interface AudioDownloadLifecycleHooks {
   onReattach?: (job: AudioDownloadJobRecord) => void;
   onFailure?: (job: AudioDownloadJobRecord, error: Error) => void;
   onComplete?: (job: AudioDownloadJobRecord) => void;
-  onBookComplete?: (progress: AudioDownloadBookProgress) => void;
+  onProgress?: (progress: AudioDownloadBookProgress) => void;
+  onBookComplete?: (progress: AudioDownloadCollectionProgress) => void;
 }
 
 export interface AudioFileSystemAdapter {
@@ -55,6 +65,7 @@ export interface AudioFileSystemAdapter {
       translationId?: string;
       bookId?: string;
       chapter?: number;
+      onProgress?: (progress: { bytesDownloaded: number; bytesTotal: number }) => void;
     }
   ) => Promise<void>;
   readTextFile?: (fileUri: string) => Promise<string | null>;
@@ -411,6 +422,14 @@ async function runWithConcurrency<T>(
   }
 }
 
+function clampProgress(progress: number): number {
+  if (!Number.isFinite(progress)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(progress)));
+}
+
 export async function downloadAudioBook({
   rootUri,
   translationId,
@@ -426,6 +445,7 @@ export async function downloadAudioBook({
   const activeTransport = transport ?? { downloadFile: fileSystem.downloadFile };
   const directoryUri = getBookAudioDirectoryUri(translationId, book.id, resolvedRootUri);
   const chapterTargets = buildAudioChapterTargets([book]);
+  const chapterProgressByNumber = new Map<number, number>();
   const job = await startAudioDownloadJob({
     translationId,
     scope: 'book',
@@ -434,10 +454,37 @@ export async function downloadAudioBook({
     hooks,
   });
 
+  const emitBookProgress = (chapter?: number): void => {
+    const totalChapters = chapterTargets.length;
+    if (totalChapters === 0) {
+      return;
+    }
+
+    const completedChapters = chapterTargets.reduce(
+      (count, target) => count + (chapterProgressByNumber.get(target.chapter) === 100 ? 1 : 0),
+      0
+    );
+    const aggregateProgress =
+      chapterTargets.reduce(
+        (sum, target) => sum + (chapterProgressByNumber.get(target.chapter) ?? 0),
+        0
+      ) / totalChapters;
+
+    hooks?.onProgress?.({
+      translationId,
+      bookId: book.id,
+      chapter,
+      progress: clampProgress(aggregateProgress),
+      completedChapters,
+      totalChapters,
+    });
+  };
+
   await fileSystem.ensureDirectory(directoryUri);
 
   try {
     await runWithConcurrency(chapterTargets, DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY, async (target) => {
+      chapterProgressByNumber.set(target.chapter, 0);
       const fileUri = getChapterAudioFileUri(
         translationId,
         target.bookId,
@@ -445,6 +492,8 @@ export async function downloadAudioBook({
         resolvedRootUri
       );
       if (await fileSystem.fileExists(fileUri)) {
+        chapterProgressByNumber.set(target.chapter, 100);
+        emitBookProgress(target.chapter);
         return;
       }
 
@@ -459,7 +508,16 @@ export async function downloadAudioBook({
         translationId,
         bookId: target.bookId,
         chapter: target.chapter,
+        onProgress: ({ bytesDownloaded, bytesTotal }) => {
+          const chapterProgress =
+            bytesTotal > 0 ? clampProgress((bytesDownloaded / bytesTotal) * 100) : 0;
+          chapterProgressByNumber.set(target.chapter, chapterProgress);
+          emitBookProgress(target.chapter);
+        },
       });
+
+      chapterProgressByNumber.set(target.chapter, 100);
+      emitBookProgress(target.chapter);
     });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));

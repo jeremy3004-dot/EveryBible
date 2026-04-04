@@ -25,7 +25,7 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
     return info.exists;
   },
   downloadFile: async (from, to) => {
-    await FileSystem.downloadAsync(from, to);
+      await FileSystem.downloadAsync(from, to);
   },
   readTextFile: async (fileUri) => {
     try {
@@ -52,7 +52,7 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
       '@kesha-antonov/react-native-background-downloader'
     );
 
-    return {
+  return {
       downloadFile: async (from, to, options) => {
         const jobId = options?.jobId;
         const taskId = options?.taskId ?? jobId;
@@ -73,6 +73,8 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
                 bookId: options?.bookId ?? '',
                 chapter: String(options?.chapter ?? ''),
               },
+            }).progress(({ bytesDownloaded, bytesTotal }) => {
+              options?.onProgress?.({ bytesDownloaded, bytesTotal });
             });
 
             task

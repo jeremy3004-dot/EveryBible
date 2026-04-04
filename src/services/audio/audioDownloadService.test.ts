@@ -277,6 +277,51 @@ test('downloadAudioBook uses bounded concurrency instead of downloading chapters
   assert.ok(peakConcurrency <= 4);
 });
 
+test('downloadAudioBook reports chapter progress while a book is downloading', async () => {
+  const philemon = getBookById('PHM');
+
+  assert.ok(philemon);
+
+  const progressEvents: Array<{
+    bookId: string;
+    completedChapters: number;
+    totalChapters: number;
+  }> = [];
+
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => undefined,
+    fileExists: async () => false,
+    downloadFile: async (_from, to, options) => {
+      options?.onProgress?.({ bytesDownloaded: 25, bytesTotal: 100 });
+      options?.onProgress?.({ bytesDownloaded: 100, bytesTotal: 100 });
+      assert.ok(to.includes('PHM'));
+    },
+  };
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: philemon,
+    fileSystem,
+    resolveRemoteAudio: async (_translationId, bookId, chapter) => ({
+      url: `https://audio.test/${bookId}/${chapter}.mp3`,
+      duration: 1000,
+    }),
+    hooks: {
+      onProgress: ({ bookId, completedChapters, totalChapters, progress }) => {
+        progressEvents.push({ bookId, completedChapters, totalChapters });
+        assert.ok(progress >= 0 && progress <= 100);
+      },
+    },
+  });
+
+  assert.ok(progressEvents.length >= 2);
+  assert.deepEqual(progressEvents.at(-1), {
+    bookId: 'PHM',
+    completedChapters: 1,
+    totalChapters: 1,
+  });
+});
+
 test('downloadAudioTranslation returns every fully-downloaded book id in order', async () => {
   const { fileSystem, downloads } = createFileSystemDouble();
   const selectedBooks = ['2JN', '3JN']

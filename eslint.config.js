@@ -123,6 +123,7 @@ module.exports = [
       'dist/',
       'build/',
       'scripts/',
+      'tmp/',
       'docs/plans/',
       '.eslintrc.js',
       'metro.config.js',

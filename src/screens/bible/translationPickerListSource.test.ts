@@ -254,8 +254,8 @@ test('translation picker renders collection, by-book, and text chip download act
 
   assert.match(
     source,
-    /chatbox-ellipses-outline[\s\S]*t\('audio\.showText'\)[\s\S]*(download-outline|checkmark-circle|ActivityIndicator)/,
-    'TranslationPickerList should render the text chip as icon, label, then download or completion state'
+    /downloadProgress\?\.translationId === translation\.id[\s\S]*downloadProgress\?\.progress[\s\S]*ActivityIndicator/,
+    'TranslationPickerList should render a live percentage beside the active download chip'
   );
 
   assert.equal(
@@ -274,6 +274,12 @@ test('translation picker renders collection, by-book, and text chip download act
     source.includes('textDownloadProgress'),
     false,
     'TranslationPickerList should not show the old inline text progress block'
+  );
+
+  assert.equal(
+    source.includes('downloadProgress?.progress'),
+    true,
+    'TranslationPickerList should read the shared download progress percent from the Bible store'
   );
 
   assert.equal(

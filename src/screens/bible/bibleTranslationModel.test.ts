@@ -379,4 +379,20 @@ test('translation search matches name, abbreviation, description, and language l
     filterTranslationsBySearchQuery(translations, 'नेपाली').map((translation) => translation.id),
     ['nnrv']
   );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(
+      [
+        {
+          id: 'rst',
+          name: 'Russian Synodal Bible',
+          abbreviation: 'RST',
+          description: 'Русский синодальный перевод',
+          language: 'Russian',
+        },
+      ],
+      'Русский'
+    ).map((translation) => translation.id),
+    ['rst']
+  );
 });
