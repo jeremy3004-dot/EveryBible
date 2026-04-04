@@ -59,8 +59,10 @@ export function filterInstallableCatalogEntries(
       entry.translation_id,
       entry.translation_id
     );
+    const hasPublishedTextPack = Boolean(entry.catalog?.text?.downloadUrl);
+    const hasInstallableText = !entry.has_text || entry.is_bundled || hasPublishedTextPack;
 
-    return currentVersionIds.has(resolvedBackendId);
+    return currentVersionIds.has(resolvedBackendId) && hasInstallableText;
   });
 }
 

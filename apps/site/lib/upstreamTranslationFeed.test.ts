@@ -14,6 +14,7 @@ test('upstream translation feed reads the committed R2 text-pack manifest and pu
   assert.match(source, /sourceTranslationId: 'eng-kjv'/);
   assert.match(source, /translationId: 'kjv'/);
   assert.match(source, /const skippedSourceIds = new Set\(FEED_OVERRIDES\.map/);
+  assert.match(source, /isAvailable: Boolean\(textPack\)/);
   assert.match(source, /dataChecksum: textPack\?\.sha256 \?\? null/);
   assert.match(source, /totalVerses: textPack\?\.verseCount \?\? null/);
 });

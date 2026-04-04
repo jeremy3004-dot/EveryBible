@@ -228,6 +228,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
       abbreviation: 'BBE',
       language_name: 'English',
       sort_order: 6,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/bbe.db',
+          format: 'sqlite',
+          sha256: 'bbe-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
     },
     {
       ...baseEntry,
@@ -236,6 +246,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
       abbreviation: 'BBE',
       language_name: 'English',
       sort_order: 100,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/engBBE.db',
+          format: 'sqlite',
+          sha256: 'engbbe-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
     },
     {
       ...baseEntry,
@@ -245,6 +265,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
       language_code: 'spa',
       language_name: 'Spanish',
       sort_order: 10,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/rvr.db',
+          format: 'sqlite',
+          sha256: 'rvr-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
     },
     {
       ...baseEntry,
@@ -254,6 +284,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
       language_code: 'spa',
       language_name: 'Spanish',
       sort_order: 100,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/spaRV1909.db',
+          format: 'sqlite',
+          sha256: 'sparv1909-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
     },
     {
       ...baseEntry,
@@ -272,6 +312,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
       language_code: 'npi',
       language_name: 'Nepali',
       sort_order: 100,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/npiulb.db',
+          format: 'sqlite',
+          sha256: 'npiulb-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
     },
     {
       ...baseEntry,
@@ -292,4 +342,24 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
     filtered.map((entry) => entry.translation_id).sort(),
     ['bbe', 'npiulb', 'sparv1909']
   );
+});
+
+test('filterInstallableCatalogEntries excludes runtime text translations that have no published text-pack download', () => {
+  const filtered = filterInstallableCatalogEntries(
+    [
+      {
+        ...baseEntry,
+        translation_id: 'npiulb',
+        name: 'Nepali Bible',
+        abbreviation: 'NPB',
+        language_code: 'npi',
+        language_name: 'Nepali',
+        sort_order: 5,
+        catalog: null,
+      },
+    ],
+    new Set(['npiulb'])
+  );
+
+  assert.deepEqual(filtered, []);
 });

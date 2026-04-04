@@ -284,7 +284,7 @@ function mapToUpstreamRecord(
     catalog: buildCatalogPayload(textPack),
     hasAudio: row.languageCode === 'eng',
     hasText: true,
-    isAvailable: true,
+    isAvailable: Boolean(textPack),
     languageCode: row.languageCode || 'und',
     languageName: row.languageNameInEnglish,
     licenseType: row.copyright ? 'copyright' : 'public-domain',
