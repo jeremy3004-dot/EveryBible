@@ -30,7 +30,7 @@
     "operator:typecheck": "npm run typecheck --workspace @everybible/openclaw-everybible",
     "operator:test": "npm run test --workspace @everybible/openclaw-everybible",
     "verify:expo-config": "npx expo config --json >/dev/null",
-    "release:verify": "npm run lint && npm run typecheck && npm run verify:expo-config && node --test --import tsx src/services/startup/runtimeConfig.test.ts src/services/startup/releaseMetadata.test.ts src/services/startup/iosNativeConfig.test.ts src/services/startup/startupBootSurface.test.ts src/stores/bibleStoreModel.test.ts src/stores/progressStoreSource.test.ts src/services/bible/bibleDatabaseSource.test.ts && npm run test:release",
+    "release:verify": "npm run lint && npm run typecheck && npm run verify:expo-config && node --test --import tsx src/services/startup/runtimeConfig.test.ts src/services/startup/releaseMetadata.test.ts src/services/startup/iosNativeConfig.test.ts src/services/startup/startupBootSurface.test.ts src/services/release/releaseSigningGuard.test.ts src/services/release/testflightReleaseGuardModel.test.ts src/stores/bibleStoreModel.test.ts src/stores/progressStoreSource.test.ts src/services/bible/bibleDatabaseSource.test.ts && npm run test:release",
     "testflight:guard": "tsx scripts/testflight_release_guard.ts",
     "release:prepare": "npm run release:verify && npm run testflight:guard",
     "testflight:verify-distribution": "bash scripts/testflight_verify_distribution.sh",

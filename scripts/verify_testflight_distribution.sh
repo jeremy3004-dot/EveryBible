@@ -15,11 +15,13 @@ Optional:
   --tester-id TESTER_ID            Beta tester ID to verify (used instead of email if provided)
   --group-id GROUP_ID              Beta group ID to verify
   --group-name NAME                Beta group name to resolve and verify
+  --attach-group-if-missing        Directly attach the build to the group if absent
   --attach-tester-if-missing       Directly attach the build to the tester if absent
 
 Behavior:
   - Verifies the requested build exists in App Store Connect and is VALID
   - Verifies requested tester/group distribution state
+  - Can directly attach the build to the beta group as a fallback
   - Can directly attach the build to the tester as a fallback
   - Exits non-zero if the build is not ready for the requested distribution target
 EOF
@@ -38,6 +40,7 @@ TESTER_EMAIL=""
 TESTER_ID=""
 GROUP_ID=""
 GROUP_NAME=""
+ATTACH_GROUP_IF_MISSING="false"
 ATTACH_TESTER_IF_MISSING="false"
 
 while [[ $# -gt 0 ]]; do
@@ -65,6 +68,10 @@ while [[ $# -gt 0 ]]; do
     --group-name)
       GROUP_NAME="${2:-}"
       shift 2
+      ;;
+    --attach-group-if-missing)
+      ATTACH_GROUP_IF_MISSING="true"
+      shift
       ;;
     --attach-tester-if-missing)
       ATTACH_TESTER_IF_MISSING="true"
@@ -185,6 +192,25 @@ PY
   )"
   echo "group_id=$GROUP_ID"
   echo "group_has_build=$GROUP_HAS_BUILD"
+
+  if [[ "$GROUP_HAS_BUILD" != "true" && "$ATTACH_GROUP_IF_MISSING" == "true" ]]; then
+    asc builds add-groups --build "$BUILD_ID" --group "$GROUP_ID" >/dev/null
+    asc testflight beta-groups relationships get --group-id "$GROUP_ID" --type builds --output json > "$GROUP_BUILDS_JSON"
+    GROUP_HAS_BUILD="$(
+      BUILD_ID_ENV="$BUILD_ID" python3 - "$GROUP_BUILDS_JSON" <<'PY'
+import json
+import os
+import sys
+
+payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+target = os.environ["BUILD_ID_ENV"]
+ids = {item.get("id") for item in payload.get("data", [])}
+print("true" if target in ids else "false")
+PY
+    )"
+    echo "group_build_attached=true"
+    echo "group_has_build=$GROUP_HAS_BUILD"
+  fi
 fi
 
 if [[ -z "$TESTER_ID" && -n "$TESTER_EMAIL" ]]; then

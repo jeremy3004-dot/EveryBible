@@ -23,6 +23,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 10. **Follow React Navigation v7 patterns** - Why: Stack/Tab navigators have specific type requirements
 11. **Bump all three DB version constants when rebuilding bible-bsb-v2.db** - Why: The upgrade gate in `ensureBundledDatabaseReady()` will silently skip re-importing the DB on existing devices if the thresholds aren't raised. Every rebuild of `bible-bsb-v2.db` MUST update in the same commit: (a) `PRAGMA user_version` in the DB file, (b) `BUNDLED_BIBLE_SCHEMA_VERSION` in `bibleDataModel.ts`, (c) `DEFAULT_MINIMUM_READY_VERSE_COUNT` in `bibleDatabase.ts`. Failing this caused ASV to be invisible on existing installs even though the bundled DB had the data.
 12. **For iOS TestFlight releases, prefer local EAS builds with remote Expo-managed credentials** - Why: This project can successfully run `eas build --platform ios --profile production --local` while EAS fetches signing assets from Expo's remote credential store. Missing local `credentials.json`, `.p12`, or `.mobileprovision` files are not a release blocker unless the flow explicitly requires manual local signing.
+13. **When the human says ship, treat it as finish-and-land-the-current-work** - Why: For EveryBible, `ship` means the current task should be brought to a clean end. The normal sequence is stage, commit, push to GitHub, merge or sync to `main`, push `main`, then finish the release path if it is a release. If the task is a release, that includes local EAS production build, TestFlight submission, and verification of the intended tester/group. If it is feature work, that means finish, test, and land it cleanly. Never stop at build completion or `eas submit` alone when the task is a release unless the user explicitly says no TestFlight.
 
 ---
 
@@ -106,6 +107,7 @@ eas build --platform ios --profile production --local
 - Do not treat absent local signing artifacts (`credentials.json`, `.p12`, `.mobileprovision`) as a blocker unless the release explicitly requires manual local credentials.
 - For TestFlight, do not stop at upload/submission. Use `npm run testflight:submit-and-verify` so the build is submitted and then verified against the intended tester/group before marking the release done.
 - If a build is already uploaded, use `npm run testflight:verify-distribution` to confirm the intended tester/group can actually see it before telling anyone it is live.
+- If TestFlight verification shows `tester_has_build=true` but `group_has_build=false`, attach the build to the beta group with `asc builds add-groups` or let the verify script do it automatically; a tester-only attachment is not enough to call the release done.
 
 ### Supabase
 ```bash
@@ -605,17 +607,20 @@ eas submit --platform android --profile production
 1. Update version in app.json
 2. Test on both platforms
 3. Run `npm run release:prepare` in a clean release worktree
-4. Build with EAS (production profile)
+4. Build with EAS locally (`eas build --platform ios --profile production --local`)
 5. Test builds via internal distribution or TestFlight, depending on profile
-6. Submit to stores
-7. Monitor crash reports
+6. Submit iOS by IPA path (`eas submit --platform ios --profile production --path /absolute/path/to/app.ipa --non-interactive --no-wait`)
+7. Submit Android to Play when applicable
+8. Monitor crash reports
 
-`npm run release:prepare` runs the release metadata checks and `scripts/testflight_release_guard.ts`, which fails fast if `origin/main` is out of sync or if the active keychain exposes multiple Apple Distribution identities.
+`npm run release:prepare` runs the release metadata checks and `scripts/testflight_release_guard.ts`, which now fails fast if the EAS remote iOS build number has drifted away from App Store Connect latest + 1 or if someone accidentally switched the repo into stale local-signing mode. It still records whether `HEAD` matches `origin/main` for traceability, but it does not block intentional side-branch TestFlight builds.
 
 ### ⛔ TestFlight Distribution — MANDATORY 4-Step Flow
 
-**Default for `ship it`: Internal Testers only.**
+**Default for `ship it`: land on `main`, then Internal Testers only.**
 Do not mark a release done until the build is attached to the `Internal Testers` group and visible in TestFlight. `eas submit` only uploads the binary; upload success is not the finish line.
+
+Side-branch TestFlight builds are allowed when you intentionally want testers to exercise branch work before it lands on `main`.
 
 `eas submit` only uploads the binary. **Build is invisible to ALL testers until these 4 steps are done.**
 This mistake has been made 4 times (builds 113, 115, 138, 142). Do not skip.
