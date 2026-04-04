@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-test('admin shell exposes a floating operator launcher without quick links', async () => {
+test('admin shell exposes a floating operator launcher without extra chrome', async () => {
   const componentSource = await readFile(
     path.join(repoRoot, 'apps/admin/components/OperatorLauncher.tsx'),
     'utf8'
@@ -28,17 +28,26 @@ test('admin shell exposes a floating operator launcher without quick links', asy
   assert.match(componentSource, /const \[isOpen, setIsOpen\] = useState\(false\);/);
   assert.match(componentSource, /aria-expanded=\{isOpen\}/);
   assert.match(componentSource, /Read-only answers grounded in live admin data\./);
-  assert.match(componentSource, /Read-only helper\./);
-  assert.match(componentSource, /Chat is offline until OPENAI_API_KEY is set in Vercel/);
+  assert.match(componentSource, /Ask me about admin health, audit trail, or translations\./);
   assert.match(componentSource, /\/api\/operator\/chat/);
   assert.doesNotMatch(componentSource, /Open audit trail/);
   assert.doesNotMatch(componentSource, /Review health/);
   assert.doesNotMatch(componentSource, /Check translations/);
+  assert.doesNotMatch(componentSource, /New chat/);
+  assert.doesNotMatch(componentSource, /Read-only helper/);
+  assert.doesNotMatch(componentSource, /Live chat is ready/);
+  assert.doesNotMatch(componentSource, /Chat is offline until OPENAI_API_KEY/);
+  assert.doesNotMatch(componentSource, /StatusPill/);
+  assert.doesNotMatch(componentSource, /operator-launcher__toggle-status/);
+  assert.doesNotMatch(componentSource, /operator-launcher__header-actions/);
+  assert.doesNotMatch(componentSource, /operator-launcher__reset/);
+  assert.doesNotMatch(componentSource, /operator-launcher__status/);
+  assert.doesNotMatch(componentSource, /operator-launcher__note/);
+  assert.doesNotMatch(componentSource, /operator-launcher__toggle-eyebrow/);
   assert.doesNotMatch(componentSource, /operator-launcher__links/);
   assert.doesNotMatch(componentSource, /DEFAULT_PROMPTS/);
   assert.doesNotMatch(componentSource, /operator-launcher__prompts/);
   assert.doesNotMatch(componentSource, /operator-launcher__mark/);
-  assert.doesNotMatch(componentSource, /operator-launcher__eyebrow/);
   assert.match(routeSource, /OPENAI_API_KEY/);
   assert.match(chatSource, /chat\/completions/);
   assert.match(chatSource, /gpt-5\.4-mini/);
