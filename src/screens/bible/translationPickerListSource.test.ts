@@ -225,36 +225,6 @@ test('shared translation picker can filter by language and download runtime tran
     /setPreferredTranslationLanguage\(/,
     'TranslationPickerList should persist language changes through the Bible store so every entry point stays aligned'
   );
-
-  assert.equal(
-    source.includes("t('translations.languagePreference')"),
-    true,
-    "TranslationPickerList should label the top row as the user's language preference"
-  );
-
-  assert.equal(
-    source.includes("t('translations.myTranslations')"),
-    true,
-    'TranslationPickerList should render a dedicated My Translations section above the language catalog'
-  );
-
-  assert.equal(
-    source.includes('getTranslationLanguageDisplayLabel'),
-    true,
-    'TranslationPickerList should render language labels with native-script support where available'
-  );
-
-  assert.match(
-    source,
-    /pickerMode === 'languages'/,
-    'TranslationPickerList should support a dedicated languages mode instead of only inline language pills'
-  );
-
-  assert.match(
-    source,
-    /setPreferredTranslationLanguage\(/,
-    'TranslationPickerList should persist language changes through the Bible store so every entry point stays aligned'
-  );
 });
 
 test('translation picker keeps the sheet open while a runtime translation still needs download', () => {
