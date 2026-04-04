@@ -25,6 +25,7 @@ export const bibleTranslations: BibleTranslation[] = [
           updatedAt: '2026-03-26T00:00:00.000Z',
           audio: {
             strategy: 'stream-template',
+            coverage: 'full-bible',
             baseUrl: `${AUDIO_BUCKET_BASE}/bsb`,
             chapterPathTemplate: '{bookId}/{chapter}.m4a',
             fileExtension: 'm4a',
@@ -54,6 +55,7 @@ export const bibleTranslations: BibleTranslation[] = [
           updatedAt: '2026-04-03T00:00:00.000Z',
           audio: {
             strategy: 'stream-template',
+            coverage: 'full-bible',
             baseUrl: `${AUDIO_BUCKET_BASE}/web`,
             chapterPathTemplate: '{bookId}/{chapter}.mp3',
             fileExtension: 'mp3',

@@ -91,6 +91,8 @@ export const ru = {
     title: 'Библия',
     oldTestament: 'Ветхий Завет',
     newTestament: 'Новый Завет',
+    fullBible: 'Вся Библия',
+    byBook: 'По книге',
     chapters: 'главы',
     chapter: 'Глава',
     verse: 'Стих',

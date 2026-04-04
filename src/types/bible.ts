@@ -40,6 +40,7 @@ export type TranslationInstallState =
 export type TranslationTextFormat = 'sqlite';
 export type TranslationAudioStrategy = 'provider' | 'stream-template' | 'audio-pack';
 export type TranslationTimingStrategy = 'stream-template';
+export type TranslationAudioCoverage = 'full-bible' | 'new-testament' | 'partial';
 export type TranslationDownloadJobKind =
   | 'text-pack'
   | 'audio-pack'
@@ -64,6 +65,7 @@ export interface TranslationTextCatalog {
 
 export interface TranslationAudioCatalog {
   strategy: TranslationAudioStrategy;
+  coverage?: TranslationAudioCoverage;
   provider?: AudioProvider;
   baseUrl?: string;
   chapterPathTemplate?: string;

@@ -22,12 +22,13 @@ type ScriptArgs = {
 type CatalogPayload = {
   version: string;
   updatedAt: string;
-  audio: {
-    strategy: 'stream-template';
-    baseUrl: string;
-    chapterPathTemplate: string;
-    fileExtension: 'mp3';
-    mimeType: 'audio/mpeg';
+    audio: {
+      strategy: 'stream-template';
+      coverage: 'new-testament';
+      baseUrl: string;
+      chapterPathTemplate: string;
+      fileExtension: 'mp3';
+      mimeType: 'audio/mpeg';
   };
   timing: {
     strategy: 'stream-template';
@@ -158,6 +159,7 @@ function buildCatalogPayload(translationId: string, generatedAt: string): Catalo
     updatedAt: generatedAt,
     audio: {
       strategy: 'stream-template',
+      coverage: 'new-testament',
       baseUrl: `${supabaseUrl}/storage/v1/object/public/bible-audio/${translationId}`,
       chapterPathTemplate: '{bookId}/{chapter}.mp3',
       fileExtension: 'mp3',

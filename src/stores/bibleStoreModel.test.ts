@@ -39,9 +39,19 @@ function makeTranslation(overrides: Partial<BibleTranslation> & Pick<BibleTransl
   };
 }
 
-test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog overlaps seeded translations', () => {
+test('mergeRuntimeCatalogTranslations keeps downloaded bundled translations but replaces bundled placeholders with runtime entries', () => {
   const merged = mergeRuntimeCatalogTranslations(
     [
+      makeTranslation({
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        hasText: true,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        audioProvider: 'ebible-webbe',
+        source: 'bundled',
+        isDownloaded: true,
+      }),
       makeTranslation({
         id: 'web',
         name: 'World English Bible',
@@ -59,6 +69,24 @@ test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog over
       }),
     ],
     [
+      makeTranslation({
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        hasText: true,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        catalog: {
+          version: '2026.03.26',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+          text: {
+            format: 'sqlite',
+            version: '2026.03.26',
+            downloadUrl: 'https://cdn.example.com/bsb.sqlite',
+            sha256: 'sha-bsb',
+          },
+        },
+      }),
       makeTranslation({
         id: 'web',
         name: 'World English Bible',
@@ -117,14 +145,22 @@ test('mergeRuntimeCatalogTranslations keeps ids unique when runtime catalog over
 
   assert.deepEqual(
     merged.map((translation) => translation.id),
-    ['web', 'kjv', 'hincv']
+    ['bsb', 'web', 'kjv', 'hincv']
   );
+
+  const bsb = merged.find((translation) => translation.id === 'bsb');
+  assert.ok(bsb);
+  assert.equal(bsb.source, 'bundled');
+  assert.equal(bsb.isDownloaded, true);
+  assert.equal(bsb.audioProvider, 'ebible-webbe');
+  assert.equal(bsb.catalog?.text?.downloadUrl, 'https://cdn.example.com/bsb.sqlite');
 
   const web = merged.find((translation) => translation.id === 'web');
   assert.ok(web);
-  assert.equal(web.source, 'bundled');
+  assert.equal(web.source, 'runtime');
   assert.equal(web.hasText, true);
-  assert.equal(web.audioProvider, 'ebible-webbe');
+  assert.equal(web.audioProvider, undefined);
+  assert.equal(web.catalog?.text?.downloadUrl, 'https://cdn.example.com/web.sqlite');
 
   const kjv = merged.find((translation) => translation.id === 'kjv');
   assert.ok(kjv);

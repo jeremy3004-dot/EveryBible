@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
+  filterTranslationsBySearchQuery,
+  getTranslationAudioCollectionActions,
   getVisibleTranslationsForPicker,
   getTranslationLanguageDisplayLabel,
   resolvePreferredTranslationLanguage,
@@ -103,6 +105,23 @@ test('runtime text translations without an installed local pack require download
   });
 });
 
+test('runtime translations with downloadable text should still prompt text install when audio is unavailable', () => {
+  const state = getTranslationSelectionState({
+    isDownloaded: false,
+    hasText: true,
+    hasAudio: true,
+    canPlayAudio: false,
+    hasDownloadableTextPack: true,
+    source: 'runtime',
+    textPackLocalPath: null,
+  });
+
+  assert.deepEqual(state, {
+    isSelectable: false,
+    reason: 'download-required',
+  });
+});
+
 test('runtime text translations become selectable once the local pack exists', () => {
   const state = getTranslationSelectionState({
     isDownloaded: false,
@@ -135,6 +154,55 @@ test('runtime text translations without an R2 text pack stay marked as coming so
     isSelectable: false,
     reason: 'coming-soon',
   });
+});
+
+test('known full-audio translations expose full Bible and New Testament collection actions', () => {
+  assert.deepEqual(
+    getTranslationAudioCollectionActions({
+      id: 'bsb',
+      catalog: {
+        version: '2026.03.26',
+        updatedAt: '2026-03-26T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+          coverage: 'full-bible',
+        },
+      },
+    }),
+    ['full-bible', 'new-testament']
+  );
+});
+
+test('NT-only audio catalogs expose a New Testament collection action', () => {
+  assert.deepEqual(
+    getTranslationAudioCollectionActions({
+      id: 'npiulb',
+      catalog: {
+        version: '2026.04.04-open-bible-nt-media-v1',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+        },
+      },
+    }),
+    ['new-testament']
+  );
+});
+
+test('translations without collection coverage fall back to by-book audio only', () => {
+  assert.deepEqual(
+    getTranslationAudioCollectionActions({
+      id: 'mystery-audio',
+      catalog: {
+        version: '2026.04.04',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+        },
+      },
+    }),
+    []
+  );
 });
 
 test('picker hides unreadable runtime placeholders while the runtime catalog is still hydrating', () => {
@@ -269,5 +337,46 @@ test('translation picker sections split local translations from the preferred la
   assert.deepEqual(
     sections.availableTranslations.map((translation) => translation.id),
     ['niv']
+  );
+});
+
+test('translation search matches name, abbreviation, description, and language label fuzzily', () => {
+  const translations = [
+    {
+      id: 'kjvcpb',
+      name: 'KJV Cambridge Paragraph',
+      abbreviation: 'KJVCPB',
+      description: 'Classic English paragraph edition',
+      language: 'English',
+    },
+    {
+      id: 'nnrv',
+      name: 'Nepali New Revised Version',
+      abbreviation: 'NNRV',
+      description: 'Modern Nepali Bible translation',
+      language: 'Nepali',
+    },
+  ];
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'cambrdg').map((translation) => translation.id),
+    ['kjvcpb']
+  );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'nnrv').map((translation) => translation.id),
+    ['nnrv']
+  );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'modern nepali').map(
+      (translation) => translation.id
+    ),
+    ['nnrv']
+  );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'नेपाली').map((translation) => translation.id),
+    ['nnrv']
   );
 });

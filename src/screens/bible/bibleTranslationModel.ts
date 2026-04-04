@@ -1,3 +1,5 @@
+import type { BibleTranslation, TranslationAudioCoverage } from '../../types';
+
 export interface TranslationSelectionState {
   isSelectable: boolean;
   reason: 'coming-soon' | 'download-required' | 'audio-unavailable' | null;
@@ -28,6 +30,8 @@ interface TranslationPickerVisibilityOptions {
   hasHydratedRuntimeCatalog: boolean;
 }
 
+export type TranslationAudioCollectionAction = 'full-bible' | 'new-testament';
+
 const TRANSLATION_LANGUAGE_NATIVE_LABELS: Record<string, string> = {
   arabic: 'العربية',
   bengali: 'বাংলা',
@@ -52,8 +56,41 @@ const TRANSLATION_LANGUAGE_NATIVE_LABELS: Record<string, string> = {
   vietnamese: 'Tiếng Việt',
 };
 
+const KNOWN_FULL_AUDIO_TRANSLATION_IDS = new Set(['bsb', 'web']);
+
 export function normalizeTranslationLanguage(language: string | null | undefined): string {
   return language?.trim() || 'Other';
+}
+
+function normalizeTranslationSearchText(value: string | null | undefined): string {
+  return (value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f\u0980-\u09ff\u0600-\u06ff\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff]+/g, ' ')
+    .trim();
+}
+
+function fuzzyTokenMatches(haystack: string, token: string): boolean {
+  if (!token) {
+    return true;
+  }
+
+  if (haystack.includes(token)) {
+    return true;
+  }
+
+  let tokenIndex = 0;
+  for (const char of haystack) {
+    if (char === token[tokenIndex]) {
+      tokenIndex += 1;
+      if (tokenIndex === token.length) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 export function getTranslationLanguageDisplayLabel(language: string | null | undefined): string {
@@ -147,6 +184,74 @@ export const filterTranslationsByLanguage = <T extends { language: string | null
   );
 };
 
+export const filterTranslationsBySearchQuery = <
+  T extends {
+    name: string;
+    abbreviation?: string | null | undefined;
+    description?: string | null | undefined;
+    language: string | null | undefined;
+  }
+>(
+  translations: T[],
+  query: string
+): T[] => {
+  const normalizedQuery = normalizeTranslationSearchText(query);
+  if (!normalizedQuery) {
+    return translations;
+  }
+
+  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return translations.filter((translation) => {
+    const haystack = normalizeTranslationSearchText(
+      [
+        translation.name,
+        translation.abbreviation,
+        translation.description,
+        normalizeTranslationLanguage(translation.language),
+        getTranslationLanguageDisplayLabel(translation.language),
+      ].join(' ')
+    );
+
+    return queryTokens.every((token) => fuzzyTokenMatches(haystack, token));
+  });
+};
+
+function inferTranslationAudioCoverage(
+  translation: Pick<BibleTranslation, 'id' | 'catalog'>
+): TranslationAudioCoverage | null {
+  const explicitCoverage = translation.catalog?.audio?.coverage;
+  if (explicitCoverage) {
+    return explicitCoverage;
+  }
+
+  if (translation.catalog?.version?.includes('open-bible-nt')) {
+    return 'new-testament';
+  }
+
+  if (KNOWN_FULL_AUDIO_TRANSLATION_IDS.has(translation.id)) {
+    return 'full-bible';
+  }
+
+  return null;
+}
+
+export function getTranslationAudioCollectionActions(
+  translation: Pick<BibleTranslation, 'id' | 'catalog'>
+): TranslationAudioCollectionAction[] {
+  const coverage = inferTranslationAudioCoverage(translation);
+
+  if (coverage === 'full-bible') {
+    return ['full-bible', 'new-testament'];
+  }
+
+  if (coverage === 'new-testament') {
+    return ['new-testament'];
+  }
+
+  return [];
+}
+
 export const buildTranslationPickerSections = <
   T extends {
     id: string;
@@ -225,14 +330,14 @@ export const getTranslationSelectionState = ({
     return { isSelectable: true, reason: null };
   }
 
+  if (hasText && source === 'runtime' && hasDownloadableTextPack) {
+    return { isSelectable: false, reason: 'download-required' };
+  }
+
   if (hasAudio) {
     return canPlayAudio
       ? { isSelectable: true, reason: null }
       : { isSelectable: false, reason: 'audio-unavailable' };
-  }
-
-  if (hasText && source === 'runtime' && hasDownloadableTextPack) {
-    return { isSelectable: false, reason: 'download-required' };
   }
 
   return { isSelectable: false, reason: 'coming-soon' };

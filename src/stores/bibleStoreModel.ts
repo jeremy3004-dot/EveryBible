@@ -7,7 +7,7 @@ function shouldPreserveBundledTranslation(
     return false;
   }
 
-  return existing.hasText || existing.isDownloaded;
+  return existing.isDownloaded || Boolean(existing.textPackLocalPath);
 }
 
 export function mergeRuntimeCatalogTranslations(

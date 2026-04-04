@@ -100,6 +100,8 @@ export const hi = {
     title: 'बाइबिल',
     oldTestament: 'पुराना नियम',
     newTestament: 'नया करार',
+    fullBible: 'पूरी बाइबिल',
+    byBook: 'पुस्तक अनुसार',
     chapters: 'अध्याय',
     chapter: 'अध्याय',
     verse: 'कविता',

@@ -100,6 +100,8 @@ export const es = {
     title: 'Biblia',
     oldTestament: 'Antiguo Testamento',
     newTestament: 'Nuevo Testamento',
+    fullBible: 'Biblia completa',
+    byBook: 'Por libro',
     chapters: 'capítulos',
     chapter: 'Capítulo',
     verse: 'Versículo',

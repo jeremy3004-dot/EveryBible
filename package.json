@@ -47,7 +47,8 @@
     "codegen-timestamps": "node scripts/codegen-timestamps.mjs",
     "extract-verse-text": "python3 scripts/extract_verse_text.py",
     "catalog:translation": "tsx scripts/upsert-translation-catalog.ts",
-    "import:open-bible-audio": "tsx scripts/import-open-bible-audio.ts"
+    "import:open-bible-audio": "tsx scripts/import-open-bible-audio.ts",
+    "manifest:text-packs": "tsx scripts/generate-r2-text-pack-manifest.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -35,6 +35,72 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes('textDownloadButton'),
+    false,
+    'TranslationPickerList should not keep a separate text button block once the action is merged into the chip row'
+  );
+
+  assert.equal(
+    source.includes("t('translations.download')"),
+    true,
+    'TranslationPickerList should keep the text download prompt short and explicit'
+  );
+
+  assert.equal(
+    source.includes("t('bible.audioDownloads')"),
+    true,
+    'TranslationPickerList should still label the audio modal'
+  );
+
+  assert.equal(
+    source.includes('filterTranslationsBySearchQuery'),
+    true,
+    'TranslationPickerList should filter the visible translation list through the shared fuzzy search helper'
+  );
+
+  assert.equal(
+    source.includes('translation-picker-search'),
+    true,
+    'TranslationPickerList should render a search bar at the top of the picker'
+  );
+
+  assert.equal(
+    source.includes('numberOfLines={1}'),
+    true,
+    'TranslationPickerList should keep long translation names on one line and let the name truncate before the code'
+  );
+
+  assert.equal(
+    source.includes('audioDownloadHeader'),
+    false,
+    'TranslationPickerList should not render a separate audio heading above the chips'
+  );
+
+  assert.equal(
+    source.includes('translationMeta'),
+    false,
+    'TranslationPickerList should remove the noisy metadata row from each translation card'
+  );
+
+  assert.equal(
+    source.includes('translationSize'),
+    false,
+    'TranslationPickerList should not render per-translation size labels in the card body'
+  );
+
+  assert.equal(
+    source.includes('downloadedBadge'),
+    false,
+    'TranslationPickerList should not render the old inline status badge row'
+  );
+
+  assert.equal(
+    source.includes('time-outline'),
+    false,
+    'TranslationPickerList should remove the old clock icon status hint from the card metadata row'
+  );
+
+  assert.equal(
     source.includes('ensureRuntimeCatalogLoaded'),
     true,
     'TranslationPickerList should hydrate the runtime catalog on mount so fresh installs do not leave cloud translations stuck as coming soon'
@@ -66,7 +132,7 @@ test('shared translation picker can filter by language and download runtime tran
 
   assert.match(
     source,
-    /translationItem:[\s\S]*minHeight:\s*80,[\s\S]*paddingVertical:\s*12/,
+    /translationItem:[\s\S]*minHeight:\s*68,[\s\S]*paddingVertical:\s*10/,
     'TranslationPickerList should keep each translation card compact so more rows stay close together'
   );
 
@@ -79,19 +145,55 @@ test('shared translation picker can filter by language and download runtime tran
   assert.equal(
     source.includes('downloadAudioForBooks'),
     true,
-    'TranslationPickerList should route testament audio downloads through the batched store action instead of per-book serial loops'
+    'TranslationPickerList should use the shared batch audio download action for collection audio buttons'
   );
 
   assert.equal(
-    source.includes('Full Bible'),
+    source.includes("t('bible.fullBible')"),
     true,
-    'TranslationPickerList should use the shorter Full Bible label to help the audio chips stay on one row'
+    'TranslationPickerList should use the localized full-bible label when the row can wrap cleanly'
+  );
+
+  assert.equal(
+    source.includes("t('bible.oldTestament')"),
+    false,
+    'TranslationPickerList should not render a separate Old Testament audio download option'
+  );
+
+  assert.equal(
+    source.includes("t('bible.byBook')"),
+    true,
+    'TranslationPickerList should keep the book-by-book audio action while localizing the label'
+  );
+
+  assert.equal(
+    source.includes("t('bible.newTestament')"),
+    true,
+    'TranslationPickerList should support a New Testament audio chip when only NT collection audio is available'
+  );
+
+  assert.equal(
+    source.includes('Download by book'),
+    false,
+    'TranslationPickerList should stop using the longer book-by-book label'
+  );
+
+  assert.equal(
+    source.includes('chatbox-ellipses-outline'),
+    true,
+    'TranslationPickerList should render the text action with a text/message icon'
+  );
+
+  assert.equal(
+    source.includes('audioDownloadByBook'),
+    false,
+    'TranslationPickerList should render the book-by-book action as the same chip style as Full Bible'
   );
 
   assert.match(
     source,
-    /audioDownloadButtons:[\s\S]*flexWrap:\s*'nowrap'/,
-    'TranslationPickerList should keep the audio download chip row on a single line'
+    /audioDownloadButtons:[\s\S]*flexWrap:\s*'wrap'/,
+    'TranslationPickerList should let the audio chip row wrap to a second line when needed'
   );
 
   assert.equal(
@@ -141,24 +243,66 @@ test('translation picker keeps the sheet open while a runtime translation still 
   );
 });
 
-test('translation picker shows inline progress for the active Bible text download', () => {
+test('translation picker renders collection, by-book, and text chip download actions', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
 
   assert.match(
     source,
-    /const downloadProgress = useBibleStore\(\(state\) => state\.downloadProgress\);/,
-    'TranslationPickerList should subscribe to the shared text download progress so the active translation row can show live install state'
+    /<View style=\{styles\.audioDownloadButtons\}>[\s\S]*t\('bible\.fullBible'\)[\s\S]*t\('bible\.newTestament'\)[\s\S]*t\('bible\.byBook'\)[\s\S]*chatbox-ellipses-outline[\s\S]*t\('audio\.showText'\)/,
+    'TranslationPickerList should render Full Bible, New Testament, By book, and icon-plus-Text chips'
   );
 
   assert.match(
     source,
-    /const isTextDownloadActive =[\s\S]*downloadProgress\?\.translationId === translation\.id && !downloadProgress\.bookId;/,
-    'TranslationPickerList should recognize the currently-downloading Bible text translation row'
+    /chatbox-ellipses-outline[\s\S]*t\('audio\.showText'\)[\s\S]*(download-outline|checkmark-circle|ActivityIndicator)/,
+    'TranslationPickerList should render the text chip as icon, label, then download or completion state'
+  );
+
+  assert.equal(
+    source.includes('audioDownloadHeader'),
+    false,
+    'TranslationPickerList should not render a separate audio heading above the chips'
+  );
+
+  assert.equal(
+    source.includes('Download by book'),
+    false,
+    'TranslationPickerList should not use the longer book-by-book label'
+  );
+
+  assert.equal(
+    source.includes('textDownloadProgress'),
+    false,
+    'TranslationPickerList should not show the old inline text progress block'
+  );
+
+  assert.equal(
+    source.includes("t('audio.showText')"),
+    true,
+    'TranslationPickerList should render the Text label again now that the row can wrap'
+  );
+
+  assert.equal(
+    source.includes('headset-outline'),
+    true,
+    'TranslationPickerList should keep the headphones icon on the audio chips'
+  );
+
+  assert.equal(
+    source.includes('checkmark-circle'),
+    true,
+    'TranslationPickerList should use a green check icon when a download is complete'
+  );
+
+  assert.equal(
+    source.includes('downloadAudioForBooks'),
+    true,
+    'TranslationPickerList should use the shared batch audio download action for collection audio buttons like New Testament'
   );
 
   assert.match(
     source,
-    /ActivityIndicator size="small" color=\{colors\.bibleAccent\} \/>[\s\S]*textDownloadStatusLabel/,
-    'TranslationPickerList should show a visible spinner and percent complete inside the active translation row while the Bible text pack downloads'
+    /audioDownloadChip:[\s\S]*paddingHorizontal:\s*10,[\s\S]*paddingVertical:\s*6/,
+    'TranslationPickerList should keep the pills readable without making them oversized'
   );
 });
