@@ -55,6 +55,12 @@ const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
 const SEARCH_RESULT_ESTIMATED_SIZE = 118;
 
+function getBibleBrowserRowIndex(bookId: string) {
+  return bibleBrowserRows.findIndex(
+    (row) => row.type === 'books' && row.books[0]?.id === bookId
+  );
+}
+
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
@@ -64,21 +70,24 @@ export function BibleBrowserScreen() {
   const route = useRoute<BibleBrowserRoute>();
   const { colors } = useTheme();
   const { t, currentLanguage } = useI18n();
+  const currentBook = useBibleStore((state) => state.currentBook);
   const initialBookId = route.params?.initialBookId ?? null;
-  const initialExpandedBookId =
-    initialBookId != null && getBookById(initialBookId) ? initialBookId : null;
-  const [expandedBookId, setExpandedBookId] = useState<string | null>(initialExpandedBookId);
+  const hasExplicitInitialBook = initialBookId != null && Boolean(getBookById(initialBookId));
+  const resolvedInitialBookId = hasExplicitInitialBook ? initialBookId : currentBook;
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(resolvedInitialBookId);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
+  const browserListRef = useRef<FlashList<BibleBrowserRow> | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
+  const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
 
   const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
   const isPickerModal = route.name === 'BiblePicker';
@@ -94,8 +103,29 @@ export function BibleBrowserScreen() {
   const searchUnavailableMessage = t('bible.searchUnavailable');
 
   useEffect(() => {
-    setExpandedBookId(initialExpandedBookId);
-  }, [initialExpandedBookId]);
+    if (hasExplicitInitialBook) {
+      return;
+    }
+
+    setExpandedBookId(currentBook);
+
+    const rowIndex = getBibleBrowserRowIndex(currentBook);
+    if (rowIndex < 0) {
+      return;
+    }
+
+    const animationFrameId = requestAnimationFrame(() => {
+      browserListRef.current?.scrollToIndex({
+        index: rowIndex,
+        animated: false,
+        viewPosition: 0.15,
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [currentBook, hasExplicitInitialBook]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -455,7 +485,9 @@ export function BibleBrowserScreen() {
         </TouchableOpacity>
       ) : (
         <FlashList
+          ref={browserListRef}
           data={bibleBrowserRows}
+          initialScrollIndex={initialScrollIndex}
           renderItem={renderRow}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
