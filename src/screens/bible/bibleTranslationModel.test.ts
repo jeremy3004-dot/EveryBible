@@ -4,6 +4,7 @@ import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
   filterTranslationsBySearchQuery,
+  getTranslationAvailabilitySummary,
   getTranslationAudioCollectionActions,
   getTranslationAudioBookIds,
   getVisibleTranslationsForPicker,
@@ -395,6 +396,26 @@ test('translation search matches name, abbreviation, description, and language l
       abbreviation: 'KJVCPB',
       description: 'Classic English paragraph edition',
       language: 'English',
+      hasText: true,
+      hasAudio: false,
+      catalog: undefined,
+    },
+    {
+      id: 'benbcv',
+      name: 'Bengali Contemporary Version',
+      abbreviation: 'BCV',
+      description: 'Spoken Bengali narration',
+      language: 'Bengali',
+      hasText: false,
+      hasAudio: true,
+      catalog: {
+        version: '2026.04.05-open-bible-audio-v1',
+        updatedAt: '2026-04-05T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template' as const,
+          coverage: 'full-bible' as const,
+        },
+      },
     },
     {
       id: 'nnrv',
@@ -402,11 +423,16 @@ test('translation search matches name, abbreviation, description, and language l
       abbreviation: 'NNRV',
       description: 'Modern Nepali Bible translation',
       language: 'Nepali',
+      hasText: true,
+      hasAudio: false,
+      catalog: undefined,
     },
   ];
 
   assert.deepEqual(
-    filterTranslationsBySearchQuery(translations, 'cambrdg').map((translation) => translation.id),
+    filterTranslationsBySearchQuery(translations, 'paragraph edition').map(
+      (translation) => translation.id
+    ),
     ['kjvcpb']
   );
 
@@ -420,6 +446,18 @@ test('translation search matches name, abbreviation, description, and language l
       (translation) => translation.id
     ),
     ['nnrv']
+  );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'benbcv audio').map((translation) => translation.id),
+    ['benbcv']
+  );
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'old testament audio').map(
+      (translation) => translation.id
+    ),
+    ['benbcv']
   );
 
   assert.deepEqual(
@@ -441,5 +479,33 @@ test('translation search matches name, abbreviation, description, and language l
       'Русский'
     ).map((translation) => translation.id),
     ['rst']
+  );
+});
+
+test('availability summary labels text and audio coverage compactly', () => {
+  assert.equal(
+    getTranslationAvailabilitySummary(
+      {
+        id: 'npiulb',
+        hasText: true,
+        hasAudio: true,
+        catalog: {
+          version: '2026.04.05-open-bible-audio-v1',
+          updatedAt: '2026-04-05T00:00:00.000Z',
+          audio: {
+            strategy: 'stream-template' as const,
+            coverage: 'new-testament' as const,
+          },
+        },
+      },
+      (key) =>
+        ({
+          'audio.showText': 'Text',
+          'bible.audioDownloads': 'Audio',
+          'bible.fullBible': 'Full Bible',
+          'bible.newTestament': 'New Testament',
+        })[key] ?? key
+    ),
+    'Text • Audio (New Testament)'
   );
 });

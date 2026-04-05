@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-04-05T08:41:43.964Z",
+  "openBibleRoot": "/Volumes/Extreme SSD/OpenBible",
+  "translations": [
+    {
+      "translationId": "npiulb",
+      "name": "Nepali Unlocked Literal Bible (ULB)",
+      "abbreviation": "NPB",
+      "sortOrder": 400,
+      "languageCode": "npi",
+      "languageName": "Nepali",
+      "textDirection": "ltr",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "6311b8b12131fe7f0296b208"
+      ],
+      "audioCoverage": "new-testament",
+      "timingMode": "full-only",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": true,
+      "textPackTranslationId": "npiulb",
+      "notes": "Requested unlocked Nepali pilot. Audio coverage is New Testament only.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "hincv",
+      "name": "Hindi Contemporary Version",
+      "abbreviation": "HCV",
+      "sortOrder": 401,
+      "languageCode": "hin",
+      "languageName": "Hindi",
+      "textDirection": "ltr",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "63b095c30b35b1774249013d"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "full-only",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": true,
+      "textPackTranslationId": "hincv",
+      "notes": "Full-Bible Hindi pilot with matching timing.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "hin2017",
+      "name": "Hindi Indian Revised Version",
+      "abbreviation": "IRV",
+      "sortOrder": 402,
+      "languageCode": "hin",
+      "languageName": "Hindi",
+      "textDirection": "ltr",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "61f9ed8ac26fb60d49614b1b",
+        "61f99306c26fb60d495e832e"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "none",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": true,
+      "textPackTranslationId": "hin2017",
+      "notes": "Merged OT + NT source IDs. Timing intentionally disabled because coverage is partial.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "benbcv",
+      "name": "Biblica Open Bengali Contemporary Version",
+      "abbreviation": "BCV",
+      "sortOrder": 403,
+      "languageCode": "ben",
+      "languageName": "Bengali",
+      "textDirection": "ltr",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "6351a4bea890a739e428d740"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "full-only",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": false,
+      "notes": "Audio-first pilot row; needs audio-only runtime catalog visibility.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "benirv",
+      "name": "Bengali Indian Revised Version",
+      "abbreviation": "BIRV",
+      "sortOrder": 404,
+      "languageCode": "ben",
+      "languageName": "Bengali",
+      "textDirection": "ltr",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "627bb70dda8843603b5de267"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "full-only",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": false,
+      "notes": "Audio-first pilot row; needs audio-only runtime catalog visibility.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "urdirv",
+      "name": "Urdu Indian Revised Version",
+      "abbreviation": "UIRV",
+      "sortOrder": 405,
+      "languageCode": "urd",
+      "languageName": "Urdu",
+      "textDirection": "rtl",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "627682f93a01ee741e5b211f"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "full-only",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": false,
+      "notes": "Audio-first pilot row; needs audio-only runtime catalog visibility.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    },
+    {
+      "translationId": "arbkehm",
+      "name": "Ketab El Hayat Majani",
+      "abbreviation": "KEHM",
+      "sortOrder": 406,
+      "languageCode": "arb",
+      "languageName": "Arabic",
+      "textDirection": "rtl",
+      "licenseType": "public-domain",
+      "sourceUrl": "https://open.bible",
+      "sourceExtIds": [
+        "61fa3fc2c26fb60d4963f306"
+      ],
+      "audioCoverage": "full-bible",
+      "timingMode": "none",
+      "selected": true,
+      "status": "published",
+      "hasTextPack": false,
+      "notes": "Arabic pilot row. Timing disabled because the source has no timing artifact.",
+      "lastActionAt": "2026-04-05T08:41:43.964Z",
+      "lastStagedVersion": "2026.04.05-open-bible-audio-v1",
+      "lastPublishedVersion": "2026.04.05-open-bible-audio-v1"
+    }
+  ]
+}
