@@ -22,7 +22,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 9. **Use Expo's native modules** - Why: Custom native modules require ejecting from managed workflow
 10. **Follow React Navigation v7 patterns** - Why: Stack/Tab navigators have specific type requirements
 11. **Bump all three DB version constants when rebuilding bible-bsb-v2.db** - Why: The upgrade gate in `ensureBundledDatabaseReady()` will silently skip re-importing the DB on existing devices if the thresholds aren't raised. Every rebuild of `bible-bsb-v2.db` MUST update in the same commit: (a) `PRAGMA user_version` in the DB file, (b) `BUNDLED_BIBLE_SCHEMA_VERSION` in `bibleDataModel.ts`, (c) `DEFAULT_MINIMUM_READY_VERSE_COUNT` in `bibleDatabase.ts`. Failing this caused ASV to be invisible on existing installs even though the bundled DB had the data.
-12. **For iOS TestFlight releases, prefer local EAS builds with remote Expo-managed credentials** - Why: This project can successfully run `eas build --platform ios --profile production --local` while EAS fetches signing assets from Expo's remote credential store. Missing local `credentials.json`, `.p12`, or `.mobileprovision` files are not a release blocker unless the flow explicitly requires manual local signing.
+12. **For iOS TestFlight releases, prefer the synced local build path with remote Expo-managed credentials** - Why: This project can successfully run `npm run testflight:build-local`, which first syncs Expo's remote iOS build number into native code and then performs the local production build while EAS fetches signing assets from Expo's remote credential store. Missing local `credentials.json`, `.p12`, or `.mobileprovision` files are not a release blocker unless the flow explicitly requires manual local signing.
 13. **When the human says ship, treat it as finish-and-land-the-current-work** - Why: For EveryBible, `ship` means the current task should be brought to a clean end. The normal sequence is stage, commit, push to GitHub, merge or sync to `main`, push `main`, then finish the release path if it is a release. If the task is a release, that includes local EAS production build, TestFlight submission, and verification of the intended tester/group. If it is feature work, that means finish, test, and land it cleanly. Never stop at build completion or `eas submit` alone when the task is a release unless the user explicitly says no TestFlight.
 
 ---
@@ -578,7 +578,7 @@ See `eas.json` for build profiles:
 npm run release:prepare
 
 # iOS Production
-eas build --platform ios --profile production
+npm run testflight:build-local
 
 # Android Production
 eas build --platform android --profile production
@@ -607,13 +607,13 @@ eas submit --platform android --profile production
 1. Update version in app.json
 2. Test on both platforms
 3. Run `npm run release:prepare` in a clean release worktree
-4. Build with EAS locally (`eas build --platform ios --profile production --local`)
+4. Build with the synced local iOS flow (`npm run testflight:build-local`)
 5. Test builds via internal distribution or TestFlight, depending on profile
 6. Submit iOS by IPA path (`eas submit --platform ios --profile production --path /absolute/path/to/app.ipa --non-interactive --no-wait`)
 7. Submit Android to Play when applicable
 8. Monitor crash reports
 
-`npm run release:prepare` runs the release metadata checks and `scripts/testflight_release_guard.ts`, which now fails fast if the EAS remote iOS build number has drifted away from App Store Connect latest + 1 or if someone accidentally switched the repo into stale local-signing mode. It still records whether `HEAD` matches `origin/main` for traceability, but it does not block intentional side-branch TestFlight builds.
+`npm run release:prepare` runs the release metadata checks and `scripts/testflight_release_guard.ts`, which now fails fast if the EAS remote iOS build number has drifted away from App Store Connect latest + 1 or if someone accidentally switched the repo into stale local-signing mode. `npm run testflight:build-local` then syncs the Expo-managed iOS build number into native code before the local IPA build so TestFlight uploads cannot silently reuse an old `CFBundleVersion`. The precheck script also compares the IPA build number against the current EAS remote counter before any upload proceeds.
 
 ### ⛔ TestFlight Distribution — MANDATORY 4-Step Flow
 

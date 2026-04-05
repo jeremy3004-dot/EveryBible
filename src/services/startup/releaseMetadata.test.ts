@@ -158,14 +158,14 @@ test('release docs match the supported distribution and Google sign-in contract'
   assert.match(readme, /npm run testflight:verify-distribution/);
   assert.match(readme, /scripts\/testflight_precheck\.sh/);
   assert.match(readme, /scripts\/testflight_release_guard\.ts/);
-  assert.match(readme, /eas build --platform ios --profile production --local/);
+  assert.match(readme, /npm run testflight:build-local/);
   assert.match(readme, /eas submit --platform ios --profile production --path/);
   assert.match(claude, /npm run testflight:submit-and-verify/);
   assert.match(claude, /npm run testflight:verify-distribution/);
   assert.match(claude, /scripts\/testflight_precheck\.sh/);
   assert.match(claude, /npm run release:prepare/);
   assert.match(claude, /scripts\/testflight_release_guard\.ts/);
-  assert.match(claude, /eas build --platform ios --profile production --local/);
+  assert.match(claude, /npm run testflight:build-local/);
 
   if (easConfig.build?.preview?.distribution === 'internal') {
     assert.match(readme, /Preview builds \(internal distribution installs\)/);

@@ -37,12 +37,39 @@ read_plist_value() {
   /usr/libexec/PlistBuddy -c "Print :$1" "$TMP_DIR/Info.plist" 2>/dev/null || true
 }
 
+read_remote_eas_build_number() {
+  local raw_output
+  raw_output="$(eas build:version:get --platform ios --profile production --json --non-interactive)"
+
+  REMOTE_BUILD_JSON="$raw_output" python3 - <<'PY'
+import json
+import os
+import re
+import sys
+
+payload = os.environ["REMOTE_BUILD_JSON"]
+match = re.search(r"\{[\s\S]*\}\s*$", payload)
+
+if not match:
+    raise SystemExit(1)
+
+parsed = json.loads(match.group(0))
+value = str(parsed.get("buildNumber", "")).strip()
+
+if not value.isdigit():
+    raise SystemExit(1)
+
+print(value)
+PY
+}
+
 APP_ROOT_RELATIVE_PATH="$(dirname "$APP_PLIST_RELATIVE_PATH")"
 BUNDLE_ID="$(read_plist_value CFBundleIdentifier)"
 SHORT_VERSION="$(read_plist_value CFBundleShortVersionString)"
 BUILD_NUMBER="$(read_plist_value CFBundleVersion)"
 CURRENT_SHA="$(git rev-parse HEAD)"
 ORIGIN_MAIN_SHA="$(git rev-parse origin/main 2>/dev/null || true)"
+REMOTE_EAS_BUILD_NUMBER="$(read_remote_eas_build_number)"
 EMBEDDED_JS_BUNDLE_PATH="$APP_ROOT_RELATIVE_PATH/main.jsbundle"
 HAS_EMBEDDED_JS_BUNDLE="false"
 HAS_EXPO_DEV_BUNDLES="false"
@@ -94,4 +121,12 @@ echo "head_matches_origin_main=$HEAD_MATCHES_ORIGIN_MAIN"
 
 if [[ "$HEAD_MATCHES_ORIGIN_MAIN" == "false" ]]; then
   echo "HEAD does not match origin/main. Side-branch TestFlight submissions are allowed; make sure this branch build is the one you intend to distribute." >&2
+fi
+
+echo "eas_remote_build_number=$REMOTE_EAS_BUILD_NUMBER"
+
+if [[ "$BUILD_NUMBER" != "$REMOTE_EAS_BUILD_NUMBER" ]]; then
+  echo "IPA build number $BUILD_NUMBER does not match the current EAS remote iOS build number $REMOTE_EAS_BUILD_NUMBER." >&2
+  echo "Run \`npm run testflight:build-local\` (or \`eas build:version:sync --platform ios --profile production\` before rebuilding locally) so the IPA matches the release counter that Expo will submit." >&2
+  exit 1
 fi

@@ -160,7 +160,7 @@ eas build --profile preview --platform ios
 eas build --profile preview --platform android
 
 # Production builds (store / TestFlight submission candidates with embedded JS bundle)
-eas build --platform ios --profile production --local
+npm run testflight:build-local
 eas build --profile production --platform android
 ```
 
@@ -170,13 +170,16 @@ eas build --profile production --platform android
 # Pre-build release guard for iOS release state
 npm run release:prepare  # runs scripts/testflight_release_guard.ts to check remote build-number drift, signing mode, and log whether HEAD matches origin/main
 
+# Sync Expo's remote iOS build number into native code, then produce the local IPA
+npm run testflight:build-local
+
 # Submit and verify TestFlight distribution in one step
 TESTFLIGHT_TESTER_EMAIL=curryj@protonmail.com \
 TESTFLIGHT_GROUP_NAME='Internal Testers' \
 IPA_PATH=/absolute/path/to/app.ipa \
 npm run testflight:submit-and-verify
 
-# Preflight an iOS IPA before submission
+# Preflight an iOS IPA before submission (fails if the IPA drifted from Expo's remote iOS build counter)
 bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
 
 # Manual TestFlight submit by IPA path only
