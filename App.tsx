@@ -28,6 +28,9 @@ import {
   endAnonymousUsageSession,
   flushAnonymousUsageEvents,
   startAnonymousUsageSession,
+  endSession,
+  flushEvents,
+  startSession,
 } from './src/services/analytics';
 import {
   setupNotificationHandler,
@@ -264,6 +267,7 @@ function AppContent() {
 
     if (AppState.currentState === 'active') {
       startAnonymousUsageSession();
+      startSession();
     }
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -271,11 +275,14 @@ function AppContent() {
 
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
         startAnonymousUsageSession();
+        startSession();
       }
 
       if (previousAppState === 'active' && nextAppState.match(/inactive|background/)) {
         endAnonymousUsageSession();
         void flushAnonymousUsageEvents();
+        endSession();
+        void flushEvents();
       }
 
       anonymousUsageAppStateRef.current = nextAppState;
@@ -287,6 +294,8 @@ function AppContent() {
       if (anonymousUsageAppStateRef.current === 'active') {
         endAnonymousUsageSession();
         void flushAnonymousUsageEvents();
+        endSession();
+        void flushEvents();
       }
     };
   }, [isPrivacyLocked, onboardingCompleted]);
