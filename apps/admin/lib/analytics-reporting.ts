@@ -46,8 +46,10 @@ export interface LocationMetricRollup {
   countryCode: string | null;
   countryName?: string | null;
   downloadUnits: number;
+  latitude?: number | null;
   listenerCount: number;
   listeningMinutes: number;
+  longitude?: number | null;
 }
 
 export interface AnalyticsOverviewModel {
@@ -251,32 +253,28 @@ export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]
 export function mapLocationRollupsToMetrics(
   locationRollups: LocationMetricRollup[]
 ): CountryMetric[] {
-  const countryMetrics = new Map<string, CountryMetric>();
+  return locationRollups
+    .map((rollup): CountryMetric | null => {
+      // Use the actual lat/lng from the event when available.
+      const hasCoords = rollup.latitude != null && rollup.longitude != null;
+      const geography = getCountryGeography(rollup.countryCode);
+      const latitude = hasCoords ? (rollup.latitude as number) : geography?.latitude;
+      const longitude = hasCoords ? (rollup.longitude as number) : geography?.longitude;
 
-  for (const rollup of locationRollups) {
-    const geography = getCountryGeography(rollup.countryCode);
-    if (!geography) {
-      continue;
-    }
+      if (latitude == null || longitude == null) {
+        return null;
+      }
 
-    const existing = countryMetrics.get(geography.code);
-    if (existing) {
-      existing.downloadUnits += Math.max(0, Math.round(Number(rollup.downloadUnits) || 0));
-      existing.listenerCount += Math.max(0, Math.round(Number(rollup.listenerCount) || 0));
-      existing.listeningMinutes += roundToSingleDecimal(Number(rollup.listeningMinutes) || 0);
-      continue;
-    }
-
-    countryMetrics.set(geography.code, {
-      code: geography.code,
-      downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
-      listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
-      listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
-      longitude: geography.longitude,
-      name: geography.name,
-      latitude: geography.latitude,
-    });
-  }
-
-  return Array.from(countryMetrics.values()).sort(compareCountryMetrics);
+      return {
+        code: geography?.code ?? `${latitude.toFixed(2)},${longitude.toFixed(2)}`,
+        downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
+        latitude,
+        listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
+        listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
+        longitude,
+        name: geography?.name ?? rollup.countryName ?? 'Unknown location',
+      };
+    })
+    .filter((metric): metric is CountryMetric => metric !== null)
+    .sort(compareCountryMetrics);
 }

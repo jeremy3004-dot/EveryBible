@@ -1,6 +1,7 @@
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { DailyTrendsPanel } from '@/components/DailyTrendsPanel';
 import { AnalyticsGlobe } from '@/components/AnalyticsGlobe';
+import { RefreshAnalyticsButton } from '@/components/RefreshAnalyticsButton';
 import { getAnalyticsOverview } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 
@@ -14,7 +15,22 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="analytics-page">
-      <AnalyticsGlobe metrics={analytics.countryMetrics} listeningTotalMinutes={analytics.listeningTotalMinutes} />
+      <div className="analytics-page__header">
+        <div>
+          <p className="eyebrow">Usage analytics</p>
+          <h2>Global overview</h2>
+          <p className="analytics-page__note">
+            Map and listening totals update live. Engagement scores refresh via nightly cron or manually below.
+          </p>
+        </div>
+        <RefreshAnalyticsButton />
+      </div>
+
+      <AnalyticsGlobe
+      heatmapPoints={analytics.locationMetrics}
+      metrics={analytics.countryMetrics}
+      listeningTotalMinutes={analytics.listeningTotalMinutes}
+    />
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">
