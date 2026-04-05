@@ -15,6 +15,7 @@ import { normalizeAdminTheme, type AdminThemeMode } from '@/lib/theme';
 type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
 
 interface AnalyticsGlobeProps {
+  heatmapPoints?: CountryMetric[];
   metrics: CountryMetric[];
   listeningTotalMinutes?: number;
 }
@@ -217,7 +218,10 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
   ]);
 }
 
-export function AnalyticsGlobe({ metrics, listeningTotalMinutes }: AnalyticsGlobeProps) {
+export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }: AnalyticsGlobeProps) {
+  // Use actual listening location points for the map when available;
+  // fall back to country centroids so the map is never empty.
+  const mapPoints = heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<MapLibrePopup | null>(null);
@@ -256,10 +260,10 @@ export function AnalyticsGlobe({ metrics, listeningTotalMinutes }: AnalyticsGlob
     return rankedMetrics.find((metric) => metric.code === activeSelectedCode) ?? null;
   }, [activeSelectedCode, rankedMetrics]);
 
-  const featureCollection = useMemo(() => buildMetricsFeatureCollection(metrics), [metrics]);
+  const featureCollection = useMemo(() => buildMetricsFeatureCollection(mapPoints), [mapPoints]);
   const maxMetricValue = useMemo(() => {
-    return rankedMetrics.reduce((max, metric) => Math.max(max, getMetricValue(metric, mode)), 1);
-  }, [rankedMetrics, mode]);
+    return mapPoints.reduce((max, metric) => Math.max(max, getMetricValue(metric, mode)), 1);
+  }, [mapPoints, mode]);
 
   const overviewMetrics = useMemo(() => {
     const activeCountryCount = metrics.filter(
