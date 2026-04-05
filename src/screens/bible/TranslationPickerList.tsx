@@ -32,6 +32,7 @@ import {
   buildTranslationLanguageFilters,
   filterTranslationsByLanguage,
   filterTranslationsBySearchQuery,
+  getTranslationAvailabilitySummary,
   getTranslationAudioCollectionActions,
   getTranslationAudioBookIds,
   getVisibleTranslationsForPicker,
@@ -356,6 +357,7 @@ export function TranslationPickerList({
     const isTextChipVisible =
       translation.hasText || Boolean(translation.catalog?.text?.downloadUrl) || isTextDownloaded;
     const shouldShowAudioChips = audioAvailability.canManageAudio && translationAudioBooks.length > 0;
+    const availabilitySummary = getTranslationAvailabilitySummary(translation, t);
     return (
       <View
         key={translation.id}
@@ -391,6 +393,13 @@ export function TranslationPickerList({
             <Text style={[styles.translationDescription, { color: colors.bibleSecondaryText }]}>
               {translation.description}
             </Text>
+            {availabilitySummary ? (
+              <Text
+                style={[styles.translationAvailabilitySummary, { color: colors.bibleSecondaryText }]}
+              >
+                {availabilitySummary}
+              </Text>
+            ) : null}
           </View>
           {isSelected ? <Ionicons name="checkmark" size={22} color={colors.bibleAccent} /> : null}
         </TouchableOpacity>
@@ -1264,6 +1273,11 @@ const styles = StyleSheet.create({
   translationDescription: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  translationAvailabilitySummary: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
   audioDownloadSection: {
     borderTopWidth: StyleSheet.hairlineWidth,

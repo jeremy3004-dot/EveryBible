@@ -59,10 +59,13 @@ export function filterInstallableCatalogEntries(
       entry.translation_id,
       entry.translation_id
     );
+    const hasCatalogAudio = Boolean(entry.catalog?.audio);
     const hasPublishedTextPack = Boolean(entry.catalog?.text?.downloadUrl);
     const hasInstallableText = !entry.has_text || entry.is_bundled || hasPublishedTextPack;
+    const hasPublishedRuntimeCatalog =
+      !entry.is_bundled && (hasCatalogAudio || hasPublishedTextPack) && hasInstallableText;
 
-    return currentVersionIds.has(resolvedBackendId) && hasInstallableText;
+    return hasPublishedRuntimeCatalog || (currentVersionIds.has(resolvedBackendId) && hasInstallableText);
   });
 }
 

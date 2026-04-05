@@ -7,6 +7,7 @@ import {
 } from './translationService';
 
 let runtimeCatalogHydrationPromise: Promise<void> | null = null;
+let hasHydratedRuntimeCatalogThisLaunch = false;
 
 export function hasRuntimeCatalogTranslations(translations: BibleTranslation[]): boolean {
   return translations.some((translation) => translation.source === 'runtime');
@@ -44,10 +45,11 @@ export async function bootstrapRuntimeTranslations(): Promise<void> {
   );
 
   useBibleStore.getState().applyRuntimeCatalog(runtimeTranslations);
+  hasHydratedRuntimeCatalogThisLaunch = true;
 }
 
 export async function ensureRuntimeCatalogLoaded(): Promise<void> {
-  if (hasRuntimeCatalogTranslations(useBibleStore.getState().translations)) {
+  if (hasHydratedRuntimeCatalogThisLaunch) {
     return;
   }
 

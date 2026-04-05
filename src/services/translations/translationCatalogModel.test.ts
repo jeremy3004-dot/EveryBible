@@ -363,3 +363,69 @@ test('filterInstallableCatalogEntries excludes runtime text translations that ha
 
   assert.deepEqual(filtered, []);
 });
+
+test('filterInstallableCatalogEntries keeps audio-only runtime rows when they carry a real audio catalog', () => {
+  const filtered = filterInstallableCatalogEntries(
+    [
+      {
+        ...baseEntry,
+        translation_id: 'benbcv',
+        name: 'Bengali Contemporary Version',
+        abbreviation: 'BCV',
+        language_code: 'ben',
+        language_name: 'Bengali',
+        has_text: false,
+        has_audio: true,
+        catalog: {
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: 'audio/benbcv/2026.04.05-open-bible-audio-v1',
+            chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
+            coverage: 'full-bible',
+          },
+          updatedAt: '2026-04-05T00:00:00.000Z',
+          version: '2026.04.05-open-bible-audio-v1',
+        },
+      },
+    ],
+    new Set()
+  );
+
+  assert.deepEqual(filtered.map((entry) => entry.translation_id), ['benbcv']);
+});
+
+test('filterInstallableCatalogEntries keeps text-backed runtime rows when they carry a published text pack', () => {
+  const filtered = filterInstallableCatalogEntries(
+    [
+      {
+        ...baseEntry,
+        translation_id: 'npiulb',
+        name: 'Nepali Unlocked Literal Bible (ULB)',
+        abbreviation: 'NPB',
+        language_code: 'npi',
+        language_name: 'Nepali',
+        has_text: true,
+        has_audio: true,
+        catalog: {
+          text: {
+            downloadUrl: 'text/npiulb/npiulb-2026.03.24-v1.db',
+            format: 'sqlite',
+            sha256: 'npi-text-sha',
+            version: '2026.03.24-v1',
+          },
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: 'audio/npiulb/2026.04.05-open-bible-audio-v1',
+            chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
+            coverage: 'new-testament',
+          },
+          updatedAt: '2026-04-05T00:00:00.000Z',
+          version: '2026.04.05-open-bible-audio-v1',
+        },
+      },
+    ],
+    new Set()
+  );
+
+  assert.deepEqual(filtered.map((entry) => entry.translation_id), ['npiulb']);
+});

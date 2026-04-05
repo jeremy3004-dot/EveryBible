@@ -123,6 +123,10 @@ function fuzzyTokenMatches(haystack: string, token: string): boolean {
     return true;
   }
 
+  if (token.length <= 4) {
+    return false;
+  }
+
   let tokenIndex = 0;
   for (const char of haystack) {
     if (char === token[tokenIndex]) {
@@ -183,6 +187,61 @@ export const buildTranslationLanguageFilters = <T extends { language: string | n
     .map((label) => ({ value: label, label: getTranslationLanguageDisplayLabel(label) }));
 };
 
+function getTranslationSearchAvailabilityTerms(
+  translation: Pick<BibleTranslation, 'id' | 'hasText' | 'hasAudio' | 'catalog'>
+): string[] {
+  const terms: string[] = [];
+  const hasText = translation.hasText || Boolean(translation.catalog?.text?.downloadUrl);
+  const coverage = inferTranslationAudioCoverage(translation);
+
+  if (hasText) {
+    terms.push('text', 'written text', 'search');
+  }
+
+  if (translation.hasAudio) {
+    terms.push('audio', 'listen', 'listening');
+  }
+
+  if (coverage === 'full-bible') {
+    terms.push('full bible', 'old testament', 'new testament', 'ot', 'nt');
+  } else if (coverage === 'new-testament') {
+    terms.push('new testament', 'nt');
+  } else if (translation.hasAudio) {
+    terms.push('partial audio', 'by book');
+  }
+
+  if (!hasText && translation.hasAudio) {
+    terms.push('audio only', 'audio first');
+  }
+
+  return terms;
+}
+
+export function getTranslationAvailabilitySummary(
+  translation: Pick<BibleTranslation, 'id' | 'hasText' | 'hasAudio' | 'catalog'>,
+  translate: (key: string) => string
+): string {
+  const parts: string[] = [];
+  const hasText = translation.hasText || Boolean(translation.catalog?.text?.downloadUrl);
+  const coverage = inferTranslationAudioCoverage(translation);
+
+  if (hasText) {
+    parts.push(translate('audio.showText'));
+  }
+
+  if (translation.hasAudio) {
+    if (coverage === 'full-bible') {
+      parts.push(`${translate('bible.audioDownloads')} (${translate('bible.fullBible')})`);
+    } else if (coverage === 'new-testament') {
+      parts.push(`${translate('bible.audioDownloads')} (${translate('bible.newTestament')})`);
+    } else {
+      parts.push(translate('bible.audioDownloads'));
+    }
+  }
+
+  return parts.join(' • ');
+}
+
 export const resolvePreferredTranslationLanguage = <
   T extends { id: string; language: string | null | undefined }
 >(
@@ -229,10 +288,14 @@ export const filterTranslationsByLanguage = <T extends { language: string | null
 
 export const filterTranslationsBySearchQuery = <
   T extends {
+    id?: string | null | undefined;
     name: string;
     abbreviation?: string | null | undefined;
     description?: string | null | undefined;
     language: string | null | undefined;
+    hasText?: boolean;
+    hasAudio?: boolean;
+    catalog?: BibleTranslation['catalog'];
   }
 >(
   translations: T[],
@@ -248,11 +311,18 @@ export const filterTranslationsBySearchQuery = <
   return translations.filter((translation) => {
     const haystack = normalizeTranslationSearchText(
       [
+        translation.id,
         translation.name,
         translation.abbreviation,
         translation.description,
         normalizeTranslationLanguage(translation.language),
         getTranslationLanguageDisplayLabel(translation.language),
+        ...getTranslationSearchAvailabilityTerms({
+          id: translation.id ?? '',
+          hasText: Boolean(translation.hasText),
+          hasAudio: Boolean(translation.hasAudio),
+          catalog: translation.catalog,
+        }),
       ].join(' ')
     );
 
