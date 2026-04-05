@@ -247,6 +247,86 @@ test('reconcileMissingRuntimeTranslationPacks keeps other translations selected 
   assert.equal(niv.isDownloaded, false);
 });
 
+test('mergeRuntimeCatalogTranslations preserves downloaded runtime translations even when catalog omits them', () => {
+  const merged = mergeRuntimeCatalogTranslations(
+    [
+      // 1. BSB — bundled, always preserved
+      makeTranslation({
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        hasText: true,
+        isDownloaded: true,
+        source: 'bundled',
+      }),
+      // 2. hincv — downloaded runtime (isDownloaded: true), should survive
+      makeTranslation({
+        id: 'hincv',
+        name: 'Hindi Contemporary Version',
+        language: 'Hindi',
+        hasText: true,
+        source: 'runtime',
+        isDownloaded: true,
+        textPackLocalPath: '/data/hincv.sqlite',
+        installState: 'installed',
+      }),
+      // 3. sparv1909 — has textPackLocalPath but not marked isDownloaded, should survive
+      makeTranslation({
+        id: 'sparv1909',
+        name: 'Spanish Reina Valera 1909',
+        language: 'Spanish',
+        hasText: true,
+        source: 'runtime',
+        isDownloaded: false,
+        textPackLocalPath: '/data/sparv1909.sqlite',
+        installState: 'installed',
+      }),
+      // 4. npiulb — not installed, no textPackLocalPath, should be dropped
+      makeTranslation({
+        id: 'npiulb',
+        name: 'Nepali Unlocked Literal Bible',
+        language: 'Nepali',
+        hasText: true,
+        source: 'runtime',
+        isDownloaded: false,
+        installState: 'remote-only',
+      }),
+    ],
+    [
+      // Incoming catalog only contains KJV — none of the above runtime entries are present
+      makeTranslation({
+        id: 'kjv',
+        name: 'King James Version',
+        hasText: true,
+        source: 'runtime',
+        installState: 'remote-only',
+      }),
+    ]
+  );
+
+  const ids = merged.map((t) => t.id);
+
+  // bsb, hincv, sparv1909, and kjv should be present
+  assert.ok(ids.includes('bsb'), `expected bsb in output, got: ${ids.join(', ')}`);
+  assert.ok(ids.includes('hincv'), `expected hincv in output, got: ${ids.join(', ')}`);
+  assert.ok(ids.includes('sparv1909'), `expected sparv1909 in output, got: ${ids.join(', ')}`);
+  assert.ok(ids.includes('kjv'), `expected kjv in output, got: ${ids.join(', ')}`);
+  assert.equal(merged.length, 4, `expected 4 entries, got: ${merged.length} (${ids.join(', ')})`);
+
+  // npiulb should NOT be present (not installed)
+  assert.ok(!ids.includes('npiulb'), `npiulb should be dropped but was found in: ${ids.join(', ')}`);
+
+  // hincv retains its isDownloaded and textPackLocalPath
+  const hincv = merged.find((t) => t.id === 'hincv');
+  assert.ok(hincv);
+  assert.equal(hincv.isDownloaded, true);
+  assert.equal(hincv.textPackLocalPath, '/data/hincv.sqlite');
+
+  // sparv1909 retains its textPackLocalPath
+  const sparv1909 = merged.find((t) => t.id === 'sparv1909');
+  assert.ok(sparv1909);
+  assert.equal(sparv1909.textPackLocalPath, '/data/sparv1909.sqlite');
+});
+
 test('mergeDownloadedAudioBook appends each finished audio book exactly once', () => {
   const translation = makeTranslation({
     id: 'bsb',
