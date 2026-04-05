@@ -42,6 +42,7 @@ import {
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
 import { trackEvent } from '../services/analytics/analyticsService';
+import { setUserTranslationPreferences } from '../services/translations';
 import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
@@ -253,6 +254,7 @@ export const useBibleStore = create<BibleState>()(
 
         if (translation.isDownloaded || hasReadableText) {
           set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
+          setUserTranslationPreferences({ primary: translationId }).catch(() => {});
           return;
         }
 
@@ -266,6 +268,7 @@ export const useBibleStore = create<BibleState>()(
 
           if (availability.canPlayAudio) {
             set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
+            setUserTranslationPreferences({ primary: translationId }).catch(() => {});
           }
         }
       },
