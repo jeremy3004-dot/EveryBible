@@ -18,6 +18,70 @@ interface AnonymousUsageRequestBody {
   events?: AnonymousUsageEvent[];
 }
 
+interface GeoLookupResult {
+  countryCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  source: string | null;
+  timezone: string | null;
+}
+
+function getClientIp(req: Request): string | null {
+  const forwarded = req.headers.get('x-forwarded-for');
+  const realIp = req.headers.get('x-real-ip');
+  const raw = forwarded || realIp;
+  if (!raw) {
+    return null;
+  }
+  return raw.split(/\s*,\s*/)[0]?.trim() || null;
+}
+
+async function lookupGeoByIp(ip: string): Promise<GeoLookupResult | null> {
+  const token = Deno.env.get('IPINFO_TOKEN')?.trim();
+  const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
+  if (token) {
+    url.searchParams.set('token', token);
+  }
+
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | { country?: unknown; loc?: unknown; timezone?: unknown }
+    | null;
+
+  if (!payload) {
+    return null;
+  }
+
+  const countryRaw = typeof payload.country === 'string' ? payload.country.trim().toUpperCase() : null;
+  const countryCode = countryRaw && countryRaw.length > 0 ? countryRaw : null;
+
+  let latitude: number | null = null;
+  let longitude: number | null = null;
+  if (typeof payload.loc === 'string') {
+    const parts = payload.loc.split(',');
+    const lat = parseFloat(parts[0] ?? '');
+    const lng = parseFloat(parts[1] ?? '');
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      latitude = lat;
+      longitude = lng;
+    }
+  }
+
+  return {
+    countryCode,
+    latitude,
+    longitude,
+    source: 'ipinfo',
+    timezone: typeof payload.timezone === 'string' && payload.timezone.trim().length > 0
+      ? payload.timezone.trim()
+      : null,
+  };
+}
+
 function getText(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
@@ -113,6 +177,9 @@ Deno.serve(async (request) => {
       },
     });
 
+    const clientIp = getClientIp(request);
+    const geo = clientIp ? await lookupGeoByIp(clientIp) : null;
+
     const rows = batch.events.map((event) => ({
       user_id: null,
       event_name: event.event_name,
@@ -123,13 +190,13 @@ Deno.serve(async (request) => {
       created_at: event.queued_at,
       geo_accuracy_km: null,
       geo_city: null,
-      geo_country_code: null,
-      geo_latitude: null,
-      geo_longitude: null,
+      geo_country_code: geo?.countryCode ?? null,
+      geo_latitude: geo?.latitude ?? null,
+      geo_longitude: geo?.longitude ?? null,
       geo_region_code: null,
       geo_region_name: null,
-      geo_source: null,
-      geo_timezone: null,
+      geo_source: geo?.source ?? null,
+      geo_timezone: geo?.timezone ?? null,
     }));
 
     const { error } = await supabase.from('analytics_events').insert(rows);
