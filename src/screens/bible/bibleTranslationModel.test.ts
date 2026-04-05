@@ -175,6 +175,42 @@ test('known full-audio translations expose full Bible and New Testament collecti
   );
 });
 
+test('pilot full-bible translations expose full Bible and New Testament collection actions via explicit coverage', () => {
+  // urdirv is not in KNOWN_FULL_AUDIO_TRANSLATION_IDS — coverage must come from catalog
+  assert.deepEqual(
+    getTranslationAudioCollectionActions({
+      id: 'urdirv',
+      catalog: {
+        version: '2026.04.05-open-bible-audio-v1',
+        updatedAt: '2026-04-05T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+          coverage: 'full-bible',
+        },
+      },
+    }),
+    ['full-bible', 'new-testament']
+  );
+});
+
+test('pilot NT translations expose New Testament collection action via explicit coverage', () => {
+  // npiulb with a non-open-bible-nt version string — coverage must come from catalog field
+  assert.deepEqual(
+    getTranslationAudioCollectionActions({
+      id: 'npiulb',
+      catalog: {
+        version: '2026.04.05-open-bible-audio-v1',
+        updatedAt: '2026-04-05T00:00:00.000Z',
+        audio: {
+          strategy: 'stream-template',
+          coverage: 'new-testament',
+        },
+      },
+    }),
+    ['new-testament']
+  );
+});
+
 test('explicit audio book manifests are honored when determining translation coverage', () => {
   const translation = {
     id: 'npiulb',
@@ -287,6 +323,36 @@ test('picker hides unreadable runtime placeholders while the runtime catalog is 
   assert.deepEqual(
     visible.map((translation) => translation.id),
     ['bsb']
+  );
+});
+
+test('picker shows audio-only runtime translations once the catalog has hydrated', () => {
+  const visible = getVisibleTranslationsForPicker(
+    [
+      {
+        id: 'bsb',
+        isDownloaded: true,
+        hasText: true,
+        source: 'bundled' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'urdirv',
+        isDownloaded: false,
+        hasText: false,
+        source: 'runtime' as const,
+        textPackLocalPath: null,
+      },
+    ],
+    {
+      isHydratingRuntimeCatalog: true,
+      hasHydratedRuntimeCatalog: true,
+    }
+  );
+
+  assert.deepEqual(
+    visible.map((translation) => translation.id),
+    ['bsb', 'urdirv']
   );
 });
 
