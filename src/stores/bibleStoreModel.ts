@@ -17,7 +17,7 @@ export function mergeRuntimeCatalogTranslations(
   const mergedById = new Map<string, BibleTranslation>();
 
   for (const translation of stateTranslations) {
-    if (translation.source !== 'runtime') {
+    if (translation.source !== 'runtime' || translation.isDownloaded || Boolean(translation.textPackLocalPath)) {
       mergedById.set(translation.id, translation);
     }
   }
