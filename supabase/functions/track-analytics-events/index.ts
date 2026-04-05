@@ -16,6 +16,8 @@ interface QueuedAnalyticsEvent {
 
 interface GeoLookupResult {
   countryCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
   source: string | null;
   timezone: string | null;
 }
@@ -74,15 +76,29 @@ async function lookupCountryByIp(ip: string): Promise<GeoLookupResult | null> {
   }
 
   const payload = (await response.json().catch(() => null)) as
-    | { country?: unknown; timezone?: unknown }
+    | { country?: unknown; loc?: unknown; timezone?: unknown }
     | null;
 
   if (!payload) {
     return null;
   }
 
+  let latitude: number | null = null;
+  let longitude: number | null = null;
+  if (typeof payload.loc === 'string') {
+    const parts = payload.loc.split(',');
+    const lat = parseFloat(parts[0] ?? '');
+    const lng = parseFloat(parts[1] ?? '');
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      latitude = lat;
+      longitude = lng;
+    }
+  }
+
   return {
     countryCode: normalizeCountryCode(payload.country),
+    latitude,
+    longitude,
     source: 'ipinfo',
     timezone: typeof payload.timezone === 'string' && payload.timezone.trim().length > 0
       ? payload.timezone.trim()
@@ -143,8 +159,8 @@ Deno.serve(async (req) => {
       geo_accuracy_km: null,
       geo_city: null,
       geo_country_code: geo?.countryCode ?? null,
-      geo_latitude: null,
-      geo_longitude: null,
+      geo_latitude: geo?.latitude ?? null,
+      geo_longitude: geo?.longitude ?? null,
       geo_region_code: null,
       geo_region_name: null,
       geo_source: geo?.source ?? null,
