@@ -16,6 +16,7 @@ type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
 
 interface AnalyticsGlobeProps {
   metrics: CountryMetric[];
+  listeningTotalMinutes?: number;
 }
 
 interface MetricFeatureProperties {
@@ -216,7 +217,7 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
   ]);
 }
 
-export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
+export function AnalyticsGlobe({ metrics, listeningTotalMinutes }: AnalyticsGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<MapLibrePopup | null>(null);
@@ -267,11 +268,16 @@ export function AnalyticsGlobe({ metrics }: AnalyticsGlobeProps) {
 
     return {
       activeCountryCount,
-      listeningMinutes: metrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
+      // Use the true total (includes anonymous events with no geo data) when
+      // available. Falling back to the country sum makes unattributed minutes
+      // invisible even though they are real listening time.
+      listeningMinutes:
+        listeningTotalMinutes ??
+        metrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
       listenerCount: metrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
       downloadUnits: metrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
     };
-  }, [metrics]);
+  }, [metrics, listeningTotalMinutes]);
 
   const topCountry = rankedMetrics[0] ?? null;
   const modeLabel = getModeLabel(mode);
