@@ -1126,6 +1126,10 @@ label {
   background: linear-gradient(90deg, #a5b4fc, var(--accent));
 }
 
+.analytics-page .bar-chart__fill--tertiary {
+  background: linear-gradient(90deg, #bbf7d0, #4ade80);
+}
+
 /* ── Notices ──────────────────────────────── */
 
 .notice {
@@ -1172,6 +1176,10 @@ label {
 
 .bar-chart__fill--secondary {
   background: linear-gradient(90deg, #a5b4fc, var(--accent));
+}
+
+.bar-chart__fill--tertiary {
+  background: linear-gradient(90deg, #bbf7d0, #4ade80);
 }
 
 /* ── Image grid ──────────────────────────── */

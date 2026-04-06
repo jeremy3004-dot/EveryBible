@@ -38,6 +38,10 @@ export default async function AnalyticsPage() {
           <strong>{analytics.listeningTotalMinutes}</strong>
         </article>
         <article className="metric-card">
+          <span>Reading minutes (30d)</span>
+          <strong>{analytics.readingTotalMinutes}</strong>
+        </article>
+        <article className="metric-card">
           <span>Tracked sessions</span>
           <strong>{analytics.totalTrackedSessions}</strong>
         </article>
@@ -61,6 +65,7 @@ export default async function AnalyticsPage() {
 
       <DailyTrendsPanel
         dailyListeningMinutes={analytics.dailyListeningMinutes}
+        dailyReadingMinutes={analytics.dailyReadingMinutes}
         dailyDownloadUnits={analytics.dailyDownloadUnits}
       />
 

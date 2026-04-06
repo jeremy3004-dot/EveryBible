@@ -1338,6 +1338,10 @@ textarea {
   background: linear-gradient(90deg, #cfe0f3, var(--accent));
 }
 
+.bar-chart__fill--tertiary {
+  background: linear-gradient(90deg, #d4edda, #4caf50);
+}
+
 .map-card {
   display: grid;
   gap: 1rem;
@@ -2171,6 +2175,10 @@ body {
 
 .analytics-page .bar-chart__fill--secondary {
   background: linear-gradient(180deg, #111111, #f7933a);
+}
+
+.analytics-page .bar-chart__fill--tertiary {
+  background: linear-gradient(180deg, #111111, #4caf50);
 }
 
 .pill {

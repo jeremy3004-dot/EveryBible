@@ -10,8 +10,14 @@ type DailyDownloadPoint = {
   value: number;
 };
 
+type DailyReadingPoint = {
+  day: string;
+  minutes: number;
+};
+
 type DailyTrendsPanelProps = {
   dailyListeningMinutes: DailyListeningPoint[];
+  dailyReadingMinutes: DailyReadingPoint[];
   dailyDownloadUnits: DailyDownloadPoint[];
 };
 
@@ -67,9 +73,11 @@ function TrendChart<T extends { day: string }>({
 
 export function DailyTrendsPanel({
   dailyListeningMinutes,
+  dailyReadingMinutes,
   dailyDownloadUnits,
 }: DailyTrendsPanelProps) {
   const listeningTotal = dailyListeningMinutes.reduce((sum, point) => sum + point.minutes, 0);
+  const readingTotal = dailyReadingMinutes.reduce((sum, point) => sum + point.minutes, 0);
   const downloadTotal = dailyDownloadUnits.reduce((sum, point) => sum + point.value, 0);
 
   return (
@@ -77,12 +85,13 @@ export function DailyTrendsPanel({
       <div className="daily-trends__summary">
         <div className="daily-trends__summary-copy">
           <p className="eyebrow">Daily activity</p>
-          <h3>Daily listening and download trends</h3>
-          <p>Thirty days of activity, shown without toggle buttons.</p>
+          <h3>Daily engagement trends</h3>
+          <p>Thirty days of listening, reading, and download activity.</p>
         </div>
 
         <div className="daily-trends__summary-meta">
           <span>Listening {formatSummaryValue(listeningTotal, 'minutes')}</span>
+          <span>Reading {formatSummaryValue(readingTotal, 'minutes')}</span>
           <span>Downloads {formatSummaryValue(downloadTotal, 'units')}</span>
         </div>
       </div>
@@ -93,6 +102,13 @@ export function DailyTrendsPanel({
           points={dailyListeningMinutes}
           getValue={(point) => point.minutes}
           renderValue={(point) => point.minutes.toFixed(1)}
+        />
+        <TrendChart
+          title="Daily reading minutes"
+          points={dailyReadingMinutes}
+          getValue={(point) => point.minutes}
+          renderValue={(point) => point.minutes.toFixed(1)}
+          fillClassName="bar-chart__fill--tertiary"
         />
         <TrendChart
           title="Daily download units"
