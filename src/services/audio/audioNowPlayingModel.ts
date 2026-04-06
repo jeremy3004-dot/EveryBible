@@ -6,6 +6,9 @@ const DEFAULT_ARTWORK_URI = 'everybible://artwork/default';
 
 export type BibleNowPlayingInput = {
   translationId: string;
+  /** Display name for the translation. Caller should supply this for runtime
+   * translations that are not in the static translations constant. */
+  translationName?: string;
   bookId: string;
   chapter: number;
   positionMs: number;
@@ -37,15 +40,18 @@ export function buildBibleNowPlayingPayload(
   input: BibleNowPlayingInput
 ): BibleNowPlayingPayload | null {
   const book = getBookById(input.bookId);
-  const translation = getTranslationById(input.translationId);
-
-  if (!book || !translation) {
+  if (!book) {
     return null;
   }
 
+  // Prefer explicitly-supplied name (for runtime/catalog translations), then
+  // fall back to the static translations list, then to the album title.
+  const translation = getTranslationById(input.translationId);
+  const artistName = input.translationName ?? translation?.name ?? DEFAULT_ALBUM_TITLE;
+
   return {
     title: `${book.name} ${input.chapter}`,
-    artist: translation.name,
+    artist: artistName,
     albumTitle: DEFAULT_ALBUM_TITLE,
     elapsedSeconds: toSeconds(input.positionMs),
     durationSeconds: toSeconds(input.durationMs),

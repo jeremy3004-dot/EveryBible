@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../stores/audioStore';
+import { useBibleStore } from '../stores/bibleStore';
 import { useLibraryStore } from '../stores/libraryStore';
 import {
   audioPlayer,
@@ -152,6 +153,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       const resolvedDurationMs = overrides.durationMs ?? state.duration;
       const resolvedIsPlaying = overrides.isPlaying ?? state.status === 'playing';
       const resolvedPlaybackRate = overrides.playbackRate ?? state.playbackRate ?? 1;
+      // Look up translation name from bibleStore so runtime (catalog) translations
+      // — which are absent from the static constants — still appear on the lock screen.
+      const resolvedTranslationName =
+        overrides.translationName ??
+        useBibleStore.getState().translations.find((t) => t.id === resolvedTranslationId)?.name;
       const signature = [
         resolvedTranslationId,
         resolvedBookId,
@@ -169,6 +175,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       lastNowPlayingSignatureRef.current = signature;
       void syncBibleNowPlaying({
         translationId: resolvedTranslationId,
+        translationName: resolvedTranslationName,
         bookId: resolvedBookId,
         chapter: resolvedChapter,
         positionMs: resolvedPositionMs,
