@@ -104,3 +104,28 @@ test('ios Xcode project bundles the configured bible SQLite asset', () => {
     'Expected the iOS Xcode project to reference the configured bible database asset path'
   );
 });
+
+test('ios Xcode project compiles the native now-playing bridge files', () => {
+  const pbxproj = readRootFile('ios/EveryBible.xcodeproj/project.pbxproj');
+
+  assert.match(
+    pbxproj,
+    /EveryBibleAudioNowPlayingModule\.swift in Sources/,
+    'Expected the iOS Xcode project to compile the Swift now-playing bridge file'
+  );
+  assert.match(
+    pbxproj,
+    /EveryBibleAudioNowPlayingModule\.m in Sources/,
+    'Expected the iOS Xcode project to compile the Objective-C now-playing bridge file'
+  );
+  assert.match(
+    pbxproj,
+    /path = EveryBible\/EveryBibleAudioNowPlayingModule\.swift;/,
+    'Expected the iOS Xcode project to reference the Swift now-playing bridge path'
+  );
+  assert.match(
+    pbxproj,
+    /path = EveryBible\/EveryBibleAudioNowPlayingModule\.m;/,
+    'Expected the iOS Xcode project to reference the Objective-C now-playing bridge path'
+  );
+});

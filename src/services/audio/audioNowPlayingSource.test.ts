@@ -40,19 +40,19 @@ test('audioNowPlaying keeps the JS bridge wired to the native now-playing module
 
   assert.match(
     source,
-    /NativeModules\.EveryBibleAudioNowPlayingModule/,
-    'The JS audio bridge should call the native iOS now-playing module'
+    /function getNativeBibleNowPlayingModule\(\): NativeBibleNowPlayingModule \| undefined/,
+    'The JS audio bridge should resolve the native iOS now-playing module lazily'
   );
 
   assert.match(
     source,
-    /NativeEventEmitter/,
-    'The JS audio bridge should subscribe to native remote-control commands'
+    /function getBibleNowPlayingEmitter\(\): NativeEventEmitter \| null/,
+    'The JS audio bridge should create the native event emitter from the lazily resolved module'
   );
 
   assert.match(
     source,
-    /syncBibleNowPlaying/,
-    'The JS audio bridge should publish Bible playback state into the native now-playing module'
+    /const nativeModule = getNativeBibleNowPlayingModule\(\);/,
+    'The JS audio bridge should resolve the native module at call time before syncing or clearing'
   );
 });

@@ -28,11 +28,6 @@ interface NativeBibleNowPlayingModule {
 }
 
 const EVENT_NAME = 'EveryBibleAudioNowPlayingCommand';
-const nativeModule = NativeModules.EveryBibleAudioNowPlayingModule as
-  | NativeBibleNowPlayingModule
-  | undefined;
-const emitter =
-  Platform.OS === 'ios' && nativeModule ? new NativeEventEmitter(nativeModule) : null;
 let didWarnAboutMissingNativeModule = false;
 
 let currentBibleNowPlayingPayload: BibleNowPlayingPayload | null = null;
@@ -48,6 +43,15 @@ function warnAboutMissingNativeModule(): void {
 
   didWarnAboutMissingNativeModule = true;
   console.warn('[audioNowPlaying] EveryBibleAudioNowPlayingModule is missing on iOS');
+}
+
+function getNativeBibleNowPlayingModule(): NativeBibleNowPlayingModule | undefined {
+  return NativeModules.EveryBibleAudioNowPlayingModule as NativeBibleNowPlayingModule | undefined;
+}
+
+function getBibleNowPlayingEmitter(): NativeEventEmitter | null {
+  const nativeModule = getNativeBibleNowPlayingModule();
+  return Platform.OS === 'ios' && nativeModule ? new NativeEventEmitter(nativeModule) : null;
 }
 
 function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
@@ -69,6 +73,7 @@ function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
 
 export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<void> {
   currentBibleNowPlayingPayload = buildBibleNowPlayingPayload(input);
+  const nativeModule = getNativeBibleNowPlayingModule();
 
   if (Platform.OS !== 'ios' || !nativeModule?.syncBibleNowPlaying) {
     warnAboutMissingNativeModule();
@@ -85,6 +90,7 @@ export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<
 
 export async function clearBibleNowPlaying(): Promise<void> {
   currentBibleNowPlayingPayload = null;
+  const nativeModule = getNativeBibleNowPlayingModule();
 
   if (Platform.OS !== 'ios' || !nativeModule?.clearBibleNowPlaying) {
     warnAboutMissingNativeModule();
@@ -101,6 +107,8 @@ export function getBibleNowPlayingSnapshot(): BibleNowPlayingPayload | null {
 export function subscribeBibleNowPlayingRemoteCommands(
   listener: (command: BibleNowPlayingRemoteCommand) => void
 ): () => void {
+  const emitter = getBibleNowPlayingEmitter();
+
   if (!emitter) {
     return () => {};
   }
