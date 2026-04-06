@@ -78,6 +78,18 @@ Deno.serve(async (req) => {
           return sum + duration / 60000;
         }, 0);
 
+        // Count reading minutes from reading_ended events
+        const { data: readingData } = await supabase
+          .from('analytics_events')
+          .select('event_properties')
+          .eq('user_id', user.user_id)
+          .eq('event_name', 'reading_ended');
+
+        const readingMinutes = (readingData || []).reduce((sum, e) => {
+          const duration = (e.event_properties as Record<string, number>)?.duration_seconds || 0;
+          return sum + duration / 60;
+        }, 0);
+
         // Count unique sessions
         const { count: sessionCount } = await supabase
           .from('analytics_events')
@@ -122,6 +134,7 @@ Deno.serve(async (req) => {
             user_id: user.user_id,
             total_chapters_read: chaptersRead,
             total_listening_minutes: Math.floor(listeningMinutes),
+            total_reading_minutes: Math.floor(readingMinutes),
             total_sessions: sessionCount || 0,
             avg_session_minutes: 0, // simplified for now
             current_streak_days: progress?.streak_days || 0,

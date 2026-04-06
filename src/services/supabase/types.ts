@@ -216,6 +216,7 @@ export interface UserEngagementSummary {
   user_id: string;
   total_chapters_read: number;
   total_listening_minutes: number;
+  total_reading_minutes: number;
   total_sessions: number;
   avg_session_minutes: number;
   current_streak_days: number;

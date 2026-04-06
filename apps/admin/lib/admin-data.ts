@@ -205,8 +205,10 @@ export interface AnalyticsOverview {
   countryMetrics: CountryMetric[];
   dailyDownloadUnits: DailyMetricPoint[];
   dailyListeningMinutes: Array<{ day: string; minutes: number }>;
+  dailyReadingMinutes: Array<{ day: string; minutes: number }>;
   listeningTotalMinutes: number;
   locationMetrics: CountryMetric[];
+  readingTotalMinutes: number;
   totalDownloadUnits: number;
   totalTrackedSessions: number;
   userCountWithListening: number;
@@ -219,8 +221,10 @@ interface AnalyticsOverviewRpcPayload {
   countryMetrics?: CountryMetricRollup[];
   dailyDownloadUnits?: DailyMetricPoint[];
   dailyListeningMinutes?: DailyMetricPoint[];
+  dailyReadingMinutes?: DailyMetricPoint[];
   listeningTotalMinutes?: number;
   locationMetrics?: LocationMetricRollup[];
+  readingTotalMinutes?: number;
   totalDownloadUnits?: number;
   totalTrackedSessions?: number;
   userCountWithListening?: number;
@@ -762,6 +766,10 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
     day: point.day,
     minutes: Number(point.value ?? 0),
   }));
+  const dailyReadingMinutes = (overview.dailyReadingMinutes ?? []).map((point) => ({
+    day: point.day,
+    minutes: Number(point.value ?? 0),
+  }));
 
   return {
     activeCountryCount: Number(overview.activeCountryCount ?? countryMetrics.length),
@@ -773,8 +781,10 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
       value: Number(point.value ?? 0),
     })),
     dailyListeningMinutes,
+    dailyReadingMinutes,
     listeningTotalMinutes: Number(overview.listeningTotalMinutes ?? 0),
     locationMetrics,
+    readingTotalMinutes: Number(overview.readingTotalMinutes ?? 0),
     totalDownloadUnits: Number(overview.totalDownloadUnits ?? 0),
     totalTrackedSessions: Number(overview.totalTrackedSessions ?? 0),
     userCountWithListening: Number(overview.userCountWithListening ?? 0),
