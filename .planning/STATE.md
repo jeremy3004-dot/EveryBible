@@ -235,9 +235,10 @@ Recent decisions affecting current work:
 | 260324 | Fix 5 UI bugs: tab bar padding, secure-code keyboard, reader header, back button safe area, mini player overlap | 2026-03-24 | 7bc941b | [260324-fix-5-ui-bugs-tab-bar-padding-secure-cod](./quick/260324-fix-5-ui-bugs-tab-bar-padding-secure-cod/) |
 | 260324-lvw | Comprehensive i18n audit and fix: locale parity es/ne/hi, hardcoded strings in screens/components, static data file keys | 2026-03-24 | 26680a5 | [260324-lvw-comprehensive-i18n-audit-and-fix-across-](./quick/260324-lvw-comprehensive-i18n-audit-and-fix-across-/) |
 | 260406-rso | Replace ipapi.co with a self-owned Cloudflare Worker for geolocation | 2026-04-06 | f15d311 | [260406-rso-replace-ipapi-co-with-a-self-owned-cloud](./quick/260406-rso-replace-ipapi-co-with-a-self-owned-cloud/) |
+| 260406-s17 | Deploy Cloudflare Worker for geo and smoke test end-to-end | 2026-04-06 | — | [260406-s17-deploy-cloudflare-worker-for-geo-and-smo](./quick/260406-s17-deploy-cloudflare-worker-for-geo-and-smo/) |
 
 ## Session Continuity
 
-Last session: 2026-04-06T14:15:49Z
+Last session: 2026-04-06T14:26:03Z
 Stopped at: Phase 28 regression hardening follow-up complete (catalog integrity, runtime placeholder persistence, release bundle verification)
 Resume file: None
