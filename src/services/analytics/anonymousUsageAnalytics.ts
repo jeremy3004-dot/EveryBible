@@ -5,7 +5,8 @@ export type AnonymousUsageEventName =
   | 'session_started'
   | 'session_ended'
   | 'chapter_completed'
-  | 'audio_playback_progress';
+  | 'audio_playback_progress'
+  | 'reading_ended';
 
 export interface AnonymousUsageEvent {
   event_name: AnonymousUsageEventName;

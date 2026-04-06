@@ -4,6 +4,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Image,
   ImageBackground,
   InteractionManager,
@@ -1060,6 +1061,47 @@ export function BibleReaderScreen() {
     };
     void loadAnnotations();
   }, [bookId, chapter]);
+
+  // Reading time tracking — measures actual foreground time spent on this chapter.
+  // Uses wall-clock math with AppState gating (no interval). Emits a single
+  // reading_ended event on unmount so reading time lands in backend analytics.
+  useEffect(() => {
+    // Only track when there is text to read.
+    if (chapterSessionMode !== 'read') {
+      return;
+    }
+
+    let startedAt: number | null = Date.now();
+    let accumulatedMs = 0;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        startedAt = Date.now();
+      } else {
+        if (startedAt !== null) {
+          accumulatedMs += Date.now() - startedAt;
+          startedAt = null;
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      if (startedAt !== null) {
+        accumulatedMs += Date.now() - startedAt;
+      }
+      const durationSeconds = Math.round(accumulatedMs / 1000);
+      // Ignore sub-5-second visits (accidental taps / fast chapter skips).
+      if (durationSeconds >= 5) {
+        trackAnonymousUsageEvent('reading_ended', {
+          book_id: bookId,
+          chapter,
+          translation_id: currentTranslation,
+          duration_seconds: durationSeconds,
+        });
+      }
+    };
+  }, [bookId, chapter, currentTranslation, chapterSessionMode]);
 
   useEffect(() => {
     if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
