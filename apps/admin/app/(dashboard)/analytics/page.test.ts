@@ -15,8 +15,9 @@ test('analytics page puts the globe hero before secondary analytics sections', a
   const globeIndex = pageSource.indexOf('<AnalyticsGlobe');
   const metricsIndex = pageSource.indexOf('<section className="metric-grid analytics-page__metrics">');
   const dailyTrendsIndex = pageSource.indexOf('<DailyTrendsPanel');
+  const translationTableIndex = pageSource.indexOf('<p className="eyebrow">By translation</p>');
   const oldTrendIndex = pageSource.indexOf('<section className="two-column analytics-page__trends">');
-  const tableIndex = pageSource.indexOf('<section className="card">');
+  const locationTableIndex = pageSource.indexOf('<p className="eyebrow">Top locations</p>');
 
   assert.ok(globeIndex >= 0, 'expected globe component to be present');
   assert.match(pageSource, /metrics=\{analytics\.locationMetrics\}/, 'globe should use locationMetrics for markers');
@@ -31,8 +32,12 @@ test('analytics page puts the globe hero before secondary analytics sections', a
   assert.equal(oldTrendIndex, -1, 'expected old two-column trend section to be removed');
   assert.ok(globeIndex < metricsIndex, 'globe should appear before the metrics grid');
   assert.ok(globeIndex < dailyTrendsIndex, 'globe should appear before the daily trends panel');
-  assert.ok(dailyTrendsIndex < tableIndex, 'daily trends should appear before the location table');
+  assert.ok(dailyTrendsIndex < translationTableIndex, 'daily trends should appear before the translation table');
+  assert.ok(translationTableIndex < locationTableIndex, 'translation table should appear before the location table');
   assert.match(pageSource, /Active locations/);
+  assert.match(pageSource, /Translation engagement/);
+  assert.match(pageSource, /analytics\.translationBreakdown\.map/);
+  assert.match(pageSource, /Heatmap ready/);
   assert.match(pageSource, /Top locations/);
   assert.match(pageSource, /Location totals/);
   assert.match(pageSource, /analytics\.locationMetrics\.map/);

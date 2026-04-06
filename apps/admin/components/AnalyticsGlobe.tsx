@@ -245,10 +245,27 @@ export function AnalyticsGlobe({
     return translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ?? null;
   }, [selectedTranslation, translationBreakdown]);
 
-  // Use filtered metrics when a translation is selected
-  const effectiveMetrics = activeBreakdown?.countryMetrics ?? metrics;
-  const effectiveHeatmapPoints =
-    activeBreakdown?.locationMetrics ?? (heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics);
+  const isSingleTranslationWindow = (translationBreakdown?.length ?? 0) === 1;
+  const selectedTranslationHasGeoMetrics = Boolean(
+    activeBreakdown &&
+      (activeBreakdown.locationMetrics.length > 0 || activeBreakdown.countryMetrics.length > 0)
+  );
+  const reuseOverallMapForSelectedTranslation = Boolean(
+    activeBreakdown && isSingleTranslationWindow && !selectedTranslationHasGeoMetrics
+  );
+
+  // Use filtered metrics when a translation is selected. If the selected
+  // translation is the only active one in the window, reuse the overall map so
+  // the operator can still inspect its geography even when per-translation geo
+  // rows were not persisted for that period.
+  const effectiveMetrics = reuseOverallMapForSelectedTranslation
+    ? metrics
+    : activeBreakdown?.countryMetrics ?? metrics;
+  const effectiveHeatmapPoints = reuseOverallMapForSelectedTranslation
+    ? heatmapPoints && heatmapPoints.length > 0
+      ? heatmapPoints
+      : metrics
+    : activeBreakdown?.locationMetrics ?? (heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics);
   const effectiveListeningTotal = activeBreakdown?.listeningMinutes ?? listeningTotalMinutes;
 
   // Use actual listening location points for the map when available;
@@ -638,24 +655,54 @@ export function AnalyticsGlobe({
         </div>
 
         {translationBreakdown && translationBreakdown.length > 0 && (
-          <div className="translation-selector-wrap">
-            <label htmlFor="translation-select" className="translation-selector__label">
-              Translation
-            </label>
-            <select
-              id="translation-select"
-              className="translation-selector"
-              value={selectedTranslation ?? ''}
-              onChange={(e) => setSelectedTranslation(e.target.value || null)}
-            >
-              <option value="">All translations</option>
+          <>
+            <div className="translation-selector-wrap">
+              <label htmlFor="translation-select" className="translation-selector__label">
+                Translation
+              </label>
+              <select
+                id="translation-select"
+                className="translation-selector"
+                value={selectedTranslation ?? ''}
+                onChange={(e) => setSelectedTranslation(e.target.value || null)}
+              >
+                <option value="">All translations</option>
+                {translationBreakdown.map((entry) => (
+                  <option key={entry.translationId} value={entry.translationId}>
+                    {entry.translationId.toUpperCase()} — {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.readingMinutes)} read min
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="translation-chip-list" role="group" aria-label="Select translation heatmap">
+              <button
+                type="button"
+                className={`translation-chip ${selectedTranslation === null ? 'translation-chip--active' : ''}`.trim()}
+                aria-pressed={selectedTranslation === null}
+                onClick={() => setSelectedTranslation(null)}
+              >
+                <span>All translations</span>
+                <small>{Math.round(listeningTotalMinutes ?? 0)} listen min</small>
+              </button>
               {translationBreakdown.map((entry) => (
-                <option key={entry.translationId} value={entry.translationId}>
-                  {entry.translationId.toUpperCase()} — {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.readingMinutes)} read min
-                </option>
+                <button
+                  key={entry.translationId}
+                  type="button"
+                  className={`translation-chip ${
+                    selectedTranslation === entry.translationId ? 'translation-chip--active' : ''
+                  }`.trim()}
+                  aria-pressed={selectedTranslation === entry.translationId}
+                  onClick={() => setSelectedTranslation(entry.translationId)}
+                >
+                  <span>{entry.translationId.toUpperCase()}</span>
+                  <small>
+                    {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.downloadUnits)} downloads
+                  </small>
+                </button>
               ))}
-            </select>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -697,6 +744,27 @@ export function AnalyticsGlobe({
             </div>
             <p>Colors intensify from low to high values in the selected metric.</p>
           </div>
+
+          {activeBreakdown ? (
+            <div className="globe-card__notice" role="status">
+              <p className="eyebrow">Translation focus</p>
+              {reuseOverallMapForSelectedTranslation ? (
+                <p>
+                  {activeBreakdown.translationId.toUpperCase()} is the only active translation in this window, so the
+                  globe is reusing the overall map while the per-translation geo rows catch up.
+                </p>
+              ) : selectedTranslationHasGeoMetrics ? (
+                <p>
+                  The globe and coverage cards are now filtered to {activeBreakdown.translationId.toUpperCase()}.
+                </p>
+              ) : (
+                <p>
+                  {activeBreakdown.translationId.toUpperCase()} has engagement totals, but no location-tagged events
+                  were stored for this window yet.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           <div className="globe-card__explore">
             <p className="eyebrow">Explore</p>

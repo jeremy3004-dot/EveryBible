@@ -46,6 +46,10 @@ test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async
   assert.match(componentSource, /onClick=\{\(\) => setMode\('downloadUnits'\)\}/);
   assert.match(componentSource, /segmented-control__button--active/);
   assert.match(componentSource, /<button[\s\S]*type="button"/);
+  assert.match(componentSource, /aria-label="Select translation heatmap"/);
+  assert.match(componentSource, /translation-chip--active/);
+  assert.match(componentSource, /is the only active translation in this window/);
+  assert.match(componentSource, /globe is reusing the overall map while the per-translation geo rows catch up/);
   assert.match(componentSource, /Click a country bubble to open the detailed country card/);
   assert.match(componentSource, /#34d399/);
   assert.match(componentSource, /#fb923c/);

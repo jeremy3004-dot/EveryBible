@@ -73,6 +73,50 @@ export default async function AnalyticsPage() {
       <section className="card">
         <div className="card__header">
           <div>
+            <p className="eyebrow">By translation</p>
+            <h3>Translation engagement</h3>
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Translation</th>
+                <th>Listening min</th>
+                <th>Reading min</th>
+                <th>Downloads</th>
+                <th>Listeners</th>
+                <th>Mapped points</th>
+                <th>Map status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.translationBreakdown.map((translation) => (
+                <tr key={translation.translationId}>
+                  <td>{translation.translationId.toUpperCase()}</td>
+                  <td>{Math.round(translation.listeningMinutes)}</td>
+                  <td>{Math.round(translation.readingMinutes)}</td>
+                  <td>{translation.downloadUnits}</td>
+                  <td>{translation.listenerCount}</td>
+                  <td>{translation.locationMetrics.length}</td>
+                  <td>
+                    {translation.locationMetrics.length > 0
+                      ? 'Heatmap ready'
+                      : analytics.translationBreakdown.length === 1
+                        ? 'Using overall map'
+                        : 'Totals only'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card__header">
+          <div>
             <p className="eyebrow">Top locations</p>
             <h3>Location totals</h3>
           </div>
