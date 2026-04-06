@@ -525,6 +525,7 @@ export function AnalyticsGlobe({
       minZoom: 1,
       pitchWithRotate: false,
       renderWorldCopies: false,
+      scrollZoom: false,
       style: initialStyle,
       zoom: INITIAL_ZOOM,
     });
