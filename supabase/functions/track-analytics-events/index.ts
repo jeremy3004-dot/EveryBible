@@ -38,6 +38,16 @@ function getAccessToken(req: Request): string | null {
 }
 
 function getClientIp(req: Request): string | null {
+  // Supabase Edge Functions run on Deno Deploy (Cloudflare-backed infrastructure).
+  // CF-Connecting-IP is the most reliable header — it is set by Cloudflare to the
+  // real client IP and cannot be spoofed.  x-forwarded-for and x-real-ip are
+  // checked as fallbacks for non-Cloudflare environments.
+  const cfConnectingIp = req.headers.get('cf-connecting-ip');
+  if (cfConnectingIp) {
+    const ip = cfConnectingIp.trim();
+    return ip.length > 0 ? ip : null;
+  }
+
   const forwarded = req.headers.get('x-forwarded-for');
   const realIp = req.headers.get('x-real-ip');
   const raw = forwarded || realIp;
