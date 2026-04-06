@@ -1,5 +1,7 @@
 'use client';
 
+import type React from 'react';
+
 type DailyListeningPoint = {
   day: string;
   minutes: number;
@@ -25,48 +27,82 @@ function formatSummaryValue(value: number, suffix: string) {
   return `${value.toLocaleString('en-US')} ${suffix}`;
 }
 
-type TrendChartProps<T extends { day: string }> = {
-  fillClassName?: string;
-  getValue: (point: T) => number;
-  points: T[];
-  title: string;
-  renderValue: (point: T) => string;
-};
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
-function TrendChart<T extends { day: string }>({
-  fillClassName,
-  getValue,
-  points,
+type CalPoint = { day: string; value: number };
+
+function MonthCalendar({
   title,
-  renderValue,
-}: TrendChartProps<T>) {
-  const maxValue = points.reduce((max, point) => Math.max(max, getValue(point)), 1);
+  points,
+  renderCell,
+  accentClass,
+}: {
+  title: string;
+  points: CalPoint[];
+  renderCell: (v: number) => string;
+  accentClass?: string;
+}) {
+  const valueMap = new Map(points.map((p) => [p.day, p.value]));
+  const maxValue = Math.max(...points.map((p) => p.value), 1);
+  const monthKeys = [...new Set(points.map((p) => p.day.slice(0, 7)))].sort();
 
   return (
-    <div className="daily-trends__chart-block">
-      <div className="daily-trends__headline">
-        <p className="eyebrow">Trend</p>
-        <h4>{title}</h4>
-      </div>
+    <div className="cal-panel">
+      <p className="eyebrow">Trend</p>
+      <h4 className="cal-panel__title">{title}</h4>
 
-      <div className="bar-chart daily-trends__chart" aria-label={title}>
-        {points.map((point) => {
-          const value = getValue(point);
+      {monthKeys.map((monthKey) => {
+        const year = Number(monthKey.slice(0, 4));
+        const month = Number(monthKey.slice(5, 7));
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const startOffset = new Date(year, month - 1, 1).getDay();
 
-          return (
-            <div key={point.day} className="bar-chart__row daily-trends__row">
-              <span>{point.day.slice(5)}</span>
-              <div className="bar-chart__track">
-                <div
-                  className={`bar-chart__fill ${fillClassName ?? ''}`.trim()}
-                  style={{ width: `${(value / maxValue) * 100}%` }}
-                />
-              </div>
-              <strong>{renderValue(point)}</strong>
+        return (
+          <div key={monthKey} className="cal-panel__month">
+            <p className="cal-panel__month-label">
+              {MONTH_NAMES[month - 1]} {year}
+            </p>
+            <div className="cal-panel__grid" aria-label={`${MONTH_NAMES[month - 1]} ${year}`}>
+              {WEEKDAY_LABELS.map((label, i) => (
+                <span key={`wd-${i}`} className="cal-panel__weekday">
+                  {label}
+                </span>
+              ))}
+              {Array.from({ length: startOffset }, (_, i) => (
+                <div key={`gap-${i}`} className="cal-cell cal-cell--gap" />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const dayNum = i + 1;
+                const dayStr = `${monthKey}-${String(dayNum).padStart(2, '0')}`;
+                const value = valueMap.get(dayStr);
+                const hasData = value !== undefined;
+                const isLit = hasData && value > 0;
+                const intensity = isLit ? value / maxValue : 0;
+
+                let cellClass = 'cal-cell';
+                if (!hasData) cellClass += ' cal-cell--dim';
+                else if (isLit) cellClass += ` cal-cell--lit${accentClass ? ` ${accentClass}` : ''}`;
+
+                return (
+                  <div
+                    key={dayNum}
+                    className={cellClass}
+                    style={isLit ? ({ '--cal-intensity': intensity } as React.CSSProperties) : undefined}
+                    title={isLit ? `${dayStr}: ${renderCell(value!)}` : undefined}
+                  >
+                    <span className="cal-cell__num">{dayNum}</span>
+                    {isLit && <span className="cal-cell__val">{renderCell(value!)}</span>}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -76,9 +112,9 @@ export function DailyTrendsPanel({
   dailyReadingMinutes,
   dailyDownloadUnits,
 }: DailyTrendsPanelProps) {
-  const listeningTotal = dailyListeningMinutes.reduce((sum, point) => sum + point.minutes, 0);
-  const readingTotal = dailyReadingMinutes.reduce((sum, point) => sum + point.minutes, 0);
-  const downloadTotal = dailyDownloadUnits.reduce((sum, point) => sum + point.value, 0);
+  const listeningTotal = dailyListeningMinutes.reduce((sum, p) => sum + p.minutes, 0);
+  const readingTotal = dailyReadingMinutes.reduce((sum, p) => sum + p.minutes, 0);
+  const downloadTotal = dailyDownloadUnits.reduce((sum, p) => sum + p.value, 0);
 
   return (
     <section className="card daily-trends">
@@ -88,7 +124,6 @@ export function DailyTrendsPanel({
           <h3>Daily engagement trends</h3>
           <p>Thirty days of listening, reading, and download activity.</p>
         </div>
-
         <div className="daily-trends__summary-meta">
           <span>Listening {formatSummaryValue(listeningTotal, 'minutes')}</span>
           <span>Reading {formatSummaryValue(readingTotal, 'minutes')}</span>
@@ -97,25 +132,22 @@ export function DailyTrendsPanel({
       </div>
 
       <div className="daily-trends__body">
-        <TrendChart
+        <MonthCalendar
           title="Daily listening minutes"
-          points={dailyListeningMinutes}
-          getValue={(point) => point.minutes}
-          renderValue={(point) => point.minutes.toFixed(1)}
+          points={dailyListeningMinutes.map((p) => ({ day: p.day, value: p.minutes }))}
+          renderCell={(v) => v.toFixed(1)}
         />
-        <TrendChart
+        <MonthCalendar
           title="Daily reading minutes"
-          points={dailyReadingMinutes}
-          getValue={(point) => point.minutes}
-          renderValue={(point) => point.minutes.toFixed(1)}
-          fillClassName="bar-chart__fill--tertiary"
+          points={dailyReadingMinutes.map((p) => ({ day: p.day, value: p.minutes }))}
+          renderCell={(v) => v.toFixed(1)}
+          accentClass="cal-cell--green"
         />
-        <TrendChart
+        <MonthCalendar
           title="Daily download units"
-          points={dailyDownloadUnits}
-          getValue={(point) => point.value}
-          renderValue={(point) => `${point.value}`}
-          fillClassName="bar-chart__fill--secondary"
+          points={dailyDownloadUnits.map((p) => ({ day: p.day, value: p.value }))}
+          renderCell={(v) => String(v)}
+          accentClass="cal-cell--teal"
         />
       </div>
     </section>

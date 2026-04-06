@@ -1074,36 +1074,96 @@ textarea {
 
 .analytics-page .daily-trends__body {
   display: grid;
-  gap: 0.95rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
 
-.analytics-page .daily-trends__headline {
+.analytics-page .cal-panel {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.5rem;
+  align-content: start;
 }
 
-.analytics-page .daily-trends__headline h4 {
+.analytics-page .cal-panel__title {
   font-family: var(--font-display);
-  font-size: 1.08rem;
+  font-size: 0.9rem;
   letter-spacing: -0.02em;
 }
 
-.analytics-page .daily-trends__chart {
-  max-height: 15rem;
-  overflow: auto;
-  padding-right: 0.2rem;
-  scrollbar-gutter: stable;
+.analytics-page .cal-panel__month {
+  display: grid;
+  gap: 0.25rem;
 }
 
-.analytics-page .daily-trends__row {
-  grid-template-columns: 54px minmax(0, 1fr) 52px;
-  gap: 0.65rem;
+.analytics-page .cal-panel__month-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.analytics-page .daily-trends__chart .bar-chart__track {
-  height: 10px;
+.analytics-page .cal-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.analytics-page .cal-panel__weekday {
+  font-size: 0.58rem;
+  text-align: center;
+  color: var(--muted);
+  padding-bottom: 2px;
+}
+
+.analytics-page .cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  min-height: 0;
+}
+
+.analytics-page .cal-cell--dim {
+  background: transparent;
+  opacity: 0.2;
+}
+
+.analytics-page .cal-cell--gap {
+  background: transparent;
+}
+
+.analytics-page .cal-cell--lit {
+  background: color-mix(in srgb, var(--accent) calc(var(--cal-intensity, 0) * 65%), var(--surface-3));
+}
+
+.analytics-page .cal-cell--lit.cal-cell--green {
+  background: color-mix(in srgb, #4ade80 calc(var(--cal-intensity, 0) * 65%), var(--surface-3));
+}
+
+.analytics-page .cal-cell--lit.cal-cell--teal {
+  background: color-mix(in srgb, #38bdf8 calc(var(--cal-intensity, 0) * 65%), var(--surface-3));
+}
+
+.analytics-page .cal-cell__num {
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-page .cal-cell__val {
+  font-size: 0.52rem;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 
 .page-stack {
@@ -1929,8 +1989,20 @@ textarea {
   color: rgba(244, 246, 248, 0.74);
 }
 
-:root[data-theme='dark'] .analytics-page .daily-trends .bar-chart__track {
-  background: rgba(255, 255, 255, 0.06);
+:root[data-theme='dark'] .analytics-page .daily-trends .cal-cell {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-theme='dark'] .analytics-page .daily-trends .cal-cell--lit {
+  background: color-mix(in srgb, var(--accent) calc(var(--cal-intensity, 0) * 50%), rgba(255, 255, 255, 0.05));
+}
+
+:root[data-theme='dark'] .analytics-page .daily-trends .cal-cell--lit.cal-cell--green {
+  background: color-mix(in srgb, #4ade80 calc(var(--cal-intensity, 0) * 50%), rgba(255, 255, 255, 0.05));
+}
+
+:root[data-theme='dark'] .analytics-page .daily-trends .cal-cell--lit.cal-cell--teal {
+  background: color-mix(in srgb, #38bdf8 calc(var(--cal-intensity, 0) * 50%), rgba(255, 255, 255, 0.05));
 }
 
 :root[data-theme='dark'] .analytics-page .daily-trends__body {
@@ -2012,8 +2084,11 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .filter-form,
-  .bar-chart__row {
+  .filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-page .daily-trends__body {
     grid-template-columns: 1fr;
   }
 
@@ -2253,21 +2328,8 @@ body {
 }
 
 .analytics-page .daily-trends__summary,
-.analytics-page .daily-trends__body,
-.analytics-page .bar-chart__track {
+.analytics-page .daily-trends__body {
   border-color: var(--line);
-}
-
-.analytics-page .bar-chart__fill {
-  background: linear-gradient(180deg, var(--accent), #111111);
-}
-
-.analytics-page .bar-chart__fill--secondary {
-  background: linear-gradient(180deg, #111111, #f7933a);
-}
-
-.analytics-page .bar-chart__fill--tertiary {
-  background: linear-gradient(180deg, #111111, #4caf50);
 }
 
 .pill {
