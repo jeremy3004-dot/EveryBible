@@ -234,9 +234,10 @@ Recent decisions affecting current work:
 | 260323 | Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment | 2026-03-23 | 954569f | [260323-fix-4-bible-reader-bugs-back-navigation-](./quick/260323-fix-4-bible-reader-bugs-back-navigation-/) |
 | 260324 | Fix 5 UI bugs: tab bar padding, secure-code keyboard, reader header, back button safe area, mini player overlap | 2026-03-24 | 7bc941b | [260324-fix-5-ui-bugs-tab-bar-padding-secure-cod](./quick/260324-fix-5-ui-bugs-tab-bar-padding-secure-cod/) |
 | 260324-lvw | Comprehensive i18n audit and fix: locale parity es/ne/hi, hardcoded strings in screens/components, static data file keys | 2026-03-24 | 26680a5 | [260324-lvw-comprehensive-i18n-audit-and-fix-across-](./quick/260324-lvw-comprehensive-i18n-audit-and-fix-across-/) |
+| 260406-rso | Replace ipapi.co with a self-owned Cloudflare Worker for geolocation | 2026-04-06 | f15d311 | [260406-rso-replace-ipapi-co-with-a-self-owned-cloud](./quick/260406-rso-replace-ipapi-co-with-a-self-owned-cloud/) |
 
 ## Session Continuity
 
-Last session: 2026-03-26T13:20:00Z
+Last session: 2026-04-06T14:15:49Z
 Stopped at: Phase 28 regression hardening follow-up complete (catalog integrity, runtime placeholder persistence, release bundle verification)
 Resume file: None
