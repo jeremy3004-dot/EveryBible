@@ -934,11 +934,11 @@ label {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    #C0392B 0%,
-    #d94f3d 25%,
-    #34d399 50%,
-    #fbbf24 75%,
-    #ef4444 100%
+    #3b82f6 0%,
+    #34d399 35%,
+    #fbbf24 65%,
+    #fb923c 82%,
+    #C0392B 100%
   );
 }
 
