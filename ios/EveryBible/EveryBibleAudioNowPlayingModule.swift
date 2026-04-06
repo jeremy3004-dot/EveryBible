@@ -55,7 +55,6 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
         MPNowPlayingInfoCenter.default().playbackState = .stopped
       }
       self.disableCommands()
-      UIApplication.shared.endReceivingRemoteControlEvents()
     }
   }
 

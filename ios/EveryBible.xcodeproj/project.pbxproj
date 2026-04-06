@@ -14,6 +14,8 @@
 		94D921C656518F7722FB3C8A /* libPods-EveryBible.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 97CCD1DB46F8E5917E4BD96A /* libPods-EveryBible.a */; };
 		A81F47F92E005D920044C1D9 /* EveryBiblePrivacyModule.m in Sources */ = {isa = PBXBuildFile; fileRef = A81F47F72E005D920044C1D9 /* EveryBiblePrivacyModule.m */; };
 		A81F47FA2E005D920044C1D9 /* EveryBiblePrivacyModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81F47F82E005D920044C1D9 /* EveryBiblePrivacyModule.swift */; };
+		B8C4F3A32E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m in Sources */ = {isa = PBXBuildFile; fileRef = B8C4F3A22E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m */; };
+		B8C4F3A42E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C4F3A12E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		E32ABEF1BEED1903ECDCC71D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DDAF5C60B8FCDE3C52D246C /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
@@ -32,6 +34,8 @@
 		9CF29617BF0C44E6B1F3E753 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		A81F47F72E005D920044C1D9 /* EveryBiblePrivacyModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = EveryBiblePrivacyModule.m; path = EveryBible/EveryBiblePrivacyModule.m; sourceTree = "<group>"; };
 		A81F47F82E005D920044C1D9 /* EveryBiblePrivacyModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EveryBiblePrivacyModule.swift; path = EveryBible/EveryBiblePrivacyModule.swift; sourceTree = "<group>"; };
+		B8C4F3A12E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EveryBibleAudioNowPlayingModule.swift; path = EveryBible/EveryBibleAudioNowPlayingModule.swift; sourceTree = "<group>"; };
+		B8C4F3A22E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = EveryBibleAudioNowPlayingModule.m; path = EveryBible/EveryBibleAudioNowPlayingModule.m; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		C38B1E7F79671F1E5CDEE3CC /* Pods-EveryBible.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-EveryBible.debug.xcconfig"; path = "Target Support Files/Pods-EveryBible/Pods-EveryBible.debug.xcconfig"; sourceTree = "<group>"; };
@@ -60,6 +64,8 @@
 				F11748442D0722820044C1D9 /* EveryBible-Bridging-Header.h */,
 				A81F47F82E005D920044C1D9 /* EveryBiblePrivacyModule.swift */,
 				A81F47F72E005D920044C1D9 /* EveryBiblePrivacyModule.m */,
+				B8C4F3A12E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift */,
+				B8C4F3A22E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -391,6 +397,8 @@
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				A81F47FA2E005D920044C1D9 /* EveryBiblePrivacyModule.swift in Sources */,
 				A81F47F92E005D920044C1D9 /* EveryBiblePrivacyModule.m in Sources */,
+				B8C4F3A42E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift in Sources */,
+				B8C4F3A32E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m in Sources */,
 				E32ABEF1BEED1903ECDCC71D /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
