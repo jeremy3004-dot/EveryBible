@@ -1037,6 +1037,7 @@ textarea {
 
 .analytics-page .daily-trends__body {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.95rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border);
@@ -1067,6 +1068,104 @@ textarea {
 
 .analytics-page .daily-trends__chart .bar-chart__track {
   height: 10px;
+}
+
+/* ── Activity Calendar ───────────────────────────────────────── */
+.analytics-page .cal-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.analytics-page .cal-panel__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.analytics-page .cal-panel__month {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.analytics-page .cal-panel__month-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.analytics-page .cal-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.analytics-page .cal-panel__weekday {
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  padding-bottom: 0.2rem;
+  letter-spacing: 0.04em;
+}
+
+.analytics-page .cal-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 3px 4px;
+  min-height: 30px;
+  overflow: hidden;
+}
+
+.analytics-page .cal-cell--gap {
+  background: transparent;
+}
+
+.analytics-page .cal-cell--dim {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.analytics-page .cal-cell--lit {
+  background: rgba(192, 57, 43, calc(0.15 + var(--cal-intensity, 1) * 0.75));
+}
+
+.analytics-page .cal-cell--lit.cal-cell--green {
+  background: rgba(76, 175, 125, calc(0.15 + var(--cal-intensity, 1) * 0.75));
+}
+
+.analytics-page .cal-cell--lit.cal-cell--teal {
+  background: rgba(56, 178, 172, calc(0.15 + var(--cal-intensity, 1) * 0.75));
+}
+
+.analytics-page .cal-cell__num {
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+.analytics-page .cal-cell--lit .cal-cell__num {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.analytics-page .cal-cell__val {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+  align-self: flex-end;
+}
+
+@media (max-width: 900px) {
+  .analytics-page .daily-trends__body {
+    grid-template-columns: 1fr;
+  }
 }
 
 .page-stack {
