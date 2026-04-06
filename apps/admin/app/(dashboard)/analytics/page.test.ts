@@ -12,13 +12,15 @@ test('analytics page puts the globe hero before secondary analytics sections', a
     'utf8'
   );
 
-  const globeIndex = pageSource.indexOf('<AnalyticsGlobe metrics={analytics.countryMetrics} />');
+  const globeIndex = pageSource.indexOf('<AnalyticsGlobe');
   const metricsIndex = pageSource.indexOf('<section className="metric-grid analytics-page__metrics">');
   const dailyTrendsIndex = pageSource.indexOf('<DailyTrendsPanel');
   const oldTrendIndex = pageSource.indexOf('<section className="two-column analytics-page__trends">');
   const tableIndex = pageSource.indexOf('<section className="card">');
 
   assert.ok(globeIndex >= 0, 'expected globe component to be present');
+  assert.match(pageSource, /metrics=\{analytics\.locationMetrics\}/, 'globe should use locationMetrics for markers');
+  assert.doesNotMatch(pageSource, /countryMetrics/, 'analytics page should not reference countryMetrics');
   assert.ok(metricsIndex >= 0, 'expected metric grid to be present');
   assert.ok(dailyTrendsIndex >= 0, 'expected compact daily trends panel to be present');
   assert.ok(
