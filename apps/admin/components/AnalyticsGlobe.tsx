@@ -268,9 +268,9 @@ export function AnalyticsGlobe({
     : activeBreakdown?.locationMetrics ?? (heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics);
   const effectiveListeningTotal = activeBreakdown?.listeningMinutes ?? listeningTotalMinutes;
 
-  // Use actual listening location points for the map when available;
-  // fall back to country centroids so the map is never empty.
-  const mapPoints = effectiveHeatmapPoints;
+  // Downloads mode uses country-level metrics (which carry downloadUnits).
+  // Listening mode uses GPS heatmap points for finer spatial resolution.
+  const mapPoints = mode === 'downloadUnits' ? effectiveMetrics : effectiveHeatmapPoints;
 
   const rankedMetrics = useMemo(() => {
     return [...effectiveMetrics]
