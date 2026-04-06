@@ -35,6 +35,25 @@ test('audioNowPlaying republishs the latest snapshot when iOS backgrounds the ap
   );
 });
 
+test('audioNowPlaying uses the branded EveryBible lock-screen artwork asset before generating a generic cover', () => {
+  const source = readRelativeSource('../../../ios/EveryBible/EveryBibleAudioNowPlayingModule.swift');
+  const artworkAssetContents = readRelativeSource(
+    '../../../ios/EveryBible/Images.xcassets/NowPlayingAppIcon.imageset/Contents.json'
+  );
+
+  assert.match(
+    source,
+    /UIImage\(named:\s*"NowPlayingAppIcon"\)/,
+    'The native now-playing bridge should load the dedicated EveryBible artwork asset for lock-screen metadata'
+  );
+
+  assert.match(
+    artworkAssetContents,
+    /App-Icon-1024x1024@1x\.png/,
+    'The lock-screen artwork asset should point at the branded EveryBible icon image'
+  );
+});
+
 test('audioNowPlaying keeps the JS bridge wired to the native now-playing module', () => {
   const source = readRelativeSource('./audioNowPlaying.ts');
 

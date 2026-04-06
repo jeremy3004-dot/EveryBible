@@ -289,7 +289,7 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       return image
     }
 
-    if let appIcon = UIImage(named: "AppIcon") {
+    if let appIcon = UIImage(named: "NowPlayingAppIcon") {
       return appIcon
     }
 
