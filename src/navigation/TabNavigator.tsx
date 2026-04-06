@@ -31,7 +31,7 @@ export function TabNavigator() {
   const currentBibleBook = useBibleStore((state) => state.currentBook);
   const currentBibleChapter = useBibleStore((state) => state.currentChapter);
   const preferredBibleMode = useBibleStore((state) => state.preferredChapterLaunchMode);
-  const tabBarBottomPadding = spacing.md;
+  const tabBarBottomPadding = spacing.lg;
   const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
     backgroundColor: colors.background,

@@ -458,7 +458,7 @@ export function BibleReaderScreen() {
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
   const premiumReaderBaseBottomPadding =
-    layout.tabBarBaseHeight + spacing.md + layout.minTouchTarget + spacing.md;
+    layout.tabBarBaseHeight + spacing.lg + layout.minTouchTarget + spacing.md;
   const premiumReaderBottomPadding = useMemo(() => {
     if (premiumReaderViewportHeight <= 0 || premiumReaderContentHeight <= 0) {
       return premiumReaderBaseBottomPadding;
@@ -2526,7 +2526,7 @@ export function BibleReaderScreen() {
             pointerEvents="box-none"
             style={[
               styles.floatingReaderChapterNavOverlay,
-              { bottom: layout.tabBarBaseHeight + spacing.md },
+              { bottom: layout.tabBarBaseHeight + spacing.lg },
             ]}
           >
             <TouchableOpacity

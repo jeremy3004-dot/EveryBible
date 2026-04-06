@@ -152,7 +152,7 @@ export const layout = {
   cardPadding: 20,
   denseCardPadding: spacing.lg,
   minTouchTarget: 44,
-  tabBarBaseHeight: 56,
+  tabBarBaseHeight: 52,
 } as const;
 
 export const shadows = {

@@ -561,7 +561,7 @@ test('premium read mode restores the bottom previous and next chapter circles', 
   );
 
   assert.equal(
-    source.includes('bottom: layout.tabBarBaseHeight + spacing.md'),
+    source.includes('bottom: layout.tabBarBaseHeight + spacing.lg'),
     true,
     'BibleReaderScreen should keep the chapter navigation circles above the visible root tab bar'
   );
