@@ -1,3 +1,5 @@
+import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
+
 interface GeoContext {
   geo_accuracy_km: number | null;
   geo_country_code: string | null;
@@ -49,7 +51,14 @@ export async function resolveGeoContext(): Promise<GeoContext | null> {
   if (!geoLookupPromise) {
     geoLookupPromise = (async () => {
       try {
-        const response = await fetch('https://ipapi.co/json/', {
+        const workerUrl = publicRuntimeConfig.EXPO_PUBLIC_GEO_WORKER_URL;
+
+        if (!workerUrl) {
+          console.warn('GEO: EXPO_PUBLIC_GEO_WORKER_URL not configured, skipping geo enrichment');
+          return null;
+        }
+
+        const response = await fetch(workerUrl, {
           headers: {
             Accept: 'application/json',
             'User-Agent': 'EveryBible/mobile-analytics',
@@ -78,7 +87,7 @@ export async function resolveGeoContext(): Promise<GeoContext | null> {
           geo_country_code: normalizeCountryCode(payload.country_code),
           geo_latitude: normalizeCoordinate(payload.latitude),
           geo_longitude: normalizeCoordinate(payload.longitude),
-          geo_source: 'ipapi',
+          geo_source: 'cf-worker',
           geo_timezone:
             typeof payload.timezone === 'string' && payload.timezone.trim().length > 0
               ? payload.timezone.trim()

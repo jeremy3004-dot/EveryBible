@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["supabase/functions", "apps", "packages"]
+  "exclude": ["supabase/functions", "apps", "packages", "workers"]
 }
