@@ -275,6 +275,11 @@ export interface TranslationLocationRollup {
   listenerCount: number;
 }
 
+export interface TranslationListeningRollup {
+  listeningMinutes: number;
+  translationId: string;
+}
+
 /** One entry per translation that had any activity in the window. */
 export interface TranslationBreakdownEntry {
   translationId: string;
@@ -293,11 +298,13 @@ export interface TranslationBreakdownEntry {
 export function buildTranslationBreakdown(
   countryRollups: TranslationCountryRollup[],
   locationRollups: TranslationLocationRollup[],
+  listeningRollups: TranslationListeningRollup[] = [],
 ): TranslationBreakdownEntry[] {
   const byTranslation = new Map<
     string,
     {
       listeningMinutes: number;
+      locationListeningMinutes: number;
       readingMinutes: number;
       downloadUnits: number;
       listenerCount: number;
@@ -305,12 +312,14 @@ export function buildTranslationBreakdown(
       locationRollups: LocationMetricRollup[];
     }
   >();
+  const listeningMinutesByTranslation = new Map<string, number>();
 
   const ensure = (id: string) => {
     let entry = byTranslation.get(id);
     if (!entry) {
       entry = {
         listeningMinutes: 0,
+        locationListeningMinutes: 0,
         readingMinutes: 0,
         downloadUnits: 0,
         listenerCount: 0,
@@ -321,6 +330,11 @@ export function buildTranslationBreakdown(
     }
     return entry;
   };
+
+  for (const row of listeningRollups) {
+    listeningMinutesByTranslation.set(row.translationId, Math.max(0, Number(row.listeningMinutes) || 0));
+    ensure(row.translationId);
+  }
 
   for (const row of countryRollups) {
     const entry = ensure(row.translationId);
@@ -339,6 +353,7 @@ export function buildTranslationBreakdown(
 
   for (const row of locationRollups) {
     const entry = ensure(row.translationId);
+    entry.locationListeningMinutes += Number(row.listeningMinutes) || 0;
     entry.locationRollups.push({
       countryCode: row.countryCode,
       countryName: row.countryName,
@@ -351,15 +366,23 @@ export function buildTranslationBreakdown(
   }
 
   return Array.from(byTranslation.entries())
-    .map(([translationId, entry]) => ({
-      translationId,
-      listeningMinutes: Math.round(entry.listeningMinutes),
-      readingMinutes: Math.round(entry.readingMinutes),
-      downloadUnits: entry.downloadUnits,
-      listenerCount: entry.listenerCount,
-      countryMetrics: mapCountryRollupsToMetrics(entry.countryRollups),
-      locationMetrics: mapLocationRollupsToMetrics(entry.locationRollups),
-    }))
+    .map(([translationId, entry]) => {
+      const locationMetrics = mapLocationRollupsToMetrics(entry.locationRollups);
+      const countryMetrics = mapCountryRollupsToMetrics(entry.countryRollups);
+
+      return {
+        translationId,
+        listeningMinutes: Math.round(
+          listeningMinutesByTranslation.get(translationId) ??
+            Math.max(entry.listeningMinutes, entry.locationListeningMinutes)
+        ),
+        readingMinutes: Math.round(entry.readingMinutes),
+        downloadUnits: entry.downloadUnits,
+        listenerCount: entry.listenerCount,
+        countryMetrics: countryMetrics.length > 0 ? countryMetrics : locationMetrics,
+        locationMetrics,
+      };
+    })
     .sort((a, b) => b.listeningMinutes - a.listeningMinutes || a.translationId.localeCompare(b.translationId));
 }
 

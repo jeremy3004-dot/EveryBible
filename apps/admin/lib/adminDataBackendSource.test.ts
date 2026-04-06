@@ -15,5 +15,6 @@ test('admin analytics overview uses the shared Supabase analytics RPC for locati
   assert.match(source, /service\.rpc\('get_admin_analytics_overview'/);
   assert.match(source, /locationMetrics/);
   assert.match(source, /activeLocationCount/);
+  assert.match(source, /translationListeningMinutes/);
   assert.doesNotMatch(source, /countryMetrics/);
 });

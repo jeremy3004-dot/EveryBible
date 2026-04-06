@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildAnalyticsOverviewModel,
+  buildTranslationBreakdown,
   mapCountryRollupsToMetrics,
   mapLocationRollupsToMetrics,
 } from './analytics-reporting';
@@ -104,7 +105,7 @@ test('mapCountryRollupsToMetrics enriches backend country rollups with globe coo
   assert.equal(metrics[1]?.downloadUnits, 5);
 });
 
-test('mapLocationRollupsToMetrics collapses location rows into country-level globe metrics', () => {
+test('mapLocationRollupsToMetrics preserves distinct location rows while enriching coordinates', () => {
   const metrics = mapLocationRollupsToMetrics([
     {
       countryCode: 'NP',
@@ -129,14 +130,72 @@ test('mapLocationRollupsToMetrics collapses location rows into country-level glo
     },
   ]);
 
-  assert.equal(metrics.length, 2);
+  assert.equal(metrics.length, 3);
 
-  const nepal = metrics.find((country) => country.code === 'NP');
-  const unitedStates = metrics.find((country) => country.code === 'US');
+  assert.equal(metrics[0]?.code, 'US');
+  assert.equal(metrics[0]?.downloadUnits, 4);
+  assert.equal(metrics[0]?.listenerCount, 3);
+  assert.equal(metrics[1]?.code, 'NP');
+  assert.equal(metrics[1]?.listeningMinutes, 12.5);
+  assert.equal(metrics[1]?.downloadUnits, 1);
+  assert.equal(metrics[2]?.code, 'NP');
+  assert.equal(metrics[2]?.listeningMinutes, 7.5);
+  assert.equal(metrics[2]?.downloadUnits, 2);
+});
 
-  assert.equal(nepal?.downloadUnits, 3);
-  assert.equal(nepal?.listenerCount, 2);
-  assert.equal(nepal?.listeningMinutes, 20);
-  assert.equal(unitedStates?.downloadUnits, 4);
-  assert.equal(unitedStates?.listenerCount, 3);
+test('buildTranslationBreakdown prefers explicit listening totals over country rollups', () => {
+  const breakdown = buildTranslationBreakdown(
+    [],
+    [
+      {
+        translationId: 'nlt',
+        countryCode: null,
+        countryName: 'Unknown',
+        downloadUnits: 0,
+        listenerCount: 0,
+        listeningMinutes: 18.4,
+        latitude: 27.7,
+        longitude: 85.3,
+      },
+    ],
+    [
+      {
+        translationId: 'nlt',
+        listeningMinutes: 18.4,
+      },
+    ]
+  );
+
+  assert.equal(breakdown.length, 1);
+  assert.equal(breakdown[0]?.translationId, 'nlt');
+  assert.equal(breakdown[0]?.listeningMinutes, 18);
+  assert.equal(breakdown[0]?.locationMetrics.length, 1);
+  assert.equal(breakdown[0]?.countryMetrics.length, 1);
+  assert.equal(breakdown[0]?.countryMetrics[0]?.listeningMinutes, 18.4);
+  assert.equal(breakdown[0]?.countryMetrics[0]?.name, 'Unknown');
+});
+
+test('buildTranslationBreakdown falls back to location listening totals before the RPC exposes explicit totals', () => {
+  const breakdown = buildTranslationBreakdown(
+    [],
+    [
+      {
+        translationId: 'web',
+        countryCode: 'NP',
+        countryName: 'Nepal',
+        downloadUnits: 0,
+        listenerCount: 1,
+        listeningMinutes: 27.3,
+        latitude: 27.7,
+        longitude: 85.3,
+      },
+    ]
+  );
+
+  assert.equal(breakdown.length, 1);
+  assert.equal(breakdown[0]?.translationId, 'web');
+  assert.equal(breakdown[0]?.listeningMinutes, 27);
+  assert.equal(breakdown[0]?.countryMetrics.length, 1);
+  assert.equal(breakdown[0]?.countryMetrics[0]?.code, 'NP');
+  assert.equal(breakdown[0]?.countryMetrics[0]?.listeningMinutes, 27.3);
 });

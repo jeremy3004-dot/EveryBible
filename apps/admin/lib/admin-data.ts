@@ -8,6 +8,7 @@ import {
   type TranslationBreakdownEntry,
   type TranslationCountryRollup,
   type TranslationLocationRollup,
+  type TranslationListeningRollup,
   buildTranslationBreakdown,
   mapLocationRollupsToMetrics,
 } from '@/lib/analytics-reporting';
@@ -230,6 +231,7 @@ interface AnalyticsOverviewRpcPayload {
   totalTrackedSessions?: number;
   translationCountryMetrics?: TranslationCountryRollup[];
   translationLocationMetrics?: TranslationLocationRollup[];
+  translationListeningMinutes?: TranslationListeningRollup[];
   userCountWithListening?: number;
 }
 
@@ -774,6 +776,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   const translationBreakdown = buildTranslationBreakdown(
     (overview.translationCountryMetrics ?? []) as TranslationCountryRollup[],
     (overview.translationLocationMetrics ?? []) as TranslationLocationRollup[],
+    (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[],
   );
 
   return {
