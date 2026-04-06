@@ -1,74 +1,44 @@
 'use client';
 
-type DailyListeningPoint = {
-  day: string;
-  minutes: number;
-};
-
-type DailyDownloadPoint = {
-  day: string;
-  value: number;
-};
-
-type DailyReadingPoint = {
-  day: string;
-  minutes: number;
-};
+type DailyListeningPoint = { day: string; minutes: number };
+type DailyDownloadPoint  = { day: string; value: number };
+type DailyReadingPoint   = { day: string; minutes: number };
 
 type DailyTrendsPanelProps = {
   dailyListeningMinutes: DailyListeningPoint[];
-  dailyReadingMinutes: DailyReadingPoint[];
-  dailyDownloadUnits: DailyDownloadPoint[];
+  dailyReadingMinutes:   DailyReadingPoint[];
+  dailyDownloadUnits:    DailyDownloadPoint[];
 };
 
-function formatSummaryValue(value: number, suffix: string) {
-  return `${value.toLocaleString('en-US')} ${suffix}`;
-}
+function Sparkline({ values, color, gradId }: { values: number[]; color: string; gradId: string }) {
+  const W = 100, H = 40;
+  if (values.length < 2) return <svg className="spark" viewBox={`0 0 ${W} ${H}`} />;
 
-type TrendChartProps<T extends { day: string }> = {
-  fillClassName?: string;
-  getValue: (point: T) => number;
-  points: T[];
-  title: string;
-  renderValue: (point: T) => string;
-};
+  const max = Math.max(...values, 0.001);
+  const coords = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * W,
+    y: H - (v / max) * (H - 4) - 2,
+  }));
 
-function TrendChart<T extends { day: string }>({
-  fillClassName,
-  getValue,
-  points,
-  title,
-  renderValue,
-}: TrendChartProps<T>) {
-  const maxValue = points.reduce((max, point) => Math.max(max, getValue(point)), 1);
+  const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const area = `${line} L ${W} ${H} L 0 ${H} Z`;
 
   return (
-    <div className="daily-trends__chart-block">
-      <div className="daily-trends__headline">
-        <p className="eyebrow">Trend</p>
-        <h4>{title}</h4>
-      </div>
-
-      <div className="bar-chart daily-trends__chart" aria-label={title}>
-        {points.map((point) => {
-          const value = getValue(point);
-
-          return (
-            <div key={point.day} className="bar-chart__row daily-trends__row">
-              <span>{point.day.slice(5)}</span>
-              <div className="bar-chart__track">
-                <div
-                  className={`bar-chart__fill ${fillClassName ?? ''}`.trim()}
-                  style={{ width: `${(value / maxValue) * 100}%` }}
-                />
-              </div>
-              <strong>{renderValue(point)}</strong>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
   );
+}
+
+function fmt(n: number) {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
 export function DailyTrendsPanel({
@@ -76,47 +46,45 @@ export function DailyTrendsPanel({
   dailyReadingMinutes,
   dailyDownloadUnits,
 }: DailyTrendsPanelProps) {
-  const listeningTotal = dailyListeningMinutes.reduce((sum, point) => sum + point.minutes, 0);
-  const readingTotal = dailyReadingMinutes.reduce((sum, point) => sum + point.minutes, 0);
-  const downloadTotal = dailyDownloadUnits.reduce((sum, point) => sum + point.value, 0);
+  const listeningTotal = dailyListeningMinutes.reduce((s, p) => s + p.minutes, 0);
+  const readingTotal   = dailyReadingMinutes.reduce((s, p) => s + p.minutes, 0);
+  const downloadTotal  = dailyDownloadUnits.reduce((s, p) => s + p.value, 0);
 
   return (
     <section className="card daily-trends">
-      <div className="daily-trends__summary">
-        <div className="daily-trends__summary-copy">
-          <p className="eyebrow">Daily activity</p>
-          <h3>Daily engagement trends</h3>
-          <p>Thirty days of listening, reading, and download activity.</p>
+      <p className="eyebrow">Daily activity</p>
+      <div className="trend-spark-row">
+
+        <div className="trend-spark">
+          <span className="trend-spark__label">Listening minutes</span>
+          <strong className="trend-spark__val">{fmt(listeningTotal)}</strong>
+          <Sparkline
+            values={dailyListeningMinutes.map((p) => p.minutes)}
+            color="#C0392B"
+            gradId="spark-listening"
+          />
         </div>
 
-        <div className="daily-trends__summary-meta">
-          <span>Listening {formatSummaryValue(listeningTotal, 'minutes')}</span>
-          <span>Reading {formatSummaryValue(readingTotal, 'minutes')}</span>
-          <span>Downloads {formatSummaryValue(downloadTotal, 'units')}</span>
+        <div className="trend-spark trend-spark--divider">
+          <span className="trend-spark__label">Reading minutes</span>
+          <strong className="trend-spark__val">{fmt(readingTotal)}</strong>
+          <Sparkline
+            values={dailyReadingMinutes.map((p) => p.minutes)}
+            color="#4caf7d"
+            gradId="spark-reading"
+          />
         </div>
-      </div>
 
-      <div className="daily-trends__body">
-        <TrendChart
-          title="Daily listening minutes"
-          points={dailyListeningMinutes}
-          getValue={(point) => point.minutes}
-          renderValue={(point) => point.minutes.toFixed(1)}
-        />
-        <TrendChart
-          title="Daily reading minutes"
-          points={dailyReadingMinutes}
-          getValue={(point) => point.minutes}
-          renderValue={(point) => point.minutes.toFixed(1)}
-          fillClassName="bar-chart__fill--tertiary"
-        />
-        <TrendChart
-          title="Daily download units"
-          points={dailyDownloadUnits}
-          getValue={(point) => point.value}
-          renderValue={(point) => `${point.value}`}
-          fillClassName="bar-chart__fill--secondary"
-        />
+        <div className="trend-spark trend-spark--divider">
+          <span className="trend-spark__label">Downloads</span>
+          <strong className="trend-spark__val">{fmt(downloadTotal)}</strong>
+          <Sparkline
+            values={dailyDownloadUnits.map((p) => p.value)}
+            color="#38b2ac"
+            gradId="spark-downloads"
+          />
+        </div>
+
       </div>
     </section>
   );
