@@ -30,6 +30,7 @@ export default async function AnalyticsPage() {
       heatmapPoints={analytics.locationMetrics}
       metrics={analytics.countryMetrics}
       listeningTotalMinutes={analytics.listeningTotalMinutes}
+      translationBreakdown={analytics.translationBreakdown}
     />
 
       <section className="metric-grid analytics-page__metrics">

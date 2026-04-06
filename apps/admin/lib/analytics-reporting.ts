@@ -250,6 +250,119 @@ export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]
     .sort(compareCountryMetrics);
 }
 
+// ---------------------------------------------------------------------------
+// Per-translation rollup types (returned by the SQL function)
+// ---------------------------------------------------------------------------
+
+export interface TranslationCountryRollup {
+  translationId: string;
+  code: string;
+  name: string;
+  listeningMinutes: number;
+  readingMinutes: number;
+  listenerCount: number;
+  downloadUnits: number;
+}
+
+export interface TranslationLocationRollup {
+  translationId: string;
+  countryCode: string | null;
+  countryName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  listeningMinutes: number;
+  downloadUnits: number;
+  listenerCount: number;
+}
+
+/** One entry per translation that had any activity in the window. */
+export interface TranslationBreakdownEntry {
+  translationId: string;
+  listeningMinutes: number;
+  readingMinutes: number;
+  downloadUnits: number;
+  listenerCount: number;
+  countryMetrics: CountryMetric[];
+  locationMetrics: CountryMetric[];
+}
+
+/**
+ * Groups flat per-translation rollup arrays into a per-translation breakdown
+ * consumable by the globe component.
+ */
+export function buildTranslationBreakdown(
+  countryRollups: TranslationCountryRollup[],
+  locationRollups: TranslationLocationRollup[],
+): TranslationBreakdownEntry[] {
+  const byTranslation = new Map<
+    string,
+    {
+      listeningMinutes: number;
+      readingMinutes: number;
+      downloadUnits: number;
+      listenerCount: number;
+      countryRollups: CountryMetricRollup[];
+      locationRollups: LocationMetricRollup[];
+    }
+  >();
+
+  const ensure = (id: string) => {
+    let entry = byTranslation.get(id);
+    if (!entry) {
+      entry = {
+        listeningMinutes: 0,
+        readingMinutes: 0,
+        downloadUnits: 0,
+        listenerCount: 0,
+        countryRollups: [],
+        locationRollups: [],
+      };
+      byTranslation.set(id, entry);
+    }
+    return entry;
+  };
+
+  for (const row of countryRollups) {
+    const entry = ensure(row.translationId);
+    entry.listeningMinutes += Number(row.listeningMinutes) || 0;
+    entry.readingMinutes += Number(row.readingMinutes) || 0;
+    entry.downloadUnits += Math.round(Number(row.downloadUnits) || 0);
+    entry.listenerCount = Math.max(entry.listenerCount, Number(row.listenerCount) || 0);
+    entry.countryRollups.push({
+      code: row.code,
+      name: row.name,
+      listeningMinutes: Number(row.listeningMinutes) || 0,
+      downloadUnits: Math.round(Number(row.downloadUnits) || 0),
+      listenerCount: Math.round(Number(row.listenerCount) || 0),
+    });
+  }
+
+  for (const row of locationRollups) {
+    const entry = ensure(row.translationId);
+    entry.locationRollups.push({
+      countryCode: row.countryCode,
+      countryName: row.countryName,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      listeningMinutes: Number(row.listeningMinutes) || 0,
+      downloadUnits: Math.round(Number(row.downloadUnits) || 0),
+      listenerCount: Math.round(Number(row.listenerCount) || 0),
+    });
+  }
+
+  return Array.from(byTranslation.entries())
+    .map(([translationId, entry]) => ({
+      translationId,
+      listeningMinutes: Math.round(entry.listeningMinutes),
+      readingMinutes: Math.round(entry.readingMinutes),
+      downloadUnits: entry.downloadUnits,
+      listenerCount: entry.listenerCount,
+      countryMetrics: mapCountryRollupsToMetrics(entry.countryRollups),
+      locationMetrics: mapLocationRollupsToMetrics(entry.locationRollups),
+    }))
+    .sort((a, b) => b.listeningMinutes - a.listeningMinutes || a.translationId.localeCompare(b.translationId));
+}
+
 export function mapLocationRollupsToMetrics(
   locationRollups: LocationMetricRollup[]
 ): CountryMetric[] {

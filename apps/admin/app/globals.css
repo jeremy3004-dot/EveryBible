@@ -1476,6 +1476,41 @@ textarea {
   color: var(--text);
 }
 
+.translation-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-basis: 100%;
+}
+
+.translation-selector__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.translation-selector {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  background: var(--surface-3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 0.6rem center;
+  color: var(--text);
+  font-size: 0.88rem;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.translation-selector:focus {
+  outline: 2px solid rgba(61, 121, 194, 0.4);
+  outline-offset: 1px;
+}
+
 .globe-card__content {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.9fr);

@@ -9,7 +9,7 @@ import maplibregl, {
   type Popup as MapLibrePopup,
 } from 'maplibre-gl';
 
-import type { CountryMetric } from '@/lib/analytics-reporting';
+import type { CountryMetric, TranslationBreakdownEntry } from '@/lib/analytics-reporting';
 import { normalizeAdminTheme, type AdminThemeMode } from '@/lib/theme';
 
 type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
@@ -18,6 +18,7 @@ interface AnalyticsGlobeProps {
   heatmapPoints?: CountryMetric[];
   metrics: CountryMetric[];
   listeningTotalMinutes?: number;
+  translationBreakdown?: TranslationBreakdownEntry[];
 }
 
 interface MetricFeatureProperties {
@@ -218,10 +219,12 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
   ]);
 }
 
-export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }: AnalyticsGlobeProps) {
-  // Use actual listening location points for the map when available;
-  // fall back to country centroids so the map is never empty.
-  const mapPoints = heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics;
+export function AnalyticsGlobe({
+  heatmapPoints,
+  metrics,
+  listeningTotalMinutes,
+  translationBreakdown,
+}: AnalyticsGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<MapLibrePopup | null>(null);
@@ -235,12 +238,28 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
   const [theme, setTheme] = useState<AdminThemeMode>(getDocumentTheme);
   const [mode, setMode] = useState<MapMetricMode>('listeningMinutes');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selectedTranslation, setSelectedTranslation] = useState<string | null>(null);
+
+  const activeBreakdown = useMemo(() => {
+    if (!selectedTranslation || !translationBreakdown?.length) return null;
+    return translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ?? null;
+  }, [selectedTranslation, translationBreakdown]);
+
+  // Use filtered metrics when a translation is selected
+  const effectiveMetrics = activeBreakdown?.countryMetrics ?? metrics;
+  const effectiveHeatmapPoints =
+    activeBreakdown?.locationMetrics ?? (heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics);
+  const effectiveListeningTotal = activeBreakdown?.listeningMinutes ?? listeningTotalMinutes;
+
+  // Use actual listening location points for the map when available;
+  // fall back to country centroids so the map is never empty.
+  const mapPoints = effectiveHeatmapPoints;
 
   const rankedMetrics = useMemo(() => {
-    return [...metrics]
+    return [...effectiveMetrics]
       .filter((metric) => getMetricValue(metric, mode) > 0)
       .sort((left, right) => getMetricValue(right, mode) - getMetricValue(left, mode));
-  }, [metrics, mode]);
+  }, [effectiveMetrics, mode]);
 
   const activeSelectedCode = useMemo(() => {
     if (!selectedCode) {
@@ -266,7 +285,19 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
   }, [mapPoints, mode]);
 
   const overviewMetrics = useMemo(() => {
-    const activeCountryCount = metrics.filter(
+    if (activeBreakdown) {
+      const activeCountryCount = activeBreakdown.countryMetrics.filter(
+        (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
+      ).length;
+      return {
+        activeCountryCount,
+        listeningMinutes: activeBreakdown.listeningMinutes,
+        listenerCount: activeBreakdown.countryMetrics.reduce((sum, m) => sum + m.listenerCount, 0),
+        downloadUnits: activeBreakdown.downloadUnits,
+      };
+    }
+
+    const activeCountryCount = effectiveMetrics.filter(
       (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
     ).length;
 
@@ -276,12 +307,12 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
       // available. Falling back to the country sum makes unattributed minutes
       // invisible even though they are real listening time.
       listeningMinutes:
-        listeningTotalMinutes ??
-        metrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
-      listenerCount: metrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
-      downloadUnits: metrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
+        effectiveListeningTotal ??
+        effectiveMetrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
+      listenerCount: effectiveMetrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
+      downloadUnits: effectiveMetrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
     };
-  }, [metrics, listeningTotalMinutes]);
+  }, [effectiveMetrics, effectiveListeningTotal, activeBreakdown]);
 
   const topCountry = rankedMetrics[0] ?? null;
   const modeLabel = getModeLabel(mode);
@@ -413,8 +444,8 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
   }, []);
 
   useEffect(() => {
-    latestMetricsRef.current = metrics;
-  }, [metrics]);
+    latestMetricsRef.current = effectiveMetrics;
+  }, [effectiveMetrics]);
 
   useEffect(() => {
     latestFeatureCollectionRef.current = featureCollection;
@@ -557,7 +588,7 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
     showMetricPopup(selectedMetric);
   }, [selectedMetric, showMetricPopup]);
 
-  if (!metrics.length) {
+  if (!effectiveMetrics.length) {
     return (
       <section className="globe-card globe-card--empty">
         <p>No coarse geography data is available yet.</p>
@@ -605,6 +636,27 @@ export function AnalyticsGlobe({ heatmapPoints, metrics, listeningTotalMinutes }
             Downloads
           </button>
         </div>
+
+        {translationBreakdown && translationBreakdown.length > 0 && (
+          <div className="translation-selector-wrap">
+            <label htmlFor="translation-select" className="translation-selector__label">
+              Translation
+            </label>
+            <select
+              id="translation-select"
+              className="translation-selector"
+              value={selectedTranslation ?? ''}
+              onChange={(e) => setSelectedTranslation(e.target.value || null)}
+            >
+              <option value="">All translations</option>
+              {translationBreakdown.map((entry) => (
+                <option key={entry.translationId} value={entry.translationId}>
+                  {entry.translationId.toUpperCase()} — {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.readingMinutes)} read min
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="globe-card__content">

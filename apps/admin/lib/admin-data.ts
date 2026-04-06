@@ -6,6 +6,10 @@ import {
   type CountryMetricRollup,
   type DailyMetricPoint,
   type LocationMetricRollup,
+  type TranslationBreakdownEntry,
+  type TranslationCountryRollup,
+  type TranslationLocationRollup,
+  buildTranslationBreakdown,
   mapCountryRollupsToMetrics,
   mapLocationRollupsToMetrics,
 } from '@/lib/analytics-reporting';
@@ -211,6 +215,7 @@ export interface AnalyticsOverview {
   readingTotalMinutes: number;
   totalDownloadUnits: number;
   totalTrackedSessions: number;
+  translationBreakdown: TranslationBreakdownEntry[];
   userCountWithListening: number;
 }
 
@@ -227,6 +232,8 @@ interface AnalyticsOverviewRpcPayload {
   readingTotalMinutes?: number;
   totalDownloadUnits?: number;
   totalTrackedSessions?: number;
+  translationCountryMetrics?: TranslationCountryRollup[];
+  translationLocationMetrics?: TranslationLocationRollup[];
   userCountWithListening?: number;
 }
 
@@ -771,6 +778,11 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
     minutes: Number(point.value ?? 0),
   }));
 
+  const translationBreakdown = buildTranslationBreakdown(
+    (overview.translationCountryMetrics ?? []) as TranslationCountryRollup[],
+    (overview.translationLocationMetrics ?? []) as TranslationLocationRollup[],
+  );
+
   return {
     activeCountryCount: Number(overview.activeCountryCount ?? countryMetrics.length),
     activeLocationCount: Number(overview.activeLocationCount ?? locationMetrics.length),
@@ -787,6 +799,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
     readingTotalMinutes: Number(overview.readingTotalMinutes ?? 0),
     totalDownloadUnits: Number(overview.totalDownloadUnits ?? 0),
     totalTrackedSessions: Number(overview.totalTrackedSessions ?? 0),
+    translationBreakdown,
     userCountWithListening: Number(overview.userCountWithListening ?? 0),
   };
 }
