@@ -557,20 +557,7 @@ label {
 /* ── Theme toggle ────────────────────────── */
 
 .theme-toggle {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  z-index: 120;
   display: none;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.3rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
-  transform: translateX(-50%);
 }
 
 
@@ -877,61 +864,57 @@ label {
   gap: 1.25rem;
 }
 
-.analytics-page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 12% 8%, rgba(192, 57, 43, 0.07), transparent 22%),
-    radial-gradient(ellipse at 88% 14%, rgba(212, 145, 42, 0.05), transparent 20%);
-}
-
-.analytics-page > * {
-  position: relative;
-  z-index: 1;
-}
+/* analytics-page::before removed — no radial gradients on page background */
 
 .analytics-page .card,
 .analytics-page .metric-card,
 .analytics-page .globe-card,
-.analytics-page .daily-trends,
+.analytics-page .daily-trends {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+
 .analytics-page .globe-card__summary,
 .analytics-page .globe-card__legend-card,
 .analytics-page .globe-card__explore,
 .analytics-page .globe-card__selected,
 .analytics-page .globe-card__toplist {
-  background: var(--bg-surface);
-  border-color: var(--border);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
 }
 
 .analytics-page .globe-card__viewer {
   border-radius: var(--radius-md);
-  border-color: var(--border);
-  background: linear-gradient(180deg, var(--accent-dim), var(--bg-surface));
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
 }
 
 .analytics-page .globe-card__back-link {
   border-radius: var(--radius-sm);
-  border-color: var(--border);
-  background: var(--bg-surface);
-  color: var(--text);
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
 }
 
 .analytics-page .globe-card__back-link:hover {
-  background: var(--accent-dim);
-  color: var(--accent);
+  border-color: rgba(192, 57, 43, 0.22);
+  background: rgba(192, 57, 43, 0.06);
+  color: var(--text);
 }
 
 .analytics-page .segmented-control {
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .analytics-page .segmented-control__button {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
 }
 
 .analytics-page .segmented-control__button--active {
@@ -943,8 +926,8 @@ label {
 .analytics-page .globe-card__toplist button,
 .analytics-page .globe-card__selected dl div {
   border-radius: var(--radius-sm);
-  border-color: var(--border);
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .analytics-page .globe-card__legend-bar {
@@ -975,7 +958,7 @@ label {
 }
 
 .analytics-page .globe-card__viewer .maplibregl-ctrl-attrib {
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--bg-elevated);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
@@ -1012,8 +995,26 @@ label {
   letter-spacing: -0.02em;
 }
 
+.analytics-page .daily-trends .bar-chart__track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .analytics-page .daily-trends__body {
   border-top-color: var(--border);
+}
+
+.analytics-page .bar-chart__fill {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+
+.analytics-page .bar-chart__fill--secondary {
+  background: linear-gradient(90deg, var(--success), #34d399);
+}
+
+.analytics-page .bar-chart__fill--tertiary {
+  background: linear-gradient(90deg, #5da8d8, #38bdf8);
 }
 
 /* ── Notices ──────────────────────────────── */
