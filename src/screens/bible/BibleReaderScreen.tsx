@@ -458,7 +458,7 @@ export function BibleReaderScreen() {
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
   const premiumReaderBaseBottomPadding =
-    layout.tabBarBaseHeight + spacing.lg + layout.minTouchTarget + spacing.md;
+    safeInsets.bottom + layout.tabBarBaseHeight + spacing.lg + layout.minTouchTarget + spacing.md;
   const premiumReaderBottomPadding = useMemo(() => {
     if (premiumReaderViewportHeight <= 0 || premiumReaderContentHeight <= 0) {
       return premiumReaderBaseBottomPadding;
