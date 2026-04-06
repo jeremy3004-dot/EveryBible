@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { AnalyticsEvent, UserEngagementSummary } from '../supabase/types';
+import { attachGeoContext, resolveGeoContext } from './geoContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -15,6 +16,12 @@ export interface AnalyticsServiceResult<T = void> {
 export interface QueuedEvent {
   event_name: string;
   event_properties: Record<string, unknown>;
+  geo_accuracy_km?: number | null;
+  geo_country_code?: string | null;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  geo_source?: string | null;
+  geo_timezone?: string | null;
   session_id: string | null;
   device_platform: string;
   app_version: string;
@@ -127,10 +134,18 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
   const snapshot = eventQueue.splice(0, eventQueue.length);
 
   try {
+    const geoContext = await resolveGeoContext();
+    const enrichedSnapshot = snapshot.map((event) => attachGeoContext(event, geoContext));
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token?.trim();
+
     const { error: edgeFunctionError } = await supabase.functions.invoke(
       'track-analytics-events',
       {
-        body: { events: snapshot },
+        body: { events: enrichedSnapshot },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       }
     );
 
@@ -144,21 +159,21 @@ export async function flushEvents(): Promise<AnalyticsServiceResult> {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = snapshot.map((e) => ({
+    const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = enrichedSnapshot.map((e) => ({
       event_name: e.event_name,
       event_properties: e.event_properties,
+      geo_accuracy_km: e.geo_accuracy_km ?? null,
+      geo_city: null,
+      geo_country_code: e.geo_country_code ?? null,
+      geo_latitude: e.geo_latitude ?? null,
+      geo_longitude: e.geo_longitude ?? null,
+      geo_region_code: null,
+      geo_region_name: null,
+      geo_source: e.geo_source ?? null,
+      geo_timezone: e.geo_timezone ?? null,
       session_id: e.session_id,
       device_platform: e.device_platform,
       app_version: e.app_version,
-      geo_accuracy_km: null,
-      geo_city: null,
-      geo_country_code: null,
-      geo_latitude: null,
-      geo_longitude: null,
-      geo_region_code: null,
-      geo_region_name: null,
-      geo_source: null,
-      geo_timezone: null,
       user_id: user?.id ?? null,
     }));
 

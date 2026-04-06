@@ -10,11 +10,18 @@ interface QueuedAnalyticsEvent {
   device_platform: string;
   event_name: string;
   event_properties: Record<string, unknown>;
+  geo_accuracy_km?: number | null;
+  geo_country_code?: string | null;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  geo_source?: string | null;
+  geo_timezone?: string | null;
   queued_at: string;
   session_id: string | null;
 }
 
 interface GeoResult {
+  accuracyKm: number | null;
   countryCode: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -32,6 +39,15 @@ function getAccessToken(req: Request): string | null {
   return authorization.toLowerCase().startsWith('bearer ')
     ? authorization.slice(7).trim()
     : authorization.trim() || null;
+}
+
+function getEventProperty(event: QueuedAnalyticsEvent, key: string): unknown {
+  const properties = event.event_properties;
+  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) {
+    return null;
+  }
+
+  return (properties as Record<string, unknown>)[key];
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +76,32 @@ function normalizeCountryCode(value: unknown): string | null {
   // CF returns 'XX' for unknown IPs, 'T1' for Tor — treat both as unresolved.
   if (c === 'XX' || c === 'T1' || c.length === 0) return null;
   return c;
+}
+
+function normalizeCoordinate(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const parsed = Number(value.trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeAccuracyKm(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const parsed = Number(value.trim());
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function getClientIp(req: Request): string | null {
@@ -91,6 +133,7 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
       if (Number.isFinite(lat) && Number.isFinite(lng)) { latitude = lat; longitude = lng; }
     }
     return {
+      accuracyKm: null,
       countryCode: normalizeCountryCode(p.country),
       latitude, longitude,
       source: 'ipinfo',
@@ -113,6 +156,7 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
     const lat = typeof p.latitude === 'number' ? p.latitude : null;
     const lng = typeof p.longitude === 'number' ? p.longitude : null;
     return {
+      accuracyKm: null,
       countryCode: normalizeCountryCode(p.country_code),
       latitude: lat,
       longitude: lng,
@@ -122,7 +166,50 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
   } catch { return null; }
 }
 
-async function resolveGeo(req: Request): Promise<GeoResult> {
+function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
+  const countryCode = normalizeCountryCode(
+    event.geo_country_code ?? getEventProperty(event, 'geo_country_code')
+  );
+  const latitude = normalizeCoordinate(
+    event.geo_latitude ??
+      getEventProperty(event, 'geo_latitude') ??
+      getEventProperty(event, 'geo_latitude_bucket')
+  );
+  const longitude = normalizeCoordinate(
+    event.geo_longitude ??
+      getEventProperty(event, 'geo_longitude') ??
+      getEventProperty(event, 'geo_longitude_bucket')
+  );
+  const sourceValue = event.geo_source ?? getEventProperty(event, 'geo_source');
+  const timezoneValue = event.geo_timezone ?? getEventProperty(event, 'geo_timezone');
+  const accuracyKm = normalizeAccuracyKm(
+    event.geo_accuracy_km ?? getEventProperty(event, 'geo_accuracy_km')
+  );
+  const source = typeof sourceValue === 'string' && sourceValue.trim().length > 0 ? sourceValue.trim() : null;
+  const timezone = typeof timezoneValue === 'string' && timezoneValue.trim().length > 0 ? timezoneValue.trim() : null;
+
+  if (
+    countryCode == null &&
+    latitude == null &&
+    longitude == null &&
+    source == null &&
+    timezone == null &&
+    accuracyKm == null
+  ) {
+    return null;
+  }
+
+  return {
+    accuracyKm,
+    countryCode,
+    latitude,
+    longitude,
+    source,
+    timezone,
+  };
+}
+
+async function resolveRequestGeo(req: Request): Promise<GeoResult> {
   // Tier 1: country from Cloudflare header — free, always present.
   const cfCountry = normalizeCountryCode(req.headers.get('cf-ipcountry'));
 
@@ -132,16 +219,38 @@ async function resolveGeo(req: Request): Promise<GeoResult> {
     const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
     if (ipinfoToken) {
       const result = await lookupViaIpinfo(clientIp, ipinfoToken);
-      if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
+      if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
     }
 
     // Tier 2: ipapi.co free fallback — always attempted when no paid token.
     const result = await lookupViaIpapi(clientIp);
-    if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
+    if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
   }
 
   // Last resort: CF header country only (no lat/lng).
-  return { countryCode: cfCountry, latitude: null, longitude: null, source: cfCountry ? 'cf_ipcountry' : null, timezone: null };
+  return {
+    accuracyKm: null,
+    countryCode: cfCountry,
+    latitude: null,
+    longitude: null,
+    source: cfCountry ? 'cf_ipcountry' : null,
+    timezone: null,
+  };
+}
+
+function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResult {
+  if (!payloadGeo) {
+    return requestGeo;
+  }
+
+  return {
+    accuracyKm: payloadGeo.accuracyKm ?? requestGeo.accuracyKm,
+    countryCode: payloadGeo.countryCode ?? requestGeo.countryCode,
+    latitude: payloadGeo.latitude ?? requestGeo.latitude,
+    longitude: payloadGeo.longitude ?? requestGeo.longitude,
+    source: payloadGeo.source ?? requestGeo.source,
+    timezone: payloadGeo.timezone ?? requestGeo.timezone,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -184,27 +293,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    const geo = await resolveGeo(req);
+    const payloadGeos = events.map((event) => resolveEventGeo(event));
+    const requiresRequestGeo = payloadGeos.some((geo) => {
+      if (!geo) {
+        return true;
+      }
+
+      return (
+        geo.countryCode == null ||
+        geo.latitude == null ||
+        geo.longitude == null ||
+        geo.source == null ||
+        geo.timezone == null
+      );
+    });
+    const requestGeo = requiresRequestGeo ? await resolveRequestGeo(req) : null;
     const now = new Date().toISOString();
 
-    const rows = events.map((event) => ({
-      app_version: event.app_version,
-      created_at: event.queued_at || now,
-      device_platform: event.device_platform,
-      event_name: event.event_name,
-      event_properties: event.event_properties ?? {},
-      geo_accuracy_km: null,
-      geo_city: null,
-      geo_country_code: geo.countryCode,
-      geo_latitude: geo.latitude,
-      geo_longitude: geo.longitude,
-      geo_region_code: null,
-      geo_region_name: null,
-      geo_source: geo.source,
-      geo_timezone: geo.timezone,
-      session_id: event.session_id,
-      user_id: user.id,
-    }));
+    const rows = events.map((event, index) => {
+      const payloadGeo = payloadGeos[index];
+      const geo = requestGeo ? mergeGeo(requestGeo, payloadGeo) : payloadGeo ?? {
+        accuracyKm: null,
+        countryCode: null,
+        latitude: null,
+        longitude: null,
+        source: null,
+        timezone: null,
+      };
+
+      return {
+        app_version: event.app_version,
+        created_at: event.queued_at || now,
+        device_platform: event.device_platform,
+        event_name: event.event_name,
+        event_properties: event.event_properties ?? {},
+        geo_accuracy_km: geo.accuracyKm,
+        geo_city: null,
+        geo_country_code: geo.countryCode,
+        geo_latitude: geo.latitude,
+        geo_longitude: geo.longitude,
+        geo_region_code: null,
+        geo_region_name: null,
+        geo_source: geo.source,
+        geo_timezone: geo.timezone,
+        session_id: event.session_id,
+        user_id: user.id,
+      };
+    });
 
     const { error } = await supabase.from('analytics_events').insert(rows);
 
@@ -216,7 +351,12 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, inserted: rows.length, geo: geo.countryCode, geo_source: geo.source }),
+      JSON.stringify({
+        success: true,
+        inserted: rows.length,
+        geo: requestGeo?.countryCode ?? payloadGeos[0]?.countryCode ?? null,
+        geo_source: requestGeo?.source ?? payloadGeos[0]?.source ?? null,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

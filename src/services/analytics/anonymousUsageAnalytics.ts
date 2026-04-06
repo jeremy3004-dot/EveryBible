@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { attachGeoContext, resolveGeoContext } from './geoContext';
 
 export type AnonymousUsageEventName =
   | 'session_started'
@@ -11,6 +12,12 @@ export type AnonymousUsageEventName =
 export interface AnonymousUsageEvent {
   event_name: AnonymousUsageEventName;
   event_properties: Record<string, unknown>;
+  geo_accuracy_km?: number | null;
+  geo_country_code?: string | null;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  geo_source?: string | null;
+  geo_timezone?: string | null;
   session_id: string | null;
   device_platform: string;
   app_version: string;
@@ -111,8 +118,11 @@ export async function flushAnonymousUsageEvents(): Promise<AnonymousUsageService
   const snapshot = eventQueue.splice(0, eventQueue.length);
 
   try {
+    const geoContext = await resolveGeoContext();
+    const enrichedSnapshot = snapshot.map((event) => attachGeoContext(event, geoContext));
+
     const { error } = await supabase.functions.invoke('track-anonymous-usage-events', {
-      body: { events: snapshot },
+      body: { events: enrichedSnapshot },
     });
 
     if (error) {

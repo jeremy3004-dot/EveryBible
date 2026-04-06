@@ -20,13 +20,16 @@ test('track-anonymous-usage-events inserts anonymous analytics rows without auth
   assert.ok(!/Missing auth token/.test(source), 'collector should not reject unauthenticated requests');
 });
 
-test('track-anonymous-usage-events does not perform IP geo enrichment', async () => {
+test('track-anonymous-usage-events can merge payload geo with request geo', async () => {
   const source = await readFile(
     path.join(repoRoot, 'supabase/functions/track-anonymous-usage-events/index.ts'),
     'utf8'
   );
 
-  assert.ok(!/x-forwarded-for/i.test(source), 'collector should not read forwarded IP headers');
-  assert.ok(!/x-real-ip/i.test(source), 'collector should not read real IP headers');
-  assert.ok(!/ipinfo\.io|ipapi\.co|ipwho\.is/i.test(source), 'collector should not call IP lookup services');
+  assert.match(source, /resolveRequestGeo/, 'collector should still inspect request geo when available');
+  assert.match(source, /resolveEventGeo/, 'collector should inspect payload geo from the client');
+  assert.match(source, /raw\.geo_country_code/, 'payload country should survive request parsing');
+  assert.match(source, /raw\.geo_latitude/, 'payload latitude should survive request parsing');
+  assert.match(source, /raw\.geo_longitude/, 'payload longitude should survive request parsing');
+  assert.match(source, /mergeGeo/, 'collector should merge request and payload geo');
 });

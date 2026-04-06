@@ -129,6 +129,34 @@ test('analyticsService uses the analytics Edge Function for bulk delivery', () =
   );
 });
 
+test('analyticsService forwards the current access token to the analytics Edge Function', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+  assert.match(source, /auth\.getSession\(\)/, 'flushEvents should fetch the current session first');
+  assert.match(
+    source,
+    /Authorization:\s*`Bearer \$\{accessToken\}`/,
+    'flushEvents should send the access token as an Authorization header'
+  );
+});
+
+test('analyticsService enriches both edge-function and RPC fallback payloads with client geo', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+  assert.match(source, /resolveGeoContext\(\)/, 'flushEvents should resolve client geo before delivery');
+  assert.match(source, /attachGeoContext\(event,\s*geoContext\)/, 'queued events should be enriched with geo');
+  assert.match(source, /geo_country_code:\s*e\.geo_country_code\s*\?\?\s*null/, 'RPC fallback must preserve country code');
+  assert.match(source, /geo_latitude:\s*e\.geo_latitude\s*\?\?\s*null/, 'RPC fallback must preserve latitude');
+  assert.match(source, /geo_longitude:\s*e\.geo_longitude\s*\?\?\s*null/, 'RPC fallback must preserve longitude');
+});
+
+test('analyticsService delegates authenticated geo enrichment to the shared client geo helper', () => {
+  const source = readRelativeSource('./analyticsService.ts');
+  assert.match(source, /from ['"]\.\/geoContext['"]/, 'analyticsService should use the shared client geo helper');
+  assert.match(source, /resolveGeoContext\(\)/, 'authenticated analytics should resolve geo from the client when needed');
+  assert.match(source, /geo_country_code/, 'authenticated batches should carry coarse geo fields');
+  assert.match(source, /geo_latitude/, 'authenticated batches should carry latitude when available');
+  assert.match(source, /geo_longitude/, 'authenticated batches should carry longitude when available');
+});
+
 test('analyticsService skips flush when Supabase is not configured', () => {
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(

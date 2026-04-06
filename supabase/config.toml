@@ -377,6 +377,12 @@ deno_version = 2
 [functions.submit-chapter-feedback]
 verify_jwt = false
 
+[functions.track-analytics-events]
+verify_jwt = false
+
+[functions.track-anonymous-usage-events]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

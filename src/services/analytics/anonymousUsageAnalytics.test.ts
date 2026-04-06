@@ -34,6 +34,16 @@ test('anonymousUsageAnalytics uses the anonymous edge function for delivery', ()
   );
 });
 
+test('anonymousUsageAnalytics enriches batches with client geo before delivery', () => {
+  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
+  assert.match(source, /resolveGeoContext\(\)/, 'anonymous analytics should resolve client geo before delivery');
+  assert.match(
+    source,
+    /attachGeoContext\(event,\s*geoContext\)/,
+    'anonymous analytics events should include payload geo when available'
+  );
+});
+
 test('anonymousUsageAnalytics emits session start/end markers and clears session id', () => {
   const source = readRelativeSource('./anonymousUsageAnalytics.ts');
 
