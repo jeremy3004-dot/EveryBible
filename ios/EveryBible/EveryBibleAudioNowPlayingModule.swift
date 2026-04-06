@@ -245,6 +245,10 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       return image
     }
 
+    if let appIcon = UIImage(named: "AppIcon") {
+      return appIcon
+    }
+
     let bookId = stringValue(payload, key: "bookId") ?? "BIBLE"
     let title = stringValue(payload, key: "title") ?? "Bible Audio"
     let chapter = intValue(payload, key: "chapter") ?? 1
