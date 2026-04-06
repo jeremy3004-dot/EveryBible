@@ -1,110 +1,44 @@
 'use client';
 
-import type React from 'react';
-
-type DailyListeningPoint = {
-  day: string;
-  minutes: number;
-};
-
-type DailyDownloadPoint = {
-  day: string;
-  value: number;
-};
-
-type DailyReadingPoint = {
-  day: string;
-  minutes: number;
-};
+type DailyListeningPoint = { day: string; minutes: number };
+type DailyDownloadPoint  = { day: string; value: number };
+type DailyReadingPoint   = { day: string; minutes: number };
 
 type DailyTrendsPanelProps = {
   dailyListeningMinutes: DailyListeningPoint[];
-  dailyReadingMinutes: DailyReadingPoint[];
-  dailyDownloadUnits: DailyDownloadPoint[];
+  dailyReadingMinutes:   DailyReadingPoint[];
+  dailyDownloadUnits:    DailyDownloadPoint[];
 };
 
-function formatSummaryValue(value: number, suffix: string) {
-  return `${value.toLocaleString('en-US')} ${suffix}`;
-}
+function Sparkline({ values, color, gradId }: { values: number[]; color: string; gradId: string }) {
+  const W = 100, H = 40;
+  if (values.length < 2) return <svg className="spark" viewBox={`0 0 ${W} ${H}`} />;
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+  const max = Math.max(...values, 0.001);
+  const coords = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * W,
+    y: H - (v / max) * (H - 4) - 2,
+  }));
 
-type CalPoint = { day: string; value: number };
-
-function MonthCalendar({
-  title,
-  points,
-  renderCell,
-  accentClass,
-}: {
-  title: string;
-  points: CalPoint[];
-  renderCell: (v: number) => string;
-  accentClass?: string;
-}) {
-  const valueMap = new Map(points.map((p) => [p.day, p.value]));
-  const maxValue = Math.max(...points.map((p) => p.value), 1);
-  const monthKeys = [...new Set(points.map((p) => p.day.slice(0, 7)))].sort();
+  const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const area = `${line} L ${W} ${H} L 0 ${H} Z`;
 
   return (
-    <div className="cal-panel">
-      <p className="eyebrow">Trend</p>
-      <h4 className="cal-panel__title">{title}</h4>
-
-      {monthKeys.map((monthKey) => {
-        const year = Number(monthKey.slice(0, 4));
-        const month = Number(monthKey.slice(5, 7));
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const startOffset = new Date(year, month - 1, 1).getDay();
-
-        return (
-          <div key={monthKey} className="cal-panel__month">
-            <p className="cal-panel__month-label">
-              {MONTH_NAMES[month - 1]} {year}
-            </p>
-            <div className="cal-panel__grid" aria-label={`${MONTH_NAMES[month - 1]} ${year}`}>
-              {WEEKDAY_LABELS.map((label, i) => (
-                <span key={`wd-${i}`} className="cal-panel__weekday">
-                  {label}
-                </span>
-              ))}
-              {Array.from({ length: startOffset }, (_, i) => (
-                <div key={`gap-${i}`} className="cal-cell cal-cell--gap" />
-              ))}
-              {Array.from({ length: daysInMonth }, (_, i) => {
-                const dayNum = i + 1;
-                const dayStr = `${monthKey}-${String(dayNum).padStart(2, '0')}`;
-                const value = valueMap.get(dayStr);
-                const hasData = value !== undefined;
-                const isLit = hasData && value > 0;
-                const intensity = isLit ? value / maxValue : 0;
-
-                let cellClass = 'cal-cell';
-                if (!hasData) cellClass += ' cal-cell--dim';
-                else if (isLit) cellClass += ` cal-cell--lit${accentClass ? ` ${accentClass}` : ''}`;
-
-                return (
-                  <div
-                    key={dayNum}
-                    className={cellClass}
-                    style={isLit ? ({ '--cal-intensity': intensity } as React.CSSProperties) : undefined}
-                    title={isLit ? `${dayStr}: ${renderCell(value!)}` : undefined}
-                  >
-                    <span className="cal-cell__num">{dayNum}</span>
-                    {isLit && <span className="cal-cell__val">{renderCell(value!)}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
   );
+}
+
+function fmt(n: number) {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
 export function DailyTrendsPanel({
@@ -112,43 +46,45 @@ export function DailyTrendsPanel({
   dailyReadingMinutes,
   dailyDownloadUnits,
 }: DailyTrendsPanelProps) {
-  const listeningTotal = dailyListeningMinutes.reduce((sum, p) => sum + p.minutes, 0);
-  const readingTotal = dailyReadingMinutes.reduce((sum, p) => sum + p.minutes, 0);
-  const downloadTotal = dailyDownloadUnits.reduce((sum, p) => sum + p.value, 0);
+  const listeningTotal = dailyListeningMinutes.reduce((s, p) => s + p.minutes, 0);
+  const readingTotal   = dailyReadingMinutes.reduce((s, p) => s + p.minutes, 0);
+  const downloadTotal  = dailyDownloadUnits.reduce((s, p) => s + p.value, 0);
 
   return (
     <section className="card daily-trends">
-      <div className="daily-trends__summary">
-        <div className="daily-trends__summary-copy">
-          <p className="eyebrow">Daily activity</p>
-          <h3>Daily engagement trends</h3>
-          <p>Thirty days of listening, reading, and download activity.</p>
-        </div>
-        <div className="daily-trends__summary-meta">
-          <span>Listening {formatSummaryValue(listeningTotal, 'minutes')}</span>
-          <span>Reading {formatSummaryValue(readingTotal, 'minutes')}</span>
-          <span>Downloads {formatSummaryValue(downloadTotal, 'units')}</span>
-        </div>
-      </div>
+      <p className="eyebrow">Daily activity</p>
+      <div className="trend-spark-row">
 
-      <div className="daily-trends__body">
-        <MonthCalendar
-          title="Daily listening minutes"
-          points={dailyListeningMinutes.map((p) => ({ day: p.day, value: p.minutes }))}
-          renderCell={(v) => v.toFixed(1)}
-        />
-        <MonthCalendar
-          title="Daily reading minutes"
-          points={dailyReadingMinutes.map((p) => ({ day: p.day, value: p.minutes }))}
-          renderCell={(v) => v.toFixed(1)}
-          accentClass="cal-cell--green"
-        />
-        <MonthCalendar
-          title="Daily download units"
-          points={dailyDownloadUnits.map((p) => ({ day: p.day, value: p.value }))}
-          renderCell={(v) => String(v)}
-          accentClass="cal-cell--teal"
-        />
+        <div className="trend-spark">
+          <span className="trend-spark__label">Listening minutes</span>
+          <strong className="trend-spark__val">{fmt(listeningTotal)}</strong>
+          <Sparkline
+            values={dailyListeningMinutes.map((p) => p.minutes)}
+            color="#C0392B"
+            gradId="spark-listening"
+          />
+        </div>
+
+        <div className="trend-spark trend-spark--divider">
+          <span className="trend-spark__label">Reading minutes</span>
+          <strong className="trend-spark__val">{fmt(readingTotal)}</strong>
+          <Sparkline
+            values={dailyReadingMinutes.map((p) => p.minutes)}
+            color="#4caf7d"
+            gradId="spark-reading"
+          />
+        </div>
+
+        <div className="trend-spark trend-spark--divider">
+          <span className="trend-spark__label">Downloads</span>
+          <strong className="trend-spark__val">{fmt(downloadTotal)}</strong>
+          <Sparkline
+            values={dailyDownloadUnits.map((p) => p.value)}
+            color="#38b2ac"
+            gradId="spark-downloads"
+          />
+        </div>
+
       </div>
     </section>
   );
