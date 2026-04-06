@@ -37,8 +37,8 @@ export function TabNavigator() {
     backgroundColor: colors.background,
     borderTopColor: colors.cardBorder,
     borderTopWidth: 1,
-    paddingTop: spacing.sm,
-    paddingBottom: tabBarBottomPadding,
+    paddingTop: spacing.xs,
+    paddingBottom: tabBarBottomPadding + spacing.xs,
     height: tabBarHeight,
   } as const;
 
