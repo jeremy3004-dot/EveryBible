@@ -290,6 +290,50 @@ test('sanitizePersistedBibleState drops malformed runtime translations', () => {
     false
   );
 });
+test('sanitizePersistedBibleState restores an audio-only runtime translation as currentTranslation after restart', () => {
+  // Regression: audio-only translations (hasText:false, hasAudio:true) were being
+  // discarded by isReadableTranslation on rehydration, causing a silent reset to BSB
+  // even though the write path saved them correctly.
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'audiobible',
+    translations: [
+      {
+        id: 'audiobible',
+        name: 'Audio-Only Bible',
+        abbreviation: 'AO',
+        language: 'English',
+        description: 'A runtime translation with audio but no text',
+        copyright: 'Public Domain',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: '2026.01.01',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: 'https://cdn.example.com/audio/ao',
+            chapterPathTemplate: '{bookId}/{chapter}.mp3',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.equal(
+    sanitized.currentTranslation,
+    'audiobible',
+    'An audio-only translation selected by the user must survive rehydration'
+  );
+});
+
 test('sanitizePersistedProgressState removes invalid chapter entries', () => {
   const sanitized = sanitizePersistedProgressState({
     chaptersRead: {

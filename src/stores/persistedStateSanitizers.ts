@@ -111,6 +111,13 @@ const isReadableTranslation = (translation: BibleTranslation): boolean => {
     return true;
   }
 
+  // Audio-only translations (no text) are valid selections when they have audio.
+  // The write path (setCurrentTranslation) already validated canPlayAudio before saving,
+  // so the stored value can be trusted on rehydration.
+  if (!translation.hasText && translation.hasAudio) {
+    return true;
+  }
+
   if (!translation.hasText) {
     return false;
   }
