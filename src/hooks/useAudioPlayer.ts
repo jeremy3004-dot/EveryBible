@@ -158,6 +158,23 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       const resolvedTranslationName =
         overrides.translationName ??
         useBibleStore.getState().translations.find((t) => t.id === resolvedTranslationId)?.name;
+
+      // Compute skip availability so the lock screen next/previous buttons reflect
+      // whether adjacent chapters actually exist. Queue entries take priority over
+      // the linear chapter adjacency check.
+      const resolvedCanSkipNext =
+        overrides.canSkipNext ??
+        Boolean(
+          state.queue[state.queueIndex + 1] ??
+            getAdjacentBibleChapter(resolvedBookId, resolvedChapter, 1)
+        );
+      const resolvedCanSkipPrevious =
+        overrides.canSkipPrevious ??
+        Boolean(
+          state.queue[state.queueIndex - 1] ??
+            getAdjacentBibleChapter(resolvedBookId, resolvedChapter, -1)
+        );
+
       const signature = [
         resolvedTranslationId,
         resolvedBookId,
@@ -166,6 +183,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         Math.floor(resolvedDurationMs / 1000),
         resolvedIsPlaying ? '1' : '0',
         resolvedPlaybackRate,
+        resolvedCanSkipNext ? '1' : '0',
+        resolvedCanSkipPrevious ? '1' : '0',
       ].join('|');
 
       if (!force && lastNowPlayingSignatureRef.current === signature) {
@@ -182,6 +201,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         durationMs: resolvedDurationMs,
         isPlaying: resolvedIsPlaying,
         playbackRate: resolvedPlaybackRate,
+        canSkipNext: resolvedCanSkipNext,
+        canSkipPrevious: resolvedCanSkipPrevious,
       });
     },
     [translationId]

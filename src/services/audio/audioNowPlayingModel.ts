@@ -15,6 +15,10 @@ export type BibleNowPlayingInput = {
   durationMs: number;
   isPlaying: boolean;
   playbackRate: number;
+  /** Whether a next chapter/track is available for the skip-next lock screen button. */
+  canSkipNext?: boolean;
+  /** Whether a previous chapter/track is available for the skip-previous lock screen button. */
+  canSkipPrevious?: boolean;
 };
 
 export type BibleNowPlayingPayload = {
@@ -26,6 +30,8 @@ export type BibleNowPlayingPayload = {
   playbackRate: number;
   isPlaying: boolean;
   artworkUri: string;
+  canSkipNext: boolean;
+  canSkipPrevious: boolean;
 };
 
 function toSeconds(milliseconds: number): number {
@@ -58,5 +64,7 @@ export function buildBibleNowPlayingPayload(
     playbackRate: input.playbackRate,
     isPlaying: input.isPlaying,
     artworkUri: DEFAULT_ARTWORK_URI,
+    canSkipNext: input.canSkipNext ?? true,
+    canSkipPrevious: input.canSkipPrevious ?? true,
   };
 }

@@ -76,6 +76,15 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       name: UIApplication.willEnterForegroundNotification,
       object: nil
     )
+    // Handle AVAudioSession interruptions (phone calls, other audio apps, screen lock in some
+    // configurations). When the interruption ends with shouldResume=true, send a 'play' command
+    // back to JS so expo-av's Sound object can be resumed by useAudioPlayer.
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleAudioSessionInterruption(_:)),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
     lifecycleObserversConfigured = true
   }
 
@@ -90,6 +99,42 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
   private func handleAppWillEnterForeground(_ notification: Notification) {
     DispatchQueue.main.async {
       self.republishLatestNowPlayingSnapshot()
+    }
+  }
+
+  @objc
+  private func handleAudioSessionInterruption(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+      let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+    else {
+      return
+    }
+
+    if type == .ended {
+      // Check if iOS recommends resuming playback. This flag is present when interruption
+      // ended in a way that allows audio to restart (e.g. phone call ended, screen unlock
+      // on devices where lock triggers an interruption).
+      let shouldResume: Bool
+      if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+        shouldResume = options.contains(.shouldResume)
+      } else {
+        // Older iOS versions or certain interruption types do not include the options key.
+        // Default to resuming so playback is not permanently stuck after a call ends.
+        shouldResume = true
+      }
+
+      if shouldResume && self.latestPayload != nil {
+        DispatchQueue.main.async {
+          self.activateAudioSession()
+          self.republishLatestNowPlayingSnapshot()
+          // Tell JS to resume expo-av playback. useAudioPlayer's
+          // subscribeBibleNowPlayingRemoteCommands handler handles 'play' by
+          // resuming if paused or replaying the current chapter.
+          self.sendCommand("play")
+        }
+      }
     }
   }
 
