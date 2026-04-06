@@ -10,24 +10,13 @@ import { linkingConfig } from './linkingConfig';
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
   const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
-  const [currentRouteParams, setCurrentRouteParams] = useState<Record<string, unknown>>();
-  const getCurrentRouteState = useCallback(() => {
-    const route = rootNavigationRef.getCurrentRoute();
-    const params =
-      route?.params && typeof route.params === 'object'
-        ? (route.params as Record<string, unknown>)
-        : undefined;
-    return {
-      name: route?.name ?? null,
-      params,
-    };
+  const getCurrentRouteName = useCallback(() => {
+    return rootNavigationRef.getCurrentRoute()?.name ?? null;
   }, []);
   const handleReady = useCallback(() => {
     flushQueuedAuthFlow();
-    const routeState = getCurrentRouteState();
-    setCurrentRouteName(routeState.name);
-    setCurrentRouteParams(routeState.params);
-  }, [getCurrentRouteState]);
+    setCurrentRouteName(getCurrentRouteName());
+  }, [getCurrentRouteName]);
 
   return (
     <NavigationContainer
@@ -35,9 +24,7 @@ export function RootNavigator() {
       linking={linkingConfig}
       onReady={handleReady}
       onStateChange={() => {
-        const routeState = getCurrentRouteState();
-        setCurrentRouteName(routeState.name);
-        setCurrentRouteParams(routeState.params);
+        setCurrentRouteName(getCurrentRouteName());
       }}
       theme={{
         dark: isDark,
@@ -53,17 +40,15 @@ export function RootNavigator() {
       }}
     >
       <TabNavigator />
-      <MiniPlayerHost currentRouteName={currentRouteName} currentRouteParams={currentRouteParams} />
+      <MiniPlayerHost currentRouteName={currentRouteName} />
     </NavigationContainer>
   );
 }
 
 function MiniPlayerHost({
   currentRouteName,
-  currentRouteParams,
 }: {
   currentRouteName: string | null;
-  currentRouteParams?: Record<string, unknown>;
 }) {
   const hasActivePlaybackSession = useAudioStore((state) =>
     Boolean(state.currentBookId && state.currentChapter)
@@ -76,5 +61,5 @@ function MiniPlayerHost({
   const { MiniPlayer } =
     require('../components/audio/MiniPlayer') as typeof import('../components/audio/MiniPlayer');
 
-  return <MiniPlayer currentRouteName={currentRouteName} currentRouteParams={currentRouteParams} />;
+  return <MiniPlayer currentRouteName={currentRouteName} />;
 }
