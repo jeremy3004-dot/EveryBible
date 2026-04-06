@@ -27,11 +27,11 @@ export default async function AnalyticsPage() {
       </div>
 
       <AnalyticsGlobe
-      heatmapPoints={analytics.locationMetrics}
-      metrics={analytics.countryMetrics}
-      listeningTotalMinutes={analytics.listeningTotalMinutes}
-      translationBreakdown={analytics.translationBreakdown}
-    />
+        heatmapPoints={analytics.locationMetrics}
+        metrics={analytics.locationMetrics}
+        listeningTotalMinutes={analytics.listeningTotalMinutes}
+        translationBreakdown={analytics.translationBreakdown}
+      />
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">
