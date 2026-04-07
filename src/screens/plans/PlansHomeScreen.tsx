@@ -25,8 +25,10 @@ import {
   getSavedPlans,
   getCompletedPlans,
   getFeaturedPlans,
+  getTimedChallengePlans,
 } from '../../services/plans/readingPlanService';
-import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
+import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { useProgressStore } from '../../stores/progressStore';
 import {
   summarizeReadingActivity,
@@ -47,20 +49,21 @@ type CompletedPlanRow = UserReadingPlanProgress & { plan: ReadingPlan };
 // ---------------------------------------------------------------------------
 
 function CoverImage({
-  uri,
+  plan,
   width,
   height,
   colors,
 }: {
-  uri: string | null;
+  plan: ReadingPlan;
   width: number;
   height: number;
   colors: ThemeColors;
 }) {
-  if (uri) {
+  const source = getReadingPlanCoverSource(plan);
+  if (source) {
     return (
       <Image
-        source={{ uri }}
+        source={source}
         style={{ width, height, borderRadius: radius.md }}
         resizeMode="cover"
       />
@@ -122,6 +125,8 @@ const inlineStyles = StyleSheet.create({
 // Activity streak strip (14 days)
 // ---------------------------------------------------------------------------
 
+// Kept for quick re-enable later while the plans tab iterates on layout.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ActivityStreakStrip({ colors }: { colors: ThemeColors }) {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const { t } = useTranslation();
@@ -219,8 +224,6 @@ interface MyPlansSectionProps {
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
-  refreshing: boolean;
-  onRefresh: () => void;
 }
 
 function MyPlansSection({
@@ -228,8 +231,6 @@ function MyPlansSection({
   userProgress,
   onPlanPress,
   colors,
-  refreshing,
-  onRefresh,
 }: MyPlansSectionProps) {
   const { t } = useTranslation();
 
@@ -244,12 +245,7 @@ function MyPlansSection({
   const styles = createMyPlansStyles(colors);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentPrimary} />}
-    >
+    <View style={styles.content}>
       {activePlans.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
@@ -267,38 +263,32 @@ function MyPlansSection({
               onPress={() => onPlanPress(plan.id)}
               activeOpacity={0.7}
             >
-              <CoverImage
-                uri={plan.cover_image_url}
-                width={60}
-                height={60}
-                colors={colors}
-              />
+              <CoverImage plan={plan} width={68} height={68} colors={colors} />
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {t(plan.title_key as Parameters<typeof t>[0])}
                 </Text>
-                <Text style={styles.dayCounter}>
-                  {t('readingPlans.dayOf', {
-                    current: progress.current_day,
-                    total: plan.duration_days,
-                  })}
-                </Text>
-                <ProgressBar progress={progressRatio} colors={colors} />
+                <View style={styles.progressBlock}>
+                  <Text style={styles.dayCounter}>
+                    {t('readingPlans.dayOf', {
+                      current: progress.current_day,
+                      total: plan.duration_days,
+                    })}
+                  </Text>
+                  <ProgressBar progress={progressRatio} colors={colors} />
+                </View>
               </View>
             </TouchableOpacity>
           );
         })
       )}
-      <ActivityStreakStrip colors={colors} />
-    </ScrollView>
+      {/* ActivityStreakStrip hidden for now */}
+    </View>
   );
 }
 
 const createMyPlansStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-    },
     content: {
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
@@ -321,21 +311,26 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     },
     card: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      alignItems: 'flex-start',
+      gap: spacing.lg,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      padding: layout.denseCardPadding,
+      minHeight: 108,
+      paddingHorizontal: layout.cardPadding,
+      paddingVertical: spacing.lg,
     },
     cardBody: {
       flex: 1,
-      gap: spacing.xs,
+      gap: spacing.sm,
     },
     cardTitle: {
       ...typography.bodyStrong,
       color: colors.primaryText,
+    },
+    progressBlock: {
+      gap: spacing.sm,
     },
     dayCounter: {
       ...typography.micro,
@@ -350,35 +345,20 @@ const createMyPlansStyles = (colors: ThemeColors) =>
 interface FindPlansSectionProps {
   allPlans: ReadingPlan[];
   featuredPlans: ReadingPlan[];
+  timedPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
-  refreshing: boolean;
-  onRefresh: () => void;
 }
 
-const TOPIC_CHIPS = [
-  'Love',
-  'Healing',
-  'Hope',
-  'Anxiety',
-  'Anger',
-  'Depression',
-  'Faith',
-  'Prayer',
-] as const;
-
-// Opacity values for chip backgrounds (applied on top of accentPrimary)
-const CHIP_OPACITIES = [1, 0.85, 0.75, 0.9, 0.8, 0.7, 0.95, 0.65] as const;
 
 function FindPlansSection({
   allPlans,
   featuredPlans,
+  timedPlans,
   userProgress,
   onPlanPress,
   colors,
-  refreshing,
-  onRefresh,
 }: FindPlansSectionProps) {
   const { t } = useTranslation();
   const featuredPlan = featuredPlans[0] ?? null;
@@ -395,14 +375,10 @@ function FindPlansSection({
   const categories = Object.keys(plansByCategory);
 
   const styles = createFindPlansStyles(colors);
+  const featuredCoverSource = featuredPlan ? getReadingPlanCoverSource(featuredPlan) : null;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentPrimary} />}
-    >
+    <View style={styles.content}>
       {/* Featured hero card */}
       {featuredPlan && (
         <TouchableOpacity
@@ -410,9 +386,9 @@ function FindPlansSection({
           onPress={() => onPlanPress(featuredPlan.id)}
           activeOpacity={0.8}
         >
-          {featuredPlan.cover_image_url ? (
+          {featuredCoverSource ? (
             <Image
-              source={{ uri: featuredPlan.cover_image_url }}
+              source={featuredCoverSource}
               style={styles.heroImage}
               resizeMode="cover"
             />
@@ -437,25 +413,33 @@ function FindPlansSection({
         </TouchableOpacity>
       )}
 
-      {/* Topic category chips */}
-      <View style={styles.chipGrid}>
-        {TOPIC_CHIPS.map((topic, index) => (
-          <TouchableOpacity
-            key={topic}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: colors.accentPrimary,
-                opacity: CHIP_OPACITIES[index % CHIP_OPACITIES.length],
-              },
-            ]}
-            activeOpacity={0.7}
-            // TODO: filter by tag
-          >
-            <Text style={styles.chipText}>{topic}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Timed reading challenges — shown prominently before category sections */}
+      {timedPlans.length > 0 && (
+        <View>
+          <Text style={styles.categoryHeader}>{t('readingPlans.timedChallenges')}</Text>
+          <FlatList
+            horizontal
+            data={timedPlans}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryList}
+            renderItem={({ item: plan }) => (
+              <TouchableOpacity
+                style={styles.timedCard}
+                onPress={() => onPlanPress(plan.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.timedDurationBadge}>
+                  <Text style={styles.timedDurationText}>{plan.duration_days}d</Text>
+                </View>
+                <Text style={styles.timedCardTitle} numberOfLines={3}>
+                  {t(plan.title_key as Parameters<typeof t>[0])}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       {/* Plan cards by category */}
       {categories.map((category) => {
@@ -484,7 +468,7 @@ function FindPlansSection({
                     onPress={() => onPlanPress(plan.id)}
                     activeOpacity={0.7}
                   >
-                    <CoverImage uri={plan.cover_image_url} width={120} height={80} colors={colors} />
+                    <CoverImage plan={plan} width={140} height={88} colors={colors} />
                     <Text style={styles.planCardTitle} numberOfLines={2}>
                       {t(plan.title_key as Parameters<typeof t>[0])}
                     </Text>
@@ -518,20 +502,17 @@ function FindPlansSection({
         );
       })}
 
-      {allPlans.length === 0 && (
+      {allPlans.length === 0 && timedPlans.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>{t('readingPlans.noPlans')}</Text>
         </View>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const createFindPlansStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-    },
     content: {
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
@@ -577,20 +558,6 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       paddingHorizontal: layout.denseCardPadding,
       paddingBottom: layout.denseCardPadding,
     },
-    chipGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    chip: {
-      borderRadius: radius.pill,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-    },
-    chipText: {
-      ...typography.label,
-      color: colors.cardBackground,
-    },
     categorySection: {
       gap: spacing.md,
     },
@@ -599,12 +566,17 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       color: colors.primaryText,
     },
     categoryList: {
-      gap: spacing.md,
-      paddingRight: spacing.sm,
+      gap: spacing.lg,
+      paddingRight: spacing.lg,
     },
     planCard: {
-      width: 140,
-      gap: spacing.xs,
+      width: 156,
+      gap: spacing.sm,
+      backgroundColor: colors.cardBackground,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.sm,
     },
     planCardTitle: {
       ...typography.label,
@@ -619,8 +591,8 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     durationBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
     },
     durationBadgeText: {
       ...typography.micro,
@@ -628,11 +600,43 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     enrollBadge: {
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
+      minHeight: layout.minTouchTarget,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     enrollBadgeText: {
+      ...typography.label,
+    },
+    timedCard: {
+      width: 136,
+      backgroundColor: colors.cardBackground,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+      minHeight: 124,
+    },
+    timedDurationBadge: {
+      backgroundColor: colors.accentPrimary,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
+      alignSelf: 'flex-start',
+    },
+    timedDurationText: {
       ...typography.micro,
+      color: colors.cardBackground,
+      fontWeight: '700',
+    },
+    timedCardTitle: {
+      ...typography.label,
+      color: colors.primaryText,
+      lineHeight: 20,
+      fontWeight: '700',
     },
     emptyState: {
       alignItems: 'center',
@@ -653,16 +657,12 @@ interface SavedPlansSectionProps {
   savedPlans: ReadingPlan[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
-  refreshing: boolean;
-  onRefresh: () => void;
 }
 
 function SavedPlansSection({
   savedPlans,
   onPlanPress,
   colors,
-  refreshing,
-  onRefresh,
 }: SavedPlansSectionProps) {
   const { t } = useTranslation();
   const styles = createSavedStyles(colors);
@@ -677,19 +677,15 @@ function SavedPlansSection({
   }
 
   return (
-    <FlatList
-      data={savedPlans}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentPrimary} />}
-      renderItem={({ item: plan }) => (
+    <View style={styles.content}>
+      {savedPlans.map((plan) => (
         <TouchableOpacity
+          key={plan.id}
           style={styles.card}
           onPress={() => onPlanPress(plan.id)}
           activeOpacity={0.7}
         >
-          <CoverImage uri={plan.cover_image_url} width={60} height={60} colors={colors} />
+          <CoverImage plan={plan} width={64} height={64} colors={colors} />
           <View style={styles.cardBody}>
             <Text style={styles.cardTitle} numberOfLines={2}>
               {t(plan.title_key as Parameters<typeof t>[0])}
@@ -709,19 +705,19 @@ function SavedPlansSection({
             </View>
           </View>
         </TouchableOpacity>
-      )}
-    />
+      ))}
+    </View>
   );
 }
 
 const createSavedStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     emptyState: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.md,
       paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.xxxl,
     },
     emptyTitle: {
       ...typography.cardTitle,
@@ -735,17 +731,19 @@ const createSavedStyles = (colors: ThemeColors) =>
     },
     card: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      alignItems: 'flex-start',
+      gap: spacing.lg,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      padding: layout.denseCardPadding,
+      minHeight: 100,
+      paddingHorizontal: layout.cardPadding,
+      paddingVertical: spacing.lg,
     },
     cardBody: {
       flex: 1,
-      gap: spacing.xs,
+      gap: spacing.sm,
     },
     cardTitle: {
       ...typography.bodyStrong,
@@ -755,6 +753,7 @@ const createSavedStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       gap: spacing.xs,
       alignItems: 'center',
+      flexWrap: 'wrap',
     },
     duration: {
       ...typography.micro,
@@ -763,8 +762,8 @@ const createSavedStyles = (colors: ThemeColors) =>
     categoryBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
     },
     categoryText: {
       ...typography.micro,
@@ -780,16 +779,12 @@ interface CompletedPlansSectionProps {
   completedPlans: CompletedPlanRow[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
-  refreshing: boolean;
-  onRefresh: () => void;
 }
 
 function CompletedPlansSection({
   completedPlans,
   onPlanPress,
   colors,
-  refreshing,
-  onRefresh,
 }: CompletedPlansSectionProps) {
   const { t } = useTranslation();
   const styles = createCompletedStyles(colors);
@@ -804,13 +799,8 @@ function CompletedPlansSection({
   }
 
   return (
-    <FlatList
-      data={completedPlans}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentPrimary} />}
-      renderItem={({ item }) => {
+    <View style={styles.content}>
+      {completedPlans.map((item) => {
         const completedDate = item.completed_at
           ? new Date(item.completed_at).toLocaleDateString(undefined, {
               month: 'short',
@@ -820,11 +810,12 @@ function CompletedPlansSection({
           : null;
         return (
           <TouchableOpacity
+            key={item.id}
             style={styles.card}
             onPress={() => onPlanPress(item.plan.id)}
             activeOpacity={0.7}
           >
-            <CoverImage uri={item.plan.cover_image_url} width={60} height={60} colors={colors} />
+            <CoverImage plan={item.plan} width={64} height={64} colors={colors} />
             <View style={styles.cardBody}>
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {t(item.plan.title_key as Parameters<typeof t>[0])}
@@ -836,19 +827,19 @@ function CompletedPlansSection({
             <Ionicons name="checkmark-circle" size={24} color={colors.accentPrimary} />
           </TouchableOpacity>
         );
-      }}
-    />
+      })}
+    </View>
   );
 }
 
 const createCompletedStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     emptyState: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.md,
       paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.xxxl,
     },
     emptyTitle: {
       ...typography.cardTitle,
@@ -862,17 +853,19 @@ const createCompletedStyles = (colors: ThemeColors) =>
     },
     card: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      alignItems: 'flex-start',
+      gap: spacing.lg,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      padding: layout.denseCardPadding,
+      minHeight: 100,
+      paddingHorizontal: layout.cardPadding,
+      paddingVertical: spacing.lg,
     },
     cardBody: {
       flex: 1,
-      gap: spacing.xs,
+      gap: spacing.sm,
     },
     cardTitle: {
       ...typography.bodyStrong,
@@ -900,6 +893,7 @@ export function PlansHomeScreen() {
   const [savedPlans, setSavedPlans] = useState<ReadingPlan[]>([]);
   const [completedPlans, setCompletedPlans] = useState<CompletedPlanRow[]>([]);
   const [featuredPlans, setFeaturedPlans] = useState<ReadingPlan[]>([]);
+  const [timedPlans, setTimedPlans] = useState<ReadingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -913,13 +907,14 @@ export function PlansHomeScreen() {
   const loadAllData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
 
-    const [allPlansResult, progressResult, savedResult, completedResult, featuredResult] =
+    const [allPlansResult, progressResult, savedResult, completedResult, featuredResult, timedResult] =
       await Promise.all([
         listReadingPlans(),
         getUserPlanProgress(),
         getSavedPlans(),
         getCompletedPlans(),
         getFeaturedPlans(),
+        getTimedChallengePlans(),
       ]);
 
     if (allPlansResult.success && allPlansResult.data) {
@@ -936,6 +931,9 @@ export function PlansHomeScreen() {
     }
     if (featuredResult.success && featuredResult.data) {
       setFeaturedPlans(featuredResult.data);
+    }
+    if (timedResult.success && timedResult.data) {
+      setTimedPlans(timedResult.data);
     }
 
     if (!quiet) setLoading(false);
@@ -960,11 +958,8 @@ export function PlansHomeScreen() {
 
   const styles = createMainStyles(colors);
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Text style={styles.title}>{t('readingPlans.title')}</Text>
-
-      {/* Segmented tab control */}
+  const tabStrip = (
+    <View style={styles.tabSticky}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -977,70 +972,80 @@ export function PlansHomeScreen() {
             style={[
               styles.tabPill,
               activeTab === tab.key
-                ? { backgroundColor: colors.accentPrimary }
-                : { borderColor: colors.cardBorder, borderWidth: 1 },
+                ? { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary }
+                : { borderColor: colors.cardBorder },
             ]}
+            activeOpacity={0.8}
           >
             <Text
               style={[
                 styles.tabLabel,
                 { color: activeTab === tab.key ? colors.cardBackground : colors.secondaryText },
               ]}
+              numberOfLines={1}
             >
               {t(tab.labelKey as Parameters<typeof t>[0])}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
+    </View>
+  );
 
-      {/* Content area */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accentPrimary} />
-        </View>
-      ) : (
-        <View style={styles.contentArea}>
-          {activeTab === 'my-plans' && (
-            <MyPlansSection
-              allPlans={allPlans}
-              userProgress={userProgress}
-              onPlanPress={handlePlanPress}
-              colors={colors}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'find-plans' && (
-            <FindPlansSection
-              allPlans={allPlans}
-              featuredPlans={featuredPlans}
-              userProgress={userProgress}
-              onPlanPress={handlePlanPress}
-              colors={colors}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'saved' && (
-            <SavedPlansSection
-              savedPlans={savedPlans}
-              onPlanPress={handlePlanPress}
-              colors={colors}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'completed' && (
-            <CompletedPlansSection
-              completedPlans={completedPlans}
-              onPlanPress={handlePlanPress}
-              colors={colors}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          )}
-        </View>
-      )}
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        stickyHeaderIndices={[1]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accentPrimary} />
+        }
+      >
+        <Text style={styles.title}>{t('readingPlans.title')}</Text>
+        {tabStrip}
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.accentPrimary} />
+          </View>
+        ) : (
+          <>
+            {activeTab === 'my-plans' && (
+              <MyPlansSection
+                allPlans={allPlans}
+                userProgress={userProgress}
+                onPlanPress={handlePlanPress}
+                colors={colors}
+              />
+            )}
+            {activeTab === 'find-plans' && (
+              <FindPlansSection
+                allPlans={allPlans}
+                featuredPlans={featuredPlans}
+                timedPlans={timedPlans}
+                userProgress={userProgress}
+                onPlanPress={handlePlanPress}
+                colors={colors}
+              />
+            )}
+            {activeTab === 'saved' && (
+              <SavedPlansSection
+                savedPlans={savedPlans}
+                onPlanPress={handlePlanPress}
+                colors={colors}
+              />
+            )}
+            {activeTab === 'completed' && (
+              <CompletedPlansSection
+                completedPlans={completedPlans}
+                onPlanPress={handlePlanPress}
+                colors={colors}
+              />
+            )}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -1058,25 +1063,37 @@ const createMainStyles = (colors: ThemeColors) =>
       paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
     },
+    tabSticky: {
+      backgroundColor: colors.background,
+      paddingBottom: spacing.md,
+    },
     tabRow: {
+      flexDirection: 'row',
       paddingHorizontal: layout.screenPadding,
       gap: spacing.sm,
       paddingBottom: spacing.md,
+      alignItems: 'center',
     },
     tabPill: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      minHeight: layout.minTouchTarget,
       borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBackground,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     tabLabel: {
-      ...typography.label,
+      ...typography.tabLabel,
     },
     loadingContainer: {
-      flex: 1,
+      minHeight: 240,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    contentArea: {
-      flex: 1,
+    scrollContent: {
+      paddingBottom: layout.tabBarBaseHeight + spacing.xl,
     },
   });
