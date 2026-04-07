@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rootTabManifest } from './tabManifest';
 
-test('root tab manifest exposes Learn through the live shell between Bible and More', () => {
+test('root tab manifest exposes all 5 tabs in the correct order', () => {
   assert.deepEqual(
     rootTabManifest.map((tab) => tab.name),
-    ['Home', 'Bible', 'Learn', 'More']
+    ['Home', 'Bible', 'Learn', 'Plans', 'More']
   );
 });
 
