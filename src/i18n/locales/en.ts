@@ -741,6 +741,9 @@ export const en = {
     cloudLibrary: 'Cloud Library',
     downloading: 'Downloading...',
     downloadPrompt: 'Download written text for {{name}} (~{{size}} MB) for offline reading?',
+    deleteConfirmTitle: 'Delete Translation',
+    deleteConfirmMessage: 'Remove the downloaded data for {{name}}? You can re-download it any time.',
+    delete: 'Delete',
   },
   gather: {
     title: 'Gather',

@@ -63,6 +63,7 @@ export function TranslationPickerList({
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
+  const deleteTranslation = useBibleStore((state) => state.deleteTranslation);
 
   const [pickerMode, setPickerMode] = useState<'translations' | 'languages'>('translations');
   const [audioManagerTranslationId, setAudioManagerTranslationId] = useState<string | null>(null);
@@ -663,6 +664,41 @@ export function TranslationPickerList({
                       <Ionicons name="download-outline" size={14} color={colors.bibleAccent} />
                     </>
                   )}
+                </TouchableOpacity>
+              ) : null}
+
+              {(isTextDownloaded || translation.downloadedAudioBooks.length > 0) &&
+              translation.id !== 'bsb' &&
+              !isTextDownloadActive &&
+              !isActiveAudioJob ? (
+                <TouchableOpacity
+                  style={[
+                    styles.audioDownloadChip,
+                    {
+                      backgroundColor: colors.error + '18',
+                      borderColor: colors.error,
+                    },
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    Alert.alert(
+                      t('translations.deleteConfirmTitle'),
+                      t('translations.deleteConfirmMessage', { name: translation.name }),
+                      [
+                        { text: t('common.cancel'), style: 'cancel' },
+                        {
+                          text: t('translations.delete'),
+                          style: 'destructive',
+                          onPress: () => deleteTranslation(translation.id),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={14} color={colors.error} />
+                  <Text style={[styles.audioDownloadChipLabel, { color: colors.error }]}>
+                    {t('translations.delete')}
+                  </Text>
                 </TouchableOpacity>
               ) : null}
             </View>
