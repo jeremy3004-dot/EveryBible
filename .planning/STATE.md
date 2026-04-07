@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-04-07T02:22:42.214Z"
+stopped_at: Completed 18-reading-plans 18-04-PLAN.md
+last_updated: "2026-04-07T02:29:34.280Z"
 progress:
   total_phases: 35
   completed_phases: 24
   total_plans: 70
-  completed_plans: 66
+  completed_plans: 67
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 18 (reading-plans) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Phase: 33 (chapter-feedback-and-review-pipeline) — IN PROGRESS (plans 01-03 complete, 04 pending)
 
 ## Performance Metrics
@@ -70,6 +70,7 @@ _Updated after each plan completion_
 | Phase 32-bible-verse-deep-linking P01 | ~6m | 3 tasks | 10 files |
 | Phase 18 P01 | 15m | 4 tasks | 6 files |
 | Phase 18-reading-plans P18-02 | 12m | 4 tasks | 13 files |
+| Phase 18-reading-plans P04 | 25 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,8 @@ Recent decisions affecting current work:
 - [Phase 18]: Chronological Bible order: Job after Genesis, Psalms/Proverbs/Ecclesiastes/Song after 2 Samuel, prophets interleaved with Kings, post-exilic books last in OT, then NT sequentially
 - [Phase 18-reading-plans]: ReadingPlanDetailScreen accepts planId+navigation as required props; PlanDetailScreen wrapper forwards PlansStack params
 - [Phase 18-reading-plans]: Plans tab placed between Learn and More; uses calendar-outline icon; PlanDetail hides tab bar
+- [Phase 18-reading-plans]: PlanDetailScreen rewritten as standalone full screen (not enhancing ReadingPlanDetailScreen) for clean Plans stack ownership
+- [Phase 18-reading-plans]: LinearGradient used for cover image overlay; PlanCoverImage helper handles null cover_image_url with themed fallback
 
 ### Pending Todos
 
@@ -246,6 +249,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-07T02:22:42.209Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-04-07T02:29:34.275Z
+Stopped at: Completed 18-reading-plans 18-04-PLAN.md
 Resume file: None
