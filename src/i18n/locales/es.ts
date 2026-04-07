@@ -1192,5 +1192,8 @@ export const es = {
     cloudLibrary: 'Biblioteca en la nube',
     downloading: 'Descargando...',
     downloadPrompt: '¿Descargar {{name}} (~{{size}} MB) para leer sin conexión?',
+    deleteConfirmTitle: 'Eliminar traducción',
+    deleteConfirmMessage: '¿Eliminar los datos descargados de {{name}}? Puedes volver a descargarla cuando quieras.',
+    delete: 'Eliminar',
   },
 } as const;
