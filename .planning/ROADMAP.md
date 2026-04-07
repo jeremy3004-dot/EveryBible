@@ -421,10 +421,15 @@ Plans:
 1. Users can browse available reading plans, enroll in a plan, and track daily completion with streak and progress indicators.
 2. Pre-seeded plans (M'Cheyne, Chronological Bible, Gospels & Epistles, etc.) are available from first launch, sourced from open-source plan data.
 3. Group leaders can assign a reading plan to their group, and group members see shared progress.
-   **Plans:** 0 plans
+   **Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 18 to break down)
+
+- [ ] 18-01-PLAN.md — Database migration, type updates, seed data, and service additions
+- [ ] 18-02-PLAN.md — Navigation wiring, Plans tab, PlansStack, LearnStack cleanup, and i18n keys
+- [ ] 18-03-PLAN.md — PlansHomeScreen full implementation (My Plans, Find Plans, Saved, Completed)
+- [ ] 18-04-PLAN.md — PlanDetailScreen enhancement (cover image, CTAs, Related Plans)
+
 
 ### Phase 19: Prayer Community
 
