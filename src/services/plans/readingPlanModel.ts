@@ -1,4 +1,4 @@
-import type { UserReadingPlanProgress } from '../supabase/types';
+import type { UserReadingPlanProgress } from './types';
 
 // ---------------------------------------------------------------------------
 // Pure model functions for reading plan progress — no Supabase dependency.

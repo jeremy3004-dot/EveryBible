@@ -66,7 +66,7 @@ test('addChapterToPlaylist deduplicates chapters and keeps newest additions at t
 });
 
 test('appendListeningHistoryEntry keeps the newest unique chapters first and caps the list', () => {
-  const seed = Array.from({ length: 20 }, (_, index) => ({
+  const seed = Array.from({ length: 256 }, (_, index) => ({
     id: `MAT:${index + 1}`,
     bookId: 'MAT',
     chapter: index + 1,
@@ -78,17 +78,17 @@ test('appendListeningHistoryEntry keeps the newest unique chapters first and cap
     id: 'JHN:3',
     bookId: 'JHN',
     chapter: 3,
-    listenedAt: 50,
+    listenedAt: 500,
     progress: 0.25,
   });
 
-  assert.equal(updated.length, 20);
+  assert.equal(updated.length, 256);
   assert.deepEqual(updated[0], {
     id: 'JHN:3',
     bookId: 'JHN',
     chapter: 3,
-    listenedAt: 50,
+    listenedAt: 500,
     progress: 0.25,
   });
-  assert.equal(updated.at(-1)?.id, 'MAT:19');
+  assert.equal(updated.at(-1)?.id, 'MAT:255');
 });

@@ -584,15 +584,16 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     planCardMeta: {
       flexDirection: 'row',
-      gap: spacing.xs,
+      justifyContent: 'space-between',
       alignItems: 'center',
-      flexWrap: 'wrap',
+      flexWrap: 'nowrap',
     },
     durationBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
       paddingHorizontal: spacing.md,
       paddingVertical: 4,
+      flexShrink: 0,
     },
     durationBadgeText: {
       ...typography.micro,
@@ -605,6 +606,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       paddingVertical: spacing.xs,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     enrollBadgeText: {
       ...typography.label,

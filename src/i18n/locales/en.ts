@@ -561,6 +561,16 @@ export const en = {
     relatedPlans: 'Related Plans',
     noSavedPlans: 'No saved plans yet',
     noCompletedPlans: 'No completed plans yet',
+    todayTargetProgress: "Today's target: {{completed}}/{{target}} chapters",
+    listenTargetLabel: "Today's plan",
+    listenTargetProgress: "Today's target: {{completed}}/{{target}} chapters",
+    listenTargetComplete: 'Daily target complete',
+    listenTargetRemainingOne: '1 chapter left today',
+    listenTargetRemainingOther: '{{count}} chapters left today',
+    listenChapterCounted: "{{reference}} counted for today's plan",
+    dailyTargetCompleteTitle: 'Daily reading complete',
+    dailyTargetCompleteBody:
+      "You finished today's plan reading. We'll take you back to your plan so you can see your progress.",
     bibleIn1Year: {
       title: 'Bible in One Year',
       description:
@@ -593,6 +603,87 @@ export const en = {
     sermonMount7: {
       title: 'Sermon on the Mount',
       description: "A week-long deep dive into Jesus' most famous teaching in Matthew 5-7.",
+    },
+    timedChallenges: 'Reading Challenges',
+    bibleIn30Days: {
+      title: 'Full Bible in 30 Days',
+      description: 'Read the entire Bible in one month — about 40 chapters per day. The ultimate Scripture sprint.',
+    },
+    bibleIn90Days: {
+      title: 'Full Bible in 90 Days',
+      description: 'Cover all 1,189 chapters of the Bible in 90 days, about 13 chapters per day.',
+    },
+    bibleIn6Months: {
+      title: 'Full Bible in 6 Months',
+      description: 'A disciplined pace through the entire Bible in 180 days, about 7 chapters per day.',
+    },
+    ntIn7Days: {
+      title: 'New Testament in 7 Days',
+      description: 'All 260 chapters of the New Testament in one week — roughly 37 chapters per day. For the bold.',
+    },
+    ntIn14Days: {
+      title: 'New Testament in 2 Weeks',
+      description: 'Power through the entire New Testament in 14 days, about 19 chapters per day.',
+    },
+    ntIn30Days: {
+      title: 'New Testament in 30 Days',
+      description: 'Read the full New Testament in a month — about 9 chapters per day.',
+    },
+    ntIn6Months: {
+      title: 'New Testament in 6 Months',
+      description: 'A gentle pace through all 27 NT books in 180 days, about 1–2 chapters per day.',
+    },
+    gospels7Days: {
+      title: 'Gospels in 7 Days',
+      description: 'Read Matthew, Mark, Luke, and John in a single week — about 13 chapters per day.',
+    },
+    gospels14Days: {
+      title: 'Gospels in 2 Weeks',
+      description: 'Walk through all four Gospels in 14 days, about 6 chapters per day.',
+    },
+    gospels30Days: {
+      title: 'Gospels in 30 Days',
+      description: 'A comfortable month-long journey through all four Gospels, about 3 chapters per day.',
+    },
+    psalms7Days: {
+      title: 'Psalms in 7 Days',
+      description: 'All 150 Psalms in one intense week — about 21 psalms per day of worship and prayer.',
+    },
+    psalms90Days: {
+      title: 'Psalms in 90 Days',
+      description: 'Slowly absorb all 150 Psalms over 90 days — less than 2 psalms per day.',
+    },
+    otInYear: {
+      title: 'Old Testament in a Year',
+      description: 'Read all 929 chapters of the Old Testament in 365 days, about 2–3 chapters per day.',
+    },
+    otIn90Days: {
+      title: 'Old Testament in 90 Days',
+      description: 'All 929 OT chapters in 90 days — about 10 chapters per day. A serious commitment.',
+    },
+    pentateuch30Days: {
+      title: 'Pentateuch in 30 Days',
+      description: 'Genesis through Deuteronomy — the first five books of Moses — in one month.',
+    },
+    wisdom30Days: {
+      title: 'Wisdom Literature in 30 Days',
+      description: 'Job, Psalms, Proverbs, Ecclesiastes, and Song of Solomon in 30 days of reflection.',
+    },
+    prophets90Days: {
+      title: 'Prophets in 90 Days',
+      description: 'All 17 prophetic books — Isaiah through Malachi — in 90 focused days.',
+    },
+    paulsLetters30Days: {
+      title: "Paul's Letters in 30 Days",
+      description: "Read all 13 of Paul's epistles — Romans through Philemon — in one month.",
+    },
+    acts28Days: {
+      title: 'Acts in 28 Days',
+      description: 'One chapter of Acts per day — follow the early church from Jerusalem to Rome.',
+    },
+    revelation22Days: {
+      title: 'Revelation in 22 Days',
+      description: 'One chapter of Revelation per day — unpack the final book of Scripture at a steady pace.',
     },
   },
   annotations: {

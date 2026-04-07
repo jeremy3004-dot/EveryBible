@@ -10,10 +10,19 @@ export type TranslationSheetAction = 'toggleChip' | 'selectTranslation' | 'dismi
 export type ChapterSessionMode = 'listen' | 'read';
 export type BibleTabBarVisibilityAction = 'enter' | 'scrollStart' | 'scrollEndDrag';
 
+export interface ListenCountedNoticeViewModel {
+  testID: string;
+  accessibilityLabel: string;
+  text: string;
+}
+
 interface ReaderChapterRouteParamsInput {
   bookId: string;
   chapter: number;
   preferredMode: ChapterSessionMode;
+  planId?: string;
+  planDayNumber?: number;
+  returnToPlanOnComplete?: boolean;
 }
 
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
@@ -24,6 +33,8 @@ export const READER_TAB_BAR_RESTORE_VELOCITY_MIN = 300;
 export const READER_TAB_BAR_RESTORE_DRAG_DELTA = 48;
 export const READER_VERSE_LINE_HEIGHT_MULTIPLIER = 1.5;
 export const FOLLOW_ALONG_VERSE_LINE_HEIGHT = 32;
+export const LISTEN_PLAN_PROGRESS_CARD_TEST_ID = 'bible-reader-listen-plan-progress-card';
+export const LISTEN_COUNTED_NOTICE_TEST_ID = 'bible-reader-listen-counted-notice';
 
 interface InitialChapterSessionModeInput {
   translationId?: string | null;
@@ -140,12 +151,18 @@ export const buildReaderChapterRouteParams = ({
   bookId,
   chapter,
   preferredMode,
+  planId,
+  planDayNumber,
+  returnToPlanOnComplete,
 }: ReaderChapterRouteParamsInput) => ({
   bookId,
   chapter,
   focusVerse: undefined,
   preferredMode,
   autoplayAudio: false,
+  ...(planId ? { planId } : {}),
+  ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
+  ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
 });
 
 export const getReaderChromeAnimationProgress = (
@@ -162,6 +179,21 @@ export const getReaderChromeAnimationProgress = (
 
 export const getReaderVerseLineHeight = (verseFontSize: number): number =>
   Math.round(verseFontSize * READER_VERSE_LINE_HEIGHT_MULTIPLIER);
+
+export const getListenCountedNoticeViewModel = (
+  notice: string | null
+): ListenCountedNoticeViewModel | null => {
+  const trimmedNotice = notice?.trim();
+  if (!trimmedNotice) {
+    return null;
+  }
+
+  return {
+    testID: LISTEN_COUNTED_NOTICE_TEST_ID,
+    accessibilityLabel: trimmedNotice,
+    text: trimmedNotice,
+  };
+};
 
 export const isReaderChromeCollapsed = (offsetY: number): boolean =>
   getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE) >= 1;
