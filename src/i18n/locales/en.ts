@@ -30,6 +30,7 @@ export const en = {
     bible: 'Bible',
     harvest: 'Harvest',
     gather: 'Gather',
+    plans: 'Plans',
     more: 'More',
   },
   home: {
@@ -550,6 +551,16 @@ export const en = {
     progress: 'Progress',
     noPlans: 'No reading plans available',
     noActivePlans: "You haven't started any plans yet",
+    findPlans: 'Find Plans',
+    saved: 'Saved',
+    completions: '{{count}} completions',
+    saveForLater: 'Save For Later',
+    unsave: 'Unsaved',
+    sample: 'Sample',
+    featuredPlan: 'Featured Plan',
+    relatedPlans: 'Related Plans',
+    noSavedPlans: 'No saved plans yet',
+    noCompletedPlans: 'No completed plans yet',
     bibleIn1Year: {
       title: 'Bible in One Year',
       description:

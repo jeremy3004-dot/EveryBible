@@ -30,6 +30,7 @@ export const es = {
     bible: 'Biblia',
     harvest: 'Cosecha',
     gather: 'Reunir',
+    plans: 'Planes',
     more: 'Más',
   },
   home: {
@@ -1027,6 +1028,16 @@ export const es = {
     progress: 'Progreso',
     noPlans: 'No hay planes de lectura disponibles',
     noActivePlans: 'Aún no has iniciado ningún plan',
+    findPlans: 'Buscar Planes',
+    saved: 'Guardados',
+    completions: '{{count}} completados',
+    saveForLater: 'Guardar para Despues',
+    unsave: 'No Guardado',
+    sample: 'Vista Previa',
+    featuredPlan: 'Plan Destacado',
+    relatedPlans: 'Planes Relacionados',
+    noSavedPlans: 'No hay planes guardados',
+    noCompletedPlans: 'No hay planes completados',
     bibleIn1Year: {
       title: 'La Biblia en un año',
       description:
