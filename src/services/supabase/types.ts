@@ -139,6 +139,9 @@ export interface ReadingPlan {
   category: 'chronological' | 'topical' | 'book-study' | 'devotional' | 'custom' | null;
   is_active: boolean;
   sort_order: number;
+  cover_image_url: string | null;
+  featured: boolean;
+  completion_count: number;
   created_at: string;
 }
 
@@ -169,6 +172,13 @@ export interface GroupReadingPlan {
   plan_id: string;
   assigned_by: string;
   started_at: string;
+}
+
+export interface UserSavedPlan {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  saved_at: string;
 }
 
 // Phase 19: Prayer Community
@@ -401,6 +411,12 @@ export interface Database {
         Row: GroupReadingPlan;
         Insert: Omit<GroupReadingPlan, 'id'>;
         Update: Partial<Omit<GroupReadingPlan, 'id'>>;
+        Relationships: [];
+      };
+      user_saved_plans: {
+        Row: UserSavedPlan;
+        Insert: Omit<UserSavedPlan, 'id' | 'saved_at'>;
+        Update: Partial<Omit<UserSavedPlan, 'id' | 'user_id'>>;
         Relationships: [];
       };
       prayer_requests: {
