@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Professional Design System Unification** - Replace ad hoc styling with one disciplined, professional visual system across the main app shell and highest-traffic screens
 - [ ] **Phase 16: Backend Foundation & Theme Fix** - Fix low-light theme sync bug, create storage buckets, add push token table
 - [ ] **Phase 17: Bookmarks, Highlights & Notes** - Verse-level annotations with offline-first sync
-- [ ] **Phase 18: Reading Plans** - Pre-seeded multi-day reading plans with enrollment and group assignments
+- [x] **Phase 18: Reading Plans** - Pre-seeded multi-day reading plans with enrollment and group assignments (completed 2026-04-07)
 - [ ] **Phase 19: Prayer Community** - Group-scoped prayer request walls with interactions
 - [ ] **Phase 20: Analytics & Engagement Metrics** - Lightweight event tracking with server-side aggregation
 - [ ] **Phase 21: Content Versioning & Multiple Translations** - Translation version tracking, preferences, and expanded content sourcing
@@ -277,7 +277,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 05.1 → 6 → 7 
 | 15. Reverential Theme & Typography                                            | 0/3            | Planned                                                            | -          |
 | 16. Backend Foundation & Theme Fix                                             | 3/3            | Complete                                                           | 2026-03-22 |
 | 17. Bookmarks, Highlights & Notes                                              | 2/2            | Backend + frontend complete (reader integration + list screen)     | 2026-03-22 |
-| 18. Reading Plans                                                              | 3/4 | In Progress|  |
+| 18. Reading Plans                                                              | 4/4 | Complete   | 2026-04-07 |
 | 19. Prayer Community                                                           | 2/2            | Backend + frontend complete (prayer wall + group integration)      | 2026-03-22 |
 | 20. Analytics & Engagement Metrics                                             | 2/2            | Backend + frontend complete (profile engagement + Edge Function)   | 2026-03-22 |
 | 21. Content Versioning & Multiple Translations                                 | 2/2            | Backend + frontend complete (translation browser + preferences)    | 2026-03-22 |
@@ -421,13 +421,13 @@ Plans:
 1. Users can browse available reading plans, enroll in a plan, and track daily completion with streak and progress indicators.
 2. Pre-seeded plans (M'Cheyne, Chronological Bible, Gospels & Epistles, etc.) are available from first launch, sourced from open-source plan data.
 3. Group leaders can assign a reading plan to their group, and group members see shared progress.
-   **Plans:** 3/4 plans executed
+   **Plans:** 4/4 plans complete
 
 Plans:
 
 - [x] 18-01-PLAN.md — Database migration, type updates, seed data, and service additions
 - [x] 18-02-PLAN.md — Navigation wiring, Plans tab, PlansStack, LearnStack cleanup, and i18n keys
-- [ ] 18-03-PLAN.md — PlansHomeScreen full implementation (My Plans, Find Plans, Saved, Completed)
+- [x] 18-03-PLAN.md — PlansHomeScreen full implementation (My Plans, Find Plans, Saved, Completed)
 - [x] 18-04-PLAN.md — PlanDetailScreen enhancement (cover image, CTAs, Related Plans)
 
 
