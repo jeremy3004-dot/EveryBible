@@ -31,6 +31,12 @@ export const rootTabManifest: RootTabManifestEntry[] = [
     unfocusedIcon: 'people-outline',
   },
   {
+    name: 'Plans',
+    labelKey: 'tabs.plans',
+    focusedIcon: 'calendar',
+    unfocusedIcon: 'calendar-outline',
+  },
+  {
     name: 'More',
     labelKey: 'tabs.more',
     focusedIcon: 'ellipsis-horizontal',

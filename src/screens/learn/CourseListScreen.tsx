@@ -3,8 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -15,14 +13,10 @@ import {
   type HarvestStudyEntry,
 } from './harvestStudies';
 import { layout, radius, spacing, typography } from '../../design/system';
-import type { LearnStackParamList } from '../../navigation/types';
-
-type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
 export function CourseListScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavProp>();
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
 
@@ -60,9 +54,13 @@ export function CourseListScreen() {
           })}
         </Text>
 
-        {/* Reading Plans entry card */}
+        {/* Reading Plans entry card — cross-navigates to the Plans tab */}
         <TouchableOpacity
-          onPress={() => navigation.navigate('ReadingPlanList')}
+          onPress={() => {
+            if (rootNavigationRef.isReady()) {
+              rootNavigationRef.navigate('Plans', { screen: 'PlansHome' });
+            }
+          }}
           activeOpacity={0.85}
           style={[
             styles.readingPlansCard,

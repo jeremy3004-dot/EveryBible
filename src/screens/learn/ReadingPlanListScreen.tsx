@@ -12,8 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
@@ -22,9 +20,7 @@ import {
   listReadingPlans,
 } from '../../services/plans/readingPlanService';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
-import type { LearnStackParamList } from '../../navigation/types';
-
-type NavProp = NativeStackNavigationProp<LearnStackParamList, 'ReadingPlanList'>;
+import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -382,7 +378,7 @@ type ListItem =
 export function ReadingPlanListScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavProp>();
+  const navigation = useNavigation();
 
   const [plans, setPlans] = useState<ReadingPlan[]>([]);
   const [progressList, setProgressList] = useState<UserReadingPlanProgress[]>([]);
@@ -430,28 +426,26 @@ export function ReadingPlanListScreen() {
     setRefreshing(false);
   }, [load]);
 
-  const handleEnroll = useCallback(
-    async (plan: ReadingPlan) => {
-      setEnrollingId(plan.id);
-      const result = await enrollInPlan(plan.id);
-      if (result.success && result.data) {
-        setProgressList((prev) => {
-          const without = prev.filter((p) => p.plan_id !== plan.id);
-          return [...without, result.data!];
-        });
-        navigation.navigate('ReadingPlanDetail', { planId: plan.id });
+  const handleEnroll = useCallback(async (plan: ReadingPlan) => {
+    setEnrollingId(plan.id);
+    const result = await enrollInPlan(plan.id);
+    if (result.success && result.data) {
+      setProgressList((prev) => {
+        const without = prev.filter((p) => p.plan_id !== plan.id);
+        return [...without, result.data!];
+      });
+      if (rootNavigationRef.isReady()) {
+        rootNavigationRef.navigate('Plans', { screen: 'PlanDetail', params: { planId: plan.id } });
       }
-      setEnrollingId(null);
-    },
-    [navigation]
-  );
+    }
+    setEnrollingId(null);
+  }, []);
 
-  const handleOpenPlan = useCallback(
-    (planId: string) => {
-      navigation.navigate('ReadingPlanDetail', { planId });
-    },
-    [navigation]
-  );
+  const handleOpenPlan = useCallback((planId: string) => {
+    if (rootNavigationRef.isReady()) {
+      rootNavigationRef.navigate('Plans', { screen: 'PlanDetail', params: { planId } });
+    }
+  }, []);
 
   // Build flat list items
   const items = React.useMemo<ListItem[]>(() => {

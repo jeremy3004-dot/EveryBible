@@ -51,11 +51,12 @@ export type LearnStackParamList = {
     groupId: string;
     groupName: string;
   };
-  // Reading Plans screens
-  ReadingPlanList: undefined;
-  ReadingPlanDetail: {
-    planId: string;
-  };
+};
+
+// Plans Stack
+export type PlansStackParamList = {
+  PlansHome: undefined;
+  PlanDetail: { planId: string };
 };
 
 // More Stack
@@ -83,6 +84,7 @@ export type RootTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   Bible: NavigatorScreenParams<BibleStackParamList>;
   Learn: NavigatorScreenParams<LearnStackParamList>;
+  Plans: NavigatorScreenParams<PlansStackParamList>;
   More: NavigatorScreenParams<MoreStackParamList>;
 };
 
@@ -106,8 +108,9 @@ export type GroupListScreenProps = NativeStackScreenProps<LearnStackParamList, '
 export type GroupDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupDetail'>;
 export type GroupSessionScreenProps = NativeStackScreenProps<LearnStackParamList, 'GroupSession'>;
 export type PrayerWallScreenProps = NativeStackScreenProps<LearnStackParamList, 'PrayerWall'>;
-export type ReadingPlanListScreenProps = NativeStackScreenProps<LearnStackParamList, 'ReadingPlanList'>;
-export type ReadingPlanDetailScreenProps = NativeStackScreenProps<LearnStackParamList, 'ReadingPlanDetail'>;
+
+export type PlansHomeScreenProps = NativeStackScreenProps<PlansStackParamList, 'PlansHome'>;
+export type PlanDetailScreenProps = NativeStackScreenProps<PlansStackParamList, 'PlanDetail'>;
 
 export type MoreScreenProps = NativeStackScreenProps<MoreStackParamList, 'MoreScreen'>;
 export type SettingsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Settings'>;
@@ -128,6 +131,7 @@ export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About
 export type HomeTabProps = BottomTabScreenProps<RootTabParamList, 'Home'>;
 export type BibleTabProps = BottomTabScreenProps<RootTabParamList, 'Bible'>;
 export type LearnTabProps = BottomTabScreenProps<RootTabParamList, 'Learn'>;
+export type PlansTabProps = BottomTabScreenProps<RootTabParamList, 'Plans'>;
 export type MoreTabProps = BottomTabScreenProps<RootTabParamList, 'More'>;
 
 // Global navigation type declaration

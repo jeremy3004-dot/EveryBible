@@ -7,6 +7,7 @@ import { RootTabParamList } from './types';
 import { HomeStack } from './HomeStack';
 import { BibleStack } from './BibleStack';
 import { LearnStack } from './LearnStack';
+import { PlansStack } from './PlansStack';
 import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
@@ -56,7 +57,7 @@ export function TabNavigator() {
           }
 
           const shouldHideNestedBibleScreen =
-            (route.name === 'Bible' || route.name === 'Learn') &&
+            (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
             shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
 
           return shouldHideNestedBibleScreen ? { display: 'none' } : defaultTabBarStyle;
@@ -112,6 +113,11 @@ export function TabNavigator() {
         name="Learn"
         component={LearnStack}
         options={{ tabBarLabel: t('tabs.gather') }}
+      />
+      <Tab.Screen
+        name="Plans"
+        component={PlansStack}
+        options={{ tabBarLabel: t('tabs.plans') }}
       />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
     </Tab.Navigator>

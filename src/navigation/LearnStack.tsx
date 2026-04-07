@@ -33,16 +33,6 @@ export function LearnStack() {
         getComponent={() => require('../screens/learn/PrayerWallScreen').PrayerWallScreen}
       />
       <Stack.Screen
-        name="ReadingPlanList"
-        getComponent={() => require('../screens/learn/ReadingPlanListScreen').ReadingPlanListScreen}
-      />
-      <Stack.Screen
-        name="ReadingPlanDetail"
-        getComponent={() =>
-          require('../screens/learn/ReadingPlanDetailScreen').ReadingPlanDetailScreen
-        }
-      />
-      <Stack.Screen
         name="GroupList"
         getComponent={() => require('../screens/learn/GroupListScreen').GroupListScreen}
       />

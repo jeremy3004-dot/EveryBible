@@ -11,9 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -24,12 +22,11 @@ import {
   markDayComplete,
 } from '../../services/plans/readingPlanService';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/supabase/types';
-import type { LearnStackParamList } from '../../navigation/types';
+import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 
-type NavProp = NativeStackNavigationProp<LearnStackParamList, 'ReadingPlanDetail'>;
-type RoutePropType = RouteProp<LearnStackParamList, 'ReadingPlanDetail'>;
+type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -409,12 +406,14 @@ type DetailItem =
 // Main screen
 // ---------------------------------------------------------------------------
 
-export function ReadingPlanDetailScreen() {
+interface ReadingPlanDetailScreenProps {
+  planId: string;
+  navigation: NavProp;
+}
+
+export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetailScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavProp>();
-  const route = useRoute<RoutePropType>();
-  const { planId } = route.params;
 
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
   const [entries, setEntries] = useState<ReadingPlanEntry[]>([]);
