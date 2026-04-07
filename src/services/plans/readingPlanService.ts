@@ -4,6 +4,7 @@ import type {
   ReadingPlanEntry,
   UserReadingPlanProgress,
   GroupReadingPlan,
+  UserSavedPlan,
 } from '../supabase/types';
 
 // ---------------------------------------------------------------------------
@@ -447,6 +448,218 @@ export async function syncPlanProgress(
     }
 
     return { success: true, data: (upserted ?? []) as UserReadingPlanProgress[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. savePlanForLater — save a plan to the user's saved list (idempotent)
+// ---------------------------------------------------------------------------
+
+export async function savePlanForLater(planId: string): Promise<PlanServiceResult<UserSavedPlan>> {
+  const { user, error: authError } = await requireSignedInUser('save a reading plan');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_saved_plans')
+      .upsert(
+        { user_id: user.id, plan_id: planId },
+        { onConflict: 'user_id,plan_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data as UserSavedPlan };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 11. unsavePlan — remove a plan from the user's saved list
+// ---------------------------------------------------------------------------
+
+export async function unsavePlan(planId: string): Promise<PlanServiceResult> {
+  const { user, error: authError } = await requireSignedInUser('unsave a reading plan');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('user_saved_plans')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('plan_id', planId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 12. getSavedPlans — fetch all plans the user has saved
+// ---------------------------------------------------------------------------
+
+export async function getSavedPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
+  const { user, error: authError } = await requireSignedInUser('fetch saved reading plans');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    // Step 1: get saved plan_ids for this user
+    const { data: savedRows, error: savedError } = await supabase
+      .from('user_saved_plans')
+      .select('plan_id')
+      .eq('user_id', user.id);
+
+    if (savedError) {
+      return { success: false, error: savedError.message };
+    }
+
+    const planIds = ((savedRows ?? []) as Pick<UserSavedPlan, 'plan_id'>[]).map((r) => r.plan_id);
+    if (planIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // Step 2: fetch the corresponding reading_plans rows
+    const { data, error } = await supabase
+      .from('reading_plans')
+      .select('*')
+      .in('id', planIds)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as ReadingPlan[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 13. getCompletedPlans — fetch completed plans with their plan metadata
+// ---------------------------------------------------------------------------
+
+export async function getCompletedPlans(): Promise<
+  PlanServiceResult<(UserReadingPlanProgress & { plan: ReadingPlan })[]>
+> {
+  const { user, error: authError } = await requireSignedInUser('fetch completed reading plans');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_reading_plan_progress')
+      .select('*, reading_plans(*)')
+      .eq('user_id', user.id)
+      .eq('is_completed', true)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Reshape: supabase returns reading_plans as a nested object
+    const result = ((data ?? []) as (UserReadingPlanProgress & {
+      reading_plans: ReadingPlan | null;
+    })[]).map((row) => {
+      const { reading_plans: plan, ...progress } = row;
+      return { ...progress, plan: plan as ReadingPlan };
+    });
+
+    return { success: true, data: result };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 14. getFeaturedPlans — fetch plans marked as featured (no auth required)
+// ---------------------------------------------------------------------------
+
+export async function getFeaturedPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
+  if (!isSupabaseConfigured()) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('reading_plans')
+      .select('*')
+      .eq('featured', true)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as ReadingPlan[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 15. getPlansByCategory — fetch active plans for a given category (no auth required)
+// ---------------------------------------------------------------------------
+
+export async function getPlansByCategory(
+  category: string
+): Promise<PlanServiceResult<ReadingPlan[]>> {
+  if (!isSupabaseConfigured()) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('reading_plans')
+      .select('*')
+      .eq('category', category)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as ReadingPlan[] };
   } catch (err) {
     return {
       success: false,
