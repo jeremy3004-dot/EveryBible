@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: In Progress
-stopped_at: Phase 33 backend secrets/migration/function deployed; release/push now blocked on Google Sheets API enablement and share confirmation
-last_updated: "2026-03-27T08:55:12Z"
+status: Ready to execute
+stopped_at: "Phase 18 Plan 01: schema migration, entry seeds, types, and service functions complete"
+last_updated: "2026-04-07T02:07:59.723Z"
 progress:
-  total_phases: 34
-  completed_phases: 23
-  total_plans: 56
-  completed_plans: 60
+  total_phases: 35
+  completed_phases: 24
+  total_plans: 70
+  completed_plans: 65
 ---
 
 # Project State
@@ -19,11 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 33 — chapter-feedback-and-review-pipeline (plans 01-03 complete, plan 04 pending release/push prerequisites)
+**Current focus:** Phase 18 — reading-plans
 
 ## Current Position
 
-Phase: 32 (bible-verse-deep-linking) — COMPLETE
+Phase: 18 (reading-plans) — EXECUTING
+Plan: 2 of 4
 Phase: 33 (chapter-feedback-and-review-pipeline) — IN PROGRESS (plans 01-03 complete, 04 pending)
 
 ## Performance Metrics
@@ -67,6 +68,7 @@ _Updated after each plan completion_
 | Phase 31-push-notification-implementation P01 | ~6m | 2 tasks | 9 files |
 | Phase 31-push-notification-implementation P02 | ~4m | 2 tasks | 6 files |
 | Phase 32-bible-verse-deep-linking P01 | ~6m | 3 tasks | 10 files |
+| Phase 18 P01 | 15m | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -143,6 +145,8 @@ Recent decisions affecting current work:
 - [Phase 33-chapter-feedback-and-review-pipeline]: Keep chapter feedback opt-in and route it through the existing chapter overflow instead of adding persistent thumbs to the reader chrome
 - [Phase 33-chapter-feedback-and-review-pipeline]: Emit `chapter_feedback_opened`, `chapter_feedback_submitted`, and `chapter_feedback_failed` analytics events with translation/chapter context so the funnel is observable
 - [Phase 33-chapter-feedback-and-review-pipeline]: Save feedback rows in Supabase first and treat Google Sheets export as a recoverable operator sink with degraded-success support
+- [Phase 18]: Used UNION ALL SQL pattern for reading plan entry seeds — UUID-independent subqueries look up plan by slug at migration time
+- [Phase 18]: Chronological Bible order: Job after Genesis, Psalms/Proverbs/Ecclesiastes/Song after 2 Samuel, prophets interleaved with Kings, post-exilic books last in OT, then NT sequentially
 
 ### Pending Todos
 
@@ -239,6 +243,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-06T14:26:03Z
-Stopped at: Phase 28 regression hardening follow-up complete (catalog integrity, runtime placeholder persistence, release bundle verification)
+Last session: 2026-04-07T02:07:59.719Z
+Stopped at: Phase 18 Plan 01: schema migration, entry seeds, types, and service functions complete
 Resume file: None
