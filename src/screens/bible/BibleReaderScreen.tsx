@@ -73,15 +73,24 @@ import {
   isRemoteAudioAvailable,
   prepareChapterAudioShareAsset,
 } from '../../services/audio';
+import { READING_PLAN_ENTRIES_BY_PLAN_ID } from '../../data/readingPlans.generated';
 import { submitChapterFeedback } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
+import {
+  getCurrentPlanDaySummary,
+  getPlanChapterListenStatus,
+  PLAN_LISTEN_COMPLETION_THRESHOLD,
+} from '../../services/plans/readingPlanActivity';
+import { markDayComplete } from '../../services/plans/readingPlanService';
+import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import {
   useAudioStore,
   useAuthStore,
   useBibleStore,
   useLibraryStore,
   useProgressStore,
+  useReadingPlansStore,
 } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useFontSize, useAudioPlayer } from '../../hooks';
@@ -113,9 +122,12 @@ import {
   SWIPE_VELOCITY_MIN,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
+  getListenCountedNoticeViewModel,
   getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
+  LISTEN_COUNTED_NOTICE_TEST_ID,
+  LISTEN_PLAN_PROGRESS_CARD_TEST_ID,
   getReaderVerseLineHeight,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
@@ -132,6 +144,7 @@ import {
   shouldEnableChapterFeedbackSubmit,
 } from './bibleReaderFeedbackModel';
 import { TranslationPickerList } from './TranslationPickerList';
+import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
@@ -403,6 +416,9 @@ export function BibleReaderScreen() {
     preferredMode,
     focusVerse,
     playbackSequenceEntries = [],
+    planId: activePlanId,
+    planDayNumber,
+    returnToPlanOnComplete = false,
   } = route.params;
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
@@ -410,6 +426,12 @@ export function BibleReaderScreen() {
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
   const chapterCompletionGuardRef = useRef<string | null>(null);
+  const planDayCompletionGuardRef = useRef<string | null>(null);
+  const listenCountedNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listenCountedBaselineRef = useRef<{ key: string; alreadyCountedForPlan: boolean } | null>(
+    null
+  );
+  const lastListenCountedNoticeKeyRef = useRef<string | null>(null);
   const previousActiveAudioBookIdRef = useRef<string | null>(null);
   const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
@@ -448,6 +470,7 @@ export function BibleReaderScreen() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
+  const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
@@ -539,6 +562,7 @@ export function BibleReaderScreen() {
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
   const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
   const setPreferredChapterLaunchMode = useBibleStore(
@@ -550,7 +574,11 @@ export function BibleReaderScreen() {
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
   const addChapterToDefaultPlaylist = useLibraryStore((state) => state.addChapterToDefaultPlaylist);
+  const listeningHistory = useLibraryStore((state) => state.history);
   const isFavorite = useLibraryStore((state) => state.isFavorite(bookId, chapter));
+  const activePlanProgress = useReadingPlansStore((state) =>
+    activePlanId ? state.progressByPlanId[activePlanId] ?? null : null
+  );
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
@@ -601,6 +629,54 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const activeChapterKey = `${bookId}_${chapter}`;
+  const todayDateKey = formatLocalDateKey(new Date());
+  const activePlanEntries = useMemo(
+    () => (activePlanId ? READING_PLAN_ENTRIES_BY_PLAN_ID.get(activePlanId) ?? [] : []),
+    [activePlanId]
+  );
+  const activePlanDaySummary = useMemo(() => {
+    if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
+      return null;
+    }
+
+    return getCurrentPlanDaySummary({
+      entries: activePlanEntries,
+      progress: activePlanProgress,
+      chaptersRead,
+      listeningHistory,
+    });
+  }, [
+    activePlanEntries,
+    activePlanId,
+    activePlanProgress,
+    chaptersRead,
+    listeningHistory,
+    planDayNumber,
+  ]);
+  const currentChapterListenStatus = useMemo(() => {
+    if (!activePlanDaySummary) {
+      return null;
+    }
+
+    return getPlanChapterListenStatus({
+      chapterKey: activeChapterKey,
+      bookId,
+      chapter,
+      targetChapterKeys: activePlanDaySummary.targetChapterKeys,
+      completedChapterKeys: activePlanDaySummary.completedChapterKeys,
+      listeningHistory,
+      dateKey: todayDateKey,
+      listenCompletionThreshold: PLAN_LISTEN_COMPLETION_THRESHOLD,
+    });
+  }, [
+    activeChapterKey,
+    activePlanDaySummary,
+    bookId,
+    chapter,
+    listeningHistory,
+    todayDateKey,
+  ]);
   const translationShareLabel =
     getBibleSelectionShareTranslationLabel({
       translationName: currentTranslationInfo?.name,
@@ -1018,9 +1094,13 @@ export function BibleReaderScreen() {
         bookId: activeAudioBookId ?? bookId,
         chapter: activeAudioChapter,
         preferredMode: chapterSessionMode,
+        planId: activePlanId,
+        planDayNumber,
+        returnToPlanOnComplete,
       })
     );
   }, [
+    activePlanId,
     audioEnabled,
     activeAudioBookId,
     activeAudioChapter,
@@ -1028,6 +1108,8 @@ export function BibleReaderScreen() {
     chapter,
     chapterSessionMode,
     navigation,
+    planDayNumber,
+    returnToPlanOnComplete,
   ]);
 
   useEffect(() => {
@@ -1152,6 +1234,171 @@ export function BibleReaderScreen() {
     }
   };
 
+  useEffect(() => {
+    if (
+      !activePlanId ||
+      typeof planDayNumber !== 'number' ||
+      !returnToPlanOnComplete ||
+      !activePlanProgress ||
+      activePlanProgress.is_completed ||
+      activePlanProgress.current_day !== planDayNumber ||
+      !activePlanDaySummary?.isComplete
+    ) {
+      return;
+    }
+
+    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanDaySummary.completedChapterCount}`;
+    if (planDayCompletionGuardRef.current === completionKey) {
+      return;
+    }
+
+    planDayCompletionGuardRef.current = completionKey;
+
+    void (async () => {
+      const result = await markDayComplete(activePlanId, planDayNumber);
+      if (!result.success) {
+        planDayCompletionGuardRef.current = null;
+        return;
+      }
+
+      Alert.alert(
+        t('readingPlans.dailyTargetCompleteTitle', {
+          defaultValue: 'Daily reading complete',
+        }),
+        t('readingPlans.dailyTargetCompleteBody', {
+          count: activePlanDaySummary.targetChapterCount,
+          defaultValue:
+            "You finished today's plan reading. We'll take you back to your plan so you can see your progress.",
+        }),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => {
+              if (!rootNavigationRef.isReady()) {
+                return;
+              }
+
+              rootNavigationRef.navigate('Plans', {
+                screen: 'PlanDetail',
+                params: { planId: activePlanId },
+              });
+            },
+          },
+        ]
+      );
+    })();
+  }, [
+    activePlanDaySummary,
+    activePlanId,
+    activePlanProgress,
+    planDayNumber,
+    returnToPlanOnComplete,
+    t,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (listenCountedNoticeTimeoutRef.current) {
+        clearTimeout(listenCountedNoticeTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (
+      chapterSessionMode !== 'listen' ||
+      !activePlanId ||
+      typeof planDayNumber !== 'number' ||
+      !activePlanDaySummary?.targetChapterKeys.includes(activeChapterKey)
+    ) {
+      listenCountedBaselineRef.current = null;
+      setListenCountedNotice(null);
+      return;
+    }
+
+    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
+    if (listenCountedBaselineRef.current?.key === noticeKey) {
+      return;
+    }
+
+    listenCountedBaselineRef.current = {
+      key: noticeKey,
+      alreadyCountedForPlan:
+        currentChapterListenStatus?.currentChapterListenCountedAt !== null ||
+        currentChapterListenStatus?.alreadyCountedForPlan === true,
+    };
+    setListenCountedNotice(null);
+  }, [
+    activeChapterKey,
+    activePlanDaySummary?.targetChapterKeys,
+    activePlanId,
+    chapterSessionMode,
+    currentChapterListenStatus,
+    planDayNumber,
+  ]);
+
+  useEffect(() => {
+    if (
+      chapterSessionMode !== 'listen' ||
+      !activePlanId ||
+      typeof planDayNumber !== 'number' ||
+      currentChapterListenStatus?.currentChapterListenCountedAt === null
+    ) {
+      return;
+    }
+
+    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
+    const baseline = listenCountedBaselineRef.current;
+    if (
+      !baseline ||
+      baseline.key !== noticeKey ||
+      baseline.alreadyCountedForPlan ||
+      lastListenCountedNoticeKeyRef.current === noticeKey
+    ) {
+      return;
+    }
+
+    lastListenCountedNoticeKeyRef.current = noticeKey;
+    const chapterReference = `${getTranslatedBookName(bookId, t)} ${chapter}`;
+    setListenCountedNotice(
+      t('readingPlans.listenChapterCounted', {
+        reference: chapterReference,
+        defaultValue: `${chapterReference} counted for today's plan`,
+      })
+    );
+
+    if (listenCountedNoticeTimeoutRef.current) {
+      clearTimeout(listenCountedNoticeTimeoutRef.current);
+    }
+
+    listenCountedNoticeTimeoutRef.current = setTimeout(() => {
+      setListenCountedNotice((currentNotice) =>
+        currentNotice === null ? currentNotice : null
+      );
+      listenCountedNoticeTimeoutRef.current = null;
+    }, 2200);
+  }, [
+    activeChapterKey,
+    activePlanId,
+    bookId,
+    chapter,
+    chapterSessionMode,
+    currentChapterListenStatus,
+    planDayNumber,
+    t,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (listenCountedNoticeTimeoutRef.current) {
+        clearTimeout(listenCountedNoticeTimeoutRef.current);
+        listenCountedNoticeTimeoutRef.current = null;
+      }
+    },
+    []
+  );
+
   if (!book) {
     return null;
   }
@@ -1181,6 +1428,9 @@ export function BibleReaderScreen() {
         bookId: nextBookId,
         chapter: nextChapter,
         preferredMode: chapterSessionMode,
+        planId: activePlanId,
+        planDayNumber,
+        returnToPlanOnComplete,
       })
     );
   };
@@ -2061,6 +2311,11 @@ export function BibleReaderScreen() {
     const listenPosition = isCurrentAudioChapter ? currentPosition : 0;
     const listenDuration = isCurrentAudioChapter ? duration : 0;
     const remainingDuration = Math.max(listenDuration - listenPosition, 0);
+    const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
+    const planTargetFraction =
+      activePlanDaySummary && activePlanDaySummary.targetChapterCount > 0
+        ? activePlanDaySummary.completedChapterCount / activePlanDaySummary.targetChapterCount
+        : 0;
 
     return (
       <View style={styles.listenColumn}>
@@ -2095,6 +2350,100 @@ export function BibleReaderScreen() {
             trackStyle={styles.listenProgressTrack}
             fillStyle={styles.listenProgressFill}
           />
+
+          {activePlanDaySummary ? (
+            <View
+              testID={LISTEN_PLAN_PROGRESS_CARD_TEST_ID}
+              accessibilityLabel={t('readingPlans.listenTargetProgress', {
+                completed: activePlanDaySummary.completedChapterCount,
+                target: activePlanDaySummary.targetChapterCount,
+                defaultValue: `Today's target: ${activePlanDaySummary.completedChapterCount}/${activePlanDaySummary.targetChapterCount} chapters`,
+              })}
+              style={[
+                styles.listenPlanProgressCard,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+            >
+              <View style={styles.listenPlanProgressHeader}>
+                <Text style={[styles.listenPlanProgressLabel, { color: colors.biblePrimaryText }]}>
+                  {t('readingPlans.listenTargetLabel', {
+                    defaultValue: "Today's plan",
+                  })}
+                </Text>
+                <Text
+                  style={[styles.listenPlanProgressCount, { color: colors.bibleSecondaryText }]}
+                >
+                  {t('readingPlans.listenTargetProgress', {
+                    completed: activePlanDaySummary.completedChapterCount,
+                    target: activePlanDaySummary.targetChapterCount,
+                    defaultValue: `Today's target: ${activePlanDaySummary.completedChapterCount}/${activePlanDaySummary.targetChapterCount} chapters`,
+                  })}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.listenPlanProgressTrack,
+                  { backgroundColor: colors.bibleDivider },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.listenPlanProgressFill,
+                    {
+                      width: `${Math.round(planTargetFraction * 100)}%`,
+                      backgroundColor:
+                        activePlanDaySummary.isComplete
+                          ? colors.accentGreen
+                          : colors.bibleAccent,
+                    },
+                  ]}
+                />
+              </View>
+
+              <Text style={[styles.listenPlanProgressFooter, { color: colors.bibleSecondaryText }]}>
+                {activePlanDaySummary.remainingChapterCount === 0
+                  ? t('readingPlans.listenTargetComplete', {
+                      defaultValue: 'Daily target complete',
+                    })
+                  : activePlanDaySummary.remainingChapterCount === 1
+                    ? t('readingPlans.listenTargetRemainingOne', {
+                        defaultValue: '1 chapter left today',
+                      })
+                    : t('readingPlans.listenTargetRemainingOther', {
+                        count: activePlanDaySummary.remainingChapterCount,
+                        defaultValue: `${activePlanDaySummary.remainingChapterCount} chapters left today`,
+                      })}
+              </Text>
+            </View>
+          ) : null}
+
+          {listenCountedNoticeViewModel ? (
+            <Animated.View
+              testID={LISTEN_COUNTED_NOTICE_TEST_ID}
+              accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
+              entering={SlideInDown.springify().damping(20).stiffness(220)}
+              exiting={SlideOutDown.duration(180)}
+              style={[
+                styles.listenCountedNoticeCard,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.accentGreen,
+                },
+              ]}
+            >
+              <Ionicons name="checkmark-circle" size={16} color={colors.accentGreen} />
+              <Text
+                style={[styles.listenCountedNoticeText, { color: colors.biblePrimaryText }]}
+                numberOfLines={2}
+              >
+                {listenCountedNoticeViewModel.text}
+              </Text>
+            </Animated.View>
+          ) : null}
 
           <View style={styles.listenTimeRow}>
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
@@ -4025,6 +4374,47 @@ const styles = StyleSheet.create({
   listenPlayerCard: {
     paddingBottom: 0,
     gap: 12,
+  },
+  listenPlanProgressCard: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  listenPlanProgressHeader: {
+    gap: 2,
+  },
+  listenPlanProgressLabel: {
+    ...typography.bodyStrong,
+  },
+  listenPlanProgressCount: {
+    ...typography.micro,
+  },
+  listenPlanProgressTrack: {
+    height: 6,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  listenPlanProgressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+  },
+  listenPlanProgressFooter: {
+    ...typography.micro,
+  },
+  listenCountedNoticeCard: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listenCountedNoticeText: {
+    flex: 1,
+    ...typography.micro,
+    fontWeight: '700',
   },
   listenProgressTouch: {
     justifyContent: 'center',

@@ -4,9 +4,12 @@ import {
   buildReaderChapterRouteParams,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   getNextBibleTabBarVisibility,
+  getListenCountedNoticeViewModel,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
   isReaderChromeCollapsed,
+  LISTEN_COUNTED_NOTICE_TEST_ID,
+  LISTEN_PLAN_PROGRESS_CARD_TEST_ID,
   READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
@@ -69,6 +72,24 @@ test('uses a slightly more open line height for reader verses', () => {
   assert.equal(getReaderVerseLineHeight(20), 30);
   assert.equal(getReaderVerseLineHeight(18), 27);
   assert.equal(FOLLOW_ALONG_VERSE_LINE_HEIGHT, 32);
+});
+
+test('builds a deterministic listen-counted notice view model only when notice copy exists', () => {
+  assert.equal(getListenCountedNoticeViewModel(null), null);
+  assert.equal(getListenCountedNoticeViewModel('   '), null);
+
+  assert.deepEqual(
+    getListenCountedNoticeViewModel('Matthew 16 counted for today\'s plan'),
+    {
+      testID: LISTEN_COUNTED_NOTICE_TEST_ID,
+      accessibilityLabel: 'Matthew 16 counted for today\'s plan',
+      text: 'Matthew 16 counted for today\'s plan',
+    }
+  );
+});
+
+test('keeps listen-mode plan progress exposed behind a stable simulator selector', () => {
+  assert.equal(LISTEN_PLAN_PROGRESS_CARD_TEST_ID, 'bible-reader-listen-plan-progress-card');
 });
 
 test('closes the translation sheet after selection or manual dismissal', () => {

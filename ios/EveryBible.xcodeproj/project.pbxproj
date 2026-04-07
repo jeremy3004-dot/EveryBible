@@ -34,9 +34,9 @@
 		9CF29617BF0C44E6B1F3E753 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		A81F47F72E005D920044C1D9 /* EveryBiblePrivacyModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = EveryBiblePrivacyModule.m; path = EveryBible/EveryBiblePrivacyModule.m; sourceTree = "<group>"; };
 		A81F47F82E005D920044C1D9 /* EveryBiblePrivacyModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EveryBiblePrivacyModule.swift; path = EveryBible/EveryBiblePrivacyModule.swift; sourceTree = "<group>"; };
+		AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		B8C4F3A12E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EveryBibleAudioNowPlayingModule.swift; path = EveryBible/EveryBibleAudioNowPlayingModule.swift; sourceTree = "<group>"; };
 		B8C4F3A22E505C9300AABBCC /* EveryBibleAudioNowPlayingModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = EveryBibleAudioNowPlayingModule.m; path = EveryBible/EveryBibleAudioNowPlayingModule.m; sourceTree = "<group>"; };
-		AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = EveryBibleLaunchScreen.storyboard; path = EveryBible/EveryBibleLaunchScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		C38B1E7F79671F1E5CDEE3CC /* Pods-EveryBible.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-EveryBible.debug.xcconfig"; path = "Target Support Files/Pods-EveryBible/Pods-EveryBible.debug.xcconfig"; sourceTree = "<group>"; };
 		EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "bible-bsb-v2.db"; path = "../assets/databases/bible-bsb-v2.db"; sourceTree = "<group>"; };
@@ -416,7 +416,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 301;
+				CURRENT_PROJECT_VERSION = 314;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -456,7 +456,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 301;
+				CURRENT_PROJECT_VERSION = 314;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				INFOPLIST_FILE = EveryBible/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

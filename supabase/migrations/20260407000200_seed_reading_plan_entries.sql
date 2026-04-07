@@ -6,83 +6,83 @@
 
 -- sermon-on-the-mount-7-days (7 entries)
 INSERT INTO reading_plan_entries (plan_id, day_number, book, chapter_start, chapter_end)
-  SELECT id, 1, 'MAT', 5, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 1, 'MAT', 5, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
-  SELECT id, 2, 'MAT', 6, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 2, 'MAT', 6, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
-  SELECT id, 3, 'MAT', 7, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 3, 'MAT', 7, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
-  SELECT id, 4, 'MAT', 5, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 4, 'MAT', 5, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
-  SELECT id, 5, 'MAT', 6, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 5, 'MAT', 6, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
-  SELECT id, 6, 'MAT', 7, NULL FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
+  SELECT id, 6, 'MAT', 7, NULL::integer FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days'
 UNION ALL
   SELECT id, 7, 'MAT', 5, 7 FROM reading_plans WHERE slug = 'sermon-on-the-mount-7-days';
 
 -- proverbs-31-days (31 entries)
 INSERT INTO reading_plan_entries (plan_id, day_number, book, chapter_start, chapter_end)
-  SELECT id, 1, 'PRO', 1, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 1, 'PRO', 1, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 2, 'PRO', 2, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 2, 'PRO', 2, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 3, 'PRO', 3, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 3, 'PRO', 3, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 4, 'PRO', 4, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 4, 'PRO', 4, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 5, 'PRO', 5, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 5, 'PRO', 5, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 6, 'PRO', 6, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 6, 'PRO', 6, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 7, 'PRO', 7, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 7, 'PRO', 7, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 8, 'PRO', 8, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 8, 'PRO', 8, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 9, 'PRO', 9, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 9, 'PRO', 9, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 10, 'PRO', 10, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 10, 'PRO', 10, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 11, 'PRO', 11, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 11, 'PRO', 11, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 12, 'PRO', 12, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 12, 'PRO', 12, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 13, 'PRO', 13, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 13, 'PRO', 13, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 14, 'PRO', 14, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 14, 'PRO', 14, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 15, 'PRO', 15, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 15, 'PRO', 15, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 16, 'PRO', 16, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 16, 'PRO', 16, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 17, 'PRO', 17, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 17, 'PRO', 17, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 18, 'PRO', 18, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 18, 'PRO', 18, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 19, 'PRO', 19, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 19, 'PRO', 19, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 20, 'PRO', 20, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 20, 'PRO', 20, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 21, 'PRO', 21, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 21, 'PRO', 21, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 22, 'PRO', 22, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 22, 'PRO', 22, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 23, 'PRO', 23, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 23, 'PRO', 23, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 24, 'PRO', 24, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 24, 'PRO', 24, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 25, 'PRO', 25, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 25, 'PRO', 25, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 26, 'PRO', 26, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 26, 'PRO', 26, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 27, 'PRO', 27, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 27, 'PRO', 27, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 28, 'PRO', 28, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 28, 'PRO', 28, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 29, 'PRO', 29, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 29, 'PRO', 29, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 30, 'PRO', 30, NULL FROM reading_plans WHERE slug = 'proverbs-31-days'
+  SELECT id, 30, 'PRO', 30, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days'
 UNION ALL
-  SELECT id, 31, 'PRO', 31, NULL FROM reading_plans WHERE slug = 'proverbs-31-days';
+  SELECT id, 31, 'PRO', 31, NULL::integer FROM reading_plans WHERE slug = 'proverbs-31-days';
 
 -- psalms-30-days (30 entries)
 INSERT INTO reading_plan_entries (plan_id, day_number, book, chapter_start, chapter_end)
@@ -156,7 +156,7 @@ UNION ALL
 UNION ALL
   SELECT id, 4, 'ROM', 14, 16 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 4, '1CO', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 4, '1CO', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 5, '1CO', 2, 5 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
@@ -166,7 +166,7 @@ UNION ALL
 UNION ALL
   SELECT id, 8, '1CO', 14, 16 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 8, '2CO', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 8, '2CO', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 9, '2CO', 2, 5 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
@@ -188,7 +188,7 @@ UNION ALL
 UNION ALL
   SELECT id, 17, '1TH', 1, 4 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 18, '1TH', 5, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 18, '1TH', 5, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 18, '2TH', 1, 3 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
@@ -202,9 +202,9 @@ UNION ALL
 UNION ALL
   SELECT id, 21, 'TIT', 1, 2 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 22, 'TIT', 3, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 22, 'TIT', 3, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 22, 'PHM', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 22, 'PHM', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 22, 'HEB', 1, 2 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
@@ -214,25 +214,25 @@ UNION ALL
 UNION ALL
   SELECT id, 25, 'HEB', 11, 13 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 25, 'JAS', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 25, 'JAS', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 26, 'JAS', 2, 5 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 27, '1PE', 1, 4 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 28, '1PE', 5, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 28, '1PE', 5, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 28, '2PE', 1, 3 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
   SELECT id, 29, '1JN', 1, 4 FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 30, '1JN', 5, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 30, '1JN', 5, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 30, '2JN', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 30, '2JN', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 30, '3JN', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days'
+  SELECT id, 30, '3JN', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days'
 UNION ALL
-  SELECT id, 30, 'JUD', 1, NULL FROM reading_plans WHERE slug = 'epistles-30-days';
+  SELECT id, 30, 'JUD', 1, NULL::integer FROM reading_plans WHERE slug = 'epistles-30-days';
 
 -- gospels-60-days (60 entries)
 INSERT INTO reading_plan_entries (plan_id, day_number, book, chapter_start, chapter_end)
@@ -294,67 +294,67 @@ UNION ALL
 UNION ALL
   SELECT id, 29, 'LUK', 13, 14 FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 30, 'LUK', 15, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 30, 'LUK', 15, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 31, 'LUK', 16, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 31, 'LUK', 16, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 32, 'LUK', 17, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 32, 'LUK', 17, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 33, 'LUK', 18, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 33, 'LUK', 18, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 34, 'LUK', 19, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 34, 'LUK', 19, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 35, 'LUK', 20, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 35, 'LUK', 20, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 36, 'LUK', 21, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 36, 'LUK', 21, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 37, 'LUK', 22, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 37, 'LUK', 22, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 38, 'LUK', 23, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 38, 'LUK', 23, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 39, 'LUK', 24, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 39, 'LUK', 24, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 40, 'JHN', 1, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 40, 'JHN', 1, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 41, 'JHN', 2, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 41, 'JHN', 2, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 42, 'JHN', 3, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 42, 'JHN', 3, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 43, 'JHN', 4, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 43, 'JHN', 4, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 44, 'JHN', 5, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 44, 'JHN', 5, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 45, 'JHN', 6, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 45, 'JHN', 6, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 46, 'JHN', 7, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 46, 'JHN', 7, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 47, 'JHN', 8, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 47, 'JHN', 8, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 48, 'JHN', 9, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 48, 'JHN', 9, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 49, 'JHN', 10, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 49, 'JHN', 10, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 50, 'JHN', 11, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 50, 'JHN', 11, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 51, 'JHN', 12, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 51, 'JHN', 12, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 52, 'JHN', 13, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 52, 'JHN', 13, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 53, 'JHN', 14, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 53, 'JHN', 14, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 54, 'JHN', 15, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 54, 'JHN', 15, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 55, 'JHN', 16, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 55, 'JHN', 16, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 56, 'JHN', 17, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 56, 'JHN', 17, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 57, 'JHN', 18, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 57, 'JHN', 18, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 58, 'JHN', 19, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 58, 'JHN', 19, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 59, 'JHN', 20, NULL FROM reading_plans WHERE slug = 'gospels-60-days'
+  SELECT id, 59, 'JHN', 20, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days'
 UNION ALL
-  SELECT id, 60, 'JHN', 21, NULL FROM reading_plans WHERE slug = 'gospels-60-days';
+  SELECT id, 60, 'JHN', 21, NULL::integer FROM reading_plans WHERE slug = 'gospels-60-days';
 
 -- new-testament-90-days (109 entries)
 INSERT INTO reading_plan_entries (plan_id, day_number, book, chapter_start, chapter_end)
@@ -376,7 +376,7 @@ UNION ALL
 UNION ALL
   SELECT id, 9, 'MAT', 25, 27 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 10, 'MAT', 28, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 10, 'MAT', 28, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 10, 'MRK', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -390,7 +390,7 @@ UNION ALL
 UNION ALL
   SELECT id, 15, 'MRK', 15, 16 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 15, 'LUK', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 15, 'LUK', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 16, 'LUK', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -408,7 +408,7 @@ UNION ALL
 UNION ALL
   SELECT id, 23, 'LUK', 23, 24 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 23, 'JHN', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 23, 'JHN', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 24, 'JHN', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -424,7 +424,7 @@ UNION ALL
 UNION ALL
   SELECT id, 30, 'JHN', 20, 21 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 30, 'ACT', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 30, 'ACT', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 31, 'ACT', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -454,7 +454,7 @@ UNION ALL
 UNION ALL
   SELECT id, 44, 'ROM', 13, 15 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 45, 'ROM', 16, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 45, 'ROM', 16, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 45, '1CO', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -468,7 +468,7 @@ UNION ALL
 UNION ALL
   SELECT id, 50, '1CO', 15, 16 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 50, '2CO', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 50, '2CO', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 51, '2CO', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -488,37 +488,37 @@ UNION ALL
 UNION ALL
   SELECT id, 59, 'PHP', 1, 3 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 60, 'PHP', 4, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 60, 'PHP', 4, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 60, 'COL', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 61, 'COL', 3, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 61, '1TH', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 61, '1TH', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 62, '1TH', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 63, '1TH', 5, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 63, '1TH', 5, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 63, '2TH', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 64, '2TH', 3, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 64, '2TH', 3, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 64, '1TI', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 65, '1TI', 3, 5 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 66, '1TI', 6, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 66, '1TI', 6, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 66, '2TI', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 67, '2TI', 3, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 67, 'TIT', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 67, 'TIT', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 68, 'TIT', 2, 3 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 68, 'PHM', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 68, 'PHM', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 69, 'HEB', 1, 3 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -528,7 +528,7 @@ UNION ALL
 UNION ALL
   SELECT id, 72, 'HEB', 10, 12 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 73, 'HEB', 13, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 73, 'HEB', 13, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 73, 'JAS', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -538,21 +538,21 @@ UNION ALL
 UNION ALL
   SELECT id, 76, '1PE', 4, 5 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 76, '2PE', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 76, '2PE', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 77, '2PE', 2, 3 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 77, '1JN', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 77, '1JN', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 78, '1JN', 2, 4 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 79, '1JN', 5, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 79, '1JN', 5, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 79, '2JN', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 79, '2JN', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 79, '3JN', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 79, '3JN', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
-  SELECT id, 80, 'JUD', 1, NULL FROM reading_plans WHERE slug = 'new-testament-90-days'
+  SELECT id, 80, 'JUD', 1, NULL::integer FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
   SELECT id, 80, 'REV', 1, 2 FROM reading_plans WHERE slug = 'new-testament-90-days'
 UNION ALL
@@ -640,7 +640,7 @@ UNION ALL
 UNION ALL
   SELECT id, 29, 'LEV', 23, 26 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 30, 'LEV', 27, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 30, 'LEV', 27, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 30, 'NUM', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -660,7 +660,7 @@ UNION ALL
 UNION ALL
   SELECT id, 38, 'NUM', 32, 35 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 39, 'NUM', 36, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 39, 'NUM', 36, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 39, 'DEU', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -680,7 +680,7 @@ UNION ALL
 UNION ALL
   SELECT id, 47, 'DEU', 32, 34 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 47, 'JOS', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 47, 'JOS', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 48, 'JOS', 2, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -694,7 +694,7 @@ UNION ALL
 UNION ALL
   SELECT id, 53, 'JOS', 22, 24 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 53, 'JDG', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 53, 'JDG', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 54, 'JDG', 2, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -724,7 +724,7 @@ UNION ALL
 UNION ALL
   SELECT id, 67, '1SA', 29, 31 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 67, '2SA', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 67, '2SA', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 68, '2SA', 2, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -738,7 +738,7 @@ UNION ALL
 UNION ALL
   SELECT id, 73, '2SA', 22, 24 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 73, '1KI', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 73, '1KI', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 74, '1KI', 2, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -750,7 +750,7 @@ UNION ALL
 UNION ALL
   SELECT id, 78, '1KI', 18, 21 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 79, '1KI', 22, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 79, '1KI', 22, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 79, '2KI', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -782,7 +782,7 @@ UNION ALL
 UNION ALL
   SELECT id, 92, '1CH', 27, 29 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 92, '2CH', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 92, '2CH', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 93, '2CH', 2, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -812,7 +812,7 @@ UNION ALL
 UNION ALL
   SELECT id, 106, 'EZR', 7, 9 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 107, 'EZR', 10, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 107, 'EZR', 10, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 107, 'NEH', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -824,7 +824,7 @@ UNION ALL
 UNION ALL
   SELECT id, 111, 'NEH', 12, 13 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 111, 'EST', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 111, 'EST', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 112, 'EST', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -980,7 +980,7 @@ UNION ALL
 UNION ALL
   SELECT id, 188, 'PRO', 28, 30 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 189, 'PRO', 31, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 189, 'PRO', 31, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 189, 'ECC', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -990,7 +990,7 @@ UNION ALL
 UNION ALL
   SELECT id, 192, 'ECC', 9, 11 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 193, 'ECC', 12, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 193, 'ECC', 12, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 193, 'SNG', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1076,7 +1076,7 @@ UNION ALL
 UNION ALL
   SELECT id, 234, 'JER', 49, 51 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 235, 'JER', 52, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 235, 'JER', 52, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 235, 'LAM', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1132,11 +1132,11 @@ UNION ALL
 UNION ALL
   SELECT id, 261, 'HOS', 13, 14 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 261, 'JOL', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 261, 'JOL', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 262, 'JOL', 2, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 262, 'AMO', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 262, 'AMO', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 263, 'AMO', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1144,11 +1144,11 @@ UNION ALL
 UNION ALL
   SELECT id, 265, 'AMO', 8, 9 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 265, 'OBA', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 265, 'OBA', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 266, 'JON', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 267, 'JON', 4, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 267, 'JON', 4, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 267, 'MIC', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1156,21 +1156,21 @@ UNION ALL
 UNION ALL
   SELECT id, 269, 'MIC', 6, 7 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 269, 'NAH', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 269, 'NAH', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 270, 'NAH', 2, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 270, 'HAB', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 270, 'HAB', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 271, 'HAB', 2, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 271, 'ZEP', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 271, 'ZEP', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 272, 'ZEP', 2, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 272, 'HAG', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 272, 'HAG', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 273, 'HAG', 2, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 273, 'HAG', 2, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 273, 'ZEC', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1184,7 +1184,7 @@ UNION ALL
 UNION ALL
   SELECT id, 278, 'MAL', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 279, 'MAL', 4, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 279, 'MAL', 4, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 279, 'MAT', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1206,7 +1206,7 @@ UNION ALL
 UNION ALL
   SELECT id, 288, 'MAT', 27, 28 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 288, 'MRK', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 288, 'MRK', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 289, 'MRK', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1266,7 +1266,7 @@ UNION ALL
 UNION ALL
   SELECT id, 317, 'ACT', 25, 27 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 318, 'ACT', 28, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 318, 'ACT', 28, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 318, 'ROM', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1280,7 +1280,7 @@ UNION ALL
 UNION ALL
   SELECT id, 323, 'ROM', 15, 16 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 323, '1CO', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 323, '1CO', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 324, '1CO', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1300,25 +1300,25 @@ UNION ALL
 UNION ALL
   SELECT id, 332, '2CO', 10, 12 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 333, '2CO', 13, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 333, '2CO', 13, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 333, 'GAL', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 334, 'GAL', 3, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 335, 'GAL', 6, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 335, 'GAL', 6, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 335, 'EPH', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 336, 'EPH', 3, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 337, 'EPH', 6, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 337, 'EPH', 6, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 337, 'PHP', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 338, 'PHP', 3, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 338, 'COL', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 338, 'COL', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 339, 'COL', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1326,23 +1326,23 @@ UNION ALL
 UNION ALL
   SELECT id, 341, '1TH', 4, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 341, '2TH', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 341, '2TH', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 342, '2TH', 2, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 342, '1TI', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 342, '1TI', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 343, '1TI', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 344, '1TI', 5, 6 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 344, '2TI', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 344, '2TI', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 345, '2TI', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 346, 'TIT', 1, 3 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 347, 'PHM', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 347, 'PHM', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 347, 'HEB', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1354,11 +1354,11 @@ UNION ALL
 UNION ALL
   SELECT id, 351, 'HEB', 12, 13 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 351, 'JAS', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 351, 'JAS', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 352, 'JAS', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 353, 'JAS', 5, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 353, 'JAS', 5, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 353, '1PE', 1, 2 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1370,13 +1370,13 @@ UNION ALL
 UNION ALL
   SELECT id, 357, '1JN', 4, 5 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 357, '2JN', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 357, '2JN', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 358, '3JN', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 358, '3JN', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 358, 'JUD', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 358, 'JUD', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
-  SELECT id, 358, 'REV', 1, NULL FROM reading_plans WHERE slug = 'bible-in-1-year'
+  SELECT id, 358, 'REV', 1, NULL::integer FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
   SELECT id, 359, 'REV', 2, 4 FROM reading_plans WHERE slug = 'bible-in-1-year'
 UNION ALL
@@ -1476,7 +1476,7 @@ UNION ALL
 UNION ALL
   SELECT id, 40, 'LEV', 25, 27 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 40, 'NUM', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 40, 'NUM', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 41, 'NUM', 2, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1496,7 +1496,7 @@ UNION ALL
 UNION ALL
   SELECT id, 49, 'NUM', 34, 36 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 49, 'DEU', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 49, 'DEU', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 50, 'DEU', 2, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1514,7 +1514,7 @@ UNION ALL
 UNION ALL
   SELECT id, 57, 'DEU', 30, 33 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 58, 'DEU', 34, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 58, 'DEU', 34, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 58, 'JOS', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1528,7 +1528,7 @@ UNION ALL
 UNION ALL
   SELECT id, 63, 'JOS', 20, 23 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 64, 'JOS', 24, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 64, 'JOS', 24, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 64, 'JDG', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1562,7 +1562,7 @@ UNION ALL
 UNION ALL
   SELECT id, 77, '1SA', 27, 30 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 78, '1SA', 31, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 78, '1SA', 31, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 78, '2SA', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1576,7 +1576,7 @@ UNION ALL
 UNION ALL
   SELECT id, 83, '2SA', 20, 23 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 84, '2SA', 24, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 84, '2SA', 24, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 84, 'PSA', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1672,7 +1672,7 @@ UNION ALL
 UNION ALL
   SELECT id, 130, 'PSA', 149, 150 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 130, 'PRO', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 130, 'PRO', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 131, 'PRO', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1708,7 +1708,7 @@ UNION ALL
 UNION ALL
   SELECT id, 147, 'SNG', 7, 8 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 147, '1KI', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 147, '1KI', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 148, '1KI', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1740,7 +1740,7 @@ UNION ALL
 UNION ALL
   SELECT id, 162, '2KI', 22, 24 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 163, '2KI', 25, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 163, '2KI', 25, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 163, '1CH', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1864,7 +1864,7 @@ UNION ALL
 UNION ALL
   SELECT id, 223, 'JER', 49, 51 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 224, 'JER', 52, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 224, 'JER', 52, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 224, 'LAM', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1920,11 +1920,11 @@ UNION ALL
 UNION ALL
   SELECT id, 250, 'HOS', 13, 14 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 250, 'JOL', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 250, 'JOL', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 251, 'JOL', 2, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 251, 'AMO', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 251, 'AMO', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 252, 'AMO', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1932,11 +1932,11 @@ UNION ALL
 UNION ALL
   SELECT id, 254, 'AMO', 8, 9 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 254, 'OBA', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 254, 'OBA', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 255, 'JON', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 256, 'JON', 4, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 256, 'JON', 4, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 256, 'MIC', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1944,21 +1944,21 @@ UNION ALL
 UNION ALL
   SELECT id, 258, 'MIC', 6, 7 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 258, 'NAH', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 258, 'NAH', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 259, 'NAH', 2, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 259, 'HAB', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 259, 'HAB', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 260, 'HAB', 2, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 260, 'ZEP', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 260, 'ZEP', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 261, 'ZEP', 2, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 261, 'HAG', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 261, 'HAG', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 262, 'HAG', 2, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 262, 'HAG', 2, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 262, 'ZEC', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1972,7 +1972,7 @@ UNION ALL
 UNION ALL
   SELECT id, 267, 'MAL', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 268, 'MAL', 4, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 268, 'MAL', 4, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 268, 'EZR', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1982,7 +1982,7 @@ UNION ALL
 UNION ALL
   SELECT id, 271, 'EZR', 9, 10 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 271, 'NEH', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 271, 'NEH', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 272, 'NEH', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -1998,7 +1998,7 @@ UNION ALL
 UNION ALL
   SELECT id, 278, 'EST', 7, 9 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 279, 'EST', 10, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 279, 'EST', 10, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 279, 'MAT', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2020,7 +2020,7 @@ UNION ALL
 UNION ALL
   SELECT id, 288, 'MAT', 27, 28 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 288, 'MRK', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 288, 'MRK', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 289, 'MRK', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2080,7 +2080,7 @@ UNION ALL
 UNION ALL
   SELECT id, 317, 'ACT', 25, 27 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 318, 'ACT', 28, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 318, 'ACT', 28, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 318, 'ROM', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2094,7 +2094,7 @@ UNION ALL
 UNION ALL
   SELECT id, 323, 'ROM', 15, 16 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 323, '1CO', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 323, '1CO', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 324, '1CO', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2114,25 +2114,25 @@ UNION ALL
 UNION ALL
   SELECT id, 332, '2CO', 10, 12 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 333, '2CO', 13, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 333, '2CO', 13, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 333, 'GAL', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 334, 'GAL', 3, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 335, 'GAL', 6, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 335, 'GAL', 6, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 335, 'EPH', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 336, 'EPH', 3, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 337, 'EPH', 6, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 337, 'EPH', 6, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 337, 'PHP', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 338, 'PHP', 3, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 338, 'COL', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 338, 'COL', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 339, 'COL', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2140,23 +2140,23 @@ UNION ALL
 UNION ALL
   SELECT id, 341, '1TH', 4, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 341, '2TH', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 341, '2TH', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 342, '2TH', 2, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 342, '1TI', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 342, '1TI', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 343, '1TI', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 344, '1TI', 5, 6 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 344, '2TI', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 344, '2TI', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 345, '2TI', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 346, 'TIT', 1, 3 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 347, 'PHM', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 347, 'PHM', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 347, 'HEB', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2168,11 +2168,11 @@ UNION ALL
 UNION ALL
   SELECT id, 351, 'HEB', 12, 13 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 351, 'JAS', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 351, 'JAS', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 352, 'JAS', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 353, 'JAS', 5, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 353, 'JAS', 5, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 353, '1PE', 1, 2 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
@@ -2184,13 +2184,13 @@ UNION ALL
 UNION ALL
   SELECT id, 357, '1JN', 4, 5 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 357, '2JN', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 357, '2JN', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 358, '3JN', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 358, '3JN', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 358, 'JUD', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 358, 'JUD', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
-  SELECT id, 358, 'REV', 1, NULL FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
+  SELECT id, 358, 'REV', 1, NULL::integer FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL
   SELECT id, 359, 'REV', 2, 4 FROM reading_plans WHERE slug = 'genesis-to-revelation-chronological'
 UNION ALL

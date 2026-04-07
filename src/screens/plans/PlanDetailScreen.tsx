@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,21 +16,22 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
 import {
   enrollInPlan,
   getPlansByCategory,
   getPlanEntries,
-  getSavedPlans,
-  getUserPlanProgress,
   listReadingPlans,
-  markDayComplete,
-  savePlanForLater,
-  unsavePlan,
 } from '../../services/plans/readingPlanService';
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/supabase/types';
+import {
+  getCurrentPlanDaySummary,
+  formatScheduledPlanDayLabel,
+  type CurrentPlanDaySummary,
+} from '../../services/plans/readingPlanActivity';
+import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getBookById } from '../../constants';
-import { openAuthFlow } from '../../navigation/rootNavigation';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 // ---------------------------------------------------------------------------
@@ -61,18 +62,19 @@ function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlan
 // ---------------------------------------------------------------------------
 
 function PlanCoverImage({
-  uri,
+  plan,
   width,
   height,
   borderRadius,
 }: {
-  uri: string | null;
+  plan: Pick<ReadingPlan, 'cover_image_key'>;
   width: number;
   height: number;
   borderRadius: number;
 }) {
   const { colors } = useTheme();
-  if (!uri) {
+  const source = getReadingPlanCoverSource(plan);
+  if (!source) {
     return (
       <View
         style={[
@@ -86,7 +88,7 @@ function PlanCoverImage({
   }
   return (
     <Image
-      source={{ uri }}
+      source={source}
       style={{ width, height, borderRadius }}
       resizeMode="cover"
     />
@@ -190,9 +192,10 @@ const progressRingStyles = StyleSheet.create({
 interface ProgressCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress | null;
+  currentDaySummary: CurrentPlanDaySummary | null;
 }
 
-function ProgressCard({ plan, progress }: ProgressCardProps) {
+function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
@@ -200,6 +203,11 @@ function ProgressCard({ plan, progress }: ProgressCardProps) {
   const currentDay = progress?.current_day ?? 1;
   const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
   const fraction = totalDays > 0 ? completedCount / totalDays : 0;
+  const completionBadgeLabel = progress?.is_completed
+    ? t('readingPlans.completed')
+    : currentDaySummary?.isComplete
+      ? t('readingPlans.dailyTargetCompleteTitle')
+      : null;
 
   return (
     <View
@@ -230,13 +238,22 @@ function ProgressCard({ plan, progress }: ProgressCardProps) {
             {t('engagement.days', { defaultValue: 'days' })}{' '}
             {t('readingPlans.completed').toLowerCase()}
           </Text>
-          {progress?.is_completed ? (
+          {currentDaySummary ? (
+            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
+              {t('readingPlans.todayTargetProgress', {
+                completed: currentDaySummary.completedChapterCount,
+                target: currentDaySummary.targetChapterCount,
+                defaultValue: `Today's target: ${currentDaySummary.completedChapterCount}/${currentDaySummary.targetChapterCount} chapters`,
+              })}
+            </Text>
+          ) : null}
+          {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={12} color={colors.cardBackground} />
               <Text
                 style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}
               >
-                {t('readingPlans.completed')}
+                {completionBadgeLabel}
               </Text>
             </View>
           ) : null}
@@ -250,32 +267,32 @@ const progressCardStyles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: layout.denseCardPadding,
+    padding: layout.cardPadding,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
+    alignItems: 'flex-start',
+    gap: spacing.xl,
   },
   pct: {
     ...typography.cardTitle,
   },
   stats: {
     flex: 1,
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   dayLabel: {
     ...typography.bodyStrong,
   },
   subLabel: {
-    ...typography.body,
+    ...typography.micro,
   },
   completeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
     borderRadius: radius.pill,
     alignSelf: 'flex-start',
   },
@@ -290,31 +307,39 @@ const progressCardStyles = StyleSheet.create({
 
 interface DayRowProps {
   dayNumber: number;
+  dateLabel: string | null;
   entries: ReadingPlanEntry[];
   isCompleted: boolean;
   isCurrent: boolean;
-  onPress: (entry: ReadingPlanEntry) => void;
+  onPress: (entry: ReadingPlanEntry, dayNumber: number) => void;
 }
 
-function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
+export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
+
+function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
   const { colors } = useTheme();
 
   const refs = entries.map(formatChapterRef).join(', ');
   const firstEntry = entries[0];
+  const accessibilityLabel = isCurrent
+    ? `Current plan day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
+    : `Day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
 
   return (
     <TouchableOpacity
-      onPress={() => firstEntry && onPress(firstEntry)}
+      testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
+      onPress={() => firstEntry && onPress(firstEntry, dayNumber)}
       activeOpacity={0.85}
       style={[
         dayRowStyles.row,
         {
-          backgroundColor: colors.background,
+          backgroundColor: colors.cardBackground,
           borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
+          borderWidth: isCurrent ? 1.5 : 1,
         },
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Day ${dayNumber}: ${refs}`}
+      accessibilityLabel={accessibilityLabel}
     >
       <View
         style={[
@@ -323,9 +348,9 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
             backgroundColor:
               isCompleted
                 ? colors.accentPrimary
-                : colors.cardBackground,
+                : colors.background,
             borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
-            borderWidth: isCurrent && !isCompleted ? 1 : 0,
+            borderWidth: isCompleted ? 0 : 1,
           },
         ]}
       >
@@ -344,6 +369,11 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
       </View>
 
       <View style={dayRowStyles.content}>
+        {dateLabel ? (
+          <Text style={[dayRowStyles.dateLabel, { color: colors.secondaryText }]}>
+            {dateLabel}
+          </Text>
+        ) : null}
         <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
           {refs}
         </Text>
@@ -365,11 +395,13 @@ const dayRowStyles = StyleSheet.create({
     gap: spacing.md,
     borderWidth: 1,
     borderRadius: radius.md,
-    padding: 12,
+    minHeight: 72,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   badge: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -381,67 +413,11 @@ const dayRowStyles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  dateLabel: {
+    ...typography.micro,
+  },
   refs: {
     ...typography.bodyStrong,
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Mark complete button
-// ---------------------------------------------------------------------------
-
-interface MarkCompleteButtonProps {
-  disabled: boolean;
-  loading: boolean;
-  onPress: () => void;
-  label: string;
-  color: string;
-  textColor: string;
-}
-
-function MarkCompleteButton({
-  disabled,
-  loading,
-  onPress,
-  label,
-  color,
-  textColor,
-}: MarkCompleteButtonProps) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[
-        markCompleteStyles.button,
-        { backgroundColor: disabled ? `${color}55` : color },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={textColor} />
-      ) : (
-        <>
-          <Ionicons name="checkmark-circle" size={18} color={textColor} />
-          <Text style={[markCompleteStyles.label, { color: textColor }]}>{label}</Text>
-        </>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-const markCompleteStyles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    minHeight: layout.minTouchTarget,
-  },
-  label: {
-    ...typography.button,
   },
 });
 
@@ -465,7 +441,7 @@ function RelatedPlanCard({ plan, onPress }: RelatedPlanCardProps) {
       style={[relatedCardStyles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
       accessibilityRole="button"
     >
-      <PlanCoverImage uri={plan.cover_image_url} width={120} height={80} borderRadius={radius.md} />
+      <PlanCoverImage plan={plan} width={120} height={80} borderRadius={radius.md} />
       <View style={relatedCardStyles.info}>
         <Text style={[relatedCardStyles.title, { color: colors.primaryText }]} numberOfLines={2}>
           {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
@@ -480,13 +456,13 @@ function RelatedPlanCard({ plan, onPress }: RelatedPlanCardProps) {
 
 const relatedCardStyles = StyleSheet.create({
   card: {
-    width: 160,
+    width: 172,
     borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
   info: {
-    padding: spacing.sm,
+    padding: spacing.md,
     gap: spacing.xs,
   },
   title: {
@@ -508,21 +484,16 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
-  const dayListOffsetRef = useRef<number>(0);
+  const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
 
   // Data state
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
   const [entries, setEntries] = useState<ReadingPlanEntry[]>([]);
-  const [progress, setProgress] = useState<UserReadingPlanProgress | null>(null);
   const [relatedPlans, setRelatedPlans] = useState<ReadingPlan[]>([]);
-  const [isSaved, setIsSaved] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(true);
-  const [markingComplete, setMarkingComplete] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [savingToggling, setSavingToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
@@ -535,11 +506,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     setLoading(true);
     setError(null);
 
-    const [plansResult, entriesResult, progressResult, savedResult] = await Promise.all([
+    const [plansResult, entriesResult] = await Promise.all([
       listReadingPlans(),
       getPlanEntries(planId),
-      getUserPlanProgress(planId),
-      getSavedPlans(),
     ]);
 
     let foundPlan: ReadingPlan | null = null;
@@ -552,15 +521,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
     if (entriesResult.success) {
       setEntries(entriesResult.data ?? []);
-    }
-
-    if (progressResult.success) {
-      setProgress((progressResult.data ?? [])[0] ?? null);
-    }
-
-    if (savedResult.success) {
-      const savedIds = new Set((savedResult.data ?? []).map((p) => p.id));
-      setIsSaved(savedIds.has(planId));
     }
 
     // Fetch related plans once we know the category
@@ -582,71 +542,49 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   }, [load]);
 
   const currentDay = progress?.current_day ?? 1;
-  const isCurrentDayCompleted = progress
-    ? String(currentDay) in progress.completed_entries
-    : false;
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningHistory = useLibraryStore((state) => state.history);
+  const currentDaySummary = React.useMemo(() => {
+    if (!progress) {
+      return null;
+    }
+
+    return getCurrentPlanDaySummary({
+      entries,
+      progress,
+      chaptersRead,
+      listeningHistory,
+    });
+  }, [chaptersRead, entries, listeningHistory, progress]);
   const isEnrolled = progress !== null;
 
-  const handleMarkComplete = useCallback(async () => {
-    setMarkingComplete(true);
-    const result = await markDayComplete(planId, currentDay);
-    if (result.success && result.data) {
-      setProgress(result.data);
-    }
-    setMarkingComplete(false);
-  }, [planId, currentDay]);
-
-  const handleOpenChapter = useCallback((entry: ReadingPlanEntry) => {
+  const handleOpenChapter = useCallback((entry: ReadingPlanEntry, dayNumber: number) => {
     if (!rootNavigationRef.isReady()) return;
+    const shouldTrackPlanDay =
+      progress != null && !progress.is_completed && dayNumber === progress.current_day;
     rootNavigationRef.navigate('Bible', {
       screen: 'BibleReader',
       params: {
         bookId: entry.book,
         chapter: entry.chapter_start,
+        ...(shouldTrackPlanDay
+          ? {
+              planId,
+              planDayNumber: dayNumber,
+              returnToPlanOnComplete: true,
+            }
+          : {}),
       },
     });
-  }, []);
+  }, [planId, progress]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
-      // check auth by trying to enroll — service returns error if not signed in
       setEnrolling(true);
-      const result = await enrollInPlan(planId);
-      if (!result.success) {
-        // Likely auth error — open sign in
-        openAuthFlow('SignIn');
-      } else if (result.data) {
-        setProgress(result.data);
-      }
+      await enrollInPlan(planId);
       setEnrolling(false);
     }
   }, [planId, progress]);
-
-  const handleToggleSave = useCallback(async () => {
-    setSavingToggling(true);
-    if (isSaved) {
-      const result = await unsavePlan(planId);
-      if (!result.success) {
-        openAuthFlow('SignIn');
-      } else {
-        setIsSaved(false);
-      }
-    } else {
-      const result = await savePlanForLater(planId);
-      if (!result.success) {
-        openAuthFlow('SignIn');
-      } else {
-        setIsSaved(true);
-      }
-    }
-    setSavingToggling(false);
-  }, [planId, isSaved]);
-
-  const handleSample = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ y: dayListOffsetRef.current, animated: true });
-    }
-  }, []);
 
   const handleRelatedPlanPress = useCallback(
     (relatedPlanId: string) => {
@@ -658,6 +596,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const planTitle = plan
     ? t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })
     : t('readingPlans.title');
+  const heroCoverSource = plan ? getReadingPlanCoverSource(plan) : null;
 
   if (loading) {
     return (
@@ -711,7 +650,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -720,9 +658,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         {/* Cover image header                                                  */}
         {/* ------------------------------------------------------------------ */}
         <View style={styles.coverContainer}>
-          {plan?.cover_image_url ? (
+          {heroCoverSource ? (
             <Image
-              source={{ uri: plan.cover_image_url }}
+              source={heroCoverSource}
               style={styles.coverImage}
               resizeMode="cover"
             />
@@ -756,7 +694,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         </View>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Title, duration, and completion count                              */}
+        {/* Title and duration                                                 */}
         {/* ------------------------------------------------------------------ */}
         <View style={styles.titleSection}>
           <Text style={[styles.planTitle, { color: colors.primaryText }]} numberOfLines={3}>
@@ -770,29 +708,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
                 {plan?.duration_days ?? 0} {t('engagement.days', { defaultValue: 'days' })}
               </Text>
             </View>
-
-            {/* Completion count */}
-            {plan && plan.completion_count > 0 ? (
-              <View style={styles.completionsRow}>
-                <Ionicons name="people-outline" size={14} color={colors.secondaryText} />
-                <Text style={[styles.completionsText, { color: colors.secondaryText }]}>
-                  {t('readingPlans.completions', { count: plan.completion_count })}
-                </Text>
-              </View>
-            ) : null}
           </View>
         </View>
 
         {/* ------------------------------------------------------------------ */}
-        {/* CTA row: Start Plan / Save For Later / Sample                      */}
+        {/* CTA row: Start Plan                                                 */}
         {/* ------------------------------------------------------------------ */}
-        <View style={styles.ctaRow}>
-          {/* Start Plan / Continue (only show if not enrolled or enrolled) */}
-          {!isEnrolled ? (
+        {!isEnrolled ? (
+          <View style={styles.ctaRow}>
             <TouchableOpacity
               onPress={handleStartPlan}
               disabled={enrolling}
-              style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary, flex: 2 }]}
+              style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary }]}
               accessibilityRole="button"
               accessibilityLabel={t('readingPlans.startPlan')}
             >
@@ -804,51 +731,8 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
                 </Text>
               )}
             </TouchableOpacity>
-          ) : null}
-
-          {/* Save For Later */}
-          <TouchableOpacity
-            onPress={handleToggleSave}
-            disabled={savingToggling}
-            style={[
-              styles.ctaSecondary,
-              {
-                borderColor: colors.cardBorder,
-                flex: isEnrolled ? 1 : 1,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={isSaved ? t('readingPlans.unsave') : t('readingPlans.saveForLater')}
-          >
-            {savingToggling ? (
-              <ActivityIndicator size="small" color={colors.primaryText} />
-            ) : (
-              <>
-                <Ionicons
-                  name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                  size={16}
-                  color={isSaved ? colors.accentPrimary : colors.primaryText}
-                />
-                <Text style={[styles.ctaSecondaryText, { color: isSaved ? colors.accentPrimary : colors.primaryText }]}>
-                  {isSaved ? t('readingPlans.unsave') : t('readingPlans.saveForLater')}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* Sample — scrolls to day list */}
-          <TouchableOpacity
-            onPress={handleSample}
-            style={[styles.ctaSecondary, { borderColor: colors.cardBorder, flex: 1 }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('readingPlans.sample')}
-          >
-            <Ionicons name="eye-outline" size={16} color={colors.primaryText} />
-            <Text style={[styles.ctaSecondaryText, { color: colors.primaryText }]}>
-              {t('readingPlans.sample')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        ) : null}
 
         {/* ------------------------------------------------------------------ */}
         {/* Plan description                                                    */}
@@ -862,38 +746,30 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         {/* ------------------------------------------------------------------ */}
         {/* Day list                                                            */}
         {/* ------------------------------------------------------------------ */}
-        <View
-          style={styles.dayListSection}
-          onLayout={(e) => {
-            dayListOffsetRef.current = e.nativeEvent.layout.y;
-          }}
-        >
+        <View style={styles.dayListSection}>
           {/* Progress card (only if enrolled) */}
           {plan && isEnrolled ? (
-            <ProgressCard plan={plan} progress={progress} />
-          ) : null}
-
-          {/* Mark complete button (only if enrolled and day not complete) */}
-          {isEnrolled && !isCurrentDayCompleted && !progress?.is_completed ? (
-            <MarkCompleteButton
-              disabled={isCurrentDayCompleted || !progress}
-              loading={markingComplete}
-              onPress={handleMarkComplete}
-              label={t('readingPlans.markComplete')}
-              color={colors.accentPrimary}
-              textColor={colors.cardBackground}
+            <ProgressCard
+              plan={plan}
+              progress={progress}
+              currentDaySummary={currentDaySummary}
             />
           ) : null}
 
           {/* Day rows */}
           {sortedDays.map((dayNumber) => {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
-            const isCompleted = progress ? String(dayNumber) in progress.completed_entries : false;
+            const isCompleted = progress
+              ? String(dayNumber) in progress.completed_entries ||
+                (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
+              : false;
             const isCurrent = dayNumber === currentDay;
+            const dateLabel = progress ? formatScheduledPlanDayLabel(progress.started_at, dayNumber) : null;
             return (
               <DayRow
                 key={dayNumber}
                 dayNumber={dayNumber}
+                dateLabel={dateLabel}
                 entries={dayEntries}
                 isCompleted={isCompleted}
                 isCurrent={isCurrent && isEnrolled}
@@ -999,9 +875,9 @@ const styles = StyleSheet.create({
   floatingBack: {
     position: 'absolute',
     left: spacing.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    borderRadius: layout.minTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1010,8 +886,8 @@ const styles = StyleSheet.create({
   titleSection: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
   },
   planTitle: {
     ...typography.sectionTitle,
@@ -1026,32 +902,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
   },
   durationText: {
-    ...typography.micro,
-  },
-  completionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  completionsText: {
     ...typography.micro,
   },
 
   // CTA row
   ctaRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'stretch',
     paddingHorizontal: layout.screenPadding,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
   },
   ctaPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    flex: 1,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radius.pill,
     minHeight: layout.minTouchTarget,
@@ -1059,36 +929,25 @@ const styles = StyleSheet.create({
   ctaPrimaryText: {
     ...typography.button,
   },
-  ctaSecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    minHeight: layout.minTouchTarget,
-  },
-  ctaSecondaryText: {
-    ...typography.label,
-  },
 
   // Description
   description: {
     ...typography.body,
-    marginVertical: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
     paddingHorizontal: layout.screenPadding,
   },
 
   // Day list section
   dayListSection: {
     paddingHorizontal: layout.screenPadding,
-    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    gap: spacing.md,
   },
 
   // Related plans
   relatedSection: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.md,
     gap: spacing.md,
   },

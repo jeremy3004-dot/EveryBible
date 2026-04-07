@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const source = readFileSync(resolve(__dirname, 'PlansHomeScreen.tsx'), 'utf8');
 const tabRowBlockMatch = source.match(/tabRow:\s*\{[\s\S]*?\n\s*\},/);
+const planCardMetaBlockMatch = source.match(/planCardMeta:\s*\{[\s\S]*?\n\s*\},/);
 
 test('PlansHomeScreen renders the tab control as a single horizontal row', () => {
   assert.match(
@@ -43,5 +44,24 @@ test('PlansHomeScreen no longer uses a fixed contentArea shell beneath the tabs'
     source,
     /contentArea:\s*\{/,
     'PlansHomeScreen should render the active tab content directly in the main scroll surface instead of a separate fixed contentArea'
+  );
+});
+
+test('PlansHomeScreen keeps the plan day badge and action badge on one row', () => {
+  assert.ok(planCardMetaBlockMatch, 'PlansHomeScreen should define a planCardMeta style block');
+  assert.match(
+    planCardMetaBlockMatch?.[0] ?? '',
+    /justifyContent:\s*'space-between'/,
+    'PlansHomeScreen should push the action badge to the right edge of the card row'
+  );
+  assert.doesNotMatch(
+    planCardMetaBlockMatch?.[0] ?? '',
+    /flexWrap:\s*'wrap'/,
+    'PlansHomeScreen should keep the day badge and action badge on a single line'
+  );
+  assert.match(
+    source,
+    /flexShrink:\s*0/,
+    'PlansHomeScreen should keep both badges from collapsing or wrapping when the day value gets longer'
   );
 });

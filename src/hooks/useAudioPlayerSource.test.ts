@@ -56,3 +56,13 @@ test('useAudioPlayer uses canonical adjacent-book chapter resolution for manual 
     'useAudioPlayer nextChapter should move into the next book when the current chapter is the last chapter'
   );
 });
+
+test('useAudioPlayer records completed listening progress when playback finishes even without a following chapter transition', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /const handlePlaybackFinished = useCallback\(async \(\) => \{[\s\S]*if \(bookId && chapterNum && finishedDuration > 0\) \{[\s\S]*useLibraryStore\.getState\(\)\.recordHistory\(bookId, chapterNum, 1\);[\s\S]*\}/s,
+    'useAudioPlayer should persist finished chapter listening progress inside playback-finished handling so final chapters still count toward plan completion'
+  );
+});

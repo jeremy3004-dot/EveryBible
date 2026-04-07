@@ -14,7 +14,15 @@ export {
   getCompletedPlans,
   getFeaturedPlans,
   getPlansByCategory,
+  getTimedChallengePlans,
 } from './readingPlanService';
 
 export type { PlanServiceResult } from './readingPlanService';
-export type { UserSavedPlan } from '../supabase/types';
+export type {
+  GroupReadingPlan,
+  ReadingPlan,
+  ReadingPlanCategory,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+  UserSavedPlan,
+} from './types';

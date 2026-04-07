@@ -475,6 +475,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       });
     }
 
+    // Persist the finished listen even when playback ends without a manual pause
+    // or a subsequent chapter transition. This keeps plan/listen completion in sync
+    // for the last required chapter of the day.
+    if (bookId && chapterNum && finishedDuration > 0) {
+      useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
+    }
+
     const currentBook = bookId ? getBookById(bookId) : null;
     const repeatTarget = resolveRepeatPlaybackTarget({
       repeatMode: activeRepeatMode,
