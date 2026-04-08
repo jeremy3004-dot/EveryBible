@@ -73,7 +73,7 @@ import {
   isRemoteAudioAvailable,
   prepareChapterAudioShareAsset,
 } from '../../services/audio';
-import { READING_PLAN_ENTRIES_BY_PLAN_ID } from '../../data/readingPlans.generated';
+import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
 import { submitChapterFeedback } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
@@ -635,6 +635,55 @@ export function BibleReaderScreen() {
     () => (activePlanId ? READING_PLAN_ENTRIES_BY_PLAN_ID.get(activePlanId) ?? [] : []),
     [activePlanId]
   );
+  const activePlanRecord = useMemo(
+    () => (activePlanId ? readingPlans.find((plan) => plan.id === activePlanId) ?? null : null),
+    [activePlanId]
+  );
+  const activePlanDayEntries = useMemo(
+    () =>
+      typeof planDayNumber === 'number'
+        ? activePlanEntries.filter((entry) => entry.day_number === planDayNumber)
+        : [],
+    [activePlanEntries, planDayNumber]
+  );
+  const activePlanDayChapterItems = useMemo(
+    () =>
+      activePlanDayEntries.flatMap((entry) => {
+        const endChapter = entry.chapter_end ?? entry.chapter_start;
+        const chapterItems: Array<{ bookId: string; chapter: number; entryId: string }> = [];
+
+        for (let chapterNumber = entry.chapter_start; chapterNumber <= endChapter; chapterNumber += 1) {
+          chapterItems.push({
+            bookId: entry.book,
+            chapter: chapterNumber,
+            entryId: entry.id,
+          });
+        }
+
+        return chapterItems;
+      }),
+    [activePlanDayEntries]
+  );
+  const activePlanChapterIndex = useMemo(
+    () =>
+      activePlanDayChapterItems.findIndex(
+        (item) => item.bookId === bookId && item.chapter === chapter
+      ),
+    [activePlanDayChapterItems, bookId, chapter]
+  );
+  const isInActivePlanSession =
+    Boolean(activePlanId) &&
+    typeof planDayNumber === 'number' &&
+    returnToPlanOnComplete &&
+    activePlanChapterIndex >= 0;
+  const isFinalPlanSessionChapter =
+    isInActivePlanSession && activePlanChapterIndex === activePlanDayChapterItems.length - 1;
+  const showPlanSessionFooter = isInActivePlanSession && activePlanDayChapterItems.length > 0;
+  const activePlanTitle = activePlanRecord
+    ? t(activePlanRecord.title_key as Parameters<typeof t>[0], {
+        defaultValue: activePlanRecord.title_key,
+      })
+    : null;
   const activePlanDaySummary = useMemo(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
       return null;
@@ -2286,24 +2335,115 @@ export function BibleReaderScreen() {
     await reloadAnnotations();
   };
 
-  const handleRemoveHighlightSelectedVerses = async (color: string) => {
-    const annotationsToRemove = selectedHighlightAnnotations.filter(
-      (annotation) => annotation.color === color
-    );
-
-    if (annotationsToRemove.length === 0) {
+  const handleAdvancePlanSession = useCallback(() => {
+    if (!showPlanSessionFooter) {
       return;
     }
 
-    for (const annotation of annotationsToRemove) {
-      const result = await softDeleteAnnotation(annotation.id);
-      if (!result.success) {
-        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+    if (isFinalPlanSessionChapter) {
+      if (
+        !activePlanId ||
+        typeof planDayNumber !== 'number' ||
+        !rootNavigationRef.isReady()
+      ) {
         return;
       }
+
+      void (async () => {
+        const result = await markDayComplete(activePlanId, planDayNumber);
+        if (!result.success) {
+          Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+          return;
+        }
+
+        rootNavigationRef.navigate('Plans', {
+          screen: 'PlanDetail',
+          params: { planId: activePlanId },
+        });
+      })();
+      return;
     }
 
-    await reloadAnnotations();
+    const nextPlanChapter = activePlanDayChapterItems[activePlanChapterIndex + 1];
+    if (!nextPlanChapter) {
+      return;
+    }
+
+    navigation.navigate('BibleReader', {
+      bookId: nextPlanChapter.bookId,
+      chapter: nextPlanChapter.chapter,
+      preferredMode: chapterSessionMode,
+      planId: activePlanId,
+      planDayNumber,
+      returnToPlanOnComplete,
+    });
+  }, [
+    activePlanChapterIndex,
+    activePlanDayChapterItems,
+    activePlanId,
+    chapterSessionMode,
+    isFinalPlanSessionChapter,
+    navigation,
+    planDayNumber,
+    returnToPlanOnComplete,
+    showPlanSessionFooter,
+    t,
+  ]);
+
+  const renderPlanSessionFooter = () => {
+    if (!showPlanSessionFooter || !activePlanTitle || typeof planDayNumber !== 'number') {
+      return null;
+    }
+
+    return (
+      <View
+        style={[
+          styles.planSessionFooterShell,
+          {
+            backgroundColor: colors.bibleSurface,
+            borderColor: colors.bibleDivider,
+            paddingBottom: safeInsets.bottom + spacing.md,
+          },
+        ]}
+      >
+        <View style={styles.planSessionFooterRow}>
+          <View style={styles.planSessionFooterCopy}>
+            <Text
+              style={[styles.planSessionFooterTitle, { color: colors.biblePrimaryText }]}
+              numberOfLines={1}
+            >
+              {activePlanTitle}
+            </Text>
+            <Text style={[styles.planSessionFooterMeta, { color: colors.bibleSecondaryText }]}> 
+              {t('readingPlans.dayLabel', {
+                day: planDayNumber,
+                defaultValue: `Day ${planDayNumber}`,
+              })}
+              {' • '}
+              {t('readingPlans.chapterProgress', {
+                current: activePlanChapterIndex + 1,
+                total: activePlanDayChapterItems.length,
+                defaultValue: `${activePlanChapterIndex + 1} of ${activePlanDayChapterItems.length}`,
+              })}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.planSessionFooterButton,
+              { backgroundColor: colors.accentPrimary },
+            ]}
+            onPress={handleAdvancePlanSession}
+          >
+            <Text style={[styles.planSessionFooterButtonText, { color: colors.cardBackground }]}> 
+              {isFinalPlanSessionChapter
+                ? t('readingPlans.completeDayCta', { defaultValue: 'Complete day' })
+                : t('readingPlans.nextChapterCta', { defaultValue: 'Next chapter' })}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   const renderListenMode = () => {
@@ -2475,6 +2615,7 @@ export function BibleReaderScreen() {
             onShowText={() => setShowFollowAlongText(true)}
             showTextLabel={t('audio.showText')}
             onShareAudio={() => setShowChapterAudioShareSheet(true)}
+            footer={showPlanSessionFooter ? renderPlanSessionFooter() : null}
           />
         </View>
 

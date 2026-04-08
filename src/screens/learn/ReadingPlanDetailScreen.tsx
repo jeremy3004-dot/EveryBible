@@ -483,16 +483,22 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
     setMarkingComplete(false);
   }, [planId, currentDay]);
 
-  const handleOpenChapter = useCallback((entry: ReadingPlanEntry) => {
-    if (!rootNavigationRef.isReady()) return;
-    rootNavigationRef.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: entry.book,
-        chapter: entry.chapter_start,
-      },
-    });
-  }, []);
+  const handleOpenChapter = useCallback(
+    (entry: ReadingPlanEntry) => {
+      if (!rootNavigationRef.isReady()) return;
+      rootNavigationRef.navigate('Bible', {
+        screen: 'BibleReader',
+        params: {
+          bookId: entry.book,
+          chapter: entry.chapter_start,
+          planId: planId,
+          planDayNumber: currentDay,
+          returnToPlanOnComplete: true,
+        },
+      });
+    },
+    [currentDay, planId]
+  );
 
   // Build flat list items
   const items = React.useMemo<DetailItem[]>(() => {
