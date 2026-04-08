@@ -1,5 +1,3 @@
-import type { OperatorAuditMetadata } from './operator-audit-metadata';
-
 import { adminNavigation } from '@/lib/admin-navigation';
 import {
   type CountryMetric,
@@ -121,10 +119,6 @@ interface AuditLogRow {
   id: string;
   metadata?: Record<string, unknown> | null;
   summary: string;
-}
-
-export interface OperatorAuditLogRow extends AuditLogRow {
-  metadata: OperatorAuditMetadata | null;
 }
 
 export interface DashboardSummary {
@@ -300,27 +294,6 @@ export async function getRecentAuditLogs(limit = 12): Promise<AuditLogRow[]> {
   }
 
   return (data ?? []) as AuditLogRow[];
-}
-
-export async function getRecentOperatorAuditLogs(
-  limit = 12
-): Promise<OperatorAuditLogRow[]> {
-  const service = createAdminServiceClient();
-  const { data, error } = await service
-    .from('admin_audit_logs')
-    .select('id, action, actor_email, entity_type, entity_id, metadata, summary, created_at')
-    .contains('metadata', { actorSource: 'openclaw' })
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(`Unable to load operator audit logs: ${error.message}`);
-  }
-
-  return ((data ?? []) as AuditLogRow[]).map((row) => ({
-    ...row,
-    metadata: row.metadata ? (row.metadata as OperatorAuditMetadata) : null,
-  }));
 }
 
 export async function listTranslations(searchTerm?: string): Promise<TranslationListItem[]> {

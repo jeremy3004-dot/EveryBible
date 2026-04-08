@@ -1,8 +1,0 @@
-{
-  "id": "everybible",
-  "configSchema": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {}
-  }
-}

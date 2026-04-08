@@ -24,10 +24,6 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
     path.join(repoRoot, 'apps/admin/app/(dashboard)/layout.tsx'),
     'utf8'
   );
-  const settingsSource = await readFile(
-    path.join(repoRoot, 'apps/admin/app/(dashboard)/settings/page.tsx'),
-    'utf8'
-  );
 
   assert.match(componentSource, /const \[isOpen, setIsOpen\] = useState\(false\);/);
   assert.match(componentSource, /aria-expanded=\{isOpen\}/);
@@ -57,5 +53,4 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
   assert.match(chatSource, /gpt-5\.4-mini/);
   assert.doesNotMatch(rootLayoutSource, /<OperatorLauncher \/>/);
   assert.match(dashboardLayoutSource, /<OperatorLauncher \/>/);
-  assert.match(settingsSource, /id="operator-audit"/);
 });

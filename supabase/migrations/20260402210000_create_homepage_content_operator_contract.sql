@@ -1,4 +1,4 @@
--- Phase 10: explicit homepage override contract for the OpenClaw operator
+-- Phase 10: explicit homepage override contract for the EveryBible admin surface
 
 CREATE TABLE IF NOT EXISTS public.site_content_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -15,7 +15,7 @@ COMMENT ON TABLE public.site_content_entries IS
 'Explicit remote override contracts for approved site surfaces. Phase 10 starts with slug=homepage only.';
 
 COMMENT ON COLUMN public.site_content_entries.content IS
-'Validated homepage override payload consumed by the site and OpenClaw operator tools.';
+'Validated homepage override payload consumed by the site and approved admin tools.';
 
 CREATE INDEX IF NOT EXISTS idx_site_content_entries_state
   ON public.site_content_entries (state, published_at DESC NULLS LAST);

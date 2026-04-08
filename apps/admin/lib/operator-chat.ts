@@ -2,9 +2,7 @@ import type { AdminIdentity } from './admin-auth';
 import {
   getDashboardSummary,
   getRecentAuditLogs,
-  getRecentOperatorAuditLogs,
   type DashboardSummary,
-  type OperatorAuditLogRow,
 } from './admin-data';
 
 export interface OperatorChatMessage {
@@ -24,7 +22,6 @@ export interface OperatorChatContext {
   dashboardSummary: DashboardSummary;
   generatedAt: string;
   recentAdminActions: Awaited<ReturnType<typeof getRecentAuditLogs>>;
-  recentOperatorActions: OperatorAuditLogRow[];
 }
 
 const DEFAULT_OPERATOR_CHAT_MODEL = 'gpt-5.4-mini';
@@ -46,20 +43,6 @@ function formatAdminActions(actions: Awaited<ReturnType<typeof getRecentAuditLog
 
   return actions
     .map((action) => `- ${action.created_at} | ${action.action} | ${action.entity_type} | ${action.summary}`)
-    .join('\n');
-}
-
-function formatOperatorActions(actions: OperatorAuditLogRow[]): string {
-  if (actions.length === 0) {
-    return '- No OpenClaw mutations have been recorded yet.';
-  }
-
-  return actions
-    .map((action) => {
-      const channel = action.metadata?.channel ?? 'unknown';
-      const toolName = action.metadata?.toolName ?? action.action;
-      return `- ${action.created_at} | ${toolName} | ${channel} | ${action.summary}`;
-    })
     .join('\n');
 }
 
@@ -109,7 +92,7 @@ export function buildOperatorChatSystemPrompt(context: OperatorChatContext): str
     'Speak directly to the operator. Be concise, specific, and honest about uncertainty.',
     'Use the admin snapshot below as grounding. If a detail is not present, say so instead of inventing it.',
     'Do not claim you changed data or code unless the conversation context explicitly shows that you did.',
-    'If the user asks for a live mutation or source-code change, explain the safe path: Telegram/OpenClaw for approved content and data changes, or the reviewable git workflow for source code.',
+    'If the user asks for a live mutation or source-code change, explain the safe path: use the approved admin workflows for data changes and the reviewable git workflow for source changes.',
     'Prefer short bullets and concrete next steps when useful.',
     '',
     `Operator identity: ${context.adminName} <${context.adminEmail}>`,
@@ -123,19 +106,15 @@ export function buildOperatorChatSystemPrompt(context: OperatorChatContext): str
     `- Support users: ${context.dashboardSummary.supportUserCount}`,
     `- Translation catalog rows: ${context.dashboardSummary.translationCount}`,
     '',
-    'Recent OpenClaw actions:',
-    formatOperatorActions(context.recentOperatorActions),
-    '',
     'Recent admin actions:',
     formatAdminActions(context.recentAdminActions),
   ].join('\n');
 }
 
 export async function buildOperatorChatContext(identity: AdminIdentity): Promise<OperatorChatContext> {
-  const [dashboardSummary, recentAdminActions, recentOperatorActions] = await Promise.all([
+  const [dashboardSummary, recentAdminActions] = await Promise.all([
     getDashboardSummary(),
     getRecentAuditLogs(5),
-    getRecentOperatorAuditLogs(5),
   ]);
 
   return {
@@ -144,7 +123,6 @@ export async function buildOperatorChatContext(identity: AdminIdentity): Promise
     dashboardSummary,
     generatedAt: new Date().toISOString(),
     recentAdminActions,
-    recentOperatorActions,
   };
 }
 
