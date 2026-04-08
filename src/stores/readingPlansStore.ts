@@ -1,29 +1,29 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
-import type { UserReadingPlanProgress } from '../services/plans/types';
+import { createStore, type StoreApi } from 'zustand/vanilla';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+
 import { computeNextDay, isPlanCompleted } from '../services/plans/readingPlanModel';
+import type {
+  GroupReadingPlan,
+  ReadingPlanProgress,
+  ReadingPlansPersistedState,
+  ReadingPlansStoreState,
+} from '../services/plans/types';
 
-type PersistedProgressMap = Record<string, UserReadingPlanProgress>;
+export type ReadingPlansStoreApi = StoreApi<ReadingPlansStoreState>;
 
-type ReadingPlansState = {
-  savedPlanIds: string[];
-  progressByPlanId: PersistedProgressMap;
-  startPlan: (planId: string) => UserReadingPlanProgress;
-  markDayComplete: (planId: string, dayNumber: number, durationDays: number) => UserReadingPlanProgress | null;
-  removePlan: (planId: string) => void;
-  savePlan: (planId: string) => void;
-  unsavePlan: (planId: string) => void;
-  getProgress: (planId?: string) => UserReadingPlanProgress[];
-  getSavedPlanIds: () => string[];
-  reset: () => void;
-};
+const createEmptyState = (): ReadingPlansPersistedState => ({
+  enrolledPlanIds: [],
+  savedPlanIds: [],
+  completedPlanIds: [],
+  progressByPlanId: {},
+  groupPlansByGroupId: {},
+});
 
-function buildProgress(planId: string): UserReadingPlanProgress {
+const createProgressRecord = (planId: string): ReadingPlanProgress => {
   const now = new Date().toISOString();
+
   return {
-    id: planId,
-    user_id: 'local-user',
+    id: `reading-plan-progress-${planId}`,
     plan_id: planId,
     started_at: now,
     completed_entries: {},
@@ -32,90 +32,182 @@ function buildProgress(planId: string): UserReadingPlanProgress {
     completed_at: null,
     synced_at: now,
   };
+};
+
+const applyProgressUpdate = (
+  state: ReadingPlansStoreState,
+  progress: ReadingPlanProgress
+): Pick<
+  ReadingPlansStoreState,
+  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
+> => {
+  const enrolledPlanIds = state.enrolledPlanIds.includes(progress.plan_id)
+    ? state.enrolledPlanIds
+    : [...state.enrolledPlanIds, progress.plan_id];
+
+  const completedPlanIds = progress.is_completed
+    ? state.completedPlanIds.includes(progress.plan_id)
+      ? state.completedPlanIds
+      : [...state.completedPlanIds, progress.plan_id]
+    : state.completedPlanIds.filter((planId) => planId !== progress.plan_id);
+
+  return {
+    enrolledPlanIds,
+    completedPlanIds,
+    progressByPlanId: {
+      ...state.progressByPlanId,
+      [progress.plan_id]: progress,
+    },
+  };
+};
+
+const removePlanFromCollections = (
+  state: ReadingPlansStoreState,
+  planId: string
+): Pick<
+  ReadingPlansStoreState,
+  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
+> => ({
+  enrolledPlanIds: state.enrolledPlanIds.filter((id) => id !== planId),
+  completedPlanIds: state.completedPlanIds.filter((id) => id !== planId),
+  progressByPlanId: Object.fromEntries(
+    Object.entries(state.progressByPlanId).filter(([id]) => id !== planId)
+  ),
+});
+
+const lazyDefaultStorage: StateStorage = {
+  setItem: async (name, value) => {
+    const { zustandStorage } = await import('./mmkvStorage');
+    return zustandStorage.setItem(name, value);
+  },
+  getItem: async (name) => {
+    const { zustandStorage } = await import('./mmkvStorage');
+    return zustandStorage.getItem(name);
+  },
+  removeItem: async (name) => {
+    const { zustandStorage } = await import('./mmkvStorage');
+    return zustandStorage.removeItem(name);
+  },
+};
+
+export function createReadingPlansStore(storage: StateStorage = lazyDefaultStorage): ReadingPlansStoreApi {
+  return createStore<ReadingPlansStoreState>()(
+    persist(
+      (set, get) => ({
+        ...createEmptyState(),
+
+        enrollPlan: (planId) => {
+          const progress = createProgressRecord(planId);
+          set((state) => ({
+            ...state,
+            ...applyProgressUpdate(state, progress),
+          }));
+          return progress;
+        },
+
+        savePlan: (planId) => {
+          set((state) =>
+            state.savedPlanIds.includes(planId)
+              ? state
+              : { ...state, savedPlanIds: [...state.savedPlanIds, planId] }
+          );
+        },
+
+        unsavePlan: (planId) => {
+          set((state) => ({
+            ...state,
+            savedPlanIds: state.savedPlanIds.filter((id) => id !== planId),
+          }));
+        },
+
+        upsertProgress: (progress) => {
+          set((state) => ({
+            ...state,
+            ...applyProgressUpdate(state, progress),
+          }));
+          return progress;
+        },
+
+        markDayComplete: (planId, dayNumber, totalDays) => {
+          const existing = get().progressByPlanId[planId];
+          if (!existing) {
+            return null;
+          }
+
+          const now = new Date().toISOString();
+          const completed_entries: Record<string, string> = {
+            ...existing.completed_entries,
+            [String(dayNumber)]: now,
+          };
+
+          const updatedProgress: ReadingPlanProgress = {
+            ...existing,
+            completed_entries,
+            current_day: computeNextDay(existing.current_day, dayNumber),
+            is_completed: isPlanCompleted(totalDays, Object.keys(completed_entries).length),
+            completed_at: isPlanCompleted(totalDays, Object.keys(completed_entries).length)
+              ? now
+              : null,
+            synced_at: now,
+          };
+
+          set((state) => ({
+            ...state,
+            ...applyProgressUpdate(state, updatedProgress),
+          }));
+
+          return updatedProgress;
+        },
+
+        unenrollPlan: (planId) => {
+          set((state) => ({
+            ...state,
+            ...removePlanFromCollections(state, planId),
+          }));
+        },
+
+        getProgress: (planId) => get().progressByPlanId[planId] ?? null,
+
+        assignGroupPlan: (groupId, planId, assignedBy = 'local-user') => {
+          const createdAt = new Date().toISOString();
+          const groupPlan: GroupReadingPlan = {
+            id: `group-plan-${groupId}-${planId}-${Date.now()}`,
+            group_id: groupId,
+            plan_id: planId,
+            assigned_by: assignedBy,
+            started_at: createdAt,
+          };
+
+          set((state) => ({
+            ...state,
+            groupPlansByGroupId: {
+              ...state.groupPlansByGroupId,
+              [groupId]: [...(state.groupPlansByGroupId[groupId] ?? []), groupPlan],
+            },
+          }));
+
+          return groupPlan;
+        },
+
+        getGroupPlans: (groupId) => get().groupPlansByGroupId[groupId] ?? [],
+
+        resetAll: () => set(createEmptyState()),
+      }),
+      {
+        name: 'reading-plans-storage',
+        storage: createJSONStorage(() => storage),
+        partialize: (state) => ({
+          enrolledPlanIds: state.enrolledPlanIds,
+          savedPlanIds: state.savedPlanIds,
+          completedPlanIds: state.completedPlanIds,
+          progressByPlanId: state.progressByPlanId,
+          groupPlansByGroupId: state.groupPlansByGroupId,
+        }),
+        merge: (persistedState, currentState) => ({
+          ...currentState,
+          ...(persistedState as Partial<ReadingPlansPersistedState>),
+        }),
+      }
+    )
+  );
 }
-
-export const useReadingPlansStore = create<ReadingPlansState>()(
-  persist(
-    (set, get) => ({
-      savedPlanIds: [],
-      progressByPlanId: {},
-      startPlan: (planId) => {
-        const existing = get().progressByPlanId[planId];
-        if (existing) {
-          return existing;
-        }
-
-        const created = buildProgress(planId);
-        set((state) => ({
-          progressByPlanId: {
-            ...state.progressByPlanId,
-            [planId]: created,
-          },
-        }));
-        return created;
-      },
-      markDayComplete: (planId, dayNumber, durationDays) => {
-        const existing = get().progressByPlanId[planId];
-        if (!existing) {
-          return null;
-        }
-
-        const completedEntries = {
-          ...existing.completed_entries,
-          [String(dayNumber)]: new Date().toISOString(),
-        };
-        const completedCount = Object.keys(completedEntries).length;
-        const completed = isPlanCompleted(durationDays, completedCount);
-        const next: UserReadingPlanProgress = {
-          ...existing,
-          completed_entries: completedEntries,
-          current_day: computeNextDay(existing.current_day, dayNumber),
-          is_completed: completed,
-          completed_at: completed ? new Date().toISOString() : existing.completed_at,
-          synced_at: new Date().toISOString(),
-        };
-
-        set((state) => ({
-          progressByPlanId: {
-            ...state.progressByPlanId,
-            [planId]: next,
-          },
-        }));
-
-        return next;
-      },
-      removePlan: (planId) => {
-        set((state) => {
-          const next = { ...state.progressByPlanId };
-          delete next[planId];
-          return { progressByPlanId: next };
-        });
-      },
-      savePlan: (planId) => {
-        set((state) => ({
-          savedPlanIds: state.savedPlanIds.includes(planId)
-            ? state.savedPlanIds
-            : [...state.savedPlanIds, planId],
-        }));
-      },
-      unsavePlan: (planId) => {
-        set((state) => ({
-          savedPlanIds: state.savedPlanIds.filter((savedId) => savedId !== planId),
-        }));
-      },
-      getProgress: (planId) => {
-        const values = Object.values(get().progressByPlanId);
-        return planId ? values.filter((progress) => progress.plan_id === planId) : values;
-      },
-      getSavedPlanIds: () => get().savedPlanIds,
-      reset: () => {
-        set({ savedPlanIds: [], progressByPlanId: {} });
-      },
-    }),
-    {
-      name: 'reading-plans-storage',
-      storage: createJSONStorage(() => zustandStorage),
-    }
-  )
-);
-

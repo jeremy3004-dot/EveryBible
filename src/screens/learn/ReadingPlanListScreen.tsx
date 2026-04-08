@@ -10,17 +10,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
   enrollInPlan,
   getUserPlanProgress,
   listReadingPlans,
+  unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
-import { rootNavigationRef } from '../../navigation/rootNavigation';
+import type { LearnStackParamList } from '../../navigation/types';
+import { splitReadingPlanSections } from './readingPlanListModel';
+
+type NavProp = NativeStackNavigationProp<LearnStackParamList, 'ReadingPlanList'>;
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -85,6 +92,44 @@ const chipStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 // Active plan card (enrolled plans with progress)
 // ---------------------------------------------------------------------------
+
+interface SwipeablePlanRowProps {
+  onDelete: () => void;
+  children: React.ReactNode;
+}
+
+function SwipeablePlanRow({ onDelete, children }: SwipeablePlanRowProps) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <Swipeable
+      enableTrackpadTwoFingerGesture
+      overshootRight={false}
+      rightThreshold={48}
+      renderRightActions={(_, __, swipeableMethods) => (
+        <View style={swipeableStyles.actions}>
+          <TouchableOpacity
+            onPress={() => {
+              swipeableMethods.close();
+              onDelete();
+            }}
+            style={[swipeableStyles.deleteButton, { backgroundColor: colors.error }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.delete')}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.cardBackground} />
+            <Text style={[swipeableStyles.deleteText, { color: colors.cardBackground }]}>
+              {t('common.delete')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    >
+      {children}
+    </Swipeable>
+  );
+}
 
 interface ActivePlanCardProps {
   plan: ReadingPlan;
@@ -167,6 +212,23 @@ const activePlanStyles = StyleSheet.create({
   },
 });
 
+const swipeableStyles = StyleSheet.create({
+  actions: {
+    width: 92,
+    marginVertical: spacing.xs / 2,
+  },
+  deleteButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.lg,
+    gap: spacing.xs,
+  },
+  deleteText: {
+    ...typography.micro,
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Browse plan card
 // ---------------------------------------------------------------------------
@@ -175,11 +237,17 @@ interface BrowsePlanCardProps {
   plan: ReadingPlan;
   isEnrolled: boolean;
   enrolling: boolean;
-  onEnroll: () => void;
+  onStartPlan: () => void;
   onPress: () => void;
 }
 
-function BrowsePlanCard({ plan, isEnrolled, enrolling, onEnroll, onPress }: BrowsePlanCardProps) {
+function BrowsePlanCard({
+  plan,
+  isEnrolled,
+  enrolling,
+  onStartPlan,
+  onPress,
+}: BrowsePlanCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
@@ -193,36 +261,40 @@ function BrowsePlanCard({ plan, isEnrolled, enrolling, onEnroll, onPress }: Brow
     : null;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
+    <View
       style={[
         browsePlanStyles.card,
         { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
       ]}
-      accessibilityRole="button"
-      accessibilityLabel={title}
     >
-      <View style={browsePlanStyles.header}>
-        <Text style={[browsePlanStyles.title, { color: colors.primaryText }]} numberOfLines={2}>
-          {title}
-        </Text>
-        <View style={[browsePlanStyles.durationBadge, { backgroundColor: colors.accentPrimary }]}>
-          <Text style={[browsePlanStyles.durationText, { color: colors.cardBackground }]}>
-            {plan.duration_days}{' '}
-            {t('engagement.days', { defaultValue: 'days' })}
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.85}
+        style={browsePlanStyles.bodyPressable}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+      >
+        <View style={browsePlanStyles.header}>
+          <Text style={[browsePlanStyles.title, { color: colors.primaryText }]} numberOfLines={2}>
+            {title}
           </Text>
+          <View style={[browsePlanStyles.planPill, { backgroundColor: colors.accentPrimary }]}>
+            <Text style={[browsePlanStyles.planPillText, { color: colors.cardBackground }]}>
+              {plan.duration_days}{' '}
+              {t('engagement.days', { defaultValue: 'days' })}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {description ? (
-        <Text
-          style={[browsePlanStyles.description, { color: colors.secondaryText }]}
-          numberOfLines={2}
-        >
-          {description}
-        </Text>
-      ) : null}
+        {description ? (
+          <Text
+            style={[browsePlanStyles.description, { color: colors.secondaryText }]}
+            numberOfLines={2}
+          >
+            {description}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
 
       <View style={browsePlanStyles.footer}>
         {categoryLabel ? (
@@ -232,31 +304,31 @@ function BrowsePlanCard({ plan, isEnrolled, enrolling, onEnroll, onPress }: Brow
         )}
 
         {isEnrolled ? (
-          <View style={[browsePlanStyles.enrolledBadge, { borderColor: colors.success }]}>
+          <View style={[browsePlanStyles.planPill, browsePlanStyles.planPillRow, { borderColor: colors.success }]}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={[browsePlanStyles.enrolledText, { color: colors.success }]}>
+            <Text style={[browsePlanStyles.planPillText, { color: colors.success }]}>
               {t('readingPlans.enrolled')}
             </Text>
           </View>
         ) : (
           <TouchableOpacity
-            onPress={onEnroll}
+            onPress={onStartPlan}
             disabled={enrolling}
-            style={[browsePlanStyles.ctaButton, { backgroundColor: colors.accentPrimary }]}
+            style={[browsePlanStyles.planPill, { backgroundColor: colors.accentPrimary }]}
             accessibilityRole="button"
             accessibilityLabel={t('readingPlans.startPlan')}
           >
             {enrolling ? (
               <ActivityIndicator size="small" color={colors.cardBackground} />
             ) : (
-              <Text style={[browsePlanStyles.ctaText, { color: colors.cardBackground }]}>
+              <Text style={[browsePlanStyles.planPillText, { color: colors.cardBackground }]}>
                 {t('readingPlans.startPlan')}
               </Text>
             )}
           </TouchableOpacity>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -265,6 +337,9 @@ const browsePlanStyles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: layout.denseCardPadding,
+    gap: spacing.md,
+  },
+  bodyPressable: {
     gap: spacing.md,
   },
   header: {
@@ -295,28 +370,20 @@ const browsePlanStyles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  ctaButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    minWidth: 90,
-    minHeight: layout.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaText: {
-    ...typography.label,
-  },
-  enrolledBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  planPill: {
+    minHeight: 32,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planPillRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
     borderWidth: 1,
   },
-  enrolledText: {
+  planPillText: {
     ...typography.micro,
   },
 });
@@ -368,6 +435,8 @@ type ListItem =
   | { kind: 'header-my-plans' }
   | { kind: 'active-plan'; plan: ReadingPlan; progress: UserReadingPlanProgress }
   | { kind: 'my-plans-empty' }
+  | { kind: 'header-completed' }
+  | { kind: 'completed-plan'; plan: ReadingPlan; progress: UserReadingPlanProgress }
   | { kind: 'header-browse' }
   | { kind: 'browse-plan'; plan: ReadingPlan };
 
@@ -378,7 +447,7 @@ type ListItem =
 export function ReadingPlanListScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavProp>();
 
   const [plans, setPlans] = useState<ReadingPlan[]>([]);
   const [progressList, setProgressList] = useState<UserReadingPlanProgress[]>([]);
@@ -392,6 +461,11 @@ export function ReadingPlanListScreen() {
     progressList.forEach((p) => map.set(p.plan_id, p));
     return map;
   }, [progressList]);
+
+  const { activePlans, completedPlans, browsePlans } = React.useMemo(
+    () => splitReadingPlanSections(plans, progressByPlanId),
+    [plans, progressByPlanId]
+  );
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -426,40 +500,57 @@ export function ReadingPlanListScreen() {
     setRefreshing(false);
   }, [load]);
 
-  const handleEnroll = useCallback(async (plan: ReadingPlan) => {
-    setEnrollingId(plan.id);
-    const result = await enrollInPlan(plan.id);
-    if (result.success && result.data) {
-      setProgressList((prev) => {
-        const without = prev.filter((p) => p.plan_id !== plan.id);
-        return [...without, result.data!];
-      });
-      if (rootNavigationRef.isReady()) {
-        rootNavigationRef.navigate('Plans', { screen: 'PlanDetail', params: { planId: plan.id } });
+  const handleStartPlan = useCallback(
+    async (plan: ReadingPlan) => {
+      setEnrollingId(plan.id);
+      const result = await enrollInPlan(plan.id);
+      if (result.success && result.data) {
+        setProgressList((prev) => {
+          const without = prev.filter((p) => p.plan_id !== plan.id);
+          return [...without, result.data!];
+        });
+        navigation.navigate('ReadingPlanDetail', { planId: plan.id });
+      } else if (result.error) {
+        setError(result.error);
       }
+      setEnrollingId(null);
+    },
+    [navigation]
+  );
+
+  const handleDeletePlan = useCallback(async (planId: string) => {
+    const result = await unenrollFromPlan(planId);
+    if (result.success) {
+      setProgressList((prev) => prev.filter((progress) => progress.plan_id !== planId));
+    } else if (result.error) {
+      setError(result.error);
     }
-    setEnrollingId(null);
   }, []);
 
-  const handleOpenPlan = useCallback((planId: string) => {
-    if (rootNavigationRef.isReady()) {
-      rootNavigationRef.navigate('Plans', { screen: 'PlanDetail', params: { planId } });
-    }
-  }, []);
+  const handleOpenPlan = useCallback(
+    (planId: string) => {
+      navigation.navigate('ReadingPlanDetail', { planId });
+    },
+    [navigation]
+  );
 
   // Build flat list items
   const items = React.useMemo<ListItem[]>(() => {
-    const activePlans = plans.filter((p) => progressByPlanId.has(p.id));
-    const browsePlans = plans;
-
     const result: ListItem[] = [];
 
     result.push({ kind: 'header-my-plans' });
     if (activePlans.length === 0) {
       result.push({ kind: 'my-plans-empty' });
     } else {
-      activePlans.forEach((plan) => {
-        result.push({ kind: 'active-plan', plan, progress: progressByPlanId.get(plan.id)! });
+      activePlans.forEach(({ plan, progress }) => {
+        result.push({ kind: 'active-plan', plan, progress });
+      });
+    }
+
+    if (completedPlans.length > 0) {
+      result.push({ kind: 'header-completed' });
+      completedPlans.forEach(({ plan, progress }) => {
+        result.push({ kind: 'completed-plan', plan, progress });
       });
     }
 
@@ -469,7 +560,7 @@ export function ReadingPlanListScreen() {
     });
 
     return result;
-  }, [plans, progressByPlanId]);
+  }, [activePlans, completedPlans, browsePlans]);
 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
@@ -480,11 +571,23 @@ export function ReadingPlanListScreen() {
           );
         case 'active-plan':
           return (
-            <ActivePlanCard
-              plan={item.plan}
-              progress={item.progress}
-              onPress={() => handleOpenPlan(item.plan.id)}
-            />
+            <SwipeablePlanRow onDelete={() => handleDeletePlan(item.plan.id)}>
+              <ActivePlanCard
+                plan={item.plan}
+                progress={item.progress}
+                onPress={() => handleOpenPlan(item.plan.id)}
+              />
+            </SwipeablePlanRow>
+          );
+        case 'completed-plan':
+          return (
+            <SwipeablePlanRow onDelete={() => handleDeletePlan(item.plan.id)}>
+              <ActivePlanCard
+                plan={item.plan}
+                progress={item.progress}
+                onPress={() => handleOpenPlan(item.plan.id)}
+              />
+            </SwipeablePlanRow>
           );
         case 'my-plans-empty':
           return (
@@ -493,6 +596,8 @@ export function ReadingPlanListScreen() {
               color={colors.secondaryText}
             />
           );
+        case 'header-completed':
+          return <SectionHeader label={t('readingPlans.completed')} color={colors.secondaryText} />;
         case 'header-browse':
           return (
             <SectionHeader label={t('readingPlans.browsePlans')} color={colors.secondaryText} />
@@ -503,19 +608,29 @@ export function ReadingPlanListScreen() {
               plan={item.plan}
               isEnrolled={progressByPlanId.has(item.plan.id)}
               enrolling={enrollingId === item.plan.id}
-              onEnroll={() => handleEnroll(item.plan)}
+              onStartPlan={() => handleStartPlan(item.plan)}
               onPress={() => handleOpenPlan(item.plan.id)}
             />
           );
       }
     },
-    [t, colors, progressByPlanId, enrollingId, handleEnroll, handleOpenPlan]
+    [
+      t,
+      colors,
+      progressByPlanId,
+      enrollingId,
+      handleStartPlan,
+      handleDeletePlan,
+      handleOpenPlan,
+    ]
   );
 
   const keyExtractor = useCallback((item: ListItem, index: number) => {
     switch (item.kind) {
       case 'active-plan':
         return `active-${item.plan.id}`;
+      case 'completed-plan':
+        return `completed-${item.plan.id}`;
       case 'browse-plan':
         return `browse-${item.plan.id}`;
       default:

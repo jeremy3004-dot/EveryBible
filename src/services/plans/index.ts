@@ -1,4 +1,5 @@
 export {
+  createReadingPlanService,
   listReadingPlans,
   getPlanEntries,
   enrollInPlan,
