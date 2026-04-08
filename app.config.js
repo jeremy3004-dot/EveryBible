@@ -16,6 +16,9 @@ const PUBLIC_RUNTIME_CONFIG_KEYS = [
   'EXPO_PUBLIC_CONTENT_API_URL',
 ];
 
+const GOOGLE_SIGN_IN_PLUGIN_NAME = '@react-native-google-signin/google-signin';
+const GOOGLE_IOS_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
+
 const readTrimmedString = (value) => {
   if (typeof value !== 'string') {
     return undefined;
@@ -39,11 +42,50 @@ const buildPublicRuntimeConfigExtra = (env = process.env) => {
   return Object.keys(publicRuntimeConfig).length > 0 ? { publicRuntimeConfig } : {};
 };
 
+const deriveGoogleIosUrlScheme = (iosClientId) => {
+  const normalizedClientId = readTrimmedString(iosClientId);
+
+  if (!normalizedClientId || !normalizedClientId.endsWith(GOOGLE_IOS_CLIENT_ID_SUFFIX)) {
+    return undefined;
+  }
+
+  const clientPrefix = normalizedClientId.slice(0, -GOOGLE_IOS_CLIENT_ID_SUFFIX.length);
+
+  return clientPrefix ? `com.googleusercontent.apps.${clientPrefix}` : undefined;
+};
+
+const withGoogleSignInPluginOptions = (plugins = [], env = process.env) => {
+  const iosUrlScheme = deriveGoogleIosUrlScheme(env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
+
+  if (!iosUrlScheme) {
+    return plugins;
+  }
+
+  return plugins.map((plugin) => {
+    if (plugin === GOOGLE_SIGN_IN_PLUGIN_NAME) {
+      return [GOOGLE_SIGN_IN_PLUGIN_NAME, { iosUrlScheme }];
+    }
+
+    if (Array.isArray(plugin) && plugin[0] === GOOGLE_SIGN_IN_PLUGIN_NAME) {
+      return [
+        GOOGLE_SIGN_IN_PLUGIN_NAME,
+        {
+          ...(plugin[1] ?? {}),
+          iosUrlScheme,
+        },
+      ];
+    }
+
+    return plugin;
+  });
+};
+
 const configFactory = ({ config }) => {
   const baseConfig = config ?? appJson.expo;
 
   return {
     ...baseConfig,
+    plugins: withGoogleSignInPluginOptions(baseConfig.plugins, process.env),
     extra: {
       ...(baseConfig.extra ?? {}),
       ...buildPublicRuntimeConfigExtra(process.env),
@@ -54,3 +96,5 @@ const configFactory = ({ config }) => {
 module.exports = configFactory;
 module.exports.PUBLIC_RUNTIME_CONFIG_KEYS = PUBLIC_RUNTIME_CONFIG_KEYS;
 module.exports.buildPublicRuntimeConfigExtra = buildPublicRuntimeConfigExtra;
+module.exports.deriveGoogleIosUrlScheme = deriveGoogleIosUrlScheme;
+module.exports.withGoogleSignInPluginOptions = withGoogleSignInPluginOptions;

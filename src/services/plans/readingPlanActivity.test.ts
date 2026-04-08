@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { ReadingPlanEntry } from './types';
 import {
+  buildPlanDayPlaybackSequenceEntries,
   buildPlanDayCompletionSummary,
   formatScheduledPlanDayLabel,
+  getCurrentPlanDaySummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
   getScheduledPlanDayDateKey,
@@ -49,6 +51,22 @@ test('getPlanDayTargetChapterKeys expands ranges into individual chapter keys', 
     'GEN_6',
     'GEN_7',
     'GEN_8',
+  ]);
+});
+
+test('buildPlanDayPlaybackSequenceEntries expands ranges into chapter-by-chapter playback targets', () => {
+  const playbackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+
+  assert.deepEqual(playbackEntries, [
+    { bookId: 'GEN', chapter: 1 },
+    { bookId: 'GEN', chapter: 2 },
+    { bookId: 'GEN', chapter: 3 },
+    { bookId: 'GEN', chapter: 4 },
+    { bookId: 'EXO', chapter: 1 },
+    { bookId: 'GEN', chapter: 5 },
+    { bookId: 'GEN', chapter: 6 },
+    { bookId: 'GEN', chapter: 7 },
+    { bookId: 'GEN', chapter: 8 },
   ]);
 });
 
@@ -198,6 +216,49 @@ test('buildPlanDayCompletionSummary marks the day complete once every target cha
   assert.equal(summary.isComplete, true);
   assert.deepEqual(new Set(summary.completedChapterKeys), new Set(['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1']));
   assert.equal(summary.completedChapters, 5);
+});
+
+test('getCurrentPlanDaySummary can target an explicit plan day instead of the store current_day', () => {
+  const summary = getCurrentPlanDaySummary({
+    entries: dayEntries,
+    progress: {
+      id: 'progress-1',
+      plan_id: 'plan-1',
+      started_at: new Date(2026, 3, 7, 7, 0, 0).toISOString(),
+      completed_entries: {},
+      current_day: 1,
+      is_completed: false,
+      completed_at: null,
+      synced_at: new Date(2026, 3, 7, 7, 0, 0).toISOString(),
+    },
+    chaptersRead: {
+      GEN_5: new Date(2026, 3, 7, 8, 0, 0).getTime(),
+      GEN_6: new Date(2026, 3, 7, 8, 15, 0).getTime(),
+    },
+    listeningHistory: [
+      makeListeningHistoryEntry({
+        id: 'GEN:7',
+        bookId: 'GEN',
+        chapter: 7,
+        listenedAt: new Date(2026, 3, 7, 9, 0, 0).getTime(),
+        progress: 1,
+      }),
+      makeListeningHistoryEntry({
+        id: 'GEN:8',
+        bookId: 'GEN',
+        chapter: 8,
+        listenedAt: new Date(2026, 3, 7, 9, 30, 0).getTime(),
+        progress: 1,
+      }),
+    ],
+    dayNumber: 2,
+    today: new Date(2026, 3, 7, 12, 0, 0),
+  });
+
+  assert.equal(summary.dayNumber, 2);
+  assert.deepEqual(summary.targetChapterKeys, ['GEN_5', 'GEN_6', 'GEN_7', 'GEN_8']);
+  assert.equal(summary.completedChapterCount, 4);
+  assert.equal(summary.isComplete, true);
 });
 
 test('getPlanChapterListenStatus suppresses listen-counted credit when the chapter was already completed by reading', () => {

@@ -738,6 +738,7 @@ export function BibleReaderScreen() {
       progress: activePlanProgress,
       chaptersRead,
       listeningHistory,
+      dayNumber: planDayNumber,
     });
   }, [
     activePlanEntries,
@@ -1334,7 +1335,6 @@ export function BibleReaderScreen() {
       !returnToPlanOnComplete ||
       !activePlanProgress ||
       activePlanProgress.is_completed ||
-      activePlanProgress.current_day !== planDayNumber ||
       !activePlanDaySummary?.isComplete
     ) {
       return;
@@ -1379,7 +1379,6 @@ export function BibleReaderScreen() {
       !returnToPlanOnComplete ||
       !activePlanProgress ||
       activePlanProgress.is_completed ||
-      activePlanProgress.current_day !== planDayNumber ||
       !activePlanDaySummary?.isComplete
     ) {
       return;

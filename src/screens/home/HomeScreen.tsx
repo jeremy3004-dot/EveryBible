@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useProgressStore } from '../../stores/progressStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   FOUNDATION_DESC_KEYS,
   FOUNDATION_TITLE_KEYS,
@@ -34,10 +35,14 @@ import {
 import { gatherIconImages } from '../../data/gatherIcons';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
+import { selectHomeContinuePlans, type HomeContinuePlan } from './homeReadingPlansModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { formatDailyScriptureReferenceLabel, getDailyScripture } from '../../services/bible';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
+import { listReadingPlans } from '../../services/plans/readingPlanService';
+import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import type { ReadingPlan } from '../../services/plans/types';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
@@ -48,6 +53,102 @@ import {
 } from '../../services/content/mobileContentService';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
+
+function PlanResumeCover({ plan }: { plan: ReadingPlan }) {
+  const { colors } = useTheme();
+  const source = getReadingPlanCoverSource(plan);
+
+  if (!source) {
+    return (
+      <View
+        style={[
+          planResumeStyles.coverFallback,
+          { backgroundColor: colors.accentSecondary },
+        ]}
+      >
+        <Ionicons name="book-outline" size={20} color={colors.secondaryText} />
+      </View>
+    );
+  }
+
+  return <Image source={source} style={planResumeStyles.coverImage} resizeMode="cover" />;
+}
+
+function ContinuePlanCard({
+  item,
+  onPress,
+}: {
+  item: HomeContinuePlan;
+  onPress: (planId: string) => void;
+}) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const title = t(item.plan.title_key as Parameters<typeof t>[0], {
+    defaultValue: item.plan.title_key,
+  });
+  const completedCount = Object.keys(item.progress.completed_entries).length;
+  const fraction = item.plan.duration_days > 0 ? completedCount / item.plan.duration_days : 0;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => onPress(item.plan.id)}
+      style={[
+        planResumeStyles.card,
+        {
+          backgroundColor: colors.cardBackground,
+          borderColor: colors.cardBorder,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${t('readingPlans.dayOf', {
+        current: item.progress.current_day,
+        total: item.plan.duration_days,
+      })}. ${t('home.continueReading')}`}
+    >
+      <View style={planResumeStyles.topRow}>
+        <PlanResumeCover plan={item.plan} />
+        <View style={planResumeStyles.textColumn}>
+          <Text
+            style={[planResumeStyles.title, { color: colors.primaryText }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+          >
+            {title}
+          </Text>
+          <Text style={[planResumeStyles.meta, { color: colors.secondaryText }]} numberOfLines={1}>
+            {t('readingPlans.dayOf', {
+              current: item.progress.current_day,
+              total: item.plan.duration_days,
+            })}
+          </Text>
+        </View>
+        <View style={[planResumeStyles.cta, { backgroundColor: colors.accentPrimary }]}>
+          <Text
+            style={[planResumeStyles.ctaText, { color: colors.cardBackground }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+          >
+            {t('home.continueReading')}
+          </Text>
+        </View>
+      </View>
+      <View style={[planResumeStyles.progressTrack, { backgroundColor: colors.cardBorder }]}>
+        <View
+          style={[
+            planResumeStyles.progressFill,
+            {
+              width: `${Math.max(0, Math.min(1, fraction)) * 100}%`,
+              backgroundColor: colors.accentPrimary,
+            },
+          ]}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -60,6 +161,7 @@ export function HomeScreen() {
     useState<MobileVerseOfDayOverride | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
+  const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -77,6 +179,7 @@ export function HomeScreen() {
   );
   const remoteAudioAvailable =
     config.features.audioEnabled && isRemoteAudioAvailable(currentTranslation);
+  const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
   const getTodayCount = useProgressStore((state) => state.getTodayCount);
   const getWeekCount = useProgressStore((state) => state.getWeekCount);
   const getMonthCount = useProgressStore((state) => state.getMonthCount);
@@ -108,6 +211,10 @@ export function HomeScreen() {
     : activeFoundation.description;
   const foundationCardEyebrow =
     activeFoundationDone > 0 ? t('gather.foundations') : t('gather.getStarted');
+  const continuePlans = useMemo(
+    () => selectHomeContinuePlans(readingPlans, progressByPlanId),
+    [progressByPlanId, readingPlans]
+  );
 
   const loadVerseOfDay = useCallback(
     async ({
@@ -202,6 +309,23 @@ export function HomeScreen() {
     };
   }, [loadVerseOfDay]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReadingPlans = async () => {
+      const result = await listReadingPlans();
+      if (!cancelled && result.success) {
+        setReadingPlans(result.data ?? []);
+      }
+    };
+
+    void loadReadingPlans();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return t('home.goodMorning');
@@ -224,6 +348,16 @@ export function HomeScreen() {
       },
     });
   };
+
+  const handleContinuePlan = useCallback(
+    (planId: string) => {
+      navigation.navigate('Plans', {
+        screen: 'PlanDetail',
+        params: { planId },
+      });
+    },
+    [navigation]
+  );
 
   const dailyReferenceLabel = dailyScripture
     ? formatDailyScriptureReferenceLabel(
@@ -696,11 +830,46 @@ export function HomeScreen() {
                     width: screenWidth - homeLayout.screenPadding * 2,
                   },
                 ]}
-              >
+                >
                 {renderVerseOfTheDayCard(false)}
               </View>
             </>
           )}
+
+          {continuePlans.length > 0 ? (
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.cardBorder,
+                  padding: homeLayout.cardPadding,
+                  gap: homeLayout.bodyGap,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: colors.secondaryText, marginBottom: homeLayout.cardTitleGap },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+              >
+                {t('readingPlans.myPlans')}
+              </Text>
+              <View style={{ gap: homeLayout.bodyGap }}>
+                {continuePlans.map((item) => (
+                  <ContinuePlanCard
+                    key={item.plan.id}
+                    item={item}
+                    onPress={handleContinuePlan}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           {/* Stats Card */}
           <View
@@ -1006,5 +1175,65 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     alignItems: 'flex-start',
+  },
+});
+
+const planResumeStyles = StyleSheet.create({
+  card: {
+    alignSelf: 'stretch',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  coverImage: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    flexShrink: 0,
+  },
+  coverFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  textColumn: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  title: {
+    ...typography.bodyStrong,
+  },
+  meta: {
+    ...typography.micro,
+  },
+  cta: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  ctaText: {
+    ...typography.label,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 3,
+    borderRadius: radius.pill,
   },
 });

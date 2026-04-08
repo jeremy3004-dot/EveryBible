@@ -39,6 +39,11 @@ const TIMED_CHALLENGE_PLAN_IDS = new Set([
   'psalms-30-days',
   'proverbs-31-days',
   'sermon-on-the-mount-7-days',
+  'bible-in-30-days',
+  'bible-in-90-days',
+  'nt-in-30-days',
+  'gospels-30-days',
+  'acts-28-days',
 ]);
 
 let supabaseModulePromise: Promise<typeof import('../supabase')> | null = null;

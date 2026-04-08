@@ -1038,6 +1038,20 @@ export const es = {
     relatedPlans: 'Planes Relacionados',
     noSavedPlans: 'No hay planes guardados',
     noCompletedPlans: 'No hay planes completados',
+    todayTargetProgress: 'Meta de hoy: {{completed}}/{{target}} capítulos',
+    listenTargetLabel: 'Plan de hoy',
+    listenTargetProgress: 'Meta de hoy: {{completed}}/{{target}} capítulos',
+    listenTargetComplete: 'Meta diaria completada',
+    listenTargetRemainingOne: 'Queda 1 capítulo para hoy',
+    listenTargetRemainingOther: 'Quedan {{count}} capítulos para hoy',
+    dayLabel: 'Día {{day}}',
+    chapterProgress: '{{current}} de {{total}}',
+    nextChapterCta: 'Siguiente capítulo',
+    completeDayCta: 'Completar día',
+    listenChapterCounted: '{{reference}} contado para el plan de hoy',
+    dailyTargetCompleteTitle: 'Lectura diaria completada',
+    dailyTargetCompleteBody:
+      'Terminaste la lectura del plan de hoy. Te llevaremos de vuelta a tu plan para que puedas ver tu progreso.',
     bibleIn1Year: {
       title: 'La Biblia en un año',
       description:

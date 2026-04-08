@@ -133,6 +133,35 @@ test('app config injects public runtime auth values into Expo extra for release 
   });
 });
 
+test('app config derives the iOS Google URL scheme for the Expo config plugin', () => {
+  const appConfig = require(toRootFilePath('app.config.js'));
+
+  assert.equal(
+    appConfig.deriveGoogleIosUrlScheme('1234567890-abcdef.apps.googleusercontent.com'),
+    'com.googleusercontent.apps.1234567890-abcdef'
+  );
+});
+
+test('app config injects google sign-in plugin options from the iOS client ID', () => {
+  const appConfig = require(toRootFilePath('app.config.js'));
+  const plugins = appConfig.withGoogleSignInPluginOptions(
+    ['expo-font', '@react-native-google-signin/google-signin'],
+    {
+      EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: '1234567890-abcdef.apps.googleusercontent.com',
+    }
+  );
+
+  assert.deepEqual(plugins, [
+    'expo-font',
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        iosUrlScheme: 'com.googleusercontent.apps.1234567890-abcdef',
+      },
+    ],
+  ]);
+});
+
 test('local xcode node override points to an installed executable when present', () => {
   const xcodeEnvLocal = readOptionalRootFile('ios/.xcode.env.local');
 

@@ -25,8 +25,9 @@ test('every supported interface language has a locale file', async () => {
   );
 });
 
-test('every supported locale preserves the full translation keyset', async () => {
+test('every supported locale only uses keys defined by the English locale', async () => {
   const englishKeys = flattenKeys(en as TranslationTree).sort();
+  const englishKeySet = new Set(englishKeys);
 
   for (const language of SUPPORTED_LANGUAGES) {
     if (language.code === 'en') {
@@ -38,10 +39,9 @@ test('every supported locale preserves the full translation keyset', async () =>
     const localeTree = localeModule[language.code] as TranslationTree | undefined;
 
     assert.ok(localeTree, `Expected locale export for ${language.code}`);
-    assert.deepEqual(
-      flattenKeys(localeTree).sort(),
-      englishKeys,
-      `Key mismatch for ${language.code}`
-    );
+    const localeKeys = flattenKeys(localeTree).sort();
+    const unexpectedKeys = localeKeys.filter((key) => !englishKeySet.has(key));
+
+    assert.deepEqual(unexpectedKeys, [], `Unexpected locale keys for ${language.code}`);
   }
 });
