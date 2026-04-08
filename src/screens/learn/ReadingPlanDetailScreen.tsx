@@ -16,11 +16,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
+  enrollInPlan,
   getPlanEntries,
   getUserPlanProgress,
   listReadingPlans,
   markDayComplete,
 } from '../../services/plans/readingPlanService';
+import { buildPlanDayPlaybackSequenceEntries } from '../../services/plans/readingPlanActivity';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
@@ -247,7 +249,7 @@ interface DayRowProps {
   entries: ReadingPlanEntry[];
   isCompleted: boolean;
   isCurrent: boolean;
-  onPress: (entry: ReadingPlanEntry) => void;
+  onPress: (entry: ReadingPlanEntry, dayNumber: number) => void;
 }
 
 function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
@@ -258,7 +260,7 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
 
   return (
     <TouchableOpacity
-      onPress={() => firstEntry && onPress(firstEntry)}
+      onPress={() => firstEntry && onPress(firstEntry, dayNumber)}
       activeOpacity={0.85}
       style={[
         dayRowStyles.row,
@@ -484,20 +486,36 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
   }, [planId, currentDay]);
 
   const handleOpenChapter = useCallback(
-    (entry: ReadingPlanEntry) => {
+    async (entry: ReadingPlanEntry, dayNumber: number) => {
       if (!rootNavigationRef.isReady()) return;
+
+      let nextProgress = progress;
+      if (!nextProgress) {
+        const enrollResult = await enrollInPlan(planId);
+        if (!enrollResult.success || !enrollResult.data) {
+          return;
+        }
+
+        nextProgress = enrollResult.data;
+        setProgress(nextProgress);
+      }
+
+      const dayEntries = entriesByDay.get(dayNumber) ?? [];
+      const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+
       rootNavigationRef.navigate('Bible', {
         screen: 'BibleReader',
         params: {
           bookId: entry.book,
           chapter: entry.chapter_start,
+          playbackSequenceEntries,
           planId: planId,
-          planDayNumber: currentDay,
+          planDayNumber: dayNumber,
           returnToPlanOnComplete: true,
         },
       });
     },
-    [currentDay, planId]
+    [entriesByDay, planId, progress]
   );
 
   // Build flat list items

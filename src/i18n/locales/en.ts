@@ -608,6 +608,42 @@ export const en = {
       title: 'Sermon on the Mount',
       description: "A week-long deep dive into Jesus' most famous teaching in Matthew 5-7.",
     },
+    foundationsOfTheGospel: {
+      title: 'Foundations of the Gospel',
+      description: 'Trace the story of salvation from creation to new creation over 14 days.',
+    },
+    prayerIntimacyWithGod: {
+      title: 'Prayer & Intimacy with God',
+      description: 'A 7-day journey into prayer, worship, and close communion with the Lord.',
+    },
+    identityInChrist: {
+      title: 'Identity in Christ',
+      description: 'Read Scripture that roots your identity, security, and calling in Jesus.',
+    },
+    kingdomOfGod: {
+      title: 'The Kingdom of God',
+      description: 'Explore Jesus\' kingdom teaching across the Gospels and the early church.',
+    },
+    spiritualWarfare: {
+      title: 'Spiritual Warfare',
+      description: 'Learn how God equips His people to stand firm against spiritual opposition.',
+    },
+    holinessAndSanctification: {
+      title: 'Holiness & Sanctification',
+      description: 'Pursue a life set apart through passages on holiness, obedience, and growth.',
+    },
+    greatCommissionAndMission: {
+      title: 'The Great Commission & Mission',
+      description: 'Follow God’s mission from the promises to Abraham to the ends of the earth.',
+    },
+    faithAndObedience: {
+      title: 'Faith & Obedience',
+      description: 'Strengthen trust and obedience through stories and teachings of faithful response.',
+    },
+    hearingGodsVoice: {
+      title: 'Hearing God’s Voice',
+      description: 'Listen for God through the prophets, the psalms, Jesus, and the early church.',
+    },
     timedChallenges: 'Reading Challenges',
     bibleIn30Days: {
       title: 'Full Bible in 30 Days',

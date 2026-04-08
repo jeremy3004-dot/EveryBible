@@ -9,8 +9,28 @@ const detailSource = readFileSync(resolve(__dirname, '../learn/ReadingPlanDetail
 test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session params', () => {
   assert.match(
     detailSource,
-    /params:\s*\{[\s\S]*planId:\s*planId,[\s\S]*planDayNumber:\s*currentDay,[\s\S]*returnToPlanOnComplete:\s*true/s,
-    'ReadingPlanDetailScreen should launch BibleReader with plan session metadata so the reader can keep day progress and return cleanly'
+    /screen:\s*'BibleReader'/,
+    'ReadingPlanDetailScreen should launch into the Bible reader for explicit plan sessions'
+  );
+  assert.match(
+    detailSource,
+    /playbackSequenceEntries,/,
+    'ReadingPlanDetailScreen should pass the full day playback sequence into the reader'
+  );
+  assert.match(
+    detailSource,
+    /planId:\s*planId,/,
+    'ReadingPlanDetailScreen should pass the active plan id into the reader session'
+  );
+  assert.match(
+    detailSource,
+    /planDayNumber:\s*dayNumber,/,
+    'ReadingPlanDetailScreen should anchor the reader session to the tapped day number, not just the store current day'
+  );
+  assert.match(
+    detailSource,
+    /returnToPlanOnComplete:\s*true,/,
+    'ReadingPlanDetailScreen should request a clean return to the plan flow after completion'
   );
 });
 

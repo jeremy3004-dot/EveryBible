@@ -235,6 +235,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 - **iOS Audio Playback:** Requires UIBackgroundModes: ['audio'] in app.json for background play
 - **Android Edge-to-Edge:** predictiveBackGestureEnabled: false to avoid nav issues
 - **Google Sign-In:** Uses the supported web + iOS client IDs; Android-only client ID setup is not supported here
+- **Google Sign-In on iOS:** Release builds must inject the reversed iOS client ID as the Google URL scheme via the Expo config plugin. If `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is present but the plugin does not receive `iosUrlScheme`, tapping Google sign-in can abort natively before JS receives an error.
 - **Expo Go Limitations:** Dev builds required for Apple Sign-In, Google Sign-In, notifications
 - **CocoaPods:** May need manual installation (see global CLAUDE.md for fix)
 - **AsyncStorage Persistence:** Zustand stores persist user/session but NOT session tokens (security)

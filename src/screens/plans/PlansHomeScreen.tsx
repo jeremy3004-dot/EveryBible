@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Alert,
   Image,
   RefreshControl,
   ScrollView,
@@ -14,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
@@ -22,10 +24,9 @@ import type { PlansStackParamList } from '../../navigation/types';
 import {
   listReadingPlans,
   getUserPlanProgress,
-  getSavedPlans,
   getCompletedPlans,
   getFeaturedPlans,
-  getTimedChallengePlans,
+  unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
@@ -39,10 +40,48 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type PlanTab = 'my-plans' | 'find-plans' | 'saved' | 'completed';
+type PlanTab = 'my-plans' | 'find-plans' | 'completed';
 type NavigationProp = NativeStackNavigationProp<PlansStackParamList>;
 
 type CompletedPlanRow = UserReadingPlanProgress & { plan: ReadingPlan };
+
+interface SwipeablePlanRowProps {
+  onDelete: () => void;
+  children: React.ReactNode;
+}
+
+function SwipeablePlanRow({ onDelete, children }: SwipeablePlanRowProps) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <Swipeable
+      enableTrackpadTwoFingerGesture
+      overshootRight={false}
+      rightThreshold={48}
+      renderRightActions={(_, __, swipeableMethods) => (
+        <View style={swipeableStyles.actions}>
+          <TouchableOpacity
+            onPress={() => {
+              swipeableMethods.close();
+              onDelete();
+            }}
+            style={[swipeableStyles.deleteButton, { backgroundColor: colors.error }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.delete')}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.cardBackground} />
+            <Text style={[swipeableStyles.deleteText, { color: colors.cardBackground }]}>
+              {t('common.delete')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    >
+      {children}
+    </Swipeable>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Cover image fallback (shared by multiple sections)
@@ -223,6 +262,7 @@ interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
+  onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
 }
 
@@ -230,6 +270,7 @@ function MyPlansSection({
   allPlans,
   userProgress,
   onPlanPress,
+  onDeletePlan,
   colors,
 }: MyPlansSectionProps) {
   const { t } = useTranslation();
@@ -257,28 +298,32 @@ function MyPlansSection({
           const progressRatio =
             plan.duration_days > 0 ? (progress.current_day - 1) / plan.duration_days : 0;
           return (
-            <TouchableOpacity
+            <SwipeablePlanRow
               key={plan.id}
-              style={styles.card}
-              onPress={() => onPlanPress(plan.id)}
-              activeOpacity={0.7}
+              onDelete={() => onDeletePlan(plan.id)}
             >
-              <CoverImage plan={plan} width={68} height={68} colors={colors} />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                  {t(plan.title_key as Parameters<typeof t>[0])}
-                </Text>
-                <View style={styles.progressBlock}>
-                  <Text style={styles.dayCounter}>
-                    {t('readingPlans.dayOf', {
-                      current: progress.current_day,
-                      total: plan.duration_days,
-                    })}
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => onPlanPress(plan.id)}
+                activeOpacity={0.7}
+              >
+                <CoverImage plan={plan} width={68} height={68} colors={colors} />
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {t(plan.title_key as Parameters<typeof t>[0])}
                   </Text>
-                  <ProgressBar progress={progressRatio} colors={colors} />
+                  <View style={styles.progressBlock}>
+                    <Text style={styles.dayCounter}>
+                      {t('readingPlans.dayOf', {
+                        current: progress.current_day,
+                        total: plan.duration_days,
+                      })}
+                    </Text>
+                    <ProgressBar progress={progressRatio} colors={colors} />
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </SwipeablePlanRow>
           );
         })
       )}
@@ -338,6 +383,23 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     },
   });
 
+const swipeableStyles = StyleSheet.create({
+  actions: {
+    width: 92,
+    marginVertical: spacing.xs / 2,
+  },
+  deleteButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.lg,
+    gap: spacing.xs,
+  },
+  deleteText: {
+    ...typography.micro,
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Find Plans section
 // ---------------------------------------------------------------------------
@@ -345,7 +407,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
 interface FindPlansSectionProps {
   allPlans: ReadingPlan[];
   featuredPlans: ReadingPlan[];
-  timedPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
@@ -355,7 +416,6 @@ interface FindPlansSectionProps {
 function FindPlansSection({
   allPlans,
   featuredPlans,
-  timedPlans,
   userProgress,
   onPlanPress,
   colors,
@@ -413,34 +473,6 @@ function FindPlansSection({
         </TouchableOpacity>
       )}
 
-      {/* Timed reading challenges — shown prominently before category sections */}
-      {timedPlans.length > 0 && (
-        <View>
-          <Text style={styles.categoryHeader}>{t('readingPlans.timedChallenges')}</Text>
-          <FlatList
-            horizontal
-            data={timedPlans}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryList}
-            renderItem={({ item: plan }) => (
-              <TouchableOpacity
-                style={styles.timedCard}
-                onPress={() => onPlanPress(plan.id)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.timedDurationBadge}>
-                  <Text style={styles.timedDurationText}>{plan.duration_days}d</Text>
-                </View>
-                <Text style={styles.timedCardTitle} numberOfLines={3}>
-                  {t(plan.title_key as Parameters<typeof t>[0])}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
-
       {/* Plan cards by category */}
       {categories.map((category) => {
         const plans = plansByCategory[category];
@@ -469,29 +501,31 @@ function FindPlansSection({
                     activeOpacity={0.7}
                   >
                     <CoverImage plan={plan} width={140} height={88} colors={colors} />
-                    <Text style={styles.planCardTitle} numberOfLines={2}>
-                      {t(plan.title_key as Parameters<typeof t>[0])}
-                    </Text>
-                    <View style={styles.planCardMeta}>
-                      <View style={styles.durationBadge}>
-                        <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.enrollBadge,
-                          isEnrolled
-                            ? { backgroundColor: colors.accentPrimary }
-                            : { borderWidth: 1, borderColor: colors.accentPrimary },
-                        ]}
-                      >
-                        <Text
+                    <View style={styles.planCardBody}>
+                      <Text style={styles.planCardTitle} numberOfLines={2}>
+                        {t(plan.title_key as Parameters<typeof t>[0])}
+                      </Text>
+                      <View style={styles.planCardMeta}>
+                        <View style={styles.durationBadge}>
+                          <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
+                        </View>
+                        <View
                           style={[
-                            styles.enrollBadgeText,
-                            { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
+                            styles.enrollBadge,
+                            isEnrolled
+                              ? { backgroundColor: colors.accentPrimary }
+                              : { borderWidth: 1, borderColor: colors.accentPrimary },
                           ]}
                         >
-                          {isEnrolled ? t('readingPlans.enrolled') : t('readingPlans.startPlan')}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.enrollBadgeText,
+                              { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
+                            ]}
+                          >
+                            {isEnrolled ? t('readingPlans.enrolled') : t('readingPlans.startPlan')}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -502,7 +536,7 @@ function FindPlansSection({
         );
       })}
 
-      {allPlans.length === 0 && timedPlans.length === 0 && (
+      {allPlans.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>{t('readingPlans.noPlans')}</Text>
         </View>
@@ -571,12 +605,17 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     planCard: {
       width: 156,
-      gap: spacing.sm,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       padding: spacing.sm,
+      minHeight: 228,
+      gap: spacing.sm,
+    },
+    planCardBody: {
+      flex: 1,
+      gap: spacing.sm,
     },
     planCardTitle: {
       ...typography.label,
@@ -587,12 +626,15 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       flexWrap: 'nowrap',
+      marginTop: 'auto',
     },
     durationBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      minHeight: 32,
+      justifyContent: 'center',
       flexShrink: 0,
     },
     durationBadgeText: {
@@ -601,44 +643,15 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     enrollBadge: {
       borderRadius: radius.pill,
-      minHeight: layout.minTouchTarget,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
+      minHeight: 32,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     enrollBadgeText: {
       ...typography.label,
-    },
-    timedCard: {
-      width: 136,
-      backgroundColor: colors.cardBackground,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      padding: spacing.md,
-      gap: spacing.sm,
-      justifyContent: 'space-between',
-      minHeight: 124,
-    },
-    timedDurationBadge: {
-      backgroundColor: colors.accentPrimary,
-      borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
-      alignSelf: 'flex-start',
-    },
-    timedDurationText: {
-      ...typography.micro,
-      color: colors.cardBackground,
-      fontWeight: '700',
-    },
-    timedCardTitle: {
-      ...typography.label,
-      color: colors.primaryText,
-      lineHeight: 20,
-      fontWeight: '700',
     },
     emptyState: {
       alignItems: 'center',
@@ -652,140 +665,20 @@ const createFindPlansStyles = (colors: ThemeColors) =>
   });
 
 // ---------------------------------------------------------------------------
-// Saved Plans section
-// ---------------------------------------------------------------------------
-
-interface SavedPlansSectionProps {
-  savedPlans: ReadingPlan[];
-  onPlanPress: (planId: string) => void;
-  colors: ThemeColors;
-}
-
-function SavedPlansSection({
-  savedPlans,
-  onPlanPress,
-  colors,
-}: SavedPlansSectionProps) {
-  const { t } = useTranslation();
-  const styles = createSavedStyles(colors);
-
-  if (savedPlans.length === 0) {
-    return (
-      <View style={styles.emptyState}>
-        <Ionicons name="bookmark-outline" size={48} color={colors.secondaryText} />
-        <Text style={styles.emptyTitle}>{t('readingPlans.noSavedPlans')}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.content}>
-      {savedPlans.map((plan) => (
-        <TouchableOpacity
-          key={plan.id}
-          style={styles.card}
-          onPress={() => onPlanPress(plan.id)}
-          activeOpacity={0.7}
-        >
-          <CoverImage plan={plan} width={64} height={64} colors={colors} />
-          <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {t(plan.title_key as Parameters<typeof t>[0])}
-            </Text>
-            <View style={styles.cardMeta}>
-              <Text style={styles.duration}>{plan.duration_days}d</Text>
-              {plan.category && (
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>
-                    {plan.category
-                      .split('-')
-                      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-                      .join(' ')}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-const createSavedStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.md,
-      paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.xxxl,
-    },
-    emptyTitle: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-      textAlign: 'center',
-    },
-    content: {
-      paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.md,
-      gap: spacing.md,
-    },
-    card: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.lg,
-      backgroundColor: colors.cardBackground,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      minHeight: 100,
-      paddingHorizontal: layout.cardPadding,
-      paddingVertical: spacing.lg,
-    },
-    cardBody: {
-      flex: 1,
-      gap: spacing.sm,
-    },
-    cardTitle: {
-      ...typography.bodyStrong,
-      color: colors.primaryText,
-    },
-    cardMeta: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-      alignItems: 'center',
-      flexWrap: 'wrap',
-    },
-    duration: {
-      ...typography.micro,
-      color: colors.secondaryText,
-    },
-    categoryBadge: {
-      backgroundColor: colors.cardBorder,
-      borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
-    },
-    categoryText: {
-      ...typography.micro,
-      color: colors.secondaryText,
-    },
-  });
-
-// ---------------------------------------------------------------------------
 // Completed Plans section
 // ---------------------------------------------------------------------------
 
 interface CompletedPlansSectionProps {
   completedPlans: CompletedPlanRow[];
   onPlanPress: (planId: string) => void;
+  onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
 }
 
 function CompletedPlansSection({
   completedPlans,
   onPlanPress,
+  onDeletePlan,
   colors,
 }: CompletedPlansSectionProps) {
   const { t } = useTranslation();
@@ -811,23 +704,27 @@ function CompletedPlansSection({
             })
           : null;
         return (
-          <TouchableOpacity
+          <SwipeablePlanRow
             key={item.id}
-            style={styles.card}
-            onPress={() => onPlanPress(item.plan.id)}
-            activeOpacity={0.7}
+            onDelete={() => onDeletePlan(item.plan.id)}
           >
-            <CoverImage plan={item.plan} width={64} height={64} colors={colors} />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {t(item.plan.title_key as Parameters<typeof t>[0])}
-              </Text>
-              {completedDate && (
-                <Text style={styles.completedDate}>{completedDate}</Text>
-              )}
-            </View>
-            <Ionicons name="checkmark-circle" size={24} color={colors.accentPrimary} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => onPlanPress(item.plan.id)}
+              activeOpacity={0.7}
+            >
+              <CoverImage plan={item.plan} width={64} height={64} colors={colors} />
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {t(item.plan.title_key as Parameters<typeof t>[0])}
+                </Text>
+                {completedDate && (
+                  <Text style={styles.completedDate}>{completedDate}</Text>
+                )}
+              </View>
+              <Ionicons name="checkmark-circle" size={24} color={colors.accentPrimary} />
+            </TouchableOpacity>
+          </SwipeablePlanRow>
         );
       })}
     </View>
@@ -892,32 +789,26 @@ export function PlansHomeScreen() {
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
   const [userProgress, setUserProgress] = useState<UserReadingPlanProgress[]>([]);
-  const [savedPlans, setSavedPlans] = useState<ReadingPlan[]>([]);
   const [completedPlans, setCompletedPlans] = useState<CompletedPlanRow[]>([]);
   const [featuredPlans, setFeaturedPlans] = useState<ReadingPlan[]>([]);
-  const [timedPlans, setTimedPlans] = useState<ReadingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const tabs: { key: PlanTab; labelKey: string }[] = [
     { key: 'my-plans', labelKey: 'readingPlans.myPlans' },
     { key: 'find-plans', labelKey: 'readingPlans.findPlans' },
-    { key: 'saved', labelKey: 'readingPlans.saved' },
     { key: 'completed', labelKey: 'readingPlans.completed' },
   ];
 
   const loadAllData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
 
-    const [allPlansResult, progressResult, savedResult, completedResult, featuredResult, timedResult] =
-      await Promise.all([
-        listReadingPlans(),
-        getUserPlanProgress(),
-        getSavedPlans(),
-        getCompletedPlans(),
-        getFeaturedPlans(),
-        getTimedChallengePlans(),
-      ]);
+    const [allPlansResult, progressResult, completedResult, featuredResult] = await Promise.all([
+      listReadingPlans(),
+      getUserPlanProgress(),
+      getCompletedPlans(),
+      getFeaturedPlans(),
+    ]);
 
     if (allPlansResult.success && allPlansResult.data) {
       setAllPlans(allPlansResult.data);
@@ -925,17 +816,11 @@ export function PlansHomeScreen() {
     if (progressResult.success && progressResult.data) {
       setUserProgress(progressResult.data);
     }
-    if (savedResult.success && savedResult.data) {
-      setSavedPlans(savedResult.data);
-    }
     if (completedResult.success && completedResult.data) {
       setCompletedPlans(completedResult.data);
     }
     if (featuredResult.success && featuredResult.data) {
       setFeaturedPlans(featuredResult.data);
-    }
-    if (timedResult.success && timedResult.data) {
-      setTimedPlans(timedResult.data);
     }
 
     if (!quiet) setLoading(false);
@@ -957,6 +842,16 @@ export function PlansHomeScreen() {
     },
     [navigation]
   );
+
+  const handleDeletePlan = useCallback(async (planId: string) => {
+    const result = await unenrollFromPlan(planId);
+    if (result.success) {
+      setUserProgress((prev) => prev.filter((progress) => progress.plan_id !== planId));
+      setCompletedPlans((prev) => prev.filter((item) => item.plan.id !== planId));
+    } else if (result.error) {
+      Alert.alert(t('common.error'), result.error);
+    }
+  }, [t]);
 
   const styles = createMainStyles(colors);
 
@@ -1018,6 +913,7 @@ export function PlansHomeScreen() {
                 allPlans={allPlans}
                 userProgress={userProgress}
                 onPlanPress={handlePlanPress}
+                onDeletePlan={handleDeletePlan}
                 colors={colors}
               />
             )}
@@ -1025,15 +921,7 @@ export function PlansHomeScreen() {
               <FindPlansSection
                 allPlans={allPlans}
                 featuredPlans={featuredPlans}
-                timedPlans={timedPlans}
                 userProgress={userProgress}
-                onPlanPress={handlePlanPress}
-                colors={colors}
-              />
-            )}
-            {activeTab === 'saved' && (
-              <SavedPlansSection
-                savedPlans={savedPlans}
                 onPlanPress={handlePlanPress}
                 colors={colors}
               />
@@ -1042,6 +930,7 @@ export function PlansHomeScreen() {
               <CompletedPlansSection
                 completedPlans={completedPlans}
                 onPlanPress={handlePlanPress}
+                onDeletePlan={handleDeletePlan}
                 colors={colors}
               />
             )}

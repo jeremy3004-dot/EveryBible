@@ -29,6 +29,11 @@ test('BibleReaderScreen keeps read-mode plan completion explicit while still rou
     /const handleCompletePlanDay = useCallback\(/,
     'BibleReaderScreen should define an explicit final-step handler for completing a plan day from read mode'
   );
+  assert.equal(
+    source.includes('activePlanProgress.current_day !== planDayNumber'),
+    false,
+    'BibleReaderScreen should not block explicit plan-session completion just because the tapped day differs from progress.current_day'
+  );
   assert.match(
     source,
     /rootNavigationRef\.navigate\('Plans',\s*{[\s\S]*screen:\s*'PlanDetail'/s,
@@ -125,5 +130,13 @@ test('BibleReaderScreen exposes stable selectors for listen-mode counted feedbac
     source,
     /getListenCountedNoticeViewModel\(listenCountedNotice\)/,
     'BibleReaderScreen should derive notice rendering from the reusable notice view-model helper'
+  );
+});
+
+test('BibleReaderScreen anchors plan-day completion summary to the explicit session day', () => {
+  assert.match(
+    source,
+    /getCurrentPlanDaySummary\(\{[\s\S]*dayNumber:\s*planDayNumber,[\s\S]*\}\)/s,
+    'BibleReaderScreen should calculate completion against the explicit plan session day so multi-passage or manually opened days can finish correctly'
   );
 });

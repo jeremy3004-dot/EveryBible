@@ -8,13 +8,23 @@ const source = readFileSync(resolve(__dirname, 'PlanDetailScreen.tsx'), 'utf8');
 test('PlanDetailScreen always passes plan-day context into BibleReader launches', () => {
   assert.match(
     source,
-    /planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
-    'PlanDetailScreen should always pass the plan day context into BibleReader so the plan reader chrome stays visible'
+    /buildPlanDayPlaybackSequenceEntries\(dayEntries\)/,
+    'PlanDetailScreen should build the day playback sequence before opening BibleReader'
+  );
+  assert.match(
+    source,
+    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
+    'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );
   assert.doesNotMatch(
     source,
     /shouldTrackPlanDay/,
     'PlanDetailScreen should not conditionally drop plan-session params when opening a plan day'
+  );
+  assert.match(
+    source,
+    /if \(!progress\) \{[\s\S]*await enrollInPlan\(planId\);[\s\S]*\}/s,
+    'PlanDetailScreen should auto-enroll the plan before launching a tapped day when the user has not started it yet'
   );
 });
 

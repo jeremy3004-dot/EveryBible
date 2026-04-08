@@ -6,6 +6,9 @@ import { resolve } from 'node:path';
 const source = readFileSync(resolve(__dirname, 'PlansHomeScreen.tsx'), 'utf8');
 const tabRowBlockMatch = source.match(/tabRow:\s*\{[\s\S]*?\n\s*\},/);
 const planCardMetaBlockMatch = source.match(/planCardMeta:\s*\{[\s\S]*?\n\s*\},/);
+const tabsBlockMatch = source.match(/const tabs:[\s\S]*?\n\s*\];/);
+const planCardBlockMatch = source.match(/planCard:\s*\{[\s\S]*?\n\s*\},/);
+const swipeableRowMatches = source.match(/SwipeablePlanRow/g) ?? [];
 
 test('PlansHomeScreen renders the tab control as a single horizontal row', () => {
   assert.match(
@@ -23,6 +26,12 @@ test('PlansHomeScreen renders the tab control as a single horizontal row', () =>
     tabRowBlockMatch?.[0] ?? '',
     /flexWrap:\s*'wrap'/,
     'PlansHomeScreen should not wrap the plan tabs into multiple rows'
+  );
+  assert.ok(tabsBlockMatch, 'PlansHomeScreen should define the top tab list');
+  assert.doesNotMatch(
+    tabsBlockMatch?.[0] ?? '',
+    /key:\s*'saved'/,
+    'PlansHomeScreen should not show the saved tab in the top navigation anymore'
   );
 });
 
@@ -47,6 +56,19 @@ test('PlansHomeScreen no longer uses a fixed contentArea shell beneath the tabs'
   );
 });
 
+test('PlansHomeScreen no longer renders a separate reading challenges section', () => {
+  assert.doesNotMatch(
+    source,
+    /Reading Challenges/,
+    'PlansHomeScreen should not surface a dedicated reading challenges header anymore'
+  );
+  assert.doesNotMatch(
+    source,
+    /getTimedChallengePlans/,
+    'PlansHomeScreen should not fetch timed challenge plans for the main list UI anymore'
+  );
+});
+
 test('PlansHomeScreen keeps the plan day badge and action badge on one row', () => {
   assert.ok(planCardMetaBlockMatch, 'PlansHomeScreen should define a planCardMeta style block');
   assert.match(
@@ -63,5 +85,53 @@ test('PlansHomeScreen keeps the plan day badge and action badge on one row', () 
     source,
     /flexShrink:\s*0/,
     'PlansHomeScreen should keep both badges from collapsing or wrapping when the day value gets longer'
+  );
+  assert.ok(planCardBlockMatch, 'PlansHomeScreen should define a planCard style block');
+  assert.match(
+    planCardBlockMatch?.[0] ?? '',
+    /minHeight:\s*228/,
+    'PlansHomeScreen should reserve extra vertical space so the action row sits lower in cards with shorter titles'
+  );
+  assert.match(
+    source,
+    /planCardBody:\s*\{\s*flex:\s*1,/s,
+    'PlansHomeScreen should give the card body flexible space so the badge row can anchor to the bottom'
+  );
+  assert.match(
+    planCardMetaBlockMatch?.[0] ?? '',
+    /marginTop:\s*'auto'/,
+    'PlansHomeScreen should pin the action row toward the bottom of the card body instead of letting it float upward'
+  );
+});
+
+test('PlansHomeScreen supports swipe-to-delete for active and completed plans', () => {
+  assert.match(
+    source,
+    /Swipeable/,
+    'PlansHomeScreen should import a swipeable row wrapper so my plans and completed plans can be deleted with a left swipe'
+  );
+  assert.match(
+    source,
+    /unenrollFromPlan/,
+    'PlansHomeScreen should reuse the existing unenroll flow for swipe delete'
+  );
+  assert.match(
+    source,
+    /function SwipeablePlanRow/,
+    'PlansHomeScreen should define a reusable swipe-delete row wrapper'
+  );
+  assert.ok(
+    swipeableRowMatches.length >= 3,
+    'PlansHomeScreen should use the swipe-delete wrapper for the helper definition and both plan sections'
+  );
+  assert.match(
+    source,
+    /setCompletedPlans\(\(prev\) => prev\.filter\(\(item\) => item\.plan\.id !== planId\)\)/,
+    'PlansHomeScreen should remove deleted plans from the completed section immediately after a successful swipe delete'
+  );
+  assert.match(
+    source,
+    /setUserProgress\(\(prev\) => prev\.filter\(\(progress\) => progress\.plan_id !== planId\)\)/,
+    'PlansHomeScreen should also remove deleted plans from the active plans section immediately after a successful swipe delete'
   );
 });

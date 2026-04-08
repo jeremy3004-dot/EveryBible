@@ -1,4 +1,5 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
+import type { AudioPlaybackSequenceEntry } from '../../types';
 import type { ReadingPlanEntry, UserReadingPlanProgress } from './types';
 import { formatLocalDateKey } from '../progress/readingActivity';
 
@@ -63,6 +64,24 @@ export function expandPlanDayChapterKeys(entries: ReadingPlanEntry[]): string[] 
   }
 
   return chapterKeys;
+}
+
+export function buildPlanDayPlaybackSequenceEntries(
+  entries: ReadingPlanEntry[]
+): AudioPlaybackSequenceEntry[] {
+  return entries.flatMap((entry) => {
+    const endChapter = entry.chapter_end ?? entry.chapter_start;
+    const chapterEntries: AudioPlaybackSequenceEntry[] = [];
+
+    for (let chapter = entry.chapter_start; chapter <= endChapter; chapter += 1) {
+      chapterEntries.push({
+        bookId: entry.book,
+        chapter,
+      });
+    }
+
+    return chapterEntries;
+  });
 }
 
 const getUniqueDayEntries = (entries: ReadingPlanEntry[], dayNumber: number): ReadingPlanEntry[] =>
@@ -203,6 +222,7 @@ export function getCurrentPlanDaySummary({
   progress,
   chaptersRead,
   listeningHistory,
+  dayNumber = progress.current_day,
   today = new Date(),
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
 }: {
@@ -210,10 +230,10 @@ export function getCurrentPlanDaySummary({
   progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
+  dayNumber?: number;
   today?: Date;
   listenCompletionThreshold?: number;
 }): CurrentPlanDaySummary {
-  const dayNumber = progress.current_day;
   const summary = buildPlanDayCompletionSummary(entries, dayNumber, {
     chaptersRead,
     listeningHistory,
