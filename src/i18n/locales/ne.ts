@@ -1203,5 +1203,8 @@ export const ne = {
     cloudLibrary: 'क्लाउड पुस्तकालय',
     downloading: 'डाउनलोड गर्दै...',
     downloadPrompt: 'अफलाइन पढ्नका लागि {{name}} को लिखित पाठ (~{{size}} MB) डाउनलोड गर्नुहोस्?',
+    deleteConfirmTitle: 'अनुवाद मेटाउनुहोस्',
+    deleteConfirmMessage: '{{name}} को डाउनलोड गरिएको डेटा हटाउने? तपाईं जहिले पनि पुनः डाउनलोड गर्न सक्नुहुन्छ।',
+    delete: 'मेटाउनुहोस्',
   },
 } as const;

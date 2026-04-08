@@ -1,527 +1,414 @@
-import type { ReadingPlan, ReadingPlanEntry, ReadingPlanCategory } from '../services/plans/types';
+import { bibleBooks } from '../constants/books';
+import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
+import type { ReadingPlanCoverKey } from '../services/plans/types';
 
-type EntrySeed = {
-  day: number;
+type ChapterRef = {
   book: string;
-  chapterStart: number;
-  chapterEnd: number | null;
+  chapter: number;
 };
 
-type PlanDefinition = {
+type BookPlanRecipe = {
+  id: string;
   slug: string;
-  titleKey: string;
-  descriptionKey: string;
-  durationDays: number;
-  category: ReadingPlanCategory;
-  sortOrder: number;
-  coverKey: string;
-  featured?: boolean;
-  completionCount: number;
-  entries: EntrySeed[];
+  title_key: string;
+  description_key: string | null;
+  duration_days: number;
+  category: ReadingPlan['category'];
+  sort_order: number;
+  cover_key: ReadingPlanCoverKey;
+  book_order: string[];
 };
 
-const CREATED_AT = '2026-04-07T00:00:00.000Z';
-
-const CHAPTER_COUNTS: Record<string, number> = {
-  GEN: 50, EXO: 40, LEV: 27, NUM: 36, DEU: 34,
-  JOS: 24, JDG: 21, RUT: 4, '1SA': 31, '2SA': 24,
-  '1KI': 22, '2KI': 25, '1CH': 29, '2CH': 36, EZR: 10,
-  NEH: 13, EST: 10, JOB: 42, PSA: 150, PRO: 31,
-  ECC: 12, SNG: 8, ISA: 66, JER: 52, LAM: 5,
-  EZK: 48, DAN: 12, HOS: 14, JOL: 3, AMO: 9,
-  OBA: 1, JON: 4, MIC: 7, NAH: 3, HAB: 3,
-  ZEP: 3, HAG: 2, ZEC: 14, MAL: 4,
-  MAT: 28, MRK: 16, LUK: 24, JHN: 21, ACT: 28,
-  ROM: 16, '1CO': 16, '2CO': 13, GAL: 6, EPH: 6,
-  PHP: 4, COL: 4, '1TH': 5, '2TH': 3, '1TI': 6,
-  '2TI': 4, TIT: 3, PHM: 1, HEB: 13, JAS: 5,
-  '1PE': 5, '2PE': 3, '1JN': 5, '2JN': 1, '3JN': 1,
-  JUD: 1, REV: 22,
+type VersePlanRecipe = {
+  id: string;
+  slug: string;
+  title_key: string;
+  description_key: string | null;
+  duration_days: number;
+  category: ReadingPlan['category'];
+  sort_order: number;
+  cover_key: ReadingPlanCoverKey;
+  entries: Array<{
+    day_number: number;
+    book: string;
+    chapter_start: number;
+    chapter_end: number | null;
+    verse_start?: number | null;
+    verse_end?: number | null;
+  }>;
 };
 
-const ALL_BOOKS = [
-  'GEN', 'EXO', 'LEV', 'NUM', 'DEU', 'JOS', 'JDG', 'RUT',
-  '1SA', '2SA', '1KI', '2KI', '1CH', '2CH', 'EZR', 'NEH', 'EST',
-  'JOB', 'PSA', 'PRO', 'ECC', 'SNG', 'ISA', 'JER', 'LAM', 'EZK',
-  'DAN', 'HOS', 'JOL', 'AMO', 'OBA', 'JON', 'MIC', 'NAH', 'HAB',
-  'ZEP', 'HAG', 'ZEC', 'MAL',
-  'MAT', 'MRK', 'LUK', 'JHN', 'ACT',
-  'ROM', '1CO', '2CO', 'GAL', 'EPH', 'PHP', 'COL',
-  '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB',
-  'JAS', '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
-] as const;
-
-const OT_BOOKS = ALL_BOOKS.slice(0, 39);
-const NT_BOOKS = ALL_BOOKS.slice(39);
-const GOSPELS = ['MAT', 'MRK', 'LUK', 'JHN'];
-const PENTATEUCH = ['GEN', 'EXO', 'LEV', 'NUM', 'DEU'];
-const WISDOM = ['JOB', 'PSA', 'PRO', 'ECC', 'SNG'];
-const PROPHETS = [
-  'ISA', 'JER', 'LAM', 'EZK', 'DAN',
-  'HOS', 'JOL', 'AMO', 'OBA', 'JON', 'MIC', 'NAH', 'HAB',
-  'ZEP', 'HAG', 'ZEC', 'MAL',
+const canonicalOrder = bibleBooks.map((book) => book.id);
+const newTestamentOrder = bibleBooks.filter((book) => book.testament === 'NT').map((book) => book.id);
+const epistlesOrder = [
+  'ROM',
+  '1CO',
+  '2CO',
+  'GAL',
+  'EPH',
+  'PHP',
+  'COL',
+  '1TH',
+  '2TH',
+  '1TI',
+  '2TI',
+  'TIT',
+  'PHM',
+  'HEB',
+  'JAS',
+  '1PE',
+  '2PE',
+  '1JN',
+  '2JN',
+  '3JN',
+  'JUD',
 ];
-const PAULS_LETTERS = [
-  'ROM', '1CO', '2CO', 'GAL', 'EPH', 'PHP', 'COL',
-  '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM',
+
+const chronologicalOrder = [
+  'GEN',
+  'JOB',
+  'EXO',
+  'LEV',
+  'NUM',
+  'DEU',
+  'JOS',
+  'JDG',
+  'RUT',
+  '1SA',
+  '2SA',
+  '1KI',
+  '1CH',
+  '2KI',
+  '2CH',
+  'EZR',
+  'NEH',
+  'EST',
+  'PSA',
+  'PRO',
+  'ECC',
+  'SNG',
+  'ISA',
+  'JER',
+  'LAM',
+  'EZK',
+  'DAN',
+  'HOS',
+  'JOL',
+  'AMO',
+  'OBA',
+  'JON',
+  'MIC',
+  'NAM',
+  'HAB',
+  'ZEP',
+  'HAG',
+  'ZEC',
+  'MAL',
+  'MAT',
+  'MRK',
+  'LUK',
+  'JHN',
+  'ACT',
+  'ROM',
+  '1CO',
+  '2CO',
+  'GAL',
+  'EPH',
+  'PHP',
+  'COL',
+  '1TH',
+  '2TH',
+  '1TI',
+  '2TI',
+  'TIT',
+  'PHM',
+  'HEB',
+  'JAS',
+  '1PE',
+  '2PE',
+  '1JN',
+  '2JN',
+  '3JN',
+  'JUD',
+  'REV',
 ];
 
-function distributeSequential(books: string[], totalDays: number): EntrySeed[] {
-  const chapters: Array<{ book: string; chapter: number }> = [];
-  for (const book of books) {
-    const count = CHAPTER_COUNTS[book];
-    for (let chapter = 1; chapter <= count; chapter += 1) {
-      chapters.push({ book, chapter });
-    }
+function getBookChapters(bookId: string): number {
+  const book = bibleBooks.find((item) => item.id === bookId);
+  if (!book) {
+    throw new Error(`Unknown Bible book id: ${bookId}`);
+  }
+  return book.chapters;
+}
+
+function chunkIntegers(total: number, chunks: number): Array<[number, number]> {
+  if (chunks <= 0) {
+    throw new Error('chunks must be positive');
   }
 
-  const entries: EntrySeed[] = [];
-  let chapterIndex = 0;
+  const result: Array<[number, number]> = [];
+  const base = Math.floor(total / chunks);
+  const remainder = total % chunks;
+  let current = 1;
 
-  for (let day = 1; day <= totalDays; day += 1) {
-    const remainingDays = totalDays - day + 1;
-    const remainingChapters = chapters.length - chapterIndex;
-    const countForDay = Math.ceil(remainingChapters / remainingDays);
-    const dayChapters = chapters.slice(chapterIndex, chapterIndex + countForDay);
-    chapterIndex += countForDay;
+  for (let index = 0; index < chunks; index += 1) {
+    const size = base + (index < remainder ? 1 : 0);
+    const start = current;
+    const end = current + Math.max(size - 1, 0);
+    result.push([start, end]);
+    current = end + 1;
+  }
 
-    let groupStart = 0;
-    while (groupStart < dayChapters.length) {
-      const start = dayChapters[groupStart];
-      let groupEnd = groupStart + 1;
-      while (groupEnd < dayChapters.length && dayChapters[groupEnd].book === start.book) {
-        groupEnd += 1;
+  return result;
+}
+
+function allocateDaysPerBook(bookOrder: string[], totalDays: number): number[] {
+  if (bookOrder.length === 0) {
+    return [];
+  }
+
+  if (totalDays < bookOrder.length) {
+    throw new Error(`Cannot allocate ${totalDays} days across ${bookOrder.length} books`);
+  }
+
+  const chapterCounts = bookOrder.map((bookId) => getBookChapters(bookId));
+  const baseDays = Array(bookOrder.length).fill(1);
+  let remainingDays = totalDays - bookOrder.length;
+
+  if (remainingDays === 0) {
+    return baseDays;
+  }
+
+  const weights = chapterCounts.map((count) => Math.max(0, count - 1));
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+
+  if (weightTotal === 0) {
+    baseDays[baseDays.length - 1] += remainingDays;
+    return baseDays;
+  }
+
+  const fractional = weights.map((weight, index) => {
+    const exact = (weight / weightTotal) * remainingDays;
+    const bonus = Math.floor(exact);
+    baseDays[index] += bonus;
+    return {
+      index,
+      remainder: exact - bonus,
+    };
+  });
+
+  const assigned = baseDays.reduce((sum, value) => sum + value, 0);
+  const leftover = totalDays - assigned;
+
+  fractional
+    .sort((left, right) => {
+      if (right.remainder !== left.remainder) {
+        return right.remainder - left.remainder;
       }
-      const end = dayChapters[groupEnd - 1];
+      return left.index - right.index;
+    })
+    .slice(0, leftover)
+    .forEach(({ index }) => {
+      baseDays[index] += 1;
+    });
+
+  return baseDays;
+}
+
+function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+  const daysPerBook = allocateDaysPerBook(recipe.book_order, recipe.duration_days);
+  const entries: ReadingPlanEntry[] = [];
+  let dayNumber = 1;
+
+  recipe.book_order.forEach((bookId, bookIndex) => {
+    const dayCount = daysPerBook[bookIndex];
+    const chapterRanges = chunkIntegers(getBookChapters(bookId), dayCount);
+
+    chapterRanges.forEach(([chapterStart, chapterEnd]) => {
       entries.push({
-        day,
-        book: start.book,
-        chapterStart: start.chapter,
-        chapterEnd: end.chapter === start.chapter ? null : end.chapter,
+        id: `${recipe.id}-day-${dayNumber}`,
+        plan_id: recipe.id,
+        day_number: dayNumber,
+        book: bookId,
+        chapter_start: chapterStart,
+        chapter_end: chapterEnd === chapterStart ? null : chapterEnd,
       });
-      groupStart = groupEnd;
-    }
-  }
+      dayNumber += 1;
+    });
+  });
 
-  return entries;
-}
-
-function sermonOnTheMountEntries(): EntrySeed[] {
-  return [
-    { day: 1, book: 'MAT', chapterStart: 5, chapterEnd: null },
-    { day: 2, book: 'MAT', chapterStart: 6, chapterEnd: null },
-    { day: 3, book: 'MAT', chapterStart: 7, chapterEnd: null },
-    { day: 4, book: 'MAT', chapterStart: 5, chapterEnd: null },
-    { day: 5, book: 'MAT', chapterStart: 6, chapterEnd: null },
-    { day: 6, book: 'MAT', chapterStart: 7, chapterEnd: null },
-    { day: 7, book: 'MAT', chapterStart: 5, chapterEnd: 7 },
-  ];
-}
-
-function proverbs31Entries(): EntrySeed[] {
-  return Array.from({ length: 31 }, (_, index) => ({
-    day: index + 1,
-    book: 'PRO',
-    chapterStart: index + 1,
-    chapterEnd: null,
-  }));
-}
-
-function psalms30Entries(): EntrySeed[] {
-  return Array.from({ length: 30 }, (_, index) => ({
-    day: index + 1,
-    book: 'PSA',
-    chapterStart: index * 5 + 1,
-    chapterEnd: index * 5 + 5,
-  }));
-}
-
-function chronologicalEntries(): EntrySeed[] {
-  const chronologicalOrder = [
-    'GEN', 'JOB', 'EXO', 'LEV', 'NUM', 'DEU', 'JOS', 'JDG', 'RUT',
-    '1SA', '2SA', 'PSA', 'PRO', 'ECC', 'SNG',
-    '1KI', '2KI', '1CH', '2CH',
-    'ISA', 'JER', 'LAM', 'EZK', 'DAN',
-    'HOS', 'JOL', 'AMO', 'OBA', 'JON', 'MIC', 'NAH', 'HAB', 'ZEP',
-    'HAG', 'ZEC', 'MAL', 'EZR', 'NEH', 'EST',
-    ...NT_BOOKS,
-  ];
-
-  return distributeSequential(chronologicalOrder, 365);
-}
-
-function toReadingPlan(definition: PlanDefinition): ReadingPlan {
   return {
-    id: definition.slug,
-    slug: definition.slug,
-    title_key: definition.titleKey,
-    description_key: definition.descriptionKey,
-    duration_days: definition.durationDays,
-    category: definition.category,
-    is_active: true,
-    sort_order: definition.sortOrder,
-    cover_image_url: null,
-    cover_image_key: definition.coverKey,
-    featured: Boolean(definition.featured),
-    completion_count: definition.completionCount,
-    created_at: CREATED_AT,
+    plan: {
+      id: recipe.id,
+      slug: recipe.slug,
+      title_key: recipe.title_key,
+      description_key: recipe.description_key,
+      duration_days: recipe.duration_days,
+      category: recipe.category,
+      is_active: true,
+      sort_order: recipe.sort_order,
+      coverKey: recipe.cover_key,
+      cover_key: recipe.cover_key,
+    },
+    entries,
   };
 }
 
-function toReadingPlanEntries(planId: string, entries: EntrySeed[]): ReadingPlanEntry[] {
-  return entries.map((entry, index) => ({
-    id: `${planId}-${entry.day}-${index + 1}`,
-    plan_id: planId,
-    day_number: entry.day,
-    book: entry.book,
-    chapter_start: entry.chapterStart,
-    chapter_end: entry.chapterEnd,
-  }));
+function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+  return {
+    plan: {
+      id: recipe.id,
+      slug: recipe.slug,
+      title_key: recipe.title_key,
+      description_key: recipe.description_key,
+      duration_days: recipe.duration_days,
+      category: recipe.category,
+      is_active: true,
+      sort_order: recipe.sort_order,
+      coverKey: recipe.cover_key,
+      cover_key: recipe.cover_key,
+    },
+    entries: recipe.entries.map((entry) => ({
+      id: `${recipe.id}-day-${entry.day_number}`,
+      plan_id: recipe.id,
+      day_number: entry.day_number,
+      book: entry.book,
+      chapter_start: entry.chapter_start,
+      chapter_end: entry.chapter_end,
+      verse_start: entry.verse_start ?? null,
+      verse_end: entry.verse_end ?? null,
+    })),
+  };
 }
 
-const PLAN_DEFINITIONS: PlanDefinition[] = [
+const sequentialRecipes: BookPlanRecipe[] = [
   {
+    id: 'bible-in-1-year',
     slug: 'bible-in-1-year',
-    titleKey: 'readingPlans.bibleIn1Year.title',
-    descriptionKey: 'readingPlans.bibleIn1Year.description',
-    durationDays: 365,
+    title_key: 'readingPlans.bibleIn1Year.title',
+    description_key: 'readingPlans.bibleIn1Year.description',
+    duration_days: 365,
     category: 'chronological',
-    sortOrder: 1,
-    coverKey: 'mountains',
-    featured: true,
-    completionCount: 6240,
-    entries: distributeSequential([...ALL_BOOKS], 365),
+    sort_order: 1,
+    cover_key: 'sunrise',
+    book_order: canonicalOrder,
   },
   {
+    id: 'new-testament-90-days',
     slug: 'new-testament-90-days',
-    titleKey: 'readingPlans.newTestament90.title',
-    descriptionKey: 'readingPlans.newTestament90.description',
-    durationDays: 90,
+    title_key: 'readingPlans.newTestament90.title',
+    description_key: 'readingPlans.newTestament90.description',
+    duration_days: 90,
     category: 'book-study',
-    sortOrder: 2,
-    coverKey: 'stars',
-    completionCount: 4510,
-    entries: distributeSequential([...NT_BOOKS], 90),
+    sort_order: 2,
+    cover_key: 'stars',
+    book_order: newTestamentOrder,
   },
   {
+    id: 'psalms-30-days',
     slug: 'psalms-30-days',
-    titleKey: 'readingPlans.psalms30.title',
-    descriptionKey: 'readingPlans.psalms30.description',
-    durationDays: 30,
-    category: 'devotional',
-    sortOrder: 3,
-    coverKey: 'canyon',
-    completionCount: 3870,
-    entries: psalms30Entries(),
+    title_key: 'readingPlans.psalms30.title',
+    description_key: 'readingPlans.psalms30.description',
+    duration_days: 30,
+    category: 'book-study',
+    sort_order: 3,
+    cover_key: 'river',
+    book_order: ['PSA'],
   },
   {
+    id: 'gospels-60-days',
     slug: 'gospels-60-days',
-    titleKey: 'readingPlans.gospels60.title',
-    descriptionKey: 'readingPlans.gospels60.description',
-    durationDays: 60,
+    title_key: 'readingPlans.gospels60.title',
+    description_key: 'readingPlans.gospels60.description',
+    duration_days: 60,
     category: 'book-study',
-    sortOrder: 4,
-    coverKey: 'sunrise',
-    completionCount: 3290,
-    entries: distributeSequential([...GOSPELS], 60),
+    sort_order: 4,
+    cover_key: 'mountains',
+    book_order: ['MAT', 'MRK', 'LUK', 'JHN'],
   },
   {
+    id: 'proverbs-31-days',
     slug: 'proverbs-31-days',
-    titleKey: 'readingPlans.proverbs31.title',
-    descriptionKey: 'readingPlans.proverbs31.description',
-    durationDays: 31,
+    title_key: 'readingPlans.proverbs31.title',
+    description_key: 'readingPlans.proverbs31.description',
+    duration_days: 31,
     category: 'devotional',
-    sortOrder: 5,
-    coverKey: 'desert',
-    completionCount: 2580,
-    entries: proverbs31Entries(),
+    sort_order: 5,
+    cover_key: 'desert',
+    book_order: ['PRO'],
   },
   {
+    id: 'genesis-to-revelation-chronological',
     slug: 'genesis-to-revelation-chronological',
-    titleKey: 'readingPlans.chronological.title',
-    descriptionKey: 'readingPlans.chronological.description',
-    durationDays: 365,
+    title_key: 'readingPlans.chronological.title',
+    description_key: 'readingPlans.chronological.description',
+    duration_days: 365,
     category: 'chronological',
-    sortOrder: 6,
-    coverKey: 'valley',
-    completionCount: 2960,
-    entries: chronologicalEntries(),
+    sort_order: 6,
+    cover_key: 'forest',
+    book_order: chronologicalOrder,
   },
   {
+    id: 'epistles-30-days',
     slug: 'epistles-30-days',
-    titleKey: 'readingPlans.epistles30.title',
-    descriptionKey: 'readingPlans.epistles30.description',
-    durationDays: 30,
+    title_key: 'readingPlans.epistles30.title',
+    description_key: 'readingPlans.epistles30.description',
+    duration_days: 30,
     category: 'book-study',
-    sortOrder: 7,
-    coverKey: 'forest',
-    completionCount: 3850,
-    entries: distributeSequential([...PAULS_LETTERS, 'HEB', 'JAS', '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD'], 30),
-  },
-  {
-    slug: 'sermon-on-the-mount-7-days',
-    titleKey: 'readingPlans.sermonMount7.title',
-    descriptionKey: 'readingPlans.sermonMount7.description',
-    durationDays: 7,
-    category: 'topical',
-    sortOrder: 8,
-    coverKey: 'shore',
-    completionCount: 1720,
-    entries: sermonOnTheMountEntries(),
-  },
-  {
-    slug: 'bible-in-30-days',
-    titleKey: 'readingPlans.bibleIn30Days.title',
-    descriptionKey: 'readingPlans.bibleIn30Days.description',
-    durationDays: 30,
-    category: 'chronological',
-    sortOrder: 10,
-    coverKey: 'dunes',
-    completionCount: 1240,
-    entries: distributeSequential([...ALL_BOOKS], 30),
-  },
-  {
-    slug: 'bible-in-90-days',
-    titleKey: 'readingPlans.bibleIn90Days.title',
-    descriptionKey: 'readingPlans.bibleIn90Days.description',
-    durationDays: 90,
-    category: 'chronological',
-    sortOrder: 11,
-    coverKey: 'mountains',
-    completionCount: 3870,
-    entries: distributeSequential([...ALL_BOOKS], 90),
-  },
-  {
-    slug: 'bible-in-6-months',
-    titleKey: 'readingPlans.bibleIn6Months.title',
-    descriptionKey: 'readingPlans.bibleIn6Months.description',
-    durationDays: 180,
-    category: 'chronological',
-    sortOrder: 12,
-    coverKey: 'valley',
-    completionCount: 6120,
-    entries: distributeSequential([...ALL_BOOKS], 180),
-  },
-  {
-    slug: 'nt-in-7-days',
-    titleKey: 'readingPlans.ntIn7Days.title',
-    descriptionKey: 'readingPlans.ntIn7Days.description',
-    durationDays: 7,
-    category: 'book-study',
-    sortOrder: 13,
-    coverKey: 'stars',
-    completionCount: 890,
-    entries: distributeSequential([...NT_BOOKS], 7),
-  },
-  {
-    slug: 'nt-in-14-days',
-    titleKey: 'readingPlans.ntIn14Days.title',
-    descriptionKey: 'readingPlans.ntIn14Days.description',
-    durationDays: 14,
-    category: 'book-study',
-    sortOrder: 14,
-    coverKey: 'shore',
-    completionCount: 2340,
-    entries: distributeSequential([...NT_BOOKS], 14),
-  },
-  {
-    slug: 'nt-in-30-days',
-    titleKey: 'readingPlans.ntIn30Days.title',
-    descriptionKey: 'readingPlans.ntIn30Days.description',
-    durationDays: 30,
-    category: 'book-study',
-    sortOrder: 15,
-    coverKey: 'sunrise',
-    completionCount: 4510,
-    entries: distributeSequential([...NT_BOOKS], 30),
-  },
-  {
-    slug: 'nt-in-6-months',
-    titleKey: 'readingPlans.ntIn6Months.title',
-    descriptionKey: 'readingPlans.ntIn6Months.description',
-    durationDays: 180,
-    category: 'book-study',
-    sortOrder: 16,
-    coverKey: 'forest',
-    completionCount: 7830,
-    entries: distributeSequential([...NT_BOOKS], 180),
-  },
-  {
-    slug: 'gospels-7-days',
-    titleKey: 'readingPlans.gospels7Days.title',
-    descriptionKey: 'readingPlans.gospels7Days.description',
-    durationDays: 7,
-    category: 'book-study',
-    sortOrder: 17,
-    coverKey: 'sunrise',
-    completionCount: 1650,
-    entries: distributeSequential([...GOSPELS], 7),
-  },
-  {
-    slug: 'gospels-14-days',
-    titleKey: 'readingPlans.gospels14Days.title',
-    descriptionKey: 'readingPlans.gospels14Days.description',
-    durationDays: 14,
-    category: 'book-study',
-    sortOrder: 18,
-    coverKey: 'shore',
-    completionCount: 3290,
-    entries: distributeSequential([...GOSPELS], 14),
-  },
-  {
-    slug: 'gospels-30-days',
-    titleKey: 'readingPlans.gospels30Days.title',
-    descriptionKey: 'readingPlans.gospels30Days.description',
-    durationDays: 30,
-    category: 'book-study',
-    sortOrder: 19,
-    coverKey: 'canyon',
-    completionCount: 5740,
-    entries: distributeSequential([...GOSPELS], 30),
-  },
-  {
-    slug: 'psalms-7-days',
-    titleKey: 'readingPlans.psalms7Days.title',
-    descriptionKey: 'readingPlans.psalms7Days.description',
-    durationDays: 7,
-    category: 'devotional',
-    sortOrder: 20,
-    coverKey: 'stars',
-    completionCount: 720,
-    entries: distributeSequential(['PSA'], 7),
-  },
-  {
-    slug: 'psalms-90-days',
-    titleKey: 'readingPlans.psalms90Days.title',
-    descriptionKey: 'readingPlans.psalms90Days.description',
-    durationDays: 90,
-    category: 'devotional',
-    sortOrder: 21,
-    coverKey: 'forest',
-    completionCount: 4180,
-    entries: distributeSequential(['PSA'], 90),
-  },
-  {
-    slug: 'ot-in-year',
-    titleKey: 'readingPlans.otInYear.title',
-    descriptionKey: 'readingPlans.otInYear.description',
-    durationDays: 365,
-    category: 'chronological',
-    sortOrder: 22,
-    coverKey: 'desert',
-    completionCount: 2960,
-    entries: distributeSequential([...OT_BOOKS], 365),
-  },
-  {
-    slug: 'ot-in-90-days',
-    titleKey: 'readingPlans.otIn90Days.title',
-    descriptionKey: 'readingPlans.otIn90Days.description',
-    durationDays: 90,
-    category: 'chronological',
-    sortOrder: 23,
-    coverKey: 'dunes',
-    completionCount: 1870,
-    entries: distributeSequential([...OT_BOOKS], 90),
-  },
-  {
-    slug: 'pentateuch-30-days',
-    titleKey: 'readingPlans.pentateuch30Days.title',
-    descriptionKey: 'readingPlans.pentateuch30Days.description',
-    durationDays: 30,
-    category: 'book-study',
-    sortOrder: 24,
-    coverKey: 'desert',
-    completionCount: 3140,
-    entries: distributeSequential([...PENTATEUCH], 30),
-  },
-  {
-    slug: 'wisdom-30-days',
-    titleKey: 'readingPlans.wisdom30Days.title',
-    descriptionKey: 'readingPlans.wisdom30Days.description',
-    durationDays: 30,
-    category: 'devotional',
-    sortOrder: 25,
-    coverKey: 'forest',
-    completionCount: 2580,
-    entries: distributeSequential([...WISDOM], 30),
-  },
-  {
-    slug: 'prophets-90-days',
-    titleKey: 'readingPlans.prophets90Days.title',
-    descriptionKey: 'readingPlans.prophets90Days.description',
-    durationDays: 90,
-    category: 'book-study',
-    sortOrder: 26,
-    coverKey: 'valley',
-    completionCount: 1420,
-    entries: distributeSequential([...PROPHETS], 90),
-  },
-  {
-    slug: 'pauls-letters-30-days',
-    titleKey: 'readingPlans.paulsLetters30Days.title',
-    descriptionKey: 'readingPlans.paulsLetters30Days.description',
-    durationDays: 30,
-    category: 'book-study',
-    sortOrder: 27,
-    coverKey: 'mountains',
-    completionCount: 3850,
-    entries: distributeSequential([...PAULS_LETTERS], 30),
-  },
-  {
-    slug: 'acts-28-days',
-    titleKey: 'readingPlans.acts28Days.title',
-    descriptionKey: 'readingPlans.acts28Days.description',
-    durationDays: 28,
-    category: 'book-study',
-    sortOrder: 28,
-    coverKey: 'shore',
-    completionCount: 6230,
-    entries: distributeSequential(['ACT'], 28),
-  },
-  {
-    slug: 'revelation-22-days',
-    titleKey: 'readingPlans.revelation22Days.title',
-    descriptionKey: 'readingPlans.revelation22Days.description',
-    durationDays: 22,
-    category: 'book-study',
-    sortOrder: 29,
-    coverKey: 'stars',
-    completionCount: 4910,
-    entries: distributeSequential(['REV'], 22),
+    sort_order: 7,
+    cover_key: 'valley',
+    book_order: epistlesOrder,
   },
 ];
 
-export const READING_PLANS: ReadingPlan[] = PLAN_DEFINITIONS.map(toReadingPlan);
+const verseRecipes: VersePlanRecipe[] = [
+  {
+    id: 'sermon-on-the-mount-7-days',
+    slug: 'sermon-on-the-mount-7-days',
+    title_key: 'readingPlans.sermonMount7.title',
+    description_key: 'readingPlans.sermonMount7.description',
+    duration_days: 7,
+    category: 'topical',
+    sort_order: 8,
+    cover_key: 'dunes',
+    entries: [
+      { day_number: 1, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 1, verse_end: 12 },
+      { day_number: 2, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 13, verse_end: 20 },
+      { day_number: 3, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 21, verse_end: 32 },
+      { day_number: 4, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 33, verse_end: 48 },
+      { day_number: 5, book: 'MAT', chapter_start: 6, chapter_end: 6, verse_start: 1, verse_end: 18 },
+      { day_number: 6, book: 'MAT', chapter_start: 6, chapter_end: 6, verse_start: 19, verse_end: 34 },
+      { day_number: 7, book: 'MAT', chapter_start: 7, chapter_end: 7, verse_start: 1, verse_end: 29 },
+    ],
+  },
+];
 
-export const READING_PLAN_BY_ID = new Map(READING_PLANS.map((plan) => [plan.id, plan]));
+const sequentialPlans = sequentialRecipes.map(buildSequentialPlan);
+const versePlans = verseRecipes.map(buildVersePlan);
 
-export const READING_PLAN_ENTRIES_BY_PLAN_ID = new Map<string, ReadingPlanEntry[]>(
-  PLAN_DEFINITIONS.map((definition) => [
-    definition.slug,
-    toReadingPlanEntries(definition.slug, definition.entries),
-  ])
+export const readingPlans = [...sequentialPlans, ...versePlans]
+  .map((item) => item.plan)
+  .sort((left, right) => left.sort_order - right.sort_order);
+
+export const readingPlanEntries = [...sequentialPlans, ...versePlans]
+  .flatMap((item) => item.entries)
+  .sort((left, right) => {
+    if (left.plan_id !== right.plan_id) {
+      return left.plan_id.localeCompare(right.plan_id);
+    }
+    return left.day_number - right.day_number;
+  });
+
+export const readingPlansById = new Map(readingPlans.map((plan) => [plan.id, plan] as const));
+export const readingPlansBySlug = new Map(readingPlans.map((plan) => [plan.slug, plan] as const));
+
+export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<Record<string, ReadingPlanEntry[]>>(
+  (accumulator, entry) => {
+    if (!accumulator[entry.plan_id]) {
+      accumulator[entry.plan_id] = [];
+    }
+    accumulator[entry.plan_id]!.push(entry);
+    return accumulator;
+  },
+  {}
 );
-
-export const TIMED_CHALLENGE_PLAN_IDS = new Set([
-  'bible-in-30-days',
-  'bible-in-90-days',
-  'bible-in-6-months',
-  'nt-in-7-days',
-  'nt-in-14-days',
-  'nt-in-30-days',
-  'nt-in-6-months',
-  'gospels-7-days',
-  'gospels-14-days',
-  'gospels-30-days',
-  'psalms-7-days',
-  'psalms-90-days',
-  'ot-in-year',
-  'ot-in-90-days',
-  'pentateuch-30-days',
-  'wisdom-30-days',
-  'prophets-90-days',
-  'pauls-letters-30-days',
-  'acts-28-days',
-  'revelation-22-days',
-]);
-

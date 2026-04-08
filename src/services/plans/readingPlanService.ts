@@ -1,17 +1,21 @@
-import {
-  READING_PLANS,
-  READING_PLAN_BY_ID,
-  READING_PLAN_ENTRIES_BY_PLAN_ID,
-  TIMED_CHALLENGE_PLAN_IDS,
-} from '../../data/readingPlans.generated';
-import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import type {
-  GroupReadingPlan,
   ReadingPlan,
   ReadingPlanEntry,
   UserReadingPlanProgress,
-  UserSavedPlan,
+  GroupReadingPlan,
+} from '../supabase/types';
+import { readingPlanEntriesByPlanId, readingPlans, readingPlansById } from '../../data/readingPlans.generated';
+import type {
+  GroupReadingPlan as LocalGroupReadingPlan,
+  ReadingPlan as LocalReadingPlan,
+  ReadingPlanEntry as LocalReadingPlanEntry,
+  ReadingPlanProgress as LocalReadingPlanProgress,
 } from './types';
+import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+
+// ---------------------------------------------------------------------------
+// Return-type helpers
+// ---------------------------------------------------------------------------
 
 export interface PlanServiceResult<T = undefined> {
   success: boolean;
@@ -19,141 +23,547 @@ export interface PlanServiceResult<T = undefined> {
   error?: string;
 }
 
-function getPlan(planId: string): ReadingPlan | undefined {
-  return READING_PLAN_BY_ID.get(planId);
+export interface ReadingPlanService {
+  listReadingPlans(): Promise<PlanServiceResult<LocalReadingPlan[]>>;
+  getPlanEntries(planId: string): Promise<PlanServiceResult<LocalReadingPlanEntry[]>>;
+  enrollInPlan(planId: string): Promise<PlanServiceResult<LocalReadingPlanProgress>>;
+  markDayComplete(
+    planId: string,
+    dayNumber: number
+  ): Promise<PlanServiceResult<LocalReadingPlanProgress>>;
+  getUserPlanProgress(planId?: string): Promise<PlanServiceResult<LocalReadingPlanProgress[]>>;
+  unenrollFromPlan(planId: string): Promise<PlanServiceResult>;
+  assignPlanToGroup(
+    planId: string,
+    groupId: string
+  ): Promise<PlanServiceResult<LocalGroupReadingPlan>>;
+  getGroupPlans(groupId: string): Promise<PlanServiceResult<LocalGroupReadingPlan[]>>;
+  syncPlanProgress(
+    localProgress: LocalReadingPlanProgress[]
+  ): Promise<PlanServiceResult<LocalReadingPlanProgress[]>>;
 }
 
-export async function listReadingPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
-  return { success: true, data: [...READING_PLANS].sort((a, b) => a.sort_order - b.sort_order) };
-}
+let supabaseModulePromise: Promise<typeof import('../supabase')> | null = null;
 
-export async function getPlanEntries(planId: string): Promise<PlanServiceResult<ReadingPlanEntry[]>> {
-  return { success: true, data: READING_PLAN_ENTRIES_BY_PLAN_ID.get(planId) ?? [] };
-}
-
-export async function enrollInPlan(planId: string): Promise<PlanServiceResult<UserReadingPlanProgress>> {
-  const plan = getPlan(planId);
-  if (!plan) {
-    return { success: false, error: 'Plan not found' };
+async function loadSupabaseModule() {
+  if (!supabaseModulePromise) {
+    supabaseModulePromise = import('../supabase');
   }
 
-  const created = useReadingPlansStore.getState().startPlan(planId);
-  return { success: true, data: created };
+  return supabaseModulePromise;
 }
+
+export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPlanService {
+  return {
+    listReadingPlans: async () => ({
+      success: true,
+      data: readingPlans as LocalReadingPlan[],
+    }),
+
+    getPlanEntries: async (planId: string) => ({
+      success: true,
+      data: (readingPlanEntriesByPlanId[planId] ?? []) as LocalReadingPlanEntry[],
+    }),
+
+    enrollInPlan: async (planId: string) => ({
+      success: true,
+      data: store.getState().enrollPlan(planId),
+    }),
+
+    markDayComplete: async (planId: string, dayNumber: number) => {
+      const totalDays = readingPlansById.get(planId)?.duration_days ?? 0;
+      const updated = store.getState().markDayComplete(planId, dayNumber, totalDays);
+
+      if (!updated) {
+        return { success: false, error: 'Not enrolled in this plan' };
+      }
+
+      return { success: true, data: updated };
+    },
+
+    getUserPlanProgress: async (planId?: string) => {
+      const allProgress = Object.values(store.getState().progressByPlanId);
+      const filtered = planId ? allProgress.filter((progress) => progress.plan_id === planId) : allProgress;
+
+      return {
+        success: true,
+        data: [...filtered].sort((left, right) => right.started_at.localeCompare(left.started_at)),
+      };
+    },
+
+    unenrollFromPlan: async (planId: string) => {
+      store.getState().unenrollPlan(planId);
+      return { success: true };
+    },
+
+    assignPlanToGroup: async (planId: string, groupId: string) => ({
+      success: true,
+      data: store.getState().assignGroupPlan(groupId, planId) as LocalGroupReadingPlan,
+    }),
+
+    getGroupPlans: async (groupId: string) => ({
+      success: true,
+      data: store.getState().getGroupPlans(groupId) as LocalGroupReadingPlan[],
+    }),
+
+    syncPlanProgress: async (localProgress: LocalReadingPlanProgress[]) => {
+      localProgress.forEach((progress) => {
+        store.getState().upsertProgress(progress);
+      });
+
+      return { success: true, data: localProgress };
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Internal auth helper (mirrors groupService pattern)
+// ---------------------------------------------------------------------------
+
+async function requireSignedInUser(action: string): Promise<
+  | { user: { id: string }; error: null }
+  | { user: null; error: string }
+> {
+  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+
+  if (!isSupabaseConfigured()) {
+    return { user: null, error: `Backend is not configured — cannot ${action}` };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { user: null, error: authError.message };
+  }
+
+  if (!user) {
+    return { user: null, error: `You must be signed in to ${action}` };
+  }
+
+  return { user: { id: user.id }, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// 1. listReadingPlans — browse all active plans
+// ---------------------------------------------------------------------------
+
+export async function listReadingPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
+  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+
+  if (!isSupabaseConfigured()) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('reading_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as ReadingPlan[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. getPlanEntries — all daily entries for a plan, ordered by day
+// ---------------------------------------------------------------------------
+
+export async function getPlanEntries(
+  planId: string
+): Promise<PlanServiceResult<ReadingPlanEntry[]>> {
+  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+
+  if (!isSupabaseConfigured()) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('reading_plan_entries')
+      .select('*')
+      .eq('plan_id', planId)
+      .order('day_number', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as ReadingPlanEntry[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. enrollInPlan — create a progress row for the current user
+// ---------------------------------------------------------------------------
+
+export async function enrollInPlan(
+  planId: string
+): Promise<PlanServiceResult<UserReadingPlanProgress>> {
+  const { supabase } = await loadSupabaseModule();
+  const { user, error: authError } = await requireSignedInUser('enroll in a reading plan');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    // Upsert so repeated enroll calls are idempotent (e.g. re-enrollment after
+    // unenrolling then re-joining).
+    const { data, error } = await supabase
+      .from('user_reading_plan_progress')
+      .upsert(
+        {
+          user_id: user.id,
+          plan_id: planId,
+          started_at: new Date().toISOString(),
+          completed_entries: {},
+          current_day: 1,
+          is_completed: false,
+          completed_at: null,
+        },
+        { onConflict: 'user_id,plan_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data as UserReadingPlanProgress };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. markDayComplete — record a day as done and advance current_day
+// ---------------------------------------------------------------------------
 
 export async function markDayComplete(
   planId: string,
   dayNumber: number
 ): Promise<PlanServiceResult<UserReadingPlanProgress>> {
-  const plan = getPlan(planId);
-  if (!plan) {
-    return { success: false, error: 'Plan not found' };
+  const { supabase } = await loadSupabaseModule();
+  const { user, error: authError } = await requireSignedInUser('mark a reading day complete');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
   }
 
-  const updated = useReadingPlansStore.getState().markDayComplete(planId, dayNumber, plan.duration_days);
-  if (!updated) {
-    return { success: false, error: 'Plan not started' };
-  }
+  try {
+    // Fetch existing progress first so we can merge completed_entries
+    const { data: existing, error: fetchError } = await supabase
+      .from('user_reading_plan_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('plan_id', planId)
+      .maybeSingle();
 
-  return { success: true, data: updated };
+    if (fetchError) {
+      return { success: false, error: fetchError.message };
+    }
+
+    if (!existing) {
+      return { success: false, error: 'Not enrolled in this plan' };
+    }
+
+    const progress = existing as UserReadingPlanProgress;
+    const updatedEntries: Record<string, string> = {
+      ...progress.completed_entries,
+      [String(dayNumber)]: new Date().toISOString(),
+    };
+
+    // Advance current_day to the next uncompleted day (minimum: dayNumber + 1)
+    const nextDay = Math.max(progress.current_day, dayNumber + 1);
+
+    // Determine completion: plan is done when total entries equal completed count.
+    // We do a lightweight check via plan duration; full validation happens server-side.
+    const { data: planRow } = await supabase
+      .from('reading_plans')
+      .select('duration_days')
+      .eq('id', planId)
+      .maybeSingle();
+
+    const durationDays = (planRow as Pick<ReadingPlan, 'duration_days'> | null)?.duration_days ?? 0;
+    const completedCount = Object.keys(updatedEntries).length;
+    const isPlanCompleted = durationDays > 0 && completedCount >= durationDays;
+
+    const { data, error: updateError } = await supabase
+      .from('user_reading_plan_progress')
+      .update({
+        completed_entries: updatedEntries,
+        current_day: nextDay,
+        is_completed: isPlanCompleted,
+        completed_at: isPlanCompleted ? new Date().toISOString() : null,
+        synced_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+      .eq('plan_id', planId)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true, data: data as UserReadingPlanProgress };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
+
+// ---------------------------------------------------------------------------
+// 5. getUserPlanProgress — fetch progress for one plan or all enrolled plans
+// ---------------------------------------------------------------------------
 
 export async function getUserPlanProgress(
   planId?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
-  return { success: true, data: useReadingPlansStore.getState().getProgress(planId) };
+  const { supabase } = await loadSupabaseModule();
+  const { user, error: authError } = await requireSignedInUser('fetch reading plan progress');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    let query = supabase
+      .from('user_reading_plan_progress')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (planId) {
+      query = query.eq('plan_id', planId);
+    }
+
+    const { data, error } = await query.order('started_at', { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as UserReadingPlanProgress[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
+
+// ---------------------------------------------------------------------------
+// 6. unenrollFromPlan — remove the user's progress row for a plan
+// ---------------------------------------------------------------------------
 
 export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {
-  useReadingPlansStore.getState().removePlan(planId);
-  return { success: true };
+  const { supabase } = await loadSupabaseModule();
+  const { user, error: authError } = await requireSignedInUser('unenroll from a reading plan');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('user_reading_plan_progress')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('plan_id', planId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
+
+// ---------------------------------------------------------------------------
+// 7. assignPlanToGroup — leader assigns a reading plan to their group
+// ---------------------------------------------------------------------------
 
 export async function assignPlanToGroup(
-  _planId: string,
-  _groupId: string
+  planId: string,
+  groupId: string
 ): Promise<PlanServiceResult<GroupReadingPlan>> {
-  return { success: false, error: 'Group plan assignments are not supported in local mode' };
+  const { supabase } = await loadSupabaseModule();
+  const { user, error: authError } = await requireSignedInUser('assign a plan to a group');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('group_reading_plans')
+      .insert({
+        group_id: groupId,
+        plan_id: planId,
+        assigned_by: user.id,
+        started_at: new Date().toISOString(),
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data as GroupReadingPlan };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
 
-export async function getGroupPlans(_groupId: string): Promise<PlanServiceResult<GroupReadingPlan[]>> {
-  return { success: true, data: [] };
+// ---------------------------------------------------------------------------
+// 8. getGroupPlans — all plans assigned to a group
+// ---------------------------------------------------------------------------
+
+export async function getGroupPlans(
+  groupId: string
+): Promise<PlanServiceResult<GroupReadingPlan[]>> {
+  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+  if (!isSupabaseConfigured()) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('group_reading_plans')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('started_at', { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: (data ?? []) as GroupReadingPlan[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
+
+// ---------------------------------------------------------------------------
+// 9. syncPlanProgress — push local progress records to Supabase
+//    localProgress: array of UserReadingPlanProgress from the local store
+// ---------------------------------------------------------------------------
 
 export async function syncPlanProgress(
   localProgress: UserReadingPlanProgress[]
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
-  return { success: true, data: localProgress };
+  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+  if (!isSupabaseConfigured()) {
+    // Nothing to sync; treat as success so offline callers are not disrupted
+    return { success: true, data: localProgress };
+  }
+
+  const { user, error: authError } = await requireSignedInUser('sync reading plan progress');
+  if (!user) {
+    return { success: false, error: authError ?? undefined };
+  }
+
+  if (localProgress.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    // Fetch remote state for all relevant plan IDs in one query
+    const planIds = [...new Set(localProgress.map((p) => p.plan_id))];
+    const { data: remoteRows, error: fetchError } = await supabase
+      .from('user_reading_plan_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('plan_id', planIds);
+
+    if (fetchError) {
+      return { success: false, error: fetchError.message };
+    }
+
+    const remoteByPlanId = new Map<string, UserReadingPlanProgress>(
+      ((remoteRows ?? []) as UserReadingPlanProgress[]).map((r) => [r.plan_id, r])
+    );
+
+    // Merge: union completed_entries, take the higher current_day, prefer completed state
+    const merged: UserReadingPlanProgress[] = localProgress.map((local) => {
+      const remote = remoteByPlanId.get(local.plan_id);
+
+      if (!remote) {
+        return { ...local, synced_at: now };
+      }
+
+      const mergedEntries: Record<string, string> = {
+        ...remote.completed_entries,
+        ...local.completed_entries,
+      };
+
+      const higherDay = Math.max(local.current_day, remote.current_day);
+      const isCompleted = local.is_completed || remote.is_completed;
+      const completedAt = local.completed_at ?? remote.completed_at;
+
+      return {
+        ...remote,
+        completed_entries: mergedEntries,
+        current_day: higherDay,
+        is_completed: isCompleted,
+        completed_at: completedAt,
+        synced_at: now,
+      };
+    });
+
+    // Upsert merged rows — conflict key is (user_id, plan_id)
+    const upsertPayload = merged.map(({ id: _id, ...rest }) => ({
+      ...rest,
+      user_id: user.id,
+    }));
+
+    const { data: upserted, error: upsertError } = await supabase
+      .from('user_reading_plan_progress')
+      .upsert(upsertPayload, { onConflict: 'user_id,plan_id' })
+      .select('*');
+
+    if (upsertError) {
+      return { success: false, error: upsertError.message };
+    }
+
+    return { success: true, data: (upserted ?? []) as UserReadingPlanProgress[] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
 }
-
-export async function savePlanForLater(planId: string): Promise<PlanServiceResult<UserSavedPlan>> {
-  useReadingPlansStore.getState().savePlan(planId);
-  return {
-    success: true,
-    data: {
-      id: planId,
-      user_id: 'local-user',
-      plan_id: planId,
-      saved_at: new Date().toISOString(),
-    },
-  };
-}
-
-export async function unsavePlan(planId: string): Promise<PlanServiceResult> {
-  useReadingPlansStore.getState().unsavePlan(planId);
-  return { success: true };
-}
-
-export async function getSavedPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
-  const savedIds = new Set(useReadingPlansStore.getState().getSavedPlanIds());
-  return {
-    success: true,
-    data: READING_PLANS.filter((plan) => savedIds.has(plan.id)).sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
-  };
-}
-
-export async function getCompletedPlans(): Promise<
-  PlanServiceResult<(UserReadingPlanProgress & { plan: ReadingPlan })[]>
-> {
-  const completed = useReadingPlansStore
-    .getState()
-    .getProgress()
-    .filter((progress) => progress.is_completed)
-    .map((progress) => ({
-      ...progress,
-      plan: getPlan(progress.plan_id)!,
-    }))
-    .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
-
-  return { success: true, data: completed };
-}
-
-export async function getFeaturedPlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
-  return {
-    success: true,
-    data: READING_PLANS.filter((plan) => plan.featured).sort((a, b) => a.sort_order - b.sort_order),
-  };
-}
-
-export async function getTimedChallengePlans(): Promise<PlanServiceResult<ReadingPlan[]>> {
-  return {
-    success: true,
-    data: READING_PLANS.filter((plan) => TIMED_CHALLENGE_PLAN_IDS.has(plan.id)).sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
-  };
-}
-
-export async function getPlansByCategory(
-  category: string
-): Promise<PlanServiceResult<ReadingPlan[]>> {
-  return {
-    success: true,
-    data: READING_PLANS.filter((plan) => plan.category === category).sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
-  };
-}
-

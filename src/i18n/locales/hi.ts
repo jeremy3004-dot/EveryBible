@@ -739,6 +739,9 @@ export const hi = {
     cloudLibrary: 'क्लाउड लाइब्रेरी',
     downloading: 'डाउनलोड हो रहा है...',
     downloadPrompt: 'ऑफलाइन पढ़ने के लिए {{name}} (~{{size}} MB) डाउनलोड करें?',
+    deleteConfirmTitle: 'अनुवाद हटाएं',
+    deleteConfirmMessage: '{{name}} का डाउनलोड किया गया डेटा हटाएं? आप इसे कभी भी दोबारा डाउनलोड कर सकते हैं।',
+    delete: 'हटाएं',
   },
   gather: {
     title: 'इकट्ठा',
