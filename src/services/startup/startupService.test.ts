@@ -93,3 +93,37 @@ test('critical startup continues when auth initialization stalls', async () => {
   assert.equal(outcome, 'resolved');
   assert.deepEqual(calls, ['auth', 'timeout:auth', 'privacy']);
 });
+
+test('critical startup continues when storage migration stalls', async () => {
+  const calls: string[] = [];
+
+  const coordinator = createStartupCoordinator({
+    migrateStorage: async () => {
+      calls.push('migration');
+      await new Promise<void>(() => {});
+    },
+    initializeAuth: async () => {
+      calls.push('auth');
+    },
+    initializePrivacy: async () => {
+      calls.push('privacy');
+    },
+    preloadBibleData: async () => {
+      calls.push('bible');
+    },
+    migrateStorageTimeoutMs: 10,
+    onCriticalTimeout: (taskName: string) => {
+      calls.push(`timeout:${taskName}`);
+    },
+  });
+
+  const outcome = await Promise.race([
+    coordinator.initializeCritical().then(() => 'resolved'),
+    new Promise<'deadline'>((resolve) => {
+      setTimeout(() => resolve('deadline'), 75);
+    }),
+  ]);
+
+  assert.equal(outcome, 'resolved');
+  assert.deepEqual(calls, ['migration', 'timeout:migrateStorage', 'auth', 'privacy']);
+});
