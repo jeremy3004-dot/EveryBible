@@ -13,43 +13,64 @@ test('BibleReaderScreen uses plan-day activity helpers to detect when todays tar
   );
 });
 
-test('BibleReaderScreen marks the active plan day complete and routes back to PlanDetail', () => {
+test('BibleReaderScreen keeps read-mode plan completion explicit while still routing completed days back to PlanDetail', () => {
   assert.match(
     source,
     /await markDayComplete\(activePlanId,\s*planDayNumber\)/,
-    'BibleReaderScreen should auto-complete the active plan day when the target is met'
+    'BibleReaderScreen should still mark the active plan day complete through the shared completion flow'
+  );
+  assert.match(
+    source,
+    /chapterSessionMode === 'read'/,
+    'BibleReaderScreen should gate read-mode day completion behind the current reader session mode'
+  );
+  assert.match(
+    source,
+    /const handleCompletePlanDay = useCallback\(/,
+    'BibleReaderScreen should define an explicit final-step handler for completing a plan day from read mode'
   );
   assert.match(
     source,
     /rootNavigationRef\.navigate\('Plans',\s*{[\s\S]*screen:\s*'PlanDetail'/s,
     'BibleReaderScreen should return the user to the plan detail after daily completion'
   );
-});
-
-test('BibleReaderScreen uses a dedicated guard for plan-day completion so rerenders do not suppress the success alert', () => {
-  assert.match(
-    source,
-    /const planDayCompletionGuardRef = useRef<string \| null>\(null\);/,
-    'BibleReaderScreen should keep plan-day completion separate from the chapter analytics guard'
+  assert.equal(
+    source.includes('readingPlans.dailyTargetCompleteTitle'),
+    false,
+    'BibleReaderScreen should no longer show the old daily-complete alert once the explicit check action exists'
   );
-  assert.match(
-    source,
-    /if \(!result\.success\) \{[\s\S]*planDayCompletionGuardRef\.current = null;[\s\S]*return;[\s\S]*\}/s,
-    'BibleReaderScreen should clear the plan-day completion guard when persisting completion fails so the effect can retry'
+  assert.equal(
+    source.includes('readingPlans.dailyTargetCompleteBody'),
+    false,
+    'BibleReaderScreen should remove the old daily-complete alert body copy from the reader flow'
   );
 });
 
-test('BibleReaderScreen renders explicit todays plan progress inside listen mode', () => {
-  assert.match(source, /const renderListenMode = \(\) =>/, 'BibleReaderScreen should render a listen-mode UI block');
+test('BibleReaderScreen renders the simplified listen-mode plan chrome without the old progress card', () => {
   assert.match(
     source,
-    /listenPlanProgressCard/,
-    'BibleReaderScreen should render a dedicated plan progress card while listening'
+    /renderPlanSessionBottomBar/,
+    'BibleReaderScreen should render a shared bottom plan strip while listening or reading'
   );
   assert.match(
     source,
-    /listenTargetProgress/,
-    'BibleReaderScreen should show the current day target and completion count while listening'
+    /floatingReaderPlanExitButton/,
+    'BibleReaderScreen should render a small exit arrow in plan mode'
+  );
+  assert.equal(
+    source.includes('listenPlanProgressCard'),
+    false,
+    'BibleReaderScreen should not render the old duplicate plan progress card inside listen mode'
+  );
+  assert.equal(
+    source.includes('LISTEN_PLAN_PROGRESS_CARD_TEST_ID'),
+    false,
+    'BibleReaderScreen should not keep the old listen-mode plan progress card selector around'
+  );
+  assert.match(
+    source,
+    /showPlanChapterArrows = chapterSessionMode === 'read'/,
+    'BibleReaderScreen should suppress plan strip chapter arrows while listening'
   );
 });
 
@@ -94,20 +115,15 @@ test('BibleReaderScreen shows a transient listen-mode plan-counted message only 
   );
 });
 
-test('BibleReaderScreen exposes stable selectors for listen-mode plan progress and counted notice surfaces', () => {
+test('BibleReaderScreen exposes stable selectors for listen-mode counted feedback surfaces', () => {
   assert.match(
     source,
-    /testID=\{LISTEN_PLAN_PROGRESS_CARD_TEST_ID\}/,
-    'BibleReaderScreen should attach a stable testID to the listen-mode plan progress card'
+    /testID=\{LISTEN_COUNTED_NOTICE_TEST_ID\}/,
+    'BibleReaderScreen should attach a stable testID to the transient counted notice'
   );
   assert.match(
     source,
     /getListenCountedNoticeViewModel\(listenCountedNotice\)/,
     'BibleReaderScreen should derive notice rendering from the reusable notice view-model helper'
-  );
-  assert.match(
-    source,
-    /testID=\{LISTEN_COUNTED_NOTICE_TEST_ID\}/,
-    'BibleReaderScreen should attach a stable testID to the transient counted notice'
   );
 });

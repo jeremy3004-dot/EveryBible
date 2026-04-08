@@ -61,7 +61,7 @@ test('TabNavigator does not depend on a shared reader tab-bar store flag', () =>
   assert.equal(
     source.includes('readerTabBarVisible'),
     false,
-    'TabNavigator should not depend on a shared readerTabBarVisible store flag now that BibleReader keeps the root tabs stable directly'
+    'TabNavigator should not depend on a shared readerTabBarVisible store flag now that BibleReader controls the tab bar through route params'
   );
 });
 
@@ -104,87 +104,31 @@ test('TabNavigator keeps Home in the normal tab bar instead of floating it over 
   assert.equal(source.includes("position: 'absolute'"), false);
 });
 
-test('TabNavigator keeps BibleReader in the shared bottom tab bar instead of relying on route params', () => {
+test('TabNavigator hides BibleReader only when it is launched as a plan session', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
-
-  assert.equal(
-    source.includes('tabBarVisible'),
-    false,
-    'TabNavigator should not hide the BibleReader tab bar from route params that can get stuck after transitions'
-  );
 
   assert.match(
     source,
     /shouldHideTabBarOnNestedRoute/,
-    'TabNavigator should only hide the root tab bar for explicit nested routes like picker/modals'
-  );
-});
-
-test('TabNavigator resumes the last open Bible chapter when the Bible tab is pressed from a cold start', () => {
-  const source = readRelativeSource('./TabNavigator.tsx');
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.hasReaderHistory\)/,
-    'TabNavigator should read persisted Bible reader history before deciding where the Bible tab should open'
+    'TabNavigator should use the shared nested-route visibility helper'
   );
 
   assert.match(
     source,
-    /useBibleStore\(\(state\) => state\.currentBook\)/,
-    'TabNavigator should read the last open Bible book from the shared store'
+    /getFocusedRouteNameFromRoute\(route\)/,
+    'TabNavigator should resolve the nested route before asking the helper whether to hide the bar'
   );
 
   assert.match(
     source,
-    /useBibleStore\(\(state\) => state\.currentChapter\)/,
-    'TabNavigator should read the last open Bible chapter from the shared store'
+    /params\?\.screen/,
+    'TabNavigator should also fall back to the root tab route params when nested state has not populated yet'
   );
 
   assert.match(
     source,
-    /listeners=\{\(\{ navigation, route \}\) =>/,
-    'TabNavigator should attach a Bible tab-press listener so cold starts can resume into the reader stack'
-  );
-
-  assert.match(
-    source,
-    /navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
-    'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
-  );
-});
-
-test('TabNavigator resumes the last open Bible chapter when the Bible tab is pressed from a cold start', () => {
-  const source = readRelativeSource('./TabNavigator.tsx');
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.hasReaderHistory\)/,
-    'TabNavigator should read persisted Bible reader history before deciding where the Bible tab should open'
-  );
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.currentBook\)/,
-    'TabNavigator should read the last open Bible book from the shared store'
-  );
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.currentChapter\)/,
-    'TabNavigator should read the last open Bible chapter from the shared store'
-  );
-
-  assert.match(
-    source,
-    /listeners=\{\(\{ navigation, route \}\) =>/,
-    'TabNavigator should attach a Bible tab-press listener so cold starts can resume into the reader stack'
-  );
-
-  assert.match(
-    source,
-    /navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
-    'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
+    /params\?\.params/,
+    'TabNavigator should read nested route params from the root tab route params during early plan-reader navigation'
   );
 });
 

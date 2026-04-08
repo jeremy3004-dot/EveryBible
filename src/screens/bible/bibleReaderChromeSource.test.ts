@@ -248,6 +248,28 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
   );
 });
 
+test('BibleReaderScreen directly hides the RootTab bar while a plan session is active', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /navigation\.getParent\(\)/,
+    'BibleReaderScreen should reach up to the RootTab navigator during plan sessions'
+  );
+
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*\{\s*display:\s*'none'\s*\},\s*\}\)/s,
+    'BibleReaderScreen should explicitly hide the RootTab bar while the plan reader is active'
+  );
+
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/,
+    'BibleReaderScreen should restore the RootTab bar styling when plan-reader mode ends'
+  );
+});
+
 test('BibleReaderScreen resolves chapter navigation targets across book boundaries', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
