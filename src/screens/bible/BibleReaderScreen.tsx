@@ -127,7 +127,6 @@ import {
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
-  LISTEN_PLAN_PROGRESS_CARD_TEST_ID,
   getReaderVerseLineHeight,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
@@ -503,13 +502,23 @@ export function BibleReaderScreen() {
 
   useEffect(() => {
     syncRootTabBarVisibility(
-      getNextBibleTabBarVisibility({
-        sessionMode: chapterSessionMode,
-        action: 'enter',
-      })
+      Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete
+        ? false
+        : getNextBibleTabBarVisibility({
+            sessionMode: chapterSessionMode,
+            action: 'enter',
+          })
     );
     scrollDragStartOffsetYRef.current = 0;
-  }, [bookId, chapter, chapterSessionMode, syncRootTabBarVisibility]);
+  }, [
+    activePlanId,
+    bookId,
+    chapter,
+    chapterSessionMode,
+    planDayNumber,
+    returnToPlanOnComplete,
+    syncRootTabBarVisibility,
+  ]);
 
   const handleReaderScrollBeginDrag = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {
@@ -528,16 +537,24 @@ export function BibleReaderScreen() {
       }
 
       syncRootTabBarVisibility(
-        getNextBibleTabBarVisibility({
-          sessionMode: chapterSessionMode,
-          action: 'scrollEndDrag',
-          previousScrollOffsetY: scrollDragStartOffsetYRef.current,
-          currentScrollOffsetY: event.nativeEvent.contentOffset.y,
-          velocityY: event.nativeEvent.velocity?.y ?? 0,
-        })
+        Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete
+          ? false
+          : getNextBibleTabBarVisibility({
+              sessionMode: chapterSessionMode,
+              action: 'scrollEndDrag',
+              previousScrollOffsetY: scrollDragStartOffsetYRef.current,
+              currentScrollOffsetY: event.nativeEvent.contentOffset.y,
+              velocityY: event.nativeEvent.velocity?.y ?? 0,
+            })
       );
     },
-    [chapterSessionMode, syncRootTabBarVisibility]
+    [
+      activePlanId,
+      chapterSessionMode,
+      planDayNumber,
+      returnToPlanOnComplete,
+      syncRootTabBarVisibility,
+    ]
   );
 
   const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
@@ -676,14 +693,41 @@ export function BibleReaderScreen() {
     typeof planDayNumber === 'number' &&
     returnToPlanOnComplete &&
     activePlanChapterIndex >= 0;
-  const isFinalPlanSessionChapter =
-    isInActivePlanSession && activePlanChapterIndex === activePlanDayChapterItems.length - 1;
-  const showPlanSessionFooter = isInActivePlanSession && activePlanDayChapterItems.length > 0;
   const activePlanTitle = activePlanRecord
     ? t(activePlanRecord.title_key as Parameters<typeof t>[0], {
         defaultValue: activePlanRecord.title_key,
       })
     : null;
+  const showPlanSessionChrome =
+    isInActivePlanSession &&
+    activePlanTitle != null &&
+    typeof planDayNumber === 'number' &&
+    activePlanDayChapterItems.length > 0;
+  const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
+  useEffect(() => {
+    const rootTabNavigation = navigation.getParent();
+    if (!rootTabNavigation) {
+      return;
+    }
+
+    if (showPlanSessionChrome) {
+      rootTabNavigation.setOptions({
+        tabBarStyle: { display: 'none' },
+      });
+
+      return () => {
+        rootTabNavigation.setOptions({
+          tabBarStyle: undefined,
+        });
+      };
+    }
+
+    rootTabNavigation.setOptions({
+      tabBarStyle: undefined,
+    });
+
+    return undefined;
+  }, [navigation, showPlanSessionChrome]);
   const activePlanDaySummary = useMemo(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
       return null;
@@ -1283,7 +1327,7 @@ export function BibleReaderScreen() {
     }
   };
 
-  useEffect(() => {
+  const handleCompletePlanDay = useCallback(async () => {
     if (
       !activePlanId ||
       typeof planDayNumber !== 'number' ||
@@ -1302,47 +1346,54 @@ export function BibleReaderScreen() {
     }
 
     planDayCompletionGuardRef.current = completionKey;
+    const result = await markDayComplete(activePlanId, planDayNumber);
+    if (!result.success) {
+      planDayCompletionGuardRef.current = null;
+      return;
+    }
 
-    void (async () => {
-      const result = await markDayComplete(activePlanId, planDayNumber);
-      if (!result.success) {
-        planDayCompletionGuardRef.current = null;
-        return;
-      }
+    if (!rootNavigationRef.isReady()) {
+      return;
+    }
 
-      Alert.alert(
-        t('readingPlans.dailyTargetCompleteTitle', {
-          defaultValue: 'Daily reading complete',
-        }),
-        t('readingPlans.dailyTargetCompleteBody', {
-          count: activePlanDaySummary.targetChapterCount,
-          defaultValue:
-            "You finished today's plan reading. We'll take you back to your plan so you can see your progress.",
-        }),
-        [
-          {
-            text: t('common.ok'),
-            onPress: () => {
-              if (!rootNavigationRef.isReady()) {
-                return;
-              }
-
-              rootNavigationRef.navigate('Plans', {
-                screen: 'PlanDetail',
-                params: { planId: activePlanId },
-              });
-            },
-          },
-        ]
-      );
-    })();
+    rootNavigationRef.navigate('Plans', {
+      screen: 'PlanDetail',
+      params: { planId: activePlanId },
+    });
   }, [
     activePlanDaySummary,
     activePlanId,
     activePlanProgress,
     planDayNumber,
     returnToPlanOnComplete,
-    t,
+  ]);
+
+  useEffect(() => {
+    if (chapterSessionMode === 'read') {
+      return;
+    }
+
+    if (
+      !activePlanId ||
+      typeof planDayNumber !== 'number' ||
+      !returnToPlanOnComplete ||
+      !activePlanProgress ||
+      activePlanProgress.is_completed ||
+      activePlanProgress.current_day !== planDayNumber ||
+      !activePlanDaySummary?.isComplete
+    ) {
+      return;
+    }
+
+    void handleCompletePlanDay();
+  }, [
+    activePlanDaySummary,
+    activePlanId,
+    activePlanProgress,
+    chapterSessionMode,
+    handleCompletePlanDay,
+    planDayNumber,
+    returnToPlanOnComplete,
   ]);
 
   useEffect(
@@ -1447,10 +1498,6 @@ export function BibleReaderScreen() {
     },
     []
   );
-
-  if (!book) {
-    return null;
-  }
 
   const previousSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
     playbackSequenceEntries,
@@ -2301,6 +2348,36 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
   };
 
+  const handleRemoveHighlightSelectedVerses = async (color: string) => {
+    if (selectedVerseRanges.length === 0) {
+      return;
+    }
+
+    for (const range of selectedVerseRanges) {
+      const existing = annotations.find(
+        (annotation) =>
+          annotation.type === 'highlight' &&
+          !annotation.deleted_at &&
+          annotation.color === color &&
+          annotation.verse_start === range.verse_start &&
+          getAnnotationVerseEnd(annotation) === range.verse_end
+      );
+
+      if (!existing) {
+        continue;
+      }
+
+      const result = await softDeleteAnnotation(existing.id);
+      if (!result.success) {
+        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        return;
+      }
+    }
+
+    await reloadAnnotations();
+    setSelectedVerses([]);
+  };
+
   const handleNoteSelectedVerses = async (text: string) => {
     if (selectedVerseRanges.length === 0) {
       return;
@@ -2335,86 +2412,88 @@ export function BibleReaderScreen() {
     await reloadAnnotations();
   };
 
-  const handleAdvancePlanSession = useCallback(() => {
-    if (!showPlanSessionFooter) {
+  const handleExitPlanSession = useCallback(() => {
+    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
       return;
     }
 
-    if (isFinalPlanSessionChapter) {
-      if (
-        !activePlanId ||
-        typeof planDayNumber !== 'number' ||
-        !rootNavigationRef.isReady()
-      ) {
-        return;
-      }
-
-      void (async () => {
-        const result = await markDayComplete(activePlanId, planDayNumber);
-        if (!result.success) {
-          Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
-          return;
-        }
-
-        rootNavigationRef.navigate('Plans', {
-          screen: 'PlanDetail',
-          params: { planId: activePlanId },
-        });
-      })();
-      return;
-    }
-
-    const nextPlanChapter = activePlanDayChapterItems[activePlanChapterIndex + 1];
-    if (!nextPlanChapter) {
-      return;
-    }
-
-    navigation.navigate('BibleReader', {
-      bookId: nextPlanChapter.bookId,
-      chapter: nextPlanChapter.chapter,
-      preferredMode: chapterSessionMode,
-      planId: activePlanId,
-      planDayNumber,
-      returnToPlanOnComplete,
+    rootNavigationRef.navigate('Plans', {
+      screen: 'PlanDetail',
+      params: { planId: activePlanId },
     });
-  }, [
-    activePlanChapterIndex,
-    activePlanDayChapterItems,
-    activePlanId,
-    chapterSessionMode,
-    isFinalPlanSessionChapter,
-    navigation,
-    planDayNumber,
-    returnToPlanOnComplete,
-    showPlanSessionFooter,
-    t,
-  ]);
+  }, [activePlanId, showPlanSessionChrome]);
 
-  const renderPlanSessionFooter = () => {
-    if (!showPlanSessionFooter || !activePlanTitle || typeof planDayNumber !== 'number') {
+  const renderPlanSessionBottomBar = () => {
+    if (!showPlanSessionChrome || !activePlanTitle || typeof planDayNumber !== 'number') {
       return null;
     }
+
+    const planSessionBottomBarHeight = layout.tabBarBaseHeight + spacing.lg + safeInsets.bottom;
+    const showPlanChapterArrows = chapterSessionMode === 'read';
+    const showPlanCompletionAction = showPlanChapterArrows && isLastPlanChapter;
+    const trailingActionEnabled = showPlanCompletionAction
+      ? Boolean(activePlanDaySummary?.isComplete)
+      : hasNextChapter;
+    const trailingActionLabel = showPlanCompletionAction
+      ? t('readingPlans.completeDayCta', {
+          defaultValue: 'Complete day',
+        })
+      : t('common.next');
+    const trailingActionHint = showPlanCompletionAction
+      ? "Marks today's reading plan complete"
+      : 'Goes to the next chapter';
 
     return (
       <View
         style={[
-          styles.planSessionFooterShell,
+          styles.planSessionBottomBar,
           {
-            backgroundColor: colors.bibleSurface,
-            borderColor: colors.bibleDivider,
-            paddingBottom: safeInsets.bottom + spacing.md,
+            backgroundColor: colors.accentPrimary,
+            borderTopColor: colors.primaryText + '18',
+            height: planSessionBottomBarHeight,
+            paddingBottom: safeInsets.bottom + spacing.sm,
           },
         ]}
       >
-        <View style={styles.planSessionFooterRow}>
-          <View style={styles.planSessionFooterCopy}>
+        <View style={styles.planSessionBottomBarContent}>
+          {showPlanChapterArrows ? (
+            <TouchableOpacity
+              style={[
+                styles.planSessionBottomBarArrowButton,
+                !hasPrevChapter ? styles.disabledSessionModeButton : null,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => void handlePreviousReadChapter()}
+              disabled={!hasPrevChapter}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.previous')}
+              accessibilityHint="Goes to the previous chapter"
+            >
+              <Ionicons
+                name="chevron-back"
+                size={22}
+                color={hasPrevChapter ? colors.primaryText : colors.primaryText + '66'}
+              />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.planSessionBottomBarArrowSpacer} />
+          )}
+
+          <View
+            style={[
+              styles.planSessionBottomBarCopy,
+              showPlanChapterArrows
+                ? styles.planSessionBottomBarCopyCentered
+                : styles.planSessionBottomBarCopyListenMode,
+            ]}
+          >
             <Text
-              style={[styles.planSessionFooterTitle, { color: colors.biblePrimaryText }]}
+              style={[styles.planSessionBottomBarTitle, { color: colors.primaryText }]}
               numberOfLines={1}
             >
               {activePlanTitle}
             </Text>
-            <Text style={[styles.planSessionFooterMeta, { color: colors.bibleSecondaryText }]}> 
+            <Text style={[styles.planSessionBottomBarMeta, { color: colors.primaryText }]}>
               {t('readingPlans.dayLabel', {
                 day: planDayNumber,
                 defaultValue: `Day ${planDayNumber}`,
@@ -2428,19 +2507,42 @@ export function BibleReaderScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.planSessionFooterButton,
-              { backgroundColor: colors.accentPrimary },
-            ]}
-            onPress={handleAdvancePlanSession}
-          >
-            <Text style={[styles.planSessionFooterButtonText, { color: colors.cardBackground }]}> 
-              {isFinalPlanSessionChapter
-                ? t('readingPlans.completeDayCta', { defaultValue: 'Complete day' })
-                : t('readingPlans.nextChapterCta', { defaultValue: 'Next chapter' })}
-            </Text>
-          </TouchableOpacity>
+          {showPlanChapterArrows ? (
+            <TouchableOpacity
+              style={[
+                styles.planSessionBottomBarArrowButton,
+                showPlanCompletionAction
+                  ? [
+                      styles.planSessionBottomBarCompleteButton,
+                      { backgroundColor: colors.primaryText },
+                    ]
+                  : null,
+                !trailingActionEnabled ? styles.disabledSessionModeButton : null,
+              ]}
+              activeOpacity={0.85}
+              onPress={() =>
+                void (showPlanCompletionAction ? handleCompletePlanDay() : handleNextReadChapter())
+              }
+              disabled={!trailingActionEnabled}
+              accessibilityRole="button"
+              accessibilityLabel={trailingActionLabel}
+              accessibilityHint={trailingActionHint}
+            >
+              <Ionicons
+                name={showPlanCompletionAction ? 'checkmark' : 'chevron-forward'}
+                size={22}
+                color={
+                  trailingActionEnabled
+                    ? showPlanCompletionAction
+                      ? colors.accentPrimary
+                      : colors.primaryText
+                    : colors.primaryText + '66'
+                }
+              />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.planSessionBottomBarArrowSpacer} />
+          )}
         </View>
       </View>
     );
@@ -2452,13 +2554,11 @@ export function BibleReaderScreen() {
     const listenDuration = isCurrentAudioChapter ? duration : 0;
     const remainingDuration = Math.max(listenDuration - listenPosition, 0);
     const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
-    const planTargetFraction =
-      activePlanDaySummary && activePlanDaySummary.targetChapterCount > 0
-        ? activePlanDaySummary.completedChapterCount / activePlanDaySummary.targetChapterCount
-        : 0;
 
     return (
-      <View style={styles.listenColumn}>
+      <View
+        style={styles.listenColumn}
+      >
         <View
           style={[
             styles.listenArtworkFrame,
@@ -2490,76 +2590,6 @@ export function BibleReaderScreen() {
             trackStyle={styles.listenProgressTrack}
             fillStyle={styles.listenProgressFill}
           />
-
-          {activePlanDaySummary ? (
-            <View
-              testID={LISTEN_PLAN_PROGRESS_CARD_TEST_ID}
-              accessibilityLabel={t('readingPlans.listenTargetProgress', {
-                completed: activePlanDaySummary.completedChapterCount,
-                target: activePlanDaySummary.targetChapterCount,
-                defaultValue: `Today's target: ${activePlanDaySummary.completedChapterCount}/${activePlanDaySummary.targetChapterCount} chapters`,
-              })}
-              style={[
-                styles.listenPlanProgressCard,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-            >
-              <View style={styles.listenPlanProgressHeader}>
-                <Text style={[styles.listenPlanProgressLabel, { color: colors.biblePrimaryText }]}>
-                  {t('readingPlans.listenTargetLabel', {
-                    defaultValue: "Today's plan",
-                  })}
-                </Text>
-                <Text
-                  style={[styles.listenPlanProgressCount, { color: colors.bibleSecondaryText }]}
-                >
-                  {t('readingPlans.listenTargetProgress', {
-                    completed: activePlanDaySummary.completedChapterCount,
-                    target: activePlanDaySummary.targetChapterCount,
-                    defaultValue: `Today's target: ${activePlanDaySummary.completedChapterCount}/${activePlanDaySummary.targetChapterCount} chapters`,
-                  })}
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.listenPlanProgressTrack,
-                  { backgroundColor: colors.bibleDivider },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.listenPlanProgressFill,
-                    {
-                      width: `${Math.round(planTargetFraction * 100)}%`,
-                      backgroundColor:
-                        activePlanDaySummary.isComplete
-                          ? colors.accentGreen
-                          : colors.bibleAccent,
-                    },
-                  ]}
-                />
-              </View>
-
-              <Text style={[styles.listenPlanProgressFooter, { color: colors.bibleSecondaryText }]}>
-                {activePlanDaySummary.remainingChapterCount === 0
-                  ? t('readingPlans.listenTargetComplete', {
-                      defaultValue: 'Daily target complete',
-                    })
-                  : activePlanDaySummary.remainingChapterCount === 1
-                    ? t('readingPlans.listenTargetRemainingOne', {
-                        defaultValue: '1 chapter left today',
-                      })
-                    : t('readingPlans.listenTargetRemainingOther', {
-                        count: activePlanDaySummary.remainingChapterCount,
-                        defaultValue: `${activePlanDaySummary.remainingChapterCount} chapters left today`,
-                      })}
-              </Text>
-            </View>
-          ) : null}
 
           {listenCountedNoticeViewModel ? (
             <Animated.View
@@ -2615,7 +2645,6 @@ export function BibleReaderScreen() {
             onShowText={() => setShowFollowAlongText(true)}
             showTextLabel={t('audio.showText')}
             onShareAudio={() => setShowChapterAudioShareSheet(true)}
-            footer={showPlanSessionFooter ? renderPlanSessionFooter() : null}
           />
         </View>
 
@@ -3011,7 +3040,7 @@ export function BibleReaderScreen() {
         <Animated.View style={[{ flex: 1 }, swipeStyle]}>
           {renderSharedTopChrome(true)}
 
-        <Animated.ScrollView
+          <Animated.ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
@@ -3061,6 +3090,8 @@ export function BibleReaderScreen() {
               { bottom: layout.tabBarBaseHeight + spacing.lg },
             ]}
           >
+            {showPlanSessionChrome ? null : (
+              <>
             <TouchableOpacity
               style={[
                 styles.floatingReaderChapterNavButton,
@@ -3106,6 +3137,8 @@ export function BibleReaderScreen() {
                 color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
               />
             </TouchableOpacity>
+              </>
+            )}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -3120,57 +3153,74 @@ export function BibleReaderScreen() {
         useAnimatedChrome ? topChromeAnimatedStyle : null,
       ]}
     >
-      <View
-        style={[
-          styles.floatingReaderReferencePill,
-          {
-            backgroundColor: colors.bibleElevatedSurface,
-            borderColor: colors.bibleElevatedSurface,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.floatingReaderReferencePillSegment}
-          activeOpacity={0.85}
-          onPress={handleOpenBookPicker}
-          accessibilityRole="button"
-          accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-          accessibilityHint="Opens the book and chapter picker"
-        >
-          <Text
-            style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
-            numberOfLines={1}
+      <View style={styles.floatingReaderReferenceCluster}>
+        {showPlanSessionChrome ? (
+          <TouchableOpacity
+            style={[
+              styles.floatingReaderPlanExitButton,
+            ]}
+            activeOpacity={0.85}
+            onPress={handleExitPlanSession}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+            accessibilityHint="Returns to the plan detail screen"
           >
-            {getTranslatedBookName(bookId, t)} {chapter}
-          </Text>
-        </TouchableOpacity>
+            <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
+          </TouchableOpacity>
+        ) : null}
 
         <View
           style={[
-            styles.floatingReaderReferencePillDivider,
-            { backgroundColor: colors.bibleDivider },
+            styles.floatingReaderReferencePill,
+            {
+              backgroundColor: colors.bibleElevatedSurface,
+              borderColor: colors.bibleElevatedSurface,
+            },
           ]}
-        />
-
-        <TouchableOpacity
-          style={styles.floatingReaderReferencePillSegment}
-          activeOpacity={0.85}
-          onPress={handleOpenTranslationOptions}
-          accessibilityRole="button"
-          accessibilityLabel={translationLabel}
-          accessibilityHint="Opens translation options"
-          disabled={!canShowTranslationSheet}
         >
-          <Text
-            style={[
-              styles.floatingReaderReferencePillTranslation,
-              { color: colors.bibleSecondaryText },
-            ]}
-            numberOfLines={1}
+          <TouchableOpacity
+            style={styles.floatingReaderReferencePillSegment}
+            activeOpacity={0.85}
+            onPress={handleOpenBookPicker}
+            accessibilityRole="button"
+            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
+            accessibilityHint="Opens the book and chapter picker"
           >
-            {translationLabel}
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
+              numberOfLines={1}
+            >
+              {getTranslatedBookName(bookId, t)} {chapter}
+            </Text>
+          </TouchableOpacity>
+
+          <View
+            style={[
+              styles.floatingReaderReferencePillDivider,
+              { backgroundColor: colors.bibleDivider },
+            ]}
+          />
+
+          <TouchableOpacity
+            style={styles.floatingReaderReferencePillSegment}
+            activeOpacity={0.85}
+            onPress={handleOpenTranslationOptions}
+            accessibilityRole="button"
+            accessibilityLabel={translationLabel}
+            accessibilityHint="Opens translation options"
+            disabled={!canShowTranslationSheet}
+          >
+            <Text
+              style={[
+                styles.floatingReaderReferencePillTranslation,
+                { color: colors.bibleSecondaryText },
+              ]}
+              numberOfLines={1}
+            >
+              {translationLabel}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {showSessionModeRail ? (
@@ -3261,8 +3311,7 @@ export function BibleReaderScreen() {
           shouldFillReaderCanvas ? styles.immersiveContent : null,
           {
             paddingTop: readerContentTopPadding,
-            paddingBottom:
-              chapterSessionMode === 'listen' ? premiumBottomInset : premiumBottomInset + 20,
+            paddingBottom: chapterSessionMode === 'listen' ? premiumBottomInset : premiumBottomInset + 20,
           },
         ]}
       >
@@ -3279,6 +3328,10 @@ export function BibleReaderScreen() {
     </>
   );
 
+  if (!book) {
+    return null;
+  }
+
   return (
     <View
       style={[
@@ -3289,6 +3342,7 @@ export function BibleReaderScreen() {
       ]}
     >
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
+      {renderPlanSessionBottomBar()}
 
       {chapterSessionMode === 'read' ? (
         <View
@@ -4318,6 +4372,62 @@ const styles = StyleSheet.create({
   premiumReaderLayout: {
     flex: 1,
   },
+  planSessionBottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 40,
+    borderTopWidth: 1,
+  },
+  planSessionBottomBarContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  planSessionBottomBarArrowButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planSessionBottomBarCompleteButton: {
+    borderRadius: layout.minTouchTarget / 2,
+  },
+  planSessionBottomBarArrowSpacer: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+  },
+  planSessionBottomBarCopy: {
+    flex: 1,
+    gap: 2,
+    justifyContent: 'center',
+  },
+  planSessionBottomBarCopyCentered: {
+    alignItems: 'center',
+  },
+  planSessionBottomBarCopyListenMode: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  planSessionBottomBarTitle: {
+    ...typography.bodyStrong,
+    fontSize: 15,
+    lineHeight: 19,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  planSessionBottomBarMeta: {
+    ...typography.micro,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   glassSurface: {
     overflow: 'hidden',
     borderRadius: radius.pill,
@@ -4341,6 +4451,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  floatingReaderReferenceCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 1,
+  },
+  floatingReaderPlanExitButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dynamicIslandTopMask: {
     position: 'absolute',
@@ -4515,33 +4637,6 @@ const styles = StyleSheet.create({
   listenPlayerCard: {
     paddingBottom: 0,
     gap: 12,
-  },
-  listenPlanProgressCard: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  listenPlanProgressHeader: {
-    gap: 2,
-  },
-  listenPlanProgressLabel: {
-    ...typography.bodyStrong,
-  },
-  listenPlanProgressCount: {
-    ...typography.micro,
-  },
-  listenPlanProgressTrack: {
-    height: 6,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  listenPlanProgressFill: {
-    height: '100%',
-    borderRadius: radius.pill,
-  },
-  listenPlanProgressFooter: {
-    ...typography.micro,
   },
   listenCountedNoticeCard: {
     borderWidth: 1,
@@ -5411,8 +5506,5 @@ const styles = StyleSheet.create({
   fontOptionLabel: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  footerShell: {
-    borderTopWidth: 1,
   },
 });

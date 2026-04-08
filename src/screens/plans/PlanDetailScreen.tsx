@@ -560,23 +560,17 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
   const handleOpenChapter = useCallback((entry: ReadingPlanEntry, dayNumber: number) => {
     if (!rootNavigationRef.isReady()) return;
-    const shouldTrackPlanDay =
-      progress != null && !progress.is_completed && dayNumber === progress.current_day;
     rootNavigationRef.navigate('Bible', {
       screen: 'BibleReader',
       params: {
         bookId: entry.book,
         chapter: entry.chapter_start,
-        ...(shouldTrackPlanDay
-          ? {
-              planId,
-              planDayNumber: dayNumber,
-              returnToPlanOnComplete: true,
-            }
-          : {}),
+        planId,
+        planDayNumber: dayNumber,
+        returnToPlanOnComplete: true,
       },
     });
-  }, [planId, progress]);
+  }, [planId]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {

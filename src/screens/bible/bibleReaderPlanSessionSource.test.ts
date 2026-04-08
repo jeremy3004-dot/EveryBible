@@ -14,7 +14,7 @@ test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session 
   );
 });
 
-test('BibleReaderScreen builds a dedicated ordered plan-session chapter list for the active day', () => {
+test('BibleReaderScreen derives the current plan-day chapter list and chapter index', () => {
   assert.match(
     source,
     /const activePlanDayEntries = useMemo\(/,
@@ -32,61 +32,116 @@ test('BibleReaderScreen builds a dedicated ordered plan-session chapter list for
   );
 });
 
-test('BibleReaderScreen renders a bottom plan session footer with plan title, day label, and chapter progress', () => {
+test('BibleReaderScreen renders plan chrome with a top-left exit arrow and bottom plan strip', () => {
   assert.match(
     source,
-    /const renderPlanSessionFooter = \(\) =>/,
-    'BibleReaderScreen should centralize the plan-session footer rendering for both read and listen modes'
+    /const showPlanSessionChrome =/,
+    'BibleReaderScreen should derive a dedicated plan-session chrome guard'
+  );
+  assert.match(
+    source,
+    /const handleExitPlanSession = useCallback\(/,
+    'BibleReaderScreen should define a plan-session exit handler'
+  );
+  assert.match(
+    source,
+    /floatingReaderPlanExitButton/,
+    'BibleReaderScreen should render a small exit arrow in the top chrome while in a plan'
+  );
+  assert.match(
+    source,
+    /renderPlanSessionBottomBar/,
+    'BibleReaderScreen should render a dedicated bottom strip for plan context'
   );
   assert.match(
     source,
     /readingPlans\.dayLabel/,
-    'BibleReaderScreen should localize the day label in the plan session footer'
+    'BibleReaderScreen should localize the day label in the plan bottom strip'
   );
   assert.match(
     source,
     /readingPlans\.chapterProgress/,
-    'BibleReaderScreen should localize the chapter progress copy in the plan session footer'
-  );
-  assert.match(
-    source,
-    /planSessionFooterShell/,
-    'BibleReaderScreen should define a dedicated bottom footer shell for the plan session UI'
+    'BibleReaderScreen should localize the chapter progress copy in the plan bottom strip'
   );
 });
 
-test('BibleReaderScreen advances to the next assigned plan chapter before exposing completion', () => {
+test('BibleReaderScreen removes the old plan-footer next chapter button and duplicated listen plan card', () => {
+  assert.equal(
+    source.includes('renderPlanSessionFooter'),
+    false,
+    'BibleReaderScreen should not keep the old in-player plan footer renderer around'
+  );
+  assert.equal(
+    source.includes('handleAdvancePlanSession'),
+    false,
+    'BibleReaderScreen should not keep the old next-chapter plan footer handler around'
+  );
+  assert.equal(
+    source.includes('LISTEN_PLAN_PROGRESS_CARD_TEST_ID'),
+    false,
+    'BibleReaderScreen should not keep the old listen-mode plan progress card testID import around'
+  );
+  assert.equal(
+    source.includes('nextChapterCta'),
+    false,
+    'BibleReaderScreen should not show a Next chapter button in plan mode'
+  );
+});
+
+test('BibleReaderScreen reuses the bottom strip in read and listen modes without the old footer prop', () => {
   assert.match(
     source,
-    /const handleAdvancePlanSession = useCallback\(/,
-    'BibleReaderScreen should define a dedicated plan-session advance handler'
+    /planSessionBottomBar/,
+    'BibleReaderScreen should render a bottom plan strip that overlays the tab bar real estate'
+  );
+  assert.equal(
+    source.includes('footer={showPlanSessionFooter ? renderPlanSessionFooter() : null}'),
+    false,
+    'BibleReaderScreen should not pass a custom plan footer into PlaybackControls anymore'
   );
   assert.match(
     source,
-    /activePlanDayChapterItems\[activePlanChapterIndex \+ 1\]/,
-    'BibleReaderScreen should advance using the next ordered chapter from the active day'
+    /height:\s*planSessionBottomBarHeight/,
+    'BibleReaderScreen should size the plan strip to the full tab-bar footprint'
   );
   assert.match(
     source,
-    /const isFinalPlanSessionChapter =/,
-    'BibleReaderScreen should detect when the reader is on the last assigned chapter for the day'
+    /safeInsets\.bottom \+ spacing\.sm/,
+    'BibleReaderScreen should include the bottom safe area inside the plan strip instead of leaving the tab bar visible underneath it'
+  );
+  assert.match(
+    source,
+    /const showPlanChapterArrows = chapterSessionMode === 'read';/,
+    'BibleReaderScreen should only show chapter arrows inside the plan strip while reading'
+  );
+  assert.match(
+    source,
+    /planSessionBottomBarCopyCentered/,
+    'BibleReaderScreen should center the plan copy inside the red strip'
+  );
+  assert.match(
+    source,
+    /planSessionBottomBarCopyListenMode/,
+    'BibleReaderScreen should keep the listen-mode plan strip centered without chapter arrows'
+  );
+  assert.match(
+    source,
+    /const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems\.length - 1;/,
+    'BibleReaderScreen should detect when the current chapter is the final chapter for the active plan day'
+  );
+  assert.match(
+    source,
+    /const showPlanCompletionAction = showPlanChapterArrows && isLastPlanChapter;/,
+    'BibleReaderScreen should swap the final plan-day read CTA from next to complete'
+  );
+  assert.match(
+    source,
+    /name=\{showPlanCompletionAction \? 'checkmark' : 'chevron-forward'\}/,
+    'BibleReaderScreen should render a checkmark icon instead of a forward arrow on the final plan-day chapter'
   );
   assert.match(
     source,
     /readingPlans\.completeDayCta/,
-    'BibleReaderScreen should swap the final footer action to a dedicated completion control'
-  );
-});
-
-test('BibleReaderScreen mounts the same plan session footer in both read and listen experiences without affecting non-plan sessions', () => {
-  assert.match(
-    source,
-    /\{showPlanSessionFooter \? renderPlanSessionFooter\(\) : null\}/,
-    'BibleReaderScreen should gate the footer so normal non-plan reading and listening remain unchanged'
-  );
-  assert.match(
-    source,
-    /footer:\s*showPlanSessionFooter \? renderPlanSessionFooter\(\) : null/,
-    'BibleReaderScreen should pass the shared plan footer into the listen-mode playback controls'
+    'BibleReaderScreen should label the final plan-day completion action with the localized complete-day copy'
   );
 });

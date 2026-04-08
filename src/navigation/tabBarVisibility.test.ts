@@ -20,3 +20,23 @@ test('shouldHideTabBarOnNestedRoute keeps the tab bar visible for other Learn st
   assert.equal(shouldHideTabBarOnNestedRoute('GroupDetail'), false);
   assert.equal(shouldHideTabBarOnNestedRoute('ReadingPlanList'), false);
 });
+
+test('shouldHideTabBarOnNestedRoute hides BibleReader only when it is launched as a plan session', () => {
+  assert.equal(
+    shouldHideTabBarOnNestedRoute('BibleReader', { planId: 'plan-123' }),
+    true
+  );
+  assert.equal(
+    shouldHideTabBarOnNestedRoute('BibleReader', { planId: 123 }),
+    false
+  );
+  assert.equal(
+    shouldHideTabBarOnNestedRoute('BibleReader', { other: 'value' }),
+    false
+  );
+});
+
+test('shouldHideTabBarOnNestedRoute respects explicit tabBarVisible=false route params', () => {
+  assert.equal(shouldHideTabBarOnNestedRoute('BibleReader', { tabBarVisible: false }), true);
+  assert.equal(shouldHideTabBarOnNestedRoute('PlanDetail', { tabBarVisible: false }), true);
+});

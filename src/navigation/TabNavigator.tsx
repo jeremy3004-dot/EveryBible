@@ -25,6 +25,11 @@ type NestedTabRouteState = {
   }>;
 };
 
+type NestedTabRouteParams = {
+  screen?: string;
+  params?: Record<string, unknown>;
+};
+
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -56,9 +61,26 @@ export function TabNavigator() {
             return defaultTabBarStyle;
           }
 
+          const focusedNestedRoute = (
+            route as {
+              state?: NestedTabRouteState;
+              params?: NestedTabRouteParams;
+            }
+          ).state?.routes?.[((
+            route as {
+              state?: NestedTabRouteState;
+              params?: NestedTabRouteParams;
+            }
+          ).state?.index ?? 0)];
+          const nestedRouteName =
+            getFocusedRouteNameFromRoute(route) ??
+            ((route as { params?: NestedTabRouteParams }).params?.screen as string | undefined);
+          const nestedRouteParams =
+            focusedNestedRoute?.params ??
+            (route as { params?: NestedTabRouteParams }).params?.params;
           const shouldHideNestedBibleScreen =
             (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
-            shouldHideTabBarOnNestedRoute(getFocusedRouteNameFromRoute(route));
+            shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
 
           return shouldHideNestedBibleScreen ? { display: 'none' } : defaultTabBarStyle;
         })(),

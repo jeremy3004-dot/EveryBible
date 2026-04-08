@@ -5,11 +5,16 @@ import { resolve } from 'node:path';
 
 const source = readFileSync(resolve(__dirname, 'PlanDetailScreen.tsx'), 'utf8');
 
-test('PlanDetailScreen passes active plan-day context into BibleReader launches', () => {
+test('PlanDetailScreen always passes plan-day context into BibleReader launches', () => {
   assert.match(
     source,
     /planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
-    'PlanDetailScreen should pass the current plan context into BibleReader so the reader can auto-complete the day'
+    'PlanDetailScreen should always pass the plan day context into BibleReader so the plan reader chrome stays visible'
+  );
+  assert.doesNotMatch(
+    source,
+    /shouldTrackPlanDay/,
+    'PlanDetailScreen should not conditionally drop plan-session params when opening a plan day'
   );
 });
 
