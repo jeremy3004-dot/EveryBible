@@ -34,6 +34,7 @@ interface PlaybackControlsProps {
   onShowText?: () => void;
   showTextLabel?: string;
   onShareAudio?: () => void;
+  footer?: React.ReactNode;
 }
 
 export function PlaybackControls({
@@ -57,6 +58,7 @@ export function PlaybackControls({
   onShowText,
   showTextLabel,
   onShareAudio,
+  footer,
 }: PlaybackControlsProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -335,6 +337,8 @@ export function PlaybackControls({
           ) : null}
         </View>
       </View>
+
+      {footer}
 
       <Modal
         visible={showBackgroundMusicModal}

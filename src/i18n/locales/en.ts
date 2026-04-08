@@ -567,6 +567,10 @@ export const en = {
     listenTargetComplete: 'Daily target complete',
     listenTargetRemainingOne: '1 chapter left today',
     listenTargetRemainingOther: '{{count}} chapters left today',
+    dayLabel: 'Day {{day}}',
+    chapterProgress: '{{current}} of {{total}}',
+    nextChapterCta: 'Next chapter',
+    completeDayCta: 'Complete day',
     listenChapterCounted: "{{reference}} counted for today's plan",
     dailyTargetCompleteTitle: 'Daily reading complete',
     dailyTargetCompleteBody:
