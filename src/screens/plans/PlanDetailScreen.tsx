@@ -67,7 +67,7 @@ function PlanCoverImage({
   height,
   borderRadius,
 }: {
-  plan: Pick<ReadingPlan, 'cover_image_key'>;
+  plan: ReadingPlan;
   width: number;
   height: number;
   borderRadius: number;

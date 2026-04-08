@@ -23,11 +23,11 @@ import {
   listReadingPlans,
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
-import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
-import type { LearnStackParamList } from '../../navigation/types';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
+import type { PlansStackParamList } from '../../navigation/types';
 import { splitReadingPlanSections } from './readingPlanListModel';
 
-type NavProp = NativeStackNavigationProp<LearnStackParamList, 'ReadingPlanList'>;
+type NavProp = NativeStackNavigationProp<PlansStackParamList, 'PlansHome'>;
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -509,7 +509,7 @@ export function ReadingPlanListScreen() {
           const without = prev.filter((p) => p.plan_id !== plan.id);
           return [...without, result.data!];
         });
-        navigation.navigate('ReadingPlanDetail', { planId: plan.id });
+        navigation.navigate('PlanDetail', { planId: plan.id });
       } else if (result.error) {
         setError(result.error);
       }
@@ -529,7 +529,7 @@ export function ReadingPlanListScreen() {
 
   const handleOpenPlan = useCallback(
     (planId: string) => {
-      navigation.navigate('ReadingPlanDetail', { planId });
+      navigation.navigate('PlanDetail', { planId });
     },
     [navigation]
   );

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { splitReadingPlanSections } from './readingPlanListModel';
 
 function makePlan(id: string, sortOrder: number): ReadingPlan {
@@ -14,6 +14,7 @@ function makePlan(id: string, sortOrder: number): ReadingPlan {
     category: 'devotional',
     is_active: true,
     sort_order: sortOrder,
+    coverKey: 'sunrise',
     created_at: '2026-04-08T00:00:00Z',
   };
 }

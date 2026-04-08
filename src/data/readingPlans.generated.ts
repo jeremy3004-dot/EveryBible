@@ -2,11 +2,6 @@ import { bibleBooks } from '../constants/books';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
 import type { ReadingPlanCoverKey } from '../services/plans/types';
 
-type ChapterRef = {
-  book: string;
-  chapter: number;
-};
-
 type BookPlanRecipe = {
   id: string;
   slug: string;
@@ -249,6 +244,7 @@ function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entri
       sort_order: recipe.sort_order,
       coverKey: recipe.cover_key,
       cover_key: recipe.cover_key,
+      cover_image_key: recipe.cover_key,
     },
     entries,
   };
@@ -267,6 +263,7 @@ function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: 
       sort_order: recipe.sort_order,
       coverKey: recipe.cover_key,
       cover_key: recipe.cover_key,
+      cover_image_key: recipe.cover_key,
     },
     entries: recipe.entries.map((entry) => ({
       id: `${recipe.id}-day-${entry.day_number}`,
@@ -411,4 +408,10 @@ export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<Record<strin
     return accumulator;
   },
   {}
+);
+
+export const READING_PLANS = readingPlans;
+export const READING_PLAN_BY_ID = readingPlansById;
+export const READING_PLAN_ENTRIES_BY_PLAN_ID = new Map(
+  Object.entries(readingPlanEntriesByPlanId)
 );

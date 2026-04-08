@@ -1,5 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+import { useStore } from 'zustand';
 
 import { computeNextDay, isPlanCompleted } from '../services/plans/readingPlanModel';
 import type {
@@ -210,4 +211,10 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
       }
     )
   );
+}
+
+export const readingPlansStore = createReadingPlansStore();
+
+export function useReadingPlansStore<T>(selector: (state: ReadingPlansStoreState) => T): T {
+  return useStore(readingPlansStore, selector);
 }

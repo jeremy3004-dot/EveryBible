@@ -1,5 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { ReadingPlan } from './types';
+import type { ReadingPlan, ReadingPlanCoverKey } from './types';
 
 const COVER_ASSETS = {
   canyon: require('../../../assets/plans/covers/canyon.webp'),
@@ -7,16 +7,23 @@ const COVER_ASSETS = {
   dunes: require('../../../assets/plans/covers/dunes.webp'),
   forest: require('../../../assets/plans/covers/forest.webp'),
   mountains: require('../../../assets/plans/covers/mountains.webp'),
+  river: require('../../../assets/plans/covers/shore.webp'),
   shore: require('../../../assets/plans/covers/shore.webp'),
   stars: require('../../../assets/plans/covers/stars.webp'),
   sunrise: require('../../../assets/plans/covers/sunrise.webp'),
   valley: require('../../../assets/plans/covers/valley.webp'),
 } as const;
 
-export type ReadingPlanCoverKey = keyof typeof COVER_ASSETS;
+type ReadingPlanCoverInput = {
+  coverKey?: ReadingPlan['coverKey'] | null;
+  cover_key?: ReadingPlan['cover_key'] | null;
+  cover_image_key?: ReadingPlan['cover_image_key'] | null;
+};
 
-export function getReadingPlanCoverSource(plan: Pick<ReadingPlan, 'cover_image_key'>): ImageSourcePropType | null {
-  const key = plan.cover_image_key as ReadingPlanCoverKey | undefined;
+export function getReadingPlanCoverSource(plan: ReadingPlanCoverInput): ImageSourcePropType | null {
+  const key =
+    (plan.cover_image_key ??
+      plan.cover_key ??
+      plan.coverKey) as ReadingPlanCoverKey | null | undefined;
   return key ? COVER_ASSETS[key] : null;
 }
-

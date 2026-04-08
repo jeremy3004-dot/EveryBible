@@ -1,4 +1,4 @@
-import type { ReadingPlan, UserReadingPlanProgress } from '../../services/supabase/types';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 
 export interface ReadingPlanSectionPlan {
   plan: ReadingPlan;

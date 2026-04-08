@@ -56,6 +56,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 - **Navigation:** React Navigation v7 (Bottom Tabs + Native Stack navigators)
 - **Styling:** StyleSheet.create() with ThemeContext colors - no inline styles
 - **API Layer:** Supabase client for backend, SQLite for Bible data
+- **Reading Plans:** Plan catalog and plan entries are bundled locally in `src/data/readingPlans.generated.ts`; Supabase may sync user progress, but it is not the source of truth for which plans exist
 - **Error Handling:** ErrorBoundary component wraps app, try/catch in async operations
 - **i18n:** react-i18next with expo-localization for device locale detection
 - **Routing:** Tab-based with nested stacks (Home, Bible, Harvest/Learn, More)
@@ -209,6 +210,7 @@ import { BOOKS } from '../constants';
 - **Groups:** Users can create study groups, track progress, conduct sessions
 - **Audio Bible:** Public-domain BSB and WEB chapter audio are available without extra credentials; Bible.is remains optional only for any future configured streamed translations
 - **Progress Tracking:** Tracks verses read, courses completed, time spent - syncs to Supabase
+- **Reading Plans:** The Plans tab must render from bundled local data first so the catalog is available offline on-device
 - **Offline Mode:** App works fully offline except OAuth, sync, and any remote-only audio streams that have not been downloaded yet
 - **User Preferences:** Font size, theme, language, notifications - persist via AsyncStorage
 

@@ -27,6 +27,11 @@ export interface ReadingPlan {
   sort_order: number;
   coverKey: ReadingPlanCoverKey;
   cover_key?: ReadingPlanCoverKey;
+  cover_image_key?: ReadingPlanCoverKey | null;
+  cover_image_url?: string | null;
+  featured?: boolean;
+  completion_count?: number;
+  created_at?: string;
 }
 
 export interface ReadingPlanEntry {
@@ -42,6 +47,7 @@ export interface ReadingPlanEntry {
 
 export interface ReadingPlanProgress {
   id: string;
+  user_id?: string;
   plan_id: string;
   started_at: string;
   completed_entries: Record<string, string>;
@@ -51,12 +57,21 @@ export interface ReadingPlanProgress {
   synced_at: string;
 }
 
+export type UserReadingPlanProgress = ReadingPlanProgress;
+
 export interface GroupReadingPlan {
   id: string;
   group_id: string;
   plan_id: string;
   assigned_by: string;
   started_at: string;
+}
+
+export interface UserSavedPlan {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  saved_at: string;
 }
 
 export interface ReadingPlansPersistedState {

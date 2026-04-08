@@ -21,7 +21,7 @@ import {
   listReadingPlans,
   markDayComplete,
 } from '../../services/plans/readingPlanService';
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/supabase/types';
+import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';

@@ -16,7 +16,15 @@ function createMemoryStorage(): StateStorage {
   };
 }
 
-function completePlan(store: any, planId: string, totalDays: number) {
+function completePlan(
+  store: {
+    getState(): {
+      markDayComplete(planId: string, dayNumber: number, totalDays: number): unknown;
+    };
+  },
+  planId: string,
+  totalDays: number
+) {
   for (let day = 1; day <= totalDays; day += 1) {
     store.getState().markDayComplete(planId, day, totalDays);
   }
