@@ -7,5 +7,5 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #9823 | 10:41 AM | 🔵 | Reading Plan Entry Generation Script Examined | ~477 |
+| #9832 | 10:45 AM | 🔵 | Category-Based Plan Filtering Service Function | ~478 |
 </claude-mem-context>
