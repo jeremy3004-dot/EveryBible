@@ -165,3 +165,31 @@ test('TabNavigator resumes the last open Bible chapter when the Bible tab is pre
     'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
   );
 });
+
+test('TabNavigator clears preserved plan-session reader params when the Bible tab is pressed', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /typeof nestedRouteParams\?\.planId === 'string'/,
+    'TabNavigator should detect when the preserved Bible tab route is still carrying a reading-plan session'
+  );
+
+  assert.match(
+    source,
+    /planId:\s*undefined/,
+    'TabNavigator should explicitly clear the plan session id when reopening the shared Bible tab'
+  );
+
+  assert.match(
+    source,
+    /planDayNumber:\s*undefined/,
+    'TabNavigator should clear the active plan day number so the normal Bible reader chrome returns'
+  );
+
+  assert.match(
+    source,
+    /sessionContext:\s*undefined/,
+    'TabNavigator should clear any preserved rhythm session context when the user chooses the Bible tab itself'
+  );
+});

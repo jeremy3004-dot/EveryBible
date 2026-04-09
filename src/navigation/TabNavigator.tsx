@@ -109,11 +109,19 @@ export function TabNavigator() {
           tabPress: (event) => {
             const bibleRouteState = route as {
               state?: NestedTabRouteState;
+              params?: NestedTabRouteParams;
             };
             const focusedRoute =
               bibleRouteState.state?.routes?.[bibleRouteState.state.index ?? 0];
+            const nestedRouteName =
+              focusedRoute?.name ?? bibleRouteState.params?.screen;
+            const nestedRouteParams =
+              focusedRoute?.params ?? bibleRouteState.params?.params;
+            const isPlanSessionReader =
+              nestedRouteName === 'BibleReader' && typeof nestedRouteParams?.planId === 'string';
             const shouldResumeReader =
-              hasReaderHistory && focusedRoute?.name !== 'BibleReader';
+              hasReaderHistory &&
+              (nestedRouteName !== 'BibleReader' || isPlanSessionReader);
 
             if (!shouldResumeReader) {
               return;
@@ -126,6 +134,10 @@ export function TabNavigator() {
                 bookId: currentBibleBook,
                 chapter: currentBibleChapter,
                 preferredMode: preferredBibleMode,
+                planId: undefined,
+                planDayNumber: undefined,
+                returnToPlanOnComplete: undefined,
+                sessionContext: undefined,
               },
             });
           },
