@@ -84,6 +84,26 @@ export function buildPlanDayPlaybackSequenceEntries(
   });
 }
 
+export function resolvePlanDayPlaybackStartEntry(
+  entries: ReadingPlanEntry[],
+  resumeTarget?: AudioPlaybackSequenceEntry | null
+): AudioPlaybackSequenceEntry | null {
+  const playbackEntries = buildPlanDayPlaybackSequenceEntries(entries);
+  if (playbackEntries.length === 0) {
+    return null;
+  }
+
+  if (!resumeTarget) {
+    return playbackEntries[0] ?? null;
+  }
+
+  return (
+    playbackEntries.find(
+      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter
+    ) ?? playbackEntries[0] ?? null
+  );
+}
+
 const getUniqueDayEntries = (entries: ReadingPlanEntry[], dayNumber: number): ReadingPlanEntry[] =>
   entries
     .filter((entry) => entry.day_number === dayNumber)

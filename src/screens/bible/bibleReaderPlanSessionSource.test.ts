@@ -50,6 +50,11 @@ test('BibleReaderScreen derives the current plan-day chapter list and chapter in
     /const activePlanChapterIndex = useMemo\(/,
     'BibleReaderScreen should track the current chapter position inside the plan session'
   );
+  assert.match(
+    source,
+    /setPlanDayResume\(activePlanId,\s*planDayNumber,\s*bookId,\s*chapter\)/,
+    'BibleReaderScreen should persist the current plan-day chapter so a reopened day can resume in place'
+  );
 });
 
 test('BibleReaderScreen renders plan chrome with a top-left exit arrow and bottom plan strip', () => {

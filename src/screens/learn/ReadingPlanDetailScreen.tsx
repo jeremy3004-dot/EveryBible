@@ -22,11 +22,15 @@ import {
   listReadingPlans,
   markDayComplete,
 } from '../../services/plans/readingPlanService';
-import { buildPlanDayPlaybackSequenceEntries } from '../../services/plans/readingPlanActivity';
+import {
+  buildPlanDayPlaybackSequenceEntries,
+  resolvePlanDayPlaybackStartEntry,
+} from '../../services/plans/readingPlanActivity';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
+import { useReadingPlansStore } from '../../stores';
 
 type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 
@@ -416,6 +420,7 @@ interface ReadingPlanDetailScreenProps {
 export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetailScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
   const [entries, setEntries] = useState<ReadingPlanEntry[]>([]);
@@ -502,12 +507,17 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
 
       const dayEntries = entriesByDay.get(dayNumber) ?? [];
       const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+      const resumeTarget = getPlanDayResume(planId, dayNumber);
+      const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
+        bookId: entry.book,
+        chapter: entry.chapter_start,
+      };
 
       rootNavigationRef.navigate('Bible', {
         screen: 'BibleReader',
         params: {
-          bookId: entry.book,
-          chapter: entry.chapter_start,
+          bookId: playbackStartEntry.bookId,
+          chapter: playbackStartEntry.chapter,
           playbackSequenceEntries,
           planId: planId,
           planDayNumber: dayNumber,
@@ -515,7 +525,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
         },
       });
     },
-    [entriesByDay, planId, progress]
+    [entriesByDay, getPlanDayResume, planId, progress]
   );
 
   // Build flat list items

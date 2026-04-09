@@ -58,6 +58,7 @@ test('unenrolling a reading plan clears it from active and completed state witho
 
   store.getState().savePlan('sermon-on-the-mount-7-days');
   store.getState().enrollPlan('sermon-on-the-mount-7-days');
+  store.getState().setPlanDayResume('sermon-on-the-mount-7-days', 3, 'MAT', 7);
   completePlan(store, 'sermon-on-the-mount-7-days', 7);
   store.getState().unenrollPlan('sermon-on-the-mount-7-days');
 
@@ -65,6 +66,7 @@ test('unenrolling a reading plan clears it from active and completed state witho
   assert.deepEqual(store.getState().enrolledPlanIds, []);
   assert.deepEqual(store.getState().completedPlanIds, []);
   assert.equal(store.getState().getProgress('sermon-on-the-mount-7-days'), null);
+  assert.equal(store.getState().getPlanDayResume('sermon-on-the-mount-7-days', 3), null);
 
   const restored = mod.createReadingPlansStore(storage);
   assert.deepEqual(restored.getState().savedPlanIds, ['sermon-on-the-mount-7-days']);
@@ -99,4 +101,24 @@ test('replacing remote progress clears stale local plans while preserving saved 
   assert.deepEqual(store.getState().completedPlanIds, []);
   assert.equal(store.getState().getProgress('stale-local-plan'), null);
   assert.equal(store.getState().getProgress('remote-plan')?.current_day, 2);
+});
+
+test('plan-day resume positions persist and can be restored across store reloads', async () => {
+  const mod = await import('./readingPlansStore');
+
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+
+  store.getState().setPlanDayResume('bible-in-1-year', 12, 'GEN', 38);
+
+  assert.deepEqual(store.getState().getPlanDayResume('bible-in-1-year', 12), {
+    bookId: 'GEN',
+    chapter: 38,
+  });
+
+  const restored = mod.createReadingPlansStore(storage);
+  assert.deepEqual(restored.getState().getPlanDayResume('bible-in-1-year', 12), {
+    bookId: 'GEN',
+    chapter: 38,
+  });
 });

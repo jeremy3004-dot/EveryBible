@@ -27,6 +27,7 @@ import {
   getCurrentPlanDaySummary,
   buildPlanDayPlaybackSequenceEntries,
   formatScheduledPlanDayLabel,
+  resolvePlanDayPlaybackStartEntry,
   type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
@@ -486,6 +487,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
+  const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
   // Data state
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
@@ -571,19 +573,24 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
     const dayEntries = entriesByDay.get(dayNumber) ?? [];
     const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+    const resumeTarget = getPlanDayResume(planId, dayNumber);
+    const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
+      bookId: entry.book,
+      chapter: entry.chapter_start,
+    };
 
     rootNavigationRef.navigate('Bible', {
       screen: 'BibleReader',
       params: {
-        bookId: entry.book,
-        chapter: entry.chapter_start,
+        bookId: playbackStartEntry.bookId,
+        chapter: playbackStartEntry.chapter,
         playbackSequenceEntries,
         planId,
         planDayNumber: dayNumber,
         returnToPlanOnComplete: true,
       },
     });
-  }, [entriesByDay, planId, progress]);
+  }, [entriesByDay, getPlanDayResume, planId, progress]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {

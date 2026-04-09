@@ -596,6 +596,8 @@ export function BibleReaderScreen() {
   const activePlanProgress = useReadingPlansStore((state) =>
     activePlanId ? state.progressByPlanId[activePlanId] ?? null : null
   );
+  const setPlanDayResume = useReadingPlansStore((state) => state.setPlanDayResume);
+  const clearPlanDayResume = useReadingPlansStore((state) => state.clearPlanDayResume);
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
@@ -703,6 +705,14 @@ export function BibleReaderScreen() {
     activePlanTitle != null &&
     typeof planDayNumber === 'number' &&
     activePlanDayChapterItems.length > 0;
+  useEffect(() => {
+    if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
+      return;
+    }
+
+    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
+  }, [activePlanChapterIndex, activePlanId, bookId, chapter, planDayNumber, setPlanDayResume]);
+
   const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
   useEffect(() => {
     const rootTabNavigation = navigation.getParent();
@@ -1352,6 +1362,8 @@ export function BibleReaderScreen() {
       return;
     }
 
+    clearPlanDayResume(activePlanId, planDayNumber);
+
     if (!rootNavigationRef.isReady()) {
       return;
     }
@@ -1364,6 +1376,7 @@ export function BibleReaderScreen() {
     activePlanDaySummary,
     activePlanId,
     activePlanProgress,
+    clearPlanDayResume,
     planDayNumber,
     returnToPlanOnComplete,
   ]);

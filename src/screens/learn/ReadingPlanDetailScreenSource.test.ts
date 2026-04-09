@@ -13,6 +13,16 @@ test('ReadingPlanDetailScreen forwards the full day playback sequence into Bible
   );
   assert.match(
     source,
+    /getPlanDayResume\(planId,\s*dayNumber\)/,
+    'ReadingPlanDetailScreen should read the saved day resume position before reopening a plan day'
+  );
+  assert.match(
+    source,
+    /resolvePlanDayPlaybackStartEntry\(dayEntries,\s*resumeTarget\)/,
+    'ReadingPlanDetailScreen should resume from the saved chapter when it still belongs to the selected day'
+  );
+  assert.match(
+    source,
     /playbackSequenceEntries,\s*[\s\S]*planDayNumber: dayNumber,/s,
     'ReadingPlanDetailScreen should pass the current day playback sequence and selected day number into BibleReader'
   );

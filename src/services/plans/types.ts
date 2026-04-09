@@ -74,6 +74,11 @@ export interface ReadingPlanProgress {
 
 export type UserReadingPlanProgress = ReadingPlanProgress;
 
+export interface ReadingPlanDayResume {
+  bookId: string;
+  chapter: number;
+}
+
 export interface GroupReadingPlan {
   id: string;
   group_id: string;
@@ -94,6 +99,7 @@ export interface ReadingPlansPersistedState {
   savedPlanIds: string[];
   completedPlanIds: string[];
   progressByPlanId: Record<string, ReadingPlanProgress>;
+  planDayResumeByKey: Record<string, ReadingPlanDayResume>;
   groupPlansByGroupId: Record<string, GroupReadingPlan[]>;
 }
 
@@ -103,6 +109,9 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   unsavePlan: (planId: string) => void;
   upsertProgress: (progress: ReadingPlanProgress) => ReadingPlanProgress;
   replaceProgress: (progressList: ReadingPlanProgress[]) => void;
+  setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
+  getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
+  clearPlanDayResume: (planId: string, dayNumber: number) => void;
   markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
   unenrollPlan: (planId: string) => void;
   getProgress: (planId: string) => ReadingPlanProgress | null;

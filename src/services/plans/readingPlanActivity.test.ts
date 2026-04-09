@@ -13,6 +13,7 @@ import {
   getScheduledPlanDayDateKey,
   isPlanDaySatisfied,
   mergeTodayCompletedChapterActivity,
+  resolvePlanDayPlaybackStartEntry,
 } from './readingPlanActivity';
 
 const makeEntry = (
@@ -68,6 +69,20 @@ test('buildPlanDayPlaybackSequenceEntries expands ranges into chapter-by-chapter
     { bookId: 'GEN', chapter: 7 },
     { bookId: 'GEN', chapter: 8 },
   ]);
+});
+
+test('resolvePlanDayPlaybackStartEntry resumes from the saved chapter when it belongs to the active day', () => {
+  const dayOneEntries = dayEntries.filter((entry) => entry.day_number === 1);
+
+  assert.deepEqual(resolvePlanDayPlaybackStartEntry(dayOneEntries, { bookId: 'GEN', chapter: 3 }), {
+    bookId: 'GEN',
+    chapter: 3,
+  });
+
+  assert.deepEqual(resolvePlanDayPlaybackStartEntry(dayOneEntries, { bookId: 'PSA', chapter: 1 }), {
+    bookId: 'GEN',
+    chapter: 1,
+  });
 });
 
 test('getScheduledPlanDayDateKey offsets each scheduled day from the plan start date', () => {

@@ -13,6 +13,16 @@ test('PlanDetailScreen always passes plan-day context into BibleReader launches'
   );
   assert.match(
     source,
+    /getPlanDayResume\(planId,\s*dayNumber\)/,
+    'PlanDetailScreen should read the saved day resume position before reopening a plan day'
+  );
+  assert.match(
+    source,
+    /resolvePlanDayPlaybackStartEntry\(dayEntries,\s*resumeTarget\)/,
+    'PlanDetailScreen should resume from the saved chapter when it still belongs to the selected day'
+  );
+  assert.match(
+    source,
     /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
     'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );

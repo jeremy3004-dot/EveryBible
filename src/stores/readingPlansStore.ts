@@ -17,8 +17,11 @@ const createEmptyState = (): ReadingPlansPersistedState => ({
   savedPlanIds: [],
   completedPlanIds: [],
   progressByPlanId: {},
+  planDayResumeByKey: {},
   groupPlansByGroupId: {},
 });
+
+const buildPlanDayResumeKey = (planId: string, dayNumber: number): string => `${planId}:${dayNumber}`;
 
 const createProgressRecord = (planId: string): ReadingPlanProgress => {
   const now = new Date().toISOString();
@@ -73,6 +76,15 @@ const removePlanFromCollections = (
   completedPlanIds: state.completedPlanIds.filter((id) => id !== planId),
   progressByPlanId: Object.fromEntries(
     Object.entries(state.progressByPlanId).filter(([id]) => id !== planId)
+  ),
+});
+
+const removePlanDayResumeEntries = (
+  state: ReadingPlansStoreState,
+  planId: string
+): Pick<ReadingPlansStoreState, 'planDayResumeByKey'> => ({
+  planDayResumeByKey: Object.fromEntries(
+    Object.entries(state.planDayResumeByKey).filter(([key]) => !key.startsWith(`${planId}:`))
   ),
 });
 
@@ -155,6 +167,34 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           }));
         },
 
+        setPlanDayResume: (planId, dayNumber, bookId, chapter) => {
+          if (!bookId || !Number.isInteger(chapter) || chapter < 1) {
+            return;
+          }
+
+          const resumeKey = buildPlanDayResumeKey(planId, dayNumber);
+          set((state) => ({
+            ...state,
+            planDayResumeByKey: {
+              ...state.planDayResumeByKey,
+              [resumeKey]: { bookId, chapter },
+            },
+          }));
+        },
+
+        getPlanDayResume: (planId, dayNumber) =>
+          get().planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null,
+
+        clearPlanDayResume: (planId, dayNumber) => {
+          const resumeKey = buildPlanDayResumeKey(planId, dayNumber);
+          set((state) => ({
+            ...state,
+            planDayResumeByKey: Object.fromEntries(
+              Object.entries(state.planDayResumeByKey).filter(([key]) => key !== resumeKey)
+            ),
+          }));
+        },
+
         markDayComplete: (planId, dayNumber, totalDays) => {
           const existing = get().progressByPlanId[planId];
           if (!existing) {
@@ -190,6 +230,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           set((state) => ({
             ...state,
             ...removePlanFromCollections(state, planId),
+            ...removePlanDayResumeEntries(state, planId),
           }));
         },
 
@@ -228,6 +269,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           savedPlanIds: state.savedPlanIds,
           completedPlanIds: state.completedPlanIds,
           progressByPlanId: state.progressByPlanId,
+          planDayResumeByKey: state.planDayResumeByKey,
           groupPlansByGroupId: state.groupPlansByGroupId,
         }),
         merge: (persistedState, currentState) => ({
