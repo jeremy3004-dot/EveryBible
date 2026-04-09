@@ -69,6 +69,14 @@ test('PlansHomeScreen no longer renders a separate reading challenges section', 
   );
 });
 
+test('PlansHomeScreen does not render a duplicate featured hero above the find-plans categories', () => {
+  assert.doesNotMatch(
+    source,
+    /getFeaturedPlans|featuredPlans|featuredPlan|heroCard|heroImage|heroDurationBadge/,
+    'PlansHomeScreen should not render or fetch a separate featured plan hero once the same plan already appears in the chronological section'
+  );
+});
+
 test('PlansHomeScreen keeps the plan day badge and action badge on one row', () => {
   assert.ok(planCardMetaBlockMatch, 'PlansHomeScreen should define a planCardMeta style block');
   assert.match(

@@ -382,14 +382,6 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   }, []);
 
   // -------------------------------------------------------------------------
-  // Share
-  // -------------------------------------------------------------------------
-
-  const handleShare = useCallback(() => {
-    Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
-  }, [t]);
-
-  // -------------------------------------------------------------------------
   // Lesson not found
   // -------------------------------------------------------------------------
 
@@ -458,13 +450,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           {headerTitle}
         </Text>
 
-        <TouchableOpacity
-          onPress={handleShare}
-          style={styles.headerIconButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="share-outline" size={22} color={colors.secondaryText} />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Continuous scrollable content */}
@@ -1020,6 +1006,10 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     flex: 1,
     textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 32,
+    height: 32,
   },
 
   // Scroll

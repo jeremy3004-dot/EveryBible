@@ -37,4 +37,10 @@ test('LessonDetailScreen uses the active Bible translation for gather scripture 
     false,
     'LessonDetailScreen should not render the redundant "Read the Story" button'
   );
+
+  assert.equal(
+    source.includes('share-outline'),
+    false,
+    'LessonDetailScreen should not keep the broken top-right header share button'
+  );
 });

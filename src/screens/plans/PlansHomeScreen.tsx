@@ -25,7 +25,6 @@ import {
   listReadingPlans,
   getUserPlanProgress,
   getCompletedPlans,
-  getFeaturedPlans,
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
@@ -406,7 +405,6 @@ const swipeableStyles = StyleSheet.create({
 
 interface FindPlansSectionProps {
   allPlans: ReadingPlan[];
-  featuredPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
@@ -415,13 +413,11 @@ interface FindPlansSectionProps {
 
 function FindPlansSection({
   allPlans,
-  featuredPlans,
   userProgress,
   onPlanPress,
   colors,
 }: FindPlansSectionProps) {
   const { t } = useTranslation();
-  const featuredPlan = featuredPlans[0] ?? null;
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
 
   // Group allPlans by category
@@ -435,44 +431,9 @@ function FindPlansSection({
   const categories = Object.keys(plansByCategory);
 
   const styles = createFindPlansStyles(colors);
-  const featuredCoverSource = featuredPlan ? getReadingPlanCoverSource(featuredPlan) : null;
 
   return (
     <View style={styles.content}>
-      {/* Featured hero card */}
-      {featuredPlan && (
-        <TouchableOpacity
-          style={styles.heroCard}
-          onPress={() => onPlanPress(featuredPlan.id)}
-          activeOpacity={0.8}
-        >
-          {featuredCoverSource ? (
-            <Image
-              source={featuredCoverSource}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.heroImage, { backgroundColor: colors.accentSecondary }]}>
-              <Ionicons name="book-outline" size={64} color={colors.cardBackground} />
-            </View>
-          )}
-          <View style={styles.heroDurationBadge}>
-            <Text style={styles.heroDurationText}>
-              {featuredPlan.duration_days}-DAY PLAN
-            </Text>
-          </View>
-          <Text style={styles.heroTitle} numberOfLines={2}>
-            {t(featuredPlan.title_key as Parameters<typeof t>[0])}
-          </Text>
-          {featuredPlan.description_key && (
-            <Text style={styles.heroDesc} numberOfLines={3}>
-              {t(featuredPlan.description_key as Parameters<typeof t>[0]).slice(0, 100)}
-            </Text>
-          )}
-        </TouchableOpacity>
-      )}
-
       {/* Plan cards by category */}
       {categories.map((category) => {
         const plans = plansByCategory[category];
@@ -551,46 +512,6 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
       gap: spacing.xl,
-    },
-    heroCard: {
-      borderRadius: radius.lg,
-      overflow: 'hidden',
-      backgroundColor: colors.cardBackground,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      gap: spacing.sm,
-    },
-    heroImage: {
-      width: '100%',
-      height: 200,
-      borderRadius: radius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    heroDurationBadge: {
-      position: 'absolute',
-      top: spacing.md,
-      left: spacing.md,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-    },
-    heroDurationText: {
-      ...typography.eyebrow,
-      color: colors.cardBackground,
-      fontSize: 10,
-    },
-    heroTitle: {
-      ...typography.sectionTitle,
-      color: colors.primaryText,
-      paddingHorizontal: layout.denseCardPadding,
-    },
-    heroDesc: {
-      ...typography.body,
-      color: colors.secondaryText,
-      paddingHorizontal: layout.denseCardPadding,
-      paddingBottom: layout.denseCardPadding,
     },
     categorySection: {
       gap: spacing.md,
@@ -790,7 +711,6 @@ export function PlansHomeScreen() {
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
   const [userProgress, setUserProgress] = useState<UserReadingPlanProgress[]>([]);
   const [completedPlans, setCompletedPlans] = useState<CompletedPlanRow[]>([]);
-  const [featuredPlans, setFeaturedPlans] = useState<ReadingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -803,11 +723,10 @@ export function PlansHomeScreen() {
   const loadAllData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
 
-    const [allPlansResult, progressResult, completedResult, featuredResult] = await Promise.all([
+    const [allPlansResult, progressResult, completedResult] = await Promise.all([
       listReadingPlans(),
       getUserPlanProgress(),
       getCompletedPlans(),
-      getFeaturedPlans(),
     ]);
 
     if (allPlansResult.success && allPlansResult.data) {
@@ -819,10 +738,6 @@ export function PlansHomeScreen() {
     if (completedResult.success && completedResult.data) {
       setCompletedPlans(completedResult.data);
     }
-    if (featuredResult.success && featuredResult.data) {
-      setFeaturedPlans(featuredResult.data);
-    }
-
     if (!quiet) setLoading(false);
   }, []);
 
@@ -920,7 +835,6 @@ export function PlansHomeScreen() {
             {activeTab === 'find-plans' && (
               <FindPlansSection
                 allPlans={allPlans}
-                featuredPlans={featuredPlans}
                 userProgress={userProgress}
                 onPlanPress={handlePlanPress}
                 colors={colors}
