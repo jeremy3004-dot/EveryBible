@@ -267,6 +267,7 @@ interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
   rhythms: ReadingPlanRhythm[];
+  onAddPlan: () => void;
   onRhythmPress: (rhythmId: string) => void;
   onCreateRhythm: () => void;
   onPlanPress: (planId: string) => void;
@@ -297,7 +298,7 @@ function RhythmsSection({
 
   return (
     <View style={styles.section}>
-      <View style={styles.headerRow}>
+      <View style={styles.headerContent}>
         <Text style={styles.sectionTitle}>{t('readingPlans.rhythms')}</Text>
         <TouchableOpacity
           onPress={onCreateRhythm}
@@ -368,6 +369,7 @@ function MyPlansSection({
   allPlans,
   userProgress,
   rhythms,
+  onAddPlan,
   onRhythmPress,
   onCreateRhythm,
   onPlanPress,
@@ -388,53 +390,70 @@ function MyPlansSection({
 
   return (
     <View style={styles.content}>
-      <RhythmsSection
-        rhythms={rhythms}
-        allPlans={allPlans}
-        onRhythmPress={onRhythmPress}
-        onCreateRhythm={onCreateRhythm}
-        colors={colors}
-      />
-      {activePlans.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
-          <Text style={styles.emptyTitle}>{t('readingPlans.noActivePlans')}</Text>
-          <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('readingPlans.plans')}</Text>
+          <TouchableOpacity
+            onPress={onAddPlan}
+            activeOpacity={0.8}
+            style={styles.primaryButton}
+          >
+            <Ionicons name="add" size={16} color={colors.cardBackground} />
+            <Text style={styles.primaryButtonLabel}>{t('readingPlans.addFirstPlan')}</Text>
+          </TouchableOpacity>
         </View>
-      ) : (
-        activePlans.map(({ progress, plan }) => {
-          const progressRatio =
-            plan.duration_days > 0 ? (progress.current_day - 1) / plan.duration_days : 0;
-          return (
-            <SwipeablePlanRow
-              key={plan.id}
-              onDelete={() => onDeletePlan(plan.id)}
-            >
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => onPlanPress(plan.id)}
-                activeOpacity={0.7}
+
+        {activePlans.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
+            <Text style={styles.emptyTitle}>{t('readingPlans.noActivePlans')}</Text>
+            <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
+          </View>
+        ) : (
+          activePlans.map(({ progress, plan }) => {
+            const progressRatio =
+              plan.duration_days > 0 ? (progress.current_day - 1) / plan.duration_days : 0;
+            return (
+              <SwipeablePlanRow
+                key={plan.id}
+                onDelete={() => onDeletePlan(plan.id)}
               >
-                <CoverImage plan={plan} width={68} height={68} colors={colors} />
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {t(plan.title_key as Parameters<typeof t>[0])}
-                  </Text>
-                  <View style={styles.progressBlock}>
-                    <Text style={styles.dayCounter}>
-                      {t('readingPlans.dayOf', {
-                        current: progress.current_day,
-                        total: plan.duration_days,
-                      })}
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => onPlanPress(plan.id)}
+                  activeOpacity={0.7}
+                >
+                  <CoverImage plan={plan} width={68} height={68} colors={colors} />
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {t(plan.title_key as Parameters<typeof t>[0])}
                     </Text>
-                    <ProgressBar progress={progressRatio} colors={colors} />
+                    <View style={styles.progressBlock}>
+                      <Text style={styles.dayCounter}>
+                        {t('readingPlans.dayOf', {
+                          current: progress.current_day,
+                          total: plan.duration_days,
+                        })}
+                      </Text>
+                      <ProgressBar progress={progressRatio} colors={colors} />
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            </SwipeablePlanRow>
-          );
-        })
-      )}
+                </TouchableOpacity>
+              </SwipeablePlanRow>
+            );
+          })
+        )}
+      </View>
+
+      <View style={styles.rhythmsSection}>
+        <RhythmsSection
+          rhythms={rhythms}
+          allPlans={allPlans}
+          onRhythmPress={onRhythmPress}
+          onCreateRhythm={onCreateRhythm}
+          colors={colors}
+        />
+      </View>
       {/* ActivityStreakStrip hidden for now */}
     </View>
   );
@@ -445,7 +464,34 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     content: {
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
+      gap: spacing.xl,
+    },
+    sectionBlock: {
       gap: spacing.md,
+    },
+    sectionHeader: {
+      gap: spacing.sm,
+    },
+    sectionTitle: {
+      ...typography.cardTitle,
+      color: colors.primaryText,
+    },
+    primaryButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      borderRadius: radius.pill,
+      backgroundColor: colors.accentPrimary,
+      minHeight: layout.minTouchTarget,
+      paddingHorizontal: spacing.md,
+    },
+    primaryButtonLabel: {
+      ...typography.label,
+      color: colors.cardBackground,
+    },
+    rhythmsSection: {
+      paddingTop: spacing.lg,
     },
     emptyState: {
       alignItems: 'center',
@@ -513,10 +559,7 @@ const createRhythmsStyles = (colors: ThemeColors) =>
     section: {
       gap: spacing.md,
     },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    headerContent: {
       gap: spacing.md,
     },
     sectionTitle: {
@@ -524,6 +567,7 @@ const createRhythmsStyles = (colors: ThemeColors) =>
       color: colors.primaryText,
     },
     createButton: {
+      alignSelf: 'flex-start',
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
@@ -996,6 +1040,10 @@ export function PlansHomeScreen() {
     navigation.navigate('RhythmComposer', {});
   }, [navigation]);
 
+  const handleAddPlan = useCallback(() => {
+    setActiveTab('find-plans');
+  }, []);
+
   const styles = createMainStyles(colors);
 
   const tabStrip = (
@@ -1056,6 +1104,7 @@ export function PlansHomeScreen() {
                 allPlans={allPlans}
                 userProgress={userProgress}
                 rhythms={rhythms}
+                onAddPlan={handleAddPlan}
                 onRhythmPress={handleRhythmPress}
                 onCreateRhythm={handleCreateRhythm}
                 onPlanPress={handlePlanPress}

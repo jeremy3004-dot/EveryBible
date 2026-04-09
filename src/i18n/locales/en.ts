@@ -551,6 +551,7 @@ export const en = {
   },
   readingPlans: {
     title: 'Reading Plans',
+    plans: 'Plans',
     browsePlans: 'Browse Plans',
     myPlans: 'My Plans',
     startPlan: 'Start Plan',
@@ -561,6 +562,7 @@ export const en = {
     progress: 'Progress',
     noPlans: 'No reading plans available',
     noActivePlans: "You haven't started any plans yet",
+    addFirstPlan: 'Add your first plan',
     findPlans: 'Find Plans',
     saved: 'Saved',
     completions: '{{count}} completions',

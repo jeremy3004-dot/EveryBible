@@ -151,7 +151,7 @@ test('PlansHomeScreen includes a rhythms section in My Plans with create and det
   assert.match(
     source,
     /function RhythmsSection\(/,
-    'PlansHomeScreen should define a dedicated RhythmsSection above the active plans list'
+    'PlansHomeScreen should define a dedicated RhythmsSection within My Plans'
   );
   assert.match(
     source,
@@ -167,5 +167,35 @@ test('PlansHomeScreen includes a rhythms section in My Plans with create and det
     source,
     /navigation\.navigate\('RhythmComposer', \{\}\)/,
     'PlansHomeScreen should route rhythm creation into the composer screen'
+  );
+  assert.match(
+    source,
+    /<View style=\{styles\.headerContent\}>[\s\S]*<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.rhythms'\)\}<\/Text>[\s\S]*<TouchableOpacity[\s\S]*style=\{styles\.createButton\}/s,
+    'PlansHomeScreen should stack the create rhythm button below the rhythms title instead of keeping them on one row'
+  );
+});
+
+test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () => {
+  assert.match(
+    source,
+    /<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.plans'\)\}<\/Text>/,
+    'PlansHomeScreen should render a dedicated Plans section heading in My Plans'
+  );
+  assert.match(
+    source,
+    /<Text style=\{styles\.primaryButtonLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/,
+    'PlansHomeScreen should offer an add-plan button directly beneath the Plans heading'
+  );
+  assert.match(
+    source,
+    /const handleAddPlan = useCallback\(\(\) => {\s*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
+    'PlansHomeScreen should route the plans CTA to the Find Plans tab'
+  );
+
+  const plansIndex = source.indexOf("t('readingPlans.plans')");
+  const rhythmsIndex = source.indexOf('<RhythmsSection');
+  assert.ok(
+    plansIndex !== -1 && rhythmsIndex !== -1 && plansIndex < rhythmsIndex,
+    'PlansHomeScreen should render the Plans section before the Rhythms section on the My Plans page'
   );
 });
