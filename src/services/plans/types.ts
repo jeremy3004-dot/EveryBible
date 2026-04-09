@@ -102,6 +102,7 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   savePlan: (planId: string) => void;
   unsavePlan: (planId: string) => void;
   upsertProgress: (progress: ReadingPlanProgress) => ReadingPlanProgress;
+  replaceProgress: (progressList: ReadingPlanProgress[]) => void;
   markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
   unenrollPlan: (planId: string) => void;
   getProgress: (planId: string) => ReadingPlanProgress | null;

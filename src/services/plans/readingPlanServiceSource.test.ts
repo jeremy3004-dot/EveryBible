@@ -33,3 +33,11 @@ test('reading plan service exports plans-screen helper queries', () => {
     'timed challenge helper should be exported'
   );
 });
+
+test('signed-in reading plan fetch reconciles the local store to the remote progress list', () => {
+  assert.match(
+    source,
+    /if \(planId\) \{[\s\S]*upsertProgress[\s\S]*\} else \{[\s\S]*replaceProgress\(remoteProgress\)/,
+    'full progress fetches should replace stale local reading-plan progress with the server-backed list'
+  );
+});

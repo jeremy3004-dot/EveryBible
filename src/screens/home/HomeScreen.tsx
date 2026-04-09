@@ -104,7 +104,7 @@ function ContinuePlanCard({
       accessibilityLabel={`${title}. ${t('readingPlans.dayOf', {
         current: item.progress.current_day,
         total: item.plan.duration_days,
-      })}. ${t('home.continueReading')}`}
+      })}. ${t('common.continue')}`}
     >
       <View style={planResumeStyles.topRow}>
         <PlanResumeCover plan={item.plan} />
@@ -131,7 +131,7 @@ function ContinuePlanCard({
             adjustsFontSizeToFit
             minimumFontScale={0.72}
           >
-            {t('home.continueReading')}
+            {t('common.continue')}
           </Text>
         </View>
       </View>

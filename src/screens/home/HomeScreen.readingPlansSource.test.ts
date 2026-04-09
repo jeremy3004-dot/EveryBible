@@ -24,8 +24,8 @@ test('HomeScreen renders a capped continue-reading plans section below the verse
 
   assert.match(
     source,
-    /t\('home\.continueReading'\)/,
-    'HomeScreen should expose a Continue Reading call-to-action on each active plan card'
+    /t\('common\.continue'\)/,
+    'HomeScreen should expose a Continue call-to-action on each active plan card'
   );
 
   assert.match(

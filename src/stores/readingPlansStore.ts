@@ -76,6 +76,25 @@ const removePlanFromCollections = (
   ),
 });
 
+const replaceProgressCollections = (
+  progressList: ReadingPlanProgress[]
+): Pick<
+  ReadingPlansStoreState,
+  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
+> => {
+  const progressByPlanId = Object.fromEntries(
+    progressList.map((progress) => [progress.plan_id, progress])
+  );
+
+  return {
+    enrolledPlanIds: progressList.map((progress) => progress.plan_id),
+    completedPlanIds: progressList
+      .filter((progress) => progress.is_completed)
+      .map((progress) => progress.plan_id),
+    progressByPlanId,
+  };
+};
+
 const lazyDefaultStorage: StateStorage = {
   setItem: async (name, value) => {
     const { zustandStorage } = await import('./mmkvStorage');
@@ -127,6 +146,13 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             ...applyProgressUpdate(state, progress),
           }));
           return progress;
+        },
+
+        replaceProgress: (progressList) => {
+          set((state) => ({
+            ...state,
+            ...replaceProgressCollections(progressList),
+          }));
         },
 
         markDayComplete: (planId, dayNumber, totalDays) => {

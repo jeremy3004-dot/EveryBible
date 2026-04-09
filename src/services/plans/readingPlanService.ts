@@ -309,13 +309,13 @@ export async function getUserPlanProgress(
     }
 
     const remoteProgress = (data ?? []) as UserReadingPlanProgress[];
-    if (remoteProgress.length === 0) {
-      return { success: true, data: localProgress };
+    if (planId) {
+      remoteProgress.forEach((progress) => {
+        readingPlansStore.getState().upsertProgress(progress);
+      });
+    } else {
+      readingPlansStore.getState().replaceProgress(remoteProgress);
     }
-
-    remoteProgress.forEach((progress) => {
-      readingPlansStore.getState().upsertProgress(progress);
-    });
 
     return { success: true, data: remoteProgress };
   } catch {

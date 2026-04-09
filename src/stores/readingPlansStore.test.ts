@@ -71,3 +71,32 @@ test('unenrolling a reading plan clears it from active and completed state witho
   assert.deepEqual(restored.getState().enrolledPlanIds, []);
   assert.deepEqual(restored.getState().completedPlanIds, []);
 });
+
+test('replacing remote progress clears stale local plans while preserving saved plans', async () => {
+  const mod = await import('./readingPlansStore');
+
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+
+  store.getState().savePlan('psalms-30-days');
+  store.getState().enrollPlan('stale-local-plan');
+  store.getState().replaceProgress([
+    {
+      id: 'remote-plan-progress',
+      user_id: 'user-1',
+      plan_id: 'remote-plan',
+      started_at: '2026-04-09T00:00:00Z',
+      completed_entries: { '1': '2026-04-09T00:00:00Z' },
+      current_day: 2,
+      is_completed: false,
+      completed_at: null,
+      synced_at: '2026-04-09T00:00:00Z',
+    },
+  ]);
+
+  assert.deepEqual(store.getState().savedPlanIds, ['psalms-30-days']);
+  assert.deepEqual(store.getState().enrolledPlanIds, ['remote-plan']);
+  assert.deepEqual(store.getState().completedPlanIds, []);
+  assert.equal(store.getState().getProgress('stale-local-plan'), null);
+  assert.equal(store.getState().getProgress('remote-plan')?.current_day, 2);
+});
