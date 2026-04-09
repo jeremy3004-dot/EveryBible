@@ -34,10 +34,15 @@ test('reading plan service exports plans-screen helper queries', () => {
   );
 });
 
-test('signed-in reading plan fetch reconciles the local store to the remote progress list', () => {
+test('signed-in reading plan fetch reconciles local and remote plan progress before replacing store state', () => {
   assert.match(
     source,
-    /if \(planId\) \{[\s\S]*upsertProgress[\s\S]*\} else \{[\s\S]*replaceProgress\(remoteProgress\)/,
-    'full progress fetches should replace stale local reading-plan progress with the server-backed list'
+    /reconcileFetchedPlanProgress/,
+    'full progress fetches should reconcile remote plan rows with recent local enrollments before replacing store state'
+  );
+  assert.match(
+    source,
+    /if \(planId\) \{[\s\S]*upsertProgress[\s\S]*\} else \{[\s\S]*replaceProgress\(reconciledProgress\)/,
+    'full progress fetches should replace store state with reconciled plan progress instead of the raw remote list'
   );
 });

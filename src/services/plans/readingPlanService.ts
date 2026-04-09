@@ -1,5 +1,6 @@
 import { readingPlanEntriesByPlanId, readingPlans, readingPlansById } from '../../data/readingPlans.generated';
 import { readingPlansStore, type ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+import { reconcileFetchedPlanProgress } from './readingPlanModel';
 import type {
   GroupReadingPlan,
   ReadingPlan,
@@ -309,15 +310,18 @@ export async function getUserPlanProgress(
     }
 
     const remoteProgress = (data ?? []) as UserReadingPlanProgress[];
+    const reconciledProgress = planId
+      ? remoteProgress
+      : reconcileFetchedPlanProgress(localProgress, remoteProgress, new Date().toISOString());
     if (planId) {
       remoteProgress.forEach((progress) => {
         readingPlansStore.getState().upsertProgress(progress);
       });
     } else {
-      readingPlansStore.getState().replaceProgress(remoteProgress);
+      readingPlansStore.getState().replaceProgress(reconciledProgress);
     }
 
-    return { success: true, data: remoteProgress };
+    return { success: true, data: reconciledProgress };
   } catch {
     return { success: true, data: localProgress };
   }
