@@ -274,7 +274,7 @@ export function PrayerWallScreen() {
           activeOpacity={isOwner ? 0.7 : 1}
           accessible
           accessibilityLabel={item.content}
-          accessibilityHint={isOwner ? 'Long press to edit or delete' : undefined}
+          accessibilityHint={isOwner ? t('prayer.ownerLongPressHint') : undefined}
         >
           {/* Card header: avatar + meta */}
           <View style={styles.cardHeader}>

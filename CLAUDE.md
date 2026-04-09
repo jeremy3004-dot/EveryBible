@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-EveryBible is a mobile Bible study app built with Expo/React Native. It provides offline Bible reading, audio playback, discipleship courses (Four Fields), group study features, and multi-language support (EN, ES, NE, HI). The app uses Supabase for backend services and supports Apple/Google OAuth authentication.
+EveryBible is a mobile Bible study app built with Expo/React Native. It provides offline Bible reading, audio playback, discipleship courses (Four Fields), group study features, and broad multi-language support. The app uses Supabase for backend services and supports Apple/Google OAuth authentication.
 
 **Tech Stack:** React Native 0.81, Expo SDK 54, TypeScript, Zustand, Supabase, React Navigation, i18next, SQLite
 **Current Phase:** Production - App is live on iOS/Android
@@ -15,7 +15,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 2. **Never commit .env file** - Why: Contains Supabase keys, OAuth credentials, API keys
 3. **Always use barrel exports (index.ts)** - Why: Maintains clean import paths across codebase
 4. **Theme context for all colors** - Why: App supports dark mode, hardcoded colors break theming
-5. **Translation keys for ALL user-facing text** - Why: App supports 4 languages, no hardcoded strings
+5. **Translation keys for ALL user-facing text** - Why: App ships a broad interface language set, and hardcoded strings break localization coverage
 6. **Use Zustand stores for global state** - Why: Lightweight, persistent via AsyncStorage, already established pattern
 7. **Offline-first architecture** - Why: Bible data is SQLite-based for offline access
 8. **Test on both iOS and Android** - Why: Platform-specific issues with audio, notifications, OAuth

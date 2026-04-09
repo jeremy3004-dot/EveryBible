@@ -281,7 +281,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                 onPress={() => handleThreeDotPress(lesson)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityRole="button"
-                accessibilityLabel="More options"
+                accessibilityLabel={t('gather.moreOptions')}
               >
                 <Ionicons name="ellipsis-vertical" size={18} color={colors.secondaryText} />
               </TouchableOpacity>

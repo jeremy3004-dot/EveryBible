@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-test('mobile content service falls back to shared Supabase mobile content RPC', async () => {
+test('mobile content service fetches shared content from the configured mobile content endpoint', async () => {
   const source = await readFile(
     path.join(repoRoot, 'src/services/content/mobileContentService.ts'),
     'utf8'
   );
 
-  assert.match(source, /supabase\.rpc\('get_live_mobile_content'\)/);
+  assert.match(source, /publicRuntimeConfig\.EXPO_PUBLIC_CONTENT_API_URL/);
+  assert.match(source, /fetchImpl\(endpoint/);
 });
 
 test('site mobile content route uses the shared Supabase mobile content RPC', async () => {

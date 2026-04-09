@@ -15,7 +15,7 @@ EveryBible is a comprehensive Bible study application built with React Native an
 - **Audio Bible:** Stream and download public-domain BSB and WEB chapter audio without extra credentials
 - **Four Fields Discipleship:** Training courses based on the Four Fields model
 - **Group Study:** Create and manage study groups with progress tracking
-- **Multi-language Support:** English, Spanish, Nepali, and Hindi
+- **Multi-language Support:** Broad global interface-language support with localized Bible and app content
 - **Cross-platform:** iOS and Android with native authentication
 
 ## Tech Stack
@@ -26,7 +26,7 @@ EveryBible is a comprehensive Bible study application built with React Native an
 - **Navigation:** React Navigation v7 (Bottom Tabs + Stack)
 - **Backend:** Supabase (Authentication, Database, Real-time)
 - **Database:** SQLite for offline Bible text
-- **Internationalization:** i18next with 4 languages
+- **Internationalization:** i18next with a broad interface-language catalog and per-locale coverage checks
 - **Authentication:** Email/Password, Apple Sign-In, Google Sign-In
 - **Styling:** React Native StyleSheet with theme context
 
