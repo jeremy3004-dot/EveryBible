@@ -393,14 +393,16 @@ function MyPlansSection({
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('readingPlans.plans')}</Text>
-          <TouchableOpacity
-            onPress={onAddPlan}
-            activeOpacity={0.8}
-            style={styles.primaryButton}
-          >
-            <Ionicons name="add" size={16} color={colors.cardBackground} />
-            <Text style={styles.primaryButtonLabel}>{t('readingPlans.addFirstPlan')}</Text>
-          </TouchableOpacity>
+          {activePlans.length === 0 ? (
+            <TouchableOpacity
+              onPress={onAddPlan}
+              activeOpacity={0.8}
+              style={styles.primaryButton}
+            >
+              <Ionicons name="add" size={16} color={colors.cardBackground} />
+              <Text style={styles.primaryButtonLabel}>{t('readingPlans.addFirstPlan')}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {activePlans.length === 0 ? (

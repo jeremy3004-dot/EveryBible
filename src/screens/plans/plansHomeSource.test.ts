@@ -183,8 +183,8 @@ test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () =>
   );
   assert.match(
     source,
-    /<Text style=\{styles\.primaryButtonLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/,
-    'PlansHomeScreen should offer an add-plan button directly beneath the Plans heading'
+    /activePlans\.length === 0 \? \(\s*<TouchableOpacity[\s\S]*<Text style=\{styles\.primaryButtonLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/s,
+    'PlansHomeScreen should only show the add-plan button beneath the Plans heading when there are no active plans yet'
   );
   assert.match(
     source,
