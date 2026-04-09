@@ -485,6 +485,18 @@ export function BibleReaderScreen() {
   const scrollDragStartOffsetYRef = useRef(0);
   const premiumReaderBaseBottomPadding =
     safeInsets.bottom + layout.tabBarBaseHeight + spacing.lg + layout.minTouchTarget + spacing.md;
+  const rootTabBarBottomPadding = spacing.lg;
+  const rootTabBarStyle = useMemo(
+    () => ({
+      backgroundColor: colors.background,
+      borderTopColor: colors.cardBorder,
+      borderTopWidth: 1,
+      paddingTop: 0,
+      paddingBottom: rootTabBarBottomPadding + spacing.sm,
+      height: layout.tabBarBaseHeight + rootTabBarBottomPadding,
+    }),
+    [colors.background, colors.cardBorder, rootTabBarBottomPadding]
+  );
   const premiumReaderBottomPadding = useMemo(() => {
     if (premiumReaderViewportHeight <= 0 || premiumReaderContentHeight <= 0) {
       return premiumReaderBaseBottomPadding;
@@ -732,17 +744,17 @@ export function BibleReaderScreen() {
 
       return () => {
         rootTabNavigation.setOptions({
-          tabBarStyle: undefined,
+          tabBarStyle: rootTabBarStyle,
         });
       };
     }
 
     rootTabNavigation.setOptions({
-      tabBarStyle: undefined,
+      tabBarStyle: rootTabBarStyle,
     });
 
     return undefined;
-  }, [navigation, showPlanSessionChrome]);
+  }, [navigation, rootTabBarStyle, showPlanSessionChrome]);
   const activePlanDaySummary = useMemo(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
       return null;

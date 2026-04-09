@@ -248,25 +248,37 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
   );
 });
 
-test('BibleReaderScreen directly hides the RootTab bar while a plan session is active', () => {
+test('BibleReaderScreen matches the shared RootTab bar metrics and only hides it for plan sessions', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
+    /const rootTabBarBottomPadding = spacing\.lg;/,
+    'BibleReaderScreen should restore the same bottom padding token used by the shared RootTab bar'
+  );
+
+  assert.match(
+    source,
+    /const rootTabBarStyle = useMemo\(/,
+    'BibleReaderScreen should memoize the shared RootTab bar style instead of falling back to React Navigation defaults'
+  );
+
+  assert.match(
+    source,
     /navigation\.getParent\(\)/,
-    'BibleReaderScreen should reach up to the RootTab navigator during plan sessions'
+    'BibleReaderScreen should still reach up to the RootTab navigator while a plan session is active'
   );
 
   assert.match(
     source,
     /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*\{\s*display:\s*'none'\s*\},\s*\}\)/s,
-    'BibleReaderScreen should explicitly hide the RootTab bar while the plan reader is active'
+    'BibleReaderScreen should continue hiding the shared RootTab bar while the plan strip is active'
   );
 
   assert.match(
     source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/,
-    'BibleReaderScreen should restore the RootTab bar styling when plan-reader mode ends'
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*rootTabBarStyle,\s*\}\)/,
+    'BibleReaderScreen should restore the exact shared RootTab bar style when the plan session ends or when normal Bible reading is active'
   );
 });
 
