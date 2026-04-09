@@ -26,11 +26,25 @@ test('Gather artwork zoom overrides stay restrained for centered card artwork', 
     'topic-marriage',
     'topic-parenting',
     'topic-singles',
-    'topic-women',
     'topic-youth',
   ]) {
     assert.equal(getGatherArtworkZoom(key), 1, `${key} should render at natural scale in the card`);
   }
 
-  assert.deepEqual(Object.keys(GATHER_ARTWORK_ZOOM_OVERRIDES), ['foundation-1']);
+  assert.equal(
+    getGatherArtworkZoom('topic-women') < 1,
+    true,
+    'topic-women should be scaled down slightly to avoid clipping at the top edge'
+  );
+
+  assert.equal(
+    getGatherArtworkZoom('topic-money-advice') < 1,
+    true,
+    'topic-money-advice should be scaled down slightly to avoid clipping near the top edge'
+  );
+
+  assert.deepEqual(
+    Object.keys(GATHER_ARTWORK_ZOOM_OVERRIDES).sort(),
+    ['foundation-1', 'topic-money-advice', 'topic-women']
+  );
 });

@@ -79,7 +79,7 @@ test('GatherIconBadge uses SVG artwork and theme tinting', () => {
   assert.equal(
     source.includes('Math.max(iconSize, Math.round(size * 0.9))'),
     true,
-    'GatherIconBadge should size artwork relative to its slot so it reads clearly without badge chrome'
+    'GatherIconBadge should keep artwork readable while leaving comfortable breathing room in the slot'
   );
 
   assert.equal(
