@@ -1,6 +1,13 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { AudioPlaybackSequenceEntry } from '../../types';
-import type { ReadingPlanEntry, UserReadingPlanProgress } from './types';
+import type {
+  ReadingPlanDayResume,
+  ReadingPlanEntry,
+  ReadingPlanRhythm,
+  ReadingPlanRhythmSession,
+  ReadingPlanRhythmSessionSegment,
+  UserReadingPlanProgress,
+} from './types';
 import { formatLocalDateKey } from '../progress/readingActivity';
 
 export type PlanChapterActivitySource = 'read' | 'listen';
@@ -42,6 +49,27 @@ export interface CurrentPlanDaySummary {
 export interface PlanChapterListenStatus {
   currentChapterListenCountedAt: number | null;
   alreadyCountedForPlan: boolean;
+}
+
+export interface BuildRhythmReaderSessionInput {
+  rhythm: ReadingPlanRhythm;
+  planEntriesById: Record<string, ReadingPlanEntry[]>;
+  progressByPlanId?: Record<string, UserReadingPlanProgress | null | undefined>;
+  planTitlesById?: Record<string, string>;
+  getPlanDayResume?: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
+}
+
+export interface BuildRhythmReaderSessionResult {
+  sessionContext: ReadingPlanRhythmSession;
+  playbackSequenceEntries: AudioPlaybackSequenceEntry[];
+  startEntry: AudioPlaybackSequenceEntry | null;
+  startSegment: ReadingPlanRhythmSessionSegment | null;
+}
+
+export interface ReadingPlanRhythmSummary {
+  planCount: number;
+  completedPlanCount: number;
+  remainingPlanCount: number;
 }
 
 const DEFAULT_LISTEN_COMPLETION_THRESHOLD = 0.98;
@@ -114,6 +142,189 @@ export function getPlanDayTargetChapterKeys(
   dayNumber: number
 ): string[] {
   return expandPlanDayChapterKeys(getUniqueDayEntries(entries, dayNumber));
+}
+
+function getPlanTotalDayCount(entries: ReadingPlanEntry[]): number {
+  return entries.reduce((maxDay, entry) => Math.max(maxDay, entry.day_number), 0);
+}
+
+function getRhythmDayNumber(entries: ReadingPlanEntry[], progress?: UserReadingPlanProgress): number {
+  const totalDays = getPlanTotalDayCount(entries);
+  const currentDay = Math.max(progress?.current_day ?? 1, 1);
+
+  if (progress?.is_completed) {
+    return totalDays > 0 ? totalDays : currentDay;
+  }
+
+  return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;
+}
+
+export function buildRhythmReaderSession({
+  rhythm,
+  planEntriesById,
+  progressByPlanId = {},
+  planTitlesById = {},
+  getPlanDayResume,
+}: BuildRhythmReaderSessionInput): BuildRhythmReaderSessionResult {
+  const segments: ReadingPlanRhythmSessionSegment[] = [];
+  const chapterKeys: string[] = [];
+  const playbackSequenceEntries: AudioPlaybackSequenceEntry[] = [];
+
+  for (const planId of rhythm.planIds) {
+    const entries = planEntriesById[planId] ?? [];
+    if (entries.length === 0) {
+      continue;
+    }
+
+    const progress = progressByPlanId[planId] ?? null;
+    if (progress?.is_completed) {
+      continue;
+    }
+
+    const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
+    const dayEntries = getUniqueDayEntries(entries, dayNumber);
+    const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
+    if (segmentChapterKeys.length === 0) {
+      continue;
+    }
+
+    const segmentPlaybackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+    const startIndex = playbackSequenceEntries.length;
+    playbackSequenceEntries.push(...segmentPlaybackEntries);
+    chapterKeys.push(...segmentChapterKeys);
+    const endIndex = playbackSequenceEntries.length;
+
+    segments.push({
+      planId,
+      planTitle: planTitlesById[planId] ?? planId,
+      dayNumber,
+      startIndex,
+      endIndex,
+      chapterKeys: segmentChapterKeys,
+      isComplete: false,
+    });
+  }
+
+  const sessionContext: ReadingPlanRhythmSession = {
+    type: 'rhythm',
+    rhythmId: rhythm.id,
+    title: rhythm.title,
+    planIds: rhythm.planIds,
+    chapterKeys,
+    segments,
+  };
+
+  const startSegment = resolveFirstIncompleteRhythmSessionSegment(sessionContext, progressByPlanId);
+  const startResume =
+    startSegment && getPlanDayResume
+      ? getPlanDayResume(startSegment.planId, startSegment.dayNumber)
+      : null;
+  const startEntry =
+    startSegment && startSegment.startIndex < playbackSequenceEntries.length
+      ? startResume
+        ? playbackSequenceEntries
+            .slice(startSegment.startIndex, startSegment.endIndex)
+            .find(
+              (entry) =>
+                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter
+            ) ?? playbackSequenceEntries[startSegment.startIndex] ?? null
+        : playbackSequenceEntries[startSegment.startIndex] ?? null
+      : null;
+
+  return {
+    sessionContext,
+    playbackSequenceEntries,
+    startEntry,
+    startSegment,
+  };
+}
+
+export function resolveFirstIncompleteRhythmSessionSegment(
+  session: ReadingPlanRhythmSession,
+  progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>,
+  resumePlanId?: string | null
+): ReadingPlanRhythmSessionSegment | null {
+  const isIncomplete = (segment: ReadingPlanRhythmSessionSegment): boolean =>
+    !(progressByPlanId[segment.planId]?.is_completed ?? false);
+
+  if (resumePlanId) {
+    const preferredSegment = session.segments.find((segment) => segment.planId === resumePlanId);
+    if (preferredSegment && isIncomplete(preferredSegment)) {
+      return preferredSegment;
+    }
+  }
+
+  return session.segments.find(isIncomplete) ?? null;
+}
+
+export function getRhythmSessionSegmentAtIndex(
+  session: ReadingPlanRhythmSession,
+  playbackIndex: number
+): ReadingPlanRhythmSessionSegment | null {
+  if (playbackIndex < 0) {
+    return null;
+  }
+
+  return (
+    session.segments.find(
+      (segment) => playbackIndex >= segment.startIndex && playbackIndex < segment.endIndex
+    ) ?? null
+  );
+}
+
+export function resolvePlaybackSequenceIndex({
+  playbackSequenceEntries,
+  bookId,
+  chapter,
+  session,
+  preferredPlanId,
+  preferredDayNumber,
+}: {
+  playbackSequenceEntries: AudioPlaybackSequenceEntry[];
+  bookId: string;
+  chapter: number;
+  session?: ReadingPlanRhythmSession | null;
+  preferredPlanId?: string | null;
+  preferredDayNumber?: number | null;
+}): number {
+  if (session && preferredPlanId) {
+    const preferredSegment = session.segments.find(
+      (segment) =>
+        segment.planId === preferredPlanId &&
+        (preferredDayNumber == null || segment.dayNumber === preferredDayNumber)
+    );
+
+    if (preferredSegment) {
+      for (let index = preferredSegment.startIndex; index < preferredSegment.endIndex; index += 1) {
+        const entry = playbackSequenceEntries[index];
+        if (entry?.bookId === bookId && entry.chapter === chapter) {
+          return index;
+        }
+      }
+    }
+  }
+
+  return playbackSequenceEntries.findIndex(
+    (entry) => entry.bookId === bookId && entry.chapter === chapter
+  );
+}
+
+export function getReadingPlanRhythmSummary({
+  rhythm,
+  progressByPlanId,
+}: {
+  rhythm: ReadingPlanRhythm;
+  progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>;
+}): ReadingPlanRhythmSummary {
+  const completedPlanCount = rhythm.planIds.filter(
+    (planId) => progressByPlanId[planId]?.is_completed === true
+  ).length;
+
+  return {
+    planCount: rhythm.planIds.length,
+    completedPlanCount,
+    remainingPlanCount: Math.max(rhythm.planIds.length - completedPlanCount, 0),
+  };
 }
 
 function mergeChapterActivityRecords(
@@ -261,6 +472,10 @@ export function getCurrentPlanDaySummary({
     listenCompletionThreshold,
   });
 
+  const completedChapterCount = summary.completedActivity.filter((record) =>
+    summary.targetChapterKeys.includes(record.chapterKey)
+  ).length;
+
   return {
     dayNumber,
     dateKey: getScheduledPlanDayDateKey(progress.started_at, dayNumber),
@@ -269,16 +484,8 @@ export function getCurrentPlanDaySummary({
       summary.targetChapterKeys.includes(chapterKey)
     ),
     targetChapterCount: summary.targetChapterKeys.length,
-    completedChapterCount: summary.completedActivity.filter((record) =>
-      summary.targetChapterKeys.includes(record.chapterKey)
-    ).length,
-    remainingChapterCount: Math.max(
-      summary.targetChapterKeys.length -
-        summary.completedActivity.filter((record) =>
-          summary.targetChapterKeys.includes(record.chapterKey)
-        ).length,
-      0
-    ),
+    completedChapterCount,
+    remainingChapterCount: Math.max(summary.targetChapterKeys.length - completedChapterCount, 0),
     isComplete: summary.isComplete,
   };
 }

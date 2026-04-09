@@ -1,7 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 import type { ReadingPlan, ReadingPlanCoverKey } from './types';
 
-const COVER_ASSETS = {
+const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   canyon: require('../../../assets/plans/covers/canyon.webp'),
   desert: require('../../../assets/plans/covers/desert.webp'),
   dunes: require('../../../assets/plans/covers/dunes.webp'),
@@ -40,5 +40,5 @@ export function getReadingPlanCoverSource(plan: ReadingPlanCoverInput): ImageSou
     (plan.cover_image_key ??
       plan.cover_key ??
       plan.coverKey) as ReadingPlanCoverKey | null | undefined;
-  return key ? COVER_ASSETS[key] : null;
+  return key ? COVER_ASSETS[key] ?? null : null;
 }

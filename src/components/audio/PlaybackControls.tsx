@@ -23,6 +23,7 @@ interface PlaybackControlsProps {
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
   onPlayPause: () => void;
+  showChapterNavigation?: boolean;
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onSkipBackward: () => void;
@@ -47,6 +48,7 @@ export function PlaybackControls({
   hasPreviousChapter,
   hasNextChapter,
   onPlayPause,
+  showChapterNavigation = true,
   onPreviousChapter,
   onNextChapter,
   onSkipBackward,
@@ -69,6 +71,7 @@ export function PlaybackControls({
   const isLoading = status === 'loading';
   const isPlaying = status === 'playing';
   const isChapterOnlyTransport = variant === 'chapter-only';
+  const showChapterTransportButtons = !isChapterOnlyTransport || showChapterNavigation;
   const showSkipControls = variant === 'default';
   const showTextUtility = typeof onShowText === 'function';
   const showShareAudioUtility = typeof onShareAudio === 'function';
@@ -148,21 +151,23 @@ export function PlaybackControls({
       <View
         style={[styles.transportRow, isChapterOnlyTransport ? styles.chapterOnlyTransportRow : null]}
       >
-        <TouchableOpacity
-          style={[
-            styles.iconButton,
-            isChapterOnlyTransport ? styles.chapterOnlyTransportButton : null,
-            !hasPreviousChapter && styles.disabledButton,
-          ]}
-          onPress={onPreviousChapter}
-          disabled={!hasPreviousChapter || isLoading}
-        >
-          <Ionicons
-            name="play-skip-back"
-            size={isChapterOnlyTransport ? 28 : 20}
-            color={hasPreviousChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-          />
-        </TouchableOpacity>
+        {showChapterTransportButtons ? (
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              isChapterOnlyTransport ? styles.chapterOnlyTransportButton : null,
+              !hasPreviousChapter && styles.disabledButton,
+            ]}
+            onPress={onPreviousChapter}
+            disabled={!hasPreviousChapter || isLoading}
+          >
+            <Ionicons
+              name="play-skip-back"
+              size={isChapterOnlyTransport ? 28 : 20}
+              color={hasPreviousChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            />
+          </TouchableOpacity>
+        ) : null}
 
         {showSkipControls ? (
           <TouchableOpacity
@@ -216,21 +221,23 @@ export function PlaybackControls({
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity
-          style={[
-            styles.iconButton,
-            isChapterOnlyTransport ? styles.chapterOnlyTransportButton : null,
-            !hasNextChapter && styles.disabledButton,
-          ]}
-          onPress={onNextChapter}
-          disabled={!hasNextChapter || isLoading}
-        >
-          <Ionicons
-            name="play-skip-forward"
-            size={isChapterOnlyTransport ? 28 : 20}
-            color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-          />
-        </TouchableOpacity>
+        {showChapterTransportButtons ? (
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              isChapterOnlyTransport ? styles.chapterOnlyTransportButton : null,
+              !hasNextChapter && styles.disabledButton,
+            ]}
+            onPress={onNextChapter}
+            disabled={!hasNextChapter || isLoading}
+          >
+            <Ionicons
+              name="play-skip-forward"
+              size={isChapterOnlyTransport ? 28 : 20}
+              color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={[styles.utilityRow, isChapterOnlyTransport ? styles.chapterOnlyUtilityRow : null]}>

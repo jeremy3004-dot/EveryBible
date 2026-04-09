@@ -2,6 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { AudioPlaybackSequenceEntry } from '../types';
+import type { RhythmSessionContext } from '../services/plans/types';
 
 // Home Stack
 export type HomeStackParamList = {
@@ -26,6 +27,7 @@ export type BibleStackParamList = {
     planId?: string;
     planDayNumber?: number;
     returnToPlanOnComplete?: boolean;
+    sessionContext?: RhythmSessionContext;
   };
   ChapterSelector: {
     bookId: string;
@@ -60,6 +62,8 @@ export type LearnStackParamList = {
 export type PlansStackParamList = {
   PlansHome: undefined;
   PlanDetail: { planId: string };
+  RhythmDetail: { rhythmId: string };
+  RhythmComposer: { rhythmId?: string };
 };
 
 // More Stack
@@ -114,6 +118,11 @@ export type PrayerWallScreenProps = NativeStackScreenProps<LearnStackParamList, 
 
 export type PlansHomeScreenProps = NativeStackScreenProps<PlansStackParamList, 'PlansHome'>;
 export type PlanDetailScreenProps = NativeStackScreenProps<PlansStackParamList, 'PlanDetail'>;
+export type RhythmDetailScreenProps = NativeStackScreenProps<PlansStackParamList, 'RhythmDetail'>;
+export type RhythmComposerScreenProps = NativeStackScreenProps<
+  PlansStackParamList,
+  'RhythmComposer'
+>;
 
 export type MoreScreenProps = NativeStackScreenProps<MoreStackParamList, 'MoreScreen'>;
 export type SettingsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Settings'>;

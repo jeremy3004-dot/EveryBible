@@ -6,11 +6,17 @@ import { computeNextDay, isPlanCompleted } from '../services/plans/readingPlanMo
 import type {
   GroupReadingPlan,
   ReadingPlanProgress,
+  ReadingPlanRhythm,
+  ReadingPlanRhythmInput,
+  ReadingPlanRhythmMutationResult,
   ReadingPlansPersistedState,
   ReadingPlansStoreState,
+  RhythmId,
 } from '../services/plans/types';
 
 export type ReadingPlansStoreApi = StoreApi<ReadingPlansStoreState>;
+
+let rhythmSequence = 0;
 
 const createEmptyState = (): ReadingPlansPersistedState => ({
   enrolledPlanIds: [],
@@ -19,6 +25,8 @@ const createEmptyState = (): ReadingPlansPersistedState => ({
   progressByPlanId: {},
   planDayResumeByKey: {},
   groupPlansByGroupId: {},
+  rhythmsById: {},
+  rhythmOrder: [],
 });
 
 const buildPlanDayResumeKey = (planId: string, dayNumber: number): string => `${planId}:${dayNumber}`;
@@ -36,6 +44,131 @@ const createProgressRecord = (planId: string): ReadingPlanProgress => {
     completed_at: null,
     synced_at: now,
   };
+};
+
+const createRhythmId = (): RhythmId => `reading-plan-rhythm-${Date.now()}-${(rhythmSequence += 1)}`;
+
+const normalizeRhythmPlanIds = (planIds: string[] = []): string[] => {
+  const seen = new Set<string>();
+
+  return planIds.reduce<string[]>((accumulator, planId) => {
+    const trimmedPlanId = planId.trim();
+    if (!trimmedPlanId || seen.has(trimmedPlanId)) {
+      return accumulator;
+    }
+
+    seen.add(trimmedPlanId);
+    accumulator.push(trimmedPlanId);
+    return accumulator;
+  }, []);
+};
+
+const findRhythmIdForPlan = (
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>,
+  planId: string,
+  excludeRhythmId?: RhythmId
+): RhythmId | null => {
+  for (const rhythm of Object.values(rhythmsById)) {
+    if (rhythm.id === excludeRhythmId) {
+      continue;
+    }
+
+    if (rhythm.planIds.includes(planId)) {
+      return rhythm.id;
+    }
+  }
+
+  return null;
+};
+
+const getFallbackRhythmTitle = (
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>,
+  excludeRhythmId?: RhythmId
+): string => {
+  const usedTitles = new Set(
+    Object.values(rhythmsById)
+      .filter((rhythm) => rhythm.id !== excludeRhythmId)
+      .map((rhythm) => rhythm.title.trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  let fallbackIndex = 1;
+  while (usedTitles.has(`rhythm ${fallbackIndex}`)) {
+    fallbackIndex += 1;
+  }
+
+  return `Rhythm ${fallbackIndex}`;
+};
+
+const resolveRhythmTitle = (
+  title: string | null | undefined,
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>,
+  excludeRhythmId?: RhythmId
+): string => {
+  const trimmedTitle = title?.trim();
+  return trimmedTitle ? trimmedTitle : getFallbackRhythmTitle(rhythmsById, excludeRhythmId);
+};
+
+const normalizeRhythmOrder = (
+  candidateOrder: RhythmId[],
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>
+): RhythmId[] => {
+  const nextOrder: RhythmId[] = [];
+  const seen = new Set<RhythmId>();
+
+  for (const rhythmId of candidateOrder) {
+    if (!rhythmsById[rhythmId] || seen.has(rhythmId)) {
+      continue;
+    }
+
+    seen.add(rhythmId);
+    nextOrder.push(rhythmId);
+  }
+
+  for (const rhythmId of Object.keys(rhythmsById)) {
+    if (seen.has(rhythmId)) {
+      continue;
+    }
+
+    seen.add(rhythmId);
+    nextOrder.push(rhythmId);
+  }
+
+  return nextOrder;
+};
+
+const normalizeRhythmCollections = (
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>,
+  rhythmOrder: RhythmId[]
+): Pick<ReadingPlansPersistedState, 'rhythmsById' | 'rhythmOrder'> => {
+  const nextRhythmsById = { ...rhythmsById };
+  const nextRhythmOrder = normalizeRhythmOrder(rhythmOrder, nextRhythmsById);
+
+  return {
+    rhythmsById: nextRhythmsById,
+    rhythmOrder: nextRhythmOrder,
+  };
+};
+
+const buildRhythmMutationResult = (
+  success: boolean,
+  rhythm?: ReadingPlanRhythm,
+  error?: string
+): ReadingPlanRhythmMutationResult => ({ success, rhythm, error });
+
+const validateRhythmPlans = (
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>,
+  planIds: string[],
+  excludeRhythmId?: RhythmId
+): string | null => {
+  for (const planId of planIds) {
+    const ownerRhythmId = findRhythmIdForPlan(rhythmsById, planId, excludeRhythmId);
+    if (ownerRhythmId) {
+      return 'Plan already belongs to another rhythm';
+    }
+  }
+
+  return null;
 };
 
 const applyProgressUpdate = (
@@ -107,6 +240,30 @@ const replaceProgressCollections = (
   };
 };
 
+const removePlanFromRhythms = (
+  state: ReadingPlansStoreState,
+  planId: string
+): Pick<ReadingPlansStoreState, 'rhythmsById' | 'rhythmOrder'> => {
+  const rhythmsById = Object.fromEntries(
+    Object.entries(state.rhythmsById)
+      .map(([rhythmId, rhythm]) => {
+        const nextPlanIds = rhythm.planIds.filter((id) => id !== planId);
+        if (nextPlanIds.length === 0) {
+          return null;
+        }
+
+        return [
+          rhythmId,
+          nextPlanIds.length === rhythm.planIds.length
+            ? rhythm
+            : { ...rhythm, planIds: nextPlanIds, updatedAt: new Date().toISOString() },
+        ];
+      })
+      .filter((entry): entry is [RhythmId, ReadingPlanRhythm] => entry !== null)
+  );
+
+  return normalizeRhythmCollections(rhythmsById, state.rhythmOrder.filter((id) => rhythmsById[id]));
+};
 const lazyDefaultStorage: StateStorage = {
   setItem: async (name, value) => {
     const { zustandStorage } = await import('./mmkvStorage');
@@ -127,6 +284,147 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
     persist(
       (set, get) => ({
         ...createEmptyState(),
+
+        createRhythm: (input: ReadingPlanRhythmInput = {}) => {
+          const planIds = normalizeRhythmPlanIds(input.planIds);
+          if (planIds.length === 0) {
+            return buildRhythmMutationResult(false, undefined, 'Select at least one plan');
+          }
+
+          const state = get();
+          const validationError = validateRhythmPlans(state.rhythmsById, planIds);
+          if (validationError) {
+            return buildRhythmMutationResult(false, undefined, validationError);
+          }
+
+          const now = new Date().toISOString();
+          const rhythm: ReadingPlanRhythm = {
+            id: createRhythmId(),
+            title: resolveRhythmTitle(input.title, state.rhythmsById),
+            planIds,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          set((currentState) => ({
+            ...currentState,
+            ...normalizeRhythmCollections(
+              {
+                ...currentState.rhythmsById,
+                [rhythm.id]: rhythm,
+              },
+              [...currentState.rhythmOrder, rhythm.id]
+            ),
+          }));
+
+          return buildRhythmMutationResult(true, rhythm);
+        },
+
+        updateRhythm: (rhythmId, input = {}) => {
+          const existingRhythm = get().rhythmsById[rhythmId];
+          if (!existingRhythm) {
+            return buildRhythmMutationResult(false, undefined, 'Rhythm not found');
+          }
+
+          const nextPlanIds =
+            input.planIds !== undefined
+              ? normalizeRhythmPlanIds(input.planIds)
+              : existingRhythm.planIds;
+
+          if (nextPlanIds.length === 0) {
+            return buildRhythmMutationResult(false, undefined, 'Select at least one plan');
+          }
+
+          const state = get();
+          const validationError = validateRhythmPlans(state.rhythmsById, nextPlanIds, rhythmId);
+          if (validationError) {
+            return buildRhythmMutationResult(false, undefined, validationError);
+          }
+
+          const rhythm: ReadingPlanRhythm = {
+            ...existingRhythm,
+            title: resolveRhythmTitle(input.title, state.rhythmsById, rhythmId),
+            planIds: nextPlanIds,
+            updatedAt: new Date().toISOString(),
+          };
+
+          set((currentState) => ({
+            ...currentState,
+            ...normalizeRhythmCollections(
+              {
+                ...currentState.rhythmsById,
+                [rhythmId]: rhythm,
+              },
+              currentState.rhythmOrder
+            ),
+          }));
+
+          return buildRhythmMutationResult(true, rhythm);
+        },
+
+        deleteRhythm: (rhythmId) => {
+          set((state) => {
+            if (!state.rhythmsById[rhythmId]) {
+              return state;
+            }
+
+            const rhythmsById = { ...state.rhythmsById };
+            delete rhythmsById[rhythmId];
+            return {
+              ...state,
+              ...normalizeRhythmCollections(rhythmsById, state.rhythmOrder.filter((id) => id !== rhythmId)),
+            };
+          });
+        },
+
+        reorderRhythms: (rhythmOrder) => {
+          set((state) => ({
+            ...state,
+            ...normalizeRhythmCollections(state.rhythmsById, rhythmOrder),
+          }));
+        },
+
+        moveRhythmPlan: (rhythmId, planId, direction) => {
+          set((state) => {
+            const rhythm = state.rhythmsById[rhythmId];
+            if (!rhythm) {
+              return state;
+            }
+
+            const currentIndex = rhythm.planIds.indexOf(planId);
+            if (currentIndex < 0) {
+              return state;
+            }
+
+            const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (nextIndex < 0 || nextIndex >= rhythm.planIds.length) {
+              return state;
+            }
+
+            const planIds = [...rhythm.planIds];
+            const [movedPlanId] = planIds.splice(currentIndex, 1);
+            planIds.splice(nextIndex, 0, movedPlanId);
+
+            return {
+              ...state,
+              rhythmsById: {
+                ...state.rhythmsById,
+                [rhythmId]: {
+                  ...rhythm,
+                  planIds,
+                  updatedAt: new Date().toISOString(),
+                },
+              },
+            };
+          });
+        },
+
+        getRhythm: (rhythmId) => get().rhythmsById[rhythmId] ?? null,
+
+        getRhythmForPlan: (planId) =>
+          get()
+            .rhythmOrder.map((rhythmId) => get().rhythmsById[rhythmId] ?? null)
+            .find((rhythm): rhythm is ReadingPlanRhythm => rhythm !== null && rhythm.planIds.includes(planId)) ?? null,
 
         enrollPlan: (planId) => {
           const progress = createProgressRecord(planId);
@@ -231,6 +529,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             ...state,
             ...removePlanFromCollections(state, planId),
             ...removePlanDayResumeEntries(state, planId),
+            ...removePlanFromRhythms(state, planId),
           }));
         },
 
@@ -271,11 +570,20 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           progressByPlanId: state.progressByPlanId,
           planDayResumeByKey: state.planDayResumeByKey,
           groupPlansByGroupId: state.groupPlansByGroupId,
+          rhythmsById: state.rhythmsById,
+          rhythmOrder: state.rhythmOrder,
         }),
-        merge: (persistedState, currentState) => ({
-          ...currentState,
-          ...(persistedState as Partial<ReadingPlansPersistedState>),
-        }),
+        merge: (persistedState, currentState) => {
+          const mergedState = {
+            ...currentState,
+            ...(persistedState as Partial<ReadingPlansPersistedState>),
+          };
+
+          return {
+            ...mergedState,
+            ...normalizeRhythmCollections(mergedState.rhythmsById, mergedState.rhythmOrder),
+          };
+        },
       }
     )
   );

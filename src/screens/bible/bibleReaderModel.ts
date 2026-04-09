@@ -1,4 +1,5 @@
 import type { Verse } from '../../types';
+import type { RhythmSessionContext } from '../../services/plans/types';
 
 export type FontSizeSheetAction =
   | 'toggleButton'
@@ -23,6 +24,7 @@ interface ReaderChapterRouteParamsInput {
   planId?: string;
   planDayNumber?: number;
   returnToPlanOnComplete?: boolean;
+  sessionContext?: RhythmSessionContext;
 }
 
 export const READER_HERO_COLLAPSE_DISTANCE = 72;
@@ -154,6 +156,7 @@ export const buildReaderChapterRouteParams = ({
   planId,
   planDayNumber,
   returnToPlanOnComplete,
+  sessionContext,
 }: ReaderChapterRouteParamsInput) => ({
   bookId,
   chapter,
@@ -163,6 +166,7 @@ export const buildReaderChapterRouteParams = ({
   ...(planId ? { planId } : {}),
   ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
   ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
+  ...(sessionContext ? { sessionContext } : {}),
 });
 
 export const getReaderChromeAnimationProgress = (

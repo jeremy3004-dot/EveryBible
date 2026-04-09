@@ -42,3 +42,11 @@ test('syncPreferences does not upsert a manual chapter feedback ID number into u
     'syncPreferences should not write a manual chapter feedback ID number into user_preferences'
   );
 });
+
+test('syncPreferences does not write an appearance palette into user_preferences', () => {
+  assert.equal(
+    source.includes('appearance_palette'),
+    false,
+    'syncPreferences should not write an appearance palette because user_preferences has no palette column'
+  );
+});

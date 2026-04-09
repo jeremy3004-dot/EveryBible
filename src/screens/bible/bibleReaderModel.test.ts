@@ -168,6 +168,63 @@ test('builds chapter route params that preserve the current reader session mode'
       autoplayAudio: false,
     }
   );
+
+  assert.deepEqual(
+    buildReaderChapterRouteParams({
+      bookId: 'ROM',
+      chapter: 8,
+      preferredMode: 'read',
+      planId: 'plan-a',
+      planDayNumber: 3,
+      returnToPlanOnComplete: true,
+      sessionContext: {
+        type: 'rhythm',
+        rhythmId: 'rhythm-1',
+        title: 'Morning Rhythm',
+        planIds: ['plan-a'],
+        chapterKeys: ['ROM_8'],
+        segments: [
+          {
+            planId: 'plan-a',
+            planTitle: 'Plan A',
+            dayNumber: 3,
+            startIndex: 0,
+            endIndex: 1,
+            chapterKeys: ['ROM_8'],
+            isComplete: false,
+          },
+        ],
+      },
+    }),
+    {
+      bookId: 'ROM',
+      chapter: 8,
+      focusVerse: undefined,
+      preferredMode: 'read',
+      autoplayAudio: false,
+      planId: 'plan-a',
+      planDayNumber: 3,
+      returnToPlanOnComplete: true,
+      sessionContext: {
+        type: 'rhythm',
+        rhythmId: 'rhythm-1',
+        title: 'Morning Rhythm',
+        planIds: ['plan-a'],
+        chapterKeys: ['ROM_8'],
+        segments: [
+          {
+            planId: 'plan-a',
+            planTitle: 'Plan A',
+            dayNumber: 3,
+            startIndex: 0,
+            endIndex: 1,
+            chapterKeys: ['ROM_8'],
+            isComplete: false,
+          },
+        ],
+      },
+    }
+  );
 });
 
 test('prefers listen mode when autoplay starts the chapter session', () => {

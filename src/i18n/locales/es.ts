@@ -1062,6 +1062,28 @@ export const es = {
     dailyTargetCompleteTitle: 'Lectura diaria completada',
     dailyTargetCompleteBody:
       'Terminaste la lectura del plan de hoy. Te llevaremos de vuelta a tu plan para que puedas ver tu progreso.',
+    rhythms: 'Ritmos',
+    createRhythm: 'Crear ritmo',
+    editRhythm: 'Editar ritmo',
+    manageRhythm: 'Gestionar ritmo',
+    noRhythms: 'Aún no hay ritmos',
+    noRhythmsBody: 'Combina varios planes para continuarlos como un solo flujo diario.',
+    rhythmName: 'Nombre del ritmo',
+    rhythmNamePlaceholder: 'Déjalo vacío para un nombre automático',
+    rhythmPlanCount: '{{count}} planes',
+    includedPlans: 'Planes incluidos',
+    availablePlans: 'Planes disponibles',
+    selected: 'Seleccionado',
+    continueRhythm: 'Continuar ritmo',
+    openRhythm: 'Abrir ritmo',
+    deleteRhythm: 'Eliminar ritmo',
+    emptyRhythmPlans: 'Agrega al menos un plan para guardar este ritmo.',
+    alreadyInAnotherRhythm: 'Este plan ya está en otro ritmo.',
+    planUnavailableForRhythm: 'Solo los planes inscritos y activos pueden añadirse a un ritmo.',
+    rhythmDaySummary: 'Día actual: {{day}}',
+    deleteRhythmConfirmTitle: '¿Eliminar este ritmo?',
+    deleteRhythmConfirmBody:
+      'Los planes incluidos seguirán en Mis planes, pero este ritmo se eliminará.',
     bibleIn1Year: {
       title: 'La Biblia en un año',
       description:

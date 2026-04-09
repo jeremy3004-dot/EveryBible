@@ -21,6 +21,14 @@ export function PlansStack() {
         name="PlanDetail"
         getComponent={() => require('../screens/plans/PlanDetailScreen').PlanDetailScreen}
       />
+      <Stack.Screen
+        name="RhythmDetail"
+        getComponent={() => require('../screens/plans/RhythmDetailScreen').RhythmDetailScreen}
+      />
+      <Stack.Screen
+        name="RhythmComposer"
+        getComponent={() => require('../screens/plans/RhythmComposerScreen').RhythmComposerScreen}
+      />
     </Stack.Navigator>
   );
 }

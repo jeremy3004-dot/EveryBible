@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
 const detailSource = readFileSync(resolve(__dirname, '../learn/ReadingPlanDetailScreen.tsx'), 'utf8');
 
@@ -54,6 +57,24 @@ test('BibleReaderScreen derives the current plan-day chapter list and chapter in
     source,
     /setPlanDayResume\(activePlanId,\s*planDayNumber,\s*bookId,\s*chapter\)/,
     'BibleReaderScreen should persist the current plan-day chapter so a reopened day can resume in place'
+  );
+});
+
+test('BibleReaderScreen derives rhythm session ownership from the route session context when present', () => {
+  assert.match(
+    source,
+    /const activeRhythmSession = sessionContext\?\.type === 'rhythm' \? sessionContext : null;/,
+    'BibleReaderScreen should recognize a rhythm session context from the shared reader route params'
+  );
+  assert.match(
+    source,
+    /const activeRhythmSegment = useMemo\(/,
+    'BibleReaderScreen should resolve the active rhythm segment from the current route and playback position'
+  );
+  assert.match(
+    source,
+    /const resolvePlanSessionRouteParams = useCallback\(/,
+    'BibleReaderScreen should centralize plan-or-rhythm route param updates for chapter navigation'
   );
 });
 
@@ -136,8 +157,13 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /const showPlanChapterArrows = chapterSessionMode === 'read';/,
-    'BibleReaderScreen should only show chapter arrows inside the plan strip while reading'
+    /const showPlanChapterArrows = chapterSessionMode === 'read' \|\| chapterSessionMode === 'listen';/,
+    'BibleReaderScreen should show chapter arrows inside the plan strip while reading or listening'
+  );
+  assert.match(
+    source,
+    /const showPlanPreviousChapterButton =\s+chapterSessionMode === 'read' \? true : hasPrevChapter;/,
+    'BibleReaderScreen should hide the listen-mode back arrow until there is a previous chapter'
   );
   assert.match(
     source,
@@ -147,7 +173,7 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   assert.match(
     source,
     /planSessionBottomBarCopyListenMode/,
-    'BibleReaderScreen should keep the listen-mode plan strip centered without chapter arrows'
+    'BibleReaderScreen should keep the listen-mode plan strip using the shared centered copy treatment'
   );
   assert.match(
     source,
@@ -156,13 +182,18 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /const showPlanCompletionAction = showPlanChapterArrows && isLastPlanChapter;/,
-    'BibleReaderScreen should swap the final plan-day read CTA from next to complete'
+    /const showPlanCompletionAction = chapterSessionMode === 'read' && isLastPlanChapter;/,
+    'BibleReaderScreen should keep the complete-day action read-only and leave listen mode on the chevron-forward path'
   );
   assert.match(
     source,
     /name=\{showPlanCompletionAction \? 'checkmark' : 'chevron-forward'\}/,
     'BibleReaderScreen should render a checkmark icon instead of a forward arrow on the final plan-day chapter'
+  );
+  assert.match(
+    source,
+    /showChapterNavigation=\{!showPlanSessionChrome\}/,
+    'BibleReaderScreen should hide the chapter-skip buttons from the listen-mode player once the plan strip owns navigation'
   );
   assert.match(
     source,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -28,7 +29,12 @@ import {
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
-import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
+import type {
+  ReadingPlan,
+  ReadingPlanRhythm,
+  UserReadingPlanProgress,
+} from '../../services/plans/types';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useProgressStore } from '../../stores/progressStore';
 import {
   summarizeReadingActivity,
@@ -260,14 +266,110 @@ const createStreakStyles = (colors: ThemeColors) =>
 interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
+  rhythms: ReadingPlanRhythm[];
+  onRhythmPress: (rhythmId: string) => void;
+  onCreateRhythm: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
 }
 
+interface RhythmsSectionProps {
+  rhythms: ReadingPlanRhythm[];
+  allPlans: ReadingPlan[];
+  onRhythmPress: (rhythmId: string) => void;
+  onCreateRhythm: () => void;
+  colors: ThemeColors;
+}
+
+function RhythmsSection({
+  rhythms,
+  allPlans,
+  onRhythmPress,
+  onCreateRhythm,
+  colors,
+}: RhythmsSectionProps) {
+  const { t } = useTranslation();
+  const styles = createRhythmsStyles(colors);
+  const planTitleById = Object.fromEntries(
+    allPlans.map((plan) => [plan.id, t(plan.title_key as Parameters<typeof t>[0])])
+  );
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.headerRow}>
+        <Text style={styles.sectionTitle}>{t('readingPlans.rhythms')}</Text>
+        <TouchableOpacity
+          onPress={onCreateRhythm}
+          activeOpacity={0.8}
+          style={styles.createButton}
+        >
+          <Ionicons name="add" size={16} color={colors.cardBackground} />
+          <Text style={styles.createButtonLabel}>{t('readingPlans.createRhythm')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {rhythms.length === 0 ? (
+        <TouchableOpacity
+          onPress={onCreateRhythm}
+          activeOpacity={0.85}
+          style={styles.emptyCard}
+        >
+          <View style={styles.emptyIcon}>
+            <Ionicons name="layers-outline" size={20} color={colors.accentPrimary} />
+          </View>
+          <View style={styles.emptyBody}>
+            <Text style={styles.emptyTitle}>{t('readingPlans.noRhythms')}</Text>
+            <Text style={styles.emptyText}>{t('readingPlans.noRhythmsBody')}</Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        rhythms.map((rhythm) => {
+          const previewTitles = rhythm.planIds
+            .slice(0, 2)
+            .map((planId) => planTitleById[planId] ?? planId)
+            .join(' • ');
+
+          return (
+            <TouchableOpacity
+              key={rhythm.id}
+              style={styles.card}
+              onPress={() => onRhythmPress(rhythm.id)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.cardBadge}>
+                  <Ionicons name="layers-outline" size={18} color={colors.accentPrimary} />
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {rhythm.title}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {t('readingPlans.rhythmPlanCount', { count: rhythm.planIds.length })}
+                  </Text>
+                  {previewTitles ? (
+                    <Text style={styles.cardPreview} numberOfLines={2}>
+                      {previewTitles}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
 function MyPlansSection({
   allPlans,
   userProgress,
+  rhythms,
+  onRhythmPress,
+  onCreateRhythm,
   onPlanPress,
   onDeletePlan,
   colors,
@@ -286,6 +388,13 @@ function MyPlansSection({
 
   return (
     <View style={styles.content}>
+      <RhythmsSection
+        rhythms={rhythms}
+        allPlans={allPlans}
+        onRhythmPress={onRhythmPress}
+        onCreateRhythm={onCreateRhythm}
+        colors={colors}
+      />
       {activePlans.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
@@ -398,6 +507,101 @@ const swipeableStyles = StyleSheet.create({
     ...typography.micro,
   },
 });
+
+const createRhythmsStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    section: {
+      gap: spacing.md,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    sectionTitle: {
+      ...typography.cardTitle,
+      color: colors.primaryText,
+    },
+    createButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      borderRadius: radius.pill,
+      backgroundColor: colors.accentPrimary,
+      minHeight: layout.minTouchTarget,
+      paddingHorizontal: spacing.md,
+    },
+    createButtonLabel: {
+      ...typography.label,
+      color: colors.cardBackground,
+    },
+    emptyCard: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBackground,
+      padding: layout.cardPadding,
+    },
+    emptyIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    emptyBody: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    emptyTitle: {
+      ...typography.bodyStrong,
+      color: colors.primaryText,
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.secondaryText,
+    },
+    card: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBackground,
+      padding: layout.cardPadding,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    cardBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    cardBody: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    cardTitle: {
+      ...typography.bodyStrong,
+      color: colors.primaryText,
+    },
+    cardMeta: {
+      ...typography.micro,
+      color: colors.secondaryText,
+    },
+    cardPreview: {
+      ...typography.body,
+      color: colors.secondaryText,
+    },
+  });
 
 // ---------------------------------------------------------------------------
 // Find Plans section
@@ -706,6 +910,19 @@ export function PlansHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
+  const { rhythmOrder, rhythmsById } = useReadingPlansStore(
+    useShallow((state) => ({
+      rhythmOrder: state.rhythmOrder,
+      rhythmsById: state.rhythmsById,
+    }))
+  );
+  const rhythms = useMemo(
+    () =>
+      rhythmOrder
+        .map((rhythmId) => rhythmsById[rhythmId] ?? null)
+        .filter((rhythm): rhythm is ReadingPlanRhythm => rhythm !== null),
+    [rhythmOrder, rhythmsById]
+  );
 
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
@@ -768,6 +985,17 @@ export function PlansHomeScreen() {
     }
   }, [t]);
 
+  const handleRhythmPress = useCallback(
+    (rhythmId: string) => {
+      navigation.navigate('RhythmDetail', { rhythmId });
+    },
+    [navigation]
+  );
+
+  const handleCreateRhythm = useCallback(() => {
+    navigation.navigate('RhythmComposer', {});
+  }, [navigation]);
+
   const styles = createMainStyles(colors);
 
   const tabStrip = (
@@ -827,6 +1055,9 @@ export function PlansHomeScreen() {
               <MyPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
+                rhythms={rhythms}
+                onRhythmPress={handleRhythmPress}
+                onCreateRhythm={handleCreateRhythm}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}
                 colors={colors}

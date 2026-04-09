@@ -79,6 +79,47 @@ export interface ReadingPlanDayResume {
   chapter: number;
 }
 
+export type RhythmId = string;
+
+export interface ReadingPlanRhythm {
+  id: RhythmId;
+  title: string;
+  planIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingPlanRhythmInput {
+  title?: string | null;
+  planIds?: string[];
+}
+
+export interface ReadingPlanRhythmMutationResult {
+  success: boolean;
+  rhythm?: ReadingPlanRhythm;
+  error?: string;
+}
+
+export interface ReadingPlanRhythmSessionSegment {
+  planId: string;
+  planTitle: string;
+  dayNumber: number;
+  startIndex: number;
+  endIndex: number;
+  chapterKeys: string[];
+  isComplete: boolean;
+}
+
+export interface RhythmSessionContext {
+  type: 'rhythm';
+  rhythmId: RhythmId;
+  title: string;
+  planIds: string[];
+  chapterKeys: string[];
+  segments: ReadingPlanRhythmSessionSegment[];
+}
+
+export type ReadingPlanRhythmSession = RhythmSessionContext;
 export interface GroupReadingPlan {
   id: string;
   group_id: string;
@@ -101,9 +142,21 @@ export interface ReadingPlansPersistedState {
   progressByPlanId: Record<string, ReadingPlanProgress>;
   planDayResumeByKey: Record<string, ReadingPlanDayResume>;
   groupPlansByGroupId: Record<string, GroupReadingPlan[]>;
+  rhythmsById: Record<RhythmId, ReadingPlanRhythm>;
+  rhythmOrder: RhythmId[];
 }
 
 export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
+  createRhythm: (input?: ReadingPlanRhythmInput) => ReadingPlanRhythmMutationResult;
+  updateRhythm: (
+    rhythmId: RhythmId,
+    input?: ReadingPlanRhythmInput
+  ) => ReadingPlanRhythmMutationResult;
+  deleteRhythm: (rhythmId: RhythmId) => void;
+  reorderRhythms: (rhythmOrder: RhythmId[]) => void;
+  moveRhythmPlan: (rhythmId: RhythmId, planId: string, direction: 'up' | 'down') => void;
+  getRhythm: (rhythmId: RhythmId) => ReadingPlanRhythm | null;
+  getRhythmForPlan: (planId: string) => ReadingPlanRhythm | null;
   enrollPlan: (planId: string) => ReadingPlanProgress;
   savePlan: (planId: string) => void;
   unsavePlan: (planId: string) => void;

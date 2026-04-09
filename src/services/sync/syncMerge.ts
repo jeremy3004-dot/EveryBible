@@ -156,6 +156,7 @@ export const mergeReadingSnapshot = (
 const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPreferences => ({
   fontSize: remotePreferences.font_size,
   theme: remotePreferences.theme,
+  appearancePalette: remotePreferences.appearance_palette,
   language: remotePreferences.language,
   countryCode: remotePreferences.country_code,
   countryName: remotePreferences.country_name,
@@ -173,6 +174,7 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
 const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolean =>
   left.fontSize === right.fontSize &&
   left.theme === right.theme &&
+  left.appearancePalette === right.appearancePalette &&
   left.language === right.language &&
   left.countryCode === right.countryCode &&
   left.countryName === right.countryName &&

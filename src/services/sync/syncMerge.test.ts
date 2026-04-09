@@ -110,6 +110,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
     user_id: 'user-1',
     font_size: 'large',
     theme: 'light',
+    appearance_palette: defaultAuthPreferences.appearancePalette,
     language: 'es',
     country_code: 'MX',
     country_name: 'Mexico',
@@ -134,6 +135,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
   assert.equal(merged.preferences.language, 'es');
   assert.equal(merged.preferences.chapterFeedbackEnabled, true);
   assert.equal(merged.preferences.reminderTime, '08:00');
+  assert.equal(merged.changed, true);
 });
 
 test('mergePreferences keeps the newer local preferences snapshot', () => {
@@ -153,6 +155,7 @@ test('mergePreferences keeps the newer local preferences snapshot', () => {
     user_id: 'user-1',
     font_size: 'small',
     theme: 'dark',
+    appearance_palette: defaultAuthPreferences.appearancePalette,
     language: 'es',
     country_code: null,
     country_name: null,
@@ -200,6 +203,7 @@ test('mergePreferences does not let a newer incomplete remote snapshot reopen on
     user_id: 'user-1',
     font_size: 'medium',
     theme: 'dark',
+    appearance_palette: defaultAuthPreferences.appearancePalette,
     language: 'en',
     country_code: null,
     country_name: null,

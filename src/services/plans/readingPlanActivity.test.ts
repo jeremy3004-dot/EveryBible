@@ -2,18 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
-import type { ReadingPlanEntry } from './types';
+import type { ReadingPlanEntry, ReadingPlanRhythm, UserReadingPlanProgress } from './types';
 import {
   buildPlanDayPlaybackSequenceEntries,
   buildPlanDayCompletionSummary,
+  buildRhythmReaderSession,
   formatScheduledPlanDayLabel,
   getCurrentPlanDaySummary,
+  getReadingPlanRhythmSummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
+  getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
   isPlanDaySatisfied,
   mergeTodayCompletedChapterActivity,
   resolvePlanDayPlaybackStartEntry,
+  resolvePlaybackSequenceIndex,
+  resolveFirstIncompleteRhythmSessionSegment,
 } from './readingPlanActivity';
 
 const makeEntry = (
@@ -37,6 +42,49 @@ const dayEntries: ReadingPlanEntry[] = [
   makeEntry({ id: 'day-1-b', day_number: 1, book: 'EXO', chapter_start: 1, chapter_end: null }),
   makeEntry({ id: 'day-2-a', day_number: 2, book: 'GEN', chapter_start: 5, chapter_end: 8 }),
 ];
+
+const makeProgress = (
+  planId: string,
+  overrides: Partial<UserReadingPlanProgress> = {}
+): UserReadingPlanProgress => ({
+  id: `progress-${planId}`,
+  plan_id: planId,
+  started_at: '2026-04-07T08:00:00.000Z',
+  completed_entries: {},
+  current_day: 1,
+  is_completed: false,
+  completed_at: null,
+  synced_at: '2026-04-07T08:00:00.000Z',
+  ...overrides,
+});
+
+const rhythm: ReadingPlanRhythm = {
+  id: 'rhythm-1',
+  title: 'Morning rhythm',
+  planIds: ['plan-a', 'plan-b', 'plan-c'],
+  createdAt: '2026-04-07T08:00:00.000Z',
+  updatedAt: '2026-04-07T08:00:00.000Z',
+};
+
+const rhythmPlanEntriesById: Record<string, ReadingPlanEntry[]> = {
+  'plan-a': [
+    makeEntry({ id: 'plan-a-day-1', plan_id: 'plan-a', day_number: 1, book: 'GEN', chapter_start: 1, chapter_end: 1 }),
+    makeEntry({ id: 'plan-a-day-2', plan_id: 'plan-a', day_number: 2, book: 'GEN', chapter_start: 2, chapter_end: 3 }),
+  ],
+  'plan-b': [
+    makeEntry({ id: 'plan-b-day-1', plan_id: 'plan-b', day_number: 1, book: 'EXO', chapter_start: 1, chapter_end: 1 }),
+  ],
+  'plan-c': [
+    makeEntry({ id: 'plan-c-day-1', plan_id: 'plan-c', day_number: 1, book: 'PSA', chapter_start: 1, chapter_end: 1 }),
+    makeEntry({ id: 'plan-c-day-2', plan_id: 'plan-c', day_number: 2, book: 'PSA', chapter_start: 2, chapter_end: 3 }),
+  ],
+};
+
+const rhythmProgressByPlanId: Record<string, UserReadingPlanProgress> = {
+  'plan-a': makeProgress('plan-a', { current_day: 2, is_completed: false }),
+  'plan-b': makeProgress('plan-b', { current_day: 2, is_completed: true, completed_at: '2026-04-07T09:00:00.000Z' }),
+  'plan-c': makeProgress('plan-c', { current_day: 2, is_completed: false }),
+};
 
 test('getPlanDayTargetChapterKeys expands ranges into individual chapter keys', () => {
   assert.deepEqual(getPlanDayTargetChapterKeys(dayEntries, 1), [
@@ -313,4 +361,108 @@ test('getPlanChapterListenStatus returns the listen timestamp when the active ch
 
   assert.equal(status.alreadyCountedForPlan, false);
   assert.equal(status.currentChapterListenCountedAt, listenedAt);
+});
+
+test('buildRhythmReaderSession flattens each included plan current day into ordered segments', () => {
+  const session = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+
+  assert.deepEqual(session.playbackSequenceEntries, [
+    { bookId: 'GEN', chapter: 2 },
+    { bookId: 'GEN', chapter: 3 },
+    { bookId: 'PSA', chapter: 2 },
+    { bookId: 'PSA', chapter: 3 },
+  ]);
+  assert.deepEqual(session.sessionContext.chapterKeys, ['GEN_2', 'GEN_3', 'PSA_2', 'PSA_3']);
+  assert.deepEqual(session.sessionContext.segments, [
+    {
+      planId: 'plan-a',
+      planTitle: 'plan-a',
+      dayNumber: 2,
+      startIndex: 0,
+      endIndex: 2,
+      chapterKeys: ['GEN_2', 'GEN_3'],
+      isComplete: false,
+    },
+    {
+      planId: 'plan-c',
+      planTitle: 'plan-c',
+      dayNumber: 2,
+      startIndex: 2,
+      endIndex: 4,
+      chapterKeys: ['PSA_2', 'PSA_3'],
+      isComplete: false,
+    },
+  ]);
+  assert.deepEqual(session.startEntry, { bookId: 'GEN', chapter: 2 });
+  assert.equal(session.startSegment?.planId, 'plan-a');
+});
+
+test('resolveFirstIncompleteRhythmSessionSegment prefers a resumable plan before falling back to the first incomplete segment', () => {
+  const session = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(session.sessionContext, rhythmProgressByPlanId)?.planId,
+    'plan-a'
+  );
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(
+      session.sessionContext,
+      rhythmProgressByPlanId,
+      'plan-c'
+    )?.planId,
+    'plan-c'
+  );
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(
+      session.sessionContext,
+      rhythmProgressByPlanId,
+      'plan-b'
+    )?.planId,
+    'plan-a'
+  );
+});
+
+test('rhythm session helpers resolve playback indexes and segment ownership within the flattened sequence', () => {
+  const session = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+
+  const psaIndex = resolvePlaybackSequenceIndex({
+    playbackSequenceEntries: session.playbackSequenceEntries,
+    bookId: 'PSA',
+    chapter: 3,
+    session: session.sessionContext,
+    preferredPlanId: 'plan-c',
+    preferredDayNumber: 2,
+  });
+
+  assert.equal(psaIndex, 3);
+  assert.equal(
+    getRhythmSessionSegmentAtIndex(session.sessionContext, psaIndex)?.planId,
+    'plan-c'
+  );
+});
+
+test('reading plan rhythm summary reports completed and remaining plans from existing progress', () => {
+  assert.deepEqual(
+    getReadingPlanRhythmSummary({
+      rhythm,
+      progressByPlanId: rhythmProgressByPlanId,
+    }),
+    {
+      planCount: 3,
+      completedPlanCount: 1,
+      remainingPlanCount: 2,
+    }
+  );
 });

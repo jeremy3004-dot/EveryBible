@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
 
 test('BibleReaderScreen uses plan-day activity helpers to detect when todays target is complete', () => {
@@ -51,6 +54,29 @@ test('BibleReaderScreen keeps read-mode plan completion explicit while still rou
   );
 });
 
+test('BibleReaderScreen keeps rhythm completions inside the reader until the final segment, then returns to RhythmDetail', () => {
+  assert.match(
+    source,
+    /clearPlanDayResume\(activePlanId,\s*planDayNumber\)/,
+    'BibleReaderScreen should clear the per-day resume pointer once a rhythm segment is completed'
+  );
+  assert.match(
+    source,
+    /if \(activeRhythmSession\) \{/,
+    'BibleReaderScreen should branch into dedicated rhythm-session completion behavior when session context is present'
+  );
+  assert.match(
+    source,
+    /screen:\s*'RhythmDetail'/,
+    'BibleReaderScreen should return to the rhythm detail view after the final rhythm segment finishes'
+  );
+  assert.match(
+    source,
+    /sessionContext:\s*activeRhythmSession/,
+    'BibleReaderScreen should preserve the active rhythm session context while hopping to the next segment'
+  );
+});
+
 test('BibleReaderScreen renders the simplified listen-mode plan chrome without the old progress card', () => {
   assert.match(
     source,
@@ -74,8 +100,8 @@ test('BibleReaderScreen renders the simplified listen-mode plan chrome without t
   );
   assert.match(
     source,
-    /showPlanChapterArrows = chapterSessionMode === 'read'/,
-    'BibleReaderScreen should suppress plan strip chapter arrows while listening'
+    /showPlanChapterArrows = chapterSessionMode === 'read' \|\| chapterSessionMode === 'listen';/,
+    'BibleReaderScreen should keep plan strip chapter arrows available while listening'
   );
 });
 

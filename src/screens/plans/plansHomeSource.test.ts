@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'PlansHomeScreen.tsx'), 'utf8');
 const tabRowBlockMatch = source.match(/tabRow:\s*\{[\s\S]*?\n\s*\},/);
 const planCardMetaBlockMatch = source.match(/planCardMeta:\s*\{[\s\S]*?\n\s*\},/);
@@ -141,5 +144,28 @@ test('PlansHomeScreen supports swipe-to-delete for active and completed plans', 
     source,
     /setUserProgress\(\(prev\) => prev\.filter\(\(progress\) => progress\.plan_id !== planId\)\)/,
     'PlansHomeScreen should also remove deleted plans from the active plans section immediately after a successful swipe delete'
+  );
+});
+
+test('PlansHomeScreen includes a rhythms section in My Plans with create and detail navigation', () => {
+  assert.match(
+    source,
+    /function RhythmsSection\(/,
+    'PlansHomeScreen should define a dedicated RhythmsSection above the active plans list'
+  );
+  assert.match(
+    source,
+    /<RhythmsSection[\s\S]*onRhythmPress=\{handleRhythmPress\}[\s\S]*onCreateRhythm=\{handleCreateRhythm\}/s,
+    'PlansHomeScreen should wire the RhythmsSection into the My Plans tab'
+  );
+  assert.match(
+    source,
+    /navigation\.navigate\('RhythmDetail', \{ rhythmId \}\)/,
+    'PlansHomeScreen should open the rhythm detail screen from the rhythms list'
+  );
+  assert.match(
+    source,
+    /navigation\.navigate\('RhythmComposer', \{\}\)/,
+    'PlansHomeScreen should route rhythm creation into the composer screen'
   );
 });
