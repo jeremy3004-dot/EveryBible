@@ -147,16 +147,16 @@ test('PlansHomeScreen supports swipe-to-delete for active and completed plans', 
   );
 });
 
-test('PlansHomeScreen includes a rhythms section in My Plans with create and detail navigation', () => {
+test('PlansHomeScreen gives Rhythms its own top-level topic with dedicated navigation', () => {
   assert.match(
     source,
-    /function RhythmsSection\(/,
-    'PlansHomeScreen should define a dedicated RhythmsSection within My Plans'
+    /const \[activeTopic, setActiveTopic\] = useState<PrimaryTopicTab>\('reading-plans'\);/,
+    'PlansHomeScreen should track whether the user is looking at reading plans or rhythms'
   );
   assert.match(
     source,
-    /<RhythmsSection[\s\S]*onRhythmPress=\{handleRhythmPress\}[\s\S]*onCreateRhythm=\{handleCreateRhythm\}/s,
-    'PlansHomeScreen should wire the RhythmsSection into the My Plans tab'
+    /const topicTabs:[\s\S]*readingPlans\.title[\s\S]*readingPlans\.rhythms/s,
+    'PlansHomeScreen should surface Reading Plans and Rhythms as the top topic tabs'
   );
   assert.match(
     source,
@@ -170,16 +170,26 @@ test('PlansHomeScreen includes a rhythms section in My Plans with create and det
   );
   assert.match(
     source,
-    /<View style=\{styles\.headerContent\}>[\s\S]*<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.rhythms'\)\}<\/Text>[\s\S]*<TouchableOpacity[\s\S]*style=\{styles\.createButton\}/s,
-    'PlansHomeScreen should stack the create rhythm button below the rhythms title instead of keeping them on one row'
+    /activeTopic === 'rhythms'[\s\S]*<RhythmsHomeSection[\s\S]*onRhythmPress=\{handleRhythmPress\}[\s\S]*onCreateRhythm=\{handleCreateRhythm\}/s,
+    'PlansHomeScreen should render Rhythms from its own top-level topic instead of nesting it under My Plans'
+  );
+  assert.match(
+    source,
+    /RHYTHM_SLOT_META\[slot\]/,
+    'PlansHomeScreen should reuse shared rhythm slot metadata so rhythm cards can surface morning, afternoon, and evening identity consistently'
+  );
+  assert.match(
+    source,
+    /readingPlans\.nextUp/,
+    'PlansHomeScreen should preview the next item in each rhythm so the rhythms topic feels curated instead of generic'
   );
 });
 
-test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () => {
+test('PlansHomeScreen keeps My Plans inside the Reading Plans topic and sends add-plan into Find Plans', () => {
   assert.match(
     source,
-    /<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.plans'\)\}<\/Text>/,
-    'PlansHomeScreen should render a dedicated Plans section heading in My Plans'
+    /activeTopic === 'reading-plans' && activeTab === 'my-plans'[\s\S]*<MyPlansSection/s,
+    'PlansHomeScreen should only render My Plans while the Reading Plans topic is active'
   );
   assert.match(
     source,
@@ -188,15 +198,8 @@ test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () =>
   );
   assert.match(
     source,
-    /const handleAddPlan = useCallback\(\(\) => {\s*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
-    'PlansHomeScreen should route the plans CTA to the Find Plans tab'
-  );
-
-  const plansIndex = source.indexOf("t('readingPlans.plans')");
-  const rhythmsIndex = source.indexOf('<RhythmsSection');
-  assert.ok(
-    plansIndex !== -1 && rhythmsIndex !== -1 && plansIndex < rhythmsIndex,
-    'PlansHomeScreen should render the Plans section before the Rhythms section on the My Plans page'
+    /const handleAddPlan = useCallback\(\(\) => {\s*setActiveTopic\('reading-plans'\);\s*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
+    'PlansHomeScreen should route the plans CTA into the Reading Plans topic and the Find Plans tab'
   );
 });
 

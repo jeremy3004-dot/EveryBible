@@ -181,12 +181,15 @@ test('builds chapter route params that preserve the current reader session mode'
         type: 'rhythm',
         rhythmId: 'rhythm-1',
         title: 'Morning Rhythm',
+        itemIds: ['item-plan-a'],
         planIds: ['plan-a'],
         chapterKeys: ['ROM_8'],
         segments: [
           {
+            itemId: 'item-plan-a',
+            type: 'plan',
+            title: 'Plan A',
             planId: 'plan-a',
-            planTitle: 'Plan A',
             dayNumber: 3,
             startIndex: 0,
             endIndex: 1,
@@ -209,12 +212,15 @@ test('builds chapter route params that preserve the current reader session mode'
         type: 'rhythm',
         rhythmId: 'rhythm-1',
         title: 'Morning Rhythm',
+        itemIds: ['item-plan-a'],
         planIds: ['plan-a'],
         chapterKeys: ['ROM_8'],
         segments: [
           {
+            itemId: 'item-plan-a',
+            type: 'plan',
+            title: 'Plan A',
             planId: 'plan-a',
-            planTitle: 'Plan A',
             dayNumber: 3,
             startIndex: 0,
             endIndex: 1,

@@ -4,6 +4,7 @@ import type {
   ReadingPlanDayResume,
   ReadingPlanEntry,
   ReadingPlanRhythm,
+  ReadingPlanRhythmItem,
   ReadingPlanRhythmSession,
   ReadingPlanRhythmSessionSegment,
   UserReadingPlanProgress,
@@ -159,6 +160,19 @@ function getRhythmDayNumber(entries: ReadingPlanEntry[], progress?: UserReadingP
   return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;
 }
 
+function buildPassagePlaybackSequenceEntries(item: Extract<ReadingPlanRhythmItem, { type: 'passage' }>): AudioPlaybackSequenceEntry[] {
+  const playbackEntries: AudioPlaybackSequenceEntry[] = [];
+
+  for (let chapter = item.startChapter; chapter <= item.endChapter; chapter += 1) {
+    playbackEntries.push({
+      bookId: item.bookId,
+      chapter,
+    });
+  }
+
+  return playbackEntries;
+}
+
 export function buildRhythmReaderSession({
   rhythm,
   planEntriesById,
@@ -170,38 +184,70 @@ export function buildRhythmReaderSession({
   const chapterKeys: string[] = [];
   const playbackSequenceEntries: AudioPlaybackSequenceEntry[] = [];
 
-  for (const planId of rhythm.planIds) {
-    const entries = planEntriesById[planId] ?? [];
-    if (entries.length === 0) {
+  for (const item of rhythm.items) {
+    if (item.type === 'plan') {
+      const planId = item.planId;
+      const entries = planEntriesById[planId] ?? [];
+      if (entries.length === 0) {
+        continue;
+      }
+
+      const progress = progressByPlanId[planId] ?? null;
+      if (progress?.is_completed) {
+        continue;
+      }
+
+      const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
+      const dayEntries = getUniqueDayEntries(entries, dayNumber);
+      const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
+      if (segmentChapterKeys.length === 0) {
+        continue;
+      }
+
+      const segmentPlaybackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+      const startIndex = playbackSequenceEntries.length;
+      playbackSequenceEntries.push(...segmentPlaybackEntries);
+      chapterKeys.push(...segmentChapterKeys);
+      const endIndex = playbackSequenceEntries.length;
+
+      segments.push({
+        itemId: item.id,
+        type: 'plan',
+        title: planTitlesById[planId] ?? planId,
+        planId,
+        dayNumber,
+        startIndex,
+        endIndex,
+        chapterKeys: segmentChapterKeys,
+        isComplete: false,
+      });
       continue;
     }
 
-    const progress = progressByPlanId[planId] ?? null;
-    if (progress?.is_completed) {
+    const segmentPlaybackEntries = buildPassagePlaybackSequenceEntries(item);
+    if (segmentPlaybackEntries.length === 0) {
       continue;
     }
 
-    const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
-    const dayEntries = getUniqueDayEntries(entries, dayNumber);
-    const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
-    if (segmentChapterKeys.length === 0) {
-      continue;
-    }
-
-    const segmentPlaybackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+    const segmentChapterKeys = segmentPlaybackEntries.map((entry) =>
+      buildChapterKey(entry.bookId, entry.chapter)
+    );
     const startIndex = playbackSequenceEntries.length;
     playbackSequenceEntries.push(...segmentPlaybackEntries);
     chapterKeys.push(...segmentChapterKeys);
     const endIndex = playbackSequenceEntries.length;
 
     segments.push({
-      planId,
-      planTitle: planTitlesById[planId] ?? planId,
-      dayNumber,
+      itemId: item.id,
+      type: 'passage',
+      title: item.title,
       startIndex,
       endIndex,
       chapterKeys: segmentChapterKeys,
       isComplete: false,
+      bookId: item.bookId,
+      startChapter: item.startChapter,
+      endChapter: item.endChapter,
     });
   }
 
@@ -209,15 +255,22 @@ export function buildRhythmReaderSession({
     type: 'rhythm',
     rhythmId: rhythm.id,
     title: rhythm.title,
-    planIds: rhythm.planIds,
+    itemIds: rhythm.items.map((item) => item.id),
+    planIds: rhythm.items
+      .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+      .map((item) => item.planId),
     chapterKeys,
     segments,
   };
 
   const startSegment = resolveFirstIncompleteRhythmSessionSegment(sessionContext, progressByPlanId);
+  const startPlanId = startSegment?.type === 'plan' ? startSegment.planId : null;
   const startResume =
-    startSegment && getPlanDayResume
-      ? getPlanDayResume(startSegment.planId, startSegment.dayNumber)
+    startSegment?.type === 'plan' &&
+    typeof startPlanId === 'string' &&
+    getPlanDayResume &&
+    typeof startSegment.dayNumber === 'number'
+      ? getPlanDayResume(startPlanId, startSegment.dayNumber)
       : null;
   const startEntry =
     startSegment && startSegment.startIndex < playbackSequenceEntries.length
@@ -245,10 +298,12 @@ export function resolveFirstIncompleteRhythmSessionSegment(
   resumePlanId?: string | null
 ): ReadingPlanRhythmSessionSegment | null {
   const isIncomplete = (segment: ReadingPlanRhythmSessionSegment): boolean =>
-    !(progressByPlanId[segment.planId]?.is_completed ?? false);
+    segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);
 
   if (resumePlanId) {
-    const preferredSegment = session.segments.find((segment) => segment.planId === resumePlanId);
+    const preferredSegment = session.segments.find(
+      (segment) => segment.type === 'plan' && segment.planId === resumePlanId
+    );
     if (preferredSegment && isIncomplete(preferredSegment)) {
       return preferredSegment;
     }
@@ -316,14 +371,17 @@ export function getReadingPlanRhythmSummary({
   rhythm: ReadingPlanRhythm;
   progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>;
 }): ReadingPlanRhythmSummary {
-  const completedPlanCount = rhythm.planIds.filter(
+  const planIds = rhythm.items
+    .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+    .map((item) => item.planId);
+  const completedPlanCount = planIds.filter(
     (planId) => progressByPlanId[planId]?.is_completed === true
   ).length;
 
   return {
-    planCount: rhythm.planIds.length,
+    planCount: planIds.length,
     completedPlanCount,
-    remainingPlanCount: Math.max(rhythm.planIds.length - completedPlanCount, 0),
+    remainingPlanCount: Math.max(planIds.length - completedPlanCount, 0),
   };
 }
 

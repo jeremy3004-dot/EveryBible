@@ -29,6 +29,7 @@ import {
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
 import type {
   ReadingPlan,
   ReadingPlanRhythm,
@@ -45,7 +46,8 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type PlanTab = 'my-plans' | 'find-plans' | 'completed';
+type PrimaryTopicTab = 'reading-plans' | 'rhythms';
+type ReadingPlansTab = 'my-plans' | 'find-plans' | 'completed';
 type NavigationProp = NativeStackNavigationProp<PlansStackParamList>;
 
 type CompletedPlanRow = UserReadingPlanProgress & { plan: ReadingPlan };
@@ -266,10 +268,7 @@ const createStreakStyles = (colors: ThemeColors) =>
 interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
-  rhythms: ReadingPlanRhythm[];
   onAddPlan: () => void;
-  onRhythmPress: (rhythmId: string) => void;
-  onCreateRhythm: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
@@ -281,6 +280,11 @@ interface RhythmsSectionProps {
   onRhythmPress: (rhythmId: string) => void;
   onCreateRhythm: () => void;
   colors: ThemeColors;
+}
+
+function getRhythmSlotPresentation(rhythm: ReadingPlanRhythm) {
+  const slot = rhythm.slot ?? inferRhythmSlotFromTitle(rhythm.title);
+  return slot ? RHYTHM_SLOT_META[slot] : null;
 }
 
 function RhythmsSection({
@@ -326,10 +330,17 @@ function RhythmsSection({
         </TouchableOpacity>
       ) : (
         rhythms.map((rhythm) => {
-          const previewTitles = rhythm.planIds
+          const slotPresentation = getRhythmSlotPresentation(rhythm);
+          const previewTitles = rhythm.items
             .slice(0, 2)
-            .map((planId) => planTitleById[planId] ?? planId)
+            .map((item) =>
+              item.type === 'plan' ? planTitleById[item.planId] ?? item.planId : item.title
+            )
             .join(' • ');
+          const nextTitle =
+            rhythm.items[0]?.type === 'plan'
+              ? planTitleById[rhythm.items[0].planId] ?? rhythm.items[0].planId
+              : rhythm.items[0]?.title;
 
           return (
             <TouchableOpacity
@@ -346,12 +357,37 @@ function RhythmsSection({
                   <Text style={styles.cardTitle} numberOfLines={1}>
                     {rhythm.title}
                   </Text>
+                  {slotPresentation ? (
+                    <View style={styles.slotMetaRow}>
+                      <View style={styles.slotBadge}>
+                        <Ionicons
+                          name={slotPresentation.iconName}
+                          size={14}
+                          color={colors.accentPrimary}
+                        />
+                        <Text style={styles.slotBadgeLabel}>
+                          {t(slotPresentation.shortLabelKey)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
                   <Text style={styles.cardMeta}>
-                    {t('readingPlans.rhythmPlanCount', { count: rhythm.planIds.length })}
+                    {t('readingPlans.rhythmItemCount', {
+                      count: rhythm.items.length,
+                      defaultValue: `${rhythm.items.length} items`,
+                    })}
                   </Text>
                   {previewTitles ? (
                     <Text style={styles.cardPreview} numberOfLines={2}>
                       {previewTitles}
+                    </Text>
+                  ) : null}
+                  {nextTitle ? (
+                    <Text style={styles.cardNext} numberOfLines={1}>
+                      {t('readingPlans.nextUp', {
+                        value: nextTitle,
+                        defaultValue: `Next up: ${nextTitle}`,
+                      })}
                     </Text>
                   ) : null}
                 </View>
@@ -368,10 +404,7 @@ function RhythmsSection({
 function MyPlansSection({
   allPlans,
   userProgress,
-  rhythms,
   onAddPlan,
-  onRhythmPress,
-  onCreateRhythm,
   onPlanPress,
   onDeletePlan,
   colors,
@@ -447,15 +480,6 @@ function MyPlansSection({
         )}
       </View>
 
-      <View style={styles.rhythmsSection}>
-        <RhythmsSection
-          rhythms={rhythms}
-          allPlans={allPlans}
-          onRhythmPress={onRhythmPress}
-          onCreateRhythm={onCreateRhythm}
-          colors={colors}
-        />
-      </View>
       {/* ActivityStreakStrip hidden for now */}
     </View>
   );
@@ -491,9 +515,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     primaryButtonLabel: {
       ...typography.label,
       color: colors.cardBackground,
-    },
-    rhythmsSection: {
-      paddingTop: spacing.lg,
     },
     emptyState: {
       alignItems: 'center',
@@ -536,6 +557,89 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     dayCounter: {
       ...typography.micro,
       color: colors.secondaryText,
+    },
+  });
+
+function RhythmsHomeSection({
+  rhythms,
+  allPlans,
+  onRhythmPress,
+  onCreateRhythm,
+  colors,
+}: RhythmsSectionProps) {
+  const { t } = useTranslation();
+  const styles = createRhythmsHomeStyles(colors);
+
+  return (
+    <View style={styles.content}>
+      <View style={styles.hero}>
+        <Text style={styles.heroTitle}>{t('readingPlans.rhythms')}</Text>
+        <Text style={styles.heroBody}>
+          {t('readingPlans.rhythmsIntro', {
+            defaultValue:
+              'Build a repeatable morning, afternoon, or evening flow by mixing plan progress with custom scripture passages.',
+          })}
+        </Text>
+        <View style={styles.heroPresetRow}>
+          {(['morning', 'afternoon', 'evening'] as const).map((slot) => {
+            const meta = RHYTHM_SLOT_META[slot];
+            return (
+              <View key={slot} style={styles.heroPresetChip}>
+                <Ionicons name={meta.iconName} size={14} color={colors.accentPrimary} />
+                <Text style={styles.heroPresetLabel}>{t(meta.shortLabelKey)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+      <RhythmsSection
+        rhythms={rhythms}
+        allPlans={allPlans}
+        onRhythmPress={onRhythmPress}
+        onCreateRhythm={onCreateRhythm}
+        colors={colors}
+      />
+    </View>
+  );
+}
+
+const createRhythmsHomeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.md,
+      gap: spacing.lg,
+    },
+    hero: {
+      gap: spacing.sm,
+    },
+    heroTitle: {
+      ...typography.cardTitle,
+      color: colors.primaryText,
+    },
+    heroBody: {
+      ...typography.body,
+      color: colors.secondaryText,
+    },
+    heroPresetRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    heroPresetChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBackground,
+      paddingHorizontal: spacing.sm,
+      minHeight: 32,
+    },
+    heroPresetLabel: {
+      ...typography.micro,
+      color: colors.primaryText,
     },
   });
 
@@ -643,9 +747,32 @@ const createRhythmsStyles = (colors: ThemeColors) =>
       ...typography.micro,
       color: colors.secondaryText,
     },
+    slotMetaRow: {
+      flexDirection: 'row',
+    },
+    slotBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      minHeight: 28,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.background,
+      alignSelf: 'flex-start',
+    },
+    slotBadgeLabel: {
+      ...typography.micro,
+      color: colors.primaryText,
+    },
     cardPreview: {
       ...typography.body,
       color: colors.secondaryText,
+    },
+    cardNext: {
+      ...typography.micro,
+      color: colors.accentPrimary,
     },
   });
 
@@ -955,7 +1082,8 @@ export function PlansHomeScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
+  const [activeTopic, setActiveTopic] = useState<PrimaryTopicTab>('reading-plans');
+  const [activeTab, setActiveTab] = useState<ReadingPlansTab>('my-plans');
   const { rhythmOrder, rhythmsById } = useReadingPlansStore(
     useShallow((state) => ({
       rhythmOrder: state.rhythmOrder,
@@ -977,7 +1105,11 @@ export function PlansHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const tabs: { key: PlanTab; labelKey: string }[] = [
+  const topicTabs: { key: PrimaryTopicTab; labelKey: string }[] = [
+    { key: 'reading-plans', labelKey: 'readingPlans.title' },
+    { key: 'rhythms', labelKey: 'readingPlans.rhythms' },
+  ];
+  const tabs: { key: ReadingPlansTab; labelKey: string }[] = [
     { key: 'my-plans', labelKey: 'readingPlans.myPlans' },
     { key: 'find-plans', labelKey: 'readingPlans.findPlans' },
     { key: 'completed', labelKey: 'readingPlans.completed' },
@@ -1049,6 +1181,7 @@ export function PlansHomeScreen() {
   }, [navigation]);
 
   const handleAddPlan = useCallback(() => {
+    setActiveTopic('reading-plans');
     setActiveTab('find-plans');
   }, []);
 
@@ -1061,12 +1194,43 @@ export function PlansHomeScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.tabRow}
       >
+        {topicTabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            onPress={() => setActiveTopic(tab.key)}
+            style={[
+              styles.tabPill,
+              activeTopic === tab.key
+                ? { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary }
+                : { borderColor: colors.cardBorder },
+            ]}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTopic === tab.key ? colors.cardBackground : colors.secondaryText },
+              ]}
+              numberOfLines={1}
+            >
+              {t(tab.labelKey as Parameters<typeof t>[0])}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {activeTopic === 'reading-plans' ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.secondaryTabRow}
+        >
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
             onPress={() => setActiveTab(tab.key)}
             style={[
-              styles.tabPill,
+              styles.secondaryTabPill,
               activeTab === tab.key
                 ? { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary }
                 : { borderColor: colors.cardBorder },
@@ -1084,7 +1248,8 @@ export function PlansHomeScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+        </ScrollView>
+      ) : null}
     </View>
   );
 
@@ -1107,20 +1272,17 @@ export function PlansHomeScreen() {
           </View>
         ) : (
           <>
-            {activeTab === 'my-plans' && (
+            {activeTopic === 'reading-plans' && activeTab === 'my-plans' && (
               <MyPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
-                rhythms={rhythms}
                 onAddPlan={handleAddPlan}
-                onRhythmPress={handleRhythmPress}
-                onCreateRhythm={handleCreateRhythm}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}
                 colors={colors}
               />
             )}
-            {activeTab === 'find-plans' && (
+            {activeTopic === 'reading-plans' && activeTab === 'find-plans' && (
               <FindPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
@@ -1128,11 +1290,20 @@ export function PlansHomeScreen() {
                 colors={colors}
               />
             )}
-            {activeTab === 'completed' && (
+            {activeTopic === 'reading-plans' && activeTab === 'completed' && (
               <CompletedPlansSection
                 completedPlans={completedPlans}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}
+                colors={colors}
+              />
+            )}
+            {activeTopic === 'rhythms' && (
+              <RhythmsHomeSection
+                rhythms={rhythms}
+                allPlans={allPlans}
+                onRhythmPress={handleRhythmPress}
+                onCreateRhythm={handleCreateRhythm}
                 colors={colors}
               />
             )}
@@ -1158,13 +1329,13 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tabSticky: {
       backgroundColor: colors.background,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
     },
     tabRow: {
       flexDirection: 'row',
       paddingHorizontal: layout.screenPadding,
       gap: spacing.sm,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
       alignItems: 'center',
     },
     tabPill: {
@@ -1180,6 +1351,24 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tabLabel: {
       ...typography.tabLabel,
+    },
+    secondaryTabRow: {
+      flexDirection: 'row',
+      paddingHorizontal: layout.screenPadding,
+      gap: spacing.sm,
+      paddingBottom: spacing.md,
+      alignItems: 'center',
+    },
+    secondaryTabPill: {
+      paddingHorizontal: spacing.md,
+      minHeight: 40,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBackground,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     loadingContainer: {
       minHeight: 240,

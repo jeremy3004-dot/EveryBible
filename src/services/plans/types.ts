@@ -80,17 +80,39 @@ export interface ReadingPlanDayResume {
 }
 
 export type RhythmId = string;
+export type RhythmItemId = string;
+export type RhythmSlot = 'morning' | 'afternoon' | 'evening';
+
+export interface ReadingPlanRhythmPlanItem {
+  id: RhythmItemId;
+  type: 'plan';
+  planId: string;
+}
+
+export interface ReadingPlanRhythmPassageItem {
+  id: RhythmItemId;
+  type: 'passage';
+  title: string;
+  bookId: string;
+  startChapter: number;
+  endChapter: number;
+}
+
+export type ReadingPlanRhythmItem = ReadingPlanRhythmPlanItem | ReadingPlanRhythmPassageItem;
 
 export interface ReadingPlanRhythm {
   id: RhythmId;
   title: string;
-  planIds: string[];
+  slot?: RhythmSlot;
+  items: ReadingPlanRhythmItem[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ReadingPlanRhythmInput {
   title?: string | null;
+  slot?: RhythmSlot | null;
+  items?: ReadingPlanRhythmItem[];
   planIds?: string[];
 }
 
@@ -101,19 +123,25 @@ export interface ReadingPlanRhythmMutationResult {
 }
 
 export interface ReadingPlanRhythmSessionSegment {
-  planId: string;
-  planTitle: string;
-  dayNumber: number;
+  itemId: RhythmItemId;
+  type: 'plan' | 'passage';
+  title: string;
   startIndex: number;
   endIndex: number;
   chapterKeys: string[];
   isComplete: boolean;
+  planId?: string;
+  dayNumber?: number;
+  bookId?: string;
+  startChapter?: number;
+  endChapter?: number;
 }
 
 export interface RhythmSessionContext {
   type: 'rhythm';
   rhythmId: RhythmId;
   title: string;
+  itemIds: RhythmItemId[];
   planIds: string[];
   chapterKeys: string[];
   segments: ReadingPlanRhythmSessionSegment[];
@@ -154,6 +182,7 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   ) => ReadingPlanRhythmMutationResult;
   deleteRhythm: (rhythmId: RhythmId) => void;
   reorderRhythms: (rhythmOrder: RhythmId[]) => void;
+  moveRhythmItem: (rhythmId: RhythmId, itemId: RhythmItemId, direction: 'up' | 'down') => void;
   moveRhythmPlan: (rhythmId: RhythmId, planId: string, direction: 'up' | 'down') => void;
   getRhythm: (rhythmId: RhythmId) => ReadingPlanRhythm | null;
   getRhythmForPlan: (planId: string) => ReadingPlanRhythm | null;

@@ -810,9 +810,7 @@ export function BibleReaderScreen() {
     }
 
     return activeRhythmSession.segments.findIndex(
-      (segment) =>
-        segment.planId === activeRhythmSegment.planId &&
-        segment.dayNumber === activeRhythmSegment.dayNumber
+      (segment) => segment.itemId === activeRhythmSegment.itemId
     );
   }, [activeRhythmSegment, activeRhythmSession]);
   const resolvePlanSessionRouteParams = useCallback(
@@ -833,8 +831,8 @@ export function BibleReaderScreen() {
         }
 
         return {
-          planId: nextSegment.planId,
-          planDayNumber: nextSegment.dayNumber,
+          planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+          planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
           returnToPlanOnComplete: true,
           sessionContext: activeRhythmSession,
         };
@@ -1485,7 +1483,12 @@ export function BibleReaderScreen() {
           ? activeRhythmSession.segments[currentRhythmSegmentIndex + 1] ?? null
           : null;
       if (nextSegment) {
-        const nextResume = getPlanDayResume(nextSegment.planId, nextSegment.dayNumber);
+        const nextResume =
+          nextSegment.type === 'plan' &&
+          nextSegment.planId &&
+          typeof nextSegment.dayNumber === 'number'
+            ? getPlanDayResume(nextSegment.planId, nextSegment.dayNumber)
+            : null;
         const nextEntry =
           playbackSequenceEntries
             .slice(nextSegment.startIndex, nextSegment.endIndex)
@@ -1500,8 +1503,8 @@ export function BibleReaderScreen() {
               bookId: nextEntry.bookId,
               chapter: nextEntry.chapter,
               preferredMode: chapterSessionMode,
-              planId: nextSegment.planId,
-              planDayNumber: nextSegment.dayNumber,
+              planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+              planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
               returnToPlanOnComplete: true,
               sessionContext: activeRhythmSession,
             })
@@ -1679,8 +1682,9 @@ export function BibleReaderScreen() {
     1
   );
   const previousNavigationTarget =
-    previousSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, -1);
-  const nextNavigationTarget = nextSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, 1);
+    previousSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, -1));
+  const nextNavigationTarget =
+    nextSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, 1));
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas =
@@ -2615,8 +2619,8 @@ export function BibleReaderScreen() {
         })
       : t('common.next');
     const trailingActionHint = showPlanCompletionAction
-      ? t('readingPlans.completeDayHint')
-      : t('bible.nextChapterHint');
+      ? "Marks today's reading plan complete"
+      : 'Goes to the next chapter';
 
     return (
       <View
@@ -3357,7 +3361,7 @@ export function BibleReaderScreen() {
             onPress={handleExitPlanSession}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            accessibilityHint={t('bible.returnToPlanHint')}
+            accessibilityHint="Returns to the plan detail screen"
           >
             <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
           </TouchableOpacity>
@@ -3378,7 +3382,7 @@ export function BibleReaderScreen() {
             onPress={handleOpenBookPicker}
             accessibilityRole="button"
             accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-            accessibilityHint={t('bible.openBookAndChapterPickerHint')}
+            accessibilityHint="Opens the book and chapter picker"
           >
             <Text
               style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
@@ -3401,7 +3405,7 @@ export function BibleReaderScreen() {
             onPress={handleOpenTranslationOptions}
             accessibilityRole="button"
             accessibilityLabel={translationLabel}
-            accessibilityHint={t('bible.openTranslationOptionsHint')}
+            accessibilityHint="Opens translation options"
             disabled={!canShowTranslationSheet}
           >
             <Text
