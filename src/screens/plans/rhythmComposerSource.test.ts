@@ -8,46 +8,69 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'RhythmComposerScreen.tsx'), 'utf8');
 
-test('RhythmComposerScreen allows blank names and relies on the store fallback on save', () => {
+test('RhythmComposerScreen is driven by the preset library instead of the old builder', () => {
   assert.match(
     source,
-    /placeholder=\{t\('readingPlans\.rhythmNamePlaceholder'\)\}/,
-    'RhythmComposerScreen should tell the user they can leave the rhythm name blank'
+    /RHYTHM_PRESET_LIBRARY/,
+    'RhythmComposerScreen should render from a curated preset library'
   );
   assert.match(
     source,
-    /const result = currentRhythm\s*\?\s*updateRhythm\(currentRhythm\.id, input\)\s*:\s*createRhythm\(input\);/s,
-    'RhythmComposerScreen should hand the raw title input through to the store so fallback naming can happen there'
+    /Historic rhythms/,
+    'RhythmComposerScreen should frame the experience around historic starter rhythms'
   );
-});
-
-test('RhythmComposerScreen blocks plans that already belong to another rhythm', () => {
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /alreadyInAnotherRhythm/,
-    'RhythmComposerScreen should show a clear conflict message when a plan is already included in another rhythm'
-  );
-  assert.match(
-    source,
-    /planUnavailableForRhythm/,
-    'RhythmComposerScreen should label ineligible plans as unavailable for rhythms'
+    /NestableDraggableFlatList|BuilderMode|ChapterStepper|handleAddPassage/,
+    'RhythmComposerScreen should no longer carry the old drag-and-build composer machinery'
   );
 });
 
-test('RhythmComposerScreen supports manual ordering and rhythm deletion', () => {
+test('RhythmComposerScreen filters presets by time of day and tradition', () => {
   assert.match(
     source,
-    /moveSelectedPlan/,
-    'RhythmComposerScreen should provide explicit move up and move down controls for rhythm ordering'
+    /type SlotFilter = 'all' \| 'anytime' \| RhythmSlot;/,
+    'RhythmComposerScreen should support both slot-based and anytime preset filtering'
   );
   assert.match(
     source,
-    /deleteRhythm\(currentRhythm\.id\)/,
-    'RhythmComposerScreen should let the user delete an existing rhythm'
+    /RHYTHM_PRESET_TRADITIONS/,
+    'RhythmComposerScreen should expose tradition filters for the preset catalog'
+  );
+  assert.match(
+    source,
+    /setSlotFilter\('anytime'\)/,
+    'RhythmComposerScreen should let the user narrow the catalog to all-day rhythms'
+  );
+});
+
+test('RhythmComposerScreen creates or replaces rhythms directly from presets', () => {
+  assert.match(
+    source,
+    /createRhythm\(\{\s*title: preset\.title,\s*slot: preset\.slot,\s*items: buildPresetRhythmItems\(preset\),\s*\}\)/s,
+    'RhythmComposerScreen should create new rhythms directly from preset definitions'
+  );
+  assert.match(
+    source,
+    /updateRhythm\(currentRhythm\.id,\s*\{\s*title: preset\.title,\s*slot: preset\.slot,\s*items: buildPresetRhythmItems\(preset\),\s*\}\)/s,
+    'RhythmComposerScreen should let edit mode replace an existing rhythm with a preset'
   );
   assert.match(
     source,
     /navigation\.replace\('RhythmDetail', \{ rhythmId: result\.rhythm\.id \}\)/,
-    'RhythmComposerScreen should route a newly created rhythm into the detail view'
+    'RhythmComposerScreen should land on the rhythm detail screen after applying a preset'
+  );
+});
+
+test('RhythmComposerScreen still lets users delete an existing rhythm', () => {
+  assert.match(
+    source,
+    /deleteRhythm\(currentRhythm\.id\)/,
+    'RhythmComposerScreen should keep deletion available while edit mode is simplified'
+  );
+  assert.match(
+    source,
+    /Replace current rhythm/,
+    'RhythmComposerScreen should explain that edit mode now replaces a rhythm from the preset catalog'
   );
 });

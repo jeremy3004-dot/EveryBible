@@ -52,7 +52,7 @@ test('BibleReaderScreen keeps verse selection available and local-only annotatio
 
   assert.match(
     source,
-    /onPress=\{\s*\(\) => \{\s*setSelectedVerses\(\(current\) => toggleBibleSelectionVerse\(current, verse\.verse\)\);\s*\}\s*\}/s,
+    /onPress=\{\s*\(\) => \{\s*setSelectedVerses\(\(current\) =>\s*toggleBibleSelectionVerse\(current, verse\.verse\)\s*\);\s*\}\s*\}/s,
     'BibleReaderScreen should toggle verse selection when the user taps text'
   );
 

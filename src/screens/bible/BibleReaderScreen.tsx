@@ -809,9 +809,7 @@ export function BibleReaderScreen() {
     }
 
     return activeRhythmSession.segments.findIndex(
-      (segment) =>
-        segment.planId === activeRhythmSegment.planId &&
-        segment.dayNumber === activeRhythmSegment.dayNumber
+      (segment) => segment.itemId === activeRhythmSegment.itemId
     );
   }, [activeRhythmSegment, activeRhythmSession]);
   const resolvePlanSessionRouteParams = useCallback(
@@ -832,8 +830,8 @@ export function BibleReaderScreen() {
         }
 
         return {
-          planId: nextSegment.planId,
-          planDayNumber: nextSegment.dayNumber,
+          planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+          planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
           returnToPlanOnComplete: true,
           sessionContext: activeRhythmSession,
         };
@@ -1484,7 +1482,12 @@ export function BibleReaderScreen() {
           ? activeRhythmSession.segments[currentRhythmSegmentIndex + 1] ?? null
           : null;
       if (nextSegment) {
-        const nextResume = getPlanDayResume(nextSegment.planId, nextSegment.dayNumber);
+        const nextResume =
+          nextSegment.type === 'plan' &&
+          nextSegment.planId &&
+          typeof nextSegment.dayNumber === 'number'
+            ? getPlanDayResume(nextSegment.planId, nextSegment.dayNumber)
+            : null;
         const nextEntry =
           playbackSequenceEntries
             .slice(nextSegment.startIndex, nextSegment.endIndex)
@@ -1499,8 +1502,8 @@ export function BibleReaderScreen() {
               bookId: nextEntry.bookId,
               chapter: nextEntry.chapter,
               preferredMode: chapterSessionMode,
-              planId: nextSegment.planId,
-              planDayNumber: nextSegment.dayNumber,
+              planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+              planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
               returnToPlanOnComplete: true,
               sessionContext: activeRhythmSession,
             })
@@ -1678,8 +1681,9 @@ export function BibleReaderScreen() {
     1
   );
   const previousNavigationTarget =
-    previousSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, -1);
-  const nextNavigationTarget = nextSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, 1);
+    previousSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, -1));
+  const nextNavigationTarget =
+    nextSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, 1));
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas =

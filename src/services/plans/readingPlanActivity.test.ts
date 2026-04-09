@@ -61,7 +61,19 @@ const makeProgress = (
 const rhythm: ReadingPlanRhythm = {
   id: 'rhythm-1',
   title: 'Morning rhythm',
-  planIds: ['plan-a', 'plan-b', 'plan-c'],
+  items: [
+    { id: 'item-plan-a', type: 'plan', planId: 'plan-a' },
+    {
+      id: 'item-passage',
+      type: 'passage',
+      title: 'Psalm pairing',
+      bookId: 'PSA',
+      startChapter: 23,
+      endChapter: 24,
+    },
+    { id: 'item-plan-b', type: 'plan', planId: 'plan-b' },
+    { id: 'item-plan-c', type: 'plan', planId: 'plan-c' },
+  ],
   createdAt: '2026-04-07T08:00:00.000Z',
   updatedAt: '2026-04-07T08:00:00.000Z',
 };
@@ -373,14 +385,25 @@ test('buildRhythmReaderSession flattens each included plan current day into orde
   assert.deepEqual(session.playbackSequenceEntries, [
     { bookId: 'GEN', chapter: 2 },
     { bookId: 'GEN', chapter: 3 },
+    { bookId: 'PSA', chapter: 23 },
+    { bookId: 'PSA', chapter: 24 },
     { bookId: 'PSA', chapter: 2 },
     { bookId: 'PSA', chapter: 3 },
   ]);
-  assert.deepEqual(session.sessionContext.chapterKeys, ['GEN_2', 'GEN_3', 'PSA_2', 'PSA_3']);
+  assert.deepEqual(session.sessionContext.chapterKeys, [
+    'GEN_2',
+    'GEN_3',
+    'PSA_23',
+    'PSA_24',
+    'PSA_2',
+    'PSA_3',
+  ]);
   assert.deepEqual(session.sessionContext.segments, [
     {
+      itemId: 'item-plan-a',
+      type: 'plan',
+      title: 'plan-a',
       planId: 'plan-a',
-      planTitle: 'plan-a',
       dayNumber: 2,
       startIndex: 0,
       endIndex: 2,
@@ -388,17 +411,56 @@ test('buildRhythmReaderSession flattens each included plan current day into orde
       isComplete: false,
     },
     {
-      planId: 'plan-c',
-      planTitle: 'plan-c',
-      dayNumber: 2,
+      itemId: 'item-passage',
+      type: 'passage',
+      title: 'Psalm pairing',
       startIndex: 2,
       endIndex: 4,
+      chapterKeys: ['PSA_23', 'PSA_24'],
+      isComplete: false,
+      bookId: 'PSA',
+      startChapter: 23,
+      endChapter: 24,
+    },
+    {
+      itemId: 'item-plan-c',
+      type: 'plan',
+      title: 'plan-c',
+      planId: 'plan-c',
+      dayNumber: 2,
+      startIndex: 4,
+      endIndex: 6,
       chapterKeys: ['PSA_2', 'PSA_3'],
       isComplete: false,
     },
   ]);
   assert.deepEqual(session.startEntry, { bookId: 'GEN', chapter: 2 });
   assert.equal(session.startSegment?.planId, 'plan-a');
+});
+
+test('buildRhythmReaderSession can start from a passage item before any plan segments', () => {
+  const session = buildRhythmReaderSession({
+    rhythm: {
+      ...rhythm,
+      items: [
+        {
+          id: 'item-passage-first',
+          type: 'passage',
+          title: 'Morning Psalms',
+          bookId: 'PSA',
+          startChapter: 1,
+          endChapter: 2,
+        },
+        { id: 'item-plan-c', type: 'plan', planId: 'plan-c' },
+      ],
+    },
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+
+  assert.deepEqual(session.startEntry, { bookId: 'PSA', chapter: 1 });
+  assert.equal(session.startSegment?.type, 'passage');
+  assert.equal(session.startSegment?.itemId, 'item-passage-first');
 });
 
 test('resolveFirstIncompleteRhythmSessionSegment prefers a resumable plan before falling back to the first incomplete segment', () => {
@@ -446,7 +508,7 @@ test('rhythm session helpers resolve playback indexes and segment ownership with
     preferredDayNumber: 2,
   });
 
-  assert.equal(psaIndex, 3);
+  assert.equal(psaIndex, 5);
   assert.equal(
     getRhythmSessionSegmentAtIndex(session.sessionContext, psaIndex)?.planId,
     'plan-c'

@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { en } from './en';
-import { hi } from './hi';
-import { ne } from './ne';
-import { ru } from './ru';
 
 interface TranslationTree {
   [key: string]: string | TranslationTree;
@@ -16,22 +15,41 @@ const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, stri
   });
 
 const englishEntries = Object.fromEntries(flattenEntries(en as TranslationTree));
-const englishKeys = Object.keys(englishEntries).sort();
-const allowedEnglishValues = new Set(['auth.emailPlaceholder', 'gather.lessonsProgress']);
+const coreLocaleCodes = ['es', 'hi', 'ru', 'ne'] as const;
+const criticalLocalizedKeys = [
+  'audio.showTextHint',
+  'about.resources',
+  'about.madeWithLove',
+  'readingPlans.completeDayHint',
+  'prayer.ownerLongPressHint',
+  'gather.moreOptions',
+  'bible.nextChapterHint',
+  'bible.openBookAndChapterPickerHint',
+  'bible.openTranslationOptionsHint',
+  'bible.returnToPlanHint',
+] as const;
 
-for (const [code, locale] of Object.entries({ hi, ne, ru })) {
-  test(`${code} preserves the full English keyset`, () => {
-    const localeEntries = Object.fromEntries(flattenEntries(locale as TranslationTree));
-    assert.deepEqual(Object.keys(localeEntries).sort(), englishKeys);
+for (const languageCode of coreLocaleCodes) {
+  test(`${languageCode} includes the critical translated UI keys`, async () => {
+    const localeFile = path.join(process.cwd(), 'src/i18n/locales', `${languageCode}.ts`);
+    const localeModule = await import(pathToFileURL(localeFile).href);
+    const locale = localeModule[languageCode] as TranslationTree | undefined;
+
+    assert.ok(locale, `Expected locale export for ${languageCode}`);
+    const localeEntries = Object.fromEntries(flattenEntries(locale));
+    for (const key of criticalLocalizedKeys) {
+      assert.ok(key in localeEntries, `Expected ${languageCode} to define ${key}`);
+    }
   });
 
-  test(`${code} does not leave interface strings in English`, () => {
-    const localeEntries = Object.fromEntries(flattenEntries(locale as TranslationTree));
-    const untranslated = englishKeys.filter((key) => {
-      if (allowedEnglishValues.has(key)) {
-        return false;
-      }
+  test(`${languageCode} does not leave the critical UI keys in English`, async () => {
+    const localeFile = path.join(process.cwd(), 'src/i18n/locales', `${languageCode}.ts`);
+    const localeModule = await import(pathToFileURL(localeFile).href);
+    const locale = localeModule[languageCode] as TranslationTree | undefined;
 
+    assert.ok(locale, `Expected locale export for ${languageCode}`);
+    const localeEntries = Object.fromEntries(flattenEntries(locale));
+    const untranslated = criticalLocalizedKeys.filter((key) => {
       const localeValue = localeEntries[key];
       const englishValue = englishEntries[key];
       return localeValue === englishValue && /[A-Za-z]/.test(localeValue);

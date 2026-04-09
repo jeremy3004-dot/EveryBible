@@ -39,7 +39,22 @@ test('RhythmDetailScreen exposes edit and continue actions for the rhythm', () =
   );
   assert.match(
     source,
-    /readingPlans\.rhythmDaySummary/,
-    'RhythmDetailScreen should show a rhythm day summary section'
+    /readingPlans\.rhythmSequence/,
+    'RhythmDetailScreen should show the rhythm sequence section for the ordered items'
+  );
+  assert.match(
+    source,
+    /segment\.itemId/,
+    'RhythmDetailScreen should key ordered rhythm segments by item so custom passages and plans can coexist safely'
+  );
+  assert.match(
+    source,
+    /RHYTHM_SLOT_META\[slot\]/,
+    'RhythmDetailScreen should surface the selected rhythm slot with shared metadata so Morning, Afternoon, and Evening labels stay consistent'
+  );
+  assert.match(
+    source,
+    /readingPlans\.nextUp/,
+    'RhythmDetailScreen should preview the next sequence item in the summary card before the user continues the rhythm'
   );
 });
