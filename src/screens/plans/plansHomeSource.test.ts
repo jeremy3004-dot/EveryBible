@@ -199,3 +199,16 @@ test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () =>
     'PlansHomeScreen should render the Plans section before the Rhythms section on the My Plans page'
   );
 });
+
+test('PlansHomeScreen refreshes plan data again when the screen regains focus', () => {
+  assert.match(
+    source,
+    /useFocusEffect/,
+    'PlansHomeScreen should subscribe to navigation focus so My Plans can refresh after a plan is started elsewhere'
+  );
+  assert.match(
+    source,
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*loadAllData\(true\)\.catch\(\(\) => \{\}\);\s*}, \[loadAllData\]\)\s*\)/s,
+    'PlansHomeScreen should quietly reload plans on focus instead of only relying on the initial mount fetch'
+  );
+});

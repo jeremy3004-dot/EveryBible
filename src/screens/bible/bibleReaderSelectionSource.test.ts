@@ -98,8 +98,8 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
-    /HOME_VERSE_BACKGROUND_SOURCES/,
-    'BibleReaderScreen should reuse the bundled verse background artwork for image sharing'
+    /SHARE_VERSE_BACKGROUND_SOURCES/,
+    'BibleReaderScreen should reuse the shared scripture-image background artwork for image sharing'
   );
 
   assert.match(

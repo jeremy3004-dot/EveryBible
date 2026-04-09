@@ -29,6 +29,10 @@ const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   valley: require('../../../assets/plans/covers/valley.webp'),
 } as const;
 
+export const READING_PLAN_COVER_SOURCES: ReadonlyArray<ImageSourcePropType> = Array.from(
+  new Set(Object.values(COVER_ASSETS))
+);
+
 type ReadingPlanCoverInput = {
   coverKey?: ReadingPlan['coverKey'] | null;
   cover_key?: ReadingPlan['cover_key'] | null;

@@ -117,6 +117,7 @@ import {
   toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
+import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   READER_TOP_CHROME_DISMISS_DISTANCE,
@@ -572,13 +573,13 @@ export function BibleReaderScreen() {
     ]
   );
 
-  const verseImageBackgroundCount = HOME_VERSE_BACKGROUND_SOURCES.length;
+  const verseImageBackgroundCount = SHARE_VERSE_BACKGROUND_SOURCES.length;
   const selectedVerseImageBackground =
-    HOME_VERSE_BACKGROUND_SOURCES[
+    SHARE_VERSE_BACKGROUND_SOURCES[
       verseImageBackgroundCount > 0
         ? selectedVerseImageBackgroundIndex % verseImageBackgroundCount
         : 0
-    ] ?? HOME_VERSE_BACKGROUND_SOURCES[0];
+    ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0];
   const dismissSelectedVerseSelection = () => {
     setShowVerseImageSheet(false);
     setSelectedVerses([]);
@@ -4449,7 +4450,7 @@ export function BibleReaderScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.verseImageBackgroundRail}
             >
-              {HOME_VERSE_BACKGROUND_SOURCES.map((backgroundSource, index) => {
+              {SHARE_VERSE_BACKGROUND_SOURCES.map((backgroundSource, index) => {
                 const isSelected =
                   verseImageBackgroundCount > 0 &&
                   index === selectedVerseImageBackgroundIndex % verseImageBackgroundCount;
