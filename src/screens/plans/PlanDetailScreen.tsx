@@ -690,6 +690,12 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             style={styles.coverGradient}
           />
 
+          <View style={styles.coverTitleWrap}>
+            <Text style={styles.coverTitle} numberOfLines={3}>
+              {planTitle}
+            </Text>
+          </View>
+
           {/* Floating back button */}
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -705,24 +711,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           >
             <Ionicons name="arrow-back" size={20} color="#ffffff" />
           </TouchableOpacity>
-        </View>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* Title and duration                                                 */}
-        {/* ------------------------------------------------------------------ */}
-        <View style={styles.titleSection}>
-          <Text style={[styles.planTitle, { color: colors.primaryText }]} numberOfLines={3}>
-            {planTitle}
-          </Text>
-
-          <View style={styles.metaRow}>
-            {/* Duration badge */}
-            <View style={[styles.durationBadge, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
-              <Text style={[styles.durationText, { color: colors.secondaryText }]}>
-                {plan?.duration_days ?? 0} {t('engagement.days', { defaultValue: 'days' })}
-              </Text>
-            </View>
-          </View>
         </View>
 
         {/* ------------------------------------------------------------------ */}
@@ -884,7 +872,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 120,
+  },
+  coverTitleWrap: {
+    position: 'absolute',
+    left: layout.screenPadding,
+    right: layout.screenPadding,
+    bottom: spacing.lg,
+  },
+  coverTitle: {
+    ...typography.pageTitle,
+    color: '#ffffff',
   },
   floatingBack: {
     position: 'absolute',
@@ -895,39 +893,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // Title section
-  titleSection: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.md,
-  },
-  planTitle: {
-    ...typography.sectionTitle,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  durationBadge: {
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  durationText: {
-    ...typography.micro,
-  },
-
   // CTA row
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
   },
   ctaPrimary: {
     flexDirection: 'row',

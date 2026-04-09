@@ -95,6 +95,24 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
   );
 });
 
+test('PlanDetailScreen overlays the plan title on the hero image and removes the duration badge row', () => {
+  assert.match(
+    source,
+    /<View style=\{styles\.coverTitleWrap\}>[\s\S]*<Text style=\{styles\.coverTitle\}/s,
+    'PlanDetailScreen should render the plan title inside the cover image so the content below can sit higher'
+  );
+  assert.match(
+    source,
+    /coverTitle:\s*{[\s\S]*typography\.pageTitle[\s\S]*color:\s*'#ffffff'/s,
+    'PlanDetailScreen should style the hero title for image-overlay contrast'
+  );
+  assert.doesNotMatch(
+    source,
+    /durationBadge|durationText|metaRow/,
+    'PlanDetailScreen should remove the small duration badge row from beneath the cover'
+  );
+});
+
 test('PlanDetailScreen exposes a stable selector for the active current-day row', () => {
   assert.match(
     source,
