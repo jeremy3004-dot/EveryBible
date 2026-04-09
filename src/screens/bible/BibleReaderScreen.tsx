@@ -49,6 +49,7 @@ import {
   getAdjacentBibleChapter,
   getBookById,
   getBookIcon,
+  getCompactTranslatedBookName,
   getTranslatedBookName,
 } from '../../constants';
 import { config } from '../../constants/config';
@@ -665,6 +666,7 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
   const activeRhythmSession = sessionContext?.type === 'rhythm' ? sessionContext : null;
@@ -3388,7 +3390,7 @@ export function BibleReaderScreen() {
               style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
               numberOfLines={1}
             >
-              {getTranslatedBookName(bookId, t)} {chapter}
+              {compactBookName} {chapter}
             </Text>
           </TouchableOpacity>
 
