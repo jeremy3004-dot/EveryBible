@@ -193,3 +193,25 @@ test('TabNavigator clears preserved plan-session reader params when the Bible ta
     'TabNavigator should clear any preserved rhythm session context when the user chooses the Bible tab itself'
   );
 });
+
+test('TabNavigator resets the Plans tab to PlansHome when the tab is pressed directly', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /name="Plans"[\s\S]*listeners=\{\(\{ navigation, route \}\) =>/,
+    'TabNavigator should attach a tab-press listener to the Plans tab so direct taps can reopen the plans list'
+  );
+
+  assert.match(
+    source,
+    /event\.preventDefault\(\);/,
+    'TabNavigator should intercept direct Plans-tab presses instead of reusing the preserved nested stack state'
+  );
+
+  assert.match(
+    source,
+    /navigation\.navigate\('Plans', \{\s*screen:\s*'PlansHome'/s,
+    'TabNavigator should send direct Plans-tab presses back to PlansHome instead of reopening the last plan detail'
+  );
+});

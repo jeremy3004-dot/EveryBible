@@ -152,6 +152,14 @@ export function TabNavigator() {
         name="Plans"
         component={PlansStack}
         options={{ tabBarLabel: t('tabs.plans') }}
+        listeners={({ navigation, route }) => ({
+          tabPress: (event) => {
+            event.preventDefault();
+            navigation.navigate('Plans', {
+              screen: 'PlansHome',
+            });
+          },
+        })}
       />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
     </Tab.Navigator>
