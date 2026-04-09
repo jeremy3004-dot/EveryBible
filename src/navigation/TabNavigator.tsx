@@ -152,7 +152,7 @@ export function TabNavigator() {
         name="Plans"
         component={PlansStack}
         options={{ tabBarLabel: t('tabs.plans') }}
-        listeners={({ navigation, route }) => ({
+        listeners={({ navigation }) => ({
           tabPress: (event) => {
             event.preventDefault();
             navigation.navigate('Plans', {
