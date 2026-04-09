@@ -8,6 +8,7 @@ type ExpoPlugin = string | [string, { assets?: string[] }];
 
 interface AppConfig {
   expo: {
+    scheme?: string;
     ios?: {
       infoPlist?: {
         NSCameraUsageDescription?: string;
@@ -29,6 +30,11 @@ const readRootJson = <T>(relativePathFromRepoRoot: string): T =>
   JSON.parse(readRootFile(relativePathFromRepoRoot)) as T;
 
 const escapeForRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const readPlistStringArray = (contents: string, key: string): string[] => {
+  const match = contents.match(new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`));
+  assert.ok(match, `Expected ${key} array in plist`);
+  return Array.from(match[1].matchAll(/<string>([^<]+)<\/string>/g)).map((item) => item[1]);
+};
 
 const getBundledAssetEntries = (plugins: ExpoPlugin[] | undefined): string[] => {
   const assetPlugin = plugins?.find(
@@ -81,6 +87,28 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
       `<key>NSPhotoLibraryUsageDescription</key>\\s*<string>${escapeForRegex(expectedPhotoLibraryUsage)}</string>`
     ),
     'Expected ios/EveryBible/Info.plist to mirror NSPhotoLibraryUsageDescription from app.json'
+  );
+});
+
+test('ios Info.plist keeps both app and Google URL schemes for sign-in callbacks', () => {
+  const appConfig = readRootJson<AppConfig>('app.json');
+  const infoPlist = readRootFile('ios/EveryBible/Info.plist');
+  const urlSchemes = readPlistStringArray(infoPlist, 'CFBundleURLSchemes');
+  const appScheme = appConfig.expo.scheme;
+
+  assert.ok(appScheme, 'Expected app.json to declare the Expo app URL scheme');
+  assert.ok(
+    urlSchemes.includes(appScheme),
+    `Expected ios/EveryBible/Info.plist to include the app URL scheme ${appScheme}`
+  );
+  assert.ok(
+    urlSchemes.some((scheme) => scheme.startsWith('com.googleusercontent.apps.')),
+    'Expected ios/EveryBible/Info.plist to include the reversed Google iOS client ID scheme'
+  );
+  assert.equal(
+    new Set(urlSchemes).size,
+    urlSchemes.length,
+    'Expected ios/EveryBible/Info.plist URL schemes to stay unique so Google callbacks are not replaced by duplicates'
   );
 });
 
