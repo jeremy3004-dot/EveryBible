@@ -12,8 +12,8 @@ test('BibleReaderScreen opens a verse-image background picker and captures the s
 
   assert.match(
     source,
-    /import \{ HOME_VERSE_BACKGROUND_SOURCES \} from '\.\.\/\.\.\/data\/homeVerseBackgrounds';/,
-    'BibleReaderScreen should reuse the bundled verse backgrounds'
+    /import \{ SHARE_VERSE_BACKGROUND_SOURCES \} from '\.\.\/\.\.\/data\/shareVerseBackgrounds';/,
+    'BibleReaderScreen should reuse the shared scripture-image background gallery'
   );
 
   assert.match(
@@ -72,8 +72,8 @@ test('BibleReaderScreen opens a verse-image background picker and captures the s
 
   assert.match(
     source,
-    /HOME_VERSE_BACKGROUND_SOURCES\.map\(/,
-    'BibleReaderScreen should render a scrollable gallery of background choices'
+    /SHARE_VERSE_BACKGROUND_SOURCES\.map\(/,
+    'BibleReaderScreen should render a scrollable gallery of scripture-image background choices'
   );
 
   assert.match(

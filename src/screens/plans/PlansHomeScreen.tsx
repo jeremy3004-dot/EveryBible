@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -1007,6 +1007,12 @@ export function PlansHomeScreen() {
   useEffect(() => {
     loadAllData(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [loadAllData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAllData(true).catch(() => {});
+    }, [loadAllData])
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
