@@ -26,6 +26,7 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { useProgressStore } from '../../stores/progressStore';
 import type { MoreStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
@@ -132,7 +133,7 @@ export function ProfileScreen() {
   }, [isAuthenticated, user, setUser, t]);
 
   const handleSignIn = () => {
-    navigation.navigate('Auth');
+    openAuthFlow('signIn');
   };
 
   const handleReadingActivity = () => {
@@ -252,12 +253,12 @@ export function ProfileScreen() {
         {!isAuthenticated && (
           <View style={styles.signInCard}>
             <Ionicons name="cloud-outline" size={48} color={colors.accentPrimary} />
-            <Text style={styles.signInTitle}>{t('more.signInOrCreate')}</Text>
+            <Text style={styles.signInTitle}>{t('more.syncYourProgress')}</Text>
             <Text style={styles.signInDescription}>
               {t('auth.signInSubtitle')}
             </Text>
             <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-              <Text style={styles.signInButtonText}>{t('auth.signIn')}</Text>
+              <Text style={styles.signInButtonText}>{t('more.signInOrCreate')}</Text>
             </TouchableOpacity>
           </View>
         )}

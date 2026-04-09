@@ -1,35 +1,21 @@
 import { createNavigationContainerRef } from '@react-navigation/native';
-import type { RootTabParamList } from './types';
-
-export type PendingAuthMode = 'SignIn' | 'SignUp';
+import type { AuthScreenMode, RootTabParamList } from './types';
 
 export const rootNavigationRef = createNavigationContainerRef<RootTabParamList>();
 
-let queuedAuthMode: PendingAuthMode | null = null;
-
-const buildAuthRoute = (mode: PendingAuthMode) =>
+const buildAuthRoute = (mode: AuthScreenMode) =>
   ({
     screen: 'Auth',
     params: {
-      screen: mode,
+      screen: 'AuthScreen',
+      params: {
+        initialMode: mode,
+      },
     },
   }) as const;
 
-export const openAuthFlow = (mode: PendingAuthMode): void => {
+export const openAuthFlow = (mode: AuthScreenMode = 'signIn'): void => {
   if (rootNavigationRef.isReady()) {
     rootNavigationRef.navigate('More', buildAuthRoute(mode));
-    return;
   }
-
-  queuedAuthMode = mode;
-};
-
-export const flushQueuedAuthFlow = (): void => {
-  if (!queuedAuthMode || !rootNavigationRef.isReady()) {
-    return;
-  }
-
-  const mode = queuedAuthMode;
-  queuedAuthMode = null;
-  rootNavigationRef.navigate('More', buildAuthRoute(mode));
 };

@@ -320,6 +320,7 @@ export const en = {
     guestUser: 'Guest User',
     signInToSync: 'Sign in to sync your progress',
     signInOrCreate: 'Sign In or Create Account',
+    syncYourProgress: 'Sync your progress',
     readingActivity: 'Reading Activity',
     signOut: 'Sign Out',
     signOutConfirm:
@@ -864,6 +865,8 @@ export const en = {
     title: 'Prayer Wall',
     submitRequest: 'Share Prayer Request',
     requestPlaceholder: 'What would you like prayer for?',
+    signInTitle: 'Sign in to pray with this group',
+    signInBody: 'Sign in to share requests, pray with others, and keep this group in sync.',
     prayed: 'Prayed',
     encouraged: 'Encouraged',
     answered: 'Answered',

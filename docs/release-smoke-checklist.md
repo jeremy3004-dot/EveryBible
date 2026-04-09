@@ -14,9 +14,11 @@ This release gate runs lint, typecheck, release metadata contracts, and the focu
 
 ## Manual Device Gates
 
-- Cold-start the app and confirm it lands on the correct gate: onboarding, privacy lock, or main shell.
+- Fresh install: complete onboarding with interface language, country, and content language only, then confirm the app lands in the main shell as a guest.
+- From More and Profile as a guest, open the auth flow and confirm the shared auth screen appears in the expected mode.
 - Verify email/password sign-in on a release-like build, then fully quit and relaunch to confirm session restoration.
-- Verify Apple sign-in on iOS and Google sign-in on a supported build path.
+- Verify email create-account shows the expected in-flow success behavior when verification is required.
+- Verify Apple sign-in on iOS and Google sign-in on a supported build path, and confirm the shared auth screen dismisses correctly after success.
 - Read scripture offline, restore reading position, and confirm daily scripture still degrades gracefully when optional content is unavailable.
 - Stream audio, pause/seek, and confirm offline download playback still works after reconnects and app backgrounding.
 - Open the Harvest tab, confirm local groups remain visible, and verify synced-group session completion only appears when backend and sign-in prerequisites are satisfied.

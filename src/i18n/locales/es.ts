@@ -311,6 +311,7 @@ export const es = {
     guestUser: 'Usuario invitado',
     signInToSync: 'Inicia sesión para sincronizar tu progreso',
     signInOrCreate: 'Iniciar sesión o crear cuenta',
+    syncYourProgress: 'Sincroniza tu progreso',
     readingActivity: 'Actividad de lectura',
     signOut: 'Desconectar',
     signOutConfirm:
@@ -1148,6 +1149,9 @@ export const es = {
     title: 'Muro de oración',
     submitRequest: 'Compartir petición de oración',
     requestPlaceholder: '¿Por qué te gustaría que oraran?',
+    signInTitle: 'Inicia sesión para orar con este grupo',
+    signInBody:
+      'Inicia sesión para compartir peticiones, orar con otros y mantener este grupo sincronizado.',
     prayed: 'Oré',
     encouraged: 'Animado',
     answered: 'Respondida',

@@ -12,12 +12,8 @@ export function AuthStack() {
       }}
     >
       <Stack.Screen
-        name="SignIn"
-        getComponent={() => require('../screens/auth/SignInScreen').SignInScreen}
-      />
-      <Stack.Screen
-        name="SignUp"
-        getComponent={() => require('../screens/auth/SignUpScreen').SignUpScreen}
+        name="AuthScreen"
+        getComponent={() => require('../screens/auth/AuthScreen').AuthScreen}
       />
     </Stack.Navigator>
   );

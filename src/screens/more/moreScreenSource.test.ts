@@ -31,6 +31,35 @@ test('More tab stays focused on profile and settings instead of a saved library 
   );
 });
 
+test('guest CTAs open the shared auth flow instead of directly navigating to a split auth screen', () => {
+  const moreScreenSource = readRelativeSource('./MoreScreen.tsx');
+  const profileScreenSource = readRelativeSource('./ProfileScreen.tsx');
+
+  assert.match(
+    moreScreenSource,
+    /openAuthFlow\('signIn'\)/,
+    'MoreScreen should open the shared auth flow in sign-in mode for guest users'
+  );
+
+  assert.match(
+    profileScreenSource,
+    /openAuthFlow\('signIn'\)/,
+    'ProfileScreen should open the shared auth flow in sign-in mode for guest users'
+  );
+
+  assert.equal(
+    moreScreenSource.includes("navigation.navigate('Auth')"),
+    false,
+    'MoreScreen should not directly navigate to the old auth route contract'
+  );
+
+  assert.equal(
+    profileScreenSource.includes("navigation.navigate('Auth')"),
+    false,
+    'ProfileScreen should not directly navigate to the old auth route contract'
+  );
+});
+
 test('Bible reader no longer exposes a saved library action after removing the More tab library hub', () => {
   const readerSource = readRelativeSource('../bible/BibleReaderScreen.tsx');
 

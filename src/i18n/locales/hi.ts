@@ -319,6 +319,7 @@ export const hi = {
     guestUser: 'अतिथि उपयोगकर्ता',
     signInToSync: 'अपनी प्रगति को समन्वयित करने के लिए साइन इन करें',
     signInOrCreate: 'साइन इन करें या खाता बनाने के लिए',
+    syncYourProgress: 'अपनी प्रगति सिंक करें',
     readingActivity: 'पढ़ने की गतिविधि',
     signOut: 'साइन आउट',
     signOutConfirm:
@@ -768,6 +769,9 @@ export const hi = {
     title: 'प्रार्थना दीवार',
     submitRequest: 'प्रार्थना अनुरोध साझा करें',
     requestPlaceholder: 'आप किसके लिए प्रार्थना चाहते हैं?',
+    signInTitle: 'इस समूह के साथ प्रार्थना करने के लिए साइन इन करें',
+    signInBody:
+      'अनुरोध साझा करने, दूसरों के साथ प्रार्थना करने, और इस समूह को सिंक में रखने के लिए साइन इन करें।',
     prayed: 'प्रार्थना की',
     encouraged: 'प्रोत्साहित',
     answered: 'उत्तर दिया गया',

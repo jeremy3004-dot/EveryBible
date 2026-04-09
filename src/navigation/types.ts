@@ -81,9 +81,14 @@ export type MoreStackParamList = {
 };
 
 // Auth Stack
+export type AuthScreenMode = 'signIn' | 'signUp';
+
 export type AuthStackParamList = {
-  SignIn: undefined;
-  SignUp: undefined;
+  AuthScreen:
+    | {
+        initialMode?: AuthScreenMode;
+      }
+    | undefined;
 };
 
 // Root Tab Navigator

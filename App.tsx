@@ -8,7 +8,6 @@ import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
-import { openAuthFlow, type PendingAuthMode } from './src/navigation/rootNavigation';
 import { initBibleData } from './src/services/bible/bibleService';
 import { bootstrapRuntimeTranslationsAndPreferences } from './src/services/translations';
 import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
@@ -48,11 +47,7 @@ void SplashScreen.preventAutoHideAsync().catch((error) => {
 // foreground notifications display a banner instead of being silently dropped.
 setupNotificationHandler();
 
-interface LoadingScreenProps {
-  onInitialAuthRequest: (mode: PendingAuthMode | null) => void;
-}
-
-function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
+function LoadingScreen() {
   const { colors } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     'Lora-Regular': require('./assets/fonts/Lora-Regular.ttf'),
@@ -203,17 +198,7 @@ function LoadingScreen({ onInitialAuthRequest }: LoadingScreenProps) {
   }
 
   if (!preferences.onboardingCompleted) {
-    return (
-      <LocaleSetupFlow
-        mode="initial"
-        onComplete={(result) => {
-          const accessMode = result?.accessMode;
-          onInitialAuthRequest(
-            accessMode === 'signIn' ? 'SignIn' : accessMode === 'signUp' ? 'SignUp' : null
-          );
-        }}
-      />
-    );
+    return <LocaleSetupFlow mode="initial" onComplete={() => undefined} />;
   }
 
   if (isPrivacyLocked) {
@@ -252,8 +237,6 @@ function AppContent() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
-  const pendingInitialAuthModeRef = useRef<PendingAuthMode | null>(null);
-  const onboardingCompletedRef = useRef(onboardingCompleted);
   const prevAuthRef = useRef(isAuthenticated);
   const prevUserUidRef = useRef(user?.uid ?? null);
   const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -346,39 +329,11 @@ function AppContent() {
     return () => subscription.remove();
   }, []);
 
-  useEffect(() => {
-    onboardingCompletedRef.current = onboardingCompleted;
-  }, [onboardingCompleted]);
-
-  useEffect(() => {
-    if (!onboardingCompleted || !pendingInitialAuthModeRef.current) {
-      return;
-    }
-
-    const mode = pendingInitialAuthModeRef.current;
-    pendingInitialAuthModeRef.current = null;
-    openAuthFlow(mode);
-  }, [onboardingCompleted]);
-
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <ErrorBoundary>
-        <LoadingScreen
-          onInitialAuthRequest={(mode) => {
-            if (!mode) {
-              pendingInitialAuthModeRef.current = null;
-              return;
-            }
-
-            if (onboardingCompletedRef.current) {
-              openAuthFlow(mode);
-              return;
-            }
-
-            pendingInitialAuthModeRef.current = mode;
-          }}
-        />
+        <LoadingScreen />
       </ErrorBoundary>
     </>
   );

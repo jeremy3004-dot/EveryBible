@@ -21,12 +21,10 @@ import { localeSearchEngine, type LocaleLanguage } from '../../services/onboardi
 import { getLocaleSetupSteps, type SetupMode, type SetupStep } from './localeSetupModel';
 import { radius } from '../../design/system';
 
-type InitialAccessMode = 'guest' | 'signIn' | 'signUp';
-
 interface LocaleSetupFlowProps {
   mode?: SetupMode;
   onClose?: () => void;
-  onComplete?: (result?: { accessMode?: InitialAccessMode | null }) => void;
+  onComplete?: () => void;
 }
 
 const getFlagEmoji = (countryCode: string): string => {
@@ -65,7 +63,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string | null>(
     initialLanguage?.code ?? null
   );
-  const [selectedAccessMode, setSelectedAccessMode] = useState<InitialAccessMode | null>(null);
 
   const selectedInterfaceLanguage =
     interfaceLanguageSearchEngine.getLanguageByCode(selectedInterfaceLanguageCode) ?? LANGUAGES.en;
@@ -110,9 +107,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     });
 
     syncPreferences().catch(() => {});
-    onComplete?.({
-      accessMode: mode === 'initial' ? selectedAccessMode : null,
-    });
+    onComplete?.();
   };
 
   const goToStep = (targetStep: SetupStep) => {
@@ -267,49 +262,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     );
   };
 
-  const renderAccessOption = (
-    accessMode: InitialAccessMode,
-    iconName: keyof typeof Ionicons.glyphMap,
-    title: string,
-    body: string
-  ) => {
-    const isSelected = selectedAccessMode === accessMode;
-
-    return (
-      <TouchableOpacity
-        key={accessMode}
-        style={[
-          styles.optionCard,
-          {
-            backgroundColor: colors.cardBackground,
-            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-          },
-        ]}
-        onPress={() => setSelectedAccessMode(accessMode)}
-        activeOpacity={0.9}
-      >
-        <View
-          style={[
-            styles.accessOptionIconShell,
-            {
-              backgroundColor: colors.accentGreen + '12',
-              borderColor: colors.accentGreen + '22',
-            },
-          ]}
-        >
-          <Ionicons name={iconName} size={20} color={colors.accentGreen} />
-        </View>
-        <View style={styles.optionCopy}>
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{title}</Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{body}</Text>
-        </View>
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-        ) : null}
-      </TouchableOpacity>
-    );
-  };
-
   const stepSubtitle = t('onboarding.stepProgress', {
     current: currentStepNumber,
     count: totalSteps,
@@ -378,36 +330,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                 {t('onboarding.availableInterfaceLanguages')}
               </Text>
               {interfaceLanguageResults.map((language) => renderInterfaceLanguageRow(language))}
-            </View>
-          </>
-        ) : step === 'account' ? (
-          <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-              {t('more.signInOrCreate')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('auth.signInSubtitle')}
-            </Text>
-
-            <View style={styles.listSection}>
-              {renderAccessOption(
-                'signIn',
-                'log-in-outline',
-                t('auth.signIn'),
-                t('auth.signInSubtitle')
-              )}
-              {renderAccessOption(
-                'signUp',
-                'person-add-outline',
-                t('auth.createAccount'),
-                t('auth.signUpSubtitle')
-              )}
-              {renderAccessOption(
-                'guest',
-                'phone-portrait-outline',
-                t('more.guestUser'),
-                t('more.signInToSync')
-              )}
             </View>
           </>
         ) : step === 'country' ? (
@@ -562,11 +484,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                   ? selectedInterfaceLanguage
                     ? 1
                     : 0.45
-                  : step === 'account'
-                    ? selectedAccessMode
-                      ? 1
-                      : 0.45
-                    : step === 'country'
+                  : step === 'country'
                       ? selectedCountry
                         ? 1
                         : 0.45
@@ -587,13 +505,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               return;
             }
 
-            if (step === 'account') {
-              if (selectedAccessMode) {
-                goToNextStep();
-              }
-              return;
-            }
-
             if (step === 'country') {
               if (selectedCountry) {
                 goToNextStep();
@@ -611,9 +522,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           disabled={
             step === 'interface'
               ? !selectedInterfaceLanguage
-              : step === 'account'
-                ? !selectedAccessMode
-                : step === 'country'
+              : step === 'country'
                   ? !selectedCountry
                   : !selectedLanguage
           }
@@ -709,14 +618,6 @@ const styles = StyleSheet.create({
   optionCopy: {
     flex: 1,
     gap: 4,
-  },
-  accessOptionIconShell: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   countryTitleRow: {
     flexDirection: 'row',

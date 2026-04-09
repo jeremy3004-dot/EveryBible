@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { TabNavigator } from './TabNavigator';
 import { useTheme } from '../contexts/ThemeContext';
-import { flushQueuedAuthFlow, rootNavigationRef } from './rootNavigation';
+import { rootNavigationRef } from './rootNavigation';
 import { useAudioStore } from '../stores/audioStore';
 import { navigationTypography } from '../design/system';
 import { linkingConfig } from './linkingConfig';
@@ -14,7 +14,6 @@ export function RootNavigator() {
     return rootNavigationRef.getCurrentRoute()?.name ?? null;
   }, []);
   const handleReady = useCallback(() => {
-    flushQueuedAuthFlow();
     setCurrentRouteName(getCurrentRouteName());
   }, [getCurrentRouteName]);
 

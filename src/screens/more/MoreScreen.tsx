@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
@@ -63,7 +64,7 @@ export function MoreScreen() {
   };
 
   const handleSignIn = () => {
-    navigation.navigate('Auth');
+    openAuthFlow('signIn');
   };
 
   const handleSignOut = () => {
@@ -119,7 +120,7 @@ export function MoreScreen() {
         {!isAuthenticated ? (
           <TouchableOpacity style={[styles.signInButton, { backgroundColor: colors.accentGreen }]} onPress={handleSignIn}>
             <Text style={[styles.signInText, { color: colors.onAccent }]}>
-              {t('more.signInOrCreate')}
+              {t('more.syncYourProgress')}
             </Text>
           </TouchableOpacity>
         ) : (

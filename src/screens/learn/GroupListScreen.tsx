@@ -9,6 +9,7 @@ import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 import {
   buildGroupRepositorySnapshot,
   listSyncedGroups,
@@ -164,6 +165,18 @@ export function GroupListScreen() {
               {t(groupRollout.syncStatusKey)}
             </Text>
           </View>
+
+          {!isSignedIn && backendConfigured ? (
+            <TouchableOpacity
+              style={[styles.authPromptButton, { backgroundColor: colors.accentPrimary }]}
+              onPress={() => openAuthFlow('signIn')}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.authPromptButtonText, { color: colors.background }]}>
+                {t('auth.signIn')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View
@@ -394,6 +407,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
+  },
+  authPromptButton: {
+    marginTop: 16,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  authPromptButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   localCard: {
     borderRadius: radius.lg,

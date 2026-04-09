@@ -19,6 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
 import * as prayerService from '../../services/prayer/prayerService';
 import type { PrayerRequestWithCounts } from '../../services/prayer/prayerService';
@@ -65,6 +66,7 @@ export function PrayerWallScreen() {
   });
 
   const inputRef = useRef<TextInput>(null);
+  const isSignedIn = Boolean(currentUserId);
 
   const loadRequests = useCallback(async () => {
     const result = await prayerService.listPrayerRequests(groupId);
@@ -85,6 +87,11 @@ export function PrayerWallScreen() {
   }, [loadRequests]);
 
   const handleSubmit = useCallback(async () => {
+    if (!currentUserId) {
+      openAuthFlow('signIn');
+      return;
+    }
+
     const trimmed = submitText.trim();
     if (!trimmed || isSubmitting) return;
 
@@ -105,10 +112,15 @@ export function PrayerWallScreen() {
     }
 
     setIsSubmitting(false);
-  }, [groupId, isSubmitting, submitText, t]);
+  }, [currentUserId, groupId, isSubmitting, submitText, t]);
 
   const handleInteraction = useCallback(
     async (requestId: string, type: 'prayed' | 'encouraged') => {
+      if (!currentUserId) {
+        openAuthFlow('signIn');
+        return;
+      }
+
       const key = type === 'prayed' ? 'prayed' : 'encouraged';
       const alreadyInteracted = localInteractions[key].has(requestId);
 
@@ -139,7 +151,7 @@ export function PrayerWallScreen() {
         await prayerService.addInteraction(requestId, type);
       }
     },
-    [localInteractions]
+    [currentUserId, localInteractions]
   );
 
   const handleLongPress = useCallback(
@@ -369,11 +381,21 @@ export function PrayerWallScreen() {
     <View style={styles.emptyContainer}>
       <Ionicons name="hand-left-outline" size={48} color={colors.secondaryText} />
       <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-        {t('prayer.noPrayers')}
+        {isSignedIn ? t('prayer.noPrayers') : t('prayer.signInTitle')}
       </Text>
       <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-        {t('prayer.beFirst')}
+        {isSignedIn ? t('prayer.beFirst') : t('prayer.signInBody')}
       </Text>
+      {!isSignedIn ? (
+        <TouchableOpacity
+          style={[styles.signInPromptButton, { backgroundColor: colors.accentPrimary }]}
+          onPress={() => openAuthFlow('signIn')}
+        >
+          <Text style={[styles.signInPromptButtonText, { color: colors.background }]}>
+            {t('auth.signIn')}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -400,6 +422,35 @@ export function PrayerWallScreen() {
         <View style={styles.headerRight} />
       </View>
 
+      {!isSignedIn ? (
+        <View
+          style={[
+            styles.signInPromptCard,
+            {
+              backgroundColor: colors.cardBackground,
+              borderBottomColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <View style={styles.signInPromptCopy}>
+            <Text style={[styles.signInPromptTitle, { color: colors.primaryText }]}>
+              {t('prayer.signInTitle')}
+            </Text>
+            <Text style={[styles.signInPromptBody, { color: colors.secondaryText }]}>
+              {t('prayer.signInBody')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.signInInlineButton, { backgroundColor: colors.accentPrimary }]}
+            onPress={() => openAuthFlow('signIn')}
+          >
+            <Text style={[styles.signInInlineButtonText, { color: colors.background }]}>
+              {t('auth.signIn')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* Submit bar */}
       <View style={[styles.submitBar, { backgroundColor: colors.cardBackground, borderBottomColor: colors.cardBorder }]}>
         <TextInput
@@ -412,6 +463,7 @@ export function PrayerWallScreen() {
           multiline
           maxLength={MAX_CHARS}
           returnKeyType="default"
+          editable={isSignedIn}
           accessible
           accessibilityLabel={t('prayer.requestPlaceholder')}
         />
@@ -424,13 +476,13 @@ export function PrayerWallScreen() {
               styles.submitButton,
               {
                 backgroundColor:
-                  submitText.trim().length > 0
+                  isSignedIn && submitText.trim().length > 0
                     ? colors.accentPrimary
                     : colors.cardBorder,
               },
             ]}
             onPress={handleSubmit}
-            disabled={isSubmitting || submitText.trim().length === 0}
+            disabled={isSubmitting || !isSignedIn || submitText.trim().length === 0}
             accessibilityLabel={t('prayer.submitRequest')}
             accessibilityRole="button"
           >
@@ -438,7 +490,7 @@ export function PrayerWallScreen() {
               name="send"
               size={16}
               color={
-                submitText.trim().length > 0
+                isSignedIn && submitText.trim().length > 0
                   ? colors.cardBackground
                   : colors.secondaryText
               }
@@ -448,7 +500,7 @@ export function PrayerWallScreen() {
                 styles.submitButtonText,
                 {
                   color:
-                    submitText.trim().length > 0
+                    isSignedIn && submitText.trim().length > 0
                       ? colors.cardBackground
                       : colors.secondaryText,
                 },
@@ -528,6 +580,30 @@ function makeStyles(_colors: ThemeColors) {
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
       borderBottomWidth: 1,
+    },
+    signInPromptCard: {
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      gap: spacing.md,
+    },
+    signInPromptCopy: {
+      gap: spacing.xs,
+    },
+    signInPromptTitle: {
+      ...typography.bodyStrong,
+    },
+    signInPromptBody: {
+      ...typography.body,
+    },
+    signInInlineButton: {
+      alignSelf: 'flex-start',
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    signInInlineButtonText: {
+      ...typography.button,
     },
     textInput: {
       ...typography.body,
@@ -642,6 +718,15 @@ function makeStyles(_colors: ThemeColors) {
     emptyBody: {
       ...typography.body,
       textAlign: 'center',
+    },
+    signInPromptButton: {
+      marginTop: spacing.lg,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+    },
+    signInPromptButtonText: {
+      ...typography.button,
     },
   });
 }
