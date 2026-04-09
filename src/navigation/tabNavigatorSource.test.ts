@@ -199,7 +199,7 @@ test('TabNavigator resets the Plans tab to PlansHome when the tab is pressed dir
 
   assert.match(
     source,
-    /name="Plans"[\s\S]*listeners=\{\(\{ navigation, route \}\) =>/,
+    /name="Plans"[\s\S]*listeners=\{\(\{ navigation \}\) =>/,
     'TabNavigator should attach a tab-press listener to the Plans tab so direct taps can reopen the plans list'
   );
 
