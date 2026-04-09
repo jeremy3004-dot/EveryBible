@@ -24,16 +24,16 @@ export interface AudioPlaybackState {
 }
 
 export interface AudioSettings {
-  playbackRate: number; // 0.5 - 2.0
+  playbackRate: number; // 0.5 - 2.5
   autoAdvanceChapter: boolean;
   repeatMode: RepeatMode;
   sleepTimerMinutes: number | null;
   backgroundMusicChoice: BackgroundMusicChoice;
 }
 
-export type PlaybackRate = 0.75 | 1.0 | 1.25 | 1.5 | 2.0;
+export type PlaybackRate = 0.75 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | 2.5;
 
-export const PLAYBACK_RATES: PlaybackRate[] = [0.75, 1.0, 1.25, 1.5, 2.0];
+export const PLAYBACK_RATES: PlaybackRate[] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
 
 export type RepeatMode = 'off' | 'chapter' | 'book';
 
