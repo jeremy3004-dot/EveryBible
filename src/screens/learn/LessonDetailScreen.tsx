@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -22,7 +21,7 @@ import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
 import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
-import { gatherIconImages } from '../../data/gatherIcons';
+import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import {
   getPassageText,
   getPrimaryAudioReference,
@@ -479,32 +478,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       >
         {/* Hero */}
         <View style={styles.heroContainer}>
-          <View
-            style={[
-              styles.heroIconCircle,
-              parent?.iconImage && gatherIconImages[parent.iconImage]
-                ? undefined
-                : { backgroundColor: colors.accentPrimary + '18' },
-            ]}
-          >
-            {parent?.iconImage && gatherIconImages[parent.iconImage] ? (
-              <Image
-                source={gatherIconImages[parent.iconImage]}
-                style={styles.heroIconImage}
-                resizeMode="contain"
-              />
-            ) : (
-              <Ionicons
-                name={
-                  parent?.iconName
-                    ? (parent.iconName as React.ComponentProps<typeof Ionicons>['name'])
-                    : 'book-outline'
-                }
-                size={48}
-                color={colors.accentPrimary}
-              />
-            )}
-          </View>
+          <GatherIconBadge
+            artworkKey={parent?.iconImage}
+            size={100}
+            iconSize={54}
+            style={styles.heroIconCircle}
+          />
           <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
           <Text style={[styles.heroReference, { color: colors.secondaryText }]}>
             {formatBibleReferenceLabel(lesson.references, resolveBookName)}
@@ -1064,11 +1043,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
-  },
-  heroIconImage: {
-    width: 100,
-    height: 100,
-    borderRadius: radius.pill,
   },
   heroLessonTitle: {
     ...typography.pageTitle,

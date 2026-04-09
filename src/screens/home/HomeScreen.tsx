@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, type ComponentProps } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { bibleTranslations, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
+import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useProgressStore } from '../../stores/progressStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -32,7 +33,6 @@ import {
   FOUNDATION_TITLE_KEYS,
   gatherFoundations,
 } from '../../data/gatherFoundations';
-import { gatherIconImages } from '../../data/gatherIcons';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans, type HomeContinuePlan } from './homeReadingPlansModel';
@@ -745,39 +745,15 @@ export function HomeScreen() {
                 },
               ]}
             >
-              <View
+              <GatherIconBadge
+                artworkKey={activeFoundation.iconImage}
+                size={homeLayout.foundationIconSize}
+                iconSize={Math.max(30, Math.round(homeLayout.foundationIconSize * 0.58))}
                 style={[
                   styles.foundationIconWrap,
-                  {
-                    backgroundColor: colors.accentPrimary + '18',
-                    width: homeLayout.foundationIconSize,
-                    height: homeLayout.foundationIconSize,
-                  },
+                  { width: homeLayout.foundationIconSize, height: homeLayout.foundationIconSize },
                 ]}
-              >
-                {activeFoundation.iconImage && gatherIconImages[activeFoundation.iconImage] ? (
-                  <Image
-                    source={gatherIconImages[activeFoundation.iconImage]}
-                    style={[
-                      styles.foundationIconImage,
-                      {
-                        width: homeLayout.foundationIconSize,
-                        height: homeLayout.foundationIconSize,
-                      },
-                    ]}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Ionicons
-                    name={
-                      (activeFoundation.iconName as ComponentProps<typeof Ionicons>['name']) ??
-                      'book-outline'
-                    }
-                    size={Math.max(28, Math.round(homeLayout.foundationIconSize * 0.52))}
-                    color={colors.accentPrimary}
-                  />
-                )}
-              </View>
+              />
               <View style={[styles.foundationCardInfo, { gap: homeLayout.bodyGap }]}>
                 <Text
                   style={[styles.foundationCardTitle, { color: colors.primaryText }]}
@@ -1153,9 +1129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-  },
-  foundationIconImage: {
-    borderRadius: radius.pill,
   },
   foundationCardInfo: {
     flex: 1,

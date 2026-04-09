@@ -33,6 +33,18 @@ test('GatherScreen uses translation keys for all visible section labels', () => 
     true,
     'GatherScreen should use a translation key for the get-started label'
   );
+
+  assert.equal(
+    source.includes('GatherIconBadge'),
+    true,
+    'GatherScreen should render gather icons through the shared vector badge'
+  );
+
+  assert.equal(
+    source.includes('artworkKey={category.iconImage}'),
+    true,
+    'GatherScreen should map wisdom categories to theme-aware SVG artwork'
+  );
 });
 
 test('GatherScreen navigates into FoundationDetail for both foundations and wisdom cards', () => {

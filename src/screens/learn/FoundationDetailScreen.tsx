@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import {
   FOUNDATION_LESSON_TITLE_KEYS,
 } from '../../data/gatherFoundations';
 import { gatherWisdomCategories, WISDOM_TITLE_KEYS } from '../../data/gatherWisdom';
-import { gatherIconImages } from '../../data/gatherIcons';
+import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
 import { getTranslatedBookName } from '../../constants';
@@ -149,27 +149,12 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         {/* Hero section */}
         <View style={styles.heroSection}>
           {/* Circular icon */}
-          <View
-            style={[
-              styles.heroIconContainer,
-              foundation.iconImage && gatherIconImages[foundation.iconImage]
-                ? undefined
-                : { backgroundColor: colors.accentPrimary + '18' },
-            ]}
-          >
-            {foundation.iconImage && gatherIconImages[foundation.iconImage] ? (
-              <Image source={gatherIconImages[foundation.iconImage]} style={styles.heroIconImage} />
-            ) : (
-              <Ionicons
-                name={
-                  (foundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
-                  'book-outline'
-                }
-                size={40}
-                color={colors.accentPrimary}
-              />
-            )}
-          </View>
+          <GatherIconBadge
+            artworkKey={foundation.iconImage}
+            size={80}
+            iconSize={46}
+            style={styles.heroIconContainer}
+          />
 
           {/* Progress text */}
           <Text style={[styles.progressText, { color: colors.secondaryText }]}>
@@ -314,30 +299,12 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             onPress={() => navigation.push('FoundationDetail', { foundationId: nextFoundation.id })}
             activeOpacity={0.85}
           >
-            <View
-              style={[
-                styles.upNextIconContainer,
-                nextFoundation.iconImage && gatherIconImages[nextFoundation.iconImage]
-                  ? undefined
-                  : { backgroundColor: colors.accentPrimary + '18' },
-              ]}
-            >
-              {nextFoundation.iconImage && gatherIconImages[nextFoundation.iconImage] ? (
-                <Image
-                  source={gatherIconImages[nextFoundation.iconImage]}
-                  style={styles.upNextIconImage}
-                />
-              ) : (
-                <Ionicons
-                  name={
-                    (nextFoundation.iconName as React.ComponentProps<typeof Ionicons>['name']) ??
-                    'book-outline'
-                  }
-                  size={20}
-                  color={colors.accentPrimary}
-                />
-              )}
-            </View>
+            <GatherIconBadge
+              artworkKey={nextFoundation.iconImage}
+              size={40}
+              iconSize={24}
+              style={styles.upNextIconContainer}
+            />
 
             <View style={styles.upNextContent}>
               <Text style={[styles.upNextLabel, { color: colors.secondaryText }]}>
@@ -418,11 +385,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  heroIconImage: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.pill,
   },
   progressText: {
     ...typography.label,
@@ -522,11 +484,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  upNextIconImage: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
   },
   upNextContent: {
     flex: 1,

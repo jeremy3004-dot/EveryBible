@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_TITLE_KEYS } from '../../data/gatherFoundations';
@@ -21,7 +20,6 @@ import {
   WISDOM_CATEGORY_NAME_KEYS,
   WISDOM_TITLE_KEYS,
 } from '../../data/gatherWisdom';
-import { gatherIconImages } from '../../data/gatherIcons';
 import { useGatherStore } from '../../stores/gatherStore';
 import type { LearnStackParamList } from '../../navigation/types';
 
@@ -136,27 +134,12 @@ export function GatherScreen() {
                   accessibilityLabel={FOUNDATION_TITLE_KEYS[foundation.id] ? t(FOUNDATION_TITLE_KEYS[foundation.id]) : foundation.title}
                 >
                   {/* Icon */}
-                  <View
-                    style={[
-                      styles.foundationIconContainer,
-                      foundation.iconImage && gatherIconImages[foundation.iconImage]
-                        ? undefined
-                        : { backgroundColor: colors.accentPrimary + '18' },
-                    ]}
-                  >
-                    {foundation.iconImage && gatherIconImages[foundation.iconImage] ? (
-                      <Image
-                        source={gatherIconImages[foundation.iconImage]}
-                        style={styles.foundationIconImage}
-                      />
-                    ) : (
-                      <Ionicons
-                        name={foundation.iconName as React.ComponentProps<typeof Ionicons>['name']}
-                        size={24}
-                        color={colors.accentPrimary}
-                      />
-                    )}
-                  </View>
+                  <GatherIconBadge
+                    artworkKey={foundation.iconImage}
+                    size={48}
+                    iconSize={28}
+                    style={styles.foundationIconContainer}
+                  />
 
                   {/* Content */}
                   <View style={styles.foundationCardContent}>
@@ -192,12 +175,12 @@ export function GatherScreen() {
           {gatherWisdomCategories.map((category) => (
             <View key={category.id}>
               <View style={styles.categoryHeaderRow}>
-                {category.iconImage && gatherIconImages[category.iconImage] && (
-                  <Image
-                    source={gatherIconImages[category.iconImage]}
-                    style={styles.categoryIconImage}
-                  />
-                )}
+                <GatherIconBadge
+                  artworkKey={category.iconImage}
+                  size={28}
+                  iconSize={18}
+                  style={styles.categoryIconImage}
+                />
                 <Text style={[styles.categoryHeader, { color: colors.primaryText }]}>
                   {WISDOM_CATEGORY_NAME_KEYS[category.id]
                     ? t(WISDOM_CATEGORY_NAME_KEYS[category.id])
@@ -229,27 +212,12 @@ export function GatherScreen() {
                           : wisdom.title
                       }
                     >
-                      <View
-                        style={[
-                          styles.wisdomIconContainer,
-                          wisdom.iconImage && gatherIconImages[wisdom.iconImage]
-                            ? undefined
-                            : { backgroundColor: colors.accentPrimary + '18' },
-                        ]}
-                      >
-                        {wisdom.iconImage && gatherIconImages[wisdom.iconImage] ? (
-                          <Image
-                            source={gatherIconImages[wisdom.iconImage]}
-                            style={styles.wisdomIconImage}
-                          />
-                        ) : (
-                          <Ionicons
-                            name={wisdom.iconName as React.ComponentProps<typeof Ionicons>['name']}
-                            size={20}
-                            color={colors.accentPrimary}
-                          />
-                        )}
-                      </View>
+                      <GatherIconBadge
+                        artworkKey={wisdom.iconImage}
+                        size={40}
+                        iconSize={20}
+                        style={styles.wisdomIconContainer}
+                      />
                       <Text
                         style={[styles.wisdomTitle, { color: colors.primaryText }]}
                         numberOfLines={2}
@@ -336,16 +304,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   foundationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  foundationIconImage: {
-    width: 48,
-    height: 48,
     borderRadius: radius.pill,
   },
   foundationCardContent: {
@@ -369,8 +327,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   categoryIconImage: {
-    width: 28,
-    height: 28,
     borderRadius: radius.pill,
   },
   categoryHeader: {
@@ -389,16 +345,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   wisdomIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  wisdomIconImage: {
-    width: 40,
-    height: 40,
     borderRadius: radius.pill,
   },
   wisdomTitle: {
