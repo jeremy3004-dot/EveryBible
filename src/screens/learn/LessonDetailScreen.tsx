@@ -362,7 +362,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const adjustPlaybackSpeed = useCallback(
     async (delta: number) => {
       const newSpeed = Math.min(
-        2.0,
+        2.5,
         Math.max(0.5, Math.round((playbackSpeed + delta) * 100) / 100)
       );
       setPlaybackSpeed(newSpeed);

@@ -511,6 +511,18 @@ test('sanitizePersistedAudioState preserves supported repeat modes', () => {
   assert.equal(sanitized.repeatMode, 'book');
 });
 
+test('sanitizePersistedAudioState preserves the extended supported playback rates', () => {
+  const onePointSeventyFive = sanitizePersistedAudioState({
+    playbackRate: 1.75,
+  });
+  const twoPointFive = sanitizePersistedAudioState({
+    playbackRate: 2.5,
+  });
+
+  assert.equal(onePointSeventyFive.playbackRate, 1.75);
+  assert.equal(twoPointFive.playbackRate, 2.5);
+});
+
 test('sanitizePersistedAudioState falls back to off for unsupported background music choices', () => {
   const sanitized = sanitizePersistedAudioState({
     backgroundMusicChoice: 'forest-birds',

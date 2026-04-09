@@ -207,9 +207,9 @@ class BackgroundMusicPlayer {
       }
 
       try {
-        this.fadeVolume(this.sound, this.targetVolume, 0, () => {
-          this.sound?.pauseAsync().catch(() => {});
-        });
+        this.clearFadeTimer();
+        await this.sound.setVolumeAsync(0);
+        await this.sound.pauseAsync();
       } catch {
         // Ignore pause races; the next sync pass will reconcile.
       }

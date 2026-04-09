@@ -90,3 +90,13 @@ test('useAudioPlayer stops syncing background music every tick once music is tur
     'useAudioPlayer should skip background-music sync work entirely when the choice is off'
   );
 });
+
+test('background music pauses immediately when scripture playback pauses', () => {
+  const source = readRelativeSource('./backgroundMusicPlayer.ts');
+
+  assert.match(
+    source,
+    /if \(!shouldPlay\) \{[\s\S]*await this\.sound\.setVolumeAsync\(0\);[\s\S]*await this\.sound\.pauseAsync\(\);[\s\S]*return;[\s\S]*\}/s,
+    'BackgroundMusicPlayer should mute and pause the loaded music bed immediately when playback pauses instead of waiting for the crossfade timer'
+  );
+});
