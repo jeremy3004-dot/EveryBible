@@ -1,5 +1,7 @@
 import type { UserReadingPlanProgress } from './types';
 
+const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Pure model functions for reading plan progress — no Supabase dependency.
 // These are extracted so they can be unit-tested without network or auth.
@@ -51,6 +53,59 @@ export function mergePlanProgress(
     completed_at: local.completed_at ?? remote.completed_at,
     synced_at: syncedAt,
   };
+}
+
+function isRecentUnsyncedLocalProgress(
+  progress: UserReadingPlanProgress,
+  fetchedAt: string,
+  graceMs: number
+): boolean {
+  if (progress.user_id) {
+    return false;
+  }
+
+  const localTimestamp = Date.parse(progress.synced_at || progress.started_at || '');
+  const fetchedTimestamp = Date.parse(fetchedAt);
+  if (Number.isNaN(localTimestamp) || Number.isNaN(fetchedTimestamp)) {
+    return false;
+  }
+
+  return fetchedTimestamp - localTimestamp <= graceMs;
+}
+
+/**
+ * Reconciles a full remote progress fetch against the local store snapshot.
+ *
+ * Rules:
+ * - matching plan rows are merged so local completion work is not lost
+ * - recent unsynced local-only rows survive temporarily when the remote read is stale
+ * - older local-only rows are dropped so the signed-in server snapshot can still clear stale state
+ */
+export function reconcileFetchedPlanProgress(
+  localProgressList: UserReadingPlanProgress[],
+  remoteProgressList: UserReadingPlanProgress[],
+  fetchedAt: string,
+  graceMs: number = UNSYNCED_LOCAL_PROGRESS_GRACE_MS
+): UserReadingPlanProgress[] {
+  const localByPlanId = new Map(localProgressList.map((progress) => [progress.plan_id, progress]));
+  const remoteByPlanId = new Map(remoteProgressList.map((progress) => [progress.plan_id, progress]));
+
+  const reconciledProgress = remoteProgressList.map((remoteProgress) => {
+    const localProgress = localByPlanId.get(remoteProgress.plan_id);
+    return localProgress
+      ? mergePlanProgress(localProgress, remoteProgress, fetchedAt)
+      : remoteProgress;
+  });
+
+  const recentUnsyncedLocalProgress = localProgressList.filter(
+    (localProgress) =>
+      !remoteByPlanId.has(localProgress.plan_id) &&
+      isRecentUnsyncedLocalProgress(localProgress, fetchedAt, graceMs)
+  );
+
+  return [...reconciledProgress, ...recentUnsyncedLocalProgress].sort((left, right) =>
+    right.started_at.localeCompare(left.started_at)
+  );
 }
 
 /**

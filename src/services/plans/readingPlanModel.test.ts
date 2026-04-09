@@ -5,6 +5,7 @@ import {
   isPlanCompleted,
   mergePlanProgress,
   planCompletionPercent,
+  reconcileFetchedPlanProgress,
 } from './readingPlanModel';
 import type { UserReadingPlanProgress } from '../supabase/types';
 
@@ -131,6 +132,89 @@ test('mergePlanProgress does not mutate the local or remote inputs', () => {
 
   assert.deepEqual(local.completed_entries, localEntriesBefore);
   assert.deepEqual(remote.completed_entries, remoteEntriesBefore);
+});
+
+test('reconcileFetchedPlanProgress preserves a recent unsynced local enrollment when remote fetch is stale', () => {
+  const local = makeProgress({
+    user_id: undefined,
+    plan_id: 'plan-local-only',
+    started_at: '2026-04-09T10:00:00.000Z',
+    synced_at: '2026-04-09T10:00:00.000Z',
+  });
+  const remote = makeProgress({
+    id: 'prog-remote',
+    user_id: 'user-1',
+    plan_id: 'plan-remote',
+    started_at: '2026-04-08T10:00:00.000Z',
+    synced_at: '2026-04-08T10:00:00.000Z',
+  });
+
+  const reconciled = reconcileFetchedPlanProgress(
+    [local],
+    [remote],
+    '2026-04-09T10:03:00.000Z'
+  );
+
+  assert.deepEqual(
+    reconciled.map((progress) => progress.plan_id),
+    ['plan-local-only', 'plan-remote']
+  );
+  assert.equal(reconciled.find((progress) => progress.plan_id === 'plan-local-only')?.user_id, undefined);
+});
+
+test('reconcileFetchedPlanProgress drops stale local-only progress after the grace window', () => {
+  const local = makeProgress({
+    user_id: undefined,
+    plan_id: 'plan-local-only',
+    started_at: '2026-04-09T10:00:00.000Z',
+    synced_at: '2026-04-09T10:00:00.000Z',
+  });
+  const remote = makeProgress({
+    id: 'prog-remote',
+    user_id: 'user-1',
+    plan_id: 'plan-remote',
+    started_at: '2026-04-08T10:00:00.000Z',
+    synced_at: '2026-04-08T10:00:00.000Z',
+  });
+
+  const reconciled = reconcileFetchedPlanProgress(
+    [local],
+    [remote],
+    '2026-04-09T10:10:01.000Z'
+  );
+
+  assert.deepEqual(
+    reconciled.map((progress) => progress.plan_id),
+    ['plan-remote']
+  );
+});
+
+test('reconcileFetchedPlanProgress merges matching local and remote plan rows', () => {
+  const local = makeProgress({
+    plan_id: 'plan-1',
+    completed_entries: { '1': '2026-04-09T08:00:00.000Z' },
+    current_day: 2,
+    synced_at: '2026-04-09T08:00:00.000Z',
+  });
+  const remote = makeProgress({
+    id: 'prog-remote',
+    user_id: 'user-1',
+    plan_id: 'plan-1',
+    completed_entries: { '2': '2026-04-09T09:00:00.000Z' },
+    current_day: 3,
+    synced_at: '2026-04-09T09:00:00.000Z',
+  });
+
+  const reconciled = reconcileFetchedPlanProgress(
+    [local],
+    [remote],
+    '2026-04-09T10:00:00.000Z'
+  );
+
+  assert.equal(reconciled.length, 1);
+  assert.deepEqual(Object.keys(reconciled[0].completed_entries), ['1', '2']);
+  assert.equal(reconciled[0].current_day, 3);
+  assert.equal(reconciled[0].user_id, 'user-1');
 });
 
 // ---------------------------------------------------------------------------
