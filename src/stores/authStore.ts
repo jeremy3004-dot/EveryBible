@@ -84,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
           const preferencesChanged =
             state.preferences.fontSize !== preferences.fontSize ||
             state.preferences.theme !== preferences.theme ||
+            state.preferences.appearancePalette !== preferences.appearancePalette ||
             state.preferences.language !== preferences.language ||
             state.preferences.countryCode !== preferences.countryCode ||
             state.preferences.countryName !== preferences.countryName ||

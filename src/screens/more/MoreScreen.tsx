@@ -118,7 +118,9 @@ export function MoreScreen() {
         {/* Auth Buttons */}
         {!isAuthenticated ? (
           <TouchableOpacity style={[styles.signInButton, { backgroundColor: colors.accentGreen }]} onPress={handleSignIn}>
-            <Text style={[styles.signInText, { color: colors.primaryText }]}>{t('more.signInOrCreate')}</Text>
+            <Text style={[styles.signInText, { color: colors.onAccent }]}>
+              {t('more.signInOrCreate')}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity

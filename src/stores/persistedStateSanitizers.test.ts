@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { APPEARANCE_PALETTE_IDS } from '../constants/appearancePalettes';
 import {
   defaultAuthPreferences,
   sanitizePersistedAudioState,
@@ -365,6 +366,7 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
     preferences: {
       fontSize: 'huge',
       theme: 'sepia',
+      appearancePalette: 'violet',
       language: 'xx',
       countryCode: 'usa',
       countryName: '',
@@ -393,6 +395,7 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   );
   assert.equal(sanitized.preferences.fontSize, defaultAuthPreferences.fontSize);
   assert.equal(sanitized.preferences.theme, defaultAuthPreferences.theme);
+  assert.equal(sanitized.preferences.appearancePalette, defaultAuthPreferences.appearancePalette);
   assert.equal(sanitized.preferences.language, defaultAuthPreferences.language);
   assert.equal(sanitized.preferences.countryCode, null);
   assert.equal(sanitized.preferences.countryName, null);
@@ -407,11 +410,24 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.reminderTime, null);
 });
 
+test('sanitizePersistedAuthState preserves supported appearance palettes', () => {
+  for (const appearancePalette of APPEARANCE_PALETTE_IDS) {
+    const sanitized = sanitizePersistedAuthState({
+      preferences: {
+        appearancePalette,
+      },
+    });
+
+    assert.equal(sanitized.preferences.appearancePalette, appearancePalette);
+  }
+});
+
 test('sanitizePersistedAuthState defaults chapter feedback to false when the key is absent', () => {
   const sanitized = sanitizePersistedAuthState({
     preferences: {
       fontSize: 'medium',
       theme: 'dark',
+      appearancePalette: 'ember',
       language: 'en',
       onboardingCompleted: true,
       notificationsEnabled: false,
@@ -427,6 +443,7 @@ test('sanitizePersistedAuthState defaults chapter feedback to false when the key
 test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', () => {
   const sanitized = sanitizePersistedAuthState({
     preferences: {
+      appearancePalette: 'sapphire',
       chapterFeedbackEnabled: true,
       chapterFeedbackName: 'Ada',
       chapterFeedbackRole: 'Leader',

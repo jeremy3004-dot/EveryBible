@@ -1,3 +1,4 @@
+import type { AppearancePaletteId } from '../../constants/appearancePalettes';
 import type { LanguageCode } from '../../constants/languages';
 import type { TranslationCatalog } from '../../types';
 
@@ -28,6 +29,7 @@ export interface UserPreferences {
   user_id: string;
   font_size: 'small' | 'medium' | 'large';
   theme: 'dark' | 'light' | 'low-light';
+  appearance_palette: AppearancePaletteId;
   language: LanguageCode;
   country_code: string | null;
   country_name: string | null;

@@ -30,35 +30,36 @@ function extractPaletteKeys(source: string, paletteName: string): string[] {
 // S16 — Theme palette completeness and consistency
 // ---------------------------------------------------------------------------
 
-test('darkColors, lightColors, and lowLightColors all declare the same set of color keys', () => {
+test('baseDarkColors, baseLightColors, and baseLowLightColors all declare the same set of color keys', () => {
   const source = readThemeSource();
 
-  const darkKeys = extractPaletteKeys(source, 'darkColors');
-  const lightKeys = extractPaletteKeys(source, 'lightColors');
-  const lowLightKeys = extractPaletteKeys(source, 'lowLightColors');
+  const darkKeys = extractPaletteKeys(source, 'baseDarkColors');
+  const lightKeys = extractPaletteKeys(source, 'baseLightColors');
+  const lowLightKeys = extractPaletteKeys(source, 'baseLowLightColors');
 
-  assert.ok(darkKeys.length > 0, 'darkColors palette should declare color properties');
-  assert.ok(lightKeys.length > 0, 'lightColors palette should declare color properties');
-  assert.ok(lowLightKeys.length > 0, 'lowLightColors palette should declare color properties');
+  assert.ok(darkKeys.length > 0, 'baseDarkColors palette should declare color properties');
+  assert.ok(lightKeys.length > 0, 'baseLightColors palette should declare color properties');
+  assert.ok(lowLightKeys.length > 0, 'baseLowLightColors palette should declare color properties');
 
   assert.deepEqual(
     [...darkKeys].sort(),
     [...lightKeys].sort(),
-    'lightColors must define the same keys as darkColors'
+    'baseLightColors must define the same keys as baseDarkColors'
   );
   assert.deepEqual(
     [...darkKeys].sort(),
     [...lowLightKeys].sort(),
-    'lowLightColors must define the same keys as darkColors'
+    'baseLowLightColors must define the same keys as baseDarkColors'
   );
 });
 
-test('ThemeContext exports all three palettes as named constants', () => {
+test('ThemeContext exports all three palettes and appearance options as named constants', () => {
   const source = readThemeSource();
 
-  assert.match(source, /export\s*\{[^}]*darkColors/, 'darkColors must be a named export');
-  assert.match(source, /export\s*\{[^}]*lightColors/, 'lightColors must be a named export');
-  assert.match(source, /export\s*\{[^}]*lowLightColors/, 'lowLightColors must be a named export');
+  assert.match(source, /export\s*\{[^}]*baseDarkColors\s+as\s+darkColors/, 'darkColors must be a named export');
+  assert.match(source, /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/, 'lightColors must be a named export');
+  assert.match(source, /export\s*\{[^}]*baseLowLightColors\s+as\s+lowLightColors/, 'lowLightColors must be a named export');
+  assert.match(source, /appearancePaletteOptions/, 'appearancePaletteOptions must be exported');
 });
 
 test('ThemeContext supports the low-light theme mode', () => {
@@ -67,9 +68,19 @@ test('ThemeContext supports the low-light theme mode', () => {
   assert.match(source, /'low-light'/, 'ThemeContext should reference low-light as a theme mode');
   assert.match(
     source,
-    /lowLightColors/,
-    'ThemeContext should reference the lowLightColors palette'
+    /baseLowLightColors/,
+    'ThemeContext should reference the baseLowLightColors palette'
   );
+});
+
+test('ThemeContext defines four appearance palette options with preview swatches', () => {
+  const source = readThemeSource();
+
+  assert.match(source, /id:\s*'ember'/, 'Ember palette should be present');
+  assert.match(source, /id:\s*'sapphire'/, 'Sapphire palette should be present');
+  assert.match(source, /id:\s*'teal'/, 'Teal palette should be present');
+  assert.match(source, /id:\s*'olive'/, 'Olive palette should be present');
+  assert.match(source, /previewColors:/, 'Palette options should define preview colors');
 });
 
 test('ThemeContext exposes isDark and isLowLight flags', () => {

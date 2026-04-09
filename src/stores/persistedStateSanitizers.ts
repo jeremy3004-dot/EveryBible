@@ -2,6 +2,10 @@ import { bibleTranslations } from '../constants/translations';
 import { getBookById } from '../constants/books';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import {
+  APPEARANCE_PALETTE_IDS,
+  DEFAULT_APPEARANCE_PALETTE,
+} from '../constants/appearancePalettes';
+import {
   BACKGROUND_MUSIC_CHOICES,
   PLAYBACK_RATES,
   REPEAT_MODES,
@@ -29,6 +33,9 @@ const supportedBibleTranslationIds = new Set(bibleTranslations.map((translation)
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
 const validFontSizes = new Set<UserPreferences['fontSize']>(['small', 'medium', 'large']);
 const validThemes = new Set<UserPreferences['theme']>(['dark', 'light', 'low-light']);
+const validAppearancePalettes = new Set<UserPreferences['appearancePalette']>(
+  APPEARANCE_PALETTE_IDS
+);
 const validPlaybackRates = new Set<PlaybackRate>(PLAYBACK_RATES);
 const validRepeatModes = new Set<RepeatMode>(REPEAT_MODES);
 const validSleepTimers = new Set<SleepTimerOption>(SLEEP_TIMER_OPTIONS.map((option) => option.value));
@@ -497,6 +504,7 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
 export const defaultAuthPreferences: UserPreferences = {
   fontSize: 'medium',
   theme: 'dark',
+  appearancePalette: DEFAULT_APPEARANCE_PALETTE,
   language: 'en',
   countryCode: null,
   countryName: null,
@@ -530,6 +538,12 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
     ? (value.theme as UserPreferences['theme'])
     : defaultAuthPreferences.theme;
 
+  const appearancePalette = validAppearancePalettes.has(
+    value.appearancePalette as UserPreferences['appearancePalette']
+  )
+    ? (value.appearancePalette as UserPreferences['appearancePalette'])
+    : defaultAuthPreferences.appearancePalette;
+
   const reminderTime =
     typeof value.reminderTime === 'string' && /^\d{2}:\d{2}$/.test(value.reminderTime)
       ? value.reminderTime
@@ -538,6 +552,7 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
   return {
     fontSize,
     theme,
+    appearancePalette,
     language,
     countryCode:
       typeof value.countryCode === 'string' && /^[A-Za-z]{2}$/.test(value.countryCode)

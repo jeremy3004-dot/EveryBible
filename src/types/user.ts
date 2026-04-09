@@ -1,3 +1,6 @@
+import type { AppearancePaletteId } from '../constants/appearancePalettes';
+import type { LanguageCode } from '../constants/languages';
+
 export interface User {
   uid: string;
   email: string | null;
@@ -7,11 +10,10 @@ export interface User {
   lastActive: number;
 }
 
-import type { LanguageCode } from '../constants/languages';
-
 export interface UserPreferences {
   fontSize: 'small' | 'medium' | 'large';
   theme: 'dark' | 'light' | 'low-light';
+  appearancePalette: AppearancePaletteId;
   language: LanguageCode;
   countryCode: string | null;
   countryName: string | null;

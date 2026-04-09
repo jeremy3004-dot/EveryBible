@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '../../contexts/ThemeContext';
+import { appearancePaletteOptions, useTheme } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { mmkvInstance } from '../../stores';
 import { useFontSize, useI18n } from '../../hooks';
@@ -44,7 +44,7 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { colors, themeMode, setTheme } = useTheme();
+  const { colors, themeMode, appearancePalette, setTheme, setAppearancePalette } = useTheme();
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
@@ -76,6 +76,13 @@ export function SettingsScreen() {
 
   const handleThemeChange = (mode: 'dark' | 'light' | 'low-light') => {
     setTheme(mode);
+    syncPreferences().catch(() => {});
+  };
+
+  const handleAppearancePaletteChange = (
+    palette: (typeof appearancePaletteOptions)[number]['id']
+  ) => {
+    setAppearancePalette(palette);
     syncPreferences().catch(() => {});
   };
 
@@ -411,7 +418,7 @@ export function SettingsScreen() {
                       style={[
                         styles.themeSelectorLabel,
                         {
-                          color: isActive ? colors.cardBackground : colors.secondaryText,
+                          color: isActive ? colors.onAccent : colors.secondaryText,
                         },
                       ]}
                     >
@@ -548,6 +555,59 @@ export function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Appearance */}
+        <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
+          {t('settings.appearance')}
+        </Text>
+        <Text style={[styles.sectionDescription, { color: colors.secondaryText }]}>
+          {t('settings.appearanceBody')}
+        </Text>
+        <View
+          style={[
+            styles.settingsGroup,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+        >
+          {appearancePaletteOptions.map((option, index) => {
+            const isActive = appearancePalette === option.id;
+
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.appearanceOption,
+                  { borderBottomColor: colors.cardBorder },
+                  index === appearancePaletteOptions.length - 1 && styles.lastItem,
+                  isActive && { backgroundColor: colors.accentPrimary + '10' },
+                ]}
+                onPress={() => handleAppearancePaletteChange(option.id)}
+              >
+                <View style={styles.appearancePreviewRow}>
+                  {option.previewColors.map((swatchColor) => (
+                    <View
+                      key={swatchColor}
+                      style={[styles.appearanceSwatch, { backgroundColor: swatchColor }]}
+                    />
+                  ))}
+                </View>
+                <View style={styles.appearanceCopy}>
+                  <Text style={[styles.appearanceTitle, { color: colors.primaryText }]}>
+                    {t(option.labelKey)}
+                  </Text>
+                  <Text style={[styles.appearanceDescription, { color: colors.secondaryText }]}>
+                    {t(option.descriptionKey)}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={isActive ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={22}
+                  color={isActive ? colors.accentPrimary : colors.secondaryText}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <Modal
           visible={showChapterFeedbackIdentityModal}
           transparent
@@ -664,9 +724,9 @@ export function SettingsScreen() {
                   disabled={isSavingChapterFeedbackIdentity}
                 >
                   {isSavingChapterFeedbackIdentity ? (
-                    <ActivityIndicator size="small" color={colors.cardBackground} />
+                    <ActivityIndicator size="small" color={colors.onAccent} />
                   ) : (
-                    <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
+                    <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
                       {t('common.save')}
                     </Text>
                   )}
@@ -823,7 +883,7 @@ export function SettingsScreen() {
                         styles.timeOptionText,
                         { color: colors.secondaryText },
                         selectedHour === hour && {
-                          color: colors.cardBackground,
+                          color: colors.onAccent,
                           fontWeight: '700',
                         },
                       ]}
@@ -858,7 +918,7 @@ export function SettingsScreen() {
                         styles.timeOptionText,
                         { color: colors.secondaryText },
                         selectedMinute === minute && {
-                          color: colors.cardBackground,
+                          color: colors.onAccent,
                           fontWeight: '700',
                         },
                       ]}
@@ -887,7 +947,7 @@ export function SettingsScreen() {
                 ]}
                 onPress={handleTimeSelect}
               >
-                <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
+                <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
                   {t('settings.setTime')}
                 </Text>
               </TouchableOpacity>
@@ -997,7 +1057,7 @@ export function SettingsScreen() {
                   style={[styles.modalButton, { backgroundColor: colors.error }]}
                   onPress={handleDeleteAccount}
                 >
-                  <Text style={[styles.modalButtonText, { color: colors.cardBackground }]}>
+                  <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
                     {t('settings.delete')}
                   </Text>
                 </TouchableOpacity>
@@ -1040,6 +1100,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 12,
     marginTop: 8,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -6,
+    marginBottom: 12,
   },
   settingsGroup: {
     borderRadius: radius.md,
@@ -1086,6 +1152,36 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 14,
+  },
+  appearanceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  appearancePreviewRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  appearanceSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: radius.pill,
+  },
+  appearanceCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  appearanceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  appearanceDescription: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   fontSizeControls: {
     flexDirection: 'row',

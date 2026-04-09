@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
+import type { AppearancePaletteId } from '../constants/appearancePalettes';
+import {
+  APPEARANCE_PALETTES,
+  APPEARANCE_PALETTE_IDS,
+  DEFAULT_APPEARANCE_PALETTE,
+} from '../constants/appearancePalettes';
+
+export type ThemeMode = 'dark' | 'light' | 'low-light';
 
 export interface ThemeColors {
   background: string;
@@ -8,16 +16,17 @@ export interface ThemeColors {
   cardBorder: string;
   primaryText: string;
   secondaryText: string;
-  accentGreen: string; // Legacy alias for backward compatibility
-  accentPrimary: string; // Primary accent
-  accentSecondary: string; // Secondary accent
-  accentTertiary: string; // Tertiary accent
-  tabActive: string;
-  tabInactive: string;
+  accentPrimary: string;
+  accentSecondary: string;
+  accentGreen: string;
+  accentTertiary: string;
+  onAccent: string;
   error: string;
   success: string;
   warning: string;
   overlay: string;
+  tabActive: string;
+  tabInactive: string;
   bibleBackground: string;
   bibleSurface: string;
   bibleElevatedSurface: string;
@@ -26,167 +35,210 @@ export interface ThemeColors {
   bibleSecondaryText: string;
   bibleAccent: string;
   bibleControlBackground: string;
-  glassBackground: string;
 }
 
-// Warm near-black dark palette for a reverential, print-editorial feel.
-const darkColors: ThemeColors = {
-  background: '#0C0B09',
-  cardBackground: '#161410',
-  cardBorder: '#2A2620',
-  primaryText: '#F0EBE0',
-  secondaryText: '#9E9589',
-  accentGreen: '#C0392B',
-  accentPrimary: '#C0392B',
-  accentSecondary: '#D9D3C8',
-  accentTertiary: '#7A7269',
-  tabActive: '#F0EBE0',
-  tabInactive: '#6B635A',
-  error: '#E07060',
-  success: '#7A9E6E',
-  warning: '#C9A055',
-  overlay: 'rgba(10, 8, 6, 0.72)',
-  bibleBackground: '#0C0B09',
-  bibleSurface: '#131210',
-  bibleElevatedSurface: '#1A1815',
-  bibleDivider: '#2A2620',
-  biblePrimaryText: '#F0EBE0',
-  bibleSecondaryText: '#9E9589',
-  bibleAccent: '#C0392B',
-  bibleControlBackground: '#F0EBE0',
-  glassBackground: 'rgba(12, 11, 9, 0.85)',
-};
-
-// Warm cream light palette.
-const lightColors: ThemeColors = {
-  background: '#F5F0E8',
-  cardBackground: '#FDFAF5',
-  cardBorder: '#DDD7CC',
-  primaryText: '#1C1814',
-  secondaryText: '#6B5F52',
-  accentGreen: '#8B2020',
-  accentPrimary: '#8B2020',
-  accentSecondary: '#3D3530',
-  accentTertiary: '#9A8E82',
-  tabActive: '#1C1814',
-  tabInactive: '#9A8E82',
-  error: '#B5352A',
-  success: '#4E7A44',
-  warning: '#8B6820',
-  overlay: 'rgba(0, 0, 0, 0.20)',
-  bibleBackground: '#F5F0E8',
-  bibleSurface: '#FDFAF5',
-  bibleElevatedSurface: '#EDE8DE',
-  bibleDivider: '#DDD7CC',
-  biblePrimaryText: '#1C1814',
-  bibleSecondaryText: '#6B5F52',
-  bibleAccent: '#8B2020',
-  bibleControlBackground: '#1C1814',
-  glassBackground: 'rgba(245, 240, 232, 0.88)',
-};
-
-// Sepia / low-light palette for extended reading in dim environments.
-const lowLightColors: ThemeColors = {
-  background: '#1A1408',
-  cardBackground: '#221B0B',
-  cardBorder: '#352A10',
-  primaryText: '#D4BA8A',
-  secondaryText: '#8A7250',
-  accentGreen: '#A0522D',
-  accentPrimary: '#A0522D',
-  accentSecondary: '#C4A87A',
-  accentTertiary: '#6B5530',
-  tabActive: '#D4BA8A',
-  tabInactive: '#6B5530',
-  error: '#C87060',
-  success: '#7A8E5A',
-  warning: '#B8901A',
-  overlay: 'rgba(10, 6, 0, 0.72)',
-  bibleBackground: '#1A1408',
-  bibleSurface: '#1E1809',
-  bibleElevatedSurface: '#24200E',
-  bibleDivider: '#352A10',
-  biblePrimaryText: '#D4BA8A',
-  bibleSecondaryText: '#8A7250',
-  bibleAccent: '#A0522D',
-  bibleControlBackground: '#D4BA8A',
-  glassBackground: 'rgba(26, 20, 8, 0.88)',
-};
+export interface AppearancePaletteOption {
+  id: AppearancePaletteId;
+  labelKey: string;
+  descriptionKey: string;
+  previewColors: [string, string, string];
+}
 
 interface ThemeContextValue {
   colors: ThemeColors;
+  themeMode: ThemeMode;
+  appearancePalette: AppearancePaletteId;
   isDark: boolean;
   isLowLight: boolean;
-  themeMode: 'dark' | 'light' | 'low-light';
-  setTheme: (mode: 'dark' | 'light' | 'low-light') => void;
-  toggleTheme: () => void; // backward compat -- toggles dark<->light
+  setTheme: (mode: ThemeMode) => void;
+  toggleTheme: () => void;
+  setAppearancePalette: (palette: AppearancePaletteId) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+const themeContext = createContext<ThemeContextValue | null>(null);
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
+const defaultPalette = APPEARANCE_PALETTES.find((palette) => palette.id === DEFAULT_APPEARANCE_PALETTE) ?? APPEARANCE_PALETTES[0];
+const defaultPaletteSwatches = defaultPalette.swatches;
+const accentContrast = '#FDFAF5';
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
+const defaultPaletteColors = {
+  accentPrimary: defaultPaletteSwatches.primary,
+  accentSecondary: defaultPaletteSwatches.secondary,
+  accentGreen: defaultPaletteSwatches.primary,
+  accentTertiary: defaultPaletteSwatches.tertiary,
+  onAccent: accentContrast,
+  bibleAccent: defaultPaletteSwatches.primary,
+} as const;
+
+const baseDarkColors: ThemeColors = {
+  background: '#101113',
+  cardBackground: '#17191D',
+  cardBorder: '#262A31',
+  primaryText: '#F5F2EA',
+  secondaryText: '#A09B93',
+  ...defaultPaletteColors,
+  error: '#FF7B72',
+  success: '#80C16F',
+  warning: '#D0A35A',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  tabActive: '#F5F2EA',
+  tabInactive: '#7E8188',
+  bibleBackground: '#101113',
+  bibleSurface: '#17191D',
+  bibleElevatedSurface: '#1D2026',
+  bibleDivider: '#2A2F37',
+  biblePrimaryText: '#F5F2EA',
+  bibleSecondaryText: '#A09B93',
+  bibleControlBackground: '#F5F2EA',
+};
+
+const baseLightColors: ThemeColors = {
+  background: '#FBF6EC',
+  cardBackground: '#FFFDFC',
+  cardBorder: '#E7DCC9',
+  primaryText: '#1C1713',
+  secondaryText: '#6B6258',
+  ...defaultPaletteColors,
+  error: '#C8453D',
+  success: '#2D7A56',
+  warning: '#A97834',
+  overlay: 'rgba(0, 0, 0, 0.34)',
+  tabActive: '#1C1713',
+  tabInactive: '#7B7166',
+  bibleBackground: '#FBF6EC',
+  bibleSurface: '#FFFDFC',
+  bibleElevatedSurface: '#F4EBDD',
+  bibleDivider: '#E1D6C4',
+  biblePrimaryText: '#1C1713',
+  bibleSecondaryText: '#6B6258',
+  bibleControlBackground: '#1C1713',
+};
+
+const baseLowLightColors: ThemeColors = {
+  background: '#18130F',
+  cardBackground: '#221B17',
+  cardBorder: '#352B25',
+  primaryText: '#F4E8D7',
+  secondaryText: '#C6B7A5',
+  ...defaultPaletteColors,
+  error: '#E96B63',
+  success: '#89C98A',
+  warning: '#D1A05B',
+  overlay: 'rgba(0, 0, 0, 0.52)',
+  tabActive: '#F4E8D7',
+  tabInactive: '#908679',
+  bibleBackground: '#18130F',
+  bibleSurface: '#221B17',
+  bibleElevatedSurface: '#2A221D',
+  bibleDivider: '#352B25',
+  biblePrimaryText: '#F4E8D7',
+  bibleSecondaryText: '#C6B7A5',
+  bibleControlBackground: '#F4E8D7',
+};
+
+const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
+  const palette =
+    APPEARANCE_PALETTES.find((entry) => entry.id === paletteId)?.swatches ?? defaultPaletteSwatches;
+
+  const accentTokens = {
+    accentPrimary: palette.primary,
+    accentSecondary: palette.secondary,
+    accentGreen: palette.primary,
+    accentTertiary: palette.tertiary,
+    bibleAccent: palette.primary,
+  };
+
+  if (mode === 'light') {
+    return { ...baseLightColors, ...accentTokens };
+  }
+
+  if (mode === 'low-light') {
+    return { ...baseLowLightColors, ...accentTokens };
+  }
+
+  return { ...baseDarkColors, ...accentTokens };
+};
+
+export { baseDarkColors as darkColors, baseLightColors as lightColors, baseLowLightColors as lowLightColors };
+export type { AppearancePaletteId } from '../constants/appearancePalettes';
+
+export const appearancePaletteOptions: AppearancePaletteOption[] = [
+  {
+    id: 'ember',
+    labelKey: 'settings.appearanceEmberTitle',
+    descriptionKey: 'settings.appearanceEmberBody',
+    previewColors: ['#A23A2A', '#D26A5C', '#8F5A46'],
+  },
+  {
+    id: 'sapphire',
+    labelKey: 'settings.appearanceSapphireTitle',
+    descriptionKey: 'settings.appearanceSapphireBody',
+    previewColors: ['#2F5BEA', '#6E84F4', '#4B6792'],
+  },
+  {
+    id: 'teal',
+    labelKey: 'settings.appearanceTealTitle',
+    descriptionKey: 'settings.appearanceTealBody',
+    previewColors: ['#0F766E', '#4AA5A1', '#2C6B8D'],
+  },
+  {
+    id: 'olive',
+    labelKey: 'settings.appearanceOliveTitle',
+    descriptionKey: 'settings.appearanceOliveBody',
+    previewColors: ['#4C6B1F', '#7C9A3D', '#66754E'],
+  },
+];
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  const themeMode = useMemo((): 'dark' | 'light' | 'low-light' => {
-    if (
-      preferences.theme === 'dark' ||
-      preferences.theme === 'light' ||
-      preferences.theme === 'low-light'
-    ) {
-      return preferences.theme;
-    }
-    // Fallback to system preference
-    return systemColorScheme === 'dark' ? 'dark' : 'light';
-  }, [preferences.theme, systemColorScheme]);
+  const storedTheme = ['dark', 'light', 'low-light'].includes(preferences.theme)
+    ? preferences.theme
+    : null;
+  const themeMode: ThemeMode =
+    storedTheme ?? (systemColorScheme === 'light' ? 'light' : 'dark');
 
-  const isDark = themeMode !== 'light';
-  const isLowLight = themeMode === 'low-light';
+  const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
+    preferences.appearancePalette
+  )
+    ? preferences.appearancePalette
+    : DEFAULT_APPEARANCE_PALETTE;
 
   const colors = useMemo(
-    () =>
-      themeMode === 'dark' ? darkColors : themeMode === 'light' ? lightColors : lowLightColors,
-    [themeMode]
+    () => createThemeColors(themeMode, appearancePalette),
+    [themeMode, appearancePalette]
   );
 
-  const setTheme = useCallback(
-    (mode: 'dark' | 'light' | 'low-light') => {
-      setPreferences({ theme: mode });
-    },
-    [setPreferences]
-  );
-
-  const toggleTheme = useCallback(() => {
-    setTheme(isDark ? 'light' : 'dark');
-  }, [isDark, setTheme]);
-
-  const value = useMemo(
+  const value = useMemo<ThemeContextValue>(
     () => ({
       colors,
-      isDark,
-      isLowLight,
       themeMode,
-      setTheme,
-      toggleTheme,
+      appearancePalette,
+      isDark: themeMode !== 'light',
+      isLowLight: themeMode === 'low-light',
+      setTheme: (mode) => {
+        setPreferences({ theme: mode });
+      },
+      toggleTheme: () => {
+        setPreferences({ theme: themeMode === 'dark' ? 'light' : 'dark' });
+      },
+      setAppearancePalette: (palette) => {
+        setPreferences({ appearancePalette: palette });
+      },
     }),
-    [colors, isDark, isLowLight, themeMode, setTheme, toggleTheme]
+    [appearancePalette, colors, setPreferences, themeMode]
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return <themeContext.Provider value={value}>{children}</themeContext.Provider>;
 }
 
-export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext);
+export function useTheme() {
+  const context = useContext(themeContext);
   if (!context) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
+
   return context;
 }
-
-// Export static colors for use outside of React context (e.g., in styles)
-export { darkColors, lightColors, lowLightColors };

@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
   font_size TEXT DEFAULT 'medium',
   theme TEXT DEFAULT 'dark',
+  appearance_palette TEXT NOT NULL DEFAULT 'ember' CHECK (
+    appearance_palette IN ('ember', 'sapphire', 'teal', 'olive')
+  ),
   language TEXT DEFAULT 'en' CHECK (
     language IN (
       'en', 'zh', 'hi', 'es', 'ar', 'fr', 'bn', 'pt', 'ru', 'ur', 'id', 'de', 'ja', 'pa',
