@@ -134,7 +134,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
               : foundation.title}
         </Text>
 
-        <Ionicons name="download-outline" size={22} color={colors.secondaryText} />
+        <View style={styles.headerActionSpacer} />
       </View>
 
       {/* Scrollable body */}
@@ -365,6 +365,10 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     flex: 1,
     textAlign: 'center',
+  },
+  headerActionSpacer: {
+    width: 32,
+    height: 32,
   },
   // Scroll body
   scrollView: {

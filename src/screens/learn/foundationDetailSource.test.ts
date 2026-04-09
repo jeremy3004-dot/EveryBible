@@ -44,3 +44,19 @@ test('FoundationDetailScreen lowers the back button below the safe-area cutout',
     'FoundationDetailScreen should expand the header height to include the top safe-area inset'
   );
 });
+
+test('FoundationDetailScreen removes the old top-right download affordance from gather detail headers', () => {
+  const source = readRelativeSource('./FoundationDetailScreen.tsx');
+
+  assert.equal(
+    source.includes('<Ionicons name="download-outline" size={22} color={colors.secondaryText} />'),
+    false,
+    'FoundationDetailScreen should not render the old download icon in the top-right header slot'
+  );
+
+  assert.equal(
+    source.includes('<View style={styles.headerActionSpacer} />'),
+    true,
+    'FoundationDetailScreen should keep a trailing spacer so the centered title stays balanced'
+  );
+});
