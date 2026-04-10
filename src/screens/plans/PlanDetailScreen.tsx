@@ -31,6 +31,10 @@ import {
   type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import {
+  getActivePlanDayNumber,
+  isCalendarDayOfMonthPlan,
+} from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getBookById } from '../../constants';
@@ -202,10 +206,11 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
-  const currentDay = progress?.current_day ?? 1;
+  const isCalendarPlan = isCalendarDayOfMonthPlan(plan);
+  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
   const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
-  const fraction = totalDays > 0 ? completedCount / totalDays : 0;
-  const completionBadgeLabel = progress?.is_completed
+  const fraction = totalDays > 0 ? (isCalendarPlan ? currentDay / totalDays : completedCount / totalDays) : 0;
+  const completionBadgeLabel = progress?.is_completed && !isCalendarPlan
     ? t('readingPlans.completed')
     : currentDaySummary?.isComplete
       ? t('readingPlans.dailyTargetCompleteTitle')
@@ -235,11 +240,13 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           <Text style={[progressCardStyles.dayLabel, { color: colors.primaryText }]}>
             {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
           </Text>
-          <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-            {completedCount} / {totalDays}{' '}
-            {t('engagement.days', { defaultValue: 'days' })}{' '}
-            {t('readingPlans.completed').toLowerCase()}
-          </Text>
+          {!isCalendarPlan ? (
+            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
+              {completedCount} / {totalDays}{' '}
+              {t('engagement.days', { defaultValue: 'days' })}{' '}
+              {t('readingPlans.completed').toLowerCase()}
+            </Text>
+          ) : null}
           {currentDaySummary ? (
             <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
               {t('readingPlans.todayTargetProgress', {
@@ -544,21 +551,22 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [load]);
 
-  const currentDay = progress?.current_day ?? 1;
+  const currentDay = plan && progress ? getActivePlanDayNumber(plan, progress) : progress?.current_day ?? 1;
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const currentDaySummary = React.useMemo(() => {
-    if (!progress) {
+    if (!plan || !progress) {
       return null;
     }
 
     return getCurrentPlanDaySummary({
+      plan,
       entries,
       progress,
       chaptersRead,
       listeningHistory,
     });
-  }, [chaptersRead, entries, listeningHistory, progress]);
+  }, [chaptersRead, entries, listeningHistory, plan, progress]);
   const isEnrolled = progress !== null;
 
   const handleOpenChapter = useCallback(async (entry: ReadingPlanEntry, dayNumber: number) => {
@@ -762,11 +770,21 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           {sortedDays.map((dayNumber) => {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
             const isCompleted = progress
-              ? String(dayNumber) in progress.completed_entries ||
-                (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
+              ? isCalendarDayOfMonthPlan(plan)
+                ? dayNumber === currentDay &&
+                  Boolean(
+                    (currentDaySummary?.dateKey &&
+                      currentDaySummary.dateKey in progress.completed_entries) ||
+                      currentDaySummary?.isComplete
+                  )
+                : String(dayNumber) in progress.completed_entries ||
+                  (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
               : false;
             const isCurrent = dayNumber === currentDay;
-            const dateLabel = progress ? formatScheduledPlanDayLabel(progress.started_at, dayNumber) : null;
+            const dateLabel =
+              progress && !isCalendarDayOfMonthPlan(plan)
+                ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
+                : null;
             return (
               <DayRow
                 key={dayNumber}

@@ -236,6 +236,25 @@ test('unenrolling a reading plan clears it from active and completed state witho
   assert.deepEqual(restored.getState().completedPlanIds, []);
 });
 
+test('recurring calendar plans record completion by occurrence date without finishing forever', async () => {
+  const mod = await import('./readingPlansStore');
+
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+
+  store.getState().enrollPlan('proverbs-31-days');
+  const updated = store
+    .getState()
+    .markRecurringDayComplete('proverbs-31-days', '2026-04-05', 5);
+
+  assert.ok(updated);
+  assert.equal(updated?.current_day, 5);
+  assert.equal(updated?.is_completed, false);
+  assert.equal(updated?.completed_at, null);
+  assert.equal(updated?.completed_entries['2026-04-05'] !== undefined, true);
+  assert.deepEqual(store.getState().completedPlanIds, []);
+});
+
 test('replacing remote progress clears stale local plans while preserving saved plans', async () => {
   const mod = await import('./readingPlansStore');
 

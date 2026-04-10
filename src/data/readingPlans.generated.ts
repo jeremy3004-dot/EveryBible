@@ -1,6 +1,7 @@
 import { bibleBooks } from '../constants/books';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
 import type { ReadingPlanCoverKey } from '../services/plans/types';
+import type { ReadingPlanScheduleMode } from '../services/plans/types';
 
 type BookPlanRecipe = {
   id: string;
@@ -11,6 +12,8 @@ type BookPlanRecipe = {
   category: ReadingPlan['category'];
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
+  schedule_mode?: ReadingPlanScheduleMode;
+  repeats_monthly?: boolean;
   book_order: string[];
 };
 
@@ -23,6 +26,8 @@ type VersePlanRecipe = {
   category: ReadingPlan['category'];
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
+  schedule_mode?: ReadingPlanScheduleMode;
+  repeats_monthly?: boolean;
   entries: Array<{
     day_number: number;
     book: string;
@@ -42,6 +47,8 @@ type TimedChallengeRecipe = {
   category: ReadingPlan['category'];
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
+  schedule_mode?: ReadingPlanScheduleMode;
+  repeats_monthly?: boolean;
   books: string[];
 };
 
@@ -257,6 +264,8 @@ function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entri
       coverKey: recipe.cover_key,
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
+      scheduleMode: recipe.schedule_mode,
+      repeatsMonthly: recipe.repeats_monthly,
     },
     entries,
   };
@@ -276,6 +285,8 @@ function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: 
       coverKey: recipe.cover_key,
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
+      scheduleMode: recipe.schedule_mode,
+      repeatsMonthly: recipe.repeats_monthly,
     },
     entries: recipe.entries.map((entry) => ({
       id: `${recipe.id}-day-${entry.day_number}`,
@@ -355,6 +366,8 @@ function buildTimedChallengePlan(
       coverKey: recipe.cover_key,
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
+      scheduleMode: recipe.schedule_mode,
+      repeatsMonthly: recipe.repeats_monthly,
     },
     entries,
   };
@@ -414,6 +427,8 @@ const sequentialRecipes: BookPlanRecipe[] = [
     category: 'devotional',
     sort_order: 5,
     cover_key: 'desert',
+    schedule_mode: 'calendar-day-of-month',
+    repeats_monthly: true,
     book_order: ['PRO'],
   },
   {

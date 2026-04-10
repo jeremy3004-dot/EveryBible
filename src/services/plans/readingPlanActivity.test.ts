@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
-import type { ReadingPlanEntry, ReadingPlanRhythm, UserReadingPlanProgress } from './types';
+import type { ReadingPlan, ReadingPlanEntry, ReadingPlanRhythm, UserReadingPlanProgress } from './types';
 import {
   buildPlanDayPlaybackSequenceEntries,
   buildPlanDayCompletionSummary,
@@ -55,6 +55,19 @@ const makeProgress = (
   is_completed: false,
   completed_at: null,
   synced_at: '2026-04-07T08:00:00.000Z',
+  ...overrides,
+});
+
+const makePlan = (overrides: Partial<ReadingPlan> = {}): ReadingPlan => ({
+  id: 'plan-1',
+  slug: 'plan-1',
+  title_key: 'readingPlans.plan1.title',
+  description_key: 'readingPlans.plan1.description',
+  duration_days: 31,
+  category: 'devotional',
+  is_active: true,
+  sort_order: 1,
+  coverKey: 'desert',
   ...overrides,
 });
 
@@ -333,6 +346,42 @@ test('getCurrentPlanDaySummary can target an explicit plan day instead of the st
   assert.equal(summary.dayNumber, 2);
   assert.deepEqual(summary.targetChapterKeys, ['GEN_5', 'GEN_6', 'GEN_7', 'GEN_8']);
   assert.equal(summary.completedChapterCount, 4);
+  assert.equal(summary.isComplete, true);
+});
+
+test('getCurrentPlanDaySummary anchors recurring day-of-month plans to today for activity matching', () => {
+  const recurringPlan = makePlan({
+    id: 'proverbs-31-days',
+    slug: 'proverbs-31-days',
+    scheduleMode: 'calendar-day-of-month',
+  });
+
+  const summary = getCurrentPlanDaySummary({
+    plan: recurringPlan,
+    entries: [
+      makeEntry({
+        id: 'day-5',
+        plan_id: 'proverbs-31-days',
+        day_number: 5,
+        book: 'PRO',
+        chapter_start: 5,
+      }),
+    ],
+    progress: makeProgress('proverbs-31-days', {
+      started_at: new Date(2026, 3, 1, 7, 0, 0).toISOString(),
+      current_day: 1,
+    }),
+    chaptersRead: {
+      PRO_5: new Date(2026, 3, 5, 8, 0, 0).getTime(),
+    },
+    listeningHistory: [],
+    dayNumber: 5,
+    today: new Date(2026, 3, 5, 12, 0, 0),
+  });
+
+  assert.equal(summary.dayNumber, 5);
+  assert.equal(summary.dateKey, '2026-04-05');
+  assert.equal(summary.completedChapterCount, 1);
   assert.equal(summary.isComplete, true);
 });
 

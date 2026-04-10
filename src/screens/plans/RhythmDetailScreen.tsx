@@ -250,6 +250,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       const progress = segment.planId ? progressByPlanId[segment.planId] ?? null : null;
       const currentDaySummary = progress
         ? getCurrentPlanDaySummary({
+            plan: segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null,
             entries,
             progress,
             chaptersRead,

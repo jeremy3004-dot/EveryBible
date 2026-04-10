@@ -35,6 +35,11 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
 
   assert.ok(mod.readingPlans.every((plan) => typeof plan.coverKey === 'string'));
   assert.equal(mod.readingPlansById.get('bible-in-1-year')?.coverKey, 'lakeLandscape');
+  assert.equal(
+    mod.readingPlansById.get('proverbs-31-days')?.scheduleMode,
+    'calendar-day-of-month'
+  );
+  assert.equal(mod.readingPlansById.get('proverbs-31-days')?.repeatsMonthly, true);
   assert.equal(mod.readingPlanEntriesByPlanId['bible-in-1-year'].length, 365);
   assert.equal(mod.readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'].length, 7);
   assert.equal(mod.readingPlanEntriesByPlanId['bible-in-30-days'].length, 94);

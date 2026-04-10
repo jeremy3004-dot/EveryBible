@@ -2,6 +2,7 @@ import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { AudioPlaybackSequenceEntry } from '../../types';
 import type {
   ReadingPlanDayResume,
+  ReadingPlan,
   ReadingPlanEntry,
   ReadingPlanRhythm,
   ReadingPlanRhythmItem,
@@ -10,6 +11,7 @@ import type {
   UserReadingPlanProgress,
 } from './types';
 import { formatLocalDateKey } from '../progress/readingActivity';
+import { getActivePlanDayNumber, isCalendarDayOfMonthPlan } from './readingPlanModel';
 
 export type PlanChapterActivitySource = 'read' | 'listen';
 
@@ -506,15 +508,30 @@ export function formatScheduledPlanDayLabel(startedAt: string, dayNumber: number
   });
 }
 
+function getPlanDayDateKey(
+  plan: ReadingPlan | null | undefined,
+  progress: UserReadingPlanProgress,
+  dayNumber: number,
+  today: Date
+): string {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return formatLocalDateKey(today);
+  }
+
+  return getScheduledPlanDayDateKey(progress.started_at, dayNumber);
+}
+
 export function getCurrentPlanDaySummary({
+  plan,
   entries,
   progress,
   chaptersRead,
   listeningHistory,
-  dayNumber = progress.current_day,
+  dayNumber,
   today = new Date(),
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
 }: {
+  plan?: ReadingPlan | null;
   entries: ReadingPlanEntry[];
   progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
@@ -523,7 +540,10 @@ export function getCurrentPlanDaySummary({
   today?: Date;
   listenCompletionThreshold?: number;
 }): CurrentPlanDaySummary {
-  const summary = buildPlanDayCompletionSummary(entries, dayNumber, {
+  const resolvedDayNumber =
+    dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress.current_day);
+
+  const summary = buildPlanDayCompletionSummary(entries, resolvedDayNumber, {
     chaptersRead,
     listeningHistory,
     now: today,
@@ -535,8 +555,8 @@ export function getCurrentPlanDaySummary({
   ).length;
 
   return {
-    dayNumber,
-    dateKey: getScheduledPlanDayDateKey(progress.started_at, dayNumber),
+    dayNumber: resolvedDayNumber,
+    dateKey: getPlanDayDateKey(plan, progress, resolvedDayNumber, today),
     targetChapterKeys: summary.targetChapterKeys,
     completedChapterKeys: summary.completedChapterKeys.filter((chapterKey) =>
       summary.targetChapterKeys.includes(chapterKey)

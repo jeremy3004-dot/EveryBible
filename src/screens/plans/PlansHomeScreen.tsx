@@ -28,6 +28,10 @@ import {
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
+import {
+  getActivePlanDayNumber,
+  isCalendarDayOfMonthPlan,
+} from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { useProgressStore } from '../../stores/progressStore';
 import {
@@ -311,8 +315,12 @@ function MyPlansSection({
           </View>
         ) : (
           activePlans.map(({ progress, plan }) => {
+            const currentDay = getActivePlanDayNumber(plan, progress);
             const progressRatio =
-              plan.duration_days > 0 ? (progress.current_day - 1) / plan.duration_days : 0;
+              plan.duration_days > 0
+                ? (isCalendarDayOfMonthPlan(plan) ? currentDay : Math.max(progress.current_day - 1, 0)) /
+                  plan.duration_days
+                : 0;
             return (
               <SwipeablePlanRow
                 key={plan.id}
@@ -331,7 +339,7 @@ function MyPlansSection({
                     <View style={styles.progressBlock}>
                       <Text style={styles.dayCounter}>
                         {t('readingPlans.dayOf', {
-                          current: progress.current_day,
+                          current: currentDay,
                           total: plan.duration_days,
                         })}
                       </Text>

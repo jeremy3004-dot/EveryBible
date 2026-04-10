@@ -663,8 +663,9 @@ export const en = {
       description: 'Walk through Matthew, Mark, Luke, and John in two months.',
     },
     proverbs31: {
-      title: 'Proverbs in 31 Days',
-      description: 'One chapter of Proverbs each day for a month of wisdom.',
+      title: 'Daily Proverbs Chapter',
+      description:
+        'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
     },
     chronological: {
       title: 'Chronological Bible',

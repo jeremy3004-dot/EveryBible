@@ -764,6 +764,7 @@ export function BibleReaderScreen() {
     }
 
     return getCurrentPlanDaySummary({
+      plan: activePlanRecord,
       entries: activePlanEntries,
       progress: activePlanProgress,
       chaptersRead,
@@ -773,6 +774,7 @@ export function BibleReaderScreen() {
   }, [
     activePlanEntries,
     activePlanId,
+    activePlanRecord,
     activePlanProgress,
     chaptersRead,
     listeningHistory,
@@ -2621,8 +2623,8 @@ export function BibleReaderScreen() {
         })
       : t('common.next');
     const trailingActionHint = showPlanCompletionAction
-      ? "Marks today's reading plan complete"
-      : 'Goes to the next chapter';
+      ? t('readingPlans.completeDayHint')
+      : t('bible.nextChapterHint');
 
     return (
       <View
@@ -3363,7 +3365,7 @@ export function BibleReaderScreen() {
             onPress={handleExitPlanSession}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            accessibilityHint="Returns to the plan detail screen"
+            accessibilityHint={t('bible.returnToPlanHint')}
           >
             <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
           </TouchableOpacity>
@@ -3384,7 +3386,7 @@ export function BibleReaderScreen() {
             onPress={handleOpenBookPicker}
             accessibilityRole="button"
             accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-            accessibilityHint="Opens the book and chapter picker"
+            accessibilityHint={t('bible.openBookAndChapterPickerHint')}
           >
             <Text
               style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
@@ -3407,7 +3409,7 @@ export function BibleReaderScreen() {
             onPress={handleOpenTranslationOptions}
             accessibilityRole="button"
             accessibilityLabel={translationLabel}
-            accessibilityHint="Opens translation options"
+            accessibilityHint={t('bible.openTranslationOptionsHint')}
             disabled={!canShowTranslationSheet}
           >
             <Text
