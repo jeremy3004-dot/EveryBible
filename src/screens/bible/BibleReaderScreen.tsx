@@ -49,6 +49,7 @@ import {
   getAdjacentBibleChapter,
   getBookById,
   getBookIcon,
+  getCompactTranslatedBookName,
   getTranslatedBookName,
 } from '../../constants';
 import { config } from '../../constants/config';
@@ -83,9 +84,14 @@ import {
   getRhythmSessionSegmentAtIndex,
   PLAN_LISTEN_COMPLETION_THRESHOLD,
   resolvePlaybackSequenceIndex,
+  resolvePlanDayPlaybackStartEntry,
 } from '../../services/plans/readingPlanActivity';
-import { markDayComplete } from '../../services/plans/readingPlanService';
+import {
+  markDayComplete,
+  markPlanSessionComplete,
+} from '../../services/plans/readingPlanService';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
+import { getDaySessionEntries, isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import {
   useAudioStore,
   useAuthStore,
@@ -126,6 +132,7 @@ import {
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
   getListenCountedNoticeViewModel,
+  getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
@@ -420,6 +427,7 @@ export function BibleReaderScreen() {
     playbackSequenceEntries = [],
     planId: activePlanId,
     planDayNumber,
+    planSessionKey,
     returnToPlanOnComplete = false,
     sessionContext,
   } = route.params;
@@ -665,6 +673,7 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
   const activeRhythmSession = sessionContext?.type === 'rhythm' ? sessionContext : null;
@@ -676,6 +685,7 @@ export function BibleReaderScreen() {
     () => (activePlanId ? readingPlans.find((plan) => plan.id === activePlanId) ?? null : null),
     [activePlanId]
   );
+  const activePlanIsMultiSession = isMultiSessionPlan(activePlanRecord);
   const activePlanDayEntries = useMemo(
     () =>
       typeof planDayNumber === 'number'
@@ -683,9 +693,31 @@ export function BibleReaderScreen() {
         : [],
     [activePlanEntries, planDayNumber]
   );
+  const activePlanSessionGroups = useMemo(
+    () =>
+      typeof planDayNumber === 'number'
+        ? getDaySessionEntries(activePlanEntries, planDayNumber)
+        : [],
+    [activePlanEntries, planDayNumber]
+  );
+  const activePlanSessionKey = useMemo(
+    () =>
+      activePlanIsMultiSession ? planSessionKey ?? activePlanSessionGroups[0]?.sessionKey ?? null : null,
+    [activePlanIsMultiSession, activePlanSessionGroups, planSessionKey]
+  );
+  const activePlanSessionEntries = useMemo(() => {
+    if (!activePlanIsMultiSession || !activePlanSessionKey) {
+      return activePlanDayEntries;
+    }
+
+    return (
+      activePlanSessionGroups.find((group) => group.sessionKey === activePlanSessionKey)?.entries ??
+      activePlanDayEntries
+    );
+  }, [activePlanDayEntries, activePlanIsMultiSession, activePlanSessionGroups, activePlanSessionKey]);
   const activePlanDayChapterItems = useMemo(
     () =>
-      activePlanDayEntries.flatMap((entry) => {
+      activePlanSessionEntries.flatMap((entry) => {
         const endChapter = entry.chapter_end ?? entry.chapter_start;
         const chapterItems: Array<{ bookId: string; chapter: number; entryId: string }> = [];
 
@@ -699,7 +731,7 @@ export function BibleReaderScreen() {
 
         return chapterItems;
       }),
-    [activePlanDayEntries]
+    [activePlanSessionEntries]
   );
   const activePlanChapterIndex = useMemo(
     () =>
@@ -762,6 +794,7 @@ export function BibleReaderScreen() {
     }
 
     return getCurrentPlanDaySummary({
+      plan: activePlanRecord,
       entries: activePlanEntries,
       progress: activePlanProgress,
       chaptersRead,
@@ -771,11 +804,43 @@ export function BibleReaderScreen() {
   }, [
     activePlanEntries,
     activePlanId,
+    activePlanRecord,
     activePlanProgress,
     chaptersRead,
     listeningHistory,
     planDayNumber,
   ]);
+  const activePlanSessionSummary = useMemo(
+    () =>
+      activePlanSessionKey
+        ? activePlanDaySummary?.sessionSummaries.find(
+            (session) => session.sessionKey === activePlanSessionKey
+          ) ?? null
+        : null,
+    [activePlanDaySummary, activePlanSessionKey]
+  );
+  const activePlanSessionIndex = useMemo(() => {
+    if (!activePlanSessionKey || !activePlanDaySummary?.sessionSummaries.length) {
+      return -1;
+    }
+
+    return activePlanDaySummary.sessionSummaries.findIndex(
+      (session) => session.sessionKey === activePlanSessionKey
+    );
+  }, [activePlanDaySummary?.sessionSummaries, activePlanSessionKey]);
+  const activePlanSessionTitle = activePlanSessionKey
+    ? t(
+        activePlanSessionKey === 'morning'
+          ? 'readingPlans.morningLabel'
+          : activePlanSessionKey === 'midday'
+            ? 'readingPlans.middayLabel'
+            : 'readingPlans.eveningLabel',
+        {
+          defaultValue:
+            activePlanSessionKey.charAt(0).toUpperCase() + activePlanSessionKey.slice(1),
+        }
+      )
+    : null;
   const currentPlaybackIndex = useMemo(
     () =>
       resolvePlaybackSequenceIndex({
@@ -810,9 +875,7 @@ export function BibleReaderScreen() {
     }
 
     return activeRhythmSession.segments.findIndex(
-      (segment) =>
-        segment.planId === activeRhythmSegment.planId &&
-        segment.dayNumber === activeRhythmSegment.dayNumber
+      (segment) => segment.itemId === activeRhythmSegment.itemId
     );
   }, [activeRhythmSegment, activeRhythmSession]);
   const resolvePlanSessionRouteParams = useCallback(
@@ -833,8 +896,8 @@ export function BibleReaderScreen() {
         }
 
         return {
-          planId: nextSegment.planId,
-          planDayNumber: nextSegment.dayNumber,
+          planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+          planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
           returnToPlanOnComplete: true,
           sessionContext: activeRhythmSession,
         };
@@ -844,6 +907,7 @@ export function BibleReaderScreen() {
         return {
           planId: activePlanId,
           planDayNumber,
+          ...(activePlanSessionKey ? { planSessionKey: activePlanSessionKey } : {}),
           returnToPlanOnComplete: true,
         };
       }
@@ -852,6 +916,7 @@ export function BibleReaderScreen() {
     },
     [
       activePlanId,
+      activePlanSessionKey,
       activeRhythmSession,
       planDayNumber,
       playbackSequenceEntries,
@@ -863,12 +928,14 @@ export function BibleReaderScreen() {
       return null;
     }
 
+    const targetSummary = activePlanSessionSummary ?? activePlanDaySummary;
+
     return getPlanChapterListenStatus({
       chapterKey: activeChapterKey,
       bookId,
       chapter,
-      targetChapterKeys: activePlanDaySummary.targetChapterKeys,
-      completedChapterKeys: activePlanDaySummary.completedChapterKeys,
+      targetChapterKeys: targetSummary.targetChapterKeys,
+      completedChapterKeys: targetSummary.completedChapterKeys,
       listeningHistory,
       dateKey: todayDateKey,
       listenCompletionThreshold: PLAN_LISTEN_COMPLETION_THRESHOLD,
@@ -876,6 +943,7 @@ export function BibleReaderScreen() {
   }, [
     activeChapterKey,
     activePlanDaySummary,
+    activePlanSessionSummary,
     bookId,
     chapter,
     listeningHistory,
@@ -1455,20 +1523,69 @@ export function BibleReaderScreen() {
       typeof planDayNumber !== 'number' ||
       !returnToPlanOnComplete ||
       !activePlanProgress ||
-      activePlanProgress.is_completed ||
-      !activePlanDaySummary?.isComplete
+      activePlanProgress.is_completed
     ) {
       return;
     }
 
-    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanDaySummary.completedChapterCount}`;
+    const sessionCompletionReady = activePlanIsMultiSession
+      ? Boolean(activePlanSessionSummary?.isComplete)
+      : Boolean(activePlanDaySummary?.isComplete);
+    if (!sessionCompletionReady) {
+      return;
+    }
+
+    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanSessionKey ?? 'day'}:${
+      activePlanSessionSummary?.completedChapterCount ?? activePlanDaySummary?.completedChapterCount ?? 0
+    }`;
     if (planDayCompletionGuardRef.current === completionKey) {
       return;
     }
 
     planDayCompletionGuardRef.current = completionKey;
-    const result = await markDayComplete(activePlanId, planDayNumber);
-    if (!result.success) {
+    const nextSessionSummary =
+      activePlanIsMultiSession && activePlanDaySummary
+        ? activePlanDaySummary.sessionSummaries
+            .slice(Math.max(activePlanSessionIndex + 1, 0))
+            .find((session) => !session.isComplete) ?? null
+        : null;
+
+    const completionResult =
+      activePlanIsMultiSession && activePlanSessionKey
+        ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
+        : await markDayComplete(activePlanId, planDayNumber);
+
+    if (!completionResult.success) {
+      planDayCompletionGuardRef.current = null;
+      return;
+    }
+
+    if (nextSessionSummary) {
+      const nextSessionEntries =
+        activePlanSessionGroups.find((group) => group.sessionKey === nextSessionSummary.sessionKey)
+          ?.entries ?? [];
+      const nextResume = getPlanDayResume(activePlanId, planDayNumber);
+      const nextEntry = resolvePlanDayPlaybackStartEntry(nextSessionEntries, nextResume);
+
+      if (nextEntry) {
+        navigation.setParams(
+          buildReaderChapterRouteParams({
+            bookId: nextEntry.bookId,
+            chapter: nextEntry.chapter,
+            preferredMode: chapterSessionMode,
+            planId: activePlanId,
+            planDayNumber,
+            planSessionKey: nextSessionSummary.sessionKey,
+            returnToPlanOnComplete: true,
+          })
+        );
+      }
+
+      planDayCompletionGuardRef.current = null;
+      return;
+    }
+
+    if (!activePlanDaySummary?.isComplete) {
       planDayCompletionGuardRef.current = null;
       return;
     }
@@ -1485,7 +1602,12 @@ export function BibleReaderScreen() {
           ? activeRhythmSession.segments[currentRhythmSegmentIndex + 1] ?? null
           : null;
       if (nextSegment) {
-        const nextResume = getPlanDayResume(nextSegment.planId, nextSegment.dayNumber);
+        const nextResume =
+          nextSegment.type === 'plan' &&
+          nextSegment.planId &&
+          typeof nextSegment.dayNumber === 'number'
+            ? getPlanDayResume(nextSegment.planId, nextSegment.dayNumber)
+            : null;
         const nextEntry =
           playbackSequenceEntries
             .slice(nextSegment.startIndex, nextSegment.endIndex)
@@ -1500,8 +1622,8 @@ export function BibleReaderScreen() {
               bookId: nextEntry.bookId,
               chapter: nextEntry.chapter,
               preferredMode: chapterSessionMode,
-              planId: nextSegment.planId,
-              planDayNumber: nextSegment.dayNumber,
+              planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+              planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
               returnToPlanOnComplete: true,
               sessionContext: activeRhythmSession,
             })
@@ -1526,6 +1648,11 @@ export function BibleReaderScreen() {
     activePlanDaySummary,
     activePlanId,
     activePlanProgress,
+    activePlanIsMultiSession,
+    activePlanSessionGroups,
+    activePlanSessionIndex,
+    activePlanSessionKey,
+    activePlanSessionSummary,
     chapterSessionMode,
     clearPlanDayResume,
     currentRhythmSegmentIndex,
@@ -1541,13 +1668,17 @@ export function BibleReaderScreen() {
       return;
     }
 
+    const shouldAutoCompleteSession = activePlanIsMultiSession
+      ? activePlanSessionSummary?.isComplete
+      : activePlanDaySummary?.isComplete;
+
     if (
       !activePlanId ||
       typeof planDayNumber !== 'number' ||
       !returnToPlanOnComplete ||
       !activePlanProgress ||
       activePlanProgress.is_completed ||
-      !activePlanDaySummary?.isComplete
+      !shouldAutoCompleteSession
     ) {
       return;
     }
@@ -1557,6 +1688,8 @@ export function BibleReaderScreen() {
     activePlanDaySummary,
     activePlanId,
     activePlanProgress,
+    activePlanIsMultiSession,
+    activePlanSessionSummary,
     chapterSessionMode,
     handleCompletePlanDay,
     planDayNumber,
@@ -1573,11 +1706,14 @@ export function BibleReaderScreen() {
   );
 
   useEffect(() => {
+    const activePlanListenTargetKeys =
+      activePlanSessionSummary?.targetChapterKeys ?? activePlanDaySummary?.targetChapterKeys ?? [];
+
     if (
       chapterSessionMode !== 'listen' ||
       !activePlanId ||
       typeof planDayNumber !== 'number' ||
-      !activePlanDaySummary?.targetChapterKeys.includes(activeChapterKey)
+      !activePlanListenTargetKeys.includes(activeChapterKey)
     ) {
       listenCountedBaselineRef.current = null;
       setListenCountedNotice(null);
@@ -1599,6 +1735,7 @@ export function BibleReaderScreen() {
   }, [
     activeChapterKey,
     activePlanDaySummary?.targetChapterKeys,
+    activePlanSessionSummary?.targetChapterKeys,
     activePlanId,
     chapterSessionMode,
     currentChapterListenStatus,
@@ -1679,8 +1816,9 @@ export function BibleReaderScreen() {
     1
   );
   const previousNavigationTarget =
-    previousSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, -1);
-  const nextNavigationTarget = nextSequenceEntry ?? getAdjacentBibleChapter(bookId, chapter, 1);
+    previousSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, -1));
+  const nextNavigationTarget =
+    nextSequenceEntry ?? (activeRhythmSession ? null : getAdjacentBibleChapter(bookId, chapter, 1));
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas =
@@ -2605,18 +2743,34 @@ export function BibleReaderScreen() {
     const showPlanChapterArrows = chapterSessionMode === 'read' || chapterSessionMode === 'listen';
     const showPlanPreviousChapterButton =
       chapterSessionMode === 'read' ? true : hasPrevChapter;
-    const showPlanCompletionAction = chapterSessionMode === 'read' && isLastPlanChapter;
-    const trailingActionEnabled = showPlanCompletionAction
-      ? Boolean(activePlanDaySummary?.isComplete)
-      : hasNextChapter;
+    const trailingActionState = getPlanSessionTrailingActionState({
+      isLastPlanChapter,
+      isPlanDayComplete: Boolean(
+        activePlanIsMultiSession ? activePlanSessionSummary?.isComplete : activePlanDaySummary?.isComplete
+      ),
+      hasNextChapter,
+    });
+    const showPlanCompletionAction = trailingActionState.showCompletionAction;
+    const trailingActionEnabled = trailingActionState.isEnabled;
+    const showSessionCompletionCopy =
+      activePlanIsMultiSession &&
+      Boolean(activePlanDaySummary?.sessionSummaries.length) &&
+      activePlanSessionIndex >= 0 &&
+      activePlanSessionIndex < (activePlanDaySummary?.sessionSummaries.length ?? 0) - 1;
     const trailingActionLabel = showPlanCompletionAction
-      ? t('readingPlans.completeDayCta', {
-          defaultValue: 'Complete day',
-        })
+      ? showSessionCompletionCopy
+        ? t('readingPlans.completeSessionCta', {
+            defaultValue: 'Complete session',
+          })
+        : t('readingPlans.completeDayCta', {
+            defaultValue: 'Complete day',
+          })
       : t('common.next');
     const trailingActionHint = showPlanCompletionAction
-      ? "Marks today's reading plan complete"
-      : 'Goes to the next chapter';
+      ? showSessionCompletionCopy
+        ? t('readingPlans.completeSessionHint')
+        : t('readingPlans.completeDayHint')
+      : t('bible.nextChapterHint');
 
     return (
       <View
@@ -2685,6 +2839,7 @@ export function BibleReaderScreen() {
                 day: planDayNumber,
                 defaultValue: `Day ${planDayNumber}`,
               })}
+              {activePlanSessionTitle ? ` • ${activePlanSessionTitle}` : ''}
               {' • '}
               {t('readingPlans.chapterProgress', {
                 current: activePlanChapterIndex + 1,
@@ -3357,7 +3512,7 @@ export function BibleReaderScreen() {
             onPress={handleExitPlanSession}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            accessibilityHint="Returns to the plan detail screen"
+            accessibilityHint={t('bible.returnToPlanHint')}
           >
             <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
           </TouchableOpacity>
@@ -3378,13 +3533,13 @@ export function BibleReaderScreen() {
             onPress={handleOpenBookPicker}
             accessibilityRole="button"
             accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-            accessibilityHint="Opens the book and chapter picker"
+            accessibilityHint={t('bible.openBookAndChapterPickerHint')}
           >
             <Text
               style={[styles.floatingReaderReferencePillPrimary, { color: colors.biblePrimaryText }]}
               numberOfLines={1}
             >
-              {getTranslatedBookName(bookId, t)} {chapter}
+              {compactBookName} {chapter}
             </Text>
           </TouchableOpacity>
 
@@ -3401,7 +3556,7 @@ export function BibleReaderScreen() {
             onPress={handleOpenTranslationOptions}
             accessibilityRole="button"
             accessibilityLabel={translationLabel}
-            accessibilityHint="Opens translation options"
+            accessibilityHint={t('bible.openTranslationOptionsHint')}
             disabled={!canShowTranslationSheet}
           >
             <Text

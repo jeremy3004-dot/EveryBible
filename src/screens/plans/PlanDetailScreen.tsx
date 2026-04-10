@@ -31,7 +31,19 @@ import {
   type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
+import {
+  getActivePlanDayNumber,
+  getDaySessionEntries,
+  isCalendarDayOfMonthPlan,
+  getVisiblePlanDayNumbers,
+  isMultiSessionPlan,
+} from '../../services/plans/readingPlanModel';
+import type {
+  PlanSessionKey,
+  ReadingPlan,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+} from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -202,10 +214,11 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
-  const currentDay = progress?.current_day ?? 1;
+  const isCalendarPlan = isCalendarDayOfMonthPlan(plan);
+  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
   const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
-  const fraction = totalDays > 0 ? completedCount / totalDays : 0;
-  const completionBadgeLabel = progress?.is_completed
+  const fraction = totalDays > 0 ? (isCalendarPlan ? currentDay / totalDays : completedCount / totalDays) : 0;
+  const completionBadgeLabel = progress?.is_completed && !isCalendarPlan
     ? t('readingPlans.completed')
     : currentDaySummary?.isComplete
       ? t('readingPlans.dailyTargetCompleteTitle')
@@ -235,11 +248,13 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           <Text style={[progressCardStyles.dayLabel, { color: colors.primaryText }]}>
             {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
           </Text>
-          <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-            {completedCount} / {totalDays}{' '}
-            {t('engagement.days', { defaultValue: 'days' })}{' '}
-            {t('readingPlans.completed').toLowerCase()}
-          </Text>
+          {!isCalendarPlan ? (
+            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
+              {completedCount} / {totalDays}{' '}
+              {t('engagement.days', { defaultValue: 'days' })}{' '}
+              {t('readingPlans.completed').toLowerCase()}
+            </Text>
+          ) : null}
           {currentDaySummary ? (
             <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
               {t('readingPlans.todayTargetProgress', {
@@ -311,18 +326,28 @@ interface DayRowProps {
   dayNumber: number;
   dateLabel: string | null;
   entries: ReadingPlanEntry[];
+  launchSessionKey?: PlanSessionKey;
   isCompleted: boolean;
   isCurrent: boolean;
-  onPress: (entry: ReadingPlanEntry, dayNumber: number) => void;
+  sessionBadges?: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
+  onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
 }
 
 export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
 
-function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
+function DayRow({
+  dayNumber,
+  dateLabel,
+  entries,
+  launchSessionKey,
+  isCompleted,
+  isCurrent,
+  sessionBadges = [],
+  onPress,
+}: DayRowProps) {
   const { colors } = useTheme();
 
   const refs = entries.map(formatChapterRef).join(', ');
-  const firstEntry = entries[0];
   const accessibilityLabel = isCurrent
     ? `Current plan day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
     : `Day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
@@ -330,7 +355,7 @@ function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress
   return (
     <TouchableOpacity
       testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-      onPress={() => firstEntry && onPress(firstEntry, dayNumber)}
+      onPress={() => onPress(dayNumber, launchSessionKey)}
       activeOpacity={0.85}
       style={[
         dayRowStyles.row,
@@ -379,6 +404,47 @@ function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress
         <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
           {refs}
         </Text>
+        {sessionBadges.length > 0 ? (
+          <View style={dayRowStyles.sessionBadgeRow}>
+            {sessionBadges.map((badge) => {
+              const palette =
+                badge.state === 'done'
+                  ? {
+                      backgroundColor: colors.accentPrimary,
+                      borderColor: colors.accentPrimary,
+                      textColor: colors.cardBackground,
+                    }
+                  : badge.state === 'next'
+                    ? {
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.accentPrimary,
+                        textColor: colors.accentPrimary,
+                      }
+                    : {
+                        backgroundColor: colors.background,
+                        borderColor: colors.cardBorder,
+                        textColor: colors.secondaryText,
+                      };
+
+              return (
+                <View
+                  key={`${dayNumber}-${badge.label}`}
+                  style={[
+                    dayRowStyles.sessionBadge,
+                    {
+                      backgroundColor: palette.backgroundColor,
+                      borderColor: palette.borderColor,
+                    },
+                  ]}
+                >
+                  <Text style={[dayRowStyles.sessionBadgeText, { color: palette.textColor }]}>
+                    {badge.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
 
       <Ionicons
@@ -420,6 +486,21 @@ const dayRowStyles = StyleSheet.create({
   },
   refs: {
     ...typography.bodyStrong,
+  },
+  sessionBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sessionBadge: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  sessionBadgeText: {
+    ...typography.micro,
   },
 });
 
@@ -500,9 +581,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const [error, setError] = useState<string | null>(null);
 
   const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
-  const sortedDays = React.useMemo(
-    () => Array.from(entriesByDay.keys()).sort((a, b) => a - b),
-    [entriesByDay]
+  const today = React.useMemo(() => new Date(), []);
+  const visibleDayNumbers = React.useMemo(
+    () => getVisiblePlanDayNumbers(plan, entries, progress, today),
+    [entries, plan, progress, today]
   );
 
   const load = useCallback(async () => {
@@ -544,24 +626,27 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [load]);
 
-  const currentDay = progress?.current_day ?? 1;
+  const currentDay = plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1;
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const currentDaySummary = React.useMemo(() => {
-    if (!progress) {
+    if (!plan || !progress) {
       return null;
     }
 
     return getCurrentPlanDaySummary({
+      plan,
       entries,
       progress,
       chaptersRead,
       listeningHistory,
+      today,
     });
-  }, [chaptersRead, entries, listeningHistory, progress]);
+  }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
   const isEnrolled = progress !== null;
+  const multiSessionPlan = isMultiSessionPlan(plan);
 
-  const handleOpenChapter = useCallback(async (entry: ReadingPlanEntry, dayNumber: number) => {
+  const handleOpenChapter = useCallback(async (dayNumber: number, sessionKey?: PlanSessionKey) => {
     if (!rootNavigationRef.isReady()) return;
 
     if (!progress) {
@@ -571,12 +656,21 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       }
     }
 
-    const dayEntries = entriesByDay.get(dayNumber) ?? [];
+    const plannedDayEntries = entriesByDay.get(dayNumber) ?? [];
+    const dayEntries =
+      sessionKey && multiSessionPlan
+        ? plannedDayEntries.filter((entry) => entry.session_key === sessionKey)
+        : plannedDayEntries;
+    const fallbackEntry = dayEntries[0] ?? plannedDayEntries[0];
+    if (!fallbackEntry) {
+      return;
+    }
+
     const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
     const resumeTarget = getPlanDayResume(planId, dayNumber);
     const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
-      bookId: entry.book,
-      chapter: entry.chapter_start,
+      bookId: fallbackEntry.book,
+      chapter: fallbackEntry.chapter_start,
     };
 
     rootNavigationRef.navigate('Bible', {
@@ -587,10 +681,11 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         playbackSequenceEntries,
         planId,
         planDayNumber: dayNumber,
+        ...(sessionKey ? { planSessionKey: sessionKey } : {}),
         returnToPlanOnComplete: true,
       },
     });
-  }, [entriesByDay, getPlanDayResume, planId, progress]);
+  }, [entriesByDay, getPlanDayResume, multiSessionPlan, planId, progress]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
@@ -759,22 +854,61 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           ) : null}
 
           {/* Day rows */}
-          {sortedDays.map((dayNumber) => {
+          {visibleDayNumbers.map((dayNumber) => {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
+            const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
             const isCompleted = progress
-              ? String(dayNumber) in progress.completed_entries ||
-                (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
+              ? isCalendarDayOfMonthPlan(plan)
+                ? dayNumber === currentDay &&
+                  Boolean(
+                    (currentDaySummary?.dateKey &&
+                      currentDaySummary.dateKey in progress.completed_entries) ||
+                      currentDaySummary?.isComplete
+                  )
+                : String(dayNumber) in progress.completed_entries ||
+                  (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
               : false;
             const isCurrent = dayNumber === currentDay;
-            const dateLabel = progress ? formatScheduledPlanDayLabel(progress.started_at, dayNumber) : null;
+            const dateLabel =
+              progress && !isCalendarDayOfMonthPlan(plan)
+                ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
+                : null;
+            const launchSessionKey = multiSessionPlan
+              ? isCurrent && isEnrolled
+                ? currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey
+                : daySessionGroups[0]?.sessionKey
+              : undefined;
+            const sessionBadges = daySessionGroups.map((group) => {
+              const matchingSummary =
+                isCurrent && isEnrolled
+                  ? currentDaySummary?.sessionSummaries.find(
+                      (session) => session.sessionKey === group.sessionKey
+                    ) ?? null
+                  : null;
+              const state =
+                !isCurrent || !isEnrolled
+                  ? 'available'
+                  : matchingSummary?.isComplete
+                    ? 'done'
+                    : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
+                      ? 'next'
+                      : 'upcoming';
+
+              return {
+                label: group.title,
+                state,
+              } as const;
+            });
             return (
               <DayRow
                 key={dayNumber}
                 dayNumber={dayNumber}
                 dateLabel={dateLabel}
                 entries={dayEntries}
+                launchSessionKey={launchSessionKey}
                 isCompleted={isCompleted}
                 isCurrent={isCurrent && isEnrolled}
+                sessionBadges={sessionBadges}
                 onPress={handleOpenChapter}
               />
             );

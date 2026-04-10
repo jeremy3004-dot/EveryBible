@@ -157,6 +157,45 @@ export const getTranslatedBookName = (
   return translated;
 };
 
+const COMPACT_BOOK_NAME_MAX_LENGTH = 10;
+
+const formatCompactBookAbbreviation = (fullName: string, abbreviation: string): string => {
+  const trimmedAbbreviation = abbreviation.trim();
+  if (!trimmedAbbreviation) {
+    return fullName;
+  }
+
+  const firstWord = fullName.trim().split(/\s+/)[0] ?? '';
+  if (
+    firstWord &&
+    !trimmedAbbreviation.includes(' ') &&
+    firstWord.localeCompare(trimmedAbbreviation, undefined, { sensitivity: 'accent' }) !== 0 &&
+    firstWord.toLowerCase().startsWith(trimmedAbbreviation.toLowerCase())
+  ) {
+    return `${trimmedAbbreviation}.`;
+  }
+
+  return trimmedAbbreviation;
+};
+
+export const getCompactTranslatedBookName = (
+  bookId: string,
+  t: (key: string) => string,
+  maxLength = COMPACT_BOOK_NAME_MAX_LENGTH,
+): string => {
+  const translatedName = getTranslatedBookName(bookId, t);
+  if (translatedName.length <= maxLength) {
+    return translatedName;
+  }
+
+  const abbreviation = getBookById(bookId)?.abbreviation;
+  if (!abbreviation) {
+    return translatedName;
+  }
+
+  return formatCompactBookAbbreviation(translatedName, abbreviation);
+};
+
 export interface AdjacentBibleChapter {
   bookId: string;
   chapter: number;

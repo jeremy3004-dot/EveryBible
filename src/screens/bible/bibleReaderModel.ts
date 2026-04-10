@@ -1,5 +1,5 @@
 import type { Verse } from '../../types';
-import type { RhythmSessionContext } from '../../services/plans/types';
+import type { PlanSessionKey, RhythmSessionContext } from '../../services/plans/types';
 
 export type FontSizeSheetAction =
   | 'toggleButton'
@@ -17,12 +17,19 @@ export interface ListenCountedNoticeViewModel {
   text: string;
 }
 
+export interface PlanSessionTrailingActionState {
+  showCompletionAction: boolean;
+  isEnabled: boolean;
+  iconName: 'checkmark' | 'chevron-forward';
+}
+
 interface ReaderChapterRouteParamsInput {
   bookId: string;
   chapter: number;
   preferredMode: ChapterSessionMode;
   planId?: string;
   planDayNumber?: number;
+  planSessionKey?: PlanSessionKey;
   returnToPlanOnComplete?: boolean;
   sessionContext?: RhythmSessionContext;
 }
@@ -155,6 +162,7 @@ export const buildReaderChapterRouteParams = ({
   preferredMode,
   planId,
   planDayNumber,
+  planSessionKey,
   returnToPlanOnComplete,
   sessionContext,
 }: ReaderChapterRouteParamsInput) => ({
@@ -165,6 +173,7 @@ export const buildReaderChapterRouteParams = ({
   autoplayAudio: false,
   ...(planId ? { planId } : {}),
   ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
+  ...(planSessionKey ? { planSessionKey } : {}),
   ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
   ...(sessionContext ? { sessionContext } : {}),
 });
@@ -196,6 +205,30 @@ export const getListenCountedNoticeViewModel = (
     testID: LISTEN_COUNTED_NOTICE_TEST_ID,
     accessibilityLabel: trimmedNotice,
     text: trimmedNotice,
+  };
+};
+
+export const getPlanSessionTrailingActionState = ({
+  isLastPlanChapter,
+  isPlanDayComplete,
+  hasNextChapter,
+}: {
+  isLastPlanChapter: boolean;
+  isPlanDayComplete: boolean;
+  hasNextChapter: boolean;
+}): PlanSessionTrailingActionState => {
+  if (isLastPlanChapter) {
+    return {
+      showCompletionAction: true,
+      isEnabled: isPlanDayComplete,
+      iconName: 'checkmark',
+    };
+  }
+
+  return {
+    showCompletionAction: false,
+    isEnabled: hasNextChapter,
+    iconName: 'chevron-forward',
   };
 };
 

@@ -23,7 +23,7 @@ test('PlanDetailScreen always passes plan-day context into BibleReader launches'
   );
   assert.match(
     source,
-    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
+    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
     'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );
   assert.doesNotMatch(
@@ -53,6 +53,24 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
     source,
     /dateLabel: string \| null/,
     'PlanDetailScreen should accept an optional scheduled label in the day row props'
+  );
+});
+
+test('PlanDetailScreen only renders the active day for calendar-day plans', () => {
+  assert.match(
+    source,
+    /getVisiblePlanDayNumbers\(plan,\s*entries,\s*progress,\s*today\)/,
+    'PlanDetailScreen should collapse calendar-day plans to the active chapter for today'
+  );
+  assert.match(
+    source,
+    /const currentDay = plan \? getActivePlanDayNumber\(plan, progress, today\) : progress\?\.current_day \?\? 1;/,
+    'PlanDetailScreen should resolve the active day from today even before enrollment'
+  );
+  assert.match(
+    source,
+    /visibleDayNumbers\.map\(\(dayNumber\) => \{/,
+    'PlanDetailScreen should render only the visible day numbers'
   );
 });
 

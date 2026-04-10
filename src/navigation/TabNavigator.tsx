@@ -86,7 +86,7 @@ export function TabNavigator() {
         })(),
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {
-          paddingTop: spacing.xs,
+          paddingBottom: spacing.xs,
         },
         tabBarIcon: ({ focused, color, size }) => {
           const tab = rootTabManifest.find((entry) => entry.name === route.name);

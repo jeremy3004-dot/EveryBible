@@ -147,39 +147,24 @@ test('PlansHomeScreen supports swipe-to-delete for active and completed plans', 
   );
 });
 
-test('PlansHomeScreen includes a rhythms section in My Plans with create and detail navigation', () => {
-  assert.match(
+test('PlansHomeScreen no longer surfaces the rhythms feature', () => {
+  assert.doesNotMatch(
     source,
-    /function RhythmsSection\(/,
-    'PlansHomeScreen should define a dedicated RhythmsSection within My Plans'
+    /activeTopic|topicTabs|RhythmsHomeSection|RhythmsSection/,
+    'PlansHomeScreen should keep the plans surface focused on reading plans only for now'
   );
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /<RhythmsSection[\s\S]*onRhythmPress=\{handleRhythmPress\}[\s\S]*onCreateRhythm=\{handleCreateRhythm\}/s,
-    'PlansHomeScreen should wire the RhythmsSection into the My Plans tab'
-  );
-  assert.match(
-    source,
-    /navigation\.navigate\('RhythmDetail', \{ rhythmId \}\)/,
-    'PlansHomeScreen should open the rhythm detail screen from the rhythms list'
-  );
-  assert.match(
-    source,
-    /navigation\.navigate\('RhythmComposer', \{\}\)/,
-    'PlansHomeScreen should route rhythm creation into the composer screen'
-  );
-  assert.match(
-    source,
-    /<View style=\{styles\.headerContent\}>[\s\S]*<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.rhythms'\)\}<\/Text>[\s\S]*<TouchableOpacity[\s\S]*style=\{styles\.createButton\}/s,
-    'PlansHomeScreen should stack the create rhythm button below the rhythms title instead of keeping them on one row'
+    /RhythmDetail|RhythmComposer|readingPlans\.rhythms|readingPlans\.createRhythm/,
+    'PlansHomeScreen should not expose rhythm navigation or copy while the feature is disabled'
   );
 });
 
-test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () => {
+test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-plan into Find Plans', () => {
   assert.match(
     source,
-    /<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.plans'\)\}<\/Text>/,
-    'PlansHomeScreen should render a dedicated Plans section heading in My Plans'
+    /activeTab === 'my-plans'[\s\S]*<MyPlansSection/s,
+    'PlansHomeScreen should render My Plans directly from the main plans tabs'
   );
   assert.match(
     source,
@@ -189,14 +174,35 @@ test('PlansHomeScreen shows the Plans section before Rhythms in My Plans', () =>
   assert.match(
     source,
     /const handleAddPlan = useCallback\(\(\) => {\s*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
-    'PlansHomeScreen should route the plans CTA to the Find Plans tab'
+    'PlansHomeScreen should route the plans CTA straight into the Find Plans tab'
   );
+});
 
-  const plansIndex = source.indexOf("t('readingPlans.plans')");
-  const rhythmsIndex = source.indexOf('<RhythmsSection');
-  assert.ok(
-    plansIndex !== -1 && rhythmsIndex !== -1 && plansIndex < rhythmsIndex,
-    'PlansHomeScreen should render the Plans section before the Rhythms section on the My Plans page'
+test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
+  assert.match(
+    source,
+    /import Fuse from 'fuse\.js';/,
+    'PlansHomeScreen should import Fuse for fuzzy plan search'
+  );
+  assert.match(
+    source,
+    /const \[searchQuery,\s*setSearchQuery\] = useState\(''\);/,
+    'PlansHomeScreen should track the local Find Plans search query'
+  );
+  assert.match(
+    source,
+    /new Fuse\(searchablePlans,\s*\{/,
+    'PlansHomeScreen should build a Fuse index over the plan catalog'
+  );
+  assert.match(
+    source,
+    /<TextInput[\s\S]*placeholder=\{t\('readingPlans\.searchPlansPlaceholder'\)\}/s,
+    'PlansHomeScreen should render a search field at the top of Find Plans'
+  );
+  assert.match(
+    source,
+    /searchQuery\.trim\(\) \? t\('readingPlans\.noPlanSearchResults'\) : t\('readingPlans\.noPlans'\)/,
+    'PlansHomeScreen should show a dedicated empty state when a search yields no matches'
   );
 });
 

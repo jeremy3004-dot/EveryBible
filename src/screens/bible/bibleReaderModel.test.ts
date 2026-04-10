@@ -5,6 +5,7 @@ import {
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   getNextBibleTabBarVisibility,
   getListenCountedNoticeViewModel,
+  getPlanSessionTrailingActionState,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
   isReaderChromeCollapsed,
@@ -23,6 +24,21 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
+
+test('uses the plan completion action on the final plan chapter even while listening', () => {
+  assert.deepEqual(
+    getPlanSessionTrailingActionState({
+      isLastPlanChapter: true,
+      isPlanDayComplete: true,
+      hasNextChapter: true,
+    }),
+    {
+      showCompletionAction: true,
+      isEnabled: true,
+      iconName: 'checkmark',
+    }
+  );
+});
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
   assert.equal(getReaderChromeAnimationProgress(-24, 120), 0);
@@ -176,17 +192,21 @@ test('builds chapter route params that preserve the current reader session mode'
       preferredMode: 'read',
       planId: 'plan-a',
       planDayNumber: 3,
+      planSessionKey: 'evening',
       returnToPlanOnComplete: true,
       sessionContext: {
         type: 'rhythm',
         rhythmId: 'rhythm-1',
         title: 'Morning Rhythm',
+        itemIds: ['item-plan-a'],
         planIds: ['plan-a'],
         chapterKeys: ['ROM_8'],
         segments: [
           {
+            itemId: 'item-plan-a',
+            type: 'plan',
+            title: 'Plan A',
             planId: 'plan-a',
-            planTitle: 'Plan A',
             dayNumber: 3,
             startIndex: 0,
             endIndex: 1,
@@ -204,17 +224,21 @@ test('builds chapter route params that preserve the current reader session mode'
       autoplayAudio: false,
       planId: 'plan-a',
       planDayNumber: 3,
+      planSessionKey: 'evening',
       returnToPlanOnComplete: true,
       sessionContext: {
         type: 'rhythm',
         rhythmId: 'rhythm-1',
         title: 'Morning Rhythm',
+        itemIds: ['item-plan-a'],
         planIds: ['plan-a'],
         chapterKeys: ['ROM_8'],
         segments: [
           {
+            itemId: 'item-plan-a',
+            type: 'plan',
+            title: 'Plan A',
             planId: 'plan-a',
-            planTitle: 'Plan A',
             dayNumber: 3,
             startIndex: 0,
             endIndex: 1,

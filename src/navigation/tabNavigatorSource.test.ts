@@ -53,6 +53,18 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
     /const tabBarBottomPadding = spacing\.lg;/,
     'TabNavigator should use a visible bottom gutter to pull the icons away from the home indicator'
   );
+
+  assert.equal(
+    source.includes('paddingTop: spacing.xs'),
+    false,
+    'TabNavigator should not add extra padding above the tab icons because that pushes the content lower'
+  );
+
+  assert.match(
+    source,
+    /tabBarItemStyle:\s*\{\s*paddingBottom:\s*spacing\.xs,\s*\}/s,
+    'TabNavigator should place the extra item padding below the icons so the row sits a little higher'
+  );
 });
 
 test('TabNavigator does not depend on a shared reader tab-bar store flag', () => {

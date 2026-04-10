@@ -5,6 +5,10 @@ export type ReadingPlanCategory =
   | 'devotional'
   | 'custom';
 
+export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month';
+export type ReadingPlanFormat = 'single-session' | 'multi-session';
+export type PlanSessionKey = 'morning' | 'midday' | 'evening';
+
 export type ReadingPlansTabKey = 'myPlans' | 'findPlans' | 'savedPlans' | 'completedPlans';
 export type ReadingPlanCoverKey =
   | 'dunes'
@@ -47,12 +51,19 @@ export interface ReadingPlan {
   featured?: boolean;
   completion_count?: number;
   created_at?: string;
+  scheduleMode?: ReadingPlanScheduleMode;
+  repeatsMonthly?: boolean;
+  format?: ReadingPlanFormat;
+  sessionOrder?: PlanSessionKey[];
 }
 
 export interface ReadingPlanEntry {
   id: string;
   plan_id: string;
   day_number: number;
+  session_key?: PlanSessionKey | null;
+  session_title?: string | null;
+  session_order?: number | null;
   book: string;
   chapter_start: number;
   chapter_end: number | null;
@@ -66,7 +77,9 @@ export interface ReadingPlanProgress {
   plan_id: string;
   started_at: string;
   completed_entries: Record<string, string>;
+  completed_sessions?: Record<string, string>;
   current_day: number;
+  current_session?: PlanSessionKey | null;
   is_completed: boolean;
   completed_at: string | null;
   synced_at: string;
@@ -80,17 +93,39 @@ export interface ReadingPlanDayResume {
 }
 
 export type RhythmId = string;
+export type RhythmItemId = string;
+export type RhythmSlot = 'morning' | 'afternoon' | 'evening';
+
+export interface ReadingPlanRhythmPlanItem {
+  id: RhythmItemId;
+  type: 'plan';
+  planId: string;
+}
+
+export interface ReadingPlanRhythmPassageItem {
+  id: RhythmItemId;
+  type: 'passage';
+  title: string;
+  bookId: string;
+  startChapter: number;
+  endChapter: number;
+}
+
+export type ReadingPlanRhythmItem = ReadingPlanRhythmPlanItem | ReadingPlanRhythmPassageItem;
 
 export interface ReadingPlanRhythm {
   id: RhythmId;
   title: string;
-  planIds: string[];
+  slot?: RhythmSlot;
+  items: ReadingPlanRhythmItem[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ReadingPlanRhythmInput {
   title?: string | null;
+  slot?: RhythmSlot | null;
+  items?: ReadingPlanRhythmItem[];
   planIds?: string[];
 }
 
@@ -101,19 +136,25 @@ export interface ReadingPlanRhythmMutationResult {
 }
 
 export interface ReadingPlanRhythmSessionSegment {
-  planId: string;
-  planTitle: string;
-  dayNumber: number;
+  itemId: RhythmItemId;
+  type: 'plan' | 'passage';
+  title: string;
   startIndex: number;
   endIndex: number;
   chapterKeys: string[];
   isComplete: boolean;
+  planId?: string;
+  dayNumber?: number;
+  bookId?: string;
+  startChapter?: number;
+  endChapter?: number;
 }
 
 export interface RhythmSessionContext {
   type: 'rhythm';
   rhythmId: RhythmId;
   title: string;
+  itemIds: RhythmItemId[];
   planIds: string[];
   chapterKeys: string[];
   segments: ReadingPlanRhythmSessionSegment[];
@@ -154,6 +195,7 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   ) => ReadingPlanRhythmMutationResult;
   deleteRhythm: (rhythmId: RhythmId) => void;
   reorderRhythms: (rhythmOrder: RhythmId[]) => void;
+  moveRhythmItem: (rhythmId: RhythmId, itemId: RhythmItemId, direction: 'up' | 'down') => void;
   moveRhythmPlan: (rhythmId: RhythmId, planId: string, direction: 'up' | 'down') => void;
   getRhythm: (rhythmId: RhythmId) => ReadingPlanRhythm | null;
   getRhythmForPlan: (planId: string) => ReadingPlanRhythm | null;
@@ -166,6 +208,25 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
   clearPlanDayResume: (planId: string, dayNumber: number) => void;
   markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
+  markSessionComplete: (
+    planId: string,
+    dayNumber: number,
+    sessionKey: PlanSessionKey,
+    options: {
+      completionKey: string;
+      dayCompletionKey: string;
+      totalDays: number;
+      isFinalSession: boolean;
+      advanceDayOnCompletion: boolean;
+      nextSessionKey?: PlanSessionKey | null;
+    }
+  ) => ReadingPlanProgress | null;
+  isSessionComplete: (planId: string, completionKey: string) => boolean;
+  markRecurringDayComplete: (
+    planId: string,
+    completionKey: string,
+    dayNumber: number
+  ) => ReadingPlanProgress | null;
   unenrollPlan: (planId: string) => void;
   getProgress: (planId: string) => ReadingPlanProgress | null;
   assignGroupPlan: (groupId: string, planId: string, assignedBy?: string) => GroupReadingPlan;

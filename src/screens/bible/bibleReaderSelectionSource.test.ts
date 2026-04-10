@@ -80,8 +80,8 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
-    /<Pressable[\s\S]*onPress=\{\(\) => \{\s*setSelectedVerses\(/s,
-    'BibleReaderScreen should wrap verse taps in Pressable instead of a clickable Text node so selection does not shove the chapter around'
+    /<HighlightedVerseText[\s\S]*onPress=\{\(\) => \{\s*setSelectedVerses\([\s\S]*<Pressable[\s\S]*onPress=\{\(\) => \{\s*setSelectedVerses\(/s,
+    'BibleReaderScreen should keep verse selection behind Pressable-driven handlers for both highlighted and plain verses'
   );
 
   assert.match(

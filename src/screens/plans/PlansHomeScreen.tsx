@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,16 +8,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Fuse from 'fuse.js';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
-import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -29,17 +30,24 @@ import {
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
-import type {
-  ReadingPlan,
-  ReadingPlanRhythm,
-  UserReadingPlanProgress,
-} from '../../services/plans/types';
-import { useReadingPlansStore } from '../../stores/readingPlansStore';
+import {
+  getActivePlanDayNumber,
+  isCalendarDayOfMonthPlan,
+} from '../../services/plans/readingPlanModel';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { useProgressStore } from '../../stores/progressStore';
 import {
   summarizeReadingActivity,
   formatLocalDateKey,
 } from '../../services/progress/readingActivity';
+import {
+  getCurrentPlanDaySummary,
+  type CurrentPlanDaySummary,
+} from '../../services/plans/readingPlanActivity';
+import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
+import { useLibraryStore } from '../../stores';
+import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
+import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,6 +173,62 @@ const inlineStyles = StyleSheet.create({
   },
 });
 
+type SessionStatusTone = 'done' | 'next' | 'upcoming';
+
+function getLocalizedSessionLabel(
+  sessionKey: 'morning' | 'midday' | 'evening',
+  t: ReturnType<typeof useTranslation>['t']
+): string {
+  const labelKey =
+    sessionKey === 'morning'
+      ? 'readingPlans.morningLabel'
+      : sessionKey === 'midday'
+        ? 'readingPlans.middayLabel'
+        : 'readingPlans.eveningLabel';
+
+  return t(labelKey, {
+    defaultValue: sessionKey.charAt(0).toUpperCase() + sessionKey.slice(1),
+  });
+}
+
+function formatPlanCadenceLabel(
+  plan: ReadingPlan,
+  t: ReturnType<typeof useTranslation>['t']
+): string | null {
+  if (!isMultiSessionPlan(plan) || !plan.sessionOrder?.length) {
+    return null;
+  }
+
+  return plan.sessionOrder.map((sessionKey) => getLocalizedSessionLabel(sessionKey, t)).join(' + ');
+}
+
+function formatSessionStatusSummary(
+  summary: CurrentPlanDaySummary | null,
+  t: ReturnType<typeof useTranslation>['t']
+): string | null {
+  if (!summary?.sessionSummaries.length) {
+    return null;
+  }
+
+  return summary.sessionSummaries
+    .map((session) => {
+      const tone: SessionStatusTone = session.isComplete
+        ? 'done'
+        : summary.nextIncompleteSessionKey === session.sessionKey
+          ? 'next'
+          : 'upcoming';
+      const toneLabel =
+        tone === 'done'
+          ? t('readingPlans.sessionDone')
+          : tone === 'next'
+            ? t('readingPlans.sessionNext')
+            : t('readingPlans.sessionUpcoming');
+
+      return `${getLocalizedSessionLabel(session.sessionKey, t)} ${toneLabel}`;
+    })
+    .join(' • ');
+}
+
 // ---------------------------------------------------------------------------
 // Activity streak strip (14 days)
 // ---------------------------------------------------------------------------
@@ -266,112 +330,20 @@ const createStreakStyles = (colors: ThemeColors) =>
 interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
-  rhythms: ReadingPlanRhythm[];
+  chaptersRead: Record<string, number>;
+  listeningHistory: ListeningHistoryEntry[];
   onAddPlan: () => void;
-  onRhythmPress: (rhythmId: string) => void;
-  onCreateRhythm: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
 }
 
-interface RhythmsSectionProps {
-  rhythms: ReadingPlanRhythm[];
-  allPlans: ReadingPlan[];
-  onRhythmPress: (rhythmId: string) => void;
-  onCreateRhythm: () => void;
-  colors: ThemeColors;
-}
-
-function RhythmsSection({
-  rhythms,
-  allPlans,
-  onRhythmPress,
-  onCreateRhythm,
-  colors,
-}: RhythmsSectionProps) {
-  const { t } = useTranslation();
-  const styles = createRhythmsStyles(colors);
-  const planTitleById = Object.fromEntries(
-    allPlans.map((plan) => [plan.id, t(plan.title_key as Parameters<typeof t>[0])])
-  );
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.headerContent}>
-        <Text style={styles.sectionTitle}>{t('readingPlans.rhythms')}</Text>
-        <TouchableOpacity
-          onPress={onCreateRhythm}
-          activeOpacity={0.8}
-          style={styles.createButton}
-        >
-          <Ionicons name="add" size={16} color={colors.cardBackground} />
-          <Text style={styles.createButtonLabel}>{t('readingPlans.createRhythm')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {rhythms.length === 0 ? (
-        <TouchableOpacity
-          onPress={onCreateRhythm}
-          activeOpacity={0.85}
-          style={styles.emptyCard}
-        >
-          <View style={styles.emptyIcon}>
-            <Ionicons name="layers-outline" size={20} color={colors.accentPrimary} />
-          </View>
-          <View style={styles.emptyBody}>
-            <Text style={styles.emptyTitle}>{t('readingPlans.noRhythms')}</Text>
-            <Text style={styles.emptyText}>{t('readingPlans.noRhythmsBody')}</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        rhythms.map((rhythm) => {
-          const previewTitles = rhythm.planIds
-            .slice(0, 2)
-            .map((planId) => planTitleById[planId] ?? planId)
-            .join(' • ');
-
-          return (
-            <TouchableOpacity
-              key={rhythm.id}
-              style={styles.card}
-              onPress={() => onRhythmPress(rhythm.id)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.cardBadge}>
-                  <Ionicons name="layers-outline" size={18} color={colors.accentPrimary} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {rhythm.title}
-                  </Text>
-                  <Text style={styles.cardMeta}>
-                    {t('readingPlans.rhythmPlanCount', { count: rhythm.planIds.length })}
-                  </Text>
-                  {previewTitles ? (
-                    <Text style={styles.cardPreview} numberOfLines={2}>
-                      {previewTitles}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-              </View>
-            </TouchableOpacity>
-          );
-        })
-      )}
-    </View>
-  );
-}
-
 function MyPlansSection({
   allPlans,
   userProgress,
-  rhythms,
+  chaptersRead,
+  listeningHistory,
   onAddPlan,
-  onRhythmPress,
-  onCreateRhythm,
   onPlanPress,
   onDeletePlan,
   colors,
@@ -413,8 +385,20 @@ function MyPlansSection({
           </View>
         ) : (
           activePlans.map(({ progress, plan }) => {
+            const currentDay = getActivePlanDayNumber(plan, progress);
+            const currentDaySummary = getCurrentPlanDaySummary({
+              plan,
+              entries: readingPlanEntriesByPlanId[plan.id] ?? [],
+              progress,
+              chaptersRead,
+              listeningHistory,
+            });
             const progressRatio =
-              plan.duration_days > 0 ? (progress.current_day - 1) / plan.duration_days : 0;
+              plan.duration_days > 0
+                ? isCalendarDayOfMonthPlan(plan)
+                  ? currentDay / plan.duration_days
+                  : (currentDay - 1) / plan.duration_days
+                : 0;
             return (
               <SwipeablePlanRow
                 key={plan.id}
@@ -433,10 +417,15 @@ function MyPlansSection({
                     <View style={styles.progressBlock}>
                       <Text style={styles.dayCounter}>
                         {t('readingPlans.dayOf', {
-                          current: progress.current_day,
+                          current: currentDay,
                           total: plan.duration_days,
                         })}
                       </Text>
+                      {isMultiSessionPlan(plan) ? (
+                        <Text style={styles.sessionSummary} numberOfLines={2}>
+                          {formatSessionStatusSummary(currentDaySummary, t)}
+                        </Text>
+                      ) : null}
                       <ProgressBar progress={progressRatio} colors={colors} />
                     </View>
                   </View>
@@ -447,15 +436,6 @@ function MyPlansSection({
         )}
       </View>
 
-      <View style={styles.rhythmsSection}>
-        <RhythmsSection
-          rhythms={rhythms}
-          allPlans={allPlans}
-          onRhythmPress={onRhythmPress}
-          onCreateRhythm={onCreateRhythm}
-          colors={colors}
-        />
-      </View>
       {/* ActivityStreakStrip hidden for now */}
     </View>
   );
@@ -491,9 +471,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     primaryButtonLabel: {
       ...typography.label,
       color: colors.cardBackground,
-    },
-    rhythmsSection: {
-      paddingTop: spacing.lg,
     },
     emptyState: {
       alignItems: 'center',
@@ -537,6 +514,10 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       ...typography.micro,
       color: colors.secondaryText,
     },
+    sessionSummary: {
+      ...typography.micro,
+      color: colors.primaryText,
+    },
   });
 
 const swipeableStyles = StyleSheet.create({
@@ -556,98 +537,6 @@ const swipeableStyles = StyleSheet.create({
   },
 });
 
-const createRhythmsStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-    section: {
-      gap: spacing.md,
-    },
-    headerContent: {
-      gap: spacing.md,
-    },
-    sectionTitle: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-    },
-    createButton: {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      borderRadius: radius.pill,
-      backgroundColor: colors.accentPrimary,
-      minHeight: layout.minTouchTarget,
-      paddingHorizontal: spacing.md,
-    },
-    createButtonLabel: {
-      ...typography.label,
-      color: colors.cardBackground,
-    },
-    emptyCard: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
-      padding: layout.cardPadding,
-    },
-    emptyIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.background,
-    },
-    emptyBody: {
-      flex: 1,
-      gap: spacing.xs,
-    },
-    emptyTitle: {
-      ...typography.bodyStrong,
-      color: colors.primaryText,
-    },
-    emptyText: {
-      ...typography.body,
-      color: colors.secondaryText,
-    },
-    card: {
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
-      padding: layout.cardPadding,
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.md,
-    },
-    cardBadge: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.background,
-    },
-    cardBody: {
-      flex: 1,
-      gap: spacing.xs,
-    },
-    cardTitle: {
-      ...typography.bodyStrong,
-      color: colors.primaryText,
-    },
-    cardMeta: {
-      ...typography.micro,
-      color: colors.secondaryText,
-    },
-    cardPreview: {
-      ...typography.body,
-      color: colors.secondaryText,
-    },
-  });
 
 // ---------------------------------------------------------------------------
 // Find Plans section
@@ -669,9 +558,54 @@ function FindPlansSection({
 }: FindPlansSectionProps) {
   const { t } = useTranslation();
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const searchablePlans = React.useMemo(
+    () =>
+      allPlans.map((plan) => ({
+        plan,
+        title: t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key }),
+        description: plan.description_key
+          ? t(plan.description_key as Parameters<typeof t>[0], {
+              defaultValue: plan.description_key,
+            })
+          : '',
+        cadence: formatPlanCadenceLabel(plan, t) ?? '',
+        category: plan.category ?? 'other',
+      })),
+    [allPlans, t]
+  );
+  const planSearch = React.useMemo(
+    () =>
+      new Fuse(searchablePlans, {
+        includeScore: true,
+        ignoreLocation: true,
+        threshold: 0.35,
+        keys: ['title', 'description', 'cadence', 'category', 'plan.slug'],
+      }),
+    [searchablePlans]
+  );
+  const filteredPlans = React.useMemo(() => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      return allPlans;
+    }
+
+    const normalizedQuery = trimmedQuery.toLowerCase();
+    const prefixMatches = searchablePlans
+      .filter(({ title, description, cadence, plan }) =>
+        [title, description, cadence, plan.slug].some((value) =>
+          value.toLowerCase().includes(normalizedQuery)
+        )
+      )
+      .map(({ plan }) => plan);
+    const fuzzyMatches = planSearch.search(trimmedQuery).map((result) => result.item.plan);
+
+    return [...new Map([...prefixMatches, ...fuzzyMatches].map((plan) => [plan.id, plan])).values()];
+  }, [allPlans, planSearch, searchQuery, searchablePlans]);
 
   // Group allPlans by category
-  const plansByCategory = allPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
+  const plansByCategory = filteredPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
     const cat = plan.category ?? 'other';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(plan);
@@ -684,6 +618,21 @@ function FindPlansSection({
 
   return (
     <View style={styles.content}>
+      <View style={[styles.searchWrap, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}>
+        <Ionicons name="search" size={16} color={colors.secondaryText} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('readingPlans.searchPlansPlaceholder')}
+          placeholderTextColor={colors.secondaryText}
+          style={[styles.searchInput, { color: colors.primaryText }]}
+          accessibilityLabel={t('readingPlans.searchPlansPlaceholder')}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
       {/* Plan cards by category */}
       {categories.map((category) => {
         const plans = plansByCategory[category];
@@ -714,8 +663,13 @@ function FindPlansSection({
                     <CoverImage plan={plan} width={140} height={88} colors={colors} />
                     <View style={styles.planCardBody}>
                       <Text style={styles.planCardTitle} numberOfLines={2}>
-                        {t(plan.title_key as Parameters<typeof t>[0])}
+                        {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
                       </Text>
+                      {formatPlanCadenceLabel(plan, t) ? (
+                        <Text style={styles.planCadence} numberOfLines={1}>
+                          {formatPlanCadenceLabel(plan, t)}
+                        </Text>
+                      ) : null}
                       <View style={styles.planCardMeta}>
                         <View style={styles.durationBadge}>
                           <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
@@ -747,9 +701,11 @@ function FindPlansSection({
         );
       })}
 
-      {allPlans.length === 0 && (
+      {filteredPlans.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('readingPlans.noPlans')}</Text>
+          <Text style={styles.emptyText}>
+            {searchQuery.trim() ? t('readingPlans.noPlanSearchResults') : t('readingPlans.noPlans')}
+          </Text>
         </View>
       )}
     </View>
@@ -762,6 +718,20 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
       gap: spacing.xl,
+    },
+    searchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderRadius: radius.pill,
+      minHeight: 40,
+      paddingHorizontal: spacing.md,
+    },
+    searchInput: {
+      ...typography.body,
+      flex: 1,
+      paddingVertical: spacing.sm,
     },
     categorySection: {
       gap: spacing.md,
@@ -791,6 +761,10 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     planCardTitle: {
       ...typography.label,
       color: colors.primaryText,
+    },
+    planCadence: {
+      ...typography.micro,
+      color: colors.secondaryText,
     },
     planCardMeta: {
       flexDirection: 'row',
@@ -956,19 +930,8 @@ export function PlansHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
-  const { rhythmOrder, rhythmsById } = useReadingPlansStore(
-    useShallow((state) => ({
-      rhythmOrder: state.rhythmOrder,
-      rhythmsById: state.rhythmsById,
-    }))
-  );
-  const rhythms = useMemo(
-    () =>
-      rhythmOrder
-        .map((rhythmId) => rhythmsById[rhythmId] ?? null)
-        .filter((rhythm): rhythm is ReadingPlanRhythm => rhythm !== null),
-    [rhythmOrder, rhythmsById]
-  );
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningHistory = useLibraryStore((state) => state.history);
 
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
@@ -1037,17 +1000,6 @@ export function PlansHomeScreen() {
     }
   }, [t]);
 
-  const handleRhythmPress = useCallback(
-    (rhythmId: string) => {
-      navigation.navigate('RhythmDetail', { rhythmId });
-    },
-    [navigation]
-  );
-
-  const handleCreateRhythm = useCallback(() => {
-    navigation.navigate('RhythmComposer', {});
-  }, [navigation]);
-
   const handleAddPlan = useCallback(() => {
     setActiveTab('find-plans');
   }, []);
@@ -1111,10 +1063,9 @@ export function PlansHomeScreen() {
               <MyPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
-                rhythms={rhythms}
+                chaptersRead={chaptersRead}
+                listeningHistory={listeningHistory}
                 onAddPlan={handleAddPlan}
-                onRhythmPress={handleRhythmPress}
-                onCreateRhythm={handleCreateRhythm}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}
                 colors={colors}
@@ -1158,7 +1109,7 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tabSticky: {
       backgroundColor: colors.background,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
     },
     tabRow: {
       flexDirection: 'row',

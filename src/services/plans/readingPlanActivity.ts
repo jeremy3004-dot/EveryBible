@@ -1,14 +1,23 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { AudioPlaybackSequenceEntry } from '../../types';
 import type {
+  PlanSessionKey,
   ReadingPlanDayResume,
+  ReadingPlan,
   ReadingPlanEntry,
   ReadingPlanRhythm,
+  ReadingPlanRhythmItem,
   ReadingPlanRhythmSession,
   ReadingPlanRhythmSessionSegment,
   UserReadingPlanProgress,
 } from './types';
 import { formatLocalDateKey } from '../progress/readingActivity';
+import {
+  getActivePlanDayNumber,
+  getDaySessionEntries,
+  isCalendarDayOfMonthPlan,
+  isMultiSessionPlan,
+} from './readingPlanModel';
 
 export type PlanChapterActivitySource = 'read' | 'listen';
 
@@ -38,6 +47,21 @@ export interface PlanDayCompletionSummary {
 export interface CurrentPlanDaySummary {
   dayNumber: number;
   dateKey: string;
+  targetChapterKeys: string[];
+  completedChapterKeys: string[];
+  targetChapterCount: number;
+  completedChapterCount: number;
+  remainingChapterCount: number;
+  isComplete: boolean;
+  sessionSummaries: PlanDaySessionSummary[];
+  totalSessionCount: number;
+  completedSessionCount: number;
+  nextIncompleteSessionKey: PlanSessionKey | null;
+}
+
+export interface PlanDaySessionSummary {
+  sessionKey: PlanSessionKey;
+  title: string;
   targetChapterKeys: string[];
   completedChapterKeys: string[];
   targetChapterCount: number;
@@ -159,6 +183,19 @@ function getRhythmDayNumber(entries: ReadingPlanEntry[], progress?: UserReadingP
   return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;
 }
 
+function buildPassagePlaybackSequenceEntries(item: Extract<ReadingPlanRhythmItem, { type: 'passage' }>): AudioPlaybackSequenceEntry[] {
+  const playbackEntries: AudioPlaybackSequenceEntry[] = [];
+
+  for (let chapter = item.startChapter; chapter <= item.endChapter; chapter += 1) {
+    playbackEntries.push({
+      bookId: item.bookId,
+      chapter,
+    });
+  }
+
+  return playbackEntries;
+}
+
 export function buildRhythmReaderSession({
   rhythm,
   planEntriesById,
@@ -170,38 +207,70 @@ export function buildRhythmReaderSession({
   const chapterKeys: string[] = [];
   const playbackSequenceEntries: AudioPlaybackSequenceEntry[] = [];
 
-  for (const planId of rhythm.planIds) {
-    const entries = planEntriesById[planId] ?? [];
-    if (entries.length === 0) {
+  for (const item of rhythm.items) {
+    if (item.type === 'plan') {
+      const planId = item.planId;
+      const entries = planEntriesById[planId] ?? [];
+      if (entries.length === 0) {
+        continue;
+      }
+
+      const progress = progressByPlanId[planId] ?? null;
+      if (progress?.is_completed) {
+        continue;
+      }
+
+      const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
+      const dayEntries = getUniqueDayEntries(entries, dayNumber);
+      const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
+      if (segmentChapterKeys.length === 0) {
+        continue;
+      }
+
+      const segmentPlaybackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+      const startIndex = playbackSequenceEntries.length;
+      playbackSequenceEntries.push(...segmentPlaybackEntries);
+      chapterKeys.push(...segmentChapterKeys);
+      const endIndex = playbackSequenceEntries.length;
+
+      segments.push({
+        itemId: item.id,
+        type: 'plan',
+        title: planTitlesById[planId] ?? planId,
+        planId,
+        dayNumber,
+        startIndex,
+        endIndex,
+        chapterKeys: segmentChapterKeys,
+        isComplete: false,
+      });
       continue;
     }
 
-    const progress = progressByPlanId[planId] ?? null;
-    if (progress?.is_completed) {
+    const segmentPlaybackEntries = buildPassagePlaybackSequenceEntries(item);
+    if (segmentPlaybackEntries.length === 0) {
       continue;
     }
 
-    const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
-    const dayEntries = getUniqueDayEntries(entries, dayNumber);
-    const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
-    if (segmentChapterKeys.length === 0) {
-      continue;
-    }
-
-    const segmentPlaybackEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+    const segmentChapterKeys = segmentPlaybackEntries.map((entry) =>
+      buildChapterKey(entry.bookId, entry.chapter)
+    );
     const startIndex = playbackSequenceEntries.length;
     playbackSequenceEntries.push(...segmentPlaybackEntries);
     chapterKeys.push(...segmentChapterKeys);
     const endIndex = playbackSequenceEntries.length;
 
     segments.push({
-      planId,
-      planTitle: planTitlesById[planId] ?? planId,
-      dayNumber,
+      itemId: item.id,
+      type: 'passage',
+      title: item.title,
       startIndex,
       endIndex,
       chapterKeys: segmentChapterKeys,
       isComplete: false,
+      bookId: item.bookId,
+      startChapter: item.startChapter,
+      endChapter: item.endChapter,
     });
   }
 
@@ -209,15 +278,22 @@ export function buildRhythmReaderSession({
     type: 'rhythm',
     rhythmId: rhythm.id,
     title: rhythm.title,
-    planIds: rhythm.planIds,
+    itemIds: rhythm.items.map((item) => item.id),
+    planIds: rhythm.items
+      .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+      .map((item) => item.planId),
     chapterKeys,
     segments,
   };
 
   const startSegment = resolveFirstIncompleteRhythmSessionSegment(sessionContext, progressByPlanId);
+  const startPlanId = startSegment?.type === 'plan' ? startSegment.planId : null;
   const startResume =
-    startSegment && getPlanDayResume
-      ? getPlanDayResume(startSegment.planId, startSegment.dayNumber)
+    startSegment?.type === 'plan' &&
+    typeof startPlanId === 'string' &&
+    getPlanDayResume &&
+    typeof startSegment.dayNumber === 'number'
+      ? getPlanDayResume(startPlanId, startSegment.dayNumber)
       : null;
   const startEntry =
     startSegment && startSegment.startIndex < playbackSequenceEntries.length
@@ -245,10 +321,12 @@ export function resolveFirstIncompleteRhythmSessionSegment(
   resumePlanId?: string | null
 ): ReadingPlanRhythmSessionSegment | null {
   const isIncomplete = (segment: ReadingPlanRhythmSessionSegment): boolean =>
-    !(progressByPlanId[segment.planId]?.is_completed ?? false);
+    segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);
 
   if (resumePlanId) {
-    const preferredSegment = session.segments.find((segment) => segment.planId === resumePlanId);
+    const preferredSegment = session.segments.find(
+      (segment) => segment.type === 'plan' && segment.planId === resumePlanId
+    );
     if (preferredSegment && isIncomplete(preferredSegment)) {
       return preferredSegment;
     }
@@ -316,14 +394,17 @@ export function getReadingPlanRhythmSummary({
   rhythm: ReadingPlanRhythm;
   progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>;
 }): ReadingPlanRhythmSummary {
-  const completedPlanCount = rhythm.planIds.filter(
+  const planIds = rhythm.items
+    .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+    .map((item) => item.planId);
+  const completedPlanCount = planIds.filter(
     (planId) => progressByPlanId[planId]?.is_completed === true
   ).length;
 
   return {
-    planCount: rhythm.planIds.length,
+    planCount: planIds.length,
     completedPlanCount,
-    remainingPlanCount: Math.max(rhythm.planIds.length - completedPlanCount, 0),
+    remainingPlanCount: Math.max(planIds.length - completedPlanCount, 0),
   };
 }
 
@@ -448,15 +529,30 @@ export function formatScheduledPlanDayLabel(startedAt: string, dayNumber: number
   });
 }
 
+function getPlanDayDateKey(
+  plan: ReadingPlan | null | undefined,
+  progress: UserReadingPlanProgress,
+  dayNumber: number,
+  today: Date
+): string {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return formatLocalDateKey(today);
+  }
+
+  return getScheduledPlanDayDateKey(progress.started_at, dayNumber);
+}
+
 export function getCurrentPlanDaySummary({
+  plan,
   entries,
   progress,
   chaptersRead,
   listeningHistory,
-  dayNumber = progress.current_day,
+  dayNumber,
   today = new Date(),
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
 }: {
+  plan?: ReadingPlan | null;
   entries: ReadingPlanEntry[];
   progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
@@ -465,7 +561,10 @@ export function getCurrentPlanDaySummary({
   today?: Date;
   listenCompletionThreshold?: number;
 }): CurrentPlanDaySummary {
-  const summary = buildPlanDayCompletionSummary(entries, dayNumber, {
+  const resolvedDayNumber =
+    dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress.current_day);
+
+  const summary = buildPlanDayCompletionSummary(entries, resolvedDayNumber, {
     chaptersRead,
     listeningHistory,
     now: today,
@@ -475,10 +574,17 @@ export function getCurrentPlanDaySummary({
   const completedChapterCount = summary.completedActivity.filter((record) =>
     summary.targetChapterKeys.includes(record.chapterKey)
   ).length;
+  const sessionSummaries = buildPlanDaySessionSummaries(entries, resolvedDayNumber, {
+    chaptersRead,
+    listeningHistory,
+    now: today,
+    listenCompletionThreshold,
+  });
+  const completedSessionCount = sessionSummaries.filter((session) => session.isComplete).length;
 
   return {
-    dayNumber,
-    dateKey: getScheduledPlanDayDateKey(progress.started_at, dayNumber),
+    dayNumber: resolvedDayNumber,
+    dateKey: getPlanDayDateKey(plan, progress, resolvedDayNumber, today),
     targetChapterKeys: summary.targetChapterKeys,
     completedChapterKeys: summary.completedChapterKeys.filter((chapterKey) =>
       summary.targetChapterKeys.includes(chapterKey)
@@ -487,7 +593,43 @@ export function getCurrentPlanDaySummary({
     completedChapterCount,
     remainingChapterCount: Math.max(summary.targetChapterKeys.length - completedChapterCount, 0),
     isComplete: summary.isComplete,
+    sessionSummaries: isMultiSessionPlan(plan) ? sessionSummaries : [],
+    totalSessionCount: isMultiSessionPlan(plan) ? sessionSummaries.length : 0,
+    completedSessionCount: isMultiSessionPlan(plan) ? completedSessionCount : 0,
+    nextIncompleteSessionKey:
+      isMultiSessionPlan(plan)
+        ? sessionSummaries.find((session) => !session.isComplete)?.sessionKey ?? null
+        : null,
   };
+}
+
+function buildPlanDaySessionSummaries(
+  entries: ReadingPlanEntry[],
+  dayNumber: number,
+  input: MergeTodayChapterActivityInput
+): PlanDaySessionSummary[] {
+  return getDaySessionEntries(entries, dayNumber).map((sessionGroup) => {
+    const sessionCompletionSummary = buildPlanDayCompletionSummary(sessionGroup.entries, dayNumber, input);
+    const completedChapterCount = sessionCompletionSummary.completedActivity.filter((record) =>
+      sessionCompletionSummary.targetChapterKeys.includes(record.chapterKey)
+    ).length;
+
+    return {
+      sessionKey: sessionGroup.sessionKey,
+      title: sessionGroup.title,
+      targetChapterKeys: sessionCompletionSummary.targetChapterKeys,
+      completedChapterKeys: sessionCompletionSummary.completedChapterKeys.filter((chapterKey) =>
+        sessionCompletionSummary.targetChapterKeys.includes(chapterKey)
+      ),
+      targetChapterCount: sessionCompletionSummary.targetChapterKeys.length,
+      completedChapterCount,
+      remainingChapterCount: Math.max(
+        sessionCompletionSummary.targetChapterKeys.length - completedChapterCount,
+        0
+      ),
+      isComplete: sessionCompletionSummary.isComplete,
+    };
+  });
 }
 
 export function getPlanChapterListenStatus({

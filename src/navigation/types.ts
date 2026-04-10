@@ -2,7 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { AudioPlaybackSequenceEntry } from '../types';
-import type { RhythmSessionContext } from '../services/plans/types';
+import type { PlanSessionKey, RhythmSessionContext } from '../services/plans/types';
 
 // Home Stack
 export type HomeStackParamList = {
@@ -26,6 +26,7 @@ export type BibleStackParamList = {
     playbackSequenceEntries?: AudioPlaybackSequenceEntry[];
     planId?: string;
     planDayNumber?: number;
+    planSessionKey?: PlanSessionKey;
     returnToPlanOnComplete?: boolean;
     sessionContext?: RhythmSessionContext;
   };

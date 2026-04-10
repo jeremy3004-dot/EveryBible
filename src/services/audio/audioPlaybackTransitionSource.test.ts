@@ -68,7 +68,7 @@ test('reader chapter navigation keeps read mode separate from audio playback con
 
   assert.match(
     readerSource,
-    /navigation\.setParams\(\s*buildReaderChapterRouteParams\(\{\s*bookId:\s*activeAudioBookId \?\? bookId,\s*chapter:\s*activeAudioChapter,\s*preferredMode:\s*chapterSessionMode,\s*\}\)\s*\);/s,
+    /navigation\.setParams\(\s*buildReaderChapterRouteParams\(\{[\s\S]*bookId:\s*activeAudioBookId \?\? bookId,[\s\S]*chapter:\s*activeAudioChapter,[\s\S]*preferredMode:\s*chapterSessionMode,[\s\S]*\}\)\s*\);/s,
     'BibleReaderScreen should sync the active audio chapter into the reader route without replaying stale autoplay params'
   );
 

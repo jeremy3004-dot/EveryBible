@@ -321,7 +321,7 @@ export function PlaybackControls({
               onPress={onShowText}
               accessibilityRole="button"
               accessibilityLabel={showTextLabel ?? 'Show text'}
-              accessibilityHint="Opens the Bible text for the currently playing chapter"
+              accessibilityHint={t('audio.showTextHint')}
             >
               {renderTextUtilityIcon()}
             </TouchableOpacity>

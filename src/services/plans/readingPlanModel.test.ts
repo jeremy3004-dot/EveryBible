@@ -1,13 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildPlanSessionCompletionKey,
+  canSyncReadingPlanRemotely,
   computeNextDay,
+  getDaySessionEntries,
+  getPlanSessionOrder,
+  getActivePlanDayNumber,
+  getPlanCompletionEntryKey,
+  isCalendarDayOfMonthPlan,
+  isMultiSessionPlan,
   isPlanCompleted,
   mergePlanProgress,
   planCompletionPercent,
   reconcileFetchedPlanProgress,
+  getVisiblePlanDayNumbers,
 } from './readingPlanModel';
+import type { ReadingPlan } from './types';
 import type { UserReadingPlanProgress } from '../supabase/types';
+
+// ---------------------------------------------------------------------------
+// canSyncReadingPlanRemotely
+// ---------------------------------------------------------------------------
+
+test('canSyncReadingPlanRemotely only allows UUID-backed plan ids', () => {
+  assert.equal(canSyncReadingPlanRemotely('bible-in-30-days'), false);
+  assert.equal(canSyncReadingPlanRemotely('550e8400-e29b-41d4-a716-446655440000'), true);
+});
 
 // ---------------------------------------------------------------------------
 // computeNextDay
@@ -66,6 +85,232 @@ const makeProgress = (overrides: Partial<UserReadingPlanProgress>): UserReadingP
   completed_at: null,
   synced_at: '2026-03-01T00:00:00.000Z',
   ...overrides,
+});
+
+const makePlan = (overrides: Partial<ReadingPlan> = {}): ReadingPlan => ({
+  id: 'plan-1',
+  slug: 'plan-1',
+  title_key: 'readingPlans.plan1.title',
+  description_key: 'readingPlans.plan1.description',
+  duration_days: 31,
+  category: 'devotional',
+  is_active: true,
+  sort_order: 1,
+  coverKey: 'desert',
+  ...overrides,
+});
+
+test('isCalendarDayOfMonthPlan only enables the special recurring cadence when requested', () => {
+  assert.equal(isCalendarDayOfMonthPlan(makePlan()), false);
+  assert.equal(
+    isCalendarDayOfMonthPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })),
+    true
+  );
+});
+
+test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
+  const plan = makePlan({
+    duration_days: 31,
+    scheduleMode: 'calendar-day-of-month',
+  });
+  const progress = makeProgress({ current_day: 2 });
+
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-05T07:00:00.000Z')), 5);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-12-02T07:00:00.000Z')), 2);
+});
+
+test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapter', () => {
+  const plan = makePlan({
+    duration_days: 31,
+    scheduleMode: 'calendar-day-of-month',
+  });
+
+  const visibleDays = getVisiblePlanDayNumbers(
+    plan,
+    [
+      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
+      { id: 'day-10', plan_id: 'plan-1', day_number: 10, book: 'PRO', chapter_start: 10, chapter_end: null },
+      { id: 'day-31', plan_id: 'plan-1', day_number: 31, book: 'PRO', chapter_start: 31, chapter_end: null },
+    ],
+    undefined,
+    new Date('2026-04-10T07:00:00.000Z')
+  );
+
+  assert.deepEqual(visibleDays, [10]);
+});
+
+test('getVisiblePlanDayNumbers keeps sequential plans showing every available day', () => {
+  const plan = makePlan({ scheduleMode: 'relative' });
+
+  const visibleDays = getVisiblePlanDayNumbers(
+    plan,
+    [
+      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
+      { id: 'day-3', plan_id: 'plan-1', day_number: 3, book: 'PRO', chapter_start: 3, chapter_end: null },
+      { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PRO', chapter_start: 2, chapter_end: null },
+    ],
+    { current_day: 2 },
+    new Date('2026-04-10T07:00:00.000Z')
+  );
+
+  assert.deepEqual(visibleDays, [1, 2, 3]);
+});
+
+test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => {
+  const recurringPlan = makePlan({ scheduleMode: 'calendar-day-of-month' });
+  const sequentialPlan = makePlan({ scheduleMode: 'relative' });
+
+  assert.equal(
+    getPlanCompletionEntryKey(recurringPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
+    '2026-04-05'
+  );
+  assert.equal(
+    getPlanCompletionEntryKey(sequentialPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
+    '5'
+  );
+});
+
+test('isMultiSessionPlan only returns true for explicitly multi-session plans', () => {
+  assert.equal(isMultiSessionPlan(makePlan()), false);
+  assert.equal(
+    isMultiSessionPlan(
+      makePlan({
+        format: 'multi-session',
+        sessionOrder: ['morning', 'evening'],
+      })
+    ),
+    true
+  );
+});
+
+test('getPlanSessionOrder prefers plan metadata when it exists', () => {
+  const order = getPlanSessionOrder(
+    makePlan({
+      format: 'multi-session',
+      sessionOrder: ['morning', 'midday', 'evening'],
+    }),
+    [
+      {
+        id: 'day-1-evening',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 3,
+        book: 'PSA',
+        chapter_start: 141,
+        chapter_end: null,
+      },
+    ]
+  );
+
+  assert.deepEqual(order, ['morning', 'midday', 'evening']);
+});
+
+test('getPlanSessionOrder falls back to entry metadata order for multi-session plans', () => {
+  const order = getPlanSessionOrder(
+    makePlan({
+      format: 'multi-session',
+      sessionOrder: undefined,
+    }),
+    [
+      {
+        id: 'day-1-evening',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 2,
+        book: 'PSA',
+        chapter_start: 141,
+        chapter_end: null,
+      },
+      {
+        id: 'day-1-morning',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 63,
+        chapter_end: null,
+      },
+    ]
+  );
+
+  assert.deepEqual(order, ['morning', 'evening']);
+});
+
+test('getDaySessionEntries groups a day into ordered morning and evening buckets', () => {
+  const sessionGroups = getDaySessionEntries([
+    {
+      id: 'day-1-morning-1',
+      plan_id: 'plan-1',
+      day_number: 1,
+      session_key: 'morning',
+      session_title: 'Morning',
+      session_order: 1,
+      book: 'PSA',
+      chapter_start: 63,
+      chapter_end: null,
+    },
+    {
+      id: 'day-1-evening-1',
+      plan_id: 'plan-1',
+      day_number: 1,
+      session_key: 'evening',
+      session_title: 'Evening',
+      session_order: 2,
+      book: 'LUK',
+      chapter_start: 1,
+      chapter_end: null,
+    },
+    {
+      id: 'day-2-morning-1',
+      plan_id: 'plan-1',
+      day_number: 2,
+      session_key: 'morning',
+      session_title: 'Morning',
+      session_order: 1,
+      book: 'PSA',
+      chapter_start: 5,
+      chapter_end: null,
+    },
+  ], 1);
+
+  assert.deepEqual(
+    sessionGroups.map((group) => ({
+      sessionKey: group.sessionKey,
+      title: group.title,
+      chapterStarts: group.entries.map((entry) => entry.chapter_start),
+    })),
+    [
+      { sessionKey: 'morning', title: 'Morning', chapterStarts: [63] },
+      { sessionKey: 'evening', title: 'Evening', chapterStarts: [1] },
+    ]
+  );
+});
+
+test('buildPlanSessionCompletionKey uses the day number for relative plans and date keys for recurring plans', () => {
+  const relativePlan = makePlan({
+    format: 'multi-session',
+    sessionOrder: ['morning', 'evening'],
+  });
+  const recurringPlan = makePlan({
+    format: 'multi-session',
+    sessionOrder: ['morning', 'midday', 'evening'],
+    scheduleMode: 'calendar-day-of-month',
+  });
+
+  assert.equal(
+    buildPlanSessionCompletionKey(relativePlan, 4, 'morning', new Date('2026-04-10T07:00:00.000Z')),
+    '4:morning'
+  );
+  assert.equal(
+    buildPlanSessionCompletionKey(recurringPlan, 10, 'midday', new Date('2026-04-10T07:00:00.000Z')),
+    '2026-04-10:midday'
+  );
 });
 
 test('mergePlanProgress unions completed_entries from both sides', () => {
@@ -149,17 +394,16 @@ test('reconcileFetchedPlanProgress preserves a recent unsynced local enrollment 
     synced_at: '2026-04-08T10:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress(
-    [local],
-    [remote],
-    '2026-04-09T10:03:00.000Z'
-  );
+  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:03:00.000Z');
 
   assert.deepEqual(
     reconciled.map((progress) => progress.plan_id),
     ['plan-local-only', 'plan-remote']
   );
-  assert.equal(reconciled.find((progress) => progress.plan_id === 'plan-local-only')?.user_id, undefined);
+  assert.equal(
+    reconciled.find((progress) => progress.plan_id === 'plan-local-only')?.user_id,
+    undefined
+  );
 });
 
 test('reconcileFetchedPlanProgress drops stale local-only progress after the grace window', () => {
@@ -177,11 +421,7 @@ test('reconcileFetchedPlanProgress drops stale local-only progress after the gra
     synced_at: '2026-04-08T10:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress(
-    [local],
-    [remote],
-    '2026-04-09T10:10:01.000Z'
-  );
+  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:10:01.000Z');
 
   assert.deepEqual(
     reconciled.map((progress) => progress.plan_id),
@@ -205,11 +445,7 @@ test('reconcileFetchedPlanProgress merges matching local and remote plan rows', 
     synced_at: '2026-04-09T09:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress(
-    [local],
-    [remote],
-    '2026-04-09T10:00:00.000Z'
-  );
+  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:00:00.000Z');
 
   assert.equal(reconciled.length, 1);
   assert.deepEqual(Object.keys(reconciled[0].completed_entries), ['1', '2']);

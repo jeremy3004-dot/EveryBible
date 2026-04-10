@@ -11,10 +11,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
+import { getTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
+import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
 import { useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
 import { buildRhythmReaderSession, getCurrentPlanDaySummary } from '../../services/plans/readingPlanActivity';
 import { getPlanEntries, listReadingPlans } from '../../services/plans/readingPlanService';
@@ -68,13 +70,19 @@ function SegmentCard({
 }) {
   const completedCount = item.currentDaySummary?.completedChapterCount ?? 0;
   const targetCount = item.currentDaySummary?.targetChapterCount ?? item.segment.chapterKeys.length;
-  const progressLabel = item.progress?.is_completed
-    ? t('readingPlans.completed')
-    : t('readingPlans.todayTargetProgress', {
-        completed: completedCount,
-        target: targetCount,
-        defaultValue: `${completedCount}/${targetCount} chapters`,
-      });
+  const progressLabel =
+    item.segment.type === 'plan'
+      ? item.progress?.is_completed
+        ? t('readingPlans.completed')
+        : t('readingPlans.todayTargetProgress', {
+            completed: completedCount,
+            target: targetCount,
+            defaultValue: `${completedCount}/${targetCount} chapters`,
+          })
+      : t('readingPlans.chapterCount', {
+          count: targetCount,
+          defaultValue: `${targetCount} chapters`,
+        });
 
   return (
     <View style={[styles.segmentCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
@@ -87,22 +95,29 @@ function SegmentCard({
             {item.title}
           </Text>
           <Text style={[styles.segmentMeta, { color: colors.secondaryText }]}>
-            {t('readingPlans.dayOf', {
-              current: item.segment.dayNumber,
-              total: item.plan?.duration_days ?? item.segment.dayNumber,
-            })}
+            {item.segment.type === 'plan'
+              ? t('readingPlans.dayOf', {
+                  current: item.segment.dayNumber,
+                  total: item.plan?.duration_days ?? item.segment.dayNumber,
+                })
+              : t('readingPlans.repeatablePassage', { defaultValue: 'Repeatable passage' })}
           </Text>
         </View>
         <StatusPill
-          label={item.progress?.is_completed ? t('readingPlans.completed') : t('common.next', { defaultValue: 'Next' })}
+          label={
+            item.segment.type === 'plan' && item.progress?.is_completed
+              ? t('readingPlans.completed')
+              : t('common.next', { defaultValue: 'Next' })
+          }
           colors={colors}
-          variant={item.progress?.is_completed ? 'success' : 'accent'}
+          variant={item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'}
         />
       </View>
 
       <View style={styles.segmentMetaRow}>
         <StatusPill
-          label={t('readingPlans.rhythmDaySummary', {
+          label={t('readingPlans.chapterCount', {
+            count: item.segment.chapterKeys.length,
             defaultValue: `${item.segment.chapterKeys.length} chapters`,
           })}
           colors={colors}
@@ -116,6 +131,17 @@ function SegmentCard({
             completed: item.currentDaySummary.completedChapterCount,
             target: item.currentDaySummary.targetChapterCount,
             defaultValue: `Today's target: ${item.currentDaySummary.completedChapterCount}/${item.currentDaySummary.targetChapterCount} chapters`,
+          })}
+        </Text>
+      ) : item.segment.type === 'passage' ? (
+        <Text style={[styles.segmentBody, { color: colors.secondaryText }]}>
+          {t('readingPlans.passageRangeSummary', {
+            start: item.segment.startChapter ?? 1,
+            end: item.segment.endChapter ?? item.segment.startChapter ?? 1,
+            defaultValue:
+              item.segment.startChapter === item.segment.endChapter
+                ? `Chapter ${item.segment.startChapter ?? 1}`
+                : `Chapters ${item.segment.startChapter ?? 1}-${item.segment.endChapter ?? item.segment.startChapter ?? 1}`,
           })}
         </Text>
       ) : null}
@@ -140,6 +166,13 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
   const getRhythm = useReadingPlansStore((state) => state.getRhythm);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
   const rhythm = getRhythm(rhythmId);
+  const relevantPlanIds = useMemo(
+    () =>
+      rhythm?.items
+        .filter((item): item is Extract<(typeof rhythm.items)[number], { type: 'plan' }> => item.type === 'plan')
+        .map((item) => item.planId) ?? [],
+    [rhythm]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -162,10 +195,6 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       setAllPlans(plansResult.data);
 
       const planMap: Record<string, ReadingPlanEntry[]> = {};
-      const relevantPlanIds = (plansResult.data ?? [])
-        .filter((plan) => rhythm?.planIds.includes(plan.id))
-        .map((plan) => plan.id);
-
       const entryResults = await Promise.all(
         relevantPlanIds.map(async (planId) => [planId, await getPlanEntries(planId)] as const)
       );
@@ -187,7 +216,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     return () => {
       mounted = false;
     };
-  }, [rhythm?.planIds, t]);
+  }, [relevantPlanIds, t]);
 
   const planTitleById = useMemo(
     () =>
@@ -217,10 +246,12 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     }
 
     return session.sessionContext.segments.map((segment) => {
-      const entries = planEntriesById[segment.planId] ?? [];
-      const progress = progressByPlanId[segment.planId] ?? null;
+      const entries = segment.planId ? planEntriesById[segment.planId] ?? [] : [];
+      const progress = segment.planId ? progressByPlanId[segment.planId] ?? null : null;
+      const segmentPlan = segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null;
       const currentDaySummary = progress
         ? getCurrentPlanDaySummary({
+            plan: segmentPlan,
             entries,
             progress,
             chaptersRead,
@@ -231,20 +262,32 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
       return {
         segment,
-        plan: allPlans.find((plan) => plan.id === segment.planId) ?? null,
+        plan: segmentPlan,
         entries,
         progress,
         currentDaySummary,
-        title: planTitleById[segment.planId] ?? segment.planTitle,
+        title:
+          segment.type === 'plan'
+            ? planTitleById[segment.planId ?? ''] ?? segment.title
+            : segment.title ||
+              (segment.bookId
+                ? segment.startChapter === segment.endChapter
+                  ? `${getTranslatedBookName(segment.bookId, t)} ${segment.startChapter}`
+                  : `${getTranslatedBookName(segment.bookId, t)} ${segment.startChapter}-${segment.endChapter}`
+                : ''),
       };
     });
-  }, [allPlans, chaptersRead, listeningHistory, planEntriesById, planTitleById, progressByPlanId, rhythm, session]);
+  }, [allPlans, chaptersRead, listeningHistory, planEntriesById, planTitleById, progressByPlanId, rhythm, session, t]);
 
-  const completedPlanCount = rhythm
-    ? rhythm.planIds.filter((planId) => progressByPlanId[planId]?.is_completed).length
-    : 0;
-  const totalPlanCount = rhythm?.planIds.length ?? 0;
+  const rhythmPlanIds = relevantPlanIds;
+  const completedPlanCount = rhythmPlanIds.filter((planId) => progressByPlanId[planId]?.is_completed).length;
+  const totalPlanCount = rhythmPlanIds.length;
+  const totalItemCount = rhythm?.items.length ?? 0;
   const hasActiveSegments = Boolean(session && session.playbackSequenceEntries.length > 0 && session.startEntry && session.startSegment);
+  const slotPresentation = useMemo(() => {
+    const slot = rhythm?.slot ?? inferRhythmSlotFromTitle(rhythm?.title);
+    return slot ? RHYTHM_SLOT_META[slot] : null;
+  }, [rhythm?.slot, rhythm?.title]);
 
   const handleEdit = useCallback(() => {
     navigation.navigate('RhythmComposer', { rhythmId });
@@ -262,8 +305,9 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         chapter: session.startEntry.chapter,
         preferredMode: 'read',
         playbackSequenceEntries: session.playbackSequenceEntries,
-        planId: session.startSegment.planId,
-        planDayNumber: session.startSegment.dayNumber,
+        planId: session.startSegment.type === 'plan' ? session.startSegment.planId : undefined,
+        planDayNumber:
+          session.startSegment.type === 'plan' ? session.startSegment.dayNumber : undefined,
         returnToPlanOnComplete: true,
         sessionContext: session.sessionContext,
       },
@@ -320,8 +364,19 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
             <Text style={[styles.title, { color: colors.primaryText }]} numberOfLines={2}>
               {rhythm.title}
             </Text>
+            {slotPresentation ? (
+              <View style={[styles.slotBadge, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}>
+                <Ionicons name={slotPresentation.iconName} size={14} color={colors.accentPrimary} />
+                <Text style={[styles.slotBadgeLabel, { color: colors.primaryText }]}>
+                  {t(slotPresentation.labelKey)}
+                </Text>
+              </View>
+            ) : null}
             <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
-              {t('readingPlans.rhythmPlanCount', { count: totalPlanCount })}
+              {t('readingPlans.rhythmItemCount', {
+                count: totalItemCount,
+                defaultValue: `${totalItemCount} items`,
+              })}
             </Text>
           </View>
           <TouchableOpacity
@@ -336,9 +391,9 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         <View style={[styles.summaryCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>{totalPlanCount}</Text>
+              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>{totalItemCount}</Text>
               <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
-                {t('readingPlans.includedPlans')}
+                {t('readingPlans.includedItems', { defaultValue: 'Included items' })}
               </Text>
             </View>
             <View style={styles.summaryStat}>
@@ -362,11 +417,19 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
               ? t('readingPlans.continueRhythm')
               : t('readingPlans.noRhythmsBody')}
           </Text>
+          {segmentViewModels[0] ? (
+            <Text style={[styles.summaryNext, { color: colors.accentPrimary }]}>
+              {t('readingPlans.nextUp', {
+                value: segmentViewModels[0].title,
+                defaultValue: `Next up: ${segmentViewModels[0].title}`,
+              })}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
-            {t('readingPlans.rhythmDaySummary')}
+            {t('readingPlans.rhythmSequence', { defaultValue: 'Rhythm sequence' })}
           </Text>
           <TouchableOpacity
             onPress={handleContinue}
@@ -398,7 +461,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         ) : (
           <View style={styles.segmentList}>
             {segmentViewModels.map((item) => (
-              <SegmentCard key={item.segment.planId} item={item} colors={colors} t={t} />
+              <SegmentCard key={item.segment.itemId} item={item} colors={colors} t={t} />
             ))}
           </View>
         )}
@@ -469,6 +532,19 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
   },
+  slotBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 30,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+  },
+  slotBadgeLabel: {
+    ...typography.micro,
+  },
   editButton: {
     width: 40,
     height: 40,
@@ -501,6 +577,9 @@ const styles = StyleSheet.create({
   },
   summaryBody: {
     ...typography.body,
+  },
+  summaryNext: {
+    ...typography.bodyStrong,
   },
   sectionHeader: {
     flexDirection: 'row',

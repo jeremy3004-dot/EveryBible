@@ -182,8 +182,8 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /const showPlanCompletionAction = chapterSessionMode === 'read' && isLastPlanChapter;/,
-    'BibleReaderScreen should keep the complete-day action read-only and leave listen mode on the chevron-forward path'
+    /getPlanSessionTrailingActionState\(\{/,
+    'BibleReaderScreen should derive the trailing plan-strip action from a shared model helper'
   );
   assert.match(
     source,
