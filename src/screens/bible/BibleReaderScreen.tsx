@@ -127,6 +127,7 @@ import {
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
   getListenCountedNoticeViewModel,
+  getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
   getInitialChapterSessionMode,
@@ -2613,10 +2614,13 @@ export function BibleReaderScreen() {
     const showPlanChapterArrows = chapterSessionMode === 'read' || chapterSessionMode === 'listen';
     const showPlanPreviousChapterButton =
       chapterSessionMode === 'read' ? true : hasPrevChapter;
-    const showPlanCompletionAction = chapterSessionMode === 'read' && isLastPlanChapter;
-    const trailingActionEnabled = showPlanCompletionAction
-      ? Boolean(activePlanDaySummary?.isComplete)
-      : hasNextChapter;
+    const trailingActionState = getPlanSessionTrailingActionState({
+      isLastPlanChapter,
+      isPlanDayComplete: Boolean(activePlanDaySummary?.isComplete),
+      hasNextChapter,
+    });
+    const showPlanCompletionAction = trailingActionState.showCompletionAction;
+    const trailingActionEnabled = trailingActionState.isEnabled;
     const trailingActionLabel = showPlanCompletionAction
       ? t('readingPlans.completeDayCta', {
           defaultValue: 'Complete day',

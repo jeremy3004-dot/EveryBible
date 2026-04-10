@@ -5,6 +5,7 @@ import {
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   getNextBibleTabBarVisibility,
   getListenCountedNoticeViewModel,
+  getPlanSessionTrailingActionState,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
   isReaderChromeCollapsed,
@@ -23,6 +24,21 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
+
+test('uses the plan completion action on the final plan chapter even while listening', () => {
+  assert.deepEqual(
+    getPlanSessionTrailingActionState({
+      isLastPlanChapter: true,
+      isPlanDayComplete: true,
+      hasNextChapter: true,
+    }),
+    {
+      showCompletionAction: true,
+      isEnabled: true,
+      iconName: 'checkmark',
+    }
+  );
+});
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {
   assert.equal(getReaderChromeAnimationProgress(-24, 120), 0);

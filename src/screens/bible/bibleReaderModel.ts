@@ -17,6 +17,12 @@ export interface ListenCountedNoticeViewModel {
   text: string;
 }
 
+export interface PlanSessionTrailingActionState {
+  showCompletionAction: boolean;
+  isEnabled: boolean;
+  iconName: 'checkmark' | 'chevron-forward';
+}
+
 interface ReaderChapterRouteParamsInput {
   bookId: string;
   chapter: number;
@@ -196,6 +202,30 @@ export const getListenCountedNoticeViewModel = (
     testID: LISTEN_COUNTED_NOTICE_TEST_ID,
     accessibilityLabel: trimmedNotice,
     text: trimmedNotice,
+  };
+};
+
+export const getPlanSessionTrailingActionState = ({
+  isLastPlanChapter,
+  isPlanDayComplete,
+  hasNextChapter,
+}: {
+  isLastPlanChapter: boolean;
+  isPlanDayComplete: boolean;
+  hasNextChapter: boolean;
+}): PlanSessionTrailingActionState => {
+  if (isLastPlanChapter) {
+    return {
+      showCompletionAction: true,
+      isEnabled: isPlanDayComplete,
+      iconName: 'checkmark',
+    };
+  }
+
+  return {
+    showCompletionAction: false,
+    isEnabled: hasNextChapter,
+    iconName: 'chevron-forward',
   };
 };
 
