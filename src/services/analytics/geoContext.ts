@@ -44,7 +44,7 @@ function normalizeCoordinate(value: unknown): number | null {
 }
 
 export async function resolveGeoContext(): Promise<GeoContext | null> {
-  if (cachedGeoContext !== undefined) {
+  if (cachedGeoContext) {
     return cachedGeoContext;
   }
 
@@ -107,8 +107,16 @@ export async function resolveGeoContext(): Promise<GeoContext | null> {
     })();
   }
 
-  cachedGeoContext = await geoLookupPromise;
-  return cachedGeoContext;
+  const resolvedGeoContext = await geoLookupPromise;
+
+  // Only cache successful geo lookups. A transient network miss during startup
+  // should not force the rest of the session onto the noisier server-side IP
+  // fallback, which can smear one user's heatmap across multiple locations.
+  if (resolvedGeoContext) {
+    cachedGeoContext = resolvedGeoContext;
+  }
+
+  return resolvedGeoContext;
 }
 
 export function attachGeoContext<T extends GeoAttachableEvent>(

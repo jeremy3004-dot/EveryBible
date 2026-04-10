@@ -761,7 +761,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
 
   return {
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
-    activeLocationCount: Number(overview.activeLocationCount ?? locationMetrics.length),
+    activeLocationCount: locationMetrics.length,
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
     countryMetrics,
     dailyDownloadUnits: (overview.dailyDownloadUnits ?? []).map((point) => ({

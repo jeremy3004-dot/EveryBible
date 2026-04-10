@@ -73,6 +73,13 @@ function roundToSingleDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+const APPROXIMATE_LOCATION_BUCKET_DECIMALS = 1;
+
+function roundCoordinateToBucket(value: number): number {
+  const factor = 10 ** APPROXIMATE_LOCATION_BUCKET_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
 function compareCountryMetrics(left: CountryMetric, right: CountryMetric): number {
   if (right.listeningMinutes !== left.listeningMinutes) {
     return right.listeningMinutes - left.listeningMinutes;
@@ -389,28 +396,54 @@ export function buildTranslationBreakdown(
 export function mapLocationRollupsToMetrics(
   locationRollups: LocationMetricRollup[]
 ): CountryMetric[] {
-  return locationRollups
-    .map((rollup): CountryMetric | null => {
-      // Use the actual lat/lng from the event when available.
-      const hasCoords = rollup.latitude != null && rollup.longitude != null;
-      const geography = getCountryGeography(rollup.countryCode);
-      const latitude = hasCoords ? (rollup.latitude as number) : geography?.latitude;
-      const longitude = hasCoords ? (rollup.longitude as number) : geography?.longitude;
+  const bucketedMetrics = new Map<string, CountryMetric>();
 
-      if (latitude == null || longitude == null) {
-        return null;
-      }
+  for (const rollup of locationRollups) {
+    const hasCoords = rollup.latitude != null && rollup.longitude != null;
+    const geography = getCountryGeography(rollup.countryCode, rollup.countryName);
+    const latitude = hasCoords ? (rollup.latitude as number) : geography?.latitude;
+    const longitude = hasCoords ? (rollup.longitude as number) : geography?.longitude;
 
-      return {
-        code: geography?.code ?? `${latitude.toFixed(2)},${longitude.toFixed(2)}`,
-        downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
-        latitude,
-        listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
-        listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
-        longitude,
-        name: geography?.name ?? rollup.countryName ?? 'Unknown location',
-      };
-    })
-    .filter((metric): metric is CountryMetric => metric !== null)
-    .sort(compareCountryMetrics);
+    if (latitude == null || longitude == null) {
+      continue;
+    }
+
+    // The admin map is built from privacy-safe approximate IP geolocation, not
+    // device GPS. Bucket nearby points so mobile-network jitter does not make a
+    // single stationary listener look like several distinct heatmap hotspots.
+    const bucketLatitude = roundCoordinateToBucket(latitude);
+    const bucketLongitude = roundCoordinateToBucket(longitude);
+    const bucketKey = [
+      geography?.code ?? rollup.countryCode ?? 'UNKNOWN',
+      bucketLatitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
+      bucketLongitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
+    ].join(':');
+
+    const listeningMinutes = roundToSingleDecimal(Number(rollup.listeningMinutes) || 0);
+    const downloadUnits = Math.max(0, Math.round(Number(rollup.downloadUnits) || 0));
+    const listenerCount = Math.max(0, Math.round(Number(rollup.listenerCount) || 0));
+
+    const existing = bucketedMetrics.get(bucketKey);
+    if (existing) {
+      existing.listeningMinutes = roundToSingleDecimal(existing.listeningMinutes + listeningMinutes);
+      existing.downloadUnits += downloadUnits;
+      // Rollups are already deduped upstream per raw coordinate, so when we
+      // merge nearby approximate buckets client-side we keep the conservative
+      // maximum instead of summing and risking duplicate-listener inflation.
+      existing.listenerCount = Math.max(existing.listenerCount, listenerCount);
+      continue;
+    }
+
+    bucketedMetrics.set(bucketKey, {
+      code: geography?.code ?? bucketKey,
+      downloadUnits,
+      latitude: bucketLatitude,
+      listenerCount,
+      listeningMinutes,
+      longitude: bucketLongitude,
+      name: geography?.name ?? rollup.countryName ?? 'Unknown location',
+    });
+  }
+
+  return Array.from(bucketedMetrics.values()).sort(compareCountryMetrics);
 }
