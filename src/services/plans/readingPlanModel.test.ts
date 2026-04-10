@@ -10,6 +10,7 @@ import {
   mergePlanProgress,
   planCompletionPercent,
   reconcileFetchedPlanProgress,
+  getVisiblePlanDayNumbers,
 } from './readingPlanModel';
 import type { ReadingPlan } from './types';
 import type { UserReadingPlanProgress } from '../supabase/types';
@@ -108,6 +109,43 @@ test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
 
   assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-05T07:00:00.000Z')), 5);
   assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-12-02T07:00:00.000Z')), 2);
+});
+
+test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapter', () => {
+  const plan = makePlan({
+    duration_days: 31,
+    scheduleMode: 'calendar-day-of-month',
+  });
+
+  const visibleDays = getVisiblePlanDayNumbers(
+    plan,
+    [
+      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
+      { id: 'day-10', plan_id: 'plan-1', day_number: 10, book: 'PRO', chapter_start: 10, chapter_end: null },
+      { id: 'day-31', plan_id: 'plan-1', day_number: 31, book: 'PRO', chapter_start: 31, chapter_end: null },
+    ],
+    undefined,
+    new Date('2026-04-10T07:00:00.000Z')
+  );
+
+  assert.deepEqual(visibleDays, [10]);
+});
+
+test('getVisiblePlanDayNumbers keeps sequential plans showing every available day', () => {
+  const plan = makePlan({ scheduleMode: 'relative' });
+
+  const visibleDays = getVisiblePlanDayNumbers(
+    plan,
+    [
+      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
+      { id: 'day-3', plan_id: 'plan-1', day_number: 3, book: 'PRO', chapter_start: 3, chapter_end: null },
+      { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PRO', chapter_start: 2, chapter_end: null },
+    ],
+    { current_day: 2 },
+    new Date('2026-04-10T07:00:00.000Z')
+  );
+
+  assert.deepEqual(visibleDays, [1, 2, 3]);
 });
 
 test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => {

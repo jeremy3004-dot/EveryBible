@@ -1,4 +1,4 @@
-import type { ReadingPlan, UserReadingPlanProgress } from './types';
+import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from './types';
 
 const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const UUID_PLAN_ID_PATTERN =
@@ -37,6 +37,24 @@ export function getActivePlanDayNumber(
   }
 
   return Math.max(progress?.current_day ?? 1, 1);
+}
+
+export function getVisiblePlanDayNumbers(
+  plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'> | null | undefined,
+  entries: ReadingPlanEntry[],
+  progress?: Pick<UserReadingPlanProgress, 'current_day'> | null,
+  today: Date = new Date()
+): number[] {
+  const uniqueDayNumbers = Array.from(new Set(entries.map((entry) => entry.day_number))).sort(
+    (left, right) => left - right
+  );
+
+  if (!isCalendarDayOfMonthPlan(plan)) {
+    return uniqueDayNumbers;
+  }
+
+  const activeDayNumber = getActivePlanDayNumber(plan!, progress, today);
+  return uniqueDayNumbers.includes(activeDayNumber) ? [activeDayNumber] : uniqueDayNumbers;
 }
 
 export function getPlanCompletionEntryKey(

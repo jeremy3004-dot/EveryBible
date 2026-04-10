@@ -34,6 +34,7 @@ import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAsset
 import {
   getActivePlanDayNumber,
   isCalendarDayOfMonthPlan,
+  getVisiblePlanDayNumbers,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
@@ -507,9 +508,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const [error, setError] = useState<string | null>(null);
 
   const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
-  const sortedDays = React.useMemo(
-    () => Array.from(entriesByDay.keys()).sort((a, b) => a - b),
-    [entriesByDay]
+  const today = React.useMemo(() => new Date(), []);
+  const visibleDayNumbers = React.useMemo(
+    () => getVisiblePlanDayNumbers(plan, entries, progress, today),
+    [entries, plan, progress, today]
   );
 
   const load = useCallback(async () => {
@@ -551,7 +553,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [load]);
 
-  const currentDay = plan && progress ? getActivePlanDayNumber(plan, progress) : progress?.current_day ?? 1;
+  const currentDay = plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1;
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const currentDaySummary = React.useMemo(() => {
@@ -565,8 +567,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       progress,
       chaptersRead,
       listeningHistory,
+      today,
     });
-  }, [chaptersRead, entries, listeningHistory, plan, progress]);
+  }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
   const isEnrolled = progress !== null;
 
   const handleOpenChapter = useCallback(async (entry: ReadingPlanEntry, dayNumber: number) => {
@@ -767,7 +770,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           ) : null}
 
           {/* Day rows */}
-          {sortedDays.map((dayNumber) => {
+          {visibleDayNumbers.map((dayNumber) => {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
             const isCompleted = progress
               ? isCalendarDayOfMonthPlan(plan)
