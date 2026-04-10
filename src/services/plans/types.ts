@@ -5,6 +5,8 @@ export type ReadingPlanCategory =
   | 'devotional'
   | 'custom';
 
+export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month';
+
 export type ReadingPlansTabKey = 'myPlans' | 'findPlans' | 'savedPlans' | 'completedPlans';
 export type ReadingPlanCoverKey =
   | 'dunes'
@@ -47,6 +49,8 @@ export interface ReadingPlan {
   featured?: boolean;
   completion_count?: number;
   created_at?: string;
+  scheduleMode?: ReadingPlanScheduleMode;
+  repeatsMonthly?: boolean;
 }
 
 export interface ReadingPlanEntry {
@@ -195,6 +199,11 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
   clearPlanDayResume: (planId: string, dayNumber: number) => void;
   markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
+  markRecurringDayComplete: (
+    planId: string,
+    completionKey: string,
+    dayNumber: number
+  ) => ReadingPlanProgress | null;
   unenrollPlan: (planId: string) => void;
   getProgress: (planId: string) => ReadingPlanProgress | null;
   assignGroupPlan: (groupId: string, planId: string, assignedBy?: string) => GroupReadingPlan;

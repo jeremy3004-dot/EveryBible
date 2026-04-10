@@ -24,9 +24,21 @@ test('reading plan catalog and entries come from bundled local data', () => {
 });
 
 test('reading plan service exports plans-screen helper queries', () => {
-  assert.match(source, /export async function getSavedPlans/, 'saved-plans helper should be exported');
-  assert.match(source, /export async function getCompletedPlans/, 'completed-plans helper should be exported');
-  assert.match(source, /export async function getFeaturedPlans/, 'featured-plans helper should be exported');
+  assert.match(
+    source,
+    /export async function getSavedPlans/,
+    'saved-plans helper should be exported'
+  );
+  assert.match(
+    source,
+    /export async function getCompletedPlans/,
+    'completed-plans helper should be exported'
+  );
+  assert.match(
+    source,
+    /export async function getFeaturedPlans/,
+    'featured-plans helper should be exported'
+  );
   assert.match(
     source,
     /export async function getTimedChallengePlans/,
@@ -44,5 +56,18 @@ test('signed-in reading plan fetch reconciles local and remote plan progress bef
     source,
     /if \(planId\) \{[\s\S]*upsertProgress[\s\S]*\} else \{[\s\S]*replaceProgress\(reconciledProgress\)/,
     'full progress fetches should replace store state with reconciled plan progress instead of the raw remote list'
+  );
+});
+
+test('slug-backed bundled plans stay local-first for sync and delete operations', () => {
+  assert.match(
+    source,
+    /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true, data: localProgress \};\s*\}/s,
+    'enrolling a bundled slug-backed plan should short-circuit before attempting a remote UUID upsert'
+  );
+  assert.match(
+    source,
+    /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true \};\s*\}/s,
+    'unenrolling a bundled slug-backed plan should short-circuit before attempting a remote UUID delete'
   );
 });

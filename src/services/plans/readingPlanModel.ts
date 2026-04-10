@@ -1,11 +1,51 @@
-import type { UserReadingPlanProgress } from './types';
+import type { ReadingPlan, UserReadingPlanProgress } from './types';
 
 const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
+const UUID_PLAN_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const formatLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // ---------------------------------------------------------------------------
 // Pure model functions for reading plan progress — no Supabase dependency.
 // These are extracted so they can be unit-tested without network or auth.
 // ---------------------------------------------------------------------------
+
+export function canSyncReadingPlanRemotely(planId: string): boolean {
+  return UUID_PLAN_ID_PATTERN.test(planId.trim());
+}
+
+export function isCalendarDayOfMonthPlan(
+  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
+): boolean {
+  return plan?.scheduleMode === 'calendar-day-of-month';
+}
+
+export function getActivePlanDayNumber(
+  plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
+  progress?: Pick<UserReadingPlanProgress, 'current_day'> | null,
+  today: Date = new Date()
+): number {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    const maxDay = plan.duration_days > 0 ? plan.duration_days : today.getDate();
+    return Math.min(Math.max(today.getDate(), 1), maxDay);
+  }
+
+  return Math.max(progress?.current_day ?? 1, 1);
+}
+
+export function getPlanCompletionEntryKey(
+  plan: Pick<ReadingPlan, 'scheduleMode'>,
+  dayNumber: number,
+  today: Date = new Date()
+): string {
+  return isCalendarDayOfMonthPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
+}
 
 /**
  * Computes the next current_day after completing dayNumber.
@@ -88,7 +128,9 @@ export function reconcileFetchedPlanProgress(
   graceMs: number = UNSYNCED_LOCAL_PROGRESS_GRACE_MS
 ): UserReadingPlanProgress[] {
   const localByPlanId = new Map(localProgressList.map((progress) => [progress.plan_id, progress]));
-  const remoteByPlanId = new Map(remoteProgressList.map((progress) => [progress.plan_id, progress]));
+  const remoteByPlanId = new Map(
+    remoteProgressList.map((progress) => [progress.plan_id, progress])
+  );
 
   const reconciledProgress = remoteProgressList.map((remoteProgress) => {
     const localProgress = localByPlanId.get(remoteProgress.plan_id);
@@ -112,10 +154,7 @@ export function reconcileFetchedPlanProgress(
  * Returns a percentage (0–100) representing how far through a plan the user is.
  * Returns 0 when durationDays is 0 or negative.
  */
-export function planCompletionPercent(
-  completedCount: number,
-  durationDays: number
-): number {
+export function planCompletionPercent(completedCount: number, durationDays: number): number {
   if (durationDays <= 0) {
     return 0;
   }

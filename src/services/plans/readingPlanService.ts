@@ -1,6 +1,15 @@
-import { readingPlanEntriesByPlanId, readingPlans, readingPlansById } from '../../data/readingPlans.generated';
+import {
+  readingPlanEntriesByPlanId,
+  readingPlans,
+  readingPlansById,
+} from '../../data/readingPlans.generated';
 import { readingPlansStore, type ReadingPlansStoreApi } from '../../stores/readingPlansStore';
-import { reconcileFetchedPlanProgress } from './readingPlanModel';
+import {
+  canSyncReadingPlanRemotely,
+  getPlanCompletionEntryKey,
+  isCalendarDayOfMonthPlan,
+  reconcileFetchedPlanProgress,
+} from './readingPlanModel';
 import type {
   GroupReadingPlan,
   ReadingPlan,
@@ -25,10 +34,7 @@ export interface ReadingPlanService {
   ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
   getUserPlanProgress(planId?: string): Promise<PlanServiceResult<UserReadingPlanProgress[]>>;
   unenrollFromPlan(planId: string): Promise<PlanServiceResult>;
-  assignPlanToGroup(
-    planId: string,
-    groupId: string
-  ): Promise<PlanServiceResult<GroupReadingPlan>>;
+  assignPlanToGroup(planId: string, groupId: string): Promise<PlanServiceResult<GroupReadingPlan>>;
   getGroupPlans(groupId: string): Promise<PlanServiceResult<GroupReadingPlan[]>>;
   syncPlanProgress(
     localProgress: UserReadingPlanProgress[]
@@ -46,6 +52,9 @@ const TIMED_CHALLENGE_PLAN_IDS = new Set([
   'gospels-30-days',
   'acts-28-days',
 ]);
+const REMOTE_SYNCABLE_PLAN_IDS = new Set(
+  readingPlans.filter((plan) => canSyncReadingPlanRemotely(plan.id)).map((plan) => plan.id)
+);
 
 let supabaseModulePromise: Promise<typeof import('../supabase')> | null = null;
 
@@ -65,12 +74,28 @@ function getSortedPlans(): ReadingPlan[] {
   return [...readingPlans].sort((left, right) => left.sort_order - right.sort_order);
 }
 
+function shouldSyncPlanProgressRemotely(planId?: string): boolean {
+  if (planId) {
+    return REMOTE_SYNCABLE_PLAN_IDS.has(planId);
+  }
+
+  return REMOTE_SYNCABLE_PLAN_IDS.size > 0;
+}
+
+function filterRemoteSyncableProgress(
+  progressList: UserReadingPlanProgress[]
+): UserReadingPlanProgress[] {
+  return progressList.filter((progress) => REMOTE_SYNCABLE_PLAN_IDS.has(progress.plan_id));
+}
+
 function getLocalProgressList(
   store: ReadingPlansStoreApi,
   planId?: string
 ): UserReadingPlanProgress[] {
   const allProgress = Object.values(store.getState().progressByPlanId);
-  const filtered = planId ? allProgress.filter((progress) => progress.plan_id === planId) : allProgress;
+  const filtered = planId
+    ? allProgress.filter((progress) => progress.plan_id === planId)
+    : allProgress;
 
   return [...filtered].sort((left, right) => right.started_at.localeCompare(left.started_at));
 }
@@ -84,10 +109,9 @@ function buildLocalSavedPlan(planId: string): UserSavedPlan {
   };
 }
 
-async function requireSignedInUser(action: string): Promise<
-  | { user: { id: string }; error: null }
-  | { user: null; error: string }
-> {
+async function requireSignedInUser(
+  action: string
+): Promise<{ user: { id: string }; error: null } | { user: null; error: string }> {
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
 
   if (!isSupabaseConfigured()) {
@@ -135,8 +159,18 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
     },
 
     markDayComplete: async (planId: string, dayNumber: number) => {
-      const totalDays = getPlan(planId)?.duration_days ?? 0;
-      const updated = store.getState().markDayComplete(planId, dayNumber, totalDays);
+      const plan = getPlan(planId);
+      const updated = !plan
+        ? null
+        : isCalendarDayOfMonthPlan(plan)
+          ? store
+              .getState()
+              .markRecurringDayComplete(
+                planId,
+                getPlanCompletionEntryKey(plan, dayNumber),
+                dayNumber
+              )
+          : store.getState().markDayComplete(planId, dayNumber, plan.duration_days);
 
       if (!updated) {
         return { success: false, error: 'Not enrolled in this plan' };
@@ -194,6 +228,10 @@ export async function enrollInPlan(
   }
 
   const localProgress = readingPlansStore.getState().enrollPlan(planId);
+  if (!shouldSyncPlanProgressRemotely(planId)) {
+    return { success: true, data: localProgress };
+  }
+
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
   const { user } = await requireSignedInUser('enroll in a reading plan');
 
@@ -240,12 +278,18 @@ export async function markDayComplete(
     return { success: false, error: 'Plan not found' };
   }
 
-  const localUpdated = readingPlansStore
-    .getState()
-    .markDayComplete(planId, dayNumber, plan.duration_days);
+  const localUpdated = isCalendarDayOfMonthPlan(plan)
+    ? readingPlansStore
+        .getState()
+        .markRecurringDayComplete(planId, getPlanCompletionEntryKey(plan, dayNumber), dayNumber)
+    : readingPlansStore.getState().markDayComplete(planId, dayNumber, plan.duration_days);
 
   if (!localUpdated) {
     return { success: false, error: 'Not enrolled in this plan' };
+  }
+
+  if (!shouldSyncPlanProgressRemotely(planId)) {
+    return { success: true, data: localUpdated };
   }
 
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
@@ -289,6 +333,10 @@ export async function getUserPlanProgress(
   planId?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
   const localProgress = getLocalProgressList(readingPlansStore, planId);
+  if (!shouldSyncPlanProgressRemotely(planId)) {
+    return { success: true, data: localProgress };
+  }
+
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
   const { user } = await requireSignedInUser('fetch reading plan progress');
 
@@ -309,10 +357,12 @@ export async function getUserPlanProgress(
       return { success: true, data: localProgress };
     }
 
-    const remoteProgress = (data ?? []) as UserReadingPlanProgress[];
-    const reconciledProgress = planId
-      ? remoteProgress
-      : reconcileFetchedPlanProgress(localProgress, remoteProgress, new Date().toISOString());
+    const remoteProgress = filterRemoteSyncableProgress((data ?? []) as UserReadingPlanProgress[]);
+    const fetchedAt = new Date().toISOString();
+    const reconciledProgress =
+      remoteProgress.length === 0
+        ? localProgress
+        : reconcileFetchedPlanProgress(localProgress, remoteProgress, fetchedAt);
     if (planId) {
       remoteProgress.forEach((progress) => {
         readingPlansStore.getState().upsertProgress(progress);
@@ -329,6 +379,9 @@ export async function getUserPlanProgress(
 
 export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {
   readingPlansStore.getState().unenrollPlan(planId);
+  if (!shouldSyncPlanProgressRemotely(planId)) {
+    return { success: true };
+  }
 
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
   const { user } = await requireSignedInUser('unenroll from a reading plan');
@@ -345,15 +398,12 @@ export async function unenrollFromPlan(planId: string): Promise<PlanServiceResul
       .eq('plan_id', planId);
 
     if (error) {
-      return { success: false, error: error.message };
+      return { success: true };
     }
 
     return { success: true };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Unknown error',
-    };
+  } catch {
+    return { success: true };
   }
 }
 
@@ -425,15 +475,23 @@ export async function syncPlanProgress(
     readingPlansStore.getState().upsertProgress(progress);
   });
 
+  const remoteSyncableProgress = localProgress.filter((progress) =>
+    shouldSyncPlanProgressRemotely(progress.plan_id)
+  );
+
+  if (remoteSyncableProgress.length === 0) {
+    return { success: true, data: localProgress };
+  }
+
   const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
   const { user } = await requireSignedInUser('sync reading plan progress');
 
-  if (!isSupabaseConfigured() || !user || localProgress.length === 0) {
+  if (!isSupabaseConfigured() || !user) {
     return { success: true, data: localProgress };
   }
 
   try {
-    const upsertPayload = localProgress.map(({ id: _id, ...rest }) => ({
+    const upsertPayload = remoteSyncableProgress.map(({ id: _id, ...rest }) => ({
       ...rest,
       user_id: user.id,
     }));
@@ -452,7 +510,13 @@ export async function syncPlanProgress(
       readingPlansStore.getState().upsertProgress(progress);
     });
 
-    return { success: true, data: syncedRows };
+    return {
+      success: true,
+      data: [
+        ...localProgress.filter((progress) => !shouldSyncPlanProgressRemotely(progress.plan_id)),
+        ...syncedRows,
+      ],
+    };
   } catch {
     return { success: true, data: localProgress };
   }
@@ -493,9 +557,7 @@ export async function getCompletedPlans(): Promise<
       const plan = getPlan(progress.plan_id);
       return plan ? { ...progress, plan } : null;
     })
-    .filter(
-      (item): item is UserReadingPlanProgress & { plan: ReadingPlan } => item !== null
-    );
+    .filter((item): item is UserReadingPlanProgress & { plan: ReadingPlan } => item !== null);
 
   return { success: true, data: completedPlans };
 }

@@ -706,6 +706,33 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           return updatedProgress;
         },
 
+        markRecurringDayComplete: (planId, completionKey, dayNumber) => {
+          const existing = get().progressByPlanId[planId];
+          if (!existing || !completionKey.trim()) {
+            return null;
+          }
+
+          const now = new Date().toISOString();
+          const updatedProgress: ReadingPlanProgress = {
+            ...existing,
+            completed_entries: {
+              ...existing.completed_entries,
+              [completionKey]: now,
+            },
+            current_day: Math.max(dayNumber, 1),
+            is_completed: false,
+            completed_at: null,
+            synced_at: now,
+          };
+
+          set((state) => ({
+            ...state,
+            ...applyProgressUpdate(state, updatedProgress),
+          }));
+
+          return updatedProgress;
+        },
+
         unenrollPlan: (planId) => {
           set((state) => ({
             ...state,
