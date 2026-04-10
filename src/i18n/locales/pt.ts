@@ -759,6 +759,22 @@ export const pt = {
     "revelation22Days": {
       "title": "Revelação em 22 dias",
       "description": "Um capítulo de Apocalipse por dia – abra o último livro das Escrituras em um ritmo constante."
+    },
+    "completeSessionCta": "Concluir sessão",
+    "completeSessionHint": "Marcar este período de oração como concluído",
+    "searchPlansPlaceholder": "Buscar planos",
+    "noPlanSearchResults": "Nenhum plano correspondente encontrado",
+    "middayLabel": "Meio-dia",
+    "sessionDone": "feito",
+    "sessionNext": "próximo",
+    "sessionUpcoming": "em breve",
+    "morningAndEveningPrayer": {
+      "title": "Oração da manhã e da noite",
+      "description": "Comece e termine cada dia durante sete dias com leituras de oração pela manhã e à noite."
+    },
+    "prayerOfTheHours": {
+      "title": "Oração das horas",
+      "description": "Organize cada dia durante sete dias com leituras de oração pela manhã, ao meio-dia e à noite."
     }
   },
   "annotations": {

@@ -178,6 +178,34 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
   );
 });
 
+test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
+  assert.match(
+    source,
+    /import Fuse from 'fuse\.js';/,
+    'PlansHomeScreen should import Fuse for fuzzy plan search'
+  );
+  assert.match(
+    source,
+    /const \[searchQuery,\s*setSearchQuery\] = useState\(''\);/,
+    'PlansHomeScreen should track the local Find Plans search query'
+  );
+  assert.match(
+    source,
+    /new Fuse\(searchablePlans,\s*\{/,
+    'PlansHomeScreen should build a Fuse index over the plan catalog'
+  );
+  assert.match(
+    source,
+    /<TextInput[\s\S]*placeholder=\{t\('readingPlans\.searchPlansPlaceholder'\)\}/s,
+    'PlansHomeScreen should render a search field at the top of Find Plans'
+  );
+  assert.match(
+    source,
+    /searchQuery\.trim\(\) \? t\('readingPlans\.noPlanSearchResults'\) : t\('readingPlans\.noPlans'\)/,
+    'PlansHomeScreen should show a dedicated empty state when a search yields no matches'
+  );
+});
+
 test('PlansHomeScreen refreshes plan data again when the screen regains focus', () => {
   assert.match(
     source,

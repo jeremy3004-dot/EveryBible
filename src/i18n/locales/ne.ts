@@ -1220,6 +1220,22 @@ export const ne = {
     "hearingGodsVoice": {
       "title": "भगवानको आवाज सुन्दै",
       "description": "अगमवक्ताहरू, भजनहरू, येशू र प्रारम्भिक चर्च मार्फत परमेश्वरको लागि सुन्नुहोस्।"
+    },
+    "completeSessionCta": "सत्र पूरा गर्नुहोस्",
+    "completeSessionHint": "यो प्रार्थना सत्रलाई पूरा भएको रूपमा चिन्ह लगाउनुहोस्",
+    "searchPlansPlaceholder": "योजनाहरू खोज्नुहोस्",
+    "noPlanSearchResults": "मिल्ने योजना फेला परेन",
+    "middayLabel": "मध्यान्ह",
+    "sessionDone": "पूरा",
+    "sessionNext": "अर्को",
+    "sessionUpcoming": "आउँदैछ",
+    "morningAndEveningPrayer": {
+      "title": "बिहान र साँझको प्रार्थना",
+      "description": "सात दिनसम्म हरेक दिन बिहान र साँझका प्रार्थना-पाठले दिन सुरु र समाप्त गर्नुहोस्।"
+    },
+    "prayerOfTheHours": {
+      "title": "घण्टाको प्रार्थना",
+      "description": "सात दिनसम्म बिहान, मध्यान्ह र साँझका प्रार्थना-पाठले दिनको लय बनाउनुहोस्।"
     }
   },
   "annotations": {

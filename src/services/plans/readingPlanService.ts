@@ -5,13 +5,16 @@ import {
 } from '../../data/readingPlans.generated';
 import { readingPlansStore, type ReadingPlansStoreApi } from '../../stores/readingPlansStore';
 import {
+  buildPlanSessionCompletionKey,
   canSyncReadingPlanRemotely,
   getPlanCompletionEntryKey,
+  getDaySessionEntries,
   isCalendarDayOfMonthPlan,
   reconcileFetchedPlanProgress,
 } from './readingPlanModel';
 import type {
   GroupReadingPlan,
+  PlanSessionKey,
   ReadingPlan,
   ReadingPlanEntry,
   UserReadingPlanProgress,
@@ -31,6 +34,11 @@ export interface ReadingPlanService {
   markDayComplete(
     planId: string,
     dayNumber: number
+  ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
+  markPlanSessionComplete(
+    planId: string,
+    dayNumber: number,
+    sessionKey: PlanSessionKey
   ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
   getUserPlanProgress(planId?: string): Promise<PlanServiceResult<UserReadingPlanProgress[]>>;
   unenrollFromPlan(planId: string): Promise<PlanServiceResult>;
@@ -171,6 +179,39 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
                 dayNumber
               )
           : store.getState().markDayComplete(planId, dayNumber, plan.duration_days);
+
+      if (!updated) {
+        return { success: false, error: 'Not enrolled in this plan' };
+      }
+
+      return { success: true, data: updated };
+    },
+
+    markPlanSessionComplete: async (
+      planId: string,
+      dayNumber: number,
+      sessionKey: PlanSessionKey
+    ) => {
+      const plan = getPlan(planId);
+      if (!plan) {
+        return { success: false, error: 'Plan not found' };
+      }
+
+      const sessionGroups = getDaySessionEntries(readingPlanEntriesByPlanId[planId] ?? [], dayNumber);
+      const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
+      if (sessionIndex < 0) {
+        return { success: false, error: 'Plan session not found' };
+      }
+
+      const nextSessionKey = sessionGroups[sessionIndex + 1]?.sessionKey ?? null;
+      const updated = store.getState().markSessionComplete(planId, dayNumber, sessionKey, {
+        completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
+        dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
+        totalDays: plan.duration_days,
+        isFinalSession: nextSessionKey == null,
+        advanceDayOnCompletion: !isCalendarDayOfMonthPlan(plan),
+        nextSessionKey,
+      });
 
       if (!updated) {
         return { success: false, error: 'Not enrolled in this plan' };
@@ -327,6 +368,39 @@ export async function markDayComplete(
   } catch {
     return { success: true, data: localUpdated };
   }
+}
+
+export async function markPlanSessionComplete(
+  planId: string,
+  dayNumber: number,
+  sessionKey: PlanSessionKey
+): Promise<PlanServiceResult<UserReadingPlanProgress>> {
+  const plan = getPlan(planId);
+  if (!plan) {
+    return { success: false, error: 'Plan not found' };
+  }
+
+  const sessionGroups = getDaySessionEntries(readingPlanEntriesByPlanId[planId] ?? [], dayNumber);
+  const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
+  if (sessionIndex < 0) {
+    return { success: false, error: 'Plan session not found' };
+  }
+
+  const nextSessionKey = sessionGroups[sessionIndex + 1]?.sessionKey ?? null;
+  const localUpdated = readingPlansStore.getState().markSessionComplete(planId, dayNumber, sessionKey, {
+    completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
+    dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
+    totalDays: plan.duration_days,
+    isFinalSession: nextSessionKey == null,
+    advanceDayOnCompletion: !isCalendarDayOfMonthPlan(plan),
+    nextSessionKey,
+  });
+
+  if (!localUpdated) {
+    return { success: false, error: 'Not enrolled in this plan' };
+  }
+
+  return { success: true, data: localUpdated };
 }
 
 export async function getUserPlanProgress(

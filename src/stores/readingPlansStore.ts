@@ -48,12 +48,30 @@ const createProgressRecord = (planId: string): ReadingPlanProgress => {
     plan_id: planId,
     started_at: now,
     completed_entries: {},
+    completed_sessions: {},
     current_day: 1,
+    current_session: null,
     is_completed: false,
     completed_at: null,
     synced_at: now,
   };
 };
+
+const normalizeProgressRecord = (progress: ReadingPlanProgress): ReadingPlanProgress => ({
+  ...progress,
+  completed_sessions: progress.completed_sessions ?? {},
+  current_session: progress.current_session ?? null,
+});
+
+const normalizeProgressByPlanId = (
+  progressByPlanId: Record<string, ReadingPlanProgress> | undefined
+): Record<string, ReadingPlanProgress> =>
+  Object.fromEntries(
+    Object.entries(progressByPlanId ?? {}).map(([planId, progress]) => [
+      planId,
+      normalizeProgressRecord(progress),
+    ])
+  );
 
 const createRhythmId = (): RhythmId => `reading-plan-rhythm-${Date.now()}-${(rhythmSequence += 1)}`;
 const createRhythmItemId = (): RhythmItemId =>
@@ -289,22 +307,23 @@ const applyProgressUpdate = (
   ReadingPlansStoreState,
   'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
 > => {
-  const enrolledPlanIds = state.enrolledPlanIds.includes(progress.plan_id)
+  const normalizedProgress = normalizeProgressRecord(progress);
+  const enrolledPlanIds = state.enrolledPlanIds.includes(normalizedProgress.plan_id)
     ? state.enrolledPlanIds
-    : [...state.enrolledPlanIds, progress.plan_id];
+    : [...state.enrolledPlanIds, normalizedProgress.plan_id];
 
-  const completedPlanIds = progress.is_completed
-    ? state.completedPlanIds.includes(progress.plan_id)
+  const completedPlanIds = normalizedProgress.is_completed
+    ? state.completedPlanIds.includes(normalizedProgress.plan_id)
       ? state.completedPlanIds
-      : [...state.completedPlanIds, progress.plan_id]
-    : state.completedPlanIds.filter((planId) => planId !== progress.plan_id);
+      : [...state.completedPlanIds, normalizedProgress.plan_id]
+    : state.completedPlanIds.filter((planId) => planId !== normalizedProgress.plan_id);
 
   return {
     enrolledPlanIds,
     completedPlanIds,
     progressByPlanId: {
       ...state.progressByPlanId,
-      [progress.plan_id]: progress,
+      [normalizedProgress.plan_id]: normalizedProgress,
     },
   };
 };
@@ -338,13 +357,14 @@ const replaceProgressCollections = (
   ReadingPlansStoreState,
   'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
 > => {
+  const normalizedProgressList = progressList.map(normalizeProgressRecord);
   const progressByPlanId = Object.fromEntries(
-    progressList.map((progress) => [progress.plan_id, progress])
+    normalizedProgressList.map((progress) => [progress.plan_id, progress])
   );
 
   return {
-    enrolledPlanIds: progressList.map((progress) => progress.plan_id),
-    completedPlanIds: progressList
+    enrolledPlanIds: normalizedProgressList.map((progress) => progress.plan_id),
+    completedPlanIds: normalizedProgressList
       .filter((progress) => progress.is_completed)
       .map((progress) => progress.plan_id),
     progressByPlanId,
@@ -690,6 +710,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           const updatedProgress: ReadingPlanProgress = {
             ...existing,
             completed_entries,
+            current_session: null,
             current_day: computeNextDay(existing.current_day, dayNumber),
             is_completed: isPlanCompleted(totalDays, Object.keys(completed_entries).length),
             completed_at: isPlanCompleted(totalDays, Object.keys(completed_entries).length)
@@ -706,6 +727,55 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           return updatedProgress;
         },
 
+        markSessionComplete: (planId, dayNumber, sessionKey, options) => {
+          const existing = get().progressByPlanId[planId];
+          if (!existing || !options.completionKey.trim()) {
+            return null;
+          }
+
+          const now = new Date().toISOString();
+          const completed_sessions: Record<string, string> = {
+            ...(existing.completed_sessions ?? {}),
+            [options.completionKey]: now,
+          };
+          const completed_entries = options.isFinalSession
+            ? {
+                ...existing.completed_entries,
+                [options.dayCompletionKey]: now,
+              }
+            : existing.completed_entries;
+          const completedDayCount = Object.keys(completed_entries).length;
+          const isCompleted =
+            options.isFinalSession && options.advanceDayOnCompletion
+              ? isPlanCompleted(options.totalDays, completedDayCount)
+              : false;
+
+          const updatedProgress: ReadingPlanProgress = {
+            ...existing,
+            completed_entries,
+            completed_sessions,
+            current_day:
+              options.isFinalSession && options.advanceDayOnCompletion
+                ? computeNextDay(existing.current_day, dayNumber)
+                : Math.max(dayNumber, 1),
+            current_session:
+              options.isFinalSession ? null : options.nextSessionKey ?? sessionKey,
+            is_completed: isCompleted,
+            completed_at: isCompleted ? now : null,
+            synced_at: now,
+          };
+
+          set((state) => ({
+            ...state,
+            ...applyProgressUpdate(state, updatedProgress),
+          }));
+
+          return updatedProgress;
+        },
+
+        isSessionComplete: (planId, completionKey) =>
+          Boolean(get().progressByPlanId[planId]?.completed_sessions?.[completionKey]),
+
         markRecurringDayComplete: (planId, completionKey, dayNumber) => {
           const existing = get().progressByPlanId[planId];
           if (!existing || !completionKey.trim()) {
@@ -720,6 +790,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
               [completionKey]: now,
             },
             current_day: Math.max(dayNumber, 1),
+            current_session: null,
             is_completed: false,
             completed_at: null,
             synced_at: now,
@@ -786,6 +857,9 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           const mergedState = {
             ...currentState,
             ...(persistedState as Partial<ReadingPlansPersistedState>),
+            progressByPlanId: normalizeProgressByPlanId(
+              (persistedState as Partial<ReadingPlansPersistedState>)?.progressByPlanId
+            ),
             rhythmsById: normalizePersistedRhythmsById(
               (persistedState as Partial<ReadingPlansPersistedState>)?.rhythmsById
             ),

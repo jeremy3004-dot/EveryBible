@@ -385,6 +385,64 @@ test('getCurrentPlanDaySummary anchors recurring day-of-month plans to today for
   assert.equal(summary.isComplete, true);
 });
 
+test('getCurrentPlanDaySummary builds ordered session summaries for multi-session plans', () => {
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({
+      format: 'multi-session',
+      sessionOrder: ['morning', 'evening'],
+    }),
+    entries: [
+      makeEntry({
+        id: 'day-1-morning',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 63,
+      }),
+      makeEntry({
+        id: 'day-1-evening',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 2,
+        book: 'LUK',
+        chapter_start: 1,
+      }),
+    ],
+    progress: makeProgress('plan-1', {
+      started_at: new Date(2026, 3, 7, 7, 0, 0).toISOString(),
+      current_day: 1,
+    }),
+    chaptersRead: {
+      PSA_63: new Date(2026, 3, 7, 8, 0, 0).getTime(),
+    },
+    listeningHistory: [],
+    dayNumber: 1,
+    today: new Date(2026, 3, 7, 12, 0, 0),
+  });
+
+  assert.equal(summary.totalSessionCount, 2);
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(summary.nextIncompleteSessionKey, 'evening');
+  assert.deepEqual(
+    summary.sessionSummaries.map((session) => ({
+      key: session.sessionKey,
+      title: session.title,
+      complete: session.isComplete,
+      completed: session.completedChapterCount,
+      target: session.targetChapterCount,
+    })),
+    [
+      { key: 'morning', title: 'Morning', complete: true, completed: 1, target: 1 },
+      { key: 'evening', title: 'Evening', complete: false, completed: 0, target: 1 },
+    ]
+  );
+});
+
 test('getPlanChapterListenStatus suppresses listen-counted credit when the chapter was already completed by reading', () => {
   const status = getPlanChapterListenStatus({
     chapterKey: 'GEN_1',

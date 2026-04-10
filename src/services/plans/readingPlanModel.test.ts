@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildPlanSessionCompletionKey,
   canSyncReadingPlanRemotely,
   computeNextDay,
+  getDaySessionEntries,
+  getPlanSessionOrder,
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
   isCalendarDayOfMonthPlan,
+  isMultiSessionPlan,
   isPlanCompleted,
   mergePlanProgress,
   planCompletionPercent,
@@ -14,6 +18,10 @@ import {
 } from './readingPlanModel';
 import type { ReadingPlan } from './types';
 import type { UserReadingPlanProgress } from '../supabase/types';
+
+// ---------------------------------------------------------------------------
+// canSyncReadingPlanRemotely
+// ---------------------------------------------------------------------------
 
 test('canSyncReadingPlanRemotely only allows UUID-backed plan ids', () => {
   assert.equal(canSyncReadingPlanRemotely('bible-in-30-days'), false);
@@ -159,6 +167,149 @@ test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => 
   assert.equal(
     getPlanCompletionEntryKey(sequentialPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
     '5'
+  );
+});
+
+test('isMultiSessionPlan only returns true for explicitly multi-session plans', () => {
+  assert.equal(isMultiSessionPlan(makePlan()), false);
+  assert.equal(
+    isMultiSessionPlan(
+      makePlan({
+        format: 'multi-session',
+        sessionOrder: ['morning', 'evening'],
+      })
+    ),
+    true
+  );
+});
+
+test('getPlanSessionOrder prefers plan metadata when it exists', () => {
+  const order = getPlanSessionOrder(
+    makePlan({
+      format: 'multi-session',
+      sessionOrder: ['morning', 'midday', 'evening'],
+    }),
+    [
+      {
+        id: 'day-1-evening',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 3,
+        book: 'PSA',
+        chapter_start: 141,
+        chapter_end: null,
+      },
+    ]
+  );
+
+  assert.deepEqual(order, ['morning', 'midday', 'evening']);
+});
+
+test('getPlanSessionOrder falls back to entry metadata order for multi-session plans', () => {
+  const order = getPlanSessionOrder(
+    makePlan({
+      format: 'multi-session',
+      sessionOrder: undefined,
+    }),
+    [
+      {
+        id: 'day-1-evening',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 2,
+        book: 'PSA',
+        chapter_start: 141,
+        chapter_end: null,
+      },
+      {
+        id: 'day-1-morning',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 63,
+        chapter_end: null,
+      },
+    ]
+  );
+
+  assert.deepEqual(order, ['morning', 'evening']);
+});
+
+test('getDaySessionEntries groups a day into ordered morning and evening buckets', () => {
+  const sessionGroups = getDaySessionEntries([
+    {
+      id: 'day-1-morning-1',
+      plan_id: 'plan-1',
+      day_number: 1,
+      session_key: 'morning',
+      session_title: 'Morning',
+      session_order: 1,
+      book: 'PSA',
+      chapter_start: 63,
+      chapter_end: null,
+    },
+    {
+      id: 'day-1-evening-1',
+      plan_id: 'plan-1',
+      day_number: 1,
+      session_key: 'evening',
+      session_title: 'Evening',
+      session_order: 2,
+      book: 'LUK',
+      chapter_start: 1,
+      chapter_end: null,
+    },
+    {
+      id: 'day-2-morning-1',
+      plan_id: 'plan-1',
+      day_number: 2,
+      session_key: 'morning',
+      session_title: 'Morning',
+      session_order: 1,
+      book: 'PSA',
+      chapter_start: 5,
+      chapter_end: null,
+    },
+  ], 1);
+
+  assert.deepEqual(
+    sessionGroups.map((group) => ({
+      sessionKey: group.sessionKey,
+      title: group.title,
+      chapterStarts: group.entries.map((entry) => entry.chapter_start),
+    })),
+    [
+      { sessionKey: 'morning', title: 'Morning', chapterStarts: [63] },
+      { sessionKey: 'evening', title: 'Evening', chapterStarts: [1] },
+    ]
+  );
+});
+
+test('buildPlanSessionCompletionKey uses the day number for relative plans and date keys for recurring plans', () => {
+  const relativePlan = makePlan({
+    format: 'multi-session',
+    sessionOrder: ['morning', 'evening'],
+  });
+  const recurringPlan = makePlan({
+    format: 'multi-session',
+    sessionOrder: ['morning', 'midday', 'evening'],
+    scheduleMode: 'calendar-day-of-month',
+  });
+
+  assert.equal(
+    buildPlanSessionCompletionKey(relativePlan, 4, 'morning', new Date('2026-04-10T07:00:00.000Z')),
+    '4:morning'
+  );
+  assert.equal(
+    buildPlanSessionCompletionKey(recurringPlan, 10, 'midday', new Date('2026-04-10T07:00:00.000Z')),
+    '2026-04-10:midday'
   );
 });
 

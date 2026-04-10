@@ -759,6 +759,22 @@ export const ta = {
     "revelation22Days": {
       "title": "22 நாட்களில் வெளிப்பாடு",
       "description": "ஒரு நாளுக்கு வெளிப்படுத்துதல் ஒரு அத்தியாயம் - ஒரு நிலையான வேகத்தில் இறுதி வேதாகம புத்தகத்தை திறக்கவும்."
+    },
+    "completeSessionCta": "அமர்வை முடிக்கவும்",
+    "completeSessionHint": "இந்த ஜெப அமர்வை முடிந்ததாக குறிக்கவும்",
+    "searchPlansPlaceholder": "திட்டங்களைத் தேடுங்கள்",
+    "noPlanSearchResults": "பொருந்தும் திட்டங்கள் இல்லை",
+    "middayLabel": "நண்பகல்",
+    "sessionDone": "முடிந்தது",
+    "sessionNext": "அடுத்து",
+    "sessionUpcoming": "வருகிறது",
+    "morningAndEveningPrayer": {
+      "title": "காலை மற்றும் மாலை ஜெபம்",
+      "description": "ஏழு நாட்கள் ஒவ்வொரு நாளையும் காலை மற்றும் மாலை ஜெப வாசிப்புகளுடன் தொடங்கி முடிக்கவும்."
+    },
+    "prayerOfTheHours": {
+      "title": "நேரக்கண ஜெபம்",
+      "description": "ஏழு நாட்கள் காலை, நண்பகல், மாலை ஜெப வாசிப்புகளால் உங்கள் நாளின் ஓசையை அமைக்கவும்."
     }
   },
   "annotations": {

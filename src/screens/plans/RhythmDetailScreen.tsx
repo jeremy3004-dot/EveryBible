@@ -248,9 +248,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     return session.sessionContext.segments.map((segment) => {
       const entries = segment.planId ? planEntriesById[segment.planId] ?? [] : [];
       const progress = segment.planId ? progressByPlanId[segment.planId] ?? null : null;
+      const segmentPlan = segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null;
       const currentDaySummary = progress
         ? getCurrentPlanDaySummary({
-            plan: segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null,
+            plan: segmentPlan,
             entries,
             progress,
             chaptersRead,
@@ -261,7 +262,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
       return {
         segment,
-        plan: segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null,
+        plan: segmentPlan,
         entries,
         progress,
         currentDaySummary,

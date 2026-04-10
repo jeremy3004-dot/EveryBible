@@ -1,6 +1,7 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { AudioPlaybackSequenceEntry } from '../../types';
 import type {
+  PlanSessionKey,
   ReadingPlanDayResume,
   ReadingPlan,
   ReadingPlanEntry,
@@ -11,7 +12,12 @@ import type {
   UserReadingPlanProgress,
 } from './types';
 import { formatLocalDateKey } from '../progress/readingActivity';
-import { getActivePlanDayNumber, isCalendarDayOfMonthPlan } from './readingPlanModel';
+import {
+  getActivePlanDayNumber,
+  getDaySessionEntries,
+  isCalendarDayOfMonthPlan,
+  isMultiSessionPlan,
+} from './readingPlanModel';
 
 export type PlanChapterActivitySource = 'read' | 'listen';
 
@@ -41,6 +47,21 @@ export interface PlanDayCompletionSummary {
 export interface CurrentPlanDaySummary {
   dayNumber: number;
   dateKey: string;
+  targetChapterKeys: string[];
+  completedChapterKeys: string[];
+  targetChapterCount: number;
+  completedChapterCount: number;
+  remainingChapterCount: number;
+  isComplete: boolean;
+  sessionSummaries: PlanDaySessionSummary[];
+  totalSessionCount: number;
+  completedSessionCount: number;
+  nextIncompleteSessionKey: PlanSessionKey | null;
+}
+
+export interface PlanDaySessionSummary {
+  sessionKey: PlanSessionKey;
+  title: string;
   targetChapterKeys: string[];
   completedChapterKeys: string[];
   targetChapterCount: number;
@@ -553,6 +574,13 @@ export function getCurrentPlanDaySummary({
   const completedChapterCount = summary.completedActivity.filter((record) =>
     summary.targetChapterKeys.includes(record.chapterKey)
   ).length;
+  const sessionSummaries = buildPlanDaySessionSummaries(entries, resolvedDayNumber, {
+    chaptersRead,
+    listeningHistory,
+    now: today,
+    listenCompletionThreshold,
+  });
+  const completedSessionCount = sessionSummaries.filter((session) => session.isComplete).length;
 
   return {
     dayNumber: resolvedDayNumber,
@@ -565,7 +593,43 @@ export function getCurrentPlanDaySummary({
     completedChapterCount,
     remainingChapterCount: Math.max(summary.targetChapterKeys.length - completedChapterCount, 0),
     isComplete: summary.isComplete,
+    sessionSummaries: isMultiSessionPlan(plan) ? sessionSummaries : [],
+    totalSessionCount: isMultiSessionPlan(plan) ? sessionSummaries.length : 0,
+    completedSessionCount: isMultiSessionPlan(plan) ? completedSessionCount : 0,
+    nextIncompleteSessionKey:
+      isMultiSessionPlan(plan)
+        ? sessionSummaries.find((session) => !session.isComplete)?.sessionKey ?? null
+        : null,
   };
+}
+
+function buildPlanDaySessionSummaries(
+  entries: ReadingPlanEntry[],
+  dayNumber: number,
+  input: MergeTodayChapterActivityInput
+): PlanDaySessionSummary[] {
+  return getDaySessionEntries(entries, dayNumber).map((sessionGroup) => {
+    const sessionCompletionSummary = buildPlanDayCompletionSummary(sessionGroup.entries, dayNumber, input);
+    const completedChapterCount = sessionCompletionSummary.completedActivity.filter((record) =>
+      sessionCompletionSummary.targetChapterKeys.includes(record.chapterKey)
+    ).length;
+
+    return {
+      sessionKey: sessionGroup.sessionKey,
+      title: sessionGroup.title,
+      targetChapterKeys: sessionCompletionSummary.targetChapterKeys,
+      completedChapterKeys: sessionCompletionSummary.completedChapterKeys.filter((chapterKey) =>
+        sessionCompletionSummary.targetChapterKeys.includes(chapterKey)
+      ),
+      targetChapterCount: sessionCompletionSummary.targetChapterKeys.length,
+      completedChapterCount,
+      remainingChapterCount: Math.max(
+        sessionCompletionSummary.targetChapterKeys.length - completedChapterCount,
+        0
+      ),
+      isComplete: sessionCompletionSummary.isComplete,
+    };
+  });
 }
 
 export function getPlanChapterListenStatus({

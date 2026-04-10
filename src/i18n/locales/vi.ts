@@ -759,6 +759,22 @@ export const vi = {
     "revelation22Days": {
       "title": "Sự mặc khải trong 22 ngày",
       "description": "Một chương Khải Huyền mỗi ngày - đọc cuốn sách cuối cùng của Kinh thánh với tốc độ ổn định."
+    },
+    "completeSessionCta": "Hoàn thành phiên",
+    "completeSessionHint": "Đánh dấu phiên cầu nguyện này là đã hoàn tất",
+    "searchPlansPlaceholder": "Tìm kế hoạch",
+    "noPlanSearchResults": "Không tìm thấy kế hoạch phù hợp",
+    "middayLabel": "Giữa trưa",
+    "sessionDone": "xong",
+    "sessionNext": "tiếp theo",
+    "sessionUpcoming": "sắp tới",
+    "morningAndEveningPrayer": {
+      "title": "Cầu nguyện sáng và tối",
+      "description": "Trong bảy ngày, hãy bắt đầu và kết thúc mỗi ngày với các bài đọc cầu nguyện buổi sáng và buổi tối."
+    },
+    "prayerOfTheHours": {
+      "title": "Cầu nguyện theo giờ",
+      "description": "Trong bảy ngày, hãy sắp xếp nhịp ngày của bạn với các bài đọc cầu nguyện buổi sáng, giữa trưa và buổi tối."
     }
   },
   "annotations": {

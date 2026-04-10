@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const source = readFileSync(resolve(__dirname, 'readingPlanService.ts'), 'utf8');
+const markPlanSessionCompleteBlock =
+  source.match(
+    /export async function markPlanSessionComplete[\s\S]*?(?=export async function getUserPlanProgress)/
+  )?.[0] ?? '';
 
 test('reading plan catalog and entries come from bundled local data', () => {
   assert.match(
@@ -69,5 +73,23 @@ test('slug-backed bundled plans stay local-first for sync and delete operations'
     source,
     /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true \};\s*\}/s,
     'unenrolling a bundled slug-backed plan should short-circuit before attempting a remote UUID delete'
+  );
+});
+
+test('session completion stays local-first behind a dedicated service seam', () => {
+  assert.match(
+    source,
+    /export async function markPlanSessionComplete/,
+    'readingPlanService should expose a dedicated session-completion helper'
+  );
+  assert.match(
+    markPlanSessionCompleteBlock,
+    /markSessionComplete\(planId,\s*dayNumber,\s*sessionKey,\s*\{/,
+    'markPlanSessionComplete should route through the shared reading plans store'
+  );
+  assert.doesNotMatch(
+    markPlanSessionCompleteBlock,
+    /\.from\('user_reading_plan_progress'\)/,
+    'session completion should stay local-first until the remote schema is upgraded for session data'
   );
 });

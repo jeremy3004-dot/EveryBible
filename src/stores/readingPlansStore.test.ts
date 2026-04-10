@@ -30,6 +30,39 @@ function completePlan(
   }
 }
 
+function markSession(
+  store: {
+    getState(): {
+      markSessionComplete(
+        planId: string,
+        dayNumber: number,
+        sessionKey: 'morning' | 'midday' | 'evening',
+        options: {
+          completionKey: string;
+          dayCompletionKey: string;
+          totalDays: number;
+          isFinalSession: boolean;
+          advanceDayOnCompletion: boolean;
+          nextSessionKey?: 'morning' | 'midday' | 'evening' | null;
+        }
+      ): unknown;
+    };
+  },
+  planId: string,
+  dayNumber: number,
+  sessionKey: 'morning' | 'midday' | 'evening',
+  options: {
+    completionKey: string;
+    dayCompletionKey: string;
+    totalDays: number;
+    isFinalSession: boolean;
+    advanceDayOnCompletion: boolean;
+    nextSessionKey?: 'morning' | 'midday' | 'evening' | null;
+  }
+) {
+  store.getState().markSessionComplete(planId, dayNumber, sessionKey, options);
+}
+
 const makePlanItem = (id: string, planId: string) => ({
   id,
   type: 'plan' as const,
@@ -69,6 +102,62 @@ test('reading plans store persists enrolled, saved, and completed state', async 
   const restored = mod.createReadingPlansStore(storage);
   assert.deepEqual(restored.getState().savedPlanIds, ['psalms-30-days']);
   assert.deepEqual(restored.getState().enrolledPlanIds, ['psalms-30-days']);
+});
+
+test('reading plans store tracks completed sessions and advances the day only after the final session', async () => {
+  const mod = await import('./readingPlansStore');
+
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+
+  const planId = 'synthetic-multi-session-plan';
+
+  store.getState().enrollPlan(planId);
+  markSession(store, planId, 1, 'morning', {
+    completionKey: '1:morning',
+    dayCompletionKey: '1',
+    totalDays: 7,
+    isFinalSession: false,
+    advanceDayOnCompletion: true,
+    nextSessionKey: 'midday',
+  });
+
+  const afterMorning = store.getState().progressByPlanId[planId];
+  assert.equal(afterMorning.current_day, 1);
+  assert.equal(afterMorning.current_session, 'midday');
+  assert.equal(afterMorning.completed_sessions?.['1:morning'] !== undefined, true);
+  assert.equal(afterMorning.completed_entries['1'] === undefined, true);
+  assert.equal(store.getState().isSessionComplete(planId, '1:morning'), true);
+
+  markSession(store, planId, 1, 'midday', {
+    completionKey: '1:midday',
+    dayCompletionKey: '1',
+    totalDays: 7,
+    isFinalSession: false,
+    advanceDayOnCompletion: true,
+    nextSessionKey: 'evening',
+  });
+  markSession(store, planId, 1, 'evening', {
+    completionKey: '1:evening',
+    dayCompletionKey: '1',
+    totalDays: 7,
+    isFinalSession: true,
+    advanceDayOnCompletion: true,
+    nextSessionKey: null,
+  });
+
+  const afterEvening = store.getState().progressByPlanId[planId];
+  assert.equal(afterEvening.current_day, 2);
+  assert.equal(afterEvening.current_session, null);
+  assert.equal(afterEvening.completed_sessions?.['1:evening'] !== undefined, true);
+  assert.equal(afterEvening.completed_entries['1'] !== undefined, true);
+
+  const restored = mod.createReadingPlansStore(storage);
+  assert.equal(
+    restored.getState().progressByPlanId[planId]?.completed_sessions?.['1:midday'] !==
+      undefined,
+    true
+  );
 });
 
 test('reading plan rhythms generate collision-safe fallback names on create and update', async () => {

@@ -759,6 +759,22 @@ export const mr = {
     "revelation22Days": {
       "title": "22 दिवसांत प्रकटीकरण",
       "description": "दररोज प्रकटीकरणाचा एक अध्याय - पवित्र शास्त्राचे अंतिम पुस्तक स्थिर गतीने अनपॅक करा."
+    },
+    "completeSessionCta": "सत्र पूर्ण करा",
+    "completeSessionHint": "या प्रार्थना सत्राला पूर्ण म्हणून चिन्हांकित करा",
+    "searchPlansPlaceholder": "योजना शोधा",
+    "noPlanSearchResults": "जुळणाऱ्या योजना सापडल्या नाहीत",
+    "middayLabel": "दुपार",
+    "sessionDone": "पूर्ण",
+    "sessionNext": "पुढे",
+    "sessionUpcoming": "लवकरच",
+    "morningAndEveningPrayer": {
+      "title": "सकाळ आणि संध्याकाळची प्रार्थना",
+      "description": "सात दिवस दररोज सकाळ आणि संध्याकाळच्या प्रार्थनावाचनाने दिवसाची सुरुवात आणि समाप्ती करा."
+    },
+    "prayerOfTheHours": {
+      "title": "दिवसभरातील प्रार्थना",
+      "description": "सात दिवस सकाळ, दुपार आणि संध्याकाळच्या प्रार्थनावाचनाने दिवसाची लय बांधा."
     }
   },
   "annotations": {

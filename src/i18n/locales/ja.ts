@@ -759,6 +759,22 @@ export const ja = {
     "revelation22Days": {
       "title": "22日後の啓示",
       "description": "黙示録を 1 日に 1 章 — 聖書の最後の本を一定のペースで開梱します。"
+    },
+    "completeSessionCta": "セッションを完了",
+    "completeSessionHint": "この祈りのセッションを完了として記録",
+    "searchPlansPlaceholder": "プランを検索",
+    "noPlanSearchResults": "一致するプランが見つかりません",
+    "middayLabel": "正午",
+    "sessionDone": "完了",
+    "sessionNext": "次",
+    "sessionUpcoming": "予定",
+    "morningAndEveningPrayer": {
+      "title": "朝と夕の祈り",
+      "description": "7日間、朝と夕の祈りの朗読で毎日を始め、締めくくります。"
+    },
+    "prayerOfTheHours": {
+      "title": "時課の祈り",
+      "description": "7日間、朝・正午・夕の祈りの朗読で一日のリズムを整えます。"
     }
   },
   "annotations": {

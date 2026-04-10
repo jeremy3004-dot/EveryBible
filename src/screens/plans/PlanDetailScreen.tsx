@@ -33,10 +33,17 @@ import {
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import {
   getActivePlanDayNumber,
+  getDaySessionEntries,
   isCalendarDayOfMonthPlan,
   getVisiblePlanDayNumbers,
+  isMultiSessionPlan,
 } from '../../services/plans/readingPlanModel';
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
+import type {
+  PlanSessionKey,
+  ReadingPlan,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+} from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -319,18 +326,28 @@ interface DayRowProps {
   dayNumber: number;
   dateLabel: string | null;
   entries: ReadingPlanEntry[];
+  launchSessionKey?: PlanSessionKey;
   isCompleted: boolean;
   isCurrent: boolean;
-  onPress: (entry: ReadingPlanEntry, dayNumber: number) => void;
+  sessionBadges?: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
+  onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
 }
 
 export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
 
-function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
+function DayRow({
+  dayNumber,
+  dateLabel,
+  entries,
+  launchSessionKey,
+  isCompleted,
+  isCurrent,
+  sessionBadges = [],
+  onPress,
+}: DayRowProps) {
   const { colors } = useTheme();
 
   const refs = entries.map(formatChapterRef).join(', ');
-  const firstEntry = entries[0];
   const accessibilityLabel = isCurrent
     ? `Current plan day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
     : `Day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
@@ -338,7 +355,7 @@ function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress
   return (
     <TouchableOpacity
       testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-      onPress={() => firstEntry && onPress(firstEntry, dayNumber)}
+      onPress={() => onPress(dayNumber, launchSessionKey)}
       activeOpacity={0.85}
       style={[
         dayRowStyles.row,
@@ -387,6 +404,47 @@ function DayRow({ dayNumber, dateLabel, entries, isCompleted, isCurrent, onPress
         <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
           {refs}
         </Text>
+        {sessionBadges.length > 0 ? (
+          <View style={dayRowStyles.sessionBadgeRow}>
+            {sessionBadges.map((badge) => {
+              const palette =
+                badge.state === 'done'
+                  ? {
+                      backgroundColor: colors.accentPrimary,
+                      borderColor: colors.accentPrimary,
+                      textColor: colors.cardBackground,
+                    }
+                  : badge.state === 'next'
+                    ? {
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.accentPrimary,
+                        textColor: colors.accentPrimary,
+                      }
+                    : {
+                        backgroundColor: colors.background,
+                        borderColor: colors.cardBorder,
+                        textColor: colors.secondaryText,
+                      };
+
+              return (
+                <View
+                  key={`${dayNumber}-${badge.label}`}
+                  style={[
+                    dayRowStyles.sessionBadge,
+                    {
+                      backgroundColor: palette.backgroundColor,
+                      borderColor: palette.borderColor,
+                    },
+                  ]}
+                >
+                  <Text style={[dayRowStyles.sessionBadgeText, { color: palette.textColor }]}>
+                    {badge.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
 
       <Ionicons
@@ -428,6 +486,21 @@ const dayRowStyles = StyleSheet.create({
   },
   refs: {
     ...typography.bodyStrong,
+  },
+  sessionBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sessionBadge: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  sessionBadgeText: {
+    ...typography.micro,
   },
 });
 
@@ -571,8 +644,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     });
   }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
   const isEnrolled = progress !== null;
+  const multiSessionPlan = isMultiSessionPlan(plan);
 
-  const handleOpenChapter = useCallback(async (entry: ReadingPlanEntry, dayNumber: number) => {
+  const handleOpenChapter = useCallback(async (dayNumber: number, sessionKey?: PlanSessionKey) => {
     if (!rootNavigationRef.isReady()) return;
 
     if (!progress) {
@@ -582,12 +656,21 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       }
     }
 
-    const dayEntries = entriesByDay.get(dayNumber) ?? [];
+    const plannedDayEntries = entriesByDay.get(dayNumber) ?? [];
+    const dayEntries =
+      sessionKey && multiSessionPlan
+        ? plannedDayEntries.filter((entry) => entry.session_key === sessionKey)
+        : plannedDayEntries;
+    const fallbackEntry = dayEntries[0] ?? plannedDayEntries[0];
+    if (!fallbackEntry) {
+      return;
+    }
+
     const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
     const resumeTarget = getPlanDayResume(planId, dayNumber);
     const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
-      bookId: entry.book,
-      chapter: entry.chapter_start,
+      bookId: fallbackEntry.book,
+      chapter: fallbackEntry.chapter_start,
     };
 
     rootNavigationRef.navigate('Bible', {
@@ -598,10 +681,11 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         playbackSequenceEntries,
         planId,
         planDayNumber: dayNumber,
+        ...(sessionKey ? { planSessionKey: sessionKey } : {}),
         returnToPlanOnComplete: true,
       },
     });
-  }, [entriesByDay, getPlanDayResume, planId, progress]);
+  }, [entriesByDay, getPlanDayResume, multiSessionPlan, planId, progress]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
@@ -772,6 +856,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           {/* Day rows */}
           {visibleDayNumbers.map((dayNumber) => {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
+            const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
             const isCompleted = progress
               ? isCalendarDayOfMonthPlan(plan)
                 ? dayNumber === currentDay &&
@@ -788,14 +873,42 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
               progress && !isCalendarDayOfMonthPlan(plan)
                 ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
                 : null;
+            const launchSessionKey = multiSessionPlan
+              ? isCurrent && isEnrolled
+                ? currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey
+                : daySessionGroups[0]?.sessionKey
+              : undefined;
+            const sessionBadges = daySessionGroups.map((group) => {
+              const matchingSummary =
+                isCurrent && isEnrolled
+                  ? currentDaySummary?.sessionSummaries.find(
+                      (session) => session.sessionKey === group.sessionKey
+                    ) ?? null
+                  : null;
+              const state =
+                !isCurrent || !isEnrolled
+                  ? 'available'
+                  : matchingSummary?.isComplete
+                    ? 'done'
+                    : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
+                      ? 'next'
+                      : 'upcoming';
+
+              return {
+                label: group.title,
+                state,
+              } as const;
+            });
             return (
               <DayRow
                 key={dayNumber}
                 dayNumber={dayNumber}
                 dateLabel={dateLabel}
                 entries={dayEntries}
+                launchSessionKey={launchSessionKey}
                 isCompleted={isCompleted}
                 isCurrent={isCurrent && isEnrolled}
+                sessionBadges={sessionBadges}
                 onPress={handleOpenChapter}
               />
             );

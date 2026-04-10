@@ -774,6 +774,22 @@ export const hi = {
     "hearingGodsVoice": {
       "title": "भगवान की आवाज सुनना",
       "description": "भविष्यवक्ताओं, स्तोत्रों, यीशु और प्रारंभिक चर्च के माध्यम से ईश्वर की सुनें।"
+    },
+    "completeSessionCta": "सत्र पूरा करें",
+    "completeSessionHint": "इस प्रार्थना सत्र को पूरा हुआ चिन्हित करें",
+    "searchPlansPlaceholder": "योजनाएँ खोजें",
+    "noPlanSearchResults": "कोई मिलती-जुलती योजना नहीं मिली",
+    "middayLabel": "मध्याह्न",
+    "sessionDone": "पूरा",
+    "sessionNext": "अगला",
+    "sessionUpcoming": "आगे",
+    "morningAndEveningPrayer": {
+      "title": "प्रातः और सायं प्रार्थना",
+      "description": "सात दिनों तक हर दिन की शुरुआत और समाप्ति सुबह और शाम की प्रार्थनापाठ से करें।"
+    },
+    "prayerOfTheHours": {
+      "title": "घंटों की प्रार्थना",
+      "description": "सात दिनों तक सुबह, मध्याह्न और शाम की प्रार्थनापाठ से अपने दिन की लय बनाइए।"
     }
   },
   "annotations": {

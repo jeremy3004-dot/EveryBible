@@ -759,6 +759,22 @@ export const bn = {
     "revelation22Days": {
       "title": "22 দিনের মধ্যে প্রকাশ",
       "description": "প্রতি দিন উদ্ঘাটনের একটি অধ্যায় - একটি অবিচলিত গতিতে শাস্ত্রের চূড়ান্ত বইটি আনপ্যাক করুন।"
+    },
+    "completeSessionCta": "সেশন সম্পূর্ণ করুন",
+    "completeSessionHint": "এই প্রার্থনার সেশনটি সম্পূর্ণ হিসেবে চিহ্নিত করুন",
+    "searchPlansPlaceholder": "পরিকল্পনা খুঁজুন",
+    "noPlanSearchResults": "মিল থাকা কোনো পরিকল্পনা পাওয়া যায়নি",
+    "middayLabel": "মধ্যাহ্ন",
+    "sessionDone": "সম্পন্ন",
+    "sessionNext": "পরবর্তী",
+    "sessionUpcoming": "আসছে",
+    "morningAndEveningPrayer": {
+      "title": "সকালের ও সন্ধ্যার প্রার্থনা",
+      "description": "সাত দিন ধরে সকাল ও সন্ধ্যার প্রার্থনামূলক পাঠ দিয়ে প্রতিটি দিন শুরু ও শেষ করুন।"
+    },
+    "prayerOfTheHours": {
+      "title": "ঘন্টার প্রার্থনা",
+      "description": "সাত দিন ধরে সকাল, মধ্যাহ্ন ও সন্ধ্যার প্রার্থনামূলক পাঠ দিয়ে দিনের ছন্দ গড়ে তুলুন।"
     }
   },
   "annotations": {

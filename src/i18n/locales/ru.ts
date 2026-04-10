@@ -759,6 +759,22 @@ export const ru = {
     "hearingGodsVoice": {
       "title": "Слышать голос Бога",
       "description": "Слушайте Бога через Пророков, псалмы, Иисуса и раннюю церковь."
+    },
+    "completeSessionCta": "Завершить сессию",
+    "completeSessionHint": "Отметить это молитвенное время как завершённое",
+    "searchPlansPlaceholder": "Найти планы",
+    "noPlanSearchResults": "Подходящие планы не найдены",
+    "middayLabel": "Полдень",
+    "sessionDone": "готово",
+    "sessionNext": "дальше",
+    "sessionUpcoming": "скоро",
+    "morningAndEveningPrayer": {
+      "title": "Утренняя и вечерняя молитва",
+      "description": "Семь дней начинайте и завершайте каждый день утренними и вечерними молитвенными чтениями."
+    },
+    "prayerOfTheHours": {
+      "title": "Молитва часов",
+      "description": "В течение семи дней выстраивайте ритм дня утренними, полуденными и вечерними молитвенными чтениями."
     }
   },
   "annotations": {

@@ -759,6 +759,22 @@ export const ko = {
     "revelation22Days": {
       "title": "22일 동안의 계시",
       "description": "하루에 요한계시록 한 장 - 성경의 마지막 책을 꾸준한 속도로 풀어보세요."
+    },
+    "completeSessionCta": "세션 완료",
+    "completeSessionHint": "이 기도 세션을 완료로 표시",
+    "searchPlansPlaceholder": "계획 검색",
+    "noPlanSearchResults": "일치하는 계획을 찾을 수 없습니다",
+    "middayLabel": "정오",
+    "sessionDone": "완료",
+    "sessionNext": "다음",
+    "sessionUpcoming": "예정",
+    "morningAndEveningPrayer": {
+      "title": "아침과 저녁 기도",
+      "description": "7일 동안 아침과 저녁 기도 본문으로 하루를 시작하고 마무리하세요."
+    },
+    "prayerOfTheHours": {
+      "title": "시간 기도",
+      "description": "7일 동안 아침, 정오, 저녁 기도 본문으로 하루의 리듬을 세우세요."
     }
   },
   "annotations": {

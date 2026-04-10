@@ -759,6 +759,22 @@ export const de = {
     "revelation22Days": {
       "title": "Offenbarung in 22 Tagen",
       "description": "Ein Kapitel der Offenbarung pro Tag – packen Sie das letzte Buch der Heiligen Schrift in gleichmäßigem Tempo aus."
+    },
+    "completeSessionCta": "Sitzung abschließen",
+    "completeSessionHint": "Diese Gebetszeit als abgeschlossen markieren",
+    "searchPlansPlaceholder": "Pläne suchen",
+    "noPlanSearchResults": "Keine passenden Pläne gefunden",
+    "middayLabel": "Mittag",
+    "sessionDone": "fertig",
+    "sessionNext": "als Nächstes",
+    "sessionUpcoming": "später",
+    "morningAndEveningPrayer": {
+      "title": "Morgen- und Abendgebet",
+      "description": "Beginne und beende sieben Tage lang jeden Tag mit Gebetslesungen am Morgen und Abend."
+    },
+    "prayerOfTheHours": {
+      "title": "Gebet zu den Tageszeiten",
+      "description": "Gestalte sieben Tage lang deinen Tag mit Gebetslesungen am Morgen, Mittag und Abend."
     }
   },
   "annotations": {

@@ -192,6 +192,7 @@ test('builds chapter route params that preserve the current reader session mode'
       preferredMode: 'read',
       planId: 'plan-a',
       planDayNumber: 3,
+      planSessionKey: 'evening',
       returnToPlanOnComplete: true,
       sessionContext: {
         type: 'rhythm',
@@ -223,6 +224,7 @@ test('builds chapter route params that preserve the current reader session mode'
       autoplayAudio: false,
       planId: 'plan-a',
       planDayNumber: 3,
+      planSessionKey: 'evening',
       returnToPlanOnComplete: true,
       sessionContext: {
         type: 'rhythm',

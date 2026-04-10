@@ -23,7 +23,7 @@ test('PlanDetailScreen always passes plan-day context into BibleReader launches'
   );
   assert.match(
     source,
-    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*returnToPlanOnComplete:\s*true/s,
+    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
     'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );
   assert.doesNotMatch(

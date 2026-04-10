@@ -592,10 +592,18 @@ export const en = {
     nextChapterCta: 'Next chapter',
     completeDayCta: 'Complete day',
     completeDayHint: "Marks today's reading plan complete",
+    completeSessionCta: 'Complete session',
+    completeSessionHint: 'Marks this prayer session complete and moves to the next one',
     listenChapterCounted: "{{reference}} counted for today's plan",
     dailyTargetCompleteTitle: 'Daily reading complete',
     dailyTargetCompleteBody:
       "You finished today's plan reading. We'll take you back to your plan so you can see your progress.",
+    searchPlansPlaceholder: 'Search plans',
+    noPlanSearchResults: 'No plans matched your search',
+    middayLabel: 'Midday',
+    sessionDone: 'done',
+    sessionNext: 'next',
+    sessionUpcoming: 'upcoming',
     rhythms: 'Rhythms',
     createRhythm: 'Create Rhythm',
     editRhythm: 'Edit Rhythm',
@@ -664,8 +672,7 @@ export const en = {
     },
     proverbs31: {
       title: 'Daily Proverbs Chapter',
-      description:
-        'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
+      description: 'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
     },
     chronological: {
       title: 'Chronological Bible',
@@ -678,6 +685,14 @@ export const en = {
     sermonMount7: {
       title: 'Sermon on the Mount',
       description: "A week-long deep dive into Jesus' most famous teaching in Matthew 5-7.",
+    },
+    morningAndEveningPrayer: {
+      title: 'Morning and Evening Prayer',
+      description: 'Begin and end each day with psalms, gospel readings, and evening scripture.',
+    },
+    prayerOfTheHours: {
+      title: 'Prayer of the Hours',
+      description: 'Move through morning, midday, and evening readings shaped by psalms, gospels, and letters.',
     },
     foundationsOfTheGospel: {
       title: 'Foundations of the Gospel',

@@ -759,6 +759,22 @@ export const id = {
     "revelation22Days": {
       "title": "Wahyu dalam 22 Hari",
       "description": "Satu pasal Wahyu per hari - bukalah kitab terakhir Kitab Suci dengan kecepatan tetap."
+    },
+    "completeSessionCta": "Selesaikan sesi",
+    "completeSessionHint": "Tandai sesi doa ini sebagai selesai",
+    "searchPlansPlaceholder": "Cari rencana",
+    "noPlanSearchResults": "Tidak ada rencana yang cocok",
+    "middayLabel": "Tengah hari",
+    "sessionDone": "selesai",
+    "sessionNext": "berikutnya",
+    "sessionUpcoming": "akan datang",
+    "morningAndEveningPrayer": {
+      "title": "Doa pagi dan malam",
+      "description": "Mulai dan akhiri setiap hari selama tujuh hari dengan bacaan doa pagi dan malam."
+    },
+    "prayerOfTheHours": {
+      "title": "Doa pada jam-jam tertentu",
+      "description": "Atur ritme harimu selama tujuh hari dengan bacaan doa pagi, tengah hari, dan malam."
     }
   },
   "annotations": {

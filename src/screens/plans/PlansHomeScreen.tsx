@@ -8,9 +8,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Fuse from 'fuse.js';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,6 +40,14 @@ import {
   summarizeReadingActivity,
   formatLocalDateKey,
 } from '../../services/progress/readingActivity';
+import {
+  getCurrentPlanDaySummary,
+  type CurrentPlanDaySummary,
+} from '../../services/plans/readingPlanActivity';
+import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
+import { useLibraryStore } from '../../stores';
+import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
+import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -163,6 +173,62 @@ const inlineStyles = StyleSheet.create({
   },
 });
 
+type SessionStatusTone = 'done' | 'next' | 'upcoming';
+
+function getLocalizedSessionLabel(
+  sessionKey: 'morning' | 'midday' | 'evening',
+  t: ReturnType<typeof useTranslation>['t']
+): string {
+  const labelKey =
+    sessionKey === 'morning'
+      ? 'readingPlans.morningLabel'
+      : sessionKey === 'midday'
+        ? 'readingPlans.middayLabel'
+        : 'readingPlans.eveningLabel';
+
+  return t(labelKey, {
+    defaultValue: sessionKey.charAt(0).toUpperCase() + sessionKey.slice(1),
+  });
+}
+
+function formatPlanCadenceLabel(
+  plan: ReadingPlan,
+  t: ReturnType<typeof useTranslation>['t']
+): string | null {
+  if (!isMultiSessionPlan(plan) || !plan.sessionOrder?.length) {
+    return null;
+  }
+
+  return plan.sessionOrder.map((sessionKey) => getLocalizedSessionLabel(sessionKey, t)).join(' + ');
+}
+
+function formatSessionStatusSummary(
+  summary: CurrentPlanDaySummary | null,
+  t: ReturnType<typeof useTranslation>['t']
+): string | null {
+  if (!summary?.sessionSummaries.length) {
+    return null;
+  }
+
+  return summary.sessionSummaries
+    .map((session) => {
+      const tone: SessionStatusTone = session.isComplete
+        ? 'done'
+        : summary.nextIncompleteSessionKey === session.sessionKey
+          ? 'next'
+          : 'upcoming';
+      const toneLabel =
+        tone === 'done'
+          ? t('readingPlans.sessionDone')
+          : tone === 'next'
+            ? t('readingPlans.sessionNext')
+            : t('readingPlans.sessionUpcoming');
+
+      return `${getLocalizedSessionLabel(session.sessionKey, t)} ${toneLabel}`;
+    })
+    .join(' • ');
+}
+
 // ---------------------------------------------------------------------------
 // Activity streak strip (14 days)
 // ---------------------------------------------------------------------------
@@ -264,6 +330,8 @@ const createStreakStyles = (colors: ThemeColors) =>
 interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
+  chaptersRead: Record<string, number>;
+  listeningHistory: ListeningHistoryEntry[];
   onAddPlan: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
@@ -273,6 +341,8 @@ interface MyPlansSectionProps {
 function MyPlansSection({
   allPlans,
   userProgress,
+  chaptersRead,
+  listeningHistory,
   onAddPlan,
   onPlanPress,
   onDeletePlan,
@@ -316,10 +386,18 @@ function MyPlansSection({
         ) : (
           activePlans.map(({ progress, plan }) => {
             const currentDay = getActivePlanDayNumber(plan, progress);
+            const currentDaySummary = getCurrentPlanDaySummary({
+              plan,
+              entries: readingPlanEntriesByPlanId[plan.id] ?? [],
+              progress,
+              chaptersRead,
+              listeningHistory,
+            });
             const progressRatio =
               plan.duration_days > 0
-                ? (isCalendarDayOfMonthPlan(plan) ? currentDay : Math.max(progress.current_day - 1, 0)) /
-                  plan.duration_days
+                ? isCalendarDayOfMonthPlan(plan)
+                  ? currentDay / plan.duration_days
+                  : (currentDay - 1) / plan.duration_days
                 : 0;
             return (
               <SwipeablePlanRow
@@ -343,6 +421,11 @@ function MyPlansSection({
                           total: plan.duration_days,
                         })}
                       </Text>
+                      {isMultiSessionPlan(plan) ? (
+                        <Text style={styles.sessionSummary} numberOfLines={2}>
+                          {formatSessionStatusSummary(currentDaySummary, t)}
+                        </Text>
+                      ) : null}
                       <ProgressBar progress={progressRatio} colors={colors} />
                     </View>
                   </View>
@@ -431,6 +514,10 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       ...typography.micro,
       color: colors.secondaryText,
     },
+    sessionSummary: {
+      ...typography.micro,
+      color: colors.primaryText,
+    },
   });
 
 const swipeableStyles = StyleSheet.create({
@@ -471,9 +558,54 @@ function FindPlansSection({
 }: FindPlansSectionProps) {
   const { t } = useTranslation();
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const searchablePlans = React.useMemo(
+    () =>
+      allPlans.map((plan) => ({
+        plan,
+        title: t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key }),
+        description: plan.description_key
+          ? t(plan.description_key as Parameters<typeof t>[0], {
+              defaultValue: plan.description_key,
+            })
+          : '',
+        cadence: formatPlanCadenceLabel(plan, t) ?? '',
+        category: plan.category ?? 'other',
+      })),
+    [allPlans, t]
+  );
+  const planSearch = React.useMemo(
+    () =>
+      new Fuse(searchablePlans, {
+        includeScore: true,
+        ignoreLocation: true,
+        threshold: 0.35,
+        keys: ['title', 'description', 'cadence', 'category', 'plan.slug'],
+      }),
+    [searchablePlans]
+  );
+  const filteredPlans = React.useMemo(() => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      return allPlans;
+    }
+
+    const normalizedQuery = trimmedQuery.toLowerCase();
+    const prefixMatches = searchablePlans
+      .filter(({ title, description, cadence, plan }) =>
+        [title, description, cadence, plan.slug].some((value) =>
+          value.toLowerCase().includes(normalizedQuery)
+        )
+      )
+      .map(({ plan }) => plan);
+    const fuzzyMatches = planSearch.search(trimmedQuery).map((result) => result.item.plan);
+
+    return [...new Map([...prefixMatches, ...fuzzyMatches].map((plan) => [plan.id, plan])).values()];
+  }, [allPlans, planSearch, searchQuery, searchablePlans]);
 
   // Group allPlans by category
-  const plansByCategory = allPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
+  const plansByCategory = filteredPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
     const cat = plan.category ?? 'other';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(plan);
@@ -486,6 +618,21 @@ function FindPlansSection({
 
   return (
     <View style={styles.content}>
+      <View style={[styles.searchWrap, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}>
+        <Ionicons name="search" size={16} color={colors.secondaryText} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('readingPlans.searchPlansPlaceholder')}
+          placeholderTextColor={colors.secondaryText}
+          style={[styles.searchInput, { color: colors.primaryText }]}
+          accessibilityLabel={t('readingPlans.searchPlansPlaceholder')}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
       {/* Plan cards by category */}
       {categories.map((category) => {
         const plans = plansByCategory[category];
@@ -516,8 +663,13 @@ function FindPlansSection({
                     <CoverImage plan={plan} width={140} height={88} colors={colors} />
                     <View style={styles.planCardBody}>
                       <Text style={styles.planCardTitle} numberOfLines={2}>
-                        {t(plan.title_key as Parameters<typeof t>[0])}
+                        {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
                       </Text>
+                      {formatPlanCadenceLabel(plan, t) ? (
+                        <Text style={styles.planCadence} numberOfLines={1}>
+                          {formatPlanCadenceLabel(plan, t)}
+                        </Text>
+                      ) : null}
                       <View style={styles.planCardMeta}>
                         <View style={styles.durationBadge}>
                           <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
@@ -549,9 +701,11 @@ function FindPlansSection({
         );
       })}
 
-      {allPlans.length === 0 && (
+      {filteredPlans.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('readingPlans.noPlans')}</Text>
+          <Text style={styles.emptyText}>
+            {searchQuery.trim() ? t('readingPlans.noPlanSearchResults') : t('readingPlans.noPlans')}
+          </Text>
         </View>
       )}
     </View>
@@ -564,6 +718,20 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       paddingHorizontal: layout.screenPadding,
       paddingVertical: spacing.md,
       gap: spacing.xl,
+    },
+    searchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderRadius: radius.pill,
+      minHeight: 40,
+      paddingHorizontal: spacing.md,
+    },
+    searchInput: {
+      ...typography.body,
+      flex: 1,
+      paddingVertical: spacing.sm,
     },
     categorySection: {
       gap: spacing.md,
@@ -593,6 +761,10 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     planCardTitle: {
       ...typography.label,
       color: colors.primaryText,
+    },
+    planCadence: {
+      ...typography.micro,
+      color: colors.secondaryText,
     },
     planCardMeta: {
       flexDirection: 'row',
@@ -758,6 +930,8 @@ export function PlansHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningHistory = useLibraryStore((state) => state.history);
 
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
@@ -889,6 +1063,8 @@ export function PlansHomeScreen() {
               <MyPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
+                chaptersRead={chaptersRead}
+                listeningHistory={listeningHistory}
                 onAddPlan={handleAddPlan}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}

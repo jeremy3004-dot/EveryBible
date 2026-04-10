@@ -2,6 +2,7 @@ import { bibleBooks } from '../constants/books';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
 import type { ReadingPlanCoverKey } from '../services/plans/types';
 import type { ReadingPlanScheduleMode } from '../services/plans/types';
+import type { PlanSessionKey, ReadingPlanFormat } from '../services/plans/types';
 
 type BookPlanRecipe = {
   id: string;
@@ -14,6 +15,8 @@ type BookPlanRecipe = {
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
   repeats_monthly?: boolean;
+  format?: ReadingPlanFormat;
+  session_order?: PlanSessionKey[];
   book_order: string[];
 };
 
@@ -28,8 +31,13 @@ type VersePlanRecipe = {
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
   repeats_monthly?: boolean;
+  format?: ReadingPlanFormat;
+  session_order?: PlanSessionKey[];
   entries: Array<{
     day_number: number;
+    session_key?: PlanSessionKey;
+    session_title?: string;
+    session_order?: number;
     book: string;
     chapter_start: number;
     chapter_end: number | null;
@@ -49,6 +57,8 @@ type TimedChallengeRecipe = {
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
   repeats_monthly?: boolean;
+  format?: ReadingPlanFormat;
+  session_order?: PlanSessionKey[];
   books: string[];
 };
 
@@ -266,6 +276,8 @@ function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entri
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
       repeatsMonthly: recipe.repeats_monthly,
+      format: recipe.format,
+      sessionOrder: recipe.session_order,
     },
     entries,
   };
@@ -287,11 +299,16 @@ function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: 
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
       repeatsMonthly: recipe.repeats_monthly,
+      format: recipe.format,
+      sessionOrder: recipe.session_order,
     },
     entries: recipe.entries.map((entry) => ({
       id: `${recipe.id}-day-${entry.day_number}`,
       plan_id: recipe.id,
       day_number: entry.day_number,
+      session_key: entry.session_key,
+      session_title: entry.session_title,
+      session_order: entry.session_order,
       book: entry.book,
       chapter_start: entry.chapter_start,
       chapter_end: entry.chapter_end,
@@ -368,6 +385,8 @@ function buildTimedChallengePlan(
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
       repeatsMonthly: recipe.repeats_monthly,
+      format: recipe.format,
+      sessionOrder: recipe.session_order,
     },
     entries,
   };

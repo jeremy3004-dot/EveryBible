@@ -759,6 +759,22 @@ export const ur = {
     "revelation22Days": {
       "title": "22 دنوں میں وحی",
       "description": "یومیہ مکاشفہ کا ایک باب — ایک مستحکم رفتار سے کلام پاک کی آخری کتاب کو کھولیں۔"
+    },
+    "completeSessionCta": "سیشن مکمل کریں",
+    "completeSessionHint": "اس دعا کے سیشن کو مکمل کے طور پر نشان زد کریں",
+    "searchPlansPlaceholder": "منصوبے تلاش کریں",
+    "noPlanSearchResults": "مطابق منصوبے نہیں ملے",
+    "middayLabel": "دوپہر",
+    "sessionDone": "مکمل",
+    "sessionNext": "اگلا",
+    "sessionUpcoming": "آنے والا",
+    "morningAndEveningPrayer": {
+      "title": "صبح اور شام کی دعا",
+      "description": "سات دن تک ہر دن کا آغاز اور اختتام صبح اور شام کی دعائیہ تلاوت سے کریں۔"
+    },
+    "prayerOfTheHours": {
+      "title": "اوقات کی دعا",
+      "description": "سات دن تک صبح، دوپہر اور شام کی دعائیہ تلاوت سے اپنے دن کی ترتیب بنائیں۔"
     }
   },
   "annotations": {

@@ -6,6 +6,8 @@ export type ReadingPlanCategory =
   | 'custom';
 
 export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month';
+export type ReadingPlanFormat = 'single-session' | 'multi-session';
+export type PlanSessionKey = 'morning' | 'midday' | 'evening';
 
 export type ReadingPlansTabKey = 'myPlans' | 'findPlans' | 'savedPlans' | 'completedPlans';
 export type ReadingPlanCoverKey =
@@ -51,12 +53,17 @@ export interface ReadingPlan {
   created_at?: string;
   scheduleMode?: ReadingPlanScheduleMode;
   repeatsMonthly?: boolean;
+  format?: ReadingPlanFormat;
+  sessionOrder?: PlanSessionKey[];
 }
 
 export interface ReadingPlanEntry {
   id: string;
   plan_id: string;
   day_number: number;
+  session_key?: PlanSessionKey | null;
+  session_title?: string | null;
+  session_order?: number | null;
   book: string;
   chapter_start: number;
   chapter_end: number | null;
@@ -70,7 +77,9 @@ export interface ReadingPlanProgress {
   plan_id: string;
   started_at: string;
   completed_entries: Record<string, string>;
+  completed_sessions?: Record<string, string>;
   current_day: number;
+  current_session?: PlanSessionKey | null;
   is_completed: boolean;
   completed_at: string | null;
   synced_at: string;
@@ -199,6 +208,20 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
   clearPlanDayResume: (planId: string, dayNumber: number) => void;
   markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
+  markSessionComplete: (
+    planId: string,
+    dayNumber: number,
+    sessionKey: PlanSessionKey,
+    options: {
+      completionKey: string;
+      dayCompletionKey: string;
+      totalDays: number;
+      isFinalSession: boolean;
+      advanceDayOnCompletion: boolean;
+      nextSessionKey?: PlanSessionKey | null;
+    }
+  ) => ReadingPlanProgress | null;
+  isSessionComplete: (planId: string, completionKey: string) => boolean;
   markRecurringDayComplete: (
     planId: string,
     completionKey: string,

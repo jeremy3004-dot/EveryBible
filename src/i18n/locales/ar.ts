@@ -759,7 +759,23 @@ export const ar = {
     "eveningLabel": "مساء",
     "rhythmSlotPrompt": "اختر نوع التدفق الذي تريد بناءه أولاً.",
     "rhythmSlotActive": "تم تحديد {{name}}",
-    "nextUp": "التالي: {{value}}"
+    "nextUp": "التالي: {{value}}",
+    "completeSessionCta": "أكمل الجلسة",
+    "completeSessionHint": "ضع علامة على جلسة الصلاة هذه كمكتملة",
+    "searchPlansPlaceholder": "ابحث في الخطط",
+    "noPlanSearchResults": "لم يتم العثور على خطط مطابقة",
+    "middayLabel": "منتصف النهار",
+    "sessionDone": "مكتمل",
+    "sessionNext": "التالي",
+    "sessionUpcoming": "لاحقًا",
+    "morningAndEveningPrayer": {
+      "title": "صلاة الصباح والمساء",
+      "description": "ابدأ يومك وأنهه طوال سبعة أيام بقراءات صلاة صباحية ومسائية."
+    },
+    "prayerOfTheHours": {
+      "title": "صلاة الساعات",
+      "description": "اتبع إيقاعًا من الصباح ومنتصف النهار والمساء لمدة سبعة أيام."
+    }
   },
   "annotations": {
     "title": "ملاحظاتي ويسلط الضوء",

@@ -759,6 +759,22 @@ export const pa = {
     "revelation22Days": {
       "title": "22 ਦਿਨਾਂ ਵਿੱਚ ਪਰਕਾਸ਼",
       "description": "ਪ੍ਰਤੀ ਦਿਨ ਪਰਕਾਸ਼ ਦੀ ਪੋਥੀ ਦਾ ਇੱਕ ਅਧਿਆਇ — ਇੱਕ ਸਥਿਰ ਰਫ਼ਤਾਰ ਨਾਲ ਸ਼ਾਸਤਰ ਦੀ ਅੰਤਮ ਕਿਤਾਬ ਨੂੰ ਖੋਲ੍ਹੋ।"
+    },
+    "completeSessionCta": "ਸੈਸ਼ਨ ਪੂਰਾ ਕਰੋ",
+    "completeSessionHint": "ਇਸ ਪ੍ਰਾਰਥਨਾ ਸੈਸ਼ਨ ਨੂੰ ਪੂਰਾ ਹੋਇਆ ਚਿੰਨ੍ਹਤ ਕਰੋ",
+    "searchPlansPlaceholder": "ਯੋਜਨਾਵਾਂ ਖੋਜੋ",
+    "noPlanSearchResults": "ਕੋਈ ਮੇਲ ਖਾਂਦੀ ਯੋਜਨਾ ਨਹੀਂ ਮਿਲੀ",
+    "middayLabel": "ਦੁਪਹਿਰ",
+    "sessionDone": "ਪੂਰਾ",
+    "sessionNext": "ਅਗਲਾ",
+    "sessionUpcoming": "ਆ ਰਿਹਾ ਹੈ",
+    "morningAndEveningPrayer": {
+      "title": "ਸਵੇਰ ਅਤੇ ਸ਼ਾਮ ਦੀ ਪ੍ਰਾਰਥਨਾ",
+      "description": "ਸੱਤ ਦਿਨ ਤੱਕ ਹਰ ਦਿਨ ਦੀ ਸ਼ੁਰੂਆਤ ਅਤੇ ਸਮਾਪਤੀ ਸਵੇਰ ਅਤੇ ਸ਼ਾਮ ਦੀ ਪ੍ਰਾਰਥਨਾ ਪਾਠ ਨਾਲ ਕਰੋ।"
+    },
+    "prayerOfTheHours": {
+      "title": "ਘੰਟਿਆਂ ਦੀ ਪ੍ਰਾਰਥਨਾ",
+      "description": "ਸੱਤ ਦਿਨ ਤੱਕ ਸਵੇਰ, ਦੁਪਹਿਰ ਅਤੇ ਸ਼ਾਮ ਦੀ ਪ੍ਰਾਰਥਨਾ ਪਾਠ ਨਾਲ ਆਪਣੇ ਦਿਨ ਦੀ ਲਯ ਬਣਾਓ।"
     }
   },
   "annotations": {

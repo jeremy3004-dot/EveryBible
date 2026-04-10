@@ -558,6 +558,7 @@ export const zh = {
     "chapterProgress": "第 {{current}} 个，共 {{total}} 个",
     "nextChapterCta": "下一章",
     "completeDayCta": "完整的一天",
+    "completeSessionCta": "完成本时段",
     "listenChapterCounted": "{{reference}} 计入今天的计划",
     "dailyTargetCompleteTitle": "每日阅读完成",
     "dailyTargetCompleteBody": "您已经完成了今天的计划阅读。我们将带您回到您的计划，以便您可以看到您的进度。",
@@ -596,6 +597,9 @@ export const zh = {
     "plans": "计划",
     "addFirstPlan": "添加您的第一个计划",
     "completeDayHint": "标志着今天的阅读计划完成",
+    "completeSessionHint": "将此祷告时段标记为已完成",
+    "searchPlansPlaceholder": "搜索计划",
+    "noPlanSearchResults": "未找到匹配的计划",
     "rhythms": "节奏",
     "createRhythm": "创造节奏",
     "editRhythm": "编辑节奏",
@@ -604,8 +608,12 @@ export const zh = {
     "afternoonRhythm": "午后节奏",
     "eveningRhythm": "傍晚节奏",
     "morningLabel": "早晨",
+    "middayLabel": "中午",
     "afternoonLabel": "午后",
     "eveningLabel": "傍晚",
+    "sessionDone": "已完成",
+    "sessionNext": "下一项",
+    "sessionUpcoming": "即将开始",
     "noRhythms": "还没有节奏",
     "noRhythmsBody": "通过将计划进度与您可以随时重新排序的自定义段落混合起来，构建可重复的流程。",
     "rhythmName": "节奏名称",
@@ -650,6 +658,14 @@ export const zh = {
     "prayerIntimacyWithGod": {
       "title": "祷告与与神的亲密关系",
       "description": "为期 7 天的祷告、敬拜和与主亲密交通的旅程。"
+    },
+    "morningAndEveningPrayer": {
+      "title": "晨祷与晚祷",
+      "description": "连续七天以早晨和傍晚的经文祷告来开始与结束每一天。"
+    },
+    "prayerOfTheHours": {
+      "title": "按时祷告",
+      "description": "连续七天以晨间、午间和傍晚三段经文祷告来安排一天的节奏。"
     },
     "identityInChrist": {
       "title": "在基督里的身份",

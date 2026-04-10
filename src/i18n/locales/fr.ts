@@ -759,6 +759,22 @@ export const fr = {
     "revelation22Days": {
       "title": "Révélation en 22 jours",
       "description": "Un chapitre de l'Apocalypse par jour : déballez le dernier livre des Écritures à un rythme régulier."
+    },
+    "completeSessionCta": "Terminer la session",
+    "completeSessionHint": "Marquer ce temps de prière comme terminé",
+    "searchPlansPlaceholder": "Rechercher des plans",
+    "noPlanSearchResults": "Aucun plan correspondant trouvé",
+    "middayLabel": "Midi",
+    "sessionDone": "terminé",
+    "sessionNext": "ensuite",
+    "sessionUpcoming": "à venir",
+    "morningAndEveningPrayer": {
+      "title": "Prière du matin et du soir",
+      "description": "Commencez et terminez chaque journée pendant sept jours avec des lectures de prière du matin et du soir."
+    },
+    "prayerOfTheHours": {
+      "title": "Prière des heures",
+      "description": "Donnez un rythme à chaque journée pendant sept jours avec des lectures de prière du matin, de midi et du soir."
     }
   },
   "annotations": {

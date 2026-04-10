@@ -759,6 +759,22 @@ export const tr = {
     "revelation22Days": {
       "title": "22 Günde Vahiy",
       "description": "Her gün bir Vahiy bölümü — Kutsal Yazıların son kitabını sabit bir hızla paketinden çıkarın."
+    },
+    "completeSessionCta": "Oturumu tamamla",
+    "completeSessionHint": "Bu dua oturumunu tamamlandı olarak işaretle",
+    "searchPlansPlaceholder": "Plan ara",
+    "noPlanSearchResults": "Eşleşen plan bulunamadı",
+    "middayLabel": "Öğle",
+    "sessionDone": "tamam",
+    "sessionNext": "sıradaki",
+    "sessionUpcoming": "yakında",
+    "morningAndEveningPrayer": {
+      "title": "Sabah ve akşam duası",
+      "description": "Yedi gün boyunca her günü sabah ve akşam dua okumalarıyla başlatıp bitirin."
+    },
+    "prayerOfTheHours": {
+      "title": "Saatlerin duası",
+      "description": "Yedi gün boyunca sabah, öğle ve akşam dua okumalarıyla gününüze ritim kazandırın."
     }
   },
   "annotations": {

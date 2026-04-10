@@ -19,8 +19,8 @@ test('BibleReaderScreen uses plan-day activity helpers to detect when todays tar
 test('BibleReaderScreen keeps read-mode plan completion explicit while still routing completed days back to PlanDetail', () => {
   assert.match(
     source,
-    /await markDayComplete\(activePlanId,\s*planDayNumber\)/,
-    'BibleReaderScreen should still mark the active plan day complete through the shared completion flow'
+    /await markPlanSessionComplete\(activePlanId,\s*planDayNumber,\s*activePlanSessionKey\)|await markDayComplete\(activePlanId,\s*planDayNumber\)/,
+    'BibleReaderScreen should mark plan completion through the shared service flow for both multi-session and single-session plans'
   );
   assert.match(
     source,

@@ -1,5 +1,5 @@
 import type { Verse } from '../../types';
-import type { RhythmSessionContext } from '../../services/plans/types';
+import type { PlanSessionKey, RhythmSessionContext } from '../../services/plans/types';
 
 export type FontSizeSheetAction =
   | 'toggleButton'
@@ -29,6 +29,7 @@ interface ReaderChapterRouteParamsInput {
   preferredMode: ChapterSessionMode;
   planId?: string;
   planDayNumber?: number;
+  planSessionKey?: PlanSessionKey;
   returnToPlanOnComplete?: boolean;
   sessionContext?: RhythmSessionContext;
 }
@@ -161,6 +162,7 @@ export const buildReaderChapterRouteParams = ({
   preferredMode,
   planId,
   planDayNumber,
+  planSessionKey,
   returnToPlanOnComplete,
   sessionContext,
 }: ReaderChapterRouteParamsInput) => ({
@@ -171,6 +173,7 @@ export const buildReaderChapterRouteParams = ({
   autoplayAudio: false,
   ...(planId ? { planId } : {}),
   ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
+  ...(planSessionKey ? { planSessionKey } : {}),
   ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
   ...(sessionContext ? { sessionContext } : {}),
 });

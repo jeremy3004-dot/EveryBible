@@ -4,6 +4,7 @@ export {
   getPlanEntries,
   enrollInPlan,
   markDayComplete,
+  markPlanSessionComplete,
   getUserPlanProgress,
   unenrollFromPlan,
   assignPlanToGroup,

@@ -759,6 +759,22 @@ export const te = {
     "revelation22Days": {
       "title": "22 రోజుల్లో వెల్లడి",
       "description": "రోజుకు ఒక ప్రకటన అధ్యాయం — స్క్రిప్చర్ యొక్క చివరి పుస్తకాన్ని స్థిరమైన వేగంతో అన్ప్యాక్ చేయండి."
+    },
+    "completeSessionCta": "సెషన్ పూర్తి చేయండి",
+    "completeSessionHint": "ఈ ప్రార్థనా సెషన్‌ను పూర్తయిందిగా గుర్తించండి",
+    "searchPlansPlaceholder": "పథకాలను వెతకండి",
+    "noPlanSearchResults": "సరిపోలే పథకాలు కనబడలేదు",
+    "middayLabel": "మధ్యాహ్నం",
+    "sessionDone": "పూర్తైంది",
+    "sessionNext": "తదుపరి",
+    "sessionUpcoming": "రానుంది",
+    "morningAndEveningPrayer": {
+      "title": "ఉదయం మరియు సాయంత్రపు ప్రార్థన",
+      "description": "ఏడు రోజుల పాటు ప్రతి రోజును ఉదయం మరియు సాయంత్రపు ప్రార్థనా పఠనాలతో ప్రారంభించి ముగించండి."
+    },
+    "prayerOfTheHours": {
+      "title": "గంటల ప్రార్థన",
+      "description": "ఏడు రోజుల పాటు ఉదయం, మధ్యాహ్నం, సాయంత్రపు ప్రార్థనా పఠనాలతో మీ రోజుకు లయ ఇవ్వండి."
     }
   },
   "annotations": {

@@ -1,8 +1,14 @@
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from './types';
+import type {
+  PlanSessionKey,
+  ReadingPlan,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+} from './types';
 
 const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const UUID_PLAN_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PLAN_SESSION_ORDER: PlanSessionKey[] = ['morning', 'midday', 'evening'];
 
 const formatLocalDateKey = (date: Date): string => {
   const year = date.getFullYear();
@@ -65,6 +71,155 @@ export function getPlanCompletionEntryKey(
   return isCalendarDayOfMonthPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
 }
 
+function isPlanSessionKey(value: string | null | undefined): value is PlanSessionKey {
+  return PLAN_SESSION_ORDER.includes(value as PlanSessionKey);
+}
+
+function normalizePlanSessionOrder(sessionOrder?: PlanSessionKey[] | null): PlanSessionKey[] {
+  const seen = new Set<PlanSessionKey>();
+
+  return (sessionOrder ?? []).reduce<PlanSessionKey[]>((accumulator, sessionKey) => {
+    if (!isPlanSessionKey(sessionKey) || seen.has(sessionKey)) {
+      return accumulator;
+    }
+
+    seen.add(sessionKey);
+    accumulator.push(sessionKey);
+    return accumulator;
+  }, []);
+}
+
+export function isMultiSessionPlan(
+  plan?: Pick<ReadingPlan, 'format'> | null
+): boolean {
+  return plan?.format === 'multi-session';
+}
+
+export function getPlanSessionOrder(
+  plan: Pick<ReadingPlan, 'format' | 'sessionOrder'> | null | undefined,
+  entries: ReadingPlanEntry[]
+): PlanSessionKey[] {
+  const planSessionOrder = normalizePlanSessionOrder(plan?.sessionOrder);
+  if (planSessionOrder.length > 0) {
+    return planSessionOrder;
+  }
+
+  if (!isMultiSessionPlan(plan)) {
+    return [];
+  }
+
+  const entrySessionMap = new Map<
+    PlanSessionKey,
+    { order: number; firstSeenIndex: number }
+  >();
+
+  entries.forEach((entry, index) => {
+    if (!isPlanSessionKey(entry.session_key)) {
+      return;
+    }
+
+    const sessionKey = entry.session_key;
+    const normalizedOrder =
+      typeof entry.session_order === 'number' && Number.isFinite(entry.session_order)
+        ? entry.session_order
+        : PLAN_SESSION_ORDER.indexOf(sessionKey) + 1;
+    const existing = entrySessionMap.get(sessionKey);
+
+    if (!existing || normalizedOrder < existing.order) {
+      entrySessionMap.set(sessionKey, { order: normalizedOrder, firstSeenIndex: index });
+    }
+  });
+
+  return [...entrySessionMap.entries()]
+    .sort((left, right) => {
+      if (left[1].order !== right[1].order) {
+        return left[1].order - right[1].order;
+      }
+
+      const leftCanonicalIndex = PLAN_SESSION_ORDER.indexOf(left[0]);
+      const rightCanonicalIndex = PLAN_SESSION_ORDER.indexOf(right[0]);
+      if (leftCanonicalIndex !== rightCanonicalIndex) {
+        return leftCanonicalIndex - rightCanonicalIndex;
+      }
+
+      return left[1].firstSeenIndex - right[1].firstSeenIndex;
+    })
+    .map(([sessionKey]) => sessionKey);
+}
+
+export interface ReadingPlanDaySessionGroup {
+  sessionKey: PlanSessionKey;
+  title: string;
+  entries: ReadingPlanEntry[];
+}
+
+export function getDaySessionEntries(
+  entries: ReadingPlanEntry[],
+  dayNumber: number
+): ReadingPlanDaySessionGroup[] {
+  const sessionGroups = new Map<PlanSessionKey, ReadingPlanDaySessionGroup>();
+
+  entries.forEach((entry) => {
+    if (entry.day_number !== dayNumber || !isPlanSessionKey(entry.session_key)) {
+      return;
+    }
+
+    const sessionKey = entry.session_key;
+    const existing = sessionGroups.get(sessionKey);
+    if (existing) {
+      existing.entries.push(entry);
+      return;
+    }
+
+    sessionGroups.set(sessionKey, {
+      sessionKey,
+      title: entry.session_title?.trim() || capitalizeSessionTitle(sessionKey),
+      entries: [entry],
+    });
+  });
+
+  return [...sessionGroups.values()]
+    .map((group) => ({
+      ...group,
+      entries: [...group.entries].sort(compareSessionEntryOrder),
+    }))
+    .sort((left, right) => {
+      const leftIndex = PLAN_SESSION_ORDER.indexOf(left.sessionKey);
+      const rightIndex = PLAN_SESSION_ORDER.indexOf(right.sessionKey);
+      return leftIndex - rightIndex;
+    });
+}
+
+export function buildPlanSessionCompletionKey(
+  plan: Pick<ReadingPlan, 'scheduleMode'>,
+  dayNumber: number,
+  sessionKey: PlanSessionKey,
+  today: Date = new Date()
+): string {
+  return `${getPlanCompletionEntryKey(plan, dayNumber, today)}:${sessionKey}`;
+}
+
+function compareSessionEntryOrder(left: ReadingPlanEntry, right: ReadingPlanEntry): number {
+  const leftSessionOrder =
+    typeof left.session_order === 'number' && Number.isFinite(left.session_order)
+      ? left.session_order
+      : Number.MAX_SAFE_INTEGER;
+  const rightSessionOrder =
+    typeof right.session_order === 'number' && Number.isFinite(right.session_order)
+      ? right.session_order
+      : Number.MAX_SAFE_INTEGER;
+
+  if (leftSessionOrder !== rightSessionOrder) {
+    return leftSessionOrder - rightSessionOrder;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function capitalizeSessionTitle(sessionKey: PlanSessionKey): string {
+  return sessionKey.charAt(0).toUpperCase() + sessionKey.slice(1);
+}
+
 /**
  * Computes the next current_day after completing dayNumber.
  * Always moves forward: the new current_day is max(current_day, dayNumber + 1).
@@ -102,11 +257,17 @@ export function mergePlanProgress(
     ...remote.completed_entries,
     ...local.completed_entries,
   };
+  const mergedCompletedSessions: Record<string, string> = {
+    ...(remote.completed_sessions ?? {}),
+    ...(local.completed_sessions ?? {}),
+  };
 
   return {
     ...remote,
     completed_entries: mergedEntries,
+    completed_sessions: mergedCompletedSessions,
     current_day: Math.max(local.current_day, remote.current_day),
+    current_session: local.current_session ?? remote.current_session ?? null,
     is_completed: local.is_completed || remote.is_completed,
     completed_at: local.completed_at ?? remote.completed_at,
     synced_at: syncedAt,
