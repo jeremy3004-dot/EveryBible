@@ -50,3 +50,16 @@ test('syncPreferences does not write an appearance palette into user_preferences
     'syncPreferences should not write an appearance palette because user_preferences has no palette column'
   );
 });
+
+test('cloud sync also restores and uploads reading plan progress for signed-in users', () => {
+  assert.match(
+    source,
+    /syncPlanProgress/,
+    'syncAll should include reading plan progress uploads so offline plan work reaches the backend'
+  );
+  assert.match(
+    source,
+    /getUserPlanProgress/,
+    'pullFromCloud should restore reading plan progress on a new device after sign-in'
+  );
+});

@@ -63,16 +63,26 @@ test('signed-in reading plan fetch reconciles local and remote plan progress bef
   );
 });
 
-test('slug-backed bundled plans stay local-first for sync and delete operations', () => {
+test('signed-in bundled plans persist remotely by slug instead of UUID-only plan ids', () => {
   assert.match(
     source,
-    /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true, data: localProgress \};\s*\}/s,
-    'enrolling a bundled slug-backed plan should short-circuit before attempting a remote UUID upsert'
+    /buildRemoteReadingPlanProgressPayload/,
+    'reading plan sync should build a slug-aware remote payload for signed-in recovery'
   );
   assert.match(
     source,
-    /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true \};\s*\}/s,
-    'unenrolling a bundled slug-backed plan should short-circuit before attempting a remote UUID delete'
+    /onConflict:\s*'user_id,plan_slug'/,
+    'reading plan upserts should de-duplicate by user_id and plan_slug'
+  );
+  assert.match(
+    source,
+    /\.eq\('plan_slug',\s*planId\)/,
+    'reading plan fetch/delete paths should address remote rows by plan_slug for bundled plans'
+  );
+  assert.doesNotMatch(
+    source,
+    /if \(!shouldSyncPlanProgressRemotely\(planId\)\) \{\s*return \{ success: true, data: localProgress \};\s*\}/s,
+    'bundled slug-backed plans should no longer short-circuit to local-only enrollment when signed in'
   );
 });
 
