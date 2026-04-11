@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildPlanSessionCompletionKey,
   canSyncReadingPlanRemotely,
+  normalizeRemoteReadingPlanProgress,
   computeNextDay,
   getDaySessionEntries,
   getPlanSessionOrder,
@@ -16,16 +17,45 @@ import {
   reconcileFetchedPlanProgress,
   getVisiblePlanDayNumbers,
 } from './readingPlanModel';
-import type { ReadingPlan } from './types';
-import type { UserReadingPlanProgress } from '../supabase/types';
+import type { ReadingPlan, UserReadingPlanProgress } from './types';
 
 // ---------------------------------------------------------------------------
 // canSyncReadingPlanRemotely
 // ---------------------------------------------------------------------------
 
-test('canSyncReadingPlanRemotely only allows UUID-backed plan ids', () => {
-  assert.equal(canSyncReadingPlanRemotely('bible-in-30-days'), false);
+test('canSyncReadingPlanRemotely allows stable bundled slugs and UUID-backed plan ids', () => {
+  assert.equal(canSyncReadingPlanRemotely('bible-in-30-days'), true);
   assert.equal(canSyncReadingPlanRemotely('550e8400-e29b-41d4-a716-446655440000'), true);
+  assert.equal(canSyncReadingPlanRemotely('   '), false);
+});
+
+test('normalizeRemoteReadingPlanProgress restores bundled plan progress from remote plan_slug rows', () => {
+  const normalized = normalizeRemoteReadingPlanProgress({
+    id: 'remote-progress-1',
+    user_id: 'user-1',
+    plan_id: null,
+    plan_slug: 'bible-in-30-days',
+    started_at: '2026-04-11T00:00:00.000Z',
+    completed_entries: { '1': '2026-04-11T00:00:00.000Z' },
+    current_day: 2,
+    is_completed: false,
+    completed_at: null,
+    synced_at: '2026-04-11T00:05:00.000Z',
+  });
+
+  assert.deepEqual(normalized, {
+    id: 'remote-progress-1',
+    user_id: 'user-1',
+    plan_id: 'bible-in-30-days',
+    started_at: '2026-04-11T00:00:00.000Z',
+    completed_entries: { '1': '2026-04-11T00:00:00.000Z' },
+    completed_sessions: {},
+    current_day: 2,
+    current_session: null,
+    is_completed: false,
+    completed_at: null,
+    synced_at: '2026-04-11T00:05:00.000Z',
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,59 @@ const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
   };
 };
 
+const syncReadingPlans = async (): Promise<SyncResult> => {
+  if (!isSupabaseConfigured()) {
+    return { success: true };
+  }
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { success: true };
+  }
+
+  const profileResult = await ensureCloudProfile();
+  if (!profileResult.success) {
+    return profileResult;
+  }
+
+  const [{ readingPlansStore }, { syncPlanProgress }] = await Promise.all([
+    import('../../stores/readingPlansStore'),
+    import('../plans'),
+  ]);
+
+  const localProgress = Object.values(readingPlansStore.getState().progressByPlanId);
+  const result = await syncPlanProgress(localProgress);
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, merged: false };
+};
+
+const pullReadingPlansFromCloud = async (): Promise<SyncResult> => {
+  if (!isSupabaseConfigured()) {
+    return { success: true };
+  }
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { success: false, error: 'Not signed in' };
+  }
+
+  const profileResult = await ensureCloudProfile();
+  if (!profileResult.success) {
+    return profileResult;
+  }
+
+  const { getUserPlanProgress } = await import('../plans');
+  const result = await getUserPlanProgress();
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, merged: Boolean(result.data?.length) };
+};
+
 const applyMergedReadingState = async (
   mergedReading: ReturnType<typeof mergeReadingSnapshot>
 ): Promise<void> => {
@@ -243,6 +296,11 @@ export const syncAll = async (): Promise<SyncResult> => {
     return progressResult;
   }
 
+  const readingPlansResult = await syncReadingPlans();
+  if (!readingPlansResult.success) {
+    return readingPlansResult;
+  }
+
   const preferencesResult = await syncPreferences();
   if (!preferencesResult.success) {
     return preferencesResult;
@@ -250,7 +308,7 @@ export const syncAll = async (): Promise<SyncResult> => {
 
   return {
     success: true,
-    merged: Boolean(progressResult.merged || preferencesResult.merged),
+    merged: Boolean(progressResult.merged || readingPlansResult.merged || preferencesResult.merged),
   };
 };
 
@@ -304,6 +362,11 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
       useAuthStore
         .getState()
         .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+    }
+
+    const readingPlansResult = await pullReadingPlansFromCloud();
+    if (!readingPlansResult.success) {
+      return readingPlansResult;
     }
 
     return { success: true, merged: true };

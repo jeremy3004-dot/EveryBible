@@ -23,7 +23,69 @@ const formatLocalDateKey = (date: Date): string => {
 // ---------------------------------------------------------------------------
 
 export function canSyncReadingPlanRemotely(planId: string): boolean {
-  return UUID_PLAN_ID_PATTERN.test(planId.trim());
+  const normalizedPlanId = planId.trim();
+  return normalizedPlanId.length > 0;
+}
+
+export interface RemoteReadingPlanProgressRow {
+  id: string;
+  user_id: string;
+  plan_id: string | null;
+  plan_slug: string | null;
+  started_at: string;
+  completed_entries: Record<string, string> | null;
+  current_day: number | null;
+  is_completed: boolean | null;
+  completed_at: string | null;
+  synced_at: string | null;
+  completed_sessions?: Record<string, string> | null;
+  current_session?: PlanSessionKey | null;
+}
+
+export function normalizeRemoteReadingPlanProgress(
+  progress: RemoteReadingPlanProgressRow
+): UserReadingPlanProgress | null {
+  const localPlanId = progress.plan_slug?.trim() || progress.plan_id?.trim() || null;
+  if (!localPlanId) {
+    return null;
+  }
+
+  return {
+    id: progress.id,
+    user_id: progress.user_id,
+    plan_id: localPlanId,
+    started_at: progress.started_at,
+    completed_entries: progress.completed_entries ?? {},
+    completed_sessions: progress.completed_sessions ?? {},
+    current_day: progress.current_day ?? 1,
+    current_session: progress.current_session ?? null,
+    is_completed: Boolean(progress.is_completed),
+    completed_at: progress.completed_at ?? null,
+    synced_at: progress.synced_at ?? progress.started_at,
+  };
+}
+
+export function buildRemoteReadingPlanProgressPayload(
+  progress: UserReadingPlanProgress,
+  userId: string
+): Omit<
+  RemoteReadingPlanProgressRow,
+  'id' | 'completed_sessions' | 'current_session'
+> {
+  const normalizedPlanId = progress.plan_id.trim();
+  const remoteUuid = UUID_PLAN_ID_PATTERN.test(normalizedPlanId) ? normalizedPlanId : null;
+
+  return {
+    user_id: userId,
+    plan_id: remoteUuid,
+    plan_slug: normalizedPlanId,
+    started_at: progress.started_at,
+    completed_entries: progress.completed_entries,
+    current_day: progress.current_day,
+    is_completed: progress.is_completed,
+    completed_at: progress.completed_at,
+    synced_at: progress.synced_at,
+  };
 }
 
 export function isCalendarDayOfMonthPlan(

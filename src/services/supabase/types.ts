@@ -159,7 +159,8 @@ export interface ReadingPlanEntry {
 export interface UserReadingPlanProgress {
   id: string;
   user_id: string;
-  plan_id: string;
+  plan_id: string | null;
+  plan_slug: string | null;
   started_at: string;
   completed_entries: Record<string, string>; // {"1": "2026-03-22T...", "5": "2026-03-26T..."}
   current_day: number;
