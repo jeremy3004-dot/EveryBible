@@ -109,6 +109,7 @@ import {
   AudioProgressScrubber,
   PlaybackControls,
 } from '../../components';
+import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
 import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
 import type { BibleTranslation, Verse } from '../../types';
@@ -126,6 +127,7 @@ import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
+  READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   READER_TOP_CHROME_DISMISS_DISTANCE,
   SWIPE_THRESHOLD,
   SWIPE_VELOCITY_MIN,
@@ -138,7 +140,9 @@ import {
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
+  getReaderChromeAnimationProgress,
   isActiveAudioTrackMatch,
+  isReaderChromeCollapsed,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
   getNextFontSizeSheetVisibility,
@@ -490,8 +494,12 @@ export function BibleReaderScreen() {
   );
   const [premiumReaderViewportHeight, setPremiumReaderViewportHeight] = useState(0);
   const [premiumReaderContentHeight, setPremiumReaderContentHeight] = useState(0);
+  const [readerBottomChromeProgress, setReaderBottomChromeProgress] = useState(0);
+  const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const scrollDragStartOffsetYRef = useRef(0);
+  const readerBottomChromeProgressRef = useRef(0);
+  const readerBottomChromeCollapsedRef = useRef(false);
   const premiumReaderBaseBottomPadding =
     safeInsets.bottom + layout.tabBarBaseHeight + spacing.lg + layout.minTouchTarget + spacing.md;
   const rootTabBarBottomPadding = spacing.lg;
@@ -550,8 +558,26 @@ export function BibleReaderScreen() {
       if (chapterSessionMode !== 'read') {
         return;
       }
+
+      syncRootTabBarVisibility(
+        Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete
+          ? false
+          : getNextBibleTabBarVisibility({
+              sessionMode: chapterSessionMode,
+              action: 'scrollStart',
+              previousScrollOffsetY: scrollDragStartOffsetYRef.current,
+              currentScrollOffsetY: event.nativeEvent.contentOffset.y,
+              velocityY: 0,
+            })
+      );
     },
-    [chapterSessionMode]
+    [
+      activePlanId,
+      chapterSessionMode,
+      planDayNumber,
+      returnToPlanOnComplete,
+      syncRootTabBarVisibility,
+    ]
   );
 
   const handleReaderScrollEndDrag = useCallback(
@@ -1102,10 +1128,46 @@ export function BibleReaderScreen() {
   const premiumBottomInset = 18;
   const sharedTopChromeTop = safeInsets.top + premiumTopInset;
   const readerContentTopPadding = sharedTopChromeTop + 98;
+  const updateReaderBottomChromeState = useCallback(
+    (offsetY: number) => {
+      const nextProgress = showPremiumReadMode
+        ? getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE)
+        : 0;
+      if (
+        Math.abs(nextProgress - readerBottomChromeProgressRef.current) >= 0.02 ||
+        (nextProgress === 0 && readerBottomChromeProgressRef.current !== 0) ||
+        (nextProgress === 1 && readerBottomChromeProgressRef.current !== 1)
+      ) {
+        readerBottomChromeProgressRef.current = nextProgress;
+        setReaderBottomChromeProgress(nextProgress);
+      }
+
+      const nextCollapsed = showPremiumReadMode && isReaderChromeCollapsed(offsetY);
+      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
+        readerBottomChromeCollapsedRef.current = nextCollapsed;
+        setIsReadBottomChromeCollapsed(nextCollapsed);
+      }
+    },
+    [showPremiumReadMode]
+  );
+
+  useEffect(() => {
+    if (showPremiumReadMode) {
+      return;
+    }
+
+    readerBottomChromeProgressRef.current = 0;
+    readerBottomChromeCollapsedRef.current = false;
+    setReaderBottomChromeProgress(0);
+    setIsReadBottomChromeCollapsed(false);
+  }, [showPremiumReadMode]);
+
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       'worklet';
-      scrollY.value = event.contentOffset.y;
+      const nextOffsetY = event.contentOffset.y;
+      scrollY.value = nextOffsetY;
+      runOnJS(updateReaderBottomChromeState)(nextOffsetY);
     },
   });
 
@@ -1114,6 +1176,15 @@ export function BibleReaderScreen() {
       scrollY.value,
       [0, READER_TOP_CHROME_DISMISS_DISTANCE * 0.7, READER_TOP_CHROME_DISMISS_DISTANCE],
       [1, 0.88, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
+
+  const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
+    bottom: interpolate(
+      scrollY.value,
+      [0, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE],
+      [layout.tabBarBaseHeight + spacing.lg, safeInsets.bottom + spacing.lg],
       Extrapolation.CLAMP
     ),
   }));
@@ -3436,57 +3507,22 @@ export function BibleReaderScreen() {
             pointerEvents="box-none"
             style={[
               styles.floatingReaderChapterNavOverlay,
-              { bottom: layout.tabBarBaseHeight + spacing.lg },
+              bottomDockAnimatedStyle,
             ]}
           >
             {showPlanSessionChrome ? null : (
-              <>
-            <TouchableOpacity
-              style={[
-                styles.floatingReaderChapterNavButton,
-                !hasPrevChapter ? styles.disabledSessionModeButton : null,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-              activeOpacity={0.85}
-              onPress={() => void handlePreviousReadChapter()}
-              disabled={!hasPrevChapter}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.previous')}
-              accessibilityHint="Goes to the previous chapter"
-            >
-              <Ionicons
-                name="chevron-back"
-                size={22}
-                color={hasPrevChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+              <ReaderPlaybackDock
+                collapseProgress={readerBottomChromeProgress}
+                isCollapsed={isReadBottomChromeCollapsed}
+                progress={isCurrentAudioChapter && duration > 0 ? currentPosition / duration : 0}
+                isPlaying={isCurrentAudioChapter && status === 'playing'}
+                isLoading={isCurrentAudioChapter && status === 'loading'}
+                hasPreviousChapter={hasPrevChapter}
+                hasNextChapter={hasNextChapter}
+                onPreviousChapter={() => void handlePreviousReadChapter()}
+                onNextChapter={() => void handleNextReadChapter()}
+                onPlayPause={handlePlayDisplayedChapter}
               />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.floatingReaderChapterNavButton,
-                !hasNextChapter ? styles.disabledSessionModeButton : null,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-              activeOpacity={0.85}
-              onPress={() => void handleNextReadChapter()}
-              disabled={!hasNextChapter}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.next')}
-              accessibilityHint="Goes to the next chapter"
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={22}
-                color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
-              />
-            </TouchableOpacity>
-              </>
             )}
           </View>
         </Animated.View>
