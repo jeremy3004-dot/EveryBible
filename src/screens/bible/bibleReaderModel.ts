@@ -384,8 +384,37 @@ export const getNextFollowAlongVisibility = ({
 
 export const getNextBibleTabBarVisibility = ({
   sessionMode,
+  action,
+  previousScrollOffsetY = 0,
+  currentScrollOffsetY = 0,
+  velocityY = 0,
 }: BibleTabBarVisibilityInput): boolean => {
-  return sessionMode === 'listen' || sessionMode === 'read';
+  if (sessionMode === 'listen') {
+    return true;
+  }
+
+  if (action === 'enter') {
+    return true;
+  }
+
+  if (action === 'scrollStart') {
+    return false;
+  }
+
+  if (currentScrollOffsetY <= READER_TAB_BAR_RESTORE_TOP_THRESHOLD) {
+    return true;
+  }
+
+  const dragDelta = previousScrollOffsetY - currentScrollOffsetY;
+  if (dragDelta > 0) {
+    return true;
+  }
+
+  if (velocityY <= -READER_TAB_BAR_RESTORE_VELOCITY_MIN) {
+    return true;
+  }
+
+  return false;
 };
 
 export const shouldAutoplayChapterAudio = ({

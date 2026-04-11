@@ -239,12 +239,26 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
     'BibleReaderScreen should keep the read-mode scroll-end restore logic for the root tab bar'
   );
 
-  assert.equal(
-    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollStart'/s.test(
-      source
-    ),
-    false,
-    'BibleReaderScreen should no longer hide the root tab bar when read-mode scrolling starts'
+  assert.match(
+    source,
+    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollStart'/s,
+    'BibleReaderScreen should hide the root tab bar as read-mode scrolling starts'
+  );
+});
+
+test('BibleReaderScreen hands the premium read bottom controls to the dedicated collapsing playback dock', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /import\s*{\s*ReaderPlaybackDock\s*}\s*from '\.\.\/\.\.\/components\/audio\/ReaderPlaybackDock';/,
+    'BibleReaderScreen should source the premium read bottom controls from the shared ReaderPlaybackDock component'
+  );
+
+  assert.match(
+    source,
+    /<ReaderPlaybackDock[\s\S]*collapseProgress=\{readerBottomChromeProgress\}[\s\S]*isCollapsed=\{isReadBottomChromeCollapsed\}[\s\S]*onPlayPause=\{handlePlayDisplayedChapter\}/s,
+    'BibleReaderScreen should pass the scroll-driven collapse state and chapter play action into ReaderPlaybackDock'
   );
 });
 
@@ -585,19 +599,19 @@ test('read mode occludes the dynamic-island area so verse text does not bleed in
   );
 });
 
-test('premium read mode restores the bottom previous and next chapter circles', () => {
+test('premium read mode keeps a pinned bottom playback dock that can rise when the root tab bar collapses away', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
     source.includes('floatingReaderChapterNavOverlay'),
     true,
-    'BibleReaderScreen should render a pinned bottom overlay for the chapter navigation circles'
+    'BibleReaderScreen should render a pinned bottom overlay for the read-mode playback dock'
   );
 
-  assert.equal(
-    source.includes('bottom: layout.tabBarBaseHeight + spacing.lg'),
-    true,
-    'BibleReaderScreen should keep the chapter navigation circles above the visible root tab bar'
+  assert.match(
+    source,
+    /const bottomDockAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*bottom:\s*interpolate\(/s,
+    'BibleReaderScreen should animate the bottom dock between the visible tab bar and the collapsed no-tab state'
   );
 
   assert.equal(
@@ -612,16 +626,10 @@ test('premium read mode restores the bottom previous and next chapter circles', 
     'BibleReaderScreen should keep the next chapter action wired into premium read mode'
   );
 
-  assert.equal(
-    source.includes('name="chevron-back"'),
-    true,
-    'BibleReaderScreen should render a back chevron inside the previous chapter circle'
-  );
-
-  assert.equal(
-    source.includes('name="chevron-forward"'),
-    true,
-    'BibleReaderScreen should render a forward chevron inside the next chapter circle'
+  assert.match(
+    source,
+    /<ReaderPlaybackDock[\s\S]*onPreviousChapter=\{\(\) => void handlePreviousReadChapter\(\)\}[\s\S]*onNextChapter=\{\(\) => void handleNextReadChapter\(\)\}/s,
+    'BibleReaderScreen should hand the previous and next chapter actions into the shared playback dock'
   );
 
   assert.match(
