@@ -1,6 +1,7 @@
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry } from '../supabase/types';
 import { resolveCloudTextTranslationId } from '../bible/cloudTranslationModel';
+import { isHiddenTranslationId } from './translationCatalogVisibility';
 
 export interface CatalogLanguageFilter {
   code: string;
@@ -55,6 +56,10 @@ export function filterInstallableCatalogEntries(
   currentVersionIds: Set<string>
 ): TranslationCatalogEntry[] {
   return normalizeCatalogEntries(entries).filter((entry) => {
+    if (isHiddenTranslationId(entry.translation_id)) {
+      return false;
+    }
+
     const resolvedBackendId = resolveCloudTextTranslationId(
       entry.translation_id,
       entry.translation_id
