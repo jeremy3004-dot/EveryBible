@@ -452,6 +452,12 @@ test('BibleReaderScreen routes tab-bar control through RootTab id lookups and ha
 
   assert.match(
     source,
+    /tabBarStyle:\s*shouldForceHideRootTabBar\s*\?\s*\{\s*display:\s*'none'\s*\}\s*:\s*getRootTabBarStyle\(0\)/s,
+    'BibleReaderScreen should keep the fallback non-premium tab-bar sync effect from re-showing root tabs during plan-session listen mode'
+  );
+
+  assert.match(
+    source,
     /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/s,
     'BibleReaderScreen should release the hard tab-bar override when leaving plan-session chrome'
   );

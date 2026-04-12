@@ -1208,11 +1208,17 @@ export function BibleReaderScreen() {
       navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
     if (rootTabNavigation) {
       rootTabNavigation.setOptions({
-        tabBarStyle: getRootTabBarStyle(0),
+        tabBarStyle: shouldForceHideRootTabBar ? { display: 'none' } : getRootTabBarStyle(0),
       });
     }
-    navigation.setParams({ tabBarCollapseProgress: 0 });
-  }, [getRootTabBarStyle, navigation, readerBottomChromeProgressShared, showPremiumReadMode]);
+    navigation.setParams({ tabBarCollapseProgress: shouldForceHideRootTabBar ? 1 : 0 });
+  }, [
+    getRootTabBarStyle,
+    navigation,
+    readerBottomChromeProgressShared,
+    showPremiumReadMode,
+    shouldForceHideRootTabBar,
+  ]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
