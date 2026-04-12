@@ -52,6 +52,11 @@ test('BibleReaderScreen keeps read-mode plan completion explicit while still rou
     false,
     'BibleReaderScreen should remove the old daily-complete alert body copy from the reader flow'
   );
+  assert.equal(
+    source.includes('const shouldAutoCompleteSession ='),
+    false,
+    'BibleReaderScreen should keep plan completion explicit instead of auto-completing listen sessions'
+  );
 });
 
 test('BibleReaderScreen keeps rhythm completions inside the reader until the final segment, then returns to RhythmDetail', () => {

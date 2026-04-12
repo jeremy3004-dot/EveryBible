@@ -29,19 +29,19 @@ test('mini player does not read navigation state with a screen-only hook', () =>
   );
 });
 
-test('root navigator owns the current route name for the global mini player', () => {
+test('root navigator no longer mounts the retired global mini player', () => {
   const rootNavigatorSource = readRelativeSource('../../navigation/RootNavigator.tsx');
 
-  assert.match(
-    rootNavigatorSource,
-    /onStateChange=\{\(\) => \{[\s\S]*?setCurrentRouteName\([\s\S]*?\);[\s\S]*?\}\}/,
-    'RootNavigator should update current route name when navigation state changes'
+  assert.equal(
+    rootNavigatorSource.includes('MiniPlayerHost'),
+    false,
+    'RootNavigator should not keep a global mini-player host once the persistent play bar is retired'
   );
 
-  assert.match(
-    rootNavigatorSource,
-    /<MiniPlayerHost currentRouteName=\{currentRouteName\} \/>/,
-    'RootNavigator should pass current route name into the mini player host'
+  assert.equal(
+    rootNavigatorSource.includes("require('../components/audio/MiniPlayer')"),
+    false,
+    'RootNavigator should not lazy-load the retired global mini player either'
   );
 });
 

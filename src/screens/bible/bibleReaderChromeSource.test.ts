@@ -394,8 +394,8 @@ test('BibleReaderScreen only overrides the shared RootTab bar for plan sessions'
 
   assert.match(
     source,
-    /navigation\.getParent\(\)/,
-    'BibleReaderScreen should still reach up to the RootTab navigator while a plan session is active'
+    /navigation\.getParent\(\)\?\.getParent\(\)/,
+    'BibleReaderScreen should reach through the nested stack to target the actual RootTab navigator while a plan session is active'
   );
 
   assert.match(

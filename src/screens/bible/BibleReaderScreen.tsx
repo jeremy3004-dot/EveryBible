@@ -556,7 +556,7 @@ export function BibleReaderScreen() {
       }
 
       rootTabBarCollapseProgressRef.current = clampedProgress;
-      const rootTabNavigation = navigation.getParent();
+      const rootTabNavigation = navigation.getParent()?.getParent();
       if (rootTabNavigation) {
         rootTabNavigation.setOptions({
           tabBarStyle: getRootTabBarStyle(clampedProgress),
@@ -786,7 +786,7 @@ export function BibleReaderScreen() {
 
   const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
   useEffect(() => {
-    const rootTabNavigation = navigation.getParent();
+    const rootTabNavigation = navigation.getParent()?.getParent();
     if (!rootTabNavigation) {
       return;
     }
@@ -1192,7 +1192,7 @@ export function BibleReaderScreen() {
     readerBottomChromeProgressShared.value = 0;
     setReaderBottomChromeProgress(0);
     setIsReadBottomChromeCollapsed(false);
-    const rootTabNavigation = navigation.getParent();
+    const rootTabNavigation = navigation.getParent()?.getParent();
     if (rootTabNavigation) {
       rootTabNavigation.setOptions({
         tabBarStyle: getRootTabBarStyle(0),
@@ -1790,39 +1790,6 @@ export function BibleReaderScreen() {
     navigation,
     planDayNumber,
     playbackSequenceEntries,
-    returnToPlanOnComplete,
-  ]);
-
-  useEffect(() => {
-    if (chapterSessionMode === 'read') {
-      return;
-    }
-
-    const shouldAutoCompleteSession = activePlanIsMultiSession
-      ? activePlanSessionSummary?.isComplete
-      : activePlanDaySummary?.isComplete;
-
-    if (
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      !returnToPlanOnComplete ||
-      !activePlanProgress ||
-      activePlanProgress.is_completed ||
-      !shouldAutoCompleteSession
-    ) {
-      return;
-    }
-
-    void handleCompletePlanDay();
-  }, [
-    activePlanDaySummary,
-    activePlanId,
-    activePlanProgress,
-    activePlanIsMultiSession,
-    activePlanSessionSummary,
-    chapterSessionMode,
-    handleCompletePlanDay,
-    planDayNumber,
     returnToPlanOnComplete,
   ]);
 

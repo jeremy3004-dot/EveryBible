@@ -38,7 +38,7 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   );
 });
 
-test('Root navigator keeps the mini-player off the startup import path', () => {
+test('Root navigator does not mount the retired global mini-player host', () => {
   const rootNavigatorSource = readRelativeSource('../../navigation/RootNavigator.tsx');
 
   assert.equal(
@@ -47,22 +47,16 @@ test('Root navigator keeps the mini-player off the startup import path', () => {
     'RootNavigator should not eagerly import MiniPlayer during boot'
   );
 
-  assert.match(
-    rootNavigatorSource,
-    /require\('\.\.\/components\/audio\/MiniPlayer'\)/,
-    'RootNavigator should defer MiniPlayer until it is actually needed'
+  assert.equal(
+    rootNavigatorSource.includes("require('../components/audio/MiniPlayer')"),
+    false,
+    'RootNavigator should not mount the retired global mini-player anywhere in the app shell'
   );
 
-  assert.match(
-    rootNavigatorSource,
-    /Boolean\(state\.currentBookId && state\.currentChapter\)/,
-    'RootNavigator should only mount the mini player for an active playback session during startup'
-  );
-
-  assert.doesNotMatch(
-    rootNavigatorSource,
-    /lastPlayedBookId|lastPlayedChapter/,
-    'RootNavigator should not mount the mini player from stale resume-only audio state on cold launch'
+  assert.equal(
+    rootNavigatorSource.includes('MiniPlayerHost'),
+    false,
+    'RootNavigator should not keep the old mini-player host helper around after the floating bar removal'
   );
 });
 
