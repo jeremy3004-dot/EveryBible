@@ -292,6 +292,7 @@ export const vi = {
     "chapterFeedbackIdentityRolePlaceholder": "Lãnh đạo hội thánh, người nói ngôn ngữ, người cao tuổi trong cộng đồng",
     "chapterFeedbackIdentityRequired": "Vui lòng nhập tên và vai trò của bạn.",
     "chapterFeedbackIdentitySummaryOff": "Chưa lưu danh tính phản hồi nào",
+    "hidePlayButtonFromReadingTab": "Ẩn nút phát khỏi tab đọc",
     "chapterFeedback": "Phản hồi chương",
     "chapterFeedbackSummaryOn": "Phản hồi chương tùy chọn đang bật",
     "chapterFeedbackSummaryOff": "Phản hồi chương tùy chọn đã tắt"

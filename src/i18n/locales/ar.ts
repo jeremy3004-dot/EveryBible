@@ -292,6 +292,7 @@ export const ar = {
     "chapterFeedbackIdentityRolePlaceholder": "زعيم الكنيسة، المتحدث باللغة، شيخ المجتمع",
     "chapterFeedbackIdentityRequired": "الرجاء إدخال اسمك ودورك.",
     "chapterFeedbackIdentitySummaryOff": "لم يتم حفظ هوية التعليقات حتى الآن",
+    "hidePlayButtonFromReadingTab": "إخفاء زر التشغيل من تبويب القراءة",
     "chapterFeedback": "ردود الفعل الفصل",
     "chapterFeedbackSummaryOn": "التعليقات الاختيارية للفصل قيد التشغيل",
     "chapterFeedbackSummaryOff": "تم إيقاف التعليقات الاختيارية للفصل"

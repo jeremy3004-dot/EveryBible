@@ -262,6 +262,8 @@ export const syncPreferences = async (): Promise<SyncResult> => {
         chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
         onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
         chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
+        hide_play_button_from_reading_tab:
+          mergedPreferences.preferences.hidePlayButtonFromReadingTab,
         notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
         reminder_time: mergedPreferences.preferences.reminderTime,
         synced_at: syncedAt,

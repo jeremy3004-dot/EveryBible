@@ -378,6 +378,7 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
       chapterFeedbackIdNumber: '  009  ',
       onboardingCompleted: 'yes',
       chapterFeedbackEnabled: 'sometimes',
+      hidePlayButtonFromReadingTab: 'sometimes',
       notificationsEnabled: true,
       reminderTime: '9am',
     },
@@ -406,6 +407,7 @@ test('sanitizePersistedAuthState normalizes unsupported preferences', () => {
   assert.equal(sanitized.preferences.chapterFeedbackRole, 'Elder');
   assert.equal(sanitized.preferences.onboardingCompleted, false);
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
+  assert.equal(sanitized.preferences.hidePlayButtonFromReadingTab, false);
   assert.equal(sanitized.preferences.notificationsEnabled, true);
   assert.equal(sanitized.preferences.reminderTime, null);
 });
@@ -438,6 +440,7 @@ test('sanitizePersistedAuthState defaults chapter feedback to false when the key
   });
 
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, false);
+  assert.equal(sanitized.preferences.hidePlayButtonFromReadingTab, false);
 });
 
 test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', () => {
@@ -454,6 +457,17 @@ test('sanitizePersistedAuthState preserves a valid chapter feedback boolean', ()
   assert.equal(sanitized.preferences.chapterFeedbackEnabled, true);
   assert.equal(sanitized.preferences.chapterFeedbackName, 'Ada');
   assert.equal(sanitized.preferences.chapterFeedbackRole, 'Leader');
+});
+
+test('sanitizePersistedAuthState preserves a valid hide-play-button boolean', () => {
+  const sanitized = sanitizePersistedAuthState({
+    preferences: {
+      appearancePalette: 'sapphire',
+      hidePlayButtonFromReadingTab: true,
+    },
+  });
+
+  assert.equal(sanitized.preferences.hidePlayButtonFromReadingTab, true);
 });
 
 test('sanitizePersistedAuthState drops the legacy manual feedback ID number field', () => {

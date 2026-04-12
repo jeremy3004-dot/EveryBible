@@ -292,6 +292,7 @@ export const ko = {
     "chapterFeedbackIdentityRolePlaceholder": "교회 지도자, 언어 구사자, 지역 사회 장로",
     "chapterFeedbackIdentityRequired": "이름과 역할을 입력해주세요.",
     "chapterFeedbackIdentitySummaryOff": "아직 저장된 피드백 ID가 없습니다.",
+    "hidePlayButtonFromReadingTab": "읽기 탭에서 재생 버튼 숨기기",
     "chapterFeedback": "챕터 피드백",
     "chapterFeedbackSummaryOn": "선택적 장 피드백이 켜져 있습니다.",
     "chapterFeedbackSummaryOff": "선택적 챕터 피드백이 꺼져 있습니다"

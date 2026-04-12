@@ -292,6 +292,7 @@ export const mr = {
     "chapterFeedbackIdentityRolePlaceholder": "चर्चचा नेता, भाषा बोलणारा, समाजातील वडील",
     "chapterFeedbackIdentityRequired": "कृपया आपले नाव आणि भूमिका प्रविष्ट करा.",
     "chapterFeedbackIdentitySummaryOff": "अद्याप कोणतीही फीडबॅक ओळख जतन केलेली नाही",
+    "hidePlayButtonFromReadingTab": "वाचन टॅबमधून प्ले बटण लपवा",
     "chapterFeedback": "धडा अभिप्राय",
     "chapterFeedbackSummaryOn": "पर्यायी धडा फीडबॅक चालू आहे",
     "chapterFeedbackSummaryOff": "पर्यायी धडा फीडबॅक बंद आहे"

@@ -259,6 +259,7 @@ export const en = {
     chapterFeedbackIdentityRolePlaceholder: 'Church leader, language speaker, community elder',
     chapterFeedbackIdentityRequired: 'Please enter your name and role.',
     chapterFeedbackIdentitySummaryOff: 'No feedback identity saved yet',
+    hidePlayButtonFromReadingTab: 'Hide play button from reading tab',
     language: 'Interface language',
     nationAndLanguage: 'Nation and Bible',
     fontSize: 'Font Size',

@@ -244,6 +244,7 @@ export const ru = {
     "chapterFeedbackIdentityRolePlaceholder": "Руководитель церкви, носитель языка, старейшина сообщества",
     "chapterFeedbackIdentityRequired": "Пожалуйста, введите свое имя и роль.",
     "chapterFeedbackIdentitySummaryOff": "Данные для отзыва пока не сохранены",
+    "hidePlayButtonFromReadingTab": "Скрывать кнопку воспроизведения на вкладке чтения",
     "language": "Язык интерфейса",
     "nationAndLanguage": "Нация и библейский язык",
     "fontSize": "Размер шрифта",

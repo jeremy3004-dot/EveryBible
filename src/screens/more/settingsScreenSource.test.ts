@@ -61,6 +61,26 @@ test('SettingsScreen exposes an opt-in chapter feedback toggle that syncs prefer
   );
 });
 
+test('SettingsScreen exposes a switch to hide the reading-tab play button and syncs preferences', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.match(
+    source,
+    /hidePlayButtonFromReadingTab/,
+    'SettingsScreen should read the hidePlayButtonFromReadingTab preference'
+  );
+  assert.match(
+    source,
+    /setPreferences\(\{\s*hidePlayButtonFromReadingTab:/,
+    'SettingsScreen should update hidePlayButtonFromReadingTab from the settings switch'
+  );
+  assert.match(
+    source,
+    /syncPreferences\(\)\.catch\(\(\) => \{\}\)/,
+    'SettingsScreen should keep syncing preferences after the hide-play-button switch changes'
+  );
+});
+
 test('SettingsScreen asks for a feedback identity before enabling chapter feedback and exposes an edit row', () => {
   const source = readRelativeSource('./SettingsScreen.tsx');
 

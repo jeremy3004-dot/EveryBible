@@ -292,6 +292,7 @@ export const ja = {
     "chapterFeedbackIdentityRolePlaceholder": "教会指導者、言語話者、地域の長老",
     "chapterFeedbackIdentityRequired": "あなたの名前と役割を入力してください。",
     "chapterFeedbackIdentitySummaryOff": "フィードバック ID がまだ保存されていません",
+    "hidePlayButtonFromReadingTab": "読書タブの再生ボタンを非表示にする",
     "chapterFeedback": "章のフィードバック",
     "chapterFeedbackSummaryOn": "オプションの章フィードバックがオンになっています",
     "chapterFeedbackSummaryOff": "オプションのチャプターフィードバックがオフになっています"

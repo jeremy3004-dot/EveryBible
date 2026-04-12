@@ -292,6 +292,7 @@ export const zh = {
     "chapterFeedbackIdentityRolePlaceholder": "教会领袖、语言演讲者、社区长老",
     "chapterFeedbackIdentityRequired": "请输入您的姓名和角色。",
     "chapterFeedbackIdentitySummaryOff": "尚未保存反馈身份",
+    "hidePlayButtonFromReadingTab": "隐藏阅读标签的播放按钮",
     "chapterFeedback": "章节反馈",
     "chapterFeedbackSummaryOn": "可选章节反馈已开启",
     "chapterFeedbackSummaryOff": "可选章节反馈已关闭"

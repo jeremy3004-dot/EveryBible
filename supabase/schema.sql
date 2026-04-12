@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
   content_language_native_name TEXT,
   onboarding_completed BOOLEAN DEFAULT false,
   notifications_enabled BOOLEAN DEFAULT false,
+  hide_play_button_from_reading_tab BOOLEAN DEFAULT false,
   reminder_time TIME,
   synced_at TIMESTAMPTZ DEFAULT NOW()
 );

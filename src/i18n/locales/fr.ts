@@ -292,6 +292,7 @@ export const fr = {
     "chapterFeedbackIdentityRolePlaceholder": "Dirigeant d'église, locuteur de langue, ancien de la communauté",
     "chapterFeedbackIdentityRequired": "Veuillez entrer votre nom et votre rôle.",
     "chapterFeedbackIdentitySummaryOff": "Aucune identité de feedback enregistrée pour l'instant",
+    "hidePlayButtonFromReadingTab": "Masquer le bouton de lecture dans l’onglet de lecture",
     "chapterFeedback": "Commentaires sur le chapitre",
     "chapterFeedbackSummaryOn": "Les commentaires sur les chapitres facultatifs sont activés",
     "chapterFeedbackSummaryOff": "Les commentaires sur les chapitres facultatifs sont désactivés"

@@ -515,6 +515,7 @@ export const defaultAuthPreferences: UserPreferences = {
   chapterFeedbackRole: null,
   onboardingCompleted: false,
   chapterFeedbackEnabled: false,
+  hidePlayButtonFromReadingTab: false,
   notificationsEnabled: false,
   reminderTime: null,
 };
@@ -566,6 +567,7 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
     chapterFeedbackRole: sanitizeRequiredString(value.chapterFeedbackRole),
     onboardingCompleted: value.onboardingCompleted === true,
     chapterFeedbackEnabled: value.chapterFeedbackEnabled === true,
+    hidePlayButtonFromReadingTab: value.hidePlayButtonFromReadingTab === true,
     notificationsEnabled: value.notificationsEnabled === true,
     reminderTime,
   };

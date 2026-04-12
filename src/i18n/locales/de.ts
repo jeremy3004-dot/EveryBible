@@ -292,6 +292,7 @@ export const de = {
     "chapterFeedbackIdentityRolePlaceholder": "Kirchenführer, Sprachsprecher, Gemeindeältester",
     "chapterFeedbackIdentityRequired": "Bitte geben Sie Ihren Namen und Ihre Rolle ein.",
     "chapterFeedbackIdentitySummaryOff": "Noch keine Feedback-Identität gespeichert",
+    "hidePlayButtonFromReadingTab": "Wiedergabeschaltfläche im Lese-Tab ausblenden",
     "chapterFeedback": "Kapitel-Feedback",
     "chapterFeedbackSummaryOn": "Optionales Kapitel-Feedback ist aktiviert",
     "chapterFeedbackSummaryOff": "Das optionale Kapitel-Feedback ist deaktiviert"

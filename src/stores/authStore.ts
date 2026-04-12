@@ -95,6 +95,7 @@ export const useAuthStore = create<AuthState>()(
             state.preferences.chapterFeedbackRole !== preferences.chapterFeedbackRole ||
             state.preferences.onboardingCompleted !== preferences.onboardingCompleted ||
             state.preferences.chapterFeedbackEnabled !== preferences.chapterFeedbackEnabled ||
+            state.preferences.hidePlayButtonFromReadingTab !== preferences.hidePlayButtonFromReadingTab ||
             state.preferences.notificationsEnabled !== preferences.notificationsEnabled ||
             state.preferences.reminderTime !== preferences.reminderTime;
 

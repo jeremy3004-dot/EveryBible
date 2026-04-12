@@ -244,6 +244,7 @@ export const ne = {
     "chapterFeedbackIdentityRolePlaceholder": "मण्डली अगुवा, भाषा बोल्ने व्यक्ति, समुदायका ज्येष्ठ",
     "chapterFeedbackIdentityRequired": "कृपया आफ्नो नाम र भूमिका प्रविष्ट गर्नुहोस्।",
     "chapterFeedbackIdentitySummaryOff": "अहिलेसम्म कुनै प्रतिक्रिया परिचय सुरक्षित गरिएको छैन",
+    "hidePlayButtonFromReadingTab": "पढ्ने ट्याबबाट प्ले बटन लुकाउनुहोस्",
     "language": "इन्टरफेस भाषा",
     "nationAndLanguage": "राष्ट्र र बाइबल भाषा",
     "fontSize": "फन्ट साइज",

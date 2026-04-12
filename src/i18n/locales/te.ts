@@ -292,6 +292,7 @@ export const te = {
     "chapterFeedbackIdentityRolePlaceholder": "చర్చి నాయకుడు, భాష మాట్లాడేవాడు, సంఘం పెద్ద",
     "chapterFeedbackIdentityRequired": "దయచేసి మీ పేరు మరియు పాత్రను నమోదు చేయండి.",
     "chapterFeedbackIdentitySummaryOff": "ఫీడ్‌బ్యాక్ గుర్తింపు ఇంకా సేవ్ చేయబడలేదు",
+    "hidePlayButtonFromReadingTab": "చదువు ట్యాబ్‌లోని ప్లే బటన్‌ను దాచండి",
     "chapterFeedback": "అధ్యాయం అభిప్రాయం",
     "chapterFeedbackSummaryOn": "ఐచ్ఛిక చాప్టర్ ఫీడ్‌బ్యాక్ ఆన్‌లో ఉంది",
     "chapterFeedbackSummaryOff": "ఐచ్ఛిక చాప్టర్ ఫీడ్‌బ్యాక్ ఆఫ్ చేయబడింది"

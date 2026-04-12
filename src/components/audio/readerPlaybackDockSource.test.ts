@@ -56,3 +56,25 @@ test('ReaderPlaybackDock collapses the side chapter arrows away while keeping th
     'ReaderPlaybackDock should disable side-arrow taps once the dock has collapsed down to the play button'
   );
 });
+
+test('ReaderPlaybackDock can hide the center play control for readers who want a quieter dock', () => {
+  const source = readRelativeSource('./ReaderPlaybackDock.tsx');
+
+  assert.match(
+    source,
+    /hidePlayButton\?: boolean;/,
+    'ReaderPlaybackDock should accept a hidePlayButton preference from the reader screen'
+  );
+
+  assert.match(
+    source,
+    /const showPlayButton = hidePlayButton !== true;/,
+    'ReaderPlaybackDock should derive play-button visibility from the hidePlayButton flag'
+  );
+
+  assert.match(
+    source,
+    /\{showPlayButton \? \(/,
+    'ReaderPlaybackDock should only render the center play button when it is allowed to show'
+  );
+});

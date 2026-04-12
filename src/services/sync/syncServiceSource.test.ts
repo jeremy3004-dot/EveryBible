@@ -43,6 +43,14 @@ test('syncPreferences does not upsert a manual chapter feedback ID number into u
   );
 });
 
+test('syncPreferences writes the hide-play-button preference into user_preferences', () => {
+  assert.equal(
+    source.includes('hide_play_button_from_reading_tab'),
+    true,
+    'syncPreferences should write the hide-play-button preference into user_preferences'
+  );
+});
+
 test('syncPreferences does not write an appearance palette into user_preferences', () => {
   assert.equal(
     source.includes('appearance_palette'),

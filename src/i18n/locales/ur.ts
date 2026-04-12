@@ -292,6 +292,7 @@ export const ur = {
     "chapterFeedbackIdentityRolePlaceholder": "چرچ کے رہنما، زبان بولنے والے، کمیونٹی کے بزرگ",
     "chapterFeedbackIdentityRequired": "براہ کرم اپنا نام اور کردار درج کریں۔",
     "chapterFeedbackIdentitySummaryOff": "فیڈ بیک کی کوئی شناخت ابھی تک محفوظ نہیں ہے۔",
+    "hidePlayButtonFromReadingTab": "پڑھنے والے ٹیب سے پلے بٹن چھپائیں",
     "chapterFeedback": "باب کی رائے",
     "chapterFeedbackSummaryOn": "اختیاری باب فیڈ بیک آن ہے۔",
     "chapterFeedbackSummaryOff": "اختیاری باب فیڈ بیک آف ہے۔"

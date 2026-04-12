@@ -292,6 +292,7 @@ export const pt = {
     "chapterFeedbackIdentityRolePlaceholder": "Líder da igreja, falante de línguas, ancião comunitário",
     "chapterFeedbackIdentityRequired": "Por favor, insira seu nome e função.",
     "chapterFeedbackIdentitySummaryOff": "Nenhuma identidade de feedback salva ainda",
+    "hidePlayButtonFromReadingTab": "Ocultar o botão de reprodução na aba de leitura",
     "chapterFeedback": "Feedback do capítulo",
     "chapterFeedbackSummaryOn": "O feedback opcional do capítulo está ativado",
     "chapterFeedbackSummaryOff": "O feedback opcional do capítulo está desativado"

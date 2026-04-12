@@ -292,6 +292,7 @@ export const tr = {
     "chapterFeedbackIdentityRolePlaceholder": "Kilise lideri, dil konuşmacısı, topluluk büyüğü",
     "chapterFeedbackIdentityRequired": "Lütfen adınızı ve rolünüzü girin.",
     "chapterFeedbackIdentitySummaryOff": "Henüz geri bildirim kimliği kaydedilmedi",
+    "hidePlayButtonFromReadingTab": "Okuma sekmesindeki oynat düğmesini gizle",
     "chapterFeedback": "Bölüm geri bildirimi",
     "chapterFeedbackSummaryOn": "İsteğe bağlı bölüm geri bildirimi açık",
     "chapterFeedbackSummaryOff": "İsteğe bağlı bölüm geri bildirimi kapalı"

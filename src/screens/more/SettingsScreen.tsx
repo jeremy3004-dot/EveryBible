@@ -50,6 +50,7 @@ export function SettingsScreen() {
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
   const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
+  const hidePlayButtonFromReadingTab = preferences.hidePlayButtonFromReadingTab;
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -195,6 +196,11 @@ export function SettingsScreen() {
     }
 
     openChapterFeedbackIdentityModal(true);
+  };
+
+  const handleHidePlayButtonToggle = (enabled: boolean) => {
+    setPreferences({ hidePlayButtonFromReadingTab: enabled });
+    syncPreferences().catch(() => {});
   };
 
   const handleOpenChapterFeedbackIdentityEditor = () => {
@@ -496,7 +502,7 @@ export function SettingsScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.settingItem, styles.lastItem, styles.feedbackIdentityRow]}
+            style={[styles.settingItem, styles.feedbackIdentityRow]}
             onPress={handleOpenChapterFeedbackIdentityEditor}
           >
             <View style={styles.settingLeft}>
@@ -523,6 +529,29 @@ export function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
             </View>
           </TouchableOpacity>
+
+          <View style={[styles.settingItem, styles.lastItem, { borderBottomColor: colors.cardBorder }]}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="eye-off-outline" size={24} color={colors.secondaryText} />
+              <View style={styles.settingCopy}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    styles.settingLabelNoMargin,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  {t('settings.hidePlayButtonFromReadingTab')}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={hidePlayButtonFromReadingTab}
+              onValueChange={handleHidePlayButtonToggle}
+              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
+              thumbColor={colors.cardBackground}
+            />
+          </View>
         </View>
 
         <View
@@ -1128,10 +1157,13 @@ const styles = StyleSheet.create({
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   settingCopy: {
     marginLeft: 12,
     gap: 2,
+    flex: 1,
     flexShrink: 1,
     paddingRight: 12,
   },

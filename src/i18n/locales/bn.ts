@@ -292,6 +292,7 @@ export const bn = {
     "chapterFeedbackIdentityRolePlaceholder": "গির্জার নেতা, ভাষা বক্তা, সম্প্রদায়ের অগ্রজ",
     "chapterFeedbackIdentityRequired": "আপনার নাম এবং ভূমিকা লিখুন.",
     "chapterFeedbackIdentitySummaryOff": "কোন প্রতিক্রিয়া পরিচয় এখনো সংরক্ষিত",
+    "hidePlayButtonFromReadingTab": "পড়ার ট্যাব থেকে প্লে বোতাম লুকান",
     "chapterFeedback": "অধ্যায় প্রতিক্রিয়া",
     "chapterFeedbackSummaryOn": "ঐচ্ছিক অধ্যায় প্রতিক্রিয়া চালু আছে",
     "chapterFeedbackSummaryOff": "ঐচ্ছিক অধ্যায় প্রতিক্রিয়া বন্ধ আছে"

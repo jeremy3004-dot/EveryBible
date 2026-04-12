@@ -292,6 +292,7 @@ export const pa = {
     "chapterFeedbackIdentityRolePlaceholder": "ਚਰਚ ਦੇ ਆਗੂ, ਭਾਸ਼ਾ ਬੋਲਣ ਵਾਲੇ, ਭਾਈਚਾਰੇ ਦੇ ਬਜ਼ੁਰਗ",
     "chapterFeedbackIdentityRequired": "ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਨਾਮ ਅਤੇ ਭੂਮਿਕਾ ਦਰਜ ਕਰੋ।",
     "chapterFeedbackIdentitySummaryOff": "ਅਜੇ ਤੱਕ ਕੋਈ ਫੀਡਬੈਕ ਪਛਾਣ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੀ ਗਈ ਹੈ",
+    "hidePlayButtonFromReadingTab": "ਪੜ੍ਹਨ ਟੈਬ ਤੋਂ ਪਲੇ ਬਟਨ ਲੁਕਾਓ",
     "chapterFeedback": "ਅਧਿਆਇ ਫੀਡਬੈਕ",
     "chapterFeedbackSummaryOn": "ਵਿਕਲਪਿਕ ਅਧਿਆਇ ਫੀਡਬੈਕ ਚਾਲੂ ਹੈ",
     "chapterFeedbackSummaryOff": "ਵਿਕਲਪਿਕ ਅਧਿਆਇ ਫੀਡਬੈਕ ਬੰਦ ਹੈ"

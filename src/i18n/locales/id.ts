@@ -292,6 +292,7 @@ export const id = {
     "chapterFeedbackIdentityRolePlaceholder": "Pemimpin gereja, penutur bahasa, sesepuh komunitas",
     "chapterFeedbackIdentityRequired": "Silakan masukkan nama dan peran Anda.",
     "chapterFeedbackIdentitySummaryOff": "Belum ada identitas masukan yang disimpan",
+    "hidePlayButtonFromReadingTab": "Sembunyikan tombol putar dari tab baca",
     "chapterFeedback": "Umpan balik bab",
     "chapterFeedbackSummaryOn": "Masukan bab opsional aktif",
     "chapterFeedbackSummaryOff": "Masukan bab opsional tidak aktif"

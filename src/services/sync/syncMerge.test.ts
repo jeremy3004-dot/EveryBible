@@ -122,6 +122,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
     chapter_feedback_id_number: '42',
     onboarding_completed: true,
     chapter_feedback_enabled: true,
+    hide_play_button_from_reading_tab: true,
     notifications_enabled: true,
     reminder_time: '08:00',
     synced_at: '2026-03-09T06:00:00.000Z',
@@ -134,6 +135,7 @@ test('mergePreferences prefers the newer remote preferences snapshot', () => {
   assert.equal(merged.preferences.theme, 'light');
   assert.equal(merged.preferences.language, 'es');
   assert.equal(merged.preferences.chapterFeedbackEnabled, true);
+  assert.equal(merged.preferences.hidePlayButtonFromReadingTab, true);
   assert.equal(merged.preferences.reminderTime, '08:00');
   assert.equal(merged.changed, true);
 });
@@ -167,6 +169,7 @@ test('mergePreferences keeps the newer local preferences snapshot', () => {
     chapter_feedback_id_number: null,
     onboarding_completed: true,
     chapter_feedback_enabled: false,
+    hide_play_button_from_reading_tab: false,
     notifications_enabled: false,
     reminder_time: null,
     synced_at: '2026-03-09T06:00:00.000Z',
@@ -215,6 +218,7 @@ test('mergePreferences does not let a newer incomplete remote snapshot reopen on
     chapter_feedback_id_number: null,
     onboarding_completed: false,
     chapter_feedback_enabled: false,
+    hide_play_button_from_reading_tab: false,
     notifications_enabled: false,
     reminder_time: null,
     synced_at: '2026-03-10T09:00:00.000Z',

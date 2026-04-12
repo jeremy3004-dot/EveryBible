@@ -294,7 +294,8 @@ export const es = {
     "chapterFeedbackIdentityRole": "Papel en el proyecto",
     "chapterFeedbackIdentityRolePlaceholder": "Líder de la iglesia, hablante de idiomas, anciano de la comunidad",
     "chapterFeedbackIdentityRequired": "Por favor ingrese su nombre y función.",
-    "chapterFeedbackIdentitySummaryOff": "Aún no se ha guardado ninguna identidad de comentarios"
+    "chapterFeedbackIdentitySummaryOff": "Aún no se ha guardado ninguna identidad de comentarios",
+    "hidePlayButtonFromReadingTab": "Ocultar el botón de reproducción en la pestaña de lectura"
   },
   "notifications": {
     "channelDailyReminder": "Recordatorio diario de lectura",

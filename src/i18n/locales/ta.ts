@@ -292,6 +292,7 @@ export const ta = {
     "chapterFeedbackIdentityRolePlaceholder": "திருச்சபை தலைவர், மொழி பேசுபவர், சமூக பெரியவர்",
     "chapterFeedbackIdentityRequired": "உங்கள் பெயரையும் பதவியையும் உள்ளிடவும்.",
     "chapterFeedbackIdentitySummaryOff": "இதுவரை பின்னூட்ட அடையாளம் எதுவும் சேமிக்கப்படவில்லை",
+    "hidePlayButtonFromReadingTab": "வாசிப்பு தாவலில் இருந்து பிளே பொத்தானை மறைக்கவும்",
     "chapterFeedback": "அத்தியாயத்தின் கருத்து",
     "chapterFeedbackSummaryOn": "விருப்ப அத்தியாய கருத்து இயக்கத்தில் உள்ளது",
     "chapterFeedbackSummaryOff": "விருப்பமான அத்தியாயம் பின்னூட்டம் முடக்கப்பட்டுள்ளது"
