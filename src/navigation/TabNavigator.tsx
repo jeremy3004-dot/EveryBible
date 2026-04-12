@@ -47,6 +47,20 @@ export function TabNavigator() {
     paddingBottom: tabBarBottomPadding + spacing.sm,
     height: tabBarHeight,
   } as const;
+  const getCollapsingTabBarStyle = (collapseProgress: number) => ({
+    backgroundColor: colors.background,
+    borderTopColor: colors.cardBorder,
+    borderTopWidth: 1,
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 0,
+    paddingBottom: tabBarBottomPadding + spacing.sm,
+    height: tabBarHeight,
+    transform: [{ translateY: tabBarHeight * collapseProgress }],
+    opacity: 1 - collapseProgress,
+  });
 
   return (
     <Tab.Navigator
@@ -81,8 +95,17 @@ export function TabNavigator() {
           const shouldHideNestedBibleScreen =
             (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
             shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
+          const routeCollapseProgress =
+            typeof nestedRouteParams?.tabBarCollapseProgress === 'number'
+              ? Math.max(0, Math.min(nestedRouteParams.tabBarCollapseProgress, 1))
+              : 0;
+          const tabBarCollapseProgress = shouldHideNestedBibleScreen
+            ? Math.max(routeCollapseProgress, 1)
+            : routeCollapseProgress;
 
-          return shouldHideNestedBibleScreen ? { display: 'none' } : defaultTabBarStyle;
+          return tabBarCollapseProgress > 0
+            ? getCollapsingTabBarStyle(tabBarCollapseProgress)
+            : defaultTabBarStyle;
         })(),
         tabBarLabelStyle: typography.tabLabel,
         tabBarItemStyle: {
