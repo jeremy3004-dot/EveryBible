@@ -344,6 +344,93 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
   );
 });
 
+test('filterInstallableCatalogEntries hides blocked English Bible variants even when they are installable', () => {
+  const entries: TranslationCatalogEntry[] = [
+    {
+      ...baseEntry,
+      translation_id: 'BSB',
+      name: 'Berean Standard Bible',
+      abbreviation: 'BSB',
+      language_name: 'English',
+      sort_order: 1,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/bsb.db',
+          format: 'sqlite',
+          sha256: 'bsb-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
+    },
+    {
+      ...baseEntry,
+      translation_id: 'engdby',
+      name: 'Darby Translation',
+      abbreviation: 'DBY',
+      language_name: 'English',
+      sort_order: 2,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/engdby.db',
+          format: 'sqlite',
+          sha256: 'dby-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
+    },
+    {
+      ...baseEntry,
+      translation_id: 'engdra',
+      name: 'Darby Translation (Alternate)',
+      abbreviation: 'DBYA',
+      language_name: 'English',
+      sort_order: 3,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/engdra.db',
+          format: 'sqlite',
+          sha256: 'dra-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
+    },
+    {
+      ...baseEntry,
+      translation_id: 'enggnv',
+      name: 'Geneva Bible 1599',
+      abbreviation: 'GNV',
+      language_name: 'English',
+      sort_order: 4,
+      catalog: {
+        text: {
+          downloadUrl: 'https://cdn.example.com/text/enggnv.db',
+          format: 'sqlite',
+          sha256: 'gnv-sha',
+          version: '2026.04.04-v1',
+        },
+        updatedAt: '2026-04-04T00:00:00.000Z',
+        version: '2026.04.04-v1',
+      },
+    },
+  ];
+
+  const filtered = filterInstallableCatalogEntries(
+    entries,
+    new Set(['bsb', 'engdby', 'engdra', 'enggnv'])
+  );
+
+  assert.deepEqual(
+    filtered.map((entry) => entry.translation_id),
+    ['bsb']
+  );
+});
+
 test('filterInstallableCatalogEntries excludes runtime text translations that have no published text-pack download', () => {
   const filtered = filterInstallableCatalogEntries(
     [
