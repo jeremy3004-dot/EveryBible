@@ -787,6 +787,28 @@ export function BibleReaderScreen() {
   }, [setPlanSessionReaderActive, showPlanSessionChrome]);
 
   useEffect(() => {
+    const rootTabNavigation =
+      navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
+    if (!rootTabNavigation) {
+      return;
+    }
+
+    if (showPlanSessionChrome) {
+      rootTabNavigation.setOptions({
+        tabBarStyle: { display: 'none' },
+      });
+
+      return () => {
+        rootTabNavigation.setOptions({
+          tabBarStyle: undefined,
+        });
+      };
+    }
+
+    return undefined;
+  }, [navigation, showPlanSessionChrome]);
+
+  useEffect(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
       return;
     }
@@ -2840,6 +2862,11 @@ export function BibleReaderScreen() {
     });
     const showPlanCompletionAction = trailingActionState.showCompletionAction;
     const trailingActionEnabled = trailingActionState.isEnabled;
+    const showPlanReadModePlayButton = chapterSessionMode === 'read';
+    const planReadModePlayButtonLabel =
+      isCurrentAudioChapter && status === 'playing'
+        ? t('audio.pauseAction', { defaultValue: 'Pause' })
+        : t('audio.playAction', { defaultValue: 'Play' });
     const showSessionCompletionCopy =
       activePlanIsMultiSession &&
       Boolean(activePlanDaySummary?.sessionSummaries.length) &&
@@ -2935,6 +2962,35 @@ export function BibleReaderScreen() {
                 defaultValue: `${activePlanChapterIndex + 1} of ${activePlanDayChapterItems.length}`,
               })}
             </Text>
+            {showPlanReadModePlayButton ? (
+              <TouchableOpacity
+                style={[
+                  styles.planSessionBottomBarPlayButton,
+                  {
+                    borderColor: colors.primaryText + '55',
+                    backgroundColor: colors.primaryText + '12',
+                  },
+                ]}
+                activeOpacity={0.85}
+                onPress={handlePlayDisplayedChapter}
+                accessibilityRole="button"
+                accessibilityLabel={planReadModePlayButtonLabel}
+              >
+                {isCurrentAudioChapter && status === 'loading' ? (
+                  <ActivityIndicator size="small" color={colors.primaryText} />
+                ) : (
+                  <Ionicons
+                    name={isCurrentAudioChapter && status === 'playing' ? 'pause' : 'play'}
+                    size={16}
+                    color={colors.primaryText}
+                    style={styles.planSessionBottomBarPlayIcon}
+                  />
+                )}
+                <Text style={[styles.planSessionBottomBarPlayLabel, { color: colors.primaryText }]}>
+                  {planReadModePlayButtonLabel}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {showPlanChapterArrows ? (
@@ -4823,6 +4879,25 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
     textAlign: 'center',
+  },
+  planSessionBottomBarPlayButton: {
+    marginTop: 4,
+    height: 28,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  planSessionBottomBarPlayIcon: {
+    marginLeft: 1,
+  },
+  planSessionBottomBarPlayLabel: {
+    ...typography.micro,
+    fontWeight: '700',
   },
   glassSurface: {
     overflow: 'hidden',

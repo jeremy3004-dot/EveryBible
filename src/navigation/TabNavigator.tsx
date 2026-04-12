@@ -117,9 +117,7 @@ export function TabNavigator() {
             nestedRouteState
           );
           const shouldForceHidePlanReaderTabs =
-            route.name === 'Bible' &&
-            nestedRouteName === 'BibleReader' &&
-            isPlanSessionReaderActive;
+            route.name === 'Bible' && isPlanSessionReaderActive;
           const shouldHideNestedBibleScreen =
             ((route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
               shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams)) ||

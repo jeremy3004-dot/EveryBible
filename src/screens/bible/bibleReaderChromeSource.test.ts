@@ -293,6 +293,21 @@ test('BibleReaderScreen passes the reading-tab hide-play-button preference into 
     'BibleReaderScreen should forward the hide-play-button preference into ReaderPlaybackDock'
   );
 });
+test('BibleReaderScreen keeps a play control inside the plan-session read bottom bar', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const showPlanReadModePlayButton = chapterSessionMode === 'read';/,
+    'BibleReaderScreen should always keep the plan-session read play button visible, even when the global read-tab hide-play preference is enabled'
+  );
+
+  assert.match(
+    source,
+    /onPress=\{handlePlayDisplayedChapter\}/,
+    'BibleReaderScreen should wire the plan-session play button to the same chapter playback handler used by the normal reader dock'
+  );
+});
 test('BibleReaderScreen hands the premium read bottom controls to the dedicated collapsing playback dock', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
@@ -420,7 +435,7 @@ test('ReaderPlaybackDock keeps the play button visible while the side arrows sin
   );
 });
 
-test('BibleReaderScreen routes tab-bar control through RootTab id lookups without a hard display:none override', () => {
+test('BibleReaderScreen routes tab-bar control through RootTab id lookups and hard-hides tabs for plan sessions', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -429,10 +444,16 @@ test('BibleReaderScreen routes tab-bar control through RootTab id lookups withou
     'BibleReaderScreen should target the RootTab navigator by id (with a fallback walk-up) while syncing reader-driven tab-bar chrome'
   );
 
-  assert.equal(
-    source.includes("tabBarStyle: { display: 'none' }"),
-    false,
-    'BibleReaderScreen should avoid a hard display:none override so TabNavigator can own the shared bar animation'
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*\{\s*display:\s*'none'\s*\},\s*\}\)/s,
+    'BibleReaderScreen should hard-hide the root tabs while plan-session chrome is active'
+  );
+
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/s,
+    'BibleReaderScreen should release the hard tab-bar override when leaving plan-session chrome'
   );
 
   assert.match(
