@@ -118,9 +118,10 @@ describe('verseTimestamps — getChapterTimestamps', () => {
     assert.equal(result, null);
   });
 
-  it('reports generated WEB timestamp coverage for common chapters', async () => {
+  it('reports generated WEB and BSB timestamp coverage for common chapters', async () => {
     const { hasTimestampsForTranslation } = await import('./verseTimestamps.js');
     assert.equal(hasTimestampsForTranslation('web'), true);
+    assert.equal(hasTimestampsForTranslation('bsb'), true);
   });
 
   it('fetches remote timestamp JSON when runtime metadata advertises a timestamp template', async () => {
