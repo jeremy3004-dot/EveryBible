@@ -507,11 +507,6 @@ export function BibleReaderScreen() {
     Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
   const premiumReaderBaseBottomPadding =
     safeInsets.bottom + rootTabBarHeight + layout.minTouchTarget + spacing.md;
-  const premiumReaderCollapsedBottomPadding = safeInsets.bottom + spacing.sm;
-  const premiumReaderVisibleBottomPadding =
-    premiumReaderBaseBottomPadding -
-    (premiumReaderBaseBottomPadding - premiumReaderCollapsedBottomPadding) *
-      readerBottomChromeProgress;
   const getRootTabBarStyle = useCallback(
     (collapseProgress: number) => ({
       backgroundColor: colors.background,
@@ -529,7 +524,9 @@ export function BibleReaderScreen() {
     }),
     [colors.background, colors.cardBorder, rootTabBarBottomPadding, rootTabBarHeight]
   );
-  const premiumReaderBottomPadding = premiumReaderVisibleBottomPadding;
+  // Keep the chapter content padding stable so dock taps do not reflow the
+  // ScrollView when the user is already pinned at the bottom of the chapter.
+  const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;
 
   const syncRootTabBarVisibility = useCallback(
     (nextVisible: boolean) => {
