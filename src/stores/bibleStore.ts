@@ -53,6 +53,7 @@ interface BibleState {
   currentBook: string;
   currentChapter: number;
   hasReaderHistory: boolean;
+  isPlanSessionReaderActive: boolean;
   preferredChapterLaunchMode: 'listen' | 'read';
   verses: Verse[];
   isLoading: boolean;
@@ -67,6 +68,7 @@ interface BibleState {
   // Basic actions
   setCurrentBook: (bookId: string) => void;
   setCurrentChapter: (chapter: number) => void;
+  setPlanSessionReaderActive: (active: boolean) => void;
   setPreferredChapterLaunchMode: (mode: 'listen' | 'read') => void;
   applySyncedReadingPosition: (readingPosition: { bookId: string; chapter: number }) => void;
   setVerses: (verses: Verse[]) => void;
@@ -211,6 +213,7 @@ export const useBibleStore = create<BibleState>()(
       currentBook: 'GEN',
       currentChapter: 1,
       hasReaderHistory: false,
+      isPlanSessionReaderActive: false,
       preferredChapterLaunchMode: 'read',
       verses: [],
       isLoading: false,
@@ -222,6 +225,7 @@ export const useBibleStore = create<BibleState>()(
 
       setCurrentBook: (bookId) => set({ currentBook: bookId, hasReaderHistory: true }),
       setCurrentChapter: (chapter) => set({ currentChapter: chapter, hasReaderHistory: true }),
+      setPlanSessionReaderActive: (isPlanSessionReaderActive) => set({ isPlanSessionReaderActive }),
       setPreferredChapterLaunchMode: (preferredChapterLaunchMode) =>
         set({ preferredChapterLaunchMode }),
       applySyncedReadingPosition: ({ bookId, chapter }) => {

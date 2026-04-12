@@ -262,6 +262,37 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
   );
 });
 
+test('BibleReaderScreen publishes plan-session reader state to the shared store', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /setPlanSessionReaderActive\(showPlanSessionChrome\);/,
+    'BibleReaderScreen should mark the plan-session reader as active while the red plan banner chrome is visible'
+  );
+
+  assert.match(
+    source,
+    /return \(\) => \{\s*setPlanSessionReaderActive\(false\);\s*\};/s,
+    'BibleReaderScreen should always clear the shared plan-session reader signal when leaving the reader screen'
+  );
+});
+
+test('BibleReaderScreen passes the reading-tab hide-play-button preference into the read-mode dock', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /preferences\.hidePlayButtonFromReadingTab/,
+    'BibleReaderScreen should read the hide-play-button preference from auth preferences'
+  );
+
+  assert.match(
+    source,
+    /<ReaderPlaybackDock[\s\S]*hidePlayButton=\{hidePlayButtonFromReadingTab\}/s,
+    'BibleReaderScreen should forward the hide-play-button preference into ReaderPlaybackDock'
+  );
+});
 test('BibleReaderScreen hands the premium read bottom controls to the dedicated collapsing playback dock', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
@@ -389,25 +420,25 @@ test('ReaderPlaybackDock keeps the play button visible while the side arrows sin
   );
 });
 
-test('BibleReaderScreen only overrides the shared RootTab bar for plan sessions', () => {
+test('BibleReaderScreen routes tab-bar control through RootTab id lookups without a hard display:none override', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /navigation\.getParent\(\)\?\.getParent\(\)/,
-    'BibleReaderScreen should reach through the nested stack to target the actual RootTab navigator while a plan session is active'
+    /navigation\.getParent\('RootTab'\) \?\? navigation\.getParent\(\)\?\.getParent\(\)/,
+    'BibleReaderScreen should target the RootTab navigator by id (with a fallback walk-up) while syncing reader-driven tab-bar chrome'
+  );
+
+  assert.equal(
+    source.includes("tabBarStyle: { display: 'none' }"),
+    false,
+    'BibleReaderScreen should avoid a hard display:none override so TabNavigator can own the shared bar animation'
   );
 
   assert.match(
     source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*\{\s*display:\s*'none'\s*\},\s*\}\)/s,
-    'BibleReaderScreen should continue hiding the shared RootTab bar while the plan strip is active'
-  );
-
-  assert.match(
-    source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/,
-    'BibleReaderScreen should release the tab-bar override when the plan session ends so the shared navigator can control the collapse animation again'
+    /const shouldForceHideRootTabBar =\s*Boolean\(activePlanId\) && typeof planDayNumber === 'number' && returnToPlanOnComplete;/,
+    'BibleReaderScreen should keep the force-hide decision explicit for plan sessions before pushing shared tab-bar state'
   );
 });
 
