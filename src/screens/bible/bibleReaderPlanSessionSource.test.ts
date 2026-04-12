@@ -152,18 +152,33 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /safeInsets\.bottom \+ spacing\.sm/,
-    'BibleReaderScreen should include the bottom safe area inside the plan strip instead of leaving the tab bar visible underneath it'
+    /const planSessionBottomBarHeight = rootTabBarHeight;/,
+    'BibleReaderScreen should size the plan strip to the exact shared root tab-bar footprint'
   );
   assert.match(
     source,
-    /const showPlanChapterArrows = chapterSessionMode === 'read' \|\| chapterSessionMode === 'listen';/,
-    'BibleReaderScreen should show chapter arrows inside the plan strip while reading or listening'
+    /paddingBottom:\s*rootTabBarBottomPadding \+ spacing\.xs/,
+    'BibleReaderScreen should align the plan strip padding to the shared tab-bar inset instead of stacking above it'
   );
   assert.match(
     source,
-    /const showPlanPreviousChapterButton =\s+chapterSessionMode === 'read' \? true : hasPrevChapter;/,
-    'BibleReaderScreen should hide the listen-mode back arrow until there is a previous chapter'
+    /const planSessionBottomBarAnimatedStyle = useAnimatedStyle\(/,
+    'BibleReaderScreen should animate the plan strip with the shared reader bottom chrome'
+  );
+  assert.match(
+    source,
+    /translateY:\s*rootTabBarHeight \* readerBottomChromeProgressShared\.value/,
+    'BibleReaderScreen should move the plan strip by the exact tab-bar height as the reader chrome collapses'
+  );
+  assert.match(
+    source,
+    /const showPlanChapterArrows = chapterSessionMode === 'listen';/,
+    'BibleReaderScreen should keep strip arrows only in listen mode so read mode can reuse the shared floating dock'
+  );
+  assert.match(
+    source,
+    /const showPlanPreviousChapterButton = hasPrevChapter;/,
+    'BibleReaderScreen should only show the listen-mode back arrow when a previous chapter exists'
   );
   assert.match(
     source,
@@ -199,5 +214,23 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
     source,
     /readingPlans\.completeDayCta/,
     'BibleReaderScreen should label the final plan-day completion action with the localized complete-day copy'
+  );
+});
+
+test('BibleReaderScreen keeps the shared floating playback dock above the plan strip in read mode', () => {
+  assert.match(
+    source,
+    /Locked-in plan reader behavior: read-mode plans reuse the exact shared floating dock above the red plan strip\./,
+    'BibleReaderScreen should document the locked-in read-mode plan dock invariant inline'
+  );
+  assert.match(
+    source,
+    /<ReaderPlaybackDock[\s\S]*hasNextChapter=\{hasReaderPlaybackDockNextChapter\}/s,
+    'BibleReaderScreen should keep using the shared ReaderPlaybackDock while a plan read session is active'
+  );
+  assert.match(
+    source,
+    /onNextChapter=\{\(\) => void handleReaderPlaybackDockNextChapter\(\)\}/,
+    'BibleReaderScreen should route the dock forward action through the plan-aware next handler'
   );
 });

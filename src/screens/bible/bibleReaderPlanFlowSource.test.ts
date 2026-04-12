@@ -105,8 +105,31 @@ test('BibleReaderScreen renders the simplified listen-mode plan chrome without t
   );
   assert.match(
     source,
-    /showPlanChapterArrows = chapterSessionMode === 'read' \|\| chapterSessionMode === 'listen';/,
-    'BibleReaderScreen should keep plan strip chapter arrows available while listening'
+    /showPlanChapterArrows = chapterSessionMode === 'listen';/,
+    'BibleReaderScreen should keep plan strip chapter arrows only while listening so read mode can use the shared floating dock'
+  );
+});
+
+test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps chapter navigation bounded to the active session', () => {
+  assert.match(
+    source,
+    /const shouldConstrainChapterNavigationToSession = activeRhythmSession != null \|\| showPlanSessionChrome;/,
+    'BibleReaderScreen should prevent plan and rhythm sessions from leaking into adjacent Bible chapters'
+  );
+  assert.match(
+    source,
+    /const hasReaderPlaybackDockNextChapter =[\s\S]*hasNextChapter \|\| hasPlanReadDockNextAction/s,
+    'BibleReaderScreen should keep the shared dock enabled for either the next chapter or the explicit plan completion step'
+  );
+  assert.match(
+    source,
+    /const handleReaderPlaybackDockNextChapter = async \(\) => \{/,
+    'BibleReaderScreen should define a dedicated plan-aware forward action for the shared read-mode dock'
+  );
+  assert.match(
+    source,
+    /await handleCompletePlanDay\(\);/,
+    'BibleReaderScreen should complete the active plan day from the dock when the final read-mode chapter is reached'
   );
 });
 
