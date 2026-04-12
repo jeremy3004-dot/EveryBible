@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -8,7 +8,7 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, radius, shadows, spacing } from '../../design/system';
+import { layout, radius } from '../../design/system';
 
 interface ReaderPlaybackDockProps {
   collapseProgress: number;
@@ -42,8 +42,26 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   onPlayPause,
 }: ReaderPlaybackDockProps) {
   const { colors } = useTheme();
+  const [optimisticTransportState, setOptimisticTransportState] = useState<
+    'playing' | 'paused' | null
+  >(null);
   const clampedProgress = Math.max(0, Math.min(progress, 1));
   const strokeDashoffset = circumference - clampedProgress * circumference;
+
+  const playButtonIconName =
+    optimisticTransportState === 'playing'
+      ? isPlaying || isLoading
+        ? 'pause'
+        : 'play'
+      : optimisticTransportState === 'paused'
+        ? isPlaying
+          ? 'pause'
+          : 'play'
+        : isPlaying
+          ? 'pause'
+          : 'play';
+  const playButtonAccessibilityLabel =
+    playButtonIconName === 'pause' ? 'Pause chapter audio' : 'Play chapter audio';
 
   const leftTransportAnimatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(collapseProgress, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
@@ -52,7 +70,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
         scale: interpolate(collapseProgress, [0, 1], [1, 0.82], Extrapolation.CLAMP),
       },
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 10], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress, [0, 1], [0, 34], Extrapolation.CLAMP),
       },
     ],
   }));
@@ -64,7 +82,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
         scale: interpolate(collapseProgress, [0, 1], [1, 0.82], Extrapolation.CLAMP),
       },
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 10], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress, [0, 1], [0, 34], Extrapolation.CLAMP),
       },
     ],
   }));
@@ -72,7 +90,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   const centerTransportAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 4], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress, [0, 1], [0, 12], Extrapolation.CLAMP),
       },
       {
         scale: interpolate(collapseProgress, [0, 1], [1, 1.02], Extrapolation.CLAMP),
@@ -84,10 +102,6 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: colors.bibleBackground + 'D9',
-          borderColor: colors.bibleDivider + 'CC',
-        },
       ]}
     >
       <Animated.View
@@ -124,9 +138,14 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
               borderColor: colors.bibleElevatedSurface,
             },
           ]}
-          onPress={onPlayPause}
+          onPress={() => {
+            setOptimisticTransportState(
+              isPlaying || optimisticTransportState === 'playing' ? 'paused' : 'playing'
+            );
+            onPlayPause();
+          }}
           accessibilityRole="button"
-          accessibilityLabel={isPlaying ? 'Pause chapter audio' : 'Play chapter audio'}
+          accessibilityLabel={playButtonAccessibilityLabel}
         >
           <Svg
             width={RING_SIZE}
@@ -157,7 +176,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           </Svg>
 
           <Ionicons
-            name={isLoading ? 'hourglass' : isPlaying ? 'pause' : 'play'}
+            name={playButtonIconName}
             size={30}
             color={colors.bibleBackground}
             style={styles.playIcon}
@@ -195,15 +214,10 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
 const styles = StyleSheet.create({
   container: {
-    ...shadows.floating,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.lg,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    width: '100%',
   },
   sideTransportWrap: {
     width: 52,

@@ -29,6 +29,28 @@ test('TabNavigator keeps the bottom tab bar flat instead of rounding its top cor
   );
 });
 
+test('TabNavigator collapses the tab bar when BibleReader hides it instead of hard-removing it', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /const getCollapsingTabBarStyle = \(collapseProgress: number\) => \(\{/,
+    'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
+  );
+
+  assert.match(
+    source,
+    /position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*paddingBottom:\s*tabBarBottomPadding \+ spacing\.sm,[\s\S]*height:\s*tabBarHeight,[\s\S]*transform:\s*\[\{\s*translateY:\s*tabBarHeight \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
+    'TabNavigator should move the entire bar downward as one overlay piece so the background slab and icon row stay locked together without reserving a dead layout strip'
+  );
+
+  assert.match(
+    source,
+    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress\)\s*:\s*defaultTabBarStyle/s,
+    'TabNavigator should choose between the normal and collapsing tab-bar styles from the reader progress signal'
+  );
+});
+
 test('TabNavigator freezes inactive tabs so Home, Bible, and Gather do not keep repainting off-screen', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
@@ -113,7 +135,11 @@ test('TabNavigator keeps Home in the normal tab bar instead of floating it over 
   );
 
   assert.equal(source.includes("backgroundColor: 'transparent'"), false);
-  assert.equal(source.includes("position: 'absolute'"), false);
+  assert.match(
+    source,
+    /route\.name === 'Home'[\s\S]*return defaultTabBarStyle;/,
+    'TabNavigator should keep Home on the standard tab-bar style instead of the collapsing overlay style'
+  );
 });
 
 test('TabNavigator hides BibleReader only when it is launched as a plan session', () => {

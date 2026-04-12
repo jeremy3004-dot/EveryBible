@@ -85,6 +85,7 @@ interface BibleTabBarVisibilityInput {
   previousScrollOffsetY?: number;
   currentScrollOffsetY?: number;
   velocityY?: number;
+  isAtBottom?: boolean;
 }
 
 interface ShouldAutoplayChapterAudioInput {
@@ -385,9 +386,8 @@ export const getNextFollowAlongVisibility = ({
 export const getNextBibleTabBarVisibility = ({
   sessionMode,
   action,
-  previousScrollOffsetY = 0,
   currentScrollOffsetY = 0,
-  velocityY = 0,
+  isAtBottom = false,
 }: BibleTabBarVisibilityInput): boolean => {
   if (sessionMode === 'listen') {
     return true;
@@ -397,20 +397,15 @@ export const getNextBibleTabBarVisibility = ({
     return true;
   }
 
+  if (isAtBottom) {
+    return true;
+  }
+
   if (action === 'scrollStart') {
     return false;
   }
 
   if (currentScrollOffsetY <= READER_TAB_BAR_RESTORE_TOP_THRESHOLD) {
-    return true;
-  }
-
-  const dragDelta = previousScrollOffsetY - currentScrollOffsetY;
-  if (dragDelta > 0) {
-    return true;
-  }
-
-  if (velocityY <= -READER_TAB_BAR_RESTORE_VELOCITY_MIN) {
     return true;
   }
 

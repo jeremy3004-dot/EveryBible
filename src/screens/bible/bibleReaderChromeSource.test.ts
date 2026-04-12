@@ -229,20 +229,20 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
 
   assert.match(
     source,
-    /chapterSessionMode !== 'read'/,
-    'BibleReaderScreen should leave listen mode alone when scroll gestures occur'
+    /const isAtBottom =[\s\S]*nextOffsetY \+ viewportHeight >= contentHeight - spacing\.lg/s,
+    'BibleReaderScreen should detect when the reader has reached the bottom so the root tab bar can return'
   );
 
-  assert.match(
-    source,
-    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollEndDrag'/s,
-    'BibleReaderScreen should keep the read-mode scroll-end restore logic for the root tab bar'
+  assert.equal(
+    source.includes("action: 'scrollStart'"),
+    false,
+    'BibleReaderScreen should not drive the shared tab bar through a separate scrollStart visibility path'
   );
 
-  assert.match(
-    source,
-    /getNextBibleTabBarVisibility\(\{\s*sessionMode: chapterSessionMode,\s*action: 'scrollStart'/s,
-    'BibleReaderScreen should hide the root tab bar as read-mode scrolling starts'
+  assert.equal(
+    source.includes("action: 'scrollEndDrag'"),
+    false,
+    'BibleReaderScreen should not drive the shared tab bar through a separate scrollEndDrag visibility path'
   );
 });
 
@@ -255,27 +255,120 @@ test('BibleReaderScreen hands the premium read bottom controls to the dedicated 
     'BibleReaderScreen should source the premium read bottom controls from the shared ReaderPlaybackDock component'
   );
 
-  assert.match(
-    source,
-    /<ReaderPlaybackDock[\s\S]*collapseProgress=\{readerBottomChromeProgress\}[\s\S]*isCollapsed=\{isReadBottomChromeCollapsed\}[\s\S]*onPlayPause=\{handlePlayDisplayedChapter\}/s,
+  assert.equal(
+    source.includes('<Animated.View'),
+    true,
+    'BibleReaderScreen should render the floating dock with Animated.View so the bottom offset actually applies'
+  );
+
+  assert.equal(
+    source.includes('pointerEvents="box-none"'),
+    true,
+    'BibleReaderScreen should keep the dock overlay transparent to touches outside the control cluster'
+  );
+
+  assert.equal(
+      source.includes('styles.floatingReaderChapterNavOverlay') &&
+      source.includes('bottomDockAnimatedStyle') &&
+      source.includes('translateY: interpolate(') &&
+      source.includes('[layout.tabBarBaseHeight + spacing.xxl, safeInsets.bottom + spacing.xl]') &&
+      source.includes('<ReaderPlaybackDock') &&
+      source.includes('collapseProgress={readerBottomChromeProgress}') &&
+      source.includes('isCollapsed={isReadBottomChromeCollapsed}') &&
+      source.includes('onPlayPause={handlePlayDisplayedChapter}'),
+    true,
     'BibleReaderScreen should pass the scroll-driven collapse state and chapter play action into ReaderPlaybackDock'
   );
 });
 
-test('BibleReaderScreen matches the shared RootTab bar metrics and only hides it for plan sessions', () => {
+test('BibleReaderScreen reopens the dock and root tab bar when the reader reaches the bottom of the page', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const rootTabBarBottomPadding = spacing\.lg;/,
-    'BibleReaderScreen should restore the same bottom padding token used by the shared RootTab bar'
+    /const readerBottomChromeProgressShared = useSharedValue\(0\);/,
+    'BibleReaderScreen should keep a shared bottom-chrome progress value so the floating dock can animate independently of raw scroll position'
   );
 
   assert.match(
     source,
-    /const rootTabBarStyle = useMemo\(/,
-    'BibleReaderScreen should memoize the shared RootTab bar style instead of falling back to React Navigation defaults'
+    /readerBottomChromeProgressShared\.value = nextProgress;/,
+    'BibleReaderScreen should push the dock progress into Reanimated so the overlay can respond in real time'
   );
+
+  assert.match(
+    source,
+    /const readerRevealTabBarOnUpScrollRef = useRef\(false\);[\s\S]*const scrollDeltaY = offsetY - readerLastScrollOffsetYRef\.current;[\s\S]*isScrollingUp && offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD[\s\S]*readerRevealTabBarOnUpScrollRef\.current = true;[\s\S]*const shouldRevealReaderDock =[\s\S]*isAtBottom \|\| readerRevealTabBarOnUpScrollRef\.current;[\s\S]*showPremiumReadMode && !shouldRevealReaderDock[\s\S]*const nextCollapsed =[\s\S]*!shouldRevealReaderDock[\s\S]*showPremiumReadMode &&[\s\S]*!shouldRevealReaderDock/s,
+    'BibleReaderScreen should let a short upward flick restore the dock height and side arrows at the same time the root tab bar comes back'
+  );
+
+  assert.match(
+    source,
+    /navigation\.setParams\(\{ tabBarCollapseProgress: clampedProgress \}\);/,
+    'BibleReaderScreen should push the same normalized collapse progress into the reader route params so the root tab bar can sink at the same speed as the dock'
+  );
+
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*getRootTabBarStyle\(clampedProgress\),\s*\}\)/,
+    'BibleReaderScreen should push the normalized collapse style directly to the parent navigator so the live root tab bar actually moves with the reader dock'
+  );
+
+  assert.match(
+    source,
+    /const getRootTabBarStyle = useCallback\([\s\S]*position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*transform:\s*\[\{\s*translateY:\s*rootTabBarHeight \* collapseProgress\s*\}\]/s,
+    'BibleReaderScreen should treat the root tab bar as an overlay while collapsing so the drop animation does not reserve a black layout strip'
+  );
+
+  assert.match(
+    source,
+    /premiumReaderBaseBottomPadding -[\s\S]*premiumReaderBaseBottomPadding - premiumReaderCollapsedBottomPadding[\s\S]*readerBottomChromeProgress/s,
+    'BibleReaderScreen should collapse the premium reader bottom padding almost all the way down to the safe-area gutter so the empty black strip does not linger behind'
+  );
+
+  assert.equal(
+    source.includes('premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderVisibleBottomPadding'),
+    false,
+    'BibleReaderScreen should not manufacture extra bottom filler space from viewport-minus-content height once the shared tab bar collapses'
+  );
+
+  assert.equal(
+    source.includes('styles.premiumReaderContentShellBottomAligned'),
+    false,
+    'BibleReaderScreen should not keep the premium reader content bottom-aligned because that leaves a synthetic black slab when the chrome collapses'
+  );
+});
+
+test('ReaderPlaybackDock keeps the play button visible while the side arrows sink out of view and flips directly between play and pause', () => {
+  const source = readRelativeSource('../../components/audio/ReaderPlaybackDock.tsx');
+
+  assert.match(
+    source,
+    /translateY:\s*interpolate\(collapseProgress,\s*\[0,\s*1\],\s*\[0,\s*34\]/,
+    'ReaderPlaybackDock should push the side arrows farther downward as the reader chrome collapses'
+  );
+
+  assert.match(
+    source,
+    /translateY:\s*interpolate\(collapseProgress,\s*\[0,\s*1\],\s*\[0,\s*12\]/,
+    'ReaderPlaybackDock should only nudge the center play button downward so it stays visible'
+  );
+
+  assert.equal(
+    source.includes('hourglass'),
+    false,
+    'ReaderPlaybackDock should not show an hourglass state in the play button'
+  );
+
+  assert.match(
+    source,
+    /const playButtonIconName =[\s\S]*optimisticTransportState === 'playing'[\s\S]*optimisticTransportState === 'paused'[\s\S]*name=\{playButtonIconName\}/s,
+    'ReaderPlaybackDock should switch directly between play and pause icons with a brief optimistic transport state'
+  );
+});
+
+test('BibleReaderScreen only overrides the shared RootTab bar for plan sessions', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
@@ -291,8 +384,8 @@ test('BibleReaderScreen matches the shared RootTab bar metrics and only hides it
 
   assert.match(
     source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*rootTabBarStyle,\s*\}\)/,
-    'BibleReaderScreen should restore the exact shared RootTab bar style when the plan session ends or when normal Bible reading is active'
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/,
+    'BibleReaderScreen should release the tab-bar override when the plan session ends so the shared navigator can control the collapse animation again'
   );
 });
 
@@ -432,7 +525,9 @@ test('premium read mode keeps the animated overlay while the top controls stay f
   );
 
   assert.equal(
-    source.includes('translateY:'),
+    (source.match(/const topChromeAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*?\}\)\);/)?.[0] ?? '').includes(
+      'translateY:'
+    ),
     false,
     'BibleReaderScreen should keep the shared top chrome fixed in place instead of sliding vertically when scrolling'
   );
@@ -473,8 +568,8 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /const premiumReaderBottomPadding = useMemo\([\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
-    'BibleReaderScreen should measure the short-chapter spacer so the text can reach the visible root tab bar'
+    /const premiumReaderBottomPadding = premiumReaderVisibleBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
+    'BibleReaderScreen should keep the premium reader bottom padding tied directly to the live chrome padding instead of manufacturing a separate short-chapter spacer'
   );
 
   assert.equal(

@@ -113,7 +113,7 @@ test('closes the translation sheet after selection or manual dismissal', () => {
   assert.equal(getNextTranslationSheetVisibility(true, true, 'dismiss'), false);
 });
 
-test('keeps the Bible tab bar open on enter, but hides it during read-mode downward scrolling until the reader is restored', () => {
+test('keeps the Bible tab bar open on enter, but hides it through mid-chapter read scrolling until the reader reaches an edge again', () => {
   assert.equal(
     getNextBibleTabBarVisibility({
       sessionMode: 'listen',
@@ -149,6 +149,18 @@ test('keeps the Bible tab bar open on enter, but hides it during read-mode downw
       previousScrollOffsetY: 240,
       currentScrollOffsetY: 210,
       velocityY: 0,
+    }),
+    false
+  );
+
+  assert.equal(
+    getNextBibleTabBarVisibility({
+      sessionMode: 'read',
+      action: 'scrollStart',
+      previousScrollOffsetY: 210,
+      currentScrollOffsetY: 420,
+      velocityY: 0,
+      isAtBottom: true,
     }),
     true
   );
