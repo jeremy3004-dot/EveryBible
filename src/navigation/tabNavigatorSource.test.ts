@@ -89,13 +89,13 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
   );
 });
 
-test('TabNavigator does not depend on a shared reader tab-bar store flag', () => {
+test('TabNavigator reads the shared plan-session reader signal before hiding the root tabs', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.equal(
-    source.includes('readerTabBarVisible'),
-    false,
-    'TabNavigator should not depend on a shared readerTabBarVisible store flag now that BibleReader controls the tab bar through route params'
+  assert.match(
+    source,
+    /useBibleStore\(\(state\) => state\.isPlanSessionReaderActive\)/,
+    'TabNavigator should subscribe to the shared plan-session reader signal so tab visibility does not depend on fragile nested route params'
   );
 });
 
@@ -153,19 +153,25 @@ test('TabNavigator hides BibleReader only when it is launched as a plan session'
 
   assert.match(
     source,
-    /getFocusedRouteNameFromRoute\(route\)/,
-    'TabNavigator should resolve the nested route before asking the helper whether to hide the bar'
+    /resolveActiveNestedRoute\(/,
+    'TabNavigator should resolve the active nested route (including deeper stack state) before asking the helper whether to hide the bar'
   );
 
   assert.match(
     source,
-    /params\?\.screen/,
-    'TabNavigator should also fall back to the root tab route params when nested state has not populated yet'
+    /getFocusedRouteNameFromRoute\(route as never\)/,
+    'TabNavigator should continue resolving the focused nested route name via React Navigation before applying tab-bar visibility rules'
   );
 
   assert.match(
     source,
-    /params\?\.params/,
+    /fallbackNestedRouteName = route\.params\?\.screen/,
+    'TabNavigator should still fall back to the root tab route params when nested state has not populated yet'
+  );
+
+  assert.match(
+    source,
+    /fallbackNestedRouteParams = route\.params\?\.params/,
     'TabNavigator should read nested route params from the root tab route params during early plan-reader navigation'
   );
 });

@@ -30,10 +30,44 @@ type NestedTabRouteParams = {
   params?: Record<string, unknown>;
 };
 
+const resolveActiveNestedRoute = (route: {
+  state?: NestedTabRouteState;
+  params?: NestedTabRouteParams;
+}) => {
+  let currentRoute: {
+    name?: string;
+    params?: Record<string, unknown>;
+    state?: NestedTabRouteState;
+  } = route;
+  let currentState = route.state;
+
+  while (currentState?.routes?.length) {
+    const currentIndex =
+      typeof currentState.index === 'number' ? currentState.index : currentState.routes.length - 1;
+    const nextRoute = currentState.routes[currentIndex];
+    if (!nextRoute) {
+      break;
+    }
+
+    currentRoute = nextRoute;
+    currentState = (nextRoute as { state?: NestedTabRouteState }).state;
+  }
+
+  const fallbackNestedRouteName = route.params?.screen;
+  const fallbackNestedRouteParams = route.params?.params;
+
+  return {
+    nestedRouteName:
+      getFocusedRouteNameFromRoute(route as never) ?? currentRoute.name ?? fallbackNestedRouteName,
+    nestedRouteParams: currentRoute.params ?? fallbackNestedRouteParams,
+  };
+};
+
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
+  const isPlanSessionReaderActive = useBibleStore((state) => state.isPlanSessionReaderActive);
   const currentBibleBook = useBibleStore((state) => state.currentBook);
   const currentBibleChapter = useBibleStore((state) => state.currentChapter);
   const preferredBibleMode = useBibleStore((state) => state.preferredChapterLaunchMode);
@@ -75,26 +109,21 @@ export function TabNavigator() {
             return defaultTabBarStyle;
           }
 
-          const focusedNestedRoute = (
-            route as {
-              state?: NestedTabRouteState;
-              params?: NestedTabRouteParams;
-            }
-          ).state?.routes?.[((
-            route as {
-              state?: NestedTabRouteState;
-              params?: NestedTabRouteParams;
-            }
-          ).state?.index ?? 0)];
-          const nestedRouteName =
-            getFocusedRouteNameFromRoute(route) ??
-            ((route as { params?: NestedTabRouteParams }).params?.screen as string | undefined);
-          const nestedRouteParams =
-            focusedNestedRoute?.params ??
-            (route as { params?: NestedTabRouteParams }).params?.params;
+          const nestedRouteState = route as {
+            state?: NestedTabRouteState;
+            params?: NestedTabRouteParams;
+          };
+          const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(
+            nestedRouteState
+          );
+          const shouldForceHidePlanReaderTabs =
+            route.name === 'Bible' &&
+            nestedRouteName === 'BibleReader' &&
+            isPlanSessionReaderActive;
           const shouldHideNestedBibleScreen =
-            (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
-            shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
+            ((route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
+              shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams)) ||
+            shouldForceHidePlanReaderTabs;
           const routeCollapseProgress =
             typeof nestedRouteParams?.tabBarCollapseProgress === 'number'
               ? Math.max(0, Math.min(nestedRouteParams.tabBarCollapseProgress, 1))

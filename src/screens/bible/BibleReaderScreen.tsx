@@ -556,7 +556,8 @@ export function BibleReaderScreen() {
       }
 
       rootTabBarCollapseProgressRef.current = clampedProgress;
-      const rootTabNavigation = navigation.getParent()?.getParent();
+      const rootTabNavigation =
+        navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
       if (rootTabNavigation) {
         rootTabNavigation.setOptions({
           tabBarStyle: getRootTabBarStyle(clampedProgress),
@@ -630,6 +631,7 @@ export function BibleReaderScreen() {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
   const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
+  const setPlanSessionReaderActive = useBibleStore((state) => state.setPlanSessionReaderActive);
   const setPreferredChapterLaunchMode = useBibleStore(
     (state) => state.setPreferredChapterLaunchMode
   );
@@ -780,6 +782,14 @@ export function BibleReaderScreen() {
     typeof planDayNumber === 'number' &&
     activePlanDayChapterItems.length > 0;
   useEffect(() => {
+    setPlanSessionReaderActive(showPlanSessionChrome);
+
+    return () => {
+      setPlanSessionReaderActive(false);
+    };
+  }, [setPlanSessionReaderActive, showPlanSessionChrome]);
+
+  useEffect(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
       return;
     }
@@ -788,26 +798,6 @@ export function BibleReaderScreen() {
   }, [activePlanChapterIndex, activePlanId, bookId, chapter, planDayNumber, setPlanDayResume]);
 
   const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
-  useEffect(() => {
-    const rootTabNavigation = navigation.getParent()?.getParent();
-    if (!rootTabNavigation) {
-      return;
-    }
-
-    if (showPlanSessionChrome) {
-      rootTabNavigation.setOptions({
-        tabBarStyle: { display: 'none' },
-      });
-
-      return () => {
-        rootTabNavigation.setOptions({
-          tabBarStyle: undefined,
-        });
-      };
-    }
-
-    return undefined;
-  }, [navigation, showPlanSessionChrome]);
   const activePlanDaySummary = useMemo(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
       return null;
@@ -1195,7 +1185,8 @@ export function BibleReaderScreen() {
     readerBottomChromeProgressShared.value = 0;
     setReaderBottomChromeProgress(0);
     setIsReadBottomChromeCollapsed(false);
-    const rootTabNavigation = navigation.getParent()?.getParent();
+    const rootTabNavigation =
+      navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
     if (rootTabNavigation) {
       rootTabNavigation.setOptions({
         tabBarStyle: getRootTabBarStyle(0),
