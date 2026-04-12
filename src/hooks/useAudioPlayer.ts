@@ -522,6 +522,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return;
     }
 
+    const reachedPlaybackSequenceBoundary =
+      bookId && chapterNum
+        ? playbackSequence.length > 0 &&
+          hasAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum)
+        : false;
+    if (reachedPlaybackSequenceBoundary) {
+      void clearBibleNowPlaying();
+      setStatus('idle');
+      return;
+    }
+
     if (!shouldAutoAdvance || !bookId || !chapterNum) {
       void clearBibleNowPlaying();
       setStatus('idle');
@@ -830,6 +841,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return previousSequenceEntry;
     }
 
+    const isPinnedToPlaybackSequence =
+      currentBookId && currentChapter
+        ? playbackSequence.length > 0 &&
+          hasAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter)
+        : false;
+    if (isPinnedToPlaybackSequence) {
+      return null;
+    }
+
     if (!currentBookId || !currentChapter) return null;
     const adjacentChapter = getAdjacentBibleChapter(currentBookId, currentChapter, -1);
     if (!adjacentChapter) return null;
@@ -879,6 +899,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         nextSequenceEntry.chapter
       );
       return nextSequenceEntry;
+    }
+
+    const isPinnedToPlaybackSequence =
+      currentBookId && currentChapter
+        ? playbackSequence.length > 0 &&
+          hasAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter)
+        : false;
+    if (isPinnedToPlaybackSequence) {
+      return null;
     }
 
     if (!currentBookId || !currentChapter) return null;

@@ -57,6 +57,28 @@ test('useAudioPlayer uses canonical adjacent-book chapter resolution for manual 
   );
 });
 
+test('useAudioPlayer stops at the end of an explicit playback sequence instead of leaking into the next Bible chapter', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /const reachedPlaybackSequenceBoundary =[\s\S]*hasAudioPlaybackSequenceEntry\(playbackSequence, bookId, chapterNum\)/,
+    'useAudioPlayer should detect when playback finishes on the last entry of an explicit playback sequence'
+  );
+
+  assert.match(
+    source,
+    /if \(reachedPlaybackSequenceBoundary\) \{[\s\S]*clearBibleNowPlaying\(\);[\s\S]*setStatus\('idle'\);[\s\S]*return;[\s\S]*\}/s,
+    'useAudioPlayer should stop cleanly at the end of a plan or rhythm playback sequence'
+  );
+
+  assert.match(
+    source,
+    /const isPinnedToPlaybackSequence =[\s\S]*hasAudioPlaybackSequenceEntry\(playbackSequence, currentBookId, currentChapter\)/,
+    'useAudioPlayer should treat manual next/previous chapter actions as bounded when playback came from an explicit sequence'
+  );
+});
+
 test('useAudioPlayer records completed listening progress when playback finishes even without a following chapter transition', () => {
   const source = readRelativeSource('./useAudioPlayer.ts');
 
