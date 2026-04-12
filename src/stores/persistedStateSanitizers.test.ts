@@ -207,6 +207,49 @@ test('sanitizePersistedBibleState keeps seeded runtime translations aligned with
   assert.equal(hincv.installState, 'remote-only');
 });
 
+test('sanitizePersistedBibleState drops runtime aliases that collapse onto bundled translations', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'engbsb',
+    translations: [
+      {
+        id: 'engbsb',
+        name: 'Berean Standard Bible',
+        abbreviation: 'BSB',
+        language: 'English',
+        description: 'Runtime catalog alias for the bundled Berean Standard Bible',
+        copyright: 'Public Domain',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 4.7,
+        hasText: true,
+        hasAudio: false,
+        audioGranularity: 'none',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: '2026.03.26',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+          text: {
+            format: 'sqlite',
+            version: '2026.03.26',
+            downloadUrl: 'https://cdn.example.com/engbsb.sqlite',
+            sha256: 'sha256-engbsb',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.equal(sanitized.currentTranslation, 'bsb');
+  assert.equal(
+    sanitized.translations.some((translation) => translation.id === 'engbsb'),
+    false
+  );
+  assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
+});
+
 test('sanitizePersistedBibleState falls back when runtime translation is not locally readable', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'NIV',

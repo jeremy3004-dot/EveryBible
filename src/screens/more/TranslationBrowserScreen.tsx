@@ -7,7 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
-import { listAvailableTranslations, mapCatalogEntryToBibleTranslation } from '../../services/translations/translationService';
+import {
+  listAvailableTranslations,
+  mapCatalogEntryToBibleTranslation,
+} from '../../services/translations/translationService';
+import { normalizeCatalogTranslationId } from '../../services/translations/translationCatalogModel';
 import type { MoreStackParamList } from '../../navigation/types';
 import { useBibleStore } from '../../stores/bibleStore';
 import { TranslationPickerList } from '../bible/TranslationPickerList';
@@ -31,7 +35,9 @@ export function TranslationBrowserScreen() {
         const runtimeTranslations = catalogResult.data.map((entry) =>
           mapCatalogEntryToBibleTranslation(
             entry,
-            currentStoreTranslations.find((translation) => translation.id === entry.translation_id)
+            currentStoreTranslations.find(
+              (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
+            )
           )
         );
 

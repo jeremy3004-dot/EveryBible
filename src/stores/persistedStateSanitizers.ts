@@ -28,6 +28,7 @@ import type {
   UserPreferences,
 } from '../types';
 import { sanitizeBibleAssetReference } from '../services/bible/bibleAssetBaseUrl';
+import { normalizeCatalogTranslationId } from '../services/translations/translationCatalogModel';
 
 const supportedBibleTranslationIds = new Set(bibleTranslations.map((translation) => translation.id));
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
@@ -393,6 +394,7 @@ const sanitizeRuntimeTranslation = (value: unknown): BibleTranslation | null => 
   }
 
   const id = sanitizeRequiredString(value.id)?.toLowerCase();
+  const normalizedId = id ? normalizeCatalogTranslationId(id) : null;
   const name = sanitizeRequiredString(value.name);
   const abbreviation = sanitizeRequiredString(value.abbreviation);
   const language = sanitizeRequiredString(value.language);
@@ -403,8 +405,8 @@ const sanitizeRuntimeTranslation = (value: unknown): BibleTranslation | null => 
   const catalog = sanitizeTranslationCatalog(value.catalog);
 
   if (
-    !id ||
-    supportedBibleTranslationIds.has(id) ||
+    !normalizedId ||
+    supportedBibleTranslationIds.has(normalizedId) ||
     !name ||
     !abbreviation ||
     !language ||
@@ -433,7 +435,7 @@ const sanitizeRuntimeTranslation = (value: unknown): BibleTranslation | null => 
   }
 
   const runtimeTranslation: BibleTranslation = {
-    id,
+    id: normalizedId,
     name,
     abbreviation,
     language,
