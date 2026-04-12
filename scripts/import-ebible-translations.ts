@@ -54,6 +54,28 @@ interface VerseRow {
   heading: string | null;
 }
 
+const HIDDEN_TRANSLATION_IDS = new Set([
+  'darby',
+  'eng-kjv2006',
+  'engdby',
+  'engdra',
+  'enggnv',
+  'eng-web',
+  'eng-webbe',
+  'engwebp',
+  'engwebpb',
+  'engwebu',
+  'engasvbt',
+  'engfbv',
+  'engkjvcpb',
+  'engmsb',
+  'engwebster',
+  'engwmbb',
+  'engwyc2017',
+  'engwyc2018',
+  'web',
+]);
+
 // ---------------------------------------------------------------------------
 // CLI arg parsing
 // ---------------------------------------------------------------------------
@@ -491,10 +513,12 @@ async function main(): Promise<void> {
   // Filter to requested translations
   let selected: TranslationCsvRow[];
   if (all) {
-    selected = fullBibles;
+    selected = fullBibles.filter((t) => !HIDDEN_TRANSLATION_IDS.has(t.translationId));
   } else if (translationIds) {
     const idSet = new Set(translationIds);
-    selected = fullBibles.filter((t) => idSet.has(t.translationId));
+    selected = fullBibles.filter(
+      (t) => idSet.has(t.translationId) && !HIDDEN_TRANSLATION_IDS.has(t.translationId)
+    );
     const found = new Set(selected.map((t) => t.translationId));
     const missing = translationIds.filter((id) => !found.has(id));
     if (missing.length > 0) {
@@ -504,7 +528,9 @@ async function main(): Promise<void> {
     }
   } else if (languageCodes) {
     const codeSet = new Set(languageCodes);
-    selected = fullBibles.filter((t) => codeSet.has(t.languageCode));
+    selected = fullBibles.filter(
+      (t) => codeSet.has(t.languageCode) && !HIDDEN_TRANSLATION_IDS.has(t.translationId)
+    );
   } else {
     selected = [];
   }

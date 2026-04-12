@@ -112,22 +112,6 @@ export const bibleTranslations: BibleTranslation[] = [
     hasAudio: false,
     audioGranularity: 'none',
   },
-  {
-    id: 'darby',
-    name: 'Darby Translation',
-    abbreviation: 'DBY',
-    language: 'English',
-    description: 'A highly literal translation by John Nelson Darby',
-    copyright: 'Public Domain',
-    isDownloaded: false,
-    downloadedBooks: [],
-    downloadedAudioBooks: [],
-    totalBooks: 66,
-    sizeInMB: 4.1,
-    hasText: false,
-    hasAudio: false,
-    audioGranularity: 'none',
-  },
   // ── Other languages (cloud-downloadable from Supabase) ──────────────────────
   {
     id: 'sparv1909',  // resolves to 'spaRV1909' in Supabase via case-insensitive lookup

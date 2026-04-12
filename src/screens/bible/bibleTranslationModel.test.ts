@@ -356,6 +356,43 @@ test('picker shows audio-only runtime translations once the catalog has hydrated
   );
 });
 
+test('picker hides blocked translation ids from the visible picker list', () => {
+  const visible = getVisibleTranslationsForPicker(
+    [
+      {
+        id: 'bsb',
+        isDownloaded: true,
+        hasText: true,
+        source: 'bundled' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'web',
+        isDownloaded: false,
+        hasText: true,
+        source: 'bundled' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'enggnv',
+        isDownloaded: false,
+        hasText: true,
+        source: 'runtime' as const,
+        textPackLocalPath: 'file:///translations/enggnv.db',
+      },
+    ],
+    {
+      isHydratingRuntimeCatalog: false,
+      hasHydratedRuntimeCatalog: true,
+    }
+  );
+
+  assert.deepEqual(
+    visible.map((translation) => translation.id),
+    ['bsb']
+  );
+});
+
 test('preferred translation language falls back to the current translation language when persisted preference is missing', () => {
   const preferredLanguage = resolvePreferredTranslationLanguage(
     [
