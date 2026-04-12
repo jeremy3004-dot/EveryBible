@@ -1,5 +1,6 @@
 import { bibleBooks, newTestamentBooks } from '../../constants/books';
 import type { BibleTranslation, TranslationAudioCoverage } from '../../types';
+import { isHiddenTranslationId } from '../../services/translations/translationCatalogVisibility';
 
 export interface TranslationSelectionState {
   isSelectable: boolean;
@@ -412,7 +413,11 @@ export const buildTranslationPickerSections = <
   translations: T[],
   preferredLanguage: string | null
 ): TranslationPickerSections<T> => {
-  const myTranslations = translations.filter((translation) =>
+  const visibleTranslations = translations.filter(
+    (translation) => !isHiddenTranslationId(translation.id)
+  );
+
+  const myTranslations = visibleTranslations.filter((translation) =>
     isTranslationReadableLocally({
       isDownloaded: translation.isDownloaded,
       hasText: translation.hasText,
@@ -422,12 +427,12 @@ export const buildTranslationPickerSections = <
   );
   const myTranslationIds = new Set(myTranslations.map((translation) => translation.id));
   const availableTranslations = preferredLanguage
-    ? translations.filter(
+    ? visibleTranslations.filter(
         (translation) =>
           normalizeTranslationLanguage(translation.language) === preferredLanguage &&
           !myTranslationIds.has(translation.id)
       )
-    : translations.filter((translation) => !myTranslationIds.has(translation.id));
+    : visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id));
 
   return {
     myTranslations,
@@ -436,16 +441,20 @@ export const buildTranslationPickerSections = <
 };
 
 export const getVisibleTranslationsForPicker = <
-  T extends Pick<TranslationSelectionOptions, 'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'>
+  T extends {
+    id: string;
+  } & Pick<TranslationSelectionOptions, 'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'>
 >(
   translations: T[],
   { isHydratingRuntimeCatalog, hasHydratedRuntimeCatalog }: TranslationPickerVisibilityOptions
 ): T[] => {
+  const visibleTranslations = translations.filter((translation) => !isHiddenTranslationId(translation.id));
+
   if (!isHydratingRuntimeCatalog || hasHydratedRuntimeCatalog) {
-    return translations;
+    return visibleTranslations;
   }
 
-  return translations.filter((translation) =>
+  return visibleTranslations.filter((translation) =>
     translation.source !== 'runtime'
       ? true
       : isTranslationReadableLocally({
