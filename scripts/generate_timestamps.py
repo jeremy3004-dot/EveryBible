@@ -38,7 +38,8 @@ Usage:
     python scripts/generate_timestamps.py --translation web --model base
 
 Notes:
-    - Workers > 1 shares a single Whisper model (thread-safe for inference).
+    - Workers > 1 share a single Whisper model, but alignment calls are serialized
+      because stable-ts can fail under concurrent align() requests.
     - The Whisper model is downloaded once to ~/.cache/whisper on first run.
     - Forced alignment uses the verse text as the source of truth — Whisper
       does NOT re-transcribe, it just finds when each verse starts.
@@ -154,6 +155,7 @@ def download_audio(url: str, dest: Path) -> bool:
 
 _model = None
 _model_lock = threading.Lock()
+_align_lock = threading.Lock()
 
 
 def get_model(model_name: str):
@@ -196,8 +198,16 @@ def align_chapter(
     full_text = "\n".join(texts)
 
     try:
-        # Forced alignment: provide text, Whisper finds timestamps without transcribing
-        result = model.align(str(audio_path), full_text, language="en")
+        # Preserve our verse-per-line input so stable-ts returns one segment per verse
+        # instead of regrouping into many smaller chunks that force the rough fallback path.
+        # stable-ts also appears to be unsafe under concurrent align() calls on one model.
+        with _align_lock:
+            result = model.align(
+                str(audio_path),
+                full_text,
+                language="en",
+                original_split=True,
+            )
 
         # stable-ts returns segments roughly corresponding to our input lines.
         # Map segment index → verse.
