@@ -129,7 +129,6 @@ import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
-  READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
   SWIPE_THRESHOLD,
   SWIPE_VELOCITY_MIN,
@@ -459,8 +458,6 @@ export function BibleReaderScreen() {
   // Monotonic follow-along: verse index only advances forward, never retreats.
   // Prevents highlight flickering caused by interpolated position noise.
   const lastFollowAlongVerseRef = useRef<number | null>(null);
-  const scrollY = useSharedValue(0);
-
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1217,18 +1214,22 @@ export function BibleReaderScreen() {
         viewportHeight > 0 && contentHeight > 0
           ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
           : false;
-      scrollY.value = nextOffsetY;
       runOnJS(updateReaderBottomChromeState)(nextOffsetY, isAtBottom);
     },
   });
 
   const topChromeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [0, READER_TOP_CHROME_DISMISS_DISTANCE * 0.7, READER_TOP_CHROME_DISMISS_DISTANCE],
-      [1, 0.88, 0],
-      Extrapolation.CLAMP
-    ),
+    opacity: interpolate(readerBottomChromeProgressShared.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateY: interpolate(
+          readerBottomChromeProgressShared.value,
+          [0, 1],
+          [0, -12],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
   }));
 
   const bottomDockAnimatedStyle = useAnimatedStyle(() => ({

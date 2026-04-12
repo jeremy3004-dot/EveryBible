@@ -98,6 +98,22 @@ test('BibleReaderScreen reuses the shared top chrome in listen mode and removes 
   );
 });
 
+test('BibleReaderScreen brings the shared top chrome back in sync with the collapsing reader dock', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const topChromeAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*readerBottomChromeProgressShared\.value[\s\S]*translateY:/s,
+    'BibleReaderScreen should animate the top chrome from the same collapse progress that controls the bottom dock'
+  );
+
+  assert.match(
+    source,
+    /opacity:\s*interpolate\(readerBottomChromeProgressShared\.value,\s*\[0,\s*1\],\s*\[1,\s*0\],\s*Extrapolation\.CLAMP\)/s,
+    'BibleReaderScreen should fade the top chrome out as the reader dock collapses and fade it back in when the dock returns'
+  );
+});
+
 test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
@@ -503,7 +519,7 @@ test('chapter feedback modal avoids keyboard overlap while typing a comment', ()
   );
 });
 
-test('premium read mode keeps the animated overlay while the top controls stay flat', () => {
+test('premium read mode keeps the animated overlay while the top controls rise with the dock', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -528,8 +544,8 @@ test('premium read mode keeps the animated overlay while the top controls stay f
     (source.match(/const topChromeAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*?\}\)\);/)?.[0] ?? '').includes(
       'translateY:'
     ),
-    false,
-    'BibleReaderScreen should keep the shared top chrome fixed in place instead of sliding vertically when scrolling'
+    true,
+    'BibleReaderScreen should let the shared top chrome slide back into view alongside the collapsing reader dock'
   );
 });
 
