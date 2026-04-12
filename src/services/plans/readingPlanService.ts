@@ -10,7 +10,7 @@ import {
   canSyncReadingPlanRemotely,
   getPlanCompletionEntryKey,
   getDaySessionEntries,
-  isCalendarDayOfMonthPlan,
+  isRecurringPlan,
   normalizeRemoteReadingPlanProgress,
   type RemoteReadingPlanProgressRow,
   reconcileFetchedPlanProgress,
@@ -168,7 +168,7 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
       const plan = getPlan(planId);
       const updated = !plan
         ? null
-        : isCalendarDayOfMonthPlan(plan)
+        : isRecurringPlan(plan)
           ? store
               .getState()
               .markRecurringDayComplete(
@@ -207,7 +207,7 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
         dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
         totalDays: plan.duration_days,
         isFinalSession: nextSessionKey == null,
-        advanceDayOnCompletion: !isCalendarDayOfMonthPlan(plan),
+        advanceDayOnCompletion: !isRecurringPlan(plan),
         nextSessionKey,
       });
 
@@ -310,7 +310,7 @@ export async function markDayComplete(
     return { success: false, error: 'Plan not found' };
   }
 
-  const localUpdated = isCalendarDayOfMonthPlan(plan)
+  const localUpdated = isRecurringPlan(plan)
     ? readingPlansStore
         .getState()
         .markRecurringDayComplete(planId, getPlanCompletionEntryKey(plan, dayNumber), dayNumber)
@@ -375,7 +375,7 @@ export async function markPlanSessionComplete(
     dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
     totalDays: plan.duration_days,
     isFinalSession: nextSessionKey == null,
-    advanceDayOnCompletion: !isCalendarDayOfMonthPlan(plan),
+    advanceDayOnCompletion: !isRecurringPlan(plan),
     nextSessionKey,
   });
 

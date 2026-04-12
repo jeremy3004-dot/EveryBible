@@ -15,7 +15,7 @@ import { formatLocalDateKey } from '../progress/readingActivity';
 import {
   getActivePlanDayNumber,
   getDaySessionEntries,
-  isCalendarDayOfMonthPlan,
+  isRecurringPlan,
   isMultiSessionPlan,
 } from './readingPlanModel';
 
@@ -535,7 +535,7 @@ function getPlanDayDateKey(
   dayNumber: number,
   today: Date
 ): string {
-  if (isCalendarDayOfMonthPlan(plan)) {
+  if (isRecurringPlan(plan)) {
     return formatLocalDateKey(today);
   }
 

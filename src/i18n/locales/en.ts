@@ -259,6 +259,7 @@ export const en = {
     chapterFeedbackIdentityRolePlaceholder: 'Church leader, language speaker, community elder',
     chapterFeedbackIdentityRequired: 'Please enter your name and role.',
     chapterFeedbackIdentitySummaryOff: 'No feedback identity saved yet',
+    hidePlayButtonFromReadingTab: 'Hide play button from reading tab',
     language: 'Interface language',
     nationAndLanguage: 'Nation and Bible',
     fontSize: 'Font Size',
@@ -560,6 +561,8 @@ export const en = {
   readingPlans: {
     title: 'Reading Plans',
     plans: 'Plans',
+    dailyReadings: 'Daily Readings',
+    dailyRhythms: 'Daily Rhythms',
     browsePlans: 'Browse Plans',
     myPlans: 'My Plans',
     startPlan: 'Start Plan',
@@ -673,6 +676,11 @@ export const en = {
     proverbs31: {
       title: 'Daily Proverbs Chapter',
       description: 'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
+    },
+    kathisma: {
+      title: 'Kathisma',
+      description:
+        'Read the appointed morning and evening kathismata for each weekday, repeating every week.',
     },
     chronological: {
       title: 'Chronological Bible',

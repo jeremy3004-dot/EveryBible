@@ -13,6 +13,7 @@ const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   hearingGodVoice: require('../../../assets/plans/covers/hearingGodVoice.webp'),
   holinessSanctification: require('../../../assets/plans/covers/holinessSanctification.webp'),
   identityInChrist: require('../../../assets/plans/covers/identityInChrist.webp'),
+  kathisma: require('../../../assets/plans/covers/kathisma.png'),
   kingdomOfGod: require('../../../assets/plans/covers/kingdomOfGod.webp'),
   prayerIntimacy: require('../../../assets/plans/covers/prayerIntimacy.webp'),
   mountains: require('../../../assets/plans/covers/mountains.webp'),

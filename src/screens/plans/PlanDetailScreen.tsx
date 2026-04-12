@@ -34,8 +34,8 @@ import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAsset
 import {
   getActivePlanDayNumber,
   getDaySessionEntries,
-  isCalendarDayOfMonthPlan,
   getVisiblePlanDayNumbers,
+  isRecurringPlan,
   isMultiSessionPlan,
 } from '../../services/plans/readingPlanModel';
 import type {
@@ -214,11 +214,12 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
-  const isCalendarPlan = isCalendarDayOfMonthPlan(plan);
+  const isRecurringSchedulePlan = isRecurringPlan(plan);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
   const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
-  const fraction = totalDays > 0 ? (isCalendarPlan ? currentDay / totalDays : completedCount / totalDays) : 0;
-  const completionBadgeLabel = progress?.is_completed && !isCalendarPlan
+  const fraction =
+    totalDays > 0 ? (isRecurringSchedulePlan ? currentDay / totalDays : completedCount / totalDays) : 0;
+  const completionBadgeLabel = progress?.is_completed && !isRecurringSchedulePlan
     ? t('readingPlans.completed')
     : currentDaySummary?.isComplete
       ? t('readingPlans.dailyTargetCompleteTitle')
@@ -248,7 +249,7 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           <Text style={[progressCardStyles.dayLabel, { color: colors.primaryText }]}>
             {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
           </Text>
-          {!isCalendarPlan ? (
+          {!isRecurringSchedulePlan ? (
             <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
               {completedCount} / {totalDays}{' '}
               {t('engagement.days', { defaultValue: 'days' })}{' '}
@@ -858,7 +859,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             const dayEntries = entriesByDay.get(dayNumber) ?? [];
             const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
             const isCompleted = progress
-              ? isCalendarDayOfMonthPlan(plan)
+              ? isRecurringPlan(plan)
                 ? dayNumber === currentDay &&
                   Boolean(
                     (currentDaySummary?.dateKey &&
@@ -870,7 +871,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
               : false;
             const isCurrent = dayNumber === currentDay;
             const dateLabel =
-              progress && !isCalendarDayOfMonthPlan(plan)
+              progress && !isRecurringPlan(plan)
                 ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
                 : null;
             const launchSessionKey = multiSessionPlan

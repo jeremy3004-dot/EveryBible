@@ -178,6 +178,29 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
   );
 });
 
+test('PlansHomeScreen splits repeating plans into a Daily Rhythms section', () => {
+  assert.match(
+    source,
+    /const dailyReadingPlans = activePlans\.filter\(\(\{ plan \}\) => !isRecurringPlan\(plan\)\);/,
+    'PlansHomeScreen should keep recurring rhythm plans out of the Daily Readings section'
+  );
+  assert.match(
+    source,
+    /const dailyRhythmPlans = activePlans\.filter\(\(\{ plan \}\) => isRecurringPlan\(plan\)\);/,
+    'PlansHomeScreen should group recurring rhythm plans into a Daily Rhythms section'
+  );
+  assert.match(
+    source,
+    /<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.dailyReadings'\)\}<\/Text>/,
+    'PlansHomeScreen should relabel the primary active-plans section to Daily Readings'
+  );
+  assert.match(
+    source,
+    /dailyRhythmPlans\.length > 0[\s\S]*<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.dailyRhythms'\)\}<\/Text>/s,
+    'PlansHomeScreen should render a second section for recurring plans called Daily Rhythms'
+  );
+});
+
 test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
   assert.match(
     source,
@@ -203,6 +226,21 @@ test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
     source,
     /searchQuery\.trim\(\) \? t\('readingPlans\.noPlanSearchResults'\) : t\('readingPlans\.noPlans'\)/,
     'PlansHomeScreen should show a dedicated empty state when a search yields no matches'
+  );
+  assert.match(
+    source,
+    /const dailyRhythmPlans = filteredPlans\.filter\(\(plan\) => isRecurringPlan\(plan\)\);/,
+    'PlansHomeScreen should carve recurring rhythm plans out of the Find Plans results'
+  );
+  assert.match(
+    source,
+    /const categoryPlans = filteredPlans\.filter\(\(plan\) => !isRecurringPlan\(plan\)\);/,
+    'PlansHomeScreen should keep the category carousels focused on non-recurring plans'
+  );
+  assert.match(
+    source,
+    /dailyRhythmPlans\.length > 0[\s\S]*<Text style=\{styles\.categoryHeader\}>\{t\('readingPlans\.dailyRhythms'\)\}<\/Text>/s,
+    'PlansHomeScreen should show a Daily Rhythms section inside Find Plans when repeating plans are available'
   );
 });
 

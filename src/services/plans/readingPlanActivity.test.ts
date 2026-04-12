@@ -385,6 +385,61 @@ test('getCurrentPlanDaySummary anchors recurring day-of-month plans to today for
   assert.equal(summary.isComplete, true);
 });
 
+test('getCurrentPlanDaySummary anchors recurring weekly plans to today for activity matching', () => {
+  const recurringPlan = makePlan({
+    id: 'kathisma-weekly',
+    slug: 'kathisma-weekly',
+    scheduleMode: 'calendar-day-of-week',
+    format: 'multi-session',
+    sessionOrder: ['morning', 'evening'],
+    duration_days: 7,
+  });
+
+  const summary = getCurrentPlanDaySummary({
+    plan: recurringPlan,
+    entries: [
+      makeEntry({
+        id: 'sun-morning-1',
+        plan_id: 'kathisma-weekly',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 9,
+        chapter_end: 16,
+      }),
+      makeEntry({
+        id: 'sun-morning-2',
+        plan_id: 'kathisma-weekly',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 18,
+        chapter_end: 24,
+      }),
+    ],
+    progress: makeProgress('kathisma-weekly', {
+      started_at: new Date(2026, 3, 1, 7, 0, 0).toISOString(),
+      current_day: 4,
+    }),
+    chaptersRead: {
+      PSA_9: new Date(2026, 3, 12, 8, 0, 0).getTime(),
+      PSA_18: new Date(2026, 3, 12, 8, 30, 0).getTime(),
+    },
+    listeningHistory: [],
+    today: new Date(2026, 3, 12, 12, 0, 0),
+  });
+
+  assert.equal(summary.dayNumber, 1);
+  assert.equal(summary.dateKey, '2026-04-12');
+  assert.equal(summary.totalSessionCount, 1);
+  assert.equal(summary.completedSessionCount, 0);
+  assert.equal(summary.nextIncompleteSessionKey, 'morning');
+});
+
 test('getCurrentPlanDaySummary builds ordered session summaries for multi-session plans', () => {
   const summary = getCurrentPlanDaySummary({
     plan: makePlan({
@@ -439,6 +494,106 @@ test('getCurrentPlanDaySummary builds ordered session summaries for multi-sessio
     [
       { key: 'morning', title: 'Morning', complete: true, completed: 1, target: 1 },
       { key: 'evening', title: 'Evening', complete: false, completed: 0, target: 1 },
+    ]
+  );
+});
+
+test('getCurrentPlanDaySummary keeps weekly multi-session rhythms ordered across morning and evening', () => {
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({
+      id: 'kathisma-weekly',
+      slug: 'kathisma-weekly',
+      scheduleMode: 'calendar-day-of-week',
+      format: 'multi-session',
+      sessionOrder: ['morning', 'evening'],
+      duration_days: 7,
+    }),
+    entries: [
+      makeEntry({
+        id: 'mon-morning-1',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 25,
+        chapter_end: 32,
+      }),
+      makeEntry({
+        id: 'mon-morning-2',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 33,
+        chapter_end: 37,
+      }),
+      makeEntry({
+        id: 'mon-evening-1',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'evening',
+        session_title: 'Evening Kathismata',
+        session_order: 2,
+        book: 'PSA',
+        chapter_start: 38,
+        chapter_end: 45,
+      }),
+    ],
+    progress: makeProgress('kathisma-weekly', {
+      started_at: new Date(2026, 3, 1, 7, 0, 0).toISOString(),
+      current_day: 1,
+    }),
+    chaptersRead: {
+      PSA_25: new Date(2026, 3, 13, 8, 0, 0).getTime(),
+      PSA_26: new Date(2026, 3, 13, 8, 5, 0).getTime(),
+      PSA_27: new Date(2026, 3, 13, 8, 10, 0).getTime(),
+      PSA_28: new Date(2026, 3, 13, 8, 15, 0).getTime(),
+      PSA_29: new Date(2026, 3, 13, 8, 20, 0).getTime(),
+      PSA_30: new Date(2026, 3, 13, 8, 25, 0).getTime(),
+      PSA_31: new Date(2026, 3, 13, 8, 30, 0).getTime(),
+      PSA_32: new Date(2026, 3, 13, 8, 35, 0).getTime(),
+      PSA_33: new Date(2026, 3, 13, 8, 15, 0).getTime(),
+      PSA_34: new Date(2026, 3, 13, 8, 40, 0).getTime(),
+      PSA_35: new Date(2026, 3, 13, 8, 45, 0).getTime(),
+      PSA_36: new Date(2026, 3, 13, 8, 50, 0).getTime(),
+      PSA_37: new Date(2026, 3, 13, 8, 55, 0).getTime(),
+    },
+    listeningHistory: [],
+    today: new Date(2026, 3, 13, 12, 0, 0),
+  });
+
+  assert.equal(summary.dayNumber, 2);
+  assert.equal(summary.dateKey, '2026-04-13');
+  assert.equal(summary.totalSessionCount, 2);
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(summary.nextIncompleteSessionKey, 'evening');
+  assert.deepEqual(
+    summary.sessionSummaries.map((session) => ({
+      key: session.sessionKey,
+      title: session.title,
+      complete: session.isComplete,
+      completed: session.completedChapterCount,
+      target: session.targetChapterCount,
+    })),
+    [
+      {
+        key: 'morning',
+        title: 'Morning Kathismata',
+        complete: true,
+        completed: 13,
+        target: 13,
+      },
+      {
+        key: 'evening',
+        title: 'Evening Kathismata',
+        complete: false,
+        completed: 0,
+        target: 8,
+      },
     ]
   );
 });

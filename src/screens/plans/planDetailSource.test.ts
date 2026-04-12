@@ -56,11 +56,11 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
   );
 });
 
-test('PlanDetailScreen only renders the active day for calendar-day plans', () => {
+test('PlanDetailScreen only renders the active day for recurring rhythm plans', () => {
   assert.match(
     source,
     /getVisiblePlanDayNumbers\(plan,\s*entries,\s*progress,\s*today\)/,
-    'PlanDetailScreen should collapse calendar-day plans to the active chapter for today'
+    'PlanDetailScreen should collapse recurring plans to the active chapter set for today'
   );
   assert.match(
     source,
@@ -71,6 +71,11 @@ test('PlanDetailScreen only renders the active day for calendar-day plans', () =
     source,
     /visibleDayNumbers\.map\(\(dayNumber\) => \{/,
     'PlanDetailScreen should render only the visible day numbers'
+  );
+  assert.match(
+    source,
+    /isRecurringPlan\(plan\)/,
+    'PlanDetailScreen should treat all recurring cadence plans as daily rhythms when deciding completion state and date labels'
   );
 });
 
