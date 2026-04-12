@@ -338,14 +338,20 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
 
   assert.match(
     source,
-    /premiumReaderBaseBottomPadding -[\s\S]*premiumReaderBaseBottomPadding - premiumReaderCollapsedBottomPadding[\s\S]*readerBottomChromeProgress/s,
-    'BibleReaderScreen should collapse the premium reader bottom padding almost all the way down to the safe-area gutter so the empty black strip does not linger behind'
+    /const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;/,
+    'BibleReaderScreen should keep the premium reader bottom padding stable so the dock motion does not feed back into scroll reflow'
   );
 
   assert.equal(
     source.includes('premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderVisibleBottomPadding'),
     false,
     'BibleReaderScreen should not manufacture extra bottom filler space from viewport-minus-content height once the shared tab bar collapses'
+  );
+
+  assert.equal(
+    source.includes('premiumReaderVisibleBottomPadding'),
+    false,
+    'BibleReaderScreen should not keep the old live bottom-padding interpolation once the dock is decoupled from the content height'
   );
 
   assert.equal(
@@ -584,8 +590,8 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /const premiumReaderBottomPadding = premiumReaderVisibleBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
-    'BibleReaderScreen should keep the premium reader bottom padding tied directly to the live chrome padding instead of manufacturing a separate short-chapter spacer'
+    /const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
+    'BibleReaderScreen should keep the premium reader bottom padding stable so dock taps do not reflow the ScrollView at the chapter bottom'
   );
 
   assert.equal(
