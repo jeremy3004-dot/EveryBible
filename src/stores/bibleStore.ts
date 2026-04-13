@@ -214,7 +214,7 @@ export const useBibleStore = create<BibleState>()(
       currentChapter: 1,
       hasReaderHistory: false,
       isPlanSessionReaderActive: false,
-      preferredChapterLaunchMode: 'read',
+      preferredChapterLaunchMode: 'listen',
       verses: [],
       isLoading: false,
       error: null,

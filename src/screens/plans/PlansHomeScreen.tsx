@@ -26,7 +26,6 @@ import type { PlansStackParamList } from '../../navigation/types';
 import {
   listReadingPlans,
   getUserPlanProgress,
-  getCompletedPlans,
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
@@ -46,6 +45,7 @@ import {
 } from '../../services/plans/readingPlanActivity';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
 import { useLibraryStore } from '../../stores';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 
@@ -969,13 +969,29 @@ export function PlansHomeScreen() {
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
+  const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
 
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
-  const [userProgress, setUserProgress] = useState<UserReadingPlanProgress[]>([]);
-  const [completedPlans, setCompletedPlans] = useState<CompletedPlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const userProgress = React.useMemo(
+    () =>
+      Object.values(progressByPlanId).sort((left, right) => right.started_at.localeCompare(left.started_at)),
+    [progressByPlanId]
+  );
+  const completedPlans = React.useMemo(
+    () =>
+      userProgress
+        .filter((progress) => progress.is_completed)
+        .map((progress) => {
+          const plan = allPlans.find((item) => item.id === progress.plan_id);
+          return plan ? { ...progress, plan } : null;
+        })
+        .filter((item): item is CompletedPlanRow => item !== null),
+    [allPlans, userProgress]
+  );
 
   const tabs: { key: PlanTab; labelKey: string }[] = [
     { key: 'my-plans', labelKey: 'readingPlans.myPlans' },
@@ -983,26 +999,21 @@ export function PlansHomeScreen() {
     { key: 'completed', labelKey: 'readingPlans.completed' },
   ];
 
+  const hydratePlanProgress = useCallback(async () => {
+    await getUserPlanProgress().catch(() => {});
+  }, []);
+
   const loadAllData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
 
-    const [allPlansResult, progressResult, completedResult] = await Promise.all([
-      listReadingPlans(),
-      getUserPlanProgress(),
-      getCompletedPlans(),
-    ]);
-
+    const allPlansResult = await listReadingPlans();
     if (allPlansResult.success && allPlansResult.data) {
       setAllPlans(allPlansResult.data);
     }
-    if (progressResult.success && progressResult.data) {
-      setUserProgress(progressResult.data);
-    }
-    if (completedResult.success && completedResult.data) {
-      setCompletedPlans(completedResult.data);
-    }
     if (!quiet) setLoading(false);
-  }, []);
+
+    void hydratePlanProgress();
+  }, [hydratePlanProgress]);
 
   useEffect(() => {
     loadAllData(); // eslint-disable-line react-hooks/set-state-in-effect
@@ -1029,10 +1040,7 @@ export function PlansHomeScreen() {
 
   const handleDeletePlan = useCallback(async (planId: string) => {
     const result = await unenrollFromPlan(planId);
-    if (result.success) {
-      setUserProgress((prev) => prev.filter((progress) => progress.plan_id !== planId));
-      setCompletedPlans((prev) => prev.filter((item) => item.plan.id !== planId));
-    } else if (result.error) {
+    if (!result.success && result.error) {
       Alert.alert(t('common.error'), result.error);
     }
   }, [t]);
@@ -1090,7 +1098,7 @@ export function PlansHomeScreen() {
         <Text style={styles.title}>{t('readingPlans.title')}</Text>
         {tabStrip}
 
-        {loading ? (
+        {loading && allPlans.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accentPrimary} />
           </View>

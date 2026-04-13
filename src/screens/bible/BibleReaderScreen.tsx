@@ -556,8 +556,7 @@ export function BibleReaderScreen() {
       }
 
       rootTabBarCollapseProgressRef.current = clampedProgress;
-      const rootTabNavigation =
-        navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
+      const rootTabNavigation = navigation.getParent()?.getParent();
       if (rootTabNavigation) {
         rootTabNavigation.setOptions({
           tabBarStyle: getRootTabBarStyle(clampedProgress),
@@ -788,8 +787,7 @@ export function BibleReaderScreen() {
 
   const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
   useEffect(() => {
-    const rootTabNavigation =
-      navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
+    const rootTabNavigation = navigation.getParent()?.getParent();
     if (!rootTabNavigation) {
       return;
     }
@@ -1202,8 +1200,7 @@ export function BibleReaderScreen() {
     readerBottomChromeProgressShared.value = 0;
     setReaderBottomChromeProgress(0);
     setIsReadBottomChromeCollapsed(false);
-    const rootTabNavigation =
-      navigation.getParent('RootTab') ?? navigation.getParent()?.getParent();
+    const rootTabNavigation = navigation.getParent()?.getParent();
     if (rootTabNavigation) {
       rootTabNavigation.setOptions({
         tabBarStyle: shouldForceHideRootTabBar ? { display: 'none' } : getRootTabBarStyle(0),

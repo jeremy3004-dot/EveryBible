@@ -31,9 +31,9 @@ export interface AudioSettings {
   backgroundMusicChoice: BackgroundMusicChoice;
 }
 
-export type PlaybackRate = 0.75 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | 2.5;
+export type PlaybackRate = 0.75 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | 2.25 | 2.5;
 
-export const PLAYBACK_RATES: PlaybackRate[] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
+export const PLAYBACK_RATES: PlaybackRate[] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5];
 
 export type RepeatMode = 'off' | 'chapter' | 'book';
 

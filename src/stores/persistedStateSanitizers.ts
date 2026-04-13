@@ -611,7 +611,7 @@ export const sanitizePersistedBibleState = (value: unknown) => {
   const currentBook = persistedCurrentBook ?? 'GEN';
   const currentChapter = persistedCurrentChapter ?? 1;
   const preferredChapterLaunchMode: 'listen' | 'read' =
-    persisted.preferredChapterLaunchMode === 'listen' ? 'listen' : 'read';
+    persisted.preferredChapterLaunchMode === 'read' ? 'read' : 'listen';
   const preferredTranslationLanguage =
     typeof persisted.preferredTranslationLanguage === 'string' &&
     persisted.preferredTranslationLanguage.trim().length > 0

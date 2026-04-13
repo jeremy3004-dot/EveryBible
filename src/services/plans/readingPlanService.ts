@@ -63,6 +63,7 @@ const TIMED_CHALLENGE_PLAN_IDS = new Set([
   'gospels-30-days',
   'acts-28-days',
 ]);
+const PLAN_REMOTE_PROGRESS_TIMEOUT_MS = 1500;
 
 let supabaseModulePromise: Promise<typeof import('../supabase')> | null = null;
 
@@ -113,6 +114,23 @@ function buildLocalSavedPlan(planId: string): UserSavedPlan {
     plan_id: planId,
     saved_at: new Date().toISOString(),
   };
+}
+
+async function withTimeoutFallback<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 async function requireSignedInUser(
@@ -390,49 +408,58 @@ export async function getUserPlanProgress(
   planId?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
   const localProgress = getLocalProgressList(readingPlansStore, planId);
+  const localFallback = { success: true, data: localProgress } satisfies PlanServiceResult<
+    UserReadingPlanProgress[]
+  >;
 
-  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-  const { user } = await requireSignedInUser('fetch reading plan progress');
+  return withTimeoutFallback(
+    (async () => {
+      const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+      const { user } = await requireSignedInUser('fetch reading plan progress');
 
-  if (!isSupabaseConfigured() || !user) {
-    return { success: true, data: localProgress };
-  }
+      if (!isSupabaseConfigured() || !user) {
+        return localFallback;
+      }
 
-  try {
-    let query = supabase.from('user_reading_plan_progress').select('*').eq('user_id', user.id);
+      try {
+        let query = supabase.from('user_reading_plan_progress').select('*').eq('user_id', user.id);
 
-    if (planId) {
-      query = query.eq('plan_slug', planId);
-    }
+        if (planId) {
+          query = query.eq('plan_slug', planId);
+        }
 
-    const { data, error } = await query.order('started_at', { ascending: false });
+        const { data, error } = await query.order('started_at', { ascending: false });
 
-    if (error) {
-      return { success: true, data: localProgress };
-    }
+        if (error) {
+          return localFallback;
+        }
 
-    const remoteProgress = normalizeRemoteProgressRows(
-      ((data ?? []) as RemoteReadingPlanProgressRow[]).filter((progress) =>
-        shouldSyncPlanProgressRemotely(progress.plan_slug ?? progress.plan_id ?? undefined)
-      )
-    );
-    const fetchedAt = new Date().toISOString();
-    const reconciledProgress =
-      remoteProgress.length === 0
-        ? localProgress
-        : reconcileFetchedPlanProgress(localProgress, remoteProgress, fetchedAt);
-    if (planId) {
-      remoteProgress.forEach((progress) => {
-        readingPlansStore.getState().upsertProgress(progress);
-      });
-    } else {
-      readingPlansStore.getState().replaceProgress(reconciledProgress);
-    }
+        const remoteProgress = normalizeRemoteProgressRows(
+          ((data ?? []) as RemoteReadingPlanProgressRow[]).filter((progress) =>
+            shouldSyncPlanProgressRemotely(progress.plan_slug ?? progress.plan_id ?? undefined)
+          )
+        );
+        const fetchedAt = new Date().toISOString();
+        const reconciledProgress =
+          remoteProgress.length === 0
+            ? localProgress
+            : reconcileFetchedPlanProgress(localProgress, remoteProgress, fetchedAt);
+        if (planId) {
+          remoteProgress.forEach((progress) => {
+            readingPlansStore.getState().upsertProgress(progress);
+          });
+        } else {
+          readingPlansStore.getState().replaceProgress(reconciledProgress);
+        }
 
-    return { success: true, data: reconciledProgress };
-  } catch {
-    return { success: true, data: localProgress };
-  }
+        return { success: true, data: reconciledProgress };
+      } catch {
+        return localFallback;
+      }
+    })(),
+    PLAN_REMOTE_PROGRESS_TIMEOUT_MS,
+    localFallback
+  );
 }
 
 export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {

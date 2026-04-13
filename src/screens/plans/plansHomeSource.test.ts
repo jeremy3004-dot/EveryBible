@@ -137,13 +137,13 @@ test('PlansHomeScreen supports swipe-to-delete for active and completed plans', 
   );
   assert.match(
     source,
-    /setCompletedPlans\(\(prev\) => prev\.filter\(\(item\) => item\.plan\.id !== planId\)\)/,
-    'PlansHomeScreen should remove deleted plans from the completed section immediately after a successful swipe delete'
+    /useReadingPlansStore\(\(state\) => state\.progressByPlanId\)/,
+    'PlansHomeScreen should derive both active and completed plan rows from the shared reading plans store'
   );
   assert.match(
     source,
-    /setUserProgress\(\(prev\) => prev\.filter\(\(progress\) => progress\.plan_id !== planId\)\)/,
-    'PlansHomeScreen should also remove deleted plans from the active plans section immediately after a successful swipe delete'
+    /const result = await unenrollFromPlan\(planId\);[\s\S]*if \(!result\.success && result\.error\)/,
+    'PlansHomeScreen should let swipe delete update the shared store through unenrollFromPlan instead of manually mutating duplicate local arrays'
   );
 });
 
@@ -254,5 +254,33 @@ test('PlansHomeScreen refreshes plan data again when the screen regains focus', 
     source,
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*loadAllData\(true\)\.catch\(\(\) => \{\}\);\s*}, \[loadAllData\]\)\s*\)/s,
     'PlansHomeScreen should quietly reload plans on focus instead of only relying on the initial mount fetch'
+  );
+});
+
+test('PlansHomeScreen renders bundled plans before remote plan-progress hydration finishes', () => {
+  assert.match(
+    source,
+    /const hydratePlanProgress = useCallback\(async \(\) => \{\s*await getUserPlanProgress\(\)\.catch\(\(\) => \{\}\);\s*}, \[\]\);/s,
+    'PlansHomeScreen should hydrate signed-in plan progress separately from the bundled plan catalog load'
+  );
+  assert.match(
+    source,
+    /const allPlansResult = await listReadingPlans\(\);/,
+    'PlansHomeScreen should await the bundled plan catalog directly before rendering tabs'
+  );
+  assert.doesNotMatch(
+    source,
+    /Promise\.all\(\[\s*listReadingPlans\(\),\s*getUserPlanProgress\(\),\s*getCompletedPlans\(\),?\s*\]\)/s,
+    'PlansHomeScreen should not block the bundled plan catalog on remote progress hydration'
+  );
+  assert.match(
+    source,
+    /void hydratePlanProgress\(\);/,
+    'PlansHomeScreen should kick off plan-progress hydration in the background after rendering bundled plans'
+  );
+  assert.match(
+    source,
+    /loading && allPlans\.length === 0/,
+    'PlansHomeScreen should only keep the loading spinner up while the bundled plan catalog itself is still empty'
   );
 });
