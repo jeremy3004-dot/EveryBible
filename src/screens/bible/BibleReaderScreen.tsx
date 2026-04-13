@@ -1696,78 +1696,29 @@ export function BibleReaderScreen() {
     }
 
     planDayCompletionGuardRef.current = completionKey;
-    const nextSessionSummary =
-      activePlanIsMultiSession && activePlanDaySummary
-        ? activePlanDaySummary.sessionSummaries
-            .slice(Math.max(activePlanSessionIndex + 1, 0))
-            .find((session) => !session.isComplete) ?? null
-        : null;
+    try {
+      const nextSessionSummary =
+        activePlanIsMultiSession && activePlanDaySummary
+          ? activePlanDaySummary.sessionSummaries
+              .slice(Math.max(activePlanSessionIndex + 1, 0))
+              .find((session) => !session.isComplete) ?? null
+          : null;
 
-    const completionResult =
-      activePlanIsMultiSession && activePlanSessionKey
-        ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
-        : await markDayComplete(activePlanId, planDayNumber);
+      const completionResult =
+        activePlanIsMultiSession && activePlanSessionKey
+          ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
+          : await markDayComplete(activePlanId, planDayNumber);
 
-    if (!completionResult.success) {
-      planDayCompletionGuardRef.current = null;
-      return;
-    }
-
-    if (nextSessionSummary) {
-      const nextSessionEntries =
-        activePlanSessionGroups.find((group) => group.sessionKey === nextSessionSummary.sessionKey)
-          ?.entries ?? [];
-      const nextResume = getPlanDayResume(activePlanId, planDayNumber);
-      const nextEntry = resolvePlanDayPlaybackStartEntry(nextSessionEntries, nextResume);
-
-      if (nextEntry) {
-        navigation.setParams(
-          buildReaderChapterRouteParams({
-            bookId: nextEntry.bookId,
-            chapter: nextEntry.chapter,
-            preferredMode: chapterSessionMode,
-            planId: activePlanId,
-            planDayNumber,
-            planSessionKey: nextSessionSummary.sessionKey,
-            returnToPlanOnComplete: true,
-          })
-        );
+      if (!completionResult.success) {
+        return;
       }
 
-      planDayCompletionGuardRef.current = null;
-      return;
-    }
-
-    if (!activePlanDaySummary?.isComplete) {
-      planDayCompletionGuardRef.current = null;
-      return;
-    }
-
-    clearPlanDayResume(activePlanId, planDayNumber);
-
-    if (!rootNavigationRef.isReady()) {
-      return;
-    }
-
-    if (activeRhythmSession) {
-      const nextSegment =
-        currentRhythmSegmentIndex >= 0
-          ? activeRhythmSession.segments[currentRhythmSegmentIndex + 1] ?? null
-          : null;
-      if (nextSegment) {
-        const nextResume =
-          nextSegment.type === 'plan' &&
-          nextSegment.planId &&
-          typeof nextSegment.dayNumber === 'number'
-            ? getPlanDayResume(nextSegment.planId, nextSegment.dayNumber)
-            : null;
-        const nextEntry =
-          playbackSequenceEntries
-            .slice(nextSegment.startIndex, nextSegment.endIndex)
-            .find(
-              (entry) =>
-                entry.bookId === nextResume?.bookId && entry.chapter === nextResume?.chapter
-            ) ?? playbackSequenceEntries[nextSegment.startIndex] ?? null;
+      if (nextSessionSummary) {
+        const nextSessionEntries =
+          activePlanSessionGroups.find((group) => group.sessionKey === nextSessionSummary.sessionKey)
+            ?.entries ?? [];
+        const nextResume = getPlanDayResume(activePlanId, planDayNumber);
+        const nextEntry = resolvePlanDayPlaybackStartEntry(nextSessionEntries, nextResume);
 
         if (nextEntry) {
           navigation.setParams(
@@ -1775,27 +1726,76 @@ export function BibleReaderScreen() {
               bookId: nextEntry.bookId,
               chapter: nextEntry.chapter,
               preferredMode: chapterSessionMode,
-              planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
-              planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
+              planId: activePlanId,
+              planDayNumber,
+              planSessionKey: nextSessionSummary.sessionKey,
               returnToPlanOnComplete: true,
-              sessionContext: activeRhythmSession,
             })
           );
-          return;
         }
+        return;
+      }
+
+      if (!activePlanDaySummary?.isComplete) {
+        return;
+      }
+
+      clearPlanDayResume(activePlanId, planDayNumber);
+
+      if (!rootNavigationRef.isReady()) {
+        return;
+      }
+
+      if (activeRhythmSession) {
+        const nextSegment =
+          currentRhythmSegmentIndex >= 0
+            ? activeRhythmSession.segments[currentRhythmSegmentIndex + 1] ?? null
+            : null;
+        if (nextSegment) {
+          const nextResume =
+            nextSegment.type === 'plan' &&
+            nextSegment.planId &&
+            typeof nextSegment.dayNumber === 'number'
+              ? getPlanDayResume(nextSegment.planId, nextSegment.dayNumber)
+              : null;
+          const nextEntry =
+            playbackSequenceEntries
+              .slice(nextSegment.startIndex, nextSegment.endIndex)
+              .find(
+                (entry) =>
+                  entry.bookId === nextResume?.bookId && entry.chapter === nextResume?.chapter
+              ) ?? playbackSequenceEntries[nextSegment.startIndex] ?? null;
+
+          if (nextEntry) {
+            navigation.setParams(
+              buildReaderChapterRouteParams({
+                bookId: nextEntry.bookId,
+                chapter: nextEntry.chapter,
+                preferredMode: chapterSessionMode,
+                planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
+                planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
+                returnToPlanOnComplete: true,
+                sessionContext: activeRhythmSession,
+              })
+            );
+            return;
+          }
+        }
+
+        rootNavigationRef.navigate('Plans', {
+          screen: 'RhythmDetail',
+          params: { rhythmId: activeRhythmSession.rhythmId },
+        });
+        return;
       }
 
       rootNavigationRef.navigate('Plans', {
-        screen: 'RhythmDetail',
-        params: { rhythmId: activeRhythmSession.rhythmId },
+        screen: 'PlanDetail',
+        params: { planId: activePlanId },
       });
-      return;
+    } finally {
+      planDayCompletionGuardRef.current = null;
     }
-
-    rootNavigationRef.navigate('Plans', {
-      screen: 'PlanDetail',
-      params: { planId: activePlanId },
-    });
   }, [
     activeRhythmSession,
     activePlanDaySummary,

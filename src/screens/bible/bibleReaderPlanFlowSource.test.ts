@@ -194,3 +194,11 @@ test('BibleReaderScreen anchors plan-day completion summary to the explicit sess
     'BibleReaderScreen should calculate completion against the explicit plan session day so multi-passage or manually opened days can finish correctly'
   );
 });
+
+test('BibleReaderScreen always clears the completion guard after completion attempts', () => {
+  assert.match(
+    source,
+    /planDayCompletionGuardRef\.current = completionKey;[\s\S]*try \{[\s\S]*\} finally \{\n\s*planDayCompletionGuardRef\.current = null;\n\s*\}/s,
+    'BibleReaderScreen should release the completion guard in a finally block so the checkmark can always be retried'
+  );
+});
