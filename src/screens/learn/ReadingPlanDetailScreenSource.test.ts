@@ -37,3 +37,16 @@ test('ReadingPlanDetailScreen forwards the full day playback sequence into Bible
     'ReadingPlanDetailScreen should auto-enroll the plan before launching a day row when the user has not started it yet'
   );
 });
+
+test('ReadingPlanDetailScreen draws the progress card with a real circular arc', () => {
+  assert.match(
+    source,
+    /from 'react-native-svg'/,
+    'ReadingPlanDetailScreen should render the progress ring through react-native-svg so the arc matches the displayed percentage'
+  );
+  assert.match(
+    source,
+    /strokeDasharray=\{circumference\}[\s\S]*strokeDashoffset=\{strokeDashoffset\}/s,
+    'ReadingPlanDetailScreen should derive the ring sweep from stroke dash math instead of a placeholder dot'
+  );
+});

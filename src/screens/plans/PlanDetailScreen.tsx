@@ -13,10 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import Svg, { Circle } from 'react-native-svg';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
+import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
 import {
   enrollInPlan,
   getPlansByCategory,
@@ -117,7 +118,7 @@ const coverImageStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
-// Progress ring (border trick, no SVG)
+// Progress ring
 // ---------------------------------------------------------------------------
 
 function ProgressRing({
@@ -137,6 +138,9 @@ function ProgressRing({
 }) {
   const clamped = Math.min(1, Math.max(0, fraction));
   const pct = Math.round(clamped * 100);
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - clamped * circumference;
 
   return (
     <View
@@ -151,6 +155,33 @@ function ProgressRing({
         },
       ]}
     >
+      <Svg
+        width={size}
+        height={size}
+        style={progressRingStyles.progressRing}
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={trackColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          fill="none"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
       <View
         style={[
           progressRingStyles.inner,
@@ -163,21 +194,6 @@ function ProgressRing({
       >
         {children ?? <Text style={[progressRingStyles.pctText, { color }]}>{pct}%</Text>}
       </View>
-      {pct > 0 ? (
-        <View
-          style={[
-            progressRingStyles.accentArc,
-            {
-              width: strokeWidth * 2,
-              height: strokeWidth * 2,
-              borderRadius: strokeWidth,
-              backgroundColor: color,
-              top: -strokeWidth,
-              left: size / 2 - strokeWidth,
-            },
-          ]}
-        />
-      ) : null}
     </View>
   );
 }
@@ -186,15 +202,17 @@ const progressRingStyles = StyleSheet.create({
   outer: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   inner: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'absolute',
   },
   pctText: {
     ...typography.cardTitle,
   },
-  accentArc: {
+  progressRing: {
     position: 'absolute',
   },
 });
@@ -630,6 +648,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const currentDay = plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1;
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
+  const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const currentDaySummary = React.useMemo(() => {
     if (!plan || !progress) {
       return null;
@@ -679,6 +698,8 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       params: {
         bookId: playbackStartEntry.bookId,
         chapter: playbackStartEntry.chapter,
+        ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+        preferredMode: preferredChapterLaunchMode,
         playbackSequenceEntries,
         planId,
         planDayNumber: dayNumber,
@@ -686,7 +707,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         returnToPlanOnComplete: true,
       },
     });
-  }, [entriesByDay, getPlanDayResume, multiSessionPlan, planId, progress]);
+  }, [entriesByDay, getPlanDayResume, multiSessionPlan, planId, preferredChapterLaunchMode, progress]);
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
