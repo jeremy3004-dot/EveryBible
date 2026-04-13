@@ -1704,36 +1704,11 @@ export function BibleReaderScreen() {
 
     const shouldRecordReadCompletion =
       chapterSessionMode === 'read' && activePlanChapterIndex >= 0;
-    const completionChaptersRead =
-      shouldRecordReadCompletion && !(activeChapterKey in chaptersRead)
-        ? {
-            ...chaptersRead,
-            [activeChapterKey]: Date.now(),
-          }
-        : chaptersRead;
-    const completionDaySummary = getCurrentPlanDaySummary({
-      plan: activePlanRecord,
-      entries: activePlanEntries,
-      progress: activePlanProgress,
-      chaptersRead: completionChaptersRead,
-      listeningHistory,
-      dayNumber: planDayNumber,
-    });
-    const completionSessionSummary = activePlanSessionKey
-      ? completionDaySummary.sessionSummaries.find(
-          (session) => session.sessionKey === activePlanSessionKey
-        ) ?? null
-      : null;
-    const sessionCompletionReady = activePlanIsMultiSession
-      ? Boolean(completionSessionSummary?.isComplete)
-      : Boolean(completionDaySummary.isComplete);
-    if (!sessionCompletionReady) {
+    if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
 
-    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanSessionKey ?? 'day'}:${
-      completionSessionSummary?.completedChapterCount ?? completionDaySummary.completedChapterCount
-    }`;
+    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanSessionKey ?? 'day'}:${activeChapterKey}`;
     if (planDayCompletionGuardRef.current === completionKey) {
       return;
     }
@@ -1768,9 +1743,7 @@ export function BibleReaderScreen() {
   }, [
     activeChapterKey,
     activePlanChapterIndex,
-    activePlanEntries,
     activePlanId,
-    activePlanRecord,
     activePlanProgress,
     activePlanIsMultiSession,
     activePlanSessionKey,
@@ -1779,7 +1752,7 @@ export function BibleReaderScreen() {
     chapterSessionMode,
     chaptersRead,
     clearPlanDayResume,
-    listeningHistory,
+    isLastPlanChapter,
     markChapterRead,
     planDayNumber,
     returnToPlanOnComplete,
@@ -2625,7 +2598,7 @@ export function BibleReaderScreen() {
     if (
       showPlanSessionChrome &&
       chapterSessionMode === 'read' &&
-      !hasNextChapter &&
+      planReadDockTrailingActionState?.showCompletionAction &&
       hasPlanReadDockNextAction
     ) {
       await handleCompletePlanDay();
