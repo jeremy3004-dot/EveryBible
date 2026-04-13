@@ -29,7 +29,6 @@ test('uses the plan completion action on the final plan chapter even while liste
   assert.deepEqual(
     getPlanSessionTrailingActionState({
       isLastPlanChapter: true,
-      isPlanDayComplete: false,
       hasNextChapter: true,
     }),
     {
@@ -44,7 +43,6 @@ test('keeps the final plan completion action enabled after the day is already co
   assert.deepEqual(
     getPlanSessionTrailingActionState({
       isLastPlanChapter: true,
-      isPlanDayComplete: true,
       hasNextChapter: true,
     }),
     {

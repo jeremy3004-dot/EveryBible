@@ -211,11 +211,9 @@ export const getListenCountedNoticeViewModel = (
 
 export const getPlanSessionTrailingActionState = ({
   isLastPlanChapter,
-  isPlanDayComplete,
   hasNextChapter,
 }: {
   isLastPlanChapter: boolean;
-  isPlanDayComplete: boolean;
   hasNextChapter: boolean;
 }): PlanSessionTrailingActionState => {
   if (isLastPlanChapter) {

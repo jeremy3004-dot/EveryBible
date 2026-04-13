@@ -2639,9 +2639,6 @@ export function BibleReaderScreen() {
     showPlanSessionChrome && chapterSessionMode === 'read'
       ? getPlanSessionTrailingActionState({
           isLastPlanChapter,
-          isPlanDayComplete: Boolean(
-            activePlanIsMultiSession ? activePlanSessionSummary?.isComplete : activePlanDaySummary?.isComplete
-          ),
           hasNextChapter,
         })
       : null;
@@ -2898,9 +2895,6 @@ export function BibleReaderScreen() {
     const showPlanPreviousChapterButton = hasPrevChapter;
     const trailingActionState = getPlanSessionTrailingActionState({
       isLastPlanChapter,
-      isPlanDayComplete: Boolean(
-        activePlanIsMultiSession ? activePlanSessionSummary?.isComplete : activePlanDaySummary?.isComplete
-      ),
       hasNextChapter,
     });
     const showPlanCompletionAction = trailingActionState.showCompletionAction;
