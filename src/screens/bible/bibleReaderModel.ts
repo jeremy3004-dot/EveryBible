@@ -221,7 +221,9 @@ export const getPlanSessionTrailingActionState = ({
   if (isLastPlanChapter) {
     return {
       showCompletionAction: true,
-      isEnabled: isPlanDayComplete,
+      // The last chapter is where the user completes the session/day, so the
+      // action must stay tappable before completion as well as after.
+      isEnabled: true,
       iconName: 'checkmark',
     };
   }
