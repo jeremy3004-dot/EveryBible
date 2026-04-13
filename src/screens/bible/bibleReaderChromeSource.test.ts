@@ -688,8 +688,8 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
-    'BibleReaderScreen should keep the premium reader bottom padding stable so dock taps do not reflow the ScrollView at the chapter bottom'
+    /const premiumReaderBaseBottomPadding =[\s\S]*spacing\.xxxl \+ spacing\.lg;[\s\S]*const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
+    'BibleReaderScreen should keep the premium reader bottom padding stable with extra bottom clearance so dock taps do not reflow the ScrollView at the chapter bottom'
   );
 
   assert.equal(

@@ -509,7 +509,7 @@ export function BibleReaderScreen() {
   const shouldForceHideRootTabBar =
     Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
   const premiumReaderBaseBottomPadding =
-    safeInsets.bottom + rootTabBarHeight + layout.minTouchTarget + spacing.md;
+    safeInsets.bottom + rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
   const getRootTabNavigation = useCallback((): RootTabNavigationHandle => {
     // Runtime contract: navigation.getParent('RootTab') ?? navigation.getParent()?.getParent()
     const getParentById = navigation.getParent as unknown as (
