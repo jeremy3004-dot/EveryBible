@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "assets" / "databases" / "bible-bsb-v2.db"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 SOURCE_DATA = [
     {
         "translation_id": "bsb",
@@ -85,6 +85,7 @@ def build_database() -> None:
               verse INTEGER NOT NULL,
               text TEXT NOT NULL,
               heading TEXT,
+              formatting TEXT,
               UNIQUE(translation_id, book_id, chapter, verse)
             );
 
@@ -103,8 +104,8 @@ def build_database() -> None:
         for source_config, source in sources:
             connection.executemany(
                 """
-                INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -114,6 +115,11 @@ def build_database() -> None:
                         verse["v"],
                         verse["t"],
                         verse.get("h"),
+                        (
+                            json.dumps(verse.get("f"), ensure_ascii=False, separators=(",", ":"))
+                            if verse.get("f")
+                            else None
+                        ),
                     )
                     for verse in source["verses"]
                 ],

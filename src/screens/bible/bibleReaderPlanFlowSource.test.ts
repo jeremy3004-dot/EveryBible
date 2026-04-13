@@ -105,8 +105,46 @@ test('BibleReaderScreen renders the simplified listen-mode plan chrome without t
   );
   assert.match(
     source,
-    /showPlanChapterArrows = chapterSessionMode === 'read' \|\| chapterSessionMode === 'listen';/,
-    'BibleReaderScreen should keep plan strip chapter arrows available while listening'
+    /showPlanChapterArrows = chapterSessionMode === 'listen';/,
+    'BibleReaderScreen should keep plan strip chapter arrows only while listening so read mode can use the shared floating dock'
+  );
+});
+
+test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps chapter navigation bounded to the active session', () => {
+  assert.match(
+    source,
+    /const shouldConstrainChapterNavigationToSession = activeRhythmSession != null \|\| showPlanSessionChrome;/,
+    'BibleReaderScreen should prevent plan and rhythm sessions from leaking into adjacent Bible chapters'
+  );
+  assert.match(
+    source,
+    /const hasReaderPlaybackDockNextChapter =[\s\S]*hasNextChapter \|\| hasPlanReadDockNextAction/s,
+    'BibleReaderScreen should keep the shared dock enabled for either the next chapter or the explicit plan completion step'
+  );
+  assert.match(
+    source,
+    /const handleNextReadChapter = async \(\) => \{/,
+    'BibleReaderScreen should route the shared read-mode dock through the read chapter navigation handler'
+  );
+  assert.match(
+    source,
+    /showPlanSessionChrome &&[\s\S]*chapterSessionMode === 'read' &&[\s\S]*hasPlanReadDockNextAction[\s\S]*await handleCompletePlanDay\(\);/s,
+    'BibleReaderScreen should complete the active plan day from the shared dock when the final read-mode chapter is reached'
+  );
+  assert.match(
+    source,
+    /const readerPlaybackDockNextIconName = planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward';/,
+    'BibleReaderScreen should derive the shared dock icon directly from the shared trailing-action model'
+  );
+  assert.match(
+    source,
+    /nextButtonColor=\{readerPlaybackDockNextButtonColor\}/,
+    'BibleReaderScreen should tint the shared dock action button with the accent color for final plan completion'
+  );
+  assert.match(
+    source,
+    /nextIconName=\{readerPlaybackDockNextIconName\}/,
+    'BibleReaderScreen should pass the shared completion icon state into the floating dock'
   );
 });
 
@@ -169,5 +207,13 @@ test('BibleReaderScreen anchors plan-day completion summary to the explicit sess
     source,
     /getCurrentPlanDaySummary\(\{[\s\S]*dayNumber:\s*planDayNumber,[\s\S]*\}\)/s,
     'BibleReaderScreen should calculate completion against the explicit plan session day so multi-passage or manually opened days can finish correctly'
+  );
+});
+
+test('BibleReaderScreen always clears the completion guard after completion attempts', () => {
+  assert.match(
+    source,
+    /planDayCompletionGuardRef\.current = completionKey;[\s\S]*try \{[\s\S]*\} finally \{\n\s*planDayCompletionGuardRef\.current = null;\n\s*\}/s,
+    'BibleReaderScreen should release the completion guard in a finally block so the checkmark can always be retried'
   );
 });

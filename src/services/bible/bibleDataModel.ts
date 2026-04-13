@@ -11,7 +11,7 @@ import type {
 } from '../../types';
 import { sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
-export const BUNDLED_BIBLE_SCHEMA_VERSION = 4;
+export const BUNDLED_BIBLE_SCHEMA_VERSION = 5;
 
 const validAudioGranularities = new Set<AudioGranularity>(['none', 'chapter', 'verse']);
 const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([

@@ -1,12 +1,23 @@
 // This file will be auto-generated or loaded from assets
 // For now, we'll load from the processed JSON file
 
+export interface ProcessedVerseFormattingLine {
+  text: string;
+  indentLevel?: number;
+}
+
+export interface ProcessedVerseFormatting {
+  mode: 'lines' | 'poetry';
+  lines: ProcessedVerseFormattingLine[];
+}
+
 export interface ProcessedVerse {
   b: string; // bookId
   c: number; // chapter
   v: number; // verse
   t: string; // text
   h?: string; // heading (optional)
+  f?: ProcessedVerseFormatting; // line/poetry formatting (optional)
 }
 
 export interface ProcessedBSB {

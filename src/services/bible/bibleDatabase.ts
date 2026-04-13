@@ -6,6 +6,7 @@ import {
   buildInstalledBibleDatabaseSource,
   isBundledBibleDatabaseReady,
 } from './bibleDataModel';
+import { normalizeVerseFormatting, serializeVerseFormatting } from './verseFormatting';
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
@@ -272,6 +273,7 @@ export async function getChapter(
     verse: number;
     text: string;
     heading: string | null;
+    formatting: string | null;
   }>(
     `
       SELECT *
@@ -289,6 +291,7 @@ export async function getChapter(
     verse: row.verse,
     text: row.text,
     heading: row.heading ?? undefined,
+    formatting: normalizeVerseFormatting(row.formatting),
   }));
 }
 
@@ -318,6 +321,7 @@ export async function searchVerses(
         verse: number;
         text: string;
         heading: string | null;
+        formatting: string | null;
       }>(
         `
           SELECT v.*
@@ -337,6 +341,7 @@ export async function searchVerses(
         verse: row.verse,
         text: row.text,
         heading: row.heading ?? undefined,
+        formatting: normalizeVerseFormatting(row.formatting),
       }));
     } catch (error) {
       console.warn('[Bible] Indexed search failed:', error);
@@ -354,10 +359,18 @@ export async function insertVerse(
   const database = await getDatabase(translationId);
   await database.runAsync(
     `
-      INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    [translationId, verse.bookId, verse.chapter, verse.verse, verse.text, verse.heading ?? null]
+    [
+      translationId,
+      verse.bookId,
+      verse.chapter,
+      verse.verse,
+      verse.text,
+      verse.heading ?? null,
+      serializeVerseFormatting(verse.formatting),
+    ]
   );
 }
 
@@ -371,8 +384,8 @@ export async function insertVerses(
     for (const verse of verses) {
       await database.runAsync(
         `
-          INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           translationId,
@@ -381,6 +394,7 @@ export async function insertVerses(
           verse.verse,
           verse.text,
           verse.heading ?? null,
+          serializeVerseFormatting(verse.formatting),
         ]
       );
     }

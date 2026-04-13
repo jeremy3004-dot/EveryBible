@@ -19,6 +19,11 @@ interface ReaderPlaybackDockProps {
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
   hidePlayButton?: boolean;
+  nextAccessibilityHint?: string;
+  nextAccessibilityLabel?: string;
+  nextButtonColor?: string;
+  nextIconColor?: string;
+  nextIconName?: 'checkmark' | 'chevron-forward';
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onPlayPause: () => void;
@@ -39,6 +44,11 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   hasPreviousChapter,
   hasNextChapter,
   hidePlayButton,
+  nextAccessibilityHint,
+  nextAccessibilityLabel,
+  nextButtonColor,
+  nextIconColor,
+  nextIconName = 'chevron-forward',
   onPreviousChapter,
   onNextChapter,
   onPlayPause,
@@ -197,19 +207,20 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           style={[
             styles.sideTransportButton,
             {
-              backgroundColor: colors.bibleSurface,
+              backgroundColor: nextButtonColor ?? colors.bibleSurface,
               borderColor: colors.bibleDivider,
             },
           ]}
           onPress={onNextChapter}
           disabled={isCollapsed || !hasNextChapter}
           accessibilityRole="button"
-          accessibilityLabel="Next chapter"
+          accessibilityLabel={nextAccessibilityLabel ?? 'Next chapter'}
+          accessibilityHint={nextAccessibilityHint}
         >
           <Ionicons
-            name="chevron-forward"
+            name={nextIconName}
             size={22}
-            color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            color={hasNextChapter ? nextIconColor ?? colors.biblePrimaryText : colors.bibleSecondaryText}
           />
         </Pressable>
       </Animated.View>
