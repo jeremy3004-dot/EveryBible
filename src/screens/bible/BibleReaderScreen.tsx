@@ -2591,6 +2591,14 @@ export function BibleReaderScreen() {
   };
 
   const handlePreviousReadChapter = async () => {
+    if (isCurrentAudioChapter) {
+      const target = await previousChapter();
+      if (target) {
+        syncReaderReference(target.bookId, target.chapter);
+      }
+      return;
+    }
+
     await handleReadChapterNavigation(previousNavigationTarget);
   };
 
@@ -2602,6 +2610,14 @@ export function BibleReaderScreen() {
       hasPlanReadDockNextAction
     ) {
       await handleCompletePlanDay();
+      return;
+    }
+
+    if (isCurrentAudioChapter) {
+      const target = await nextChapter();
+      if (target) {
+        syncReaderReference(target.bookId, target.chapter);
+      }
       return;
     }
 

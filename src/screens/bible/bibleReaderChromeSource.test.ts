@@ -934,6 +934,22 @@ test('premium read chapter arrows only sync the displayed chapter without starti
   );
 });
 
+test('premium read chapter arrows advance the active audio session when the displayed chapter is already playing', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handlePreviousReadChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*const target = await previousChapter\(\);[\s\S]*if \(target\) \{[\s\S]*syncReaderReference\(target\.bookId, target\.chapter\);[\s\S]*}\s*return;[\s\S]*}\s*await handleReadChapterNavigation\(previousNavigationTarget\);[\s\S]*};/s,
+    'BibleReaderScreen should move both the text and audio together when the read-tab previous action is pressed on the active audio chapter'
+  );
+
+  assert.match(
+    source,
+    /const handleNextReadChapter = async \(\) => \{[\s\S]*if \(\s*showPlanSessionChrome[\s\S]*await handleCompletePlanDay\(\);[\s\S]*return;[\s\S]*}\s*if \(isCurrentAudioChapter\) \{[\s\S]*const target = await nextChapter\(\);[\s\S]*if \(target\) \{[\s\S]*syncReaderReference\(target\.bookId, target\.chapter\);[\s\S]*}\s*return;[\s\S]*}\s*await handleReadChapterNavigation\(nextNavigationTarget\);[\s\S]*};/s,
+    'BibleReaderScreen should move both the text and audio together when the read-tab next action is pressed on the active audio chapter'
+  );
+});
+
 test('chapter sync preserves the current reader session mode in navigation params', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
