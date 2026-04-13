@@ -88,3 +88,53 @@ test('useAudioPlayer records completed listening progress when playback finishes
     'useAudioPlayer should persist finished chapter listening progress inside playback-finished handling so final chapters still count toward plan completion'
   );
 });
+
+test('useAudioPlayer resumes interrupted chapters from the stored last position instead of restarting from verse one', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /options\?: \{ startPositionMs\?: number \| null \}/,
+    'useAudioPlayer should let playChapterForTranslation accept an explicit resume position'
+  );
+
+  assert.match(
+    source,
+    /const startPositionMs = Math\.max\(0, Math\.round\(options\?\.startPositionMs \?\? 0\)\);/,
+    'useAudioPlayer should normalize the stored resume position before replaying a chapter'
+  );
+
+  assert.match(
+    source,
+    /if \(startPositionMs > 0\) \{[\s\S]*await audioPlayer\.seekTo\(startPositionMs\);[\s\S]*setPosition\(startPositionMs\);[\s\S]*\}/s,
+    'useAudioPlayer should seek back into the chapter immediately after reloading interrupted audio'
+  );
+
+  assert.match(
+    source,
+    /startPositionMs: lastPosition/,
+    'useAudioPlayer should reuse the stored lastPosition when replaying the current chapter from the local play toggle'
+  );
+
+  assert.match(
+    source,
+    /startPositionMs: store\.lastPosition/,
+    'useAudioPlayer should reuse the stored lastPosition when the lock-screen or interruption recovery triggers play remotely'
+  );
+});
+
+test('useAudioPlayer resumes interruptions from the saved chapter position instead of restarting the chapter', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /const resumePosition = Math\.max\(store\.currentPosition, store\.lastPosition\);[\s\S]*await audioPlayer\.seekTo\(resumePosition\);[\s\S]*await audioPlayer\.resume\(\);/s,
+    'useAudioPlayer should re-seek to the stored offset before resuming audio so interruption recoveries do not restart at verse 1'
+  );
+
+  assert.match(
+    source,
+    /audioPlayer\.isLoaded\(\)[\s\S]*store\.currentPosition > 0[\s\S]*store\.currentPosition < store\.duration/s,
+    'useAudioPlayer should treat an in-progress loaded chapter as resumable instead of replaying it from the beginning'
+  );
+});
