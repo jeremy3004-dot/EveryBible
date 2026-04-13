@@ -30,7 +30,7 @@ import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { useReadingPlansStore } from '../../stores';
+import { useBibleStore, useReadingPlansStore } from '../../stores';
 
 type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 
@@ -480,6 +480,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
   const isCurrentDayCompleted = progress
     ? String(currentDay) in progress.completed_entries
     : false;
+  const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
 
   const handleMarkComplete = useCallback(async () => {
     setMarkingComplete(true);
@@ -518,6 +519,8 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
         params: {
           bookId: playbackStartEntry.bookId,
           chapter: playbackStartEntry.chapter,
+          ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+          preferredMode: preferredChapterLaunchMode,
           playbackSequenceEntries,
           planId: planId,
           planDayNumber: dayNumber,
@@ -525,7 +528,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
         },
       });
     },
-    [entriesByDay, getPlanDayResume, planId, progress]
+    [entriesByDay, getPlanDayResume, planId, preferredChapterLaunchMode, progress]
   );
 
   // Build flat list items

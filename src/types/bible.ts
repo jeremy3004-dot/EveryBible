@@ -1,3 +1,13 @@
+export interface VerseFormattingLine {
+  text: string;
+  indentLevel?: number;
+}
+
+export interface VerseFormatting {
+  mode: 'lines' | 'poetry';
+  lines: VerseFormattingLine[];
+}
+
 export interface Verse {
   id: number;
   bookId: string;
@@ -5,6 +15,7 @@ export interface Verse {
   verse: number;
   text: string;
   heading?: string;
+  formatting?: VerseFormatting;
 }
 
 export interface Chapter {

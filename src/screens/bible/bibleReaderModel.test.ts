@@ -85,8 +85,8 @@ test('keeps the translation sheet closed when translation switching is unavailab
 });
 
 test('uses a slightly more open line height for reader verses', () => {
-  assert.equal(getReaderVerseLineHeight(20), 30);
-  assert.equal(getReaderVerseLineHeight(18), 27);
+  assert.equal(getReaderVerseLineHeight(20), 31);
+  assert.equal(getReaderVerseLineHeight(18), 28);
   assert.equal(FOLLOW_ALONG_VERSE_LINE_HEIGHT, 32);
 });
 

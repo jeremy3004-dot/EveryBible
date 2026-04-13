@@ -18,6 +18,12 @@ interface ReaderPlaybackDockProps {
   isLoading: boolean;
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
+  hidePlayButton?: boolean;
+  nextAccessibilityHint?: string;
+  nextAccessibilityLabel?: string;
+  nextButtonColor?: string;
+  nextIconColor?: string;
+  nextIconName?: 'checkmark' | 'chevron-forward';
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onPlayPause: () => void;
@@ -37,6 +43,12 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   isLoading,
   hasPreviousChapter,
   hasNextChapter,
+  hidePlayButton,
+  nextAccessibilityHint,
+  nextAccessibilityLabel,
+  nextButtonColor,
+  nextIconColor,
+  nextIconName = 'chevron-forward',
   onPreviousChapter,
   onNextChapter,
   onPlayPause,
@@ -62,6 +74,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           : 'play';
   const playButtonAccessibilityLabel =
     playButtonIconName === 'pause' ? 'Pause chapter audio' : 'Play chapter audio';
+  const showPlayButton = hidePlayButton !== true;
 
   const leftTransportAnimatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(collapseProgress, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
@@ -129,60 +142,62 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
         </Pressable>
       </Animated.View>
 
-      <Animated.View style={[styles.playButtonWrap, centerTransportAnimatedStyle]}>
-        <Pressable
-          style={[
-            styles.playButton,
-            {
-              backgroundColor: colors.bibleControlBackground,
-              borderColor: colors.bibleElevatedSurface,
-            },
-          ]}
-          onPress={() => {
-            setOptimisticTransportState(
-              isPlaying || optimisticTransportState === 'playing' ? 'paused' : 'playing'
-            );
-            onPlayPause();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={playButtonAccessibilityLabel}
-        >
-          <Svg
-            width={RING_SIZE}
-            height={RING_SIZE}
-            style={styles.progressRing}
-            viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+      {showPlayButton ? (
+        <Animated.View style={[styles.playButtonWrap, centerTransportAnimatedStyle]}>
+          <Pressable
+            style={[
+              styles.playButton,
+              {
+                backgroundColor: colors.bibleControlBackground,
+                borderColor: colors.bibleElevatedSurface,
+              },
+            ]}
+            onPress={() => {
+              setOptimisticTransportState(
+                isPlaying || optimisticTransportState === 'playing' ? 'paused' : 'playing'
+              );
+              onPlayPause();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={playButtonAccessibilityLabel}
           >
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RING_RADIUS}
-              stroke={colors.bibleDivider + 'AA'}
-              strokeWidth={RING_STROKE_WIDTH}
-              fill="none"
-            />
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RING_RADIUS}
-              stroke={colors.bibleAccent}
-              strokeWidth={RING_STROKE_WIDTH}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              fill="none"
-              transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-            />
-          </Svg>
+            <Svg
+              width={RING_SIZE}
+              height={RING_SIZE}
+              style={styles.progressRing}
+              viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+            >
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke={colors.bibleDivider + 'AA'}
+                strokeWidth={RING_STROKE_WIDTH}
+                fill="none"
+              />
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke={colors.bibleAccent}
+                strokeWidth={RING_STROKE_WIDTH}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                fill="none"
+                transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+              />
+            </Svg>
 
-          <Ionicons
-            name={playButtonIconName}
-            size={30}
-            color={colors.bibleBackground}
-            style={styles.playIcon}
-          />
-        </Pressable>
-      </Animated.View>
+            <Ionicons
+              name={playButtonIconName}
+              size={30}
+              color={colors.bibleBackground}
+              style={styles.playIcon}
+            />
+          </Pressable>
+        </Animated.View>
+      ) : null}
 
       <Animated.View
         style={[styles.sideTransportWrap, rightTransportAnimatedStyle]}
@@ -192,19 +207,20 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           style={[
             styles.sideTransportButton,
             {
-              backgroundColor: colors.bibleSurface,
+              backgroundColor: nextButtonColor ?? colors.bibleSurface,
               borderColor: colors.bibleDivider,
             },
           ]}
           onPress={onNextChapter}
           disabled={isCollapsed || !hasNextChapter}
           accessibilityRole="button"
-          accessibilityLabel="Next chapter"
+          accessibilityLabel={nextAccessibilityLabel ?? 'Next chapter'}
+          accessibilityHint={nextAccessibilityHint}
         >
           <Ionicons
-            name="chevron-forward"
+            name={nextIconName}
             size={22}
-            color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
+            color={hasNextChapter ? nextIconColor ?? colors.biblePrimaryText : colors.bibleSecondaryText}
           />
         </Pressable>
       </Animated.View>

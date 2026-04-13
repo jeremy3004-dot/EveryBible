@@ -168,6 +168,44 @@ test('BibleReaderScreen renders scripture section headings with the shared readi
   );
 });
 
+test('premium read mode flows verses inline inside paragraph text instead of restarting every verse on its own block', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /usePremiumTypography &&\s*!paragraph\.verses\.some\(\(verse\) => \(verse\.formatting\?\.lines\.length \?\? 0\) > 0\) \? \(\s*<Text style=\{\[textStyle, styles\.premiumParagraphText\]\}>/s,
+    'BibleReaderScreen premium read mode should render a dedicated paragraph text container'
+  );
+
+  assert.match(
+    source,
+    /<Text\s+key=\{`\$\{verse\.id\}-\$\{verseFontSize\}-\$\{verseLineHeight\}`\}[\s\S]*onPress=\{\(\) => \{/s,
+    'BibleReaderScreen premium read mode should keep verse-level taps on inline spans'
+  );
+
+  assert.match(
+    source,
+    /styles\.premiumInlineVerseNumber/,
+    'BibleReaderScreen premium read mode should explicitly quiet inline verse numbers'
+  );
+});
+
+test('BibleReaderScreen preserves poetry indentation when verse formatting metadata is present', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const formattingLines =\s*verse\.formatting\?\.lines\.length \? verse\.formatting\.lines : null;/,
+    'BibleReaderScreen should branch into a structured verse renderer when stored formatting lines are available'
+  );
+
+  assert.match(
+    source,
+    /line\.indentLevel\s*\?\s*\{\s*marginLeft:\s*structuredVerseIndentSize \* line\.indentLevel\s*\}\s*:\s*null/s,
+    'BibleReaderScreen should indent preserved poetry lines from their stored indent level'
+  );
+});
+
 test('listen mode moves the show-text action into the inline utility row and keeps the controls comfortably above the bottom edge', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
@@ -278,7 +316,7 @@ test('BibleReaderScreen publishes plan-session reader state to the shared store'
   );
 });
 
-test('BibleReaderScreen passes the reading-tab hide-play-button preference into the read-mode dock', () => {
+test('BibleReaderScreen preserves the reading-tab hide-play-button preference while forcing the shared dock play button back on for plan-session read mode', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -289,25 +327,27 @@ test('BibleReaderScreen passes the reading-tab hide-play-button preference into 
 
   assert.match(
     source,
-    /<ReaderPlaybackDock[\s\S]*hidePlayButton=\{hidePlayButtonFromReadingTab\}/s,
-    'BibleReaderScreen should forward the hide-play-button preference into ReaderPlaybackDock'
+    /<ReaderPlaybackDock[\s\S]*hidePlayButton=\{showPlanSessionChrome \? false : hidePlayButtonFromReadingTab\}/s,
+    'BibleReaderScreen should forward the reading-tab hide-play preference into ReaderPlaybackDock while keeping the shared plan-session play button visible'
   );
 });
-test('BibleReaderScreen keeps a play control inside the plan-session read bottom bar', () => {
+
+test('BibleReaderScreen keeps the play control in the shared floating dock during plan-session read mode', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const showPlanReadModePlayButton = chapterSessionMode === 'read';/,
-    'BibleReaderScreen should always keep the plan-session read play button visible, even when the global read-tab hide-play preference is enabled'
+    /<ReaderPlaybackDock[\s\S]*hidePlayButton=\{showPlanSessionChrome \? false : hidePlayButtonFromReadingTab\}/s,
+    'BibleReaderScreen should keep the shared floating dock play button visible while the red plan-session strip is active'
   );
 
   assert.match(
     source,
-    /onPress=\{handlePlayDisplayedChapter\}/,
-    'BibleReaderScreen should wire the plan-session play button to the same chapter playback handler used by the normal reader dock'
+    /<ReaderPlaybackDock[\s\S]*onPlayPause=\{handlePlayDisplayedChapter\}/s,
+    'BibleReaderScreen should keep plan-session read playback on the shared dock transport instead of reviving a separate red-strip play button'
   );
 });
+
 test('BibleReaderScreen hands the premium read bottom controls to the dedicated collapsing playback dock', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

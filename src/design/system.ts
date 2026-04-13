@@ -124,23 +124,23 @@ export const typography = {
   readingHeading: {
     fontFamily: readingFontFamily,
     fontSize: 18,
-    lineHeight: 24,
+    lineHeight: 26,
     fontWeight: '700',
     letterSpacing: -0.1,
   } satisfies TextStyle,
   readingBody: {
     fontFamily: readingFontFamily,
     fontSize: 18,
-    lineHeight: 38,
+    lineHeight: 28,
     fontWeight: '400',
-    letterSpacing: 0.1,
+    letterSpacing: 0.05,
   } satisfies TextStyle,
   readingVerseNumber: {
     fontFamily: readingFontFamily,
-    fontSize: 11,
-    lineHeight: 18,
+    fontSize: 10,
+    lineHeight: 16,
     fontWeight: '400',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   } satisfies TextStyle,
 } as const;
 

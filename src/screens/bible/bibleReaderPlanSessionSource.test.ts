@@ -12,6 +12,11 @@ const detailSource = readFileSync(resolve(__dirname, '../learn/ReadingPlanDetail
 test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session params', () => {
   assert.match(
     detailSource,
+    /const preferredChapterLaunchMode = useBibleStore\(\(state\) => state\.preferredChapterLaunchMode\);/,
+    'ReadingPlanDetailScreen should read the persisted listen-or-read preference before launching the reader'
+  );
+  assert.match(
+    detailSource,
     /screen:\s*'BibleReader'/,
     'ReadingPlanDetailScreen should launch into the Bible reader for explicit plan sessions'
   );
@@ -29,6 +34,16 @@ test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session 
     detailSource,
     /planDayNumber:\s*dayNumber,/,
     'ReadingPlanDetailScreen should anchor the reader session to the tapped day number, not just the store current day'
+  );
+  assert.match(
+    detailSource,
+    /\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),/,
+    'ReadingPlanDetailScreen should request autoplay when the persisted launch preference is listen'
+  );
+  assert.match(
+    detailSource,
+    /preferredMode:\s*preferredChapterLaunchMode,/,
+    'ReadingPlanDetailScreen should forward the persisted listen-or-read preference into BibleReader'
   );
   assert.match(
     detailSource,
@@ -230,7 +245,7 @@ test('BibleReaderScreen keeps the shared floating playback dock above the plan s
   );
   assert.match(
     source,
-    /onNextChapter=\{\(\) => void handleReaderPlaybackDockNextChapter\(\)\}/,
-    'BibleReaderScreen should route the dock forward action through the plan-aware next handler'
+    /onNextChapter=\{\(\) => void handleNextReadChapter\(\)\}/,
+    'BibleReaderScreen should route the dock forward action through the shared read-mode next handler'
   );
 });

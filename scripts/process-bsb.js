@@ -36,6 +36,81 @@ function extractVerseText(content) {
     .trim();
 }
 
+function normalizeLineText(text) {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function extractVerseFormatting(content) {
+  const lines = [];
+  let hasPoetry = false;
+  let proseParts = [];
+
+  const flushProseLine = (indentLevel) => {
+    const text = normalizeLineText(proseParts.join(' '));
+    proseParts = [];
+
+    if (!text) {
+      return;
+    }
+
+    lines.push({
+      text,
+      ...(typeof indentLevel === 'number' && indentLevel > 0 ? { indentLevel } : {}),
+    });
+  };
+
+  for (const item of content) {
+    if (typeof item === 'string') {
+      proseParts.push(item);
+      continue;
+    }
+
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    if (item.lineBreak) {
+      flushProseLine();
+      continue;
+    }
+
+    if (item.text && typeof item.poem === 'number') {
+      flushProseLine();
+
+      const text = normalizeLineText(item.text);
+      if (text) {
+        const indentLevel = Math.max(0, Math.floor(item.poem) - 1);
+        lines.push({
+          text,
+          ...(indentLevel > 0 ? { indentLevel } : {}),
+        });
+        hasPoetry = true;
+      }
+      continue;
+    }
+
+    if (item.text) {
+      proseParts.push(item.text);
+      continue;
+    }
+
+    if (item.value) {
+      proseParts.push(item.value);
+    }
+  }
+
+  flushProseLine();
+
+  if (lines.length <= 1 && !hasPoetry) {
+    return undefined;
+  }
+
+  return {
+    mode: hasPoetry ? 'poetry' : 'lines',
+    lines,
+  };
+}
+
 console.log('Processing verses...');
 
 const processedData = {
@@ -67,6 +142,7 @@ for (const book of bsbData.books) {
         }
       } else if (item.type === 'verse') {
         const text = extractVerseText(item.content);
+        const formatting = extractVerseFormatting(item.content);
 
         if (text) {
           processedData.verses.push({
@@ -75,6 +151,7 @@ for (const book of bsbData.books) {
             v: item.number,  // verse
             t: text,         // text
             ...(currentHeading && { h: currentHeading }), // heading (optional)
+            ...(formatting && { f: formatting }), // line/poetry formatting (optional)
           });
           totalVerses++;
           bookVerseCount++;

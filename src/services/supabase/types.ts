@@ -251,6 +251,7 @@ export interface BibleVerseRow {
   verse: number;
   text: string;
   heading: string | null;
+  formatting?: unknown | null;
 }
 
 // Phase 21: Content Versioning

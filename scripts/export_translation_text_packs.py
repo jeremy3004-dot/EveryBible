@@ -35,7 +35,7 @@ OUTPUT_ROOT = ROOT / "tmp" / "r2-source-of-truth"
 TEXT_OUTPUT_ROOT = OUTPUT_ROOT / "text"
 MANIFEST_PATH = OUTPUT_ROOT / "text-pack-manifest.json"
 SQL_OUTPUT_PATH = OUTPUT_ROOT / "catalog-updates.sql"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 PAGE_SIZE = 1000
 
 
@@ -212,7 +212,7 @@ def fetch_translation_verses(
             session,
             f"{rest_base_url}/bible_verses",
             params={
-                "select": "translation_id,book_id,chapter,verse,text,heading",
+                "select": "*",
                 "translation_id": f"eq.{translation_id}",
                 "order": "id.asc",
                 "limit": str(page_size),
@@ -278,7 +278,8 @@ def build_sqlite_database(target_path: Path, verses: list[dict[str, Any]]) -> No
               chapter INTEGER NOT NULL,
               verse INTEGER NOT NULL,
               text TEXT NOT NULL,
-              heading TEXT
+              heading TEXT,
+              formatting TEXT
             );
 
             CREATE UNIQUE INDEX idx_verses_unique
@@ -291,8 +292,8 @@ def build_sqlite_database(target_path: Path, verses: list[dict[str, Any]]) -> No
         connection.execute("BEGIN")
         connection.executemany(
             """
-            INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -302,6 +303,11 @@ def build_sqlite_database(target_path: Path, verses: list[dict[str, Any]]) -> No
                     int(row["verse"]),
                     row["text"],
                     row.get("heading"),
+                    (
+                        json.dumps(row["formatting"], ensure_ascii=False, separators=(",", ":"))
+                        if row.get("formatting") is not None
+                        else None
+                    ),
                 )
                 for row in verses
             ],

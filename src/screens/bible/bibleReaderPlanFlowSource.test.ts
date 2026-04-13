@@ -123,13 +123,28 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
   );
   assert.match(
     source,
-    /const handleReaderPlaybackDockNextChapter = async \(\) => \{/,
-    'BibleReaderScreen should define a dedicated plan-aware forward action for the shared read-mode dock'
+    /const handleNextReadChapter = async \(\) => \{/,
+    'BibleReaderScreen should route the shared read-mode dock through the read chapter navigation handler'
   );
   assert.match(
     source,
-    /await handleCompletePlanDay\(\);/,
-    'BibleReaderScreen should complete the active plan day from the dock when the final read-mode chapter is reached'
+    /showPlanSessionChrome &&[\s\S]*chapterSessionMode === 'read' &&[\s\S]*hasPlanReadDockNextAction[\s\S]*await handleCompletePlanDay\(\);/s,
+    'BibleReaderScreen should complete the active plan day from the shared dock when the final read-mode chapter is reached'
+  );
+  assert.match(
+    source,
+    /const readerPlaybackDockNextIconName = planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward';/,
+    'BibleReaderScreen should derive the shared dock icon directly from the shared trailing-action model'
+  );
+  assert.match(
+    source,
+    /nextButtonColor=\{readerPlaybackDockNextButtonColor\}/,
+    'BibleReaderScreen should tint the shared dock action button with the accent color for final plan completion'
+  );
+  assert.match(
+    source,
+    /nextIconName=\{readerPlaybackDockNextIconName\}/,
+    'BibleReaderScreen should pass the shared completion icon state into the floating dock'
   );
 });
 

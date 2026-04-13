@@ -9,6 +9,7 @@ import {
   shouldContinueCloudTranslationFetch,
 } from './cloudTranslationModel';
 import { resolveBibleAssetUrl } from './bibleAssetBaseUrl';
+import { serializeVerseFormatting } from './verseFormatting';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ export async function getCloudTranslationVerseCount(translationId: string): Prom
  * Returns the absolute path to the created SQLite file.
  *
  * The SQLite file uses the same base verses schema as the bundled bible-bsb-v2.db:
- * - verses(id, translation_id, book_id, chapter, verse, text, heading)
+ * - verses(id, translation_id, book_id, chapter, verse, text, heading, formatting)
  * - idx_verses_unique ON verses(translation_id, book_id, chapter, verse)
  * - idx_verses_lookup ON verses(translation_id, book_id, chapter)
  *
@@ -275,7 +276,8 @@ export async function downloadCloudTranslation(
         chapter INTEGER NOT NULL,
         verse INTEGER NOT NULL,
         text TEXT NOT NULL,
-        heading TEXT
+        heading TEXT,
+        formatting TEXT
       );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_verses_unique ON verses(translation_id, book_id, chapter, verse);
       CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses(translation_id, book_id, chapter);
@@ -292,9 +294,17 @@ export async function downloadCloudTranslation(
 
         for (const row of batch) {
           await txn.runAsync(
-            `INSERT OR IGNORE INTO verses (translation_id, book_id, chapter, verse, text, heading)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [row.translation_id, row.book_id, row.chapter, row.verse, row.text, row.heading ?? null]
+            `INSERT OR IGNORE INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              row.translation_id,
+              row.book_id,
+              row.chapter,
+              row.verse,
+              row.text,
+              row.heading ?? null,
+              serializeVerseFormatting(row.formatting),
+            ]
           );
         }
 
@@ -315,7 +325,7 @@ export async function downloadCloudTranslation(
     });
 
     // Keep schema version aligned with the bundled bible database contract.
-    await database.execAsync('PRAGMA user_version = 3');
+    await database.execAsync('PRAGMA user_version = 5');
 
     // Closing before activation avoids exposing a partially-written file.
     await database.closeAsync();
