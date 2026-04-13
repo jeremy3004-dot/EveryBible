@@ -24,6 +24,7 @@ export interface UserPreferences {
   chapterFeedbackRole: string | null;
   onboardingCompleted: boolean;
   chapterFeedbackEnabled: boolean;
+  hidePlayButtonFromReadingTab: boolean;
   notificationsEnabled: boolean;
   reminderTime: string | null; // HH:mm format, e.g., "09:00"
 }

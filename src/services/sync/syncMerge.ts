@@ -167,6 +167,7 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
   chapterFeedbackRole: remotePreferences.chapter_feedback_role,
   onboardingCompleted: remotePreferences.onboarding_completed,
   chapterFeedbackEnabled: remotePreferences.chapter_feedback_enabled,
+  hidePlayButtonFromReadingTab: remotePreferences.hide_play_button_from_reading_tab,
   notificationsEnabled: remotePreferences.notifications_enabled,
   reminderTime: remotePreferences.reminder_time,
 });
@@ -185,6 +186,7 @@ const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolea
   left.chapterFeedbackRole === right.chapterFeedbackRole &&
   left.onboardingCompleted === right.onboardingCompleted &&
   left.chapterFeedbackEnabled === right.chapterFeedbackEnabled &&
+  left.hidePlayButtonFromReadingTab === right.hidePlayButtonFromReadingTab &&
   left.notificationsEnabled === right.notificationsEnabled &&
   left.reminderTime === right.reminderTime;
 

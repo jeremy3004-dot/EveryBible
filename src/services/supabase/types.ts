@@ -41,6 +41,7 @@ export interface UserPreferences {
   chapter_feedback_id_number: string | null;
   onboarding_completed: boolean;
   chapter_feedback_enabled: boolean;
+  hide_play_button_from_reading_tab: boolean;
   notifications_enabled: boolean;
   reminder_time: string | null;
   synced_at: string;
