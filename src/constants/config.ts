@@ -1,6 +1,6 @@
 export const config = {
   appName: 'Every Bible',
-  version: '1.0.0',
+  version: '1.0.1',
 
   // Bible defaults
   defaultTranslation: 'BSB',

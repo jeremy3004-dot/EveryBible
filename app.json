@@ -2,7 +2,7 @@
   "expo": {
     "name": "Every Bible",
     "slug": "EveryBible",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Every Bible helps people read, listen to, and share Scripture together in multiple languages, with offline access and simple group discipleship tools.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

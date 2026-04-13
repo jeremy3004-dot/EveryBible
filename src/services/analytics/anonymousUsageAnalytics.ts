@@ -52,9 +52,9 @@ function generateUUID(): string {
 function getAppVersion(): string {
   try {
     const Constants = require('expo-constants').default;
-    return Constants?.expoConfig?.version ?? Constants?.manifest?.version ?? '1.0.0';
+    return Constants?.expoConfig?.version ?? Constants?.manifest?.version ?? '1.0.1';
   } catch {
-    return '1.0.0';
+    return '1.0.1';
   }
 }
 

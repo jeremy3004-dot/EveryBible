@@ -24,7 +24,7 @@ const baseInput: ChapterFeedbackSubmissionInput = {
   participantRole: '  Church leader  ',
   sourceScreen: 'reader',
   appPlatform: 'ios',
-  appVersion: '1.0.0',
+  appVersion: '1.0.1',
 };
 
 test('submitChapterFeedback calls the edge function with a trimmed payload', async () => {

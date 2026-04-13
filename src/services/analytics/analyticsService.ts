@@ -69,10 +69,10 @@ function getAppVersion(): string {
     return (
       Constants?.expoConfig?.version ??
       Constants?.manifest?.version ??
-      '1.0.0'
+      '1.0.1'
     );
   } catch {
-    return '1.0.0';
+    return '1.0.1';
   }
 }
 
