@@ -8,6 +8,11 @@ const source = readFileSync(resolve(__dirname, 'PlanDetailScreen.tsx'), 'utf8');
 test('PlanDetailScreen always passes plan-day context into BibleReader launches', () => {
   assert.match(
     source,
+    /const preferredChapterLaunchMode = useBibleStore\(\(state\) => state\.preferredChapterLaunchMode\);/,
+    'PlanDetailScreen should read the persisted listen-or-read launch preference before opening the reader'
+  );
+  assert.match(
+    source,
     /buildPlanDayPlaybackSequenceEntries\(dayEntries\)/,
     'PlanDetailScreen should build the day playback sequence before opening BibleReader'
   );
@@ -23,7 +28,7 @@ test('PlanDetailScreen always passes plan-day context into BibleReader launches'
   );
   assert.match(
     source,
-    /playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
+    /chapter:\s*playbackStartEntry\.chapter,\s*\n\s*\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),\s*\n\s*preferredMode:\s*preferredChapterLaunchMode,\s*\n\s*playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
     'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );
   assert.doesNotMatch(
@@ -56,11 +61,11 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
   );
 });
 
-test('PlanDetailScreen only renders the active day for calendar-day plans', () => {
+test('PlanDetailScreen only renders the active day for recurring rhythm plans', () => {
   assert.match(
     source,
     /getVisiblePlanDayNumbers\(plan,\s*entries,\s*progress,\s*today\)/,
-    'PlanDetailScreen should collapse calendar-day plans to the active chapter for today'
+    'PlanDetailScreen should collapse recurring plans to the active chapter set for today'
   );
   assert.match(
     source,
@@ -71,6 +76,11 @@ test('PlanDetailScreen only renders the active day for calendar-day plans', () =
     source,
     /visibleDayNumbers\.map\(\(dayNumber\) => \{/,
     'PlanDetailScreen should render only the visible day numbers'
+  );
+  assert.match(
+    source,
+    /isRecurringPlan\(plan\)/,
+    'PlanDetailScreen should treat all recurring cadence plans as daily rhythms when deciding completion state and date labels'
   );
 });
 
@@ -110,6 +120,16 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
     source,
     /todayTargetProgress/,
     'PlanDetailScreen should show the current plan-day target progress to the user'
+  );
+  assert.match(
+    source,
+    /from 'react-native-svg'/,
+    'PlanDetailScreen should render the progress ring through react-native-svg so the arc matches the displayed percentage'
+  );
+  assert.match(
+    source,
+    /strokeDasharray=\{circumference\}[\s\S]*strokeDashoffset=\{strokeDashoffset\}/s,
+    'PlanDetailScreen should derive the progress arc from stroke dash math instead of a placeholder dot'
   );
 });
 

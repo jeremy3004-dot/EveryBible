@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import Svg, { Circle } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '../../contexts/ThemeContext';
@@ -59,7 +60,7 @@ function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlan
 }
 
 // ---------------------------------------------------------------------------
-// Circular progress ring (SVG-free, drawn with border trick)
+// Circular progress ring
 // ---------------------------------------------------------------------------
 
 function ProgressRing({
@@ -77,9 +78,11 @@ function ProgressRing({
   trackColor: string;
   children?: React.ReactNode;
 }) {
-  // Simple border-based approximation: inner content + outer ring indicator
   const clamped = Math.min(1, Math.max(0, fraction));
   const pct = Math.round(clamped * 100);
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - clamped * circumference;
 
   return (
     <View
@@ -94,6 +97,33 @@ function ProgressRing({
         },
       ]}
     >
+      <Svg
+        width={size}
+        height={size}
+        style={progressRingStyles.progressRing}
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={trackColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          fill="none"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
       <View
         style={[
           progressRingStyles.inner,
@@ -104,26 +134,8 @@ function ProgressRing({
           },
         ]}
       >
-        {children ?? (
-          <Text style={[progressRingStyles.pctText, { color }]}>{pct}%</Text>
-        )}
+        {children ?? <Text style={[progressRingStyles.pctText, { color }]}>{pct}%</Text>}
       </View>
-      {/* Accent arc indicator positioned at top */}
-      {pct > 0 ? (
-        <View
-          style={[
-            progressRingStyles.accentArc,
-            {
-              width: strokeWidth * 2,
-              height: strokeWidth * 2,
-              borderRadius: strokeWidth,
-              backgroundColor: color,
-              top: -strokeWidth,
-              left: size / 2 - strokeWidth,
-            },
-          ]}
-        />
-      ) : null}
     </View>
   );
 }
@@ -132,15 +144,17 @@ const progressRingStyles = StyleSheet.create({
   outer: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   inner: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'absolute',
   },
   pctText: {
     ...typography.cardTitle,
   },
-  accentArc: {
+  progressRing: {
     position: 'absolute',
   },
 });
