@@ -154,8 +154,8 @@ test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
   });
   const progress = makeProgress({ current_day: 2 });
 
-  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-05T07:00:00.000Z')), 5);
-  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-12-02T07:00:00.000Z')), 2);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 3, 5, 12)), 5);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 11, 2, 12)), 2);
 });
 
 test('getActivePlanDayNumber uses todays weekday for weekly calendar plans', () => {
@@ -165,9 +165,9 @@ test('getActivePlanDayNumber uses todays weekday for weekly calendar plans', () 
   });
   const progress = makeProgress({ current_day: 4 });
 
-  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-12T07:00:00.000Z')), 1);
-  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-13T07:00:00.000Z')), 2);
-  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-18T07:00:00.000Z')), 7);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 3, 12, 12)), 1);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 3, 13, 12)), 2);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 3, 18, 12)), 7);
 });
 
 test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapter', () => {
@@ -184,7 +184,7 @@ test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapt
       { id: 'day-31', plan_id: 'plan-1', day_number: 31, book: 'PRO', chapter_start: 31, chapter_end: null },
     ],
     undefined,
-    new Date('2026-04-10T07:00:00.000Z')
+    new Date(2026, 3, 10, 12)
   );
 
   assert.deepEqual(visibleDays, [10]);
@@ -204,7 +204,7 @@ test('getVisiblePlanDayNumbers collapses weekly recurring plans to the active we
       { id: 'day-7', plan_id: 'plan-1', day_number: 7, book: 'PSA', chapter_start: 109, chapter_end: 117 },
     ],
     undefined,
-    new Date('2026-04-13T07:00:00.000Z')
+    new Date(2026, 3, 13, 12)
   );
 
   assert.deepEqual(visibleDays, [2]);
@@ -221,7 +221,7 @@ test('getVisiblePlanDayNumbers keeps sequential plans showing every available da
       { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PRO', chapter_start: 2, chapter_end: null },
     ],
     { current_day: 2 },
-    new Date('2026-04-10T07:00:00.000Z')
+    new Date(2026, 3, 10, 12)
   );
 
   assert.deepEqual(visibleDays, [1, 2, 3]);
@@ -233,15 +233,15 @@ test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => 
   const sequentialPlan = makePlan({ scheduleMode: 'relative' });
 
   assert.equal(
-    getPlanCompletionEntryKey(recurringPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
+    getPlanCompletionEntryKey(recurringPlan, 5, new Date(2026, 3, 5, 12)),
     '2026-04-05'
   );
   assert.equal(
-    getPlanCompletionEntryKey(weeklyRecurringPlan, 2, new Date('2026-04-13T07:00:00.000Z')),
+    getPlanCompletionEntryKey(weeklyRecurringPlan, 2, new Date(2026, 3, 13, 12)),
     '2026-04-13'
   );
   assert.equal(
-    getPlanCompletionEntryKey(sequentialPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
+    getPlanCompletionEntryKey(sequentialPlan, 5, new Date(2026, 3, 5, 12)),
     '5'
   );
 });
@@ -386,11 +386,11 @@ test('buildPlanSessionCompletionKey uses the day number for relative plans and d
   });
 
   assert.equal(
-    buildPlanSessionCompletionKey(relativePlan, 4, 'morning', new Date('2026-04-10T07:00:00.000Z')),
+    buildPlanSessionCompletionKey(relativePlan, 4, 'morning', new Date(2026, 3, 10, 12)),
     '4:morning'
   );
   assert.equal(
-    buildPlanSessionCompletionKey(recurringPlan, 10, 'midday', new Date('2026-04-10T07:00:00.000Z')),
+    buildPlanSessionCompletionKey(recurringPlan, 10, 'midday', new Date(2026, 3, 10, 12)),
     '2026-04-10:midday'
   );
   assert.equal(
@@ -398,7 +398,7 @@ test('buildPlanSessionCompletionKey uses the day number for relative plans and d
       weeklyRecurringPlan,
       2,
       'evening',
-      new Date('2026-04-13T07:00:00.000Z')
+      new Date(2026, 3, 13, 12)
     ),
     '2026-04-13:evening'
   );
