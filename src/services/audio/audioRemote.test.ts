@@ -111,6 +111,38 @@ test('translations without configured audio remain unavailable remotely', () => 
   assert.equal(isRemoteAudioAvailable('kjv'), false);
 });
 
+test('remote audio availability respects explicit per-book coverage before playback starts', async () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'npiulb') {
+      return null;
+    }
+
+    return {
+      id: 'npiulb',
+      hasAudio: true,
+      audio: {
+        strategy: 'stream-template',
+        coverage: 'new-testament',
+        books: {
+          MAT: { totalChapters: 28 },
+          JHN: { totalChapters: 21 },
+        },
+        baseUrl: 'https://everybible.app/api/media/audio/npiulb/2026.04.05-open-bible-audio-v1',
+        chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
+      },
+    };
+  });
+
+  assert.equal(isRemoteAudioAvailable('npiulb'), true);
+  assert.equal(isRemoteAudioAvailable('npiulb', 'JHN'), true);
+  assert.equal(isRemoteAudioAvailable('npiulb', 'GEN'), false);
+  assert.equal(await fetchRemoteChapterAudio('npiulb', 'GEN', 1), null);
+  assert.deepEqual(await fetchRemoteChapterAudio('npiulb', 'JHN', 3), {
+    url: 'https://everybible.app/api/media/audio/npiulb/2026.04.05-open-bible-audio-v1/chapters/JHN/3.mp3',
+    duration: 0,
+  });
+});
+
 test('runtime stream-template audio resolves through the injected metadata resolver', async () => {
   setRemoteAudioMetadataResolver((translationId) => {
     if (translationId !== 'niv') {
