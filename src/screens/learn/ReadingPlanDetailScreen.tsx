@@ -24,14 +24,20 @@ import {
   markDayComplete,
 } from '../../services/plans/readingPlanService';
 import {
+  getCurrentPlanDaySummary,
   buildPlanDayPlaybackSequenceEntries,
   resolvePlanDayPlaybackStartEntry,
+  type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
+import {
+  getActivePlanDayNumber,
+  isRecurringPlan,
+} from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { useBibleStore, useReadingPlansStore } from '../../stores';
+import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
 
 type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 
@@ -166,16 +172,24 @@ const progressRingStyles = StyleSheet.create({
 interface ProgressCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress | null;
+  currentDaySummary: CurrentPlanDaySummary | null;
 }
 
-function ProgressCard({ plan, progress }: ProgressCardProps) {
+function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
-  const currentDay = progress?.current_day ?? 1;
+  const isRecurringSchedulePlan = isRecurringPlan(plan);
+  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
   const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
-  const fraction = totalDays > 0 ? completedCount / totalDays : 0;
+  const fraction =
+    totalDays > 0 ? (isRecurringSchedulePlan ? currentDay / totalDays : completedCount / totalDays) : 0;
+  const completionBadgeLabel = progress?.is_completed && !isRecurringSchedulePlan
+    ? t('readingPlans.completed')
+    : currentDaySummary?.isComplete
+      ? t('readingPlans.dailyTargetCompleteTitle')
+      : null;
 
   return (
     <View
@@ -201,16 +215,27 @@ function ProgressCard({ plan, progress }: ProgressCardProps) {
           <Text style={[progressCardStyles.dayLabel, { color: colors.primaryText }]}>
             {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
           </Text>
-          <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-            {completedCount} / {totalDays}{' '}
-            {t('engagement.days', { defaultValue: 'days' })}{' '}
-            {t('readingPlans.completed').toLowerCase()}
-          </Text>
-          {progress?.is_completed ? (
+          {!isRecurringSchedulePlan ? (
+            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
+              {completedCount} / {totalDays}{' '}
+              {t('engagement.days', { defaultValue: 'days' })}{' '}
+              {t('readingPlans.completed').toLowerCase()}
+            </Text>
+          ) : null}
+          {currentDaySummary ? (
+            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
+              {t('readingPlans.todayTargetProgress', {
+                completed: currentDaySummary.completedChapterCount,
+                target: currentDaySummary.targetChapterCount,
+                defaultValue: `Today's target: ${currentDaySummary.completedChapterCount}/${currentDaySummary.targetChapterCount} chapters`,
+              })}
+            </Text>
+          ) : null}
+          {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={12} color={colors.cardBackground} />
               <Text style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}>
-                {t('readingPlans.completed')}
+                {completionBadgeLabel}
               </Text>
             </View>
           ) : null}
@@ -490,9 +515,33 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
     setRefreshing(false);
   }, [load]);
 
-  const currentDay = progress?.current_day ?? 1;
+  const today = React.useMemo(() => new Date(), []);
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningHistory = useLibraryStore((state) => state.history);
+  const currentDaySummary = React.useMemo(() => {
+    if (!plan || !progress) {
+      return null;
+    }
+
+    return getCurrentPlanDaySummary({
+      plan,
+      entries,
+      progress,
+      chaptersRead,
+      listeningHistory,
+      today,
+    });
+  }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
+  const currentDay = currentDaySummary?.dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1);
+  const isRecurringSchedulePlan = isRecurringPlan(plan);
   const isCurrentDayCompleted = progress
-    ? String(currentDay) in progress.completed_entries
+    ? isRecurringSchedulePlan
+      ? Boolean(
+          (currentDaySummary?.dateKey &&
+            currentDaySummary.dateKey in progress.completed_entries) ||
+            currentDaySummary?.isComplete
+        )
+      : String(currentDay) in progress.completed_entries || Boolean(currentDaySummary?.isComplete)
     : false;
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
 
@@ -562,7 +611,9 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
     ({ item }: { item: DetailItem }) => {
       switch (item.kind) {
         case 'progress-card':
-          return plan ? <ProgressCard plan={plan} progress={progress} /> : null;
+          return plan ? (
+            <ProgressCard plan={plan} progress={progress} currentDaySummary={currentDaySummary} />
+          ) : null;
         case 'mark-complete':
           return (
             <MarkCompleteButton
@@ -576,7 +627,15 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
           );
         case 'day-row': {
           const isCompleted = progress
-            ? String(item.dayNumber) in progress.completed_entries
+            ? isRecurringSchedulePlan
+              ? item.dayNumber === currentDay &&
+                Boolean(
+                  (currentDaySummary?.dateKey &&
+                    currentDaySummary.dateKey in progress.completed_entries) ||
+                    currentDaySummary?.isComplete
+                )
+              : String(item.dayNumber) in progress.completed_entries ||
+                (item.dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
             : false;
           const isCurrent = item.dayNumber === currentDay;
           return (
@@ -600,6 +659,8 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
       t,
       colors,
       currentDay,
+      currentDaySummary,
+      isRecurringSchedulePlan,
       handleOpenChapter,
     ]
   );

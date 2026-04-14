@@ -43,40 +43,13 @@ function normalizeLineText(text) {
 function extractVerseFormatting(content) {
   const lines = [];
   let hasPoetry = false;
-  let proseParts = [];
-
-  const flushProseLine = (indentLevel) => {
-    const text = normalizeLineText(proseParts.join(' '));
-    proseParts = [];
-
-    if (!text) {
-      return;
-    }
-
-    lines.push({
-      text,
-      ...(typeof indentLevel === 'number' && indentLevel > 0 ? { indentLevel } : {}),
-    });
-  };
 
   for (const item of content) {
-    if (typeof item === 'string') {
-      proseParts.push(item);
-      continue;
-    }
-
     if (!item || typeof item !== 'object') {
       continue;
     }
 
-    if (item.lineBreak) {
-      flushProseLine();
-      continue;
-    }
-
     if (item.text && typeof item.poem === 'number') {
-      flushProseLine();
-
       const text = normalizeLineText(item.text);
       if (text) {
         const indentLevel = Math.max(0, Math.floor(item.poem) - 1);
@@ -88,25 +61,14 @@ function extractVerseFormatting(content) {
       }
       continue;
     }
-
-    if (item.text) {
-      proseParts.push(item.text);
-      continue;
-    }
-
-    if (item.value) {
-      proseParts.push(item.value);
-    }
   }
 
-  flushProseLine();
-
-  if (lines.length <= 1 && !hasPoetry) {
+  if (!hasPoetry || lines.length === 0) {
     return undefined;
   }
 
   return {
-    mode: hasPoetry ? 'poetry' : 'lines',
+    mode: 'poetry',
     lines,
   };
 }

@@ -12,7 +12,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
-const DEFAULT_MINIMUM_READY_VERSE_COUNT = 90000;
+const DEFAULT_MINIMUM_READY_VERSE_COUNT = 90001;
 const SQLITE_OPEN_OPTIONS = {
   finalizeUnusedStatementsBeforeClosing: false,
 } as const;
@@ -62,6 +62,7 @@ type BibleDatabaseStatus = {
   verseCount: number;
   schemaVersion: number;
   hasSearchIndex: boolean;
+  formattedVerseCount: number;
   ready: boolean;
 };
 
@@ -125,11 +126,15 @@ async function inspectOpenDatabase(database: SQLite.SQLiteDatabase): Promise<Bib
   const ftsResult = await database.getFirstAsync<{ present: number }>(
     "SELECT COUNT(*) as present FROM sqlite_master WHERE type = 'table' AND name = 'verses_fts'"
   );
+  const formattedResult = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM verses WHERE formatting IS NOT NULL'
+  );
 
   const status = {
     verseCount: countResult?.count ?? 0,
     schemaVersion: schemaResult?.user_version ?? 0,
     hasSearchIndex: (ftsResult?.present ?? 0) > 0,
+    formattedVerseCount: formattedResult?.count ?? 0,
   };
 
   return {
@@ -218,6 +223,7 @@ export async function inspectBundledDatabaseStatus(
       verseCount: 0,
       schemaVersion: 0,
       hasSearchIndex: false,
+      formattedVerseCount: 0,
       ready: false,
     };
   } finally {
