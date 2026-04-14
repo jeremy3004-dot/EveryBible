@@ -84,6 +84,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     clearQueue,
     setQueueIndex,
     clearPlaybackSequence,
+    clearAudioReturnTarget,
     setShowPlayer,
     togglePlayer,
     setPlaybackRate,
@@ -128,6 +129,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       clearQueue: state.clearQueue,
       setQueueIndex: state.setQueueIndex,
       clearPlaybackSequence: state.clearPlaybackSequence,
+      clearAudioReturnTarget: state.clearAudioReturnTarget,
       setShowPlayer: state.setShowPlayer,
       togglePlayer: state.togglePlayer,
       setPlaybackRate: state.setPlaybackRate,
@@ -547,18 +549,21 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         : false;
     if (reachedPlaybackSequenceBoundary) {
       void clearBibleNowPlaying();
+      clearAudioReturnTarget();
       setStatus('idle');
       return;
     }
 
     if (!shouldAutoAdvance || !bookId || !chapterNum) {
       void clearBibleNowPlaying();
+      clearAudioReturnTarget();
       setStatus('idle');
       return;
     }
 
     if (!currentBook) {
       void clearBibleNowPlaying();
+      clearAudioReturnTarget();
       setStatus('idle');
       return;
     }
@@ -572,9 +577,16 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       );
     } else {
       void clearBibleNowPlaying();
+      clearAudioReturnTarget();
       setStatus('idle');
     }
-  }, [emitAudioPlaybackProgress, setStatus, stopAudioProgressTelemetryTimer, translationId]);
+  }, [
+    clearAudioReturnTarget,
+    emitAudioPlaybackProgress,
+    setStatus,
+    stopAudioProgressTelemetryTimer,
+    translationId,
+  ]);
 
   // Set up audio player callbacks
   useEffect(() => {
@@ -751,8 +763,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     await audioPlayer.stop();
     await backgroundMusicPlayer.stop();
     void clearBibleNowPlaying();
+    clearAudioReturnTarget();
     resetPlayback();
   }, [
+    clearAudioReturnTarget,
     currentBookId,
     currentChapter,
     currentPosition,

@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import type {
   AudioPlaybackSequenceEntry,
+  AudioReturnTarget,
   AudioStatus,
   BackgroundMusicChoice,
   PlaybackRate,
@@ -34,6 +35,7 @@ interface AudioState {
   queue: AudioQueueEntry[];
   queueIndex: number;
   playbackSequence: AudioPlaybackSequenceEntry[];
+  audioReturnTarget: AudioReturnTarget | null;
   lastPlayedTranslationId: string | null;
   lastPlayedBookId: string | null;
   lastPlayedChapter: number | null;
@@ -66,6 +68,8 @@ interface AudioState {
   setQueueIndex: (queueIndex: number) => void;
   setPlaybackSequence: (entries: AudioPlaybackSequenceEntry[]) => void;
   clearPlaybackSequence: () => void;
+  setAudioReturnTarget: (target: AudioReturnTarget) => void;
+  clearAudioReturnTarget: () => void;
 
   // Player visibility
   setShowPlayer: (show: boolean) => void;
@@ -99,6 +103,7 @@ export const useAudioStore = create<AudioState>()(
       queue: [],
       queueIndex: 0,
       playbackSequence: [],
+      audioReturnTarget: null,
       lastPlayedTranslationId: null,
       lastPlayedBookId: null,
       lastPlayedChapter: null,
@@ -180,6 +185,8 @@ export const useAudioStore = create<AudioState>()(
       setQueueIndex: (queueIndex) => set({ queueIndex }),
       setPlaybackSequence: (entries) => set({ playbackSequence: entries }),
       clearPlaybackSequence: () => set({ playbackSequence: [] }),
+      setAudioReturnTarget: (audioReturnTarget) => set({ audioReturnTarget }),
+      clearAudioReturnTarget: () => set({ audioReturnTarget: null }),
 
       // Player visibility
       setShowPlayer: (show) => set({ showPlayer: show }),
@@ -221,6 +228,7 @@ export const useAudioStore = create<AudioState>()(
           currentPosition: 0,
           duration: 0,
           error: null,
+          audioReturnTarget: null,
         }),
     }),
     {

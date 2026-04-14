@@ -652,6 +652,7 @@ export function BibleReaderScreen() {
   const translations = useBibleStore((state) => state.translations);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
+  const setAudioReturnTarget = useAudioStore((state) => state.setAudioReturnTarget);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
   const addChapterToDefaultPlaylist = useLibraryStore((state) => state.addChapterToDefaultPlaylist);
   const listeningHistory = useLibraryStore((state) => state.history);
@@ -963,6 +964,37 @@ export function BibleReaderScreen() {
       returnToPlanOnComplete,
     ]
   );
+  useEffect(() => {
+    const resolvedBookId = activeAudioBookId ?? bookId;
+    const resolvedChapter = activeAudioChapter ?? chapter;
+    const hasActivePlaybackTarget =
+      resolvedBookId != null &&
+      resolvedChapter != null &&
+      (status === 'playing' || status === 'paused' || status === 'loading');
+
+    if (!hasActivePlaybackTarget) {
+      return;
+    }
+
+    setAudioReturnTarget({
+      translationId: activeAudioTranslationId ?? currentTranslation,
+      bookId: resolvedBookId,
+      chapter: resolvedChapter,
+      preferredMode: chapterSessionMode,
+      ...resolvePlanSessionRouteParams(resolvedBookId, resolvedChapter),
+    });
+  }, [
+    activeAudioBookId,
+    activeAudioChapter,
+    activeAudioTranslationId,
+    bookId,
+    chapter,
+    chapterSessionMode,
+    currentTranslation,
+    resolvePlanSessionRouteParams,
+    setAudioReturnTarget,
+    status,
+  ]);
   const currentChapterListenStatus = useMemo(() => {
     if (!activePlanDaySummary) {
       return null;

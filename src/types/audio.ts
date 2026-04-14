@@ -1,3 +1,5 @@
+import type { PlanSessionKey, RhythmSessionContext } from '../services/plans/types';
+
 // Audio playback types for Bible audio feature
 
 export type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
@@ -12,6 +14,18 @@ export interface AudioTrack {
 export interface AudioPlaybackSequenceEntry {
   bookId: string;
   chapter: number;
+}
+
+export interface AudioReturnTarget {
+  translationId: string | null;
+  bookId: string;
+  chapter: number;
+  preferredMode: 'listen' | 'read';
+  planId?: string;
+  planDayNumber?: number;
+  planSessionKey?: PlanSessionKey;
+  returnToPlanOnComplete?: boolean;
+  sessionContext?: RhythmSessionContext;
 }
 
 export interface AudioPlaybackState {
