@@ -1,5 +1,12 @@
+import { newTestamentBooks } from '../../constants/books';
 import { getTranslationById } from '../../constants/translations';
-import type { AudioProvider, BibleIsAudioResponse, BibleTranslation } from '../../types';
+import type {
+  AudioProvider,
+  BibleIsAudioResponse,
+  BibleTranslation,
+  TranslationAudioBookCatalog,
+  TranslationAudioCoverage,
+} from '../../types';
 import {
   resolveBibleAssetBaseUrl,
   resolveBibleAssetUrl,
@@ -92,6 +99,7 @@ const EBIBLE_WEBBE_BOOK_PREFIXES: Record<string, string> = {
 
 const MAX_AUDIO_CACHE_SIZE = 300;
 const audioUrlCache = new Map<string, RemoteAudioAsset>();
+const NEW_TESTAMENT_BOOK_IDS = new Set(newTestamentBooks.map((book) => book.id));
 
 type RemoteAudioMetadata = {
   id: string;
@@ -101,16 +109,22 @@ type RemoteAudioMetadata = {
   audio?:
     | {
         strategy: 'provider';
+        coverage?: TranslationAudioCoverage;
+        books?: Record<string, TranslationAudioBookCatalog>;
         provider?: AudioProvider;
         filesetId?: string;
       }
     | {
         strategy: 'stream-template';
+        coverage?: TranslationAudioCoverage;
+        books?: Record<string, TranslationAudioBookCatalog>;
         baseUrl: string;
         chapterPathTemplate: string;
       }
     | {
         strategy: 'audio-pack';
+        coverage?: TranslationAudioCoverage;
+        books?: Record<string, TranslationAudioBookCatalog>;
         downloadUrl: string;
       };
 };
@@ -170,6 +184,8 @@ function buildRemoteAudioMetadataFromTranslation(
           inferFileExtensionFromPath(catalogAudio.chapterPathTemplate),
         audio: {
           strategy: 'stream-template',
+          coverage: catalogAudio.coverage,
+          books: catalogAudio.books,
           baseUrl: catalogAudio.baseUrl ?? '',
           chapterPathTemplate: catalogAudio.chapterPathTemplate ?? '',
         },
@@ -186,6 +202,8 @@ function buildRemoteAudioMetadataFromTranslation(
           (catalogAudio.provider === 'ebible-webbe' ? 'mp3' : undefined),
         audio: {
           strategy: 'provider',
+          coverage: catalogAudio.coverage,
+          books: catalogAudio.books,
           provider: catalogAudio.provider,
           filesetId: translation.audioFilesetId ?? undefined,
         },
@@ -202,6 +220,8 @@ function buildRemoteAudioMetadataFromTranslation(
           inferFileExtensionFromPath(catalogAudio.downloadUrl),
         audio: {
           strategy: 'audio-pack',
+          coverage: catalogAudio.coverage,
+          books: catalogAudio.books,
           downloadUrl: catalogAudio.downloadUrl ?? '',
         },
       };
@@ -274,6 +294,31 @@ function resolveRemoteAudioMetadata(translationId: string): RemoteAudioMetadata 
     console.warn('[Audio] Failed to resolve remote audio metadata:', error);
     return null;
   }
+}
+
+function isRemoteAudioBookSupported(
+  metadata: RemoteAudioMetadata,
+  bookId: string | null | undefined
+): boolean {
+  if (!bookId) {
+    return true;
+  }
+
+  const audio = metadata.audio;
+  if (!audio) {
+    return false;
+  }
+
+  const configuredBooks = audio.books ? Object.keys(audio.books) : [];
+  if (configuredBooks.length > 0) {
+    return configuredBooks.includes(bookId);
+  }
+
+  if (audio.coverage === 'new-testament') {
+    return NEW_TESTAMENT_BOOK_IDS.has(bookId);
+  }
+
+  return true;
 }
 
 export function hasConfiguredTranslationAudio(translationId: string): boolean {
@@ -430,7 +475,7 @@ export async function fetchRemoteChapterAudio(
   }
 
   const audio = translation.audio;
-  if (!audio) {
+  if (!audio || !isRemoteAudioBookSupported(translation, bookId)) {
     return null;
   }
 
@@ -477,14 +522,17 @@ export async function fetchRemoteChapterAudio(
   return bibleIsAudio;
 }
 
-export function isRemoteAudioAvailable(translationId: string): boolean {
+export function isRemoteAudioAvailable(
+  translationId: string,
+  bookId?: string | null
+): boolean {
   const translation = resolveRemoteAudioMetadata(translationId);
   if (!translation?.hasAudio) {
     return false;
   }
 
   const audio = translation.audio;
-  if (!audio) {
+  if (!audio || !isRemoteAudioBookSupported(translation, bookId)) {
     return false;
   }
 

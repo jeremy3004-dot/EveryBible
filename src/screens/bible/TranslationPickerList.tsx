@@ -123,6 +123,7 @@ export function TranslationPickerList({
   const { colors } = useTheme();
   const { t } = useI18n();
 
+  const currentBook = useBibleStore((state) => state.currentBook);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const preferredTranslationLanguage = useBibleStore((state) => state.preferredTranslationLanguage);
   const translations = useBibleStore((state) => state.translations);
@@ -254,8 +255,9 @@ export function TranslationPickerList({
     getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
       translationHasAudio: translation.hasAudio,
-      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id, currentBook),
       downloadedAudioBooks: translation.downloadedAudioBooks,
+      bookId: currentBook,
     });
 
   const handleTranslationSelect = async (translation: BibleTranslation) => {

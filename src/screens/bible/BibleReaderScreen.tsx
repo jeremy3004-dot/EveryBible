@@ -672,7 +672,7 @@ export function BibleReaderScreen() {
     getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
       translationHasAudio: Boolean(translation.hasAudio),
-      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id, targetBookId),
       downloadedAudioBooks: translation.downloadedAudioBooks,
       bookId: targetBookId,
     });
@@ -707,7 +707,7 @@ export function BibleReaderScreen() {
   const audioEnabled = getAudioAvailability({
     featureEnabled: config.features.audioEnabled,
     translationHasAudio: Boolean(currentTranslationInfo?.hasAudio),
-    remoteAudioAvailable: isRemoteAudioAvailable(currentTranslation),
+    remoteAudioAvailable: isRemoteAudioAvailable(currentTranslation, bookId),
     downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
     bookId,
   }).canPlayAudio;
