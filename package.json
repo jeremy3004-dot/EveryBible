@@ -48,7 +48,9 @@
     "extract-verse-text": "python3 scripts/extract_verse_text.py",
     "catalog:translation": "tsx scripts/upsert-translation-catalog.ts",
     "import:open-bible-audio": "tsx scripts/import-open-bible-audio.ts",
-    "manifest:text-packs": "tsx scripts/generate-r2-text-pack-manifest.ts"
+    "manifest:text-packs": "tsx scripts/generate-r2-text-pack-manifest.ts",
+    "verify:android-page-size": "node scripts/check_android_page_size.mjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -113,6 +115,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "patch-package": "^8.0.1",
     "prettier": "^3.8.1",
     "sharp": "^0.34.5",
     "supabase": "^2.77.0",

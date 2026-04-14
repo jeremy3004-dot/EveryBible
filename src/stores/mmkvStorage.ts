@@ -5,6 +5,9 @@
  * newArchEnabled: false (old architecture). v3+ requires TurboModules and v4
  * requires Nitro — both are incompatible with old arch.
  *
+ * The package is patched via patch-package so its Android native build emits
+ * 16 KB-compatible ELF alignment for Play compliance on Android 15+ devices.
+ *
  * Using a single MMKV instance for all stores is the standard pattern from
  * mrousavy's docs. Each store writes its own namespaced key (e.g. 'auth-storage').
  *
