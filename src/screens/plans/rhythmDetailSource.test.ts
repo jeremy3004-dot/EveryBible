@@ -11,6 +11,11 @@ const source = readFileSync(resolve(__dirname, 'RhythmDetailScreen.tsx'), 'utf8'
 test('RhythmDetailScreen builds a rhythm session and resumes the reader with session context', () => {
   assert.match(
     source,
+    /const preferredChapterLaunchMode = useBibleStore\(\(state\) => state\.preferredChapterLaunchMode\);/,
+    'RhythmDetailScreen should read the persisted listen-or-read preference before continuing a rhythm'
+  );
+  assert.match(
+    source,
     /buildRhythmReaderSession\(\{/,
     'RhythmDetailScreen should use the shared rhythm session helper to flatten the current rhythm'
   );
@@ -23,6 +28,16 @@ test('RhythmDetailScreen builds a rhythm session and resumes the reader with ses
     source,
     /playbackSequenceEntries:\s*session\.playbackSequenceEntries/,
     'RhythmDetailScreen should send the full rhythm playback sequence to BibleReader'
+  );
+  assert.match(
+    source,
+    /\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),/,
+    'RhythmDetailScreen should request autoplay when the persisted launch preference is listen'
+  );
+  assert.match(
+    source,
+    /preferredMode:\s*preferredChapterLaunchMode,/,
+    'RhythmDetailScreen should continue rhythms in the persisted listen-or-read mode instead of hard-coding read mode'
   );
 });
 

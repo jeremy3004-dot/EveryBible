@@ -62,6 +62,12 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
+    /bottomInset=\{safeInsets\.bottom\}/,
+    'BibleReaderScreen should lift the selection tray above the bottom chrome so its actions do not get clipped'
+  );
+
+  assert.match(
+    source,
     /activeHighlightColors=\{selectedHighlightColors\}/,
     'BibleReaderScreen should pass the selected highlight colors into the tray so active colors can show the inline X'
   );

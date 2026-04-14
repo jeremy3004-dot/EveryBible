@@ -9,7 +9,9 @@ import {
   getPlanSessionOrder,
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
+  isCalendarDayOfWeekPlan,
   isCalendarDayOfMonthPlan,
+  isRecurringPlan,
   isMultiSessionPlan,
   isPlanCompleted,
   mergePlanProgress,
@@ -138,6 +140,13 @@ test('isCalendarDayOfMonthPlan only enables the special recurring cadence when r
   );
 });
 
+test('isRecurringPlan treats both monthly and weekly calendar plans as repeating rhythms', () => {
+  assert.equal(isRecurringPlan(makePlan()), false);
+  assert.equal(isRecurringPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })), true);
+  assert.equal(isRecurringPlan(makePlan({ scheduleMode: 'calendar-day-of-week' })), true);
+  assert.equal(isCalendarDayOfWeekPlan(makePlan({ scheduleMode: 'calendar-day-of-week' })), true);
+});
+
 test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
   const plan = makePlan({
     duration_days: 31,
@@ -147,6 +156,18 @@ test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
 
   assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-05T07:00:00.000Z')), 5);
   assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-12-02T07:00:00.000Z')), 2);
+});
+
+test('getActivePlanDayNumber uses todays weekday for weekly calendar plans', () => {
+  const plan = makePlan({
+    duration_days: 7,
+    scheduleMode: 'calendar-day-of-week',
+  });
+  const progress = makeProgress({ current_day: 4 });
+
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-12T07:00:00.000Z')), 1);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-13T07:00:00.000Z')), 2);
+  assert.equal(getActivePlanDayNumber(plan, progress, new Date('2026-04-18T07:00:00.000Z')), 7);
 });
 
 test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapter', () => {
@@ -169,6 +190,26 @@ test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapt
   assert.deepEqual(visibleDays, [10]);
 });
 
+test('getVisiblePlanDayNumbers collapses weekly recurring plans to the active weekday', () => {
+  const plan = makePlan({
+    duration_days: 7,
+    scheduleMode: 'calendar-day-of-week',
+  });
+
+  const visibleDays = getVisiblePlanDayNumbers(
+    plan,
+    [
+      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PSA', chapter_start: 9, chapter_end: 16 },
+      { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PSA', chapter_start: 25, chapter_end: 32 },
+      { id: 'day-7', plan_id: 'plan-1', day_number: 7, book: 'PSA', chapter_start: 109, chapter_end: 117 },
+    ],
+    undefined,
+    new Date('2026-04-13T07:00:00.000Z')
+  );
+
+  assert.deepEqual(visibleDays, [2]);
+});
+
 test('getVisiblePlanDayNumbers keeps sequential plans showing every available day', () => {
   const plan = makePlan({ scheduleMode: 'relative' });
 
@@ -188,11 +229,16 @@ test('getVisiblePlanDayNumbers keeps sequential plans showing every available da
 
 test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => {
   const recurringPlan = makePlan({ scheduleMode: 'calendar-day-of-month' });
+  const weeklyRecurringPlan = makePlan({ scheduleMode: 'calendar-day-of-week', duration_days: 7 });
   const sequentialPlan = makePlan({ scheduleMode: 'relative' });
 
   assert.equal(
     getPlanCompletionEntryKey(recurringPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
     '2026-04-05'
+  );
+  assert.equal(
+    getPlanCompletionEntryKey(weeklyRecurringPlan, 2, new Date('2026-04-13T07:00:00.000Z')),
+    '2026-04-13'
   );
   assert.equal(
     getPlanCompletionEntryKey(sequentialPlan, 5, new Date('2026-04-05T07:00:00.000Z')),
@@ -332,6 +378,12 @@ test('buildPlanSessionCompletionKey uses the day number for relative plans and d
     sessionOrder: ['morning', 'midday', 'evening'],
     scheduleMode: 'calendar-day-of-month',
   });
+  const weeklyRecurringPlan = makePlan({
+    format: 'multi-session',
+    sessionOrder: ['morning', 'evening'],
+    scheduleMode: 'calendar-day-of-week',
+    duration_days: 7,
+  });
 
   assert.equal(
     buildPlanSessionCompletionKey(relativePlan, 4, 'morning', new Date('2026-04-10T07:00:00.000Z')),
@@ -340,6 +392,15 @@ test('buildPlanSessionCompletionKey uses the day number for relative plans and d
   assert.equal(
     buildPlanSessionCompletionKey(recurringPlan, 10, 'midday', new Date('2026-04-10T07:00:00.000Z')),
     '2026-04-10:midday'
+  );
+  assert.equal(
+    buildPlanSessionCompletionKey(
+      weeklyRecurringPlan,
+      2,
+      'evening',
+      new Date('2026-04-13T07:00:00.000Z')
+    ),
+    '2026-04-13:evening'
   );
 });
 

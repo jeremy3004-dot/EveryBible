@@ -5,7 +5,10 @@ export type ReadingPlanCategory =
   | 'devotional'
   | 'custom';
 
-export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month';
+export type ReadingPlanScheduleMode =
+  | 'relative'
+  | 'calendar-day-of-month'
+  | 'calendar-day-of-week';
 export type ReadingPlanFormat = 'single-session' | 'multi-session';
 export type PlanSessionKey = 'morning' | 'midday' | 'evening';
 
@@ -31,6 +34,7 @@ export type ReadingPlanCoverKey =
   | 'stars'
   | 'seashore'
   | 'lakeLandscape'
+  | 'kathisma'
   | 'sunrise'
   | 'valley'
   | 'desert';
@@ -52,7 +56,6 @@ export interface ReadingPlan {
   completion_count?: number;
   created_at?: string;
   scheduleMode?: ReadingPlanScheduleMode;
-  repeatsMonthly?: boolean;
   format?: ReadingPlanFormat;
   sessionOrder?: PlanSessionKey[];
 }

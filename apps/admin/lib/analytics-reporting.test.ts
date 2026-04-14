@@ -105,7 +105,7 @@ test('mapCountryRollupsToMetrics enriches backend country rollups with globe coo
   assert.equal(metrics[1]?.downloadUnits, 5);
 });
 
-test('mapLocationRollupsToMetrics preserves distinct location rows while enriching coordinates', () => {
+test('mapLocationRollupsToMetrics buckets nearby approximate points before rendering the heatmap', () => {
   const metrics = mapLocationRollupsToMetrics([
     {
       countryCode: 'NP',
@@ -113,6 +113,8 @@ test('mapLocationRollupsToMetrics preserves distinct location rows while enrichi
       downloadUnits: 1,
       listenerCount: 1,
       listeningMinutes: 12.5,
+      latitude: 27.7108,
+      longitude: 85.3251,
     },
     {
       countryCode: 'NP',
@@ -120,6 +122,8 @@ test('mapLocationRollupsToMetrics preserves distinct location rows while enrichi
       downloadUnits: 2,
       listenerCount: 1,
       listeningMinutes: 7.5,
+      latitude: 27.67658,
+      longitude: 85.31417,
     },
     {
       countryCode: 'US',
@@ -127,20 +131,22 @@ test('mapLocationRollupsToMetrics preserves distinct location rows while enrichi
       downloadUnits: 4,
       listenerCount: 3,
       listeningMinutes: 24,
+      latitude: 39.97979,
+      longitude: -83.04074,
     },
   ]);
 
-  assert.equal(metrics.length, 3);
+  assert.equal(metrics.length, 2);
 
   assert.equal(metrics[0]?.code, 'US');
   assert.equal(metrics[0]?.downloadUnits, 4);
   assert.equal(metrics[0]?.listenerCount, 3);
   assert.equal(metrics[1]?.code, 'NP');
-  assert.equal(metrics[1]?.listeningMinutes, 12.5);
-  assert.equal(metrics[1]?.downloadUnits, 1);
-  assert.equal(metrics[2]?.code, 'NP');
-  assert.equal(metrics[2]?.listeningMinutes, 7.5);
-  assert.equal(metrics[2]?.downloadUnits, 2);
+  assert.equal(metrics[1]?.latitude, 27.7);
+  assert.equal(metrics[1]?.longitude, 85.3);
+  assert.equal(metrics[1]?.listeningMinutes, 20);
+  assert.equal(metrics[1]?.downloadUnits, 3);
+  assert.equal(metrics[1]?.listenerCount, 1);
 });
 
 test('buildTranslationBreakdown prefers explicit listening totals over country rollups', () => {

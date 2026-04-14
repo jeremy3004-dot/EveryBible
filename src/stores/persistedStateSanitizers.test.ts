@@ -21,7 +21,7 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
 
   assert.equal(sanitized.currentBook, 'GEN');
   assert.equal(sanitized.currentChapter, 1);
-  assert.equal(sanitized.preferredChapterLaunchMode, 'read');
+  assert.equal(sanitized.preferredChapterLaunchMode, 'listen');
   assert.equal(sanitized.currentTranslation, 'bsb');
   assert.ok(Array.isArray(sanitized.translations));
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
@@ -205,6 +205,49 @@ test('sanitizePersistedBibleState keeps seeded runtime translations aligned with
   assert.equal(hincv.hasText, true);
   assert.equal(hincv.description, 'Hindi remote catalog entry');
   assert.equal(hincv.installState, 'remote-only');
+});
+
+test('sanitizePersistedBibleState drops runtime aliases that collapse onto bundled translations', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'engbsb',
+    translations: [
+      {
+        id: 'engbsb',
+        name: 'Berean Standard Bible',
+        abbreviation: 'BSB',
+        language: 'English',
+        description: 'Runtime catalog alias for the bundled Berean Standard Bible',
+        copyright: 'Public Domain',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 4.7,
+        hasText: true,
+        hasAudio: false,
+        audioGranularity: 'none',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: '2026.03.26',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+          text: {
+            format: 'sqlite',
+            version: '2026.03.26',
+            downloadUrl: 'https://cdn.example.com/engbsb.sqlite',
+            sha256: 'sha256-engbsb',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.equal(sanitized.currentTranslation, 'bsb');
+  assert.equal(
+    sanitized.translations.some((translation) => translation.id === 'engbsb'),
+    false
+  );
+  assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
 test('sanitizePersistedBibleState falls back when runtime translation is not locally readable', () => {
@@ -529,11 +572,15 @@ test('sanitizePersistedAudioState preserves the extended supported playback rate
   const onePointSeventyFive = sanitizePersistedAudioState({
     playbackRate: 1.75,
   });
+  const twoPointTwoFive = sanitizePersistedAudioState({
+    playbackRate: 2.25,
+  });
   const twoPointFive = sanitizePersistedAudioState({
     playbackRate: 2.5,
   });
 
   assert.equal(onePointSeventyFive.playbackRate, 1.75);
+  assert.equal(twoPointTwoFive.playbackRate, 2.25);
   assert.equal(twoPointFive.playbackRate, 2.5);
 });
 

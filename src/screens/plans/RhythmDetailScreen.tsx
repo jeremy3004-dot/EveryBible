@@ -17,7 +17,7 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
-import { useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
+import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
 import { buildRhythmReaderSession, getCurrentPlanDaySummary } from '../../services/plans/readingPlanActivity';
 import { getPlanEntries, listReadingPlans } from '../../services/plans/readingPlanService';
 import type {
@@ -162,6 +162,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
+  const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
   const getRhythm = useReadingPlansStore((state) => state.getRhythm);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
@@ -303,7 +304,8 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       params: {
         bookId: session.startEntry.bookId,
         chapter: session.startEntry.chapter,
-        preferredMode: 'read',
+        ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+        preferredMode: preferredChapterLaunchMode,
         playbackSequenceEntries: session.playbackSequenceEntries,
         planId: session.startSegment.type === 'plan' ? session.startSegment.planId : undefined,
         planDayNumber:
@@ -312,7 +314,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         sessionContext: session.sessionContext,
       },
     });
-  }, [session]);
+  }, [preferredChapterLaunchMode, session]);
 
   if (loading) {
     return (

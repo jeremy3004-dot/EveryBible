@@ -5,6 +5,34 @@ import { resolve } from 'node:path';
 
 const source = readFileSync(resolve(__dirname, 'ReadingPlanDetailScreen.tsx'), 'utf8');
 
+test('ReadingPlanDetailScreen uses recurring-aware day progress and launches the selected day', () => {
+  assert.match(
+    source,
+    /getCurrentPlanDaySummary\(/,
+    'ReadingPlanDetailScreen should compute the active day summary from chapters read and listening history'
+  );
+  assert.match(
+    source,
+    /getActivePlanDayNumber\(plan, progress, today\)/,
+    'ReadingPlanDetailScreen should resolve the current day from the plan model for recurring schedules'
+  );
+  assert.match(
+    source,
+    /isRecurringPlan\(plan\)/,
+    'ReadingPlanDetailScreen should branch completion state for recurring plans separately from scheduled plans'
+  );
+  assert.match(
+    source,
+    /<ProgressCard plan=\{plan\} progress=\{progress\} currentDaySummary=\{currentDaySummary\} \/>/,
+    'ReadingPlanDetailScreen should pass the computed day summary into the progress card'
+  );
+  assert.match(
+    source,
+    /markDayComplete\(planId,\s*currentDay\)/,
+    'ReadingPlanDetailScreen should mark the currently active day rather than the raw stored day number'
+  );
+});
+
 test('ReadingPlanDetailScreen forwards the full day playback sequence into BibleReader', () => {
   assert.match(
     source,

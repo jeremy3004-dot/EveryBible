@@ -178,6 +178,7 @@ function makeStatus(overrides: Partial<BundledBibleDatabaseStatus> = {}): Bundle
     verseCount: 31102,
     schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION,
     hasSearchIndex: true,
+    formattedVerseCount: 42,
     ...overrides,
   };
 }
@@ -201,6 +202,10 @@ test('isBundledBibleDatabaseReady returns false when the search index is absent'
   assert.equal(isBundledBibleDatabaseReady(makeStatus({ hasSearchIndex: false }), 31000), false);
 });
 
+test('isBundledBibleDatabaseReady returns false when formatting payloads are absent', () => {
+  assert.equal(isBundledBibleDatabaseReady(makeStatus({ formattedVerseCount: 0 }), 31000), false);
+});
+
 test('isBundledBibleDatabaseReady accepts a future schemaVersion above minimum', () => {
   assert.equal(
     isBundledBibleDatabaseReady(makeStatus({ schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION + 1 }), 31000),
@@ -211,7 +216,7 @@ test('isBundledBibleDatabaseReady accepts a future schemaVersion above minimum',
 test('isBundledBibleDatabaseReady returns false when all criteria fail simultaneously', () => {
   assert.equal(
     isBundledBibleDatabaseReady(
-      { verseCount: 0, schemaVersion: 0, hasSearchIndex: false },
+      { verseCount: 0, schemaVersion: 0, hasSearchIndex: false, formattedVerseCount: 0 },
       31000
     ),
     false

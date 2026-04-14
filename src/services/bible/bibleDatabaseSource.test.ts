@@ -89,6 +89,16 @@ test('bundled status inspection keeps the ready bundled database open for reuse'
   );
 });
 
+test('bundled database readiness inspects formatting payload availability', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /SELECT COUNT\(\*\) as count FROM verses WHERE formatting IS NOT NULL/,
+    'bundled bible readiness should count verses with formatting payloads so stale pre-formatting installs get re-imported'
+  );
+});
+
 test('full-text search refuses non-FTS translations instead of falling back to an unbounded LIKE scan', () => {
   const source = readRelativeSource('./bibleDatabase.ts');
 

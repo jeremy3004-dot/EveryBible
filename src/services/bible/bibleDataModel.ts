@@ -11,7 +11,7 @@ import type {
 } from '../../types';
 import { sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
-export const BUNDLED_BIBLE_SCHEMA_VERSION = 5;
+export const BUNDLED_BIBLE_SCHEMA_VERSION = 6;
 
 const validAudioGranularities = new Set<AudioGranularity>(['none', 'chapter', 'verse']);
 const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([
@@ -28,6 +28,7 @@ export type BundledBibleDatabaseStatus = {
   verseCount: number;
   schemaVersion: number;
   hasSearchIndex: boolean;
+  formattedVerseCount: number;
 };
 
 export type { SignedCatalogEnvelope, TranslationCatalogManifest };
@@ -407,7 +408,9 @@ export function isBundledBibleDatabaseReady(
   return (
     status.verseCount >= minimumReadyVerseCount &&
     status.schemaVersion >= BUNDLED_BIBLE_SCHEMA_VERSION &&
-    status.hasSearchIndex
+    status.hasSearchIndex &&
+    // Existing installs can keep an older copied DB with matching schema/count but no formatting data.
+    status.formattedVerseCount > 0
   );
 }
 

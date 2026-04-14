@@ -5,6 +5,7 @@ import {
   listAvailableTranslations,
   mapCatalogEntryToBibleTranslation,
 } from './translationService';
+import { normalizeCatalogTranslationId } from './translationCatalogModel';
 
 let runtimeCatalogHydrationPromise: Promise<void> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
@@ -40,7 +41,9 @@ export async function bootstrapRuntimeTranslations(): Promise<void> {
   const runtimeTranslations = catalogResult.data.map((entry) =>
     mapCatalogEntryToBibleTranslation(
       entry,
-      currentStoreTranslations.find((translation) => translation.id === entry.translation_id)
+      currentStoreTranslations.find(
+        (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
+      )
     )
   );
 

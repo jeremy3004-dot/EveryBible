@@ -4,6 +4,8 @@ import type { ReadingPlanCoverKey } from '../services/plans/types';
 import type { ReadingPlanScheduleMode } from '../services/plans/types';
 import type { PlanSessionKey, ReadingPlanFormat } from '../services/plans/types';
 
+type NamedWeekday = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+
 type BookPlanRecipe = {
   id: string;
   slug: string;
@@ -14,7 +16,6 @@ type BookPlanRecipe = {
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
-  repeats_monthly?: boolean;
   format?: ReadingPlanFormat;
   session_order?: PlanSessionKey[];
   book_order: string[];
@@ -30,7 +31,6 @@ type VersePlanRecipe = {
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
-  repeats_monthly?: boolean;
   format?: ReadingPlanFormat;
   session_order?: PlanSessionKey[];
   entries: Array<{
@@ -56,10 +56,32 @@ type TimedChallengeRecipe = {
   sort_order: number;
   cover_key: ReadingPlanCoverKey;
   schedule_mode?: ReadingPlanScheduleMode;
-  repeats_monthly?: boolean;
   format?: ReadingPlanFormat;
   session_order?: PlanSessionKey[];
   books: string[];
+};
+
+type WeeklySessionRange = {
+  book: string;
+  chapter_start: number;
+  chapter_end: number | null;
+  verse_start?: number | null;
+  verse_end?: number | null;
+};
+
+type WeeklySessionPlanRecipe = {
+  id: string;
+  slug: string;
+  title_key: string;
+  description_key: string | null;
+  duration_days: 7;
+  category: ReadingPlan['category'];
+  sort_order: number;
+  cover_key: ReadingPlanCoverKey;
+  session_order: PlanSessionKey[];
+  session_titles: Partial<Record<PlanSessionKey, string>>;
+  readings: Record<number, WeeklySessionRange>;
+  weekday_sessions: Partial<Record<NamedWeekday, Partial<Record<PlanSessionKey, number[]>>>>;
 };
 
 const canonicalOrder = bibleBooks.map((book) => book.id);
@@ -87,6 +109,7 @@ const epistlesOrder = [
   '3JN',
   'JUD',
 ];
+const namedWeekdayOrder: NamedWeekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 const chronologicalOrder = [
   'GEN',
@@ -275,7 +298,6 @@ function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entri
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
-      repeatsMonthly: recipe.repeats_monthly,
       format: recipe.format,
       sessionOrder: recipe.session_order,
     },
@@ -298,12 +320,11 @@ function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: 
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
-      repeatsMonthly: recipe.repeats_monthly,
       format: recipe.format,
       sessionOrder: recipe.session_order,
     },
-    entries: recipe.entries.map((entry) => ({
-      id: `${recipe.id}-day-${entry.day_number}`,
+    entries: recipe.entries.map((entry, index) => ({
+      id: `${recipe.id}-day-${entry.day_number}-part-${index + 1}`,
       plan_id: recipe.id,
       day_number: entry.day_number,
       session_key: entry.session_key,
@@ -384,8 +405,65 @@ function buildTimedChallengePlan(
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
       scheduleMode: recipe.schedule_mode,
-      repeatsMonthly: recipe.repeats_monthly,
       format: recipe.format,
+      sessionOrder: recipe.session_order,
+    },
+    entries,
+  };
+}
+
+function buildWeeklySessionPlan(
+  recipe: WeeklySessionPlanRecipe
+): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+  const entries: ReadingPlanEntry[] = [];
+
+  namedWeekdayOrder.forEach((weekday, weekdayIndex) => {
+    const dayNumber = weekdayIndex + 1;
+    const sessionsForDay = recipe.weekday_sessions[weekday];
+    if (!sessionsForDay) {
+      return;
+    }
+
+    recipe.session_order.forEach((sessionKey, sessionIndex) => {
+      const readingNumbers = sessionsForDay[sessionKey] ?? [];
+      readingNumbers.forEach((readingNumber, readingIndex) => {
+        const range = recipe.readings[readingNumber];
+        if (!range) {
+          throw new Error(`Unknown weekly reading number ${readingNumber} for ${recipe.id}`);
+        }
+
+        entries.push({
+          id: `${recipe.id}-day-${dayNumber}-${sessionKey}-${readingIndex + 1}`,
+          plan_id: recipe.id,
+          day_number: dayNumber,
+          session_key: sessionKey,
+          session_title: recipe.session_titles[sessionKey] ?? null,
+          session_order: sessionIndex + 1,
+          book: range.book,
+          chapter_start: range.chapter_start,
+          chapter_end: range.chapter_end,
+          verse_start: range.verse_start ?? null,
+          verse_end: range.verse_end ?? null,
+        });
+      });
+    });
+  });
+
+  return {
+    plan: {
+      id: recipe.id,
+      slug: recipe.slug,
+      title_key: recipe.title_key,
+      description_key: recipe.description_key,
+      duration_days: recipe.duration_days,
+      category: recipe.category,
+      is_active: true,
+      sort_order: recipe.sort_order,
+      coverKey: recipe.cover_key,
+      cover_key: recipe.cover_key,
+      cover_image_key: recipe.cover_key,
+      scheduleMode: 'calendar-day-of-week',
+      format: 'multi-session',
       sessionOrder: recipe.session_order,
     },
     entries,
@@ -447,7 +525,6 @@ const sequentialRecipes: BookPlanRecipe[] = [
     sort_order: 5,
     cover_key: 'desert',
     schedule_mode: 'calendar-day-of-month',
-    repeats_monthly: true,
     book_order: ['PRO'],
   },
   {
@@ -725,6 +802,55 @@ const devotionalRecipes: VersePlanRecipe[] = [
   },
 ];
 
+const weeklySessionRecipes: WeeklySessionPlanRecipe[] = [
+  {
+    id: 'kathisma-weekly',
+    slug: 'kathisma-weekly',
+    title_key: 'readingPlans.kathisma.title',
+    description_key: 'readingPlans.kathisma.description',
+    duration_days: 7,
+    category: 'devotional',
+    sort_order: 5.5,
+    cover_key: 'kathisma',
+    session_order: ['morning', 'evening'],
+    session_titles: {
+      morning: 'Morning Kathismata',
+      evening: 'Evening Kathismata',
+    },
+    readings: {
+      1: { book: 'PSA', chapter_start: 1, chapter_end: 8 },
+      2: { book: 'PSA', chapter_start: 9, chapter_end: 16 },
+      3: { book: 'PSA', chapter_start: 18, chapter_end: 24 },
+      4: { book: 'PSA', chapter_start: 25, chapter_end: 32 },
+      5: { book: 'PSA', chapter_start: 33, chapter_end: 37 },
+      6: { book: 'PSA', chapter_start: 38, chapter_end: 45 },
+      7: { book: 'PSA', chapter_start: 46, chapter_end: 54 },
+      8: { book: 'PSA', chapter_start: 55, chapter_end: 63 },
+      9: { book: 'PSA', chapter_start: 64, chapter_end: 69 },
+      10: { book: 'PSA', chapter_start: 70, chapter_end: 76 },
+      11: { book: 'PSA', chapter_start: 77, chapter_end: 84 },
+      12: { book: 'PSA', chapter_start: 85, chapter_end: 90 },
+      13: { book: 'PSA', chapter_start: 91, chapter_end: 100 },
+      14: { book: 'PSA', chapter_start: 101, chapter_end: 104 },
+      15: { book: 'PSA', chapter_start: 105, chapter_end: 108 },
+      16: { book: 'PSA', chapter_start: 109, chapter_end: 117 },
+      17: { book: 'PSA', chapter_start: 118, chapter_end: null },
+      18: { book: 'PSA', chapter_start: 119, chapter_end: 133 },
+      19: { book: 'PSA', chapter_start: 134, chapter_end: 142 },
+      20: { book: 'PSA', chapter_start: 143, chapter_end: 150 },
+    },
+    weekday_sessions: {
+      sun: { morning: [2, 3] },
+      mon: { morning: [4, 5], evening: [6] },
+      tue: { morning: [7, 8], evening: [9] },
+      wed: { morning: [10, 11], evening: [12] },
+      thu: { morning: [13, 14], evening: [15] },
+      fri: { morning: [19, 20], evening: [18] },
+      sat: { morning: [16, 17], evening: [1] },
+    },
+  },
+];
+
 const timedChallengeRecipes: TimedChallengeRecipe[] = [
   {
     id: 'bible-in-30-days',
@@ -788,12 +914,27 @@ const versePlans = verseRecipes.map(buildVersePlan);
 const topicalPlans = topicalRecipes.map(buildVersePlan);
 const devotionalPlans = devotionalRecipes.map(buildVersePlan);
 const timedChallengePlans = timedChallengeRecipes.map(buildTimedChallengePlan);
+const weeklySessionPlans = weeklySessionRecipes.map(buildWeeklySessionPlan);
 
-export const readingPlans = [...sequentialPlans, ...versePlans, ...topicalPlans, ...devotionalPlans, ...timedChallengePlans]
+export const readingPlans = [
+  ...sequentialPlans,
+  ...versePlans,
+  ...topicalPlans,
+  ...devotionalPlans,
+  ...timedChallengePlans,
+  ...weeklySessionPlans,
+]
   .map((item) => item.plan)
   .sort((left, right) => left.sort_order - right.sort_order);
 
-export const readingPlanEntries = [...sequentialPlans, ...versePlans, ...topicalPlans, ...devotionalPlans, ...timedChallengePlans]
+export const readingPlanEntries = [
+  ...sequentialPlans,
+  ...versePlans,
+  ...topicalPlans,
+  ...devotionalPlans,
+  ...timedChallengePlans,
+  ...weeklySessionPlans,
+]
   .flatMap((item) => item.entries)
   .sort((left, right) => {
     if (left.plan_id !== right.plan_id) {

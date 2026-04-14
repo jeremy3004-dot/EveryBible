@@ -688,8 +688,8 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
-    'BibleReaderScreen should keep the premium reader bottom padding stable so dock taps do not reflow the ScrollView at the chapter bottom'
+    /const premiumReaderBaseBottomPadding =[\s\S]*spacing\.xxxl \+ spacing\.lg;[\s\S]*const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;[\s\S]*paddingBottom:\s*premiumReaderBottomPadding,/s,
+    'BibleReaderScreen should keep the premium reader bottom padding stable with extra bottom clearance so dock taps do not reflow the ScrollView at the chapter bottom'
   );
 
   assert.equal(
@@ -931,6 +931,22 @@ test('premium read chapter arrows only sync the displayed chapter without starti
     source,
     /const handleReadChapterNavigation = async \([\s\S]*?target:\s*\{ bookId: string; chapter: number \} \| null[\s\S]*?=> \{[\s\S]*?syncReaderReference\(target\.bookId, target\.chapter\);/s,
     'BibleReaderScreen should still update the displayed chapter when the user navigates in read mode'
+  );
+});
+
+test('premium read chapter arrows advance the active audio session when the displayed chapter is already playing', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handlePreviousReadChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*const target = await previousChapter\(\);[\s\S]*if \(target\) \{[\s\S]*syncReaderReference\(target\.bookId, target\.chapter\);[\s\S]*}\s*return;[\s\S]*}\s*await handleReadChapterNavigation\(previousNavigationTarget\);[\s\S]*};/s,
+    'BibleReaderScreen should move both the text and audio together when the read-tab previous action is pressed on the active audio chapter'
+  );
+
+  assert.match(
+    source,
+    /const handleNextReadChapter = async \(\) => \{[\s\S]*if \(\s*showPlanSessionChrome[\s\S]*await handleCompletePlanDay\(\);[\s\S]*return;[\s\S]*}\s*if \(isCurrentAudioChapter\) \{[\s\S]*const target = await nextChapter\(\);[\s\S]*if \(target\) \{[\s\S]*syncReaderReference\(target\.bookId, target\.chapter\);[\s\S]*}\s*return;[\s\S]*}\s*await handleReadChapterNavigation\(nextNavigationTarget\);[\s\S]*};/s,
+    'BibleReaderScreen should move both the text and audio together when the read-tab next action is pressed on the active audio chapter'
   );
 });
 

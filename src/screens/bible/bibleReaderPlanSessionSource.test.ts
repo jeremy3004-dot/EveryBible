@@ -52,6 +52,24 @@ test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session 
   );
 });
 
+test('BibleReaderScreen constrains plan-session playback to the active session slice', () => {
+  assert.match(
+    source,
+    /const activePlanPlaybackSequenceEntries = useMemo\([\s\S]*buildPlanDayPlaybackSequenceEntries\(activePlanSessionEntries\)/s,
+    'BibleReaderScreen should derive a bounded playback sequence from the active plan session entries'
+  );
+  assert.match(
+    source,
+    /const playbackSequenceEntriesForAudio = useMemo\([\s\S]*return activePlanPlaybackSequenceEntries;/s,
+    'BibleReaderScreen should derive a final audio playback slice that can clamp rhythm playback down to the active segment'
+  );
+  assert.match(
+    source,
+    /getAdjacentAudioPlaybackSequenceEntry\([\s\S]*activePlanPlaybackSequenceEntries,/,
+    'BibleReaderScreen should resolve previous and next plan chapters from the bounded session slice'
+  );
+});
+
 test('BibleReaderScreen derives the current plan-day chapter list and chapter index', () => {
   assert.match(
     source,
@@ -73,6 +91,11 @@ test('BibleReaderScreen derives the current plan-day chapter list and chapter in
     /setPlanDayResume\(activePlanId,\s*planDayNumber,\s*bookId,\s*chapter\)/,
     'BibleReaderScreen should persist the current plan-day chapter so a reopened day can resume in place'
   );
+  assert.match(
+    source,
+    /if \(!returnToPlanOnComplete\) \{[\s\S]*markChapterRead\(bookId,\s*chapter\);[\s\S]*\}/s,
+    'BibleReaderScreen should avoid auto-marking plan sessions as read as soon as the reader loads'
+  );
 });
 
 test('BibleReaderScreen derives rhythm session ownership from the route session context when present', () => {
@@ -80,11 +103,6 @@ test('BibleReaderScreen derives rhythm session ownership from the route session 
     source,
     /const activeRhythmSession = sessionContext\?\.type === 'rhythm' \? sessionContext : null;/,
     'BibleReaderScreen should recognize a rhythm session context from the shared reader route params'
-  );
-  assert.match(
-    source,
-    /const activeRhythmSegment = useMemo\(/,
-    'BibleReaderScreen should resolve the active rhythm segment from the current route and playback position'
   );
   assert.match(
     source,
@@ -247,5 +265,36 @@ test('BibleReaderScreen keeps the shared floating playback dock above the plan s
     source,
     /onNextChapter=\{\(\) => void handleNextReadChapter\(\)\}/,
     'BibleReaderScreen should route the dock forward action through the shared read-mode next handler'
+  );
+});
+
+test('BibleReaderScreen bounds audio playback to the active plan or rhythm slice instead of the full routed session', () => {
+  assert.match(
+    source,
+    /const playbackSequenceEntriesForAudio = useMemo\(\(\) => \{[\s\S]*if \(activeRhythmSession\) \{[\s\S]*slice\(segment\.startIndex, segment\.endIndex\)[\s\S]*return activePlanPlaybackSequenceEntries;/s,
+    'BibleReaderScreen should clamp the audio-store playback sequence to the active rhythm segment or active plan-session entries'
+  );
+  assert.match(
+    source,
+    /setPlaybackSequence\(playbackSequenceEntriesForAudio\);/,
+    'BibleReaderScreen should push the bounded playback slice into the shared audio store'
+  );
+});
+
+test('BibleReaderScreen avoids auto-completing plan chapters on open and returns completion to My Plans', () => {
+  assert.match(
+    source,
+    /if \(!returnToPlanOnComplete\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
+    'BibleReaderScreen should skip automatic markChapterRead when the reader was opened as a plan session'
+  );
+  assert.match(
+    source,
+    /if \(shouldRecordReadCompletion && !\(activeChapterKey in chaptersRead\)\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
+    'BibleReaderScreen should only count the current chapter as read when the user explicitly completes the plan step in read mode'
+  );
+  assert.match(
+    source,
+    /rootNavigationRef\.navigate\('Plans', \{\s*screen:\s*'PlansHome',?\s*\}\);/s,
+    'BibleReaderScreen should return plan completion back to the My Plans surface instead of chaining into another detail screen'
   );
 });

@@ -2,6 +2,34 @@
 
 Use this when a build has uploaded, but testers still cannot see it in TestFlight.
 
+## 0. First question: is the build missing, or was the upload rejected?
+
+Before debugging groups, testers, or beta review, check whether the new upload actually made it into App Store Connect.
+
+Check EAS submission state:
+
+```bash
+# If you submitted with eas submit, inspect that submission first
+# (use the exact submission id from the eas submit output)
+```
+
+Check raw App Store Connect upload state:
+
+```bash
+asc builds uploads list --app 6758254335 --output json
+```
+
+Interpretation:
+- if the upload record is `FAILED`, this is not a TestFlight visibility problem
+- if the upload record is `PROCESSING`, wait for App Store Connect to create the build record
+- if the build record is present and `VALID`, then move on to group/tester distribution checks
+
+Common rejection to recognize immediately:
+- `ITMS-90186: Invalid Pre-Release Train`
+- `ITMS-90062: CFBundleShortVersionString ... must contain a higher version`
+
+That pair means Apple closed the old marketing-version train. Do not wait on TestFlight. Rebuild with a higher `CFBundleShortVersionString`.
+
 ## 1. Confirm the build is actually in App Store Connect
 
 ```bash
@@ -151,12 +179,38 @@ For build `113`, the repaired state was:
 
 ## Root cause from this incident
 
-The build was not blocked by export compliance.
+Two different incidents produced the same user-visible symptom: "the build is missing in TestFlight."
 
-The actual issue was:
-- the build had uploaded successfully
-- export compliance was already satisfied
-- but the build was not attached to the needed beta groups/testers
+### Incident A — distribution linkage was missing
+
+The build itself was valid, but:
+- it was not attached to the needed beta groups/testers
 - and external review had not been submitted yet
 
-That combination makes the build look "missing" in TestFlight even though ASC already shows it as a valid build.
+That combination makes the build look missing in TestFlight even though ASC already shows it as a valid build.
+
+### Incident B — the upload was rejected before TestFlight ever saw it
+
+Build `336` for marketing version `1.0.0` never surfaced because Apple rejected it during upload ingestion:
+- `ITMS-90186: Invalid Pre-Release Train`
+- `ITMS-90062: CFBundleShortVersionString [1.0.0] must be higher than the previously approved version [1.0.0]`
+
+The actual issue was:
+- app version `1.0.0` had already been approved/distributed
+- the `1.0.0` pre-release train was closed for new submissions
+- the binary still used `CFBundleShortVersionString = 1.0.0`
+- so Apple rejected the upload before it became a build record
+
+The fix was:
+- bump the marketing version to `1.0.1`
+- keep build numbering aligned with the latest accepted ASC build
+- rebuild locally
+- resubmit
+- then wait for the new upload to reach `PROCESSING` and `VALID`
+
+### Future rule
+
+If a new build is not visible quickly:
+1. Check EAS submission state
+2. Check `asc builds uploads list`
+3. Only debug TestFlight groups/testers after confirming the build record exists and is `VALID`

@@ -32,7 +32,7 @@ import {
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import {
   getActivePlanDayNumber,
-  isCalendarDayOfMonthPlan,
+  isRecurringPlan,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { useProgressStore } from '../../stores/progressStore';
@@ -338,6 +338,8 @@ interface MyPlansSectionProps {
   colors: ThemeColors;
 }
 
+type ActivePlanRow = { progress: UserReadingPlanProgress; plan: ReadingPlan };
+
 function MyPlansSection({
   allPlans,
   userProgress,
@@ -356,15 +358,69 @@ function MyPlansSection({
       const plan = allPlans.find((pl) => pl.id === p.plan_id);
       return plan ? { progress: p, plan } : null;
     })
-    .filter((item): item is { progress: UserReadingPlanProgress; plan: ReadingPlan } => item !== null);
+    .filter((item): item is ActivePlanRow => item !== null);
+
+  const dailyReadingPlans = activePlans.filter(({ plan }) => !isRecurringPlan(plan));
+  const dailyRhythmPlans = activePlans.filter(({ plan }) => isRecurringPlan(plan));
 
   const styles = createMyPlansStyles(colors);
+
+  const renderPlanCard = ({ progress, plan }: ActivePlanRow) => {
+    const currentDay = getActivePlanDayNumber(plan, progress);
+    const currentDaySummary = getCurrentPlanDaySummary({
+      plan,
+      entries: readingPlanEntriesByPlanId[plan.id] ?? [],
+      progress,
+      chaptersRead,
+      listeningHistory,
+    });
+      const progressRatio =
+        plan.duration_days > 0
+        ? isRecurringPlan(plan)
+          ? currentDay / plan.duration_days
+          : (currentDay - 1) / plan.duration_days
+        : 0;
+
+    return (
+      <SwipeablePlanRow
+        key={plan.id}
+        onDelete={() => onDeletePlan(plan.id)}
+      >
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => onPlanPress(plan.id)}
+          activeOpacity={0.7}
+        >
+          <CoverImage plan={plan} width={68} height={68} colors={colors} />
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {t(plan.title_key as Parameters<typeof t>[0])}
+            </Text>
+            <View style={styles.progressBlock}>
+              <Text style={styles.dayCounter}>
+                {t('readingPlans.dayOf', {
+                  current: currentDay,
+                  total: plan.duration_days,
+                })}
+              </Text>
+              {isMultiSessionPlan(plan) ? (
+                <Text style={styles.sessionSummary} numberOfLines={2}>
+                  {formatSessionStatusSummary(currentDaySummary, t)}
+                </Text>
+              ) : null}
+              <ProgressBar progress={progressRatio} colors={colors} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      </SwipeablePlanRow>
+    );
+  };
 
   return (
     <View style={styles.content}>
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('readingPlans.plans')}</Text>
+          <Text style={styles.sectionTitle}>{t('readingPlans.dailyReadings')}</Text>
           {activePlans.length === 0 ? (
             <TouchableOpacity
               onPress={onAddPlan}
@@ -384,57 +440,18 @@ function MyPlansSection({
             <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
           </View>
         ) : (
-          activePlans.map(({ progress, plan }) => {
-            const currentDay = getActivePlanDayNumber(plan, progress);
-            const currentDaySummary = getCurrentPlanDaySummary({
-              plan,
-              entries: readingPlanEntriesByPlanId[plan.id] ?? [],
-              progress,
-              chaptersRead,
-              listeningHistory,
-            });
-            const progressRatio =
-              plan.duration_days > 0
-                ? isCalendarDayOfMonthPlan(plan)
-                  ? currentDay / plan.duration_days
-                  : (currentDay - 1) / plan.duration_days
-                : 0;
-            return (
-              <SwipeablePlanRow
-                key={plan.id}
-                onDelete={() => onDeletePlan(plan.id)}
-              >
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={() => onPlanPress(plan.id)}
-                  activeOpacity={0.7}
-                >
-                  <CoverImage plan={plan} width={68} height={68} colors={colors} />
-                  <View style={styles.cardBody}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {t(plan.title_key as Parameters<typeof t>[0])}
-                    </Text>
-                    <View style={styles.progressBlock}>
-                      <Text style={styles.dayCounter}>
-                        {t('readingPlans.dayOf', {
-                          current: currentDay,
-                          total: plan.duration_days,
-                        })}
-                      </Text>
-                      {isMultiSessionPlan(plan) ? (
-                        <Text style={styles.sessionSummary} numberOfLines={2}>
-                          {formatSessionStatusSummary(currentDaySummary, t)}
-                        </Text>
-                      ) : null}
-                      <ProgressBar progress={progressRatio} colors={colors} />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </SwipeablePlanRow>
-            );
-          })
+          dailyReadingPlans.map(renderPlanCard)
         )}
       </View>
+
+      {dailyRhythmPlans.length > 0 ? (
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('readingPlans.dailyRhythms')}</Text>
+          </View>
+          {dailyRhythmPlans.map(renderPlanCard)}
+        </View>
+      ) : null}
 
       {/* ActivityStreakStrip hidden for now */}
     </View>
@@ -604,8 +621,11 @@ function FindPlansSection({
     return [...new Map([...prefixMatches, ...fuzzyMatches].map((plan) => [plan.id, plan])).values()];
   }, [allPlans, planSearch, searchQuery, searchablePlans]);
 
-  // Group allPlans by category
-  const plansByCategory = filteredPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
+  const dailyRhythmPlans = filteredPlans.filter((plan) => isRecurringPlan(plan));
+  const categoryPlans = filteredPlans.filter((plan) => !isRecurringPlan(plan));
+
+  // Group non-recurring plans by category
+  const plansByCategory = categoryPlans.reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
     const cat = plan.category ?? 'other';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(plan);
@@ -615,6 +635,52 @@ function FindPlansSection({
   const categories = Object.keys(plansByCategory);
 
   const styles = createFindPlansStyles(colors);
+
+  const renderBrowsePlanCard = (plan: ReadingPlan) => {
+    const isEnrolled = enrolledPlanIds.has(plan.id);
+
+    return (
+      <TouchableOpacity
+        style={styles.planCard}
+        onPress={() => onPlanPress(plan.id)}
+        activeOpacity={0.7}
+      >
+        <CoverImage plan={plan} width={140} height={88} colors={colors} />
+        <View style={styles.planCardBody}>
+          <Text style={styles.planCardTitle} numberOfLines={2}>
+            {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
+          </Text>
+          {formatPlanCadenceLabel(plan, t) ? (
+            <Text style={styles.planCadence} numberOfLines={1}>
+              {formatPlanCadenceLabel(plan, t)}
+            </Text>
+          ) : null}
+          <View style={styles.planCardMeta}>
+            <View style={styles.durationBadge}>
+              <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
+            </View>
+            <View
+              style={[
+                styles.enrollBadge,
+                isEnrolled
+                  ? { backgroundColor: colors.accentPrimary }
+                  : { borderWidth: 1, borderColor: colors.accentPrimary },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.enrollBadgeText,
+                  { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
+                ]}
+              >
+                {isEnrolled ? t('readingPlans.enrolled') : t('readingPlans.startPlan')}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.content}>
@@ -632,6 +698,20 @@ function FindPlansSection({
           clearButtonMode="while-editing"
         />
       </View>
+
+      {dailyRhythmPlans.length > 0 ? (
+        <View style={styles.categorySection}>
+          <Text style={styles.categoryHeader}>{t('readingPlans.dailyRhythms')}</Text>
+          <FlatList
+            horizontal
+            data={dailyRhythmPlans}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryList}
+            renderItem={({ item: plan }) => renderBrowsePlanCard(plan)}
+          />
+        </View>
+      ) : null}
 
       {/* Plan cards by category */}
       {categories.map((category) => {
@@ -652,50 +732,7 @@ function FindPlansSection({
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryList}
-              renderItem={({ item: plan }) => {
-                const isEnrolled = enrolledPlanIds.has(plan.id);
-                return (
-                  <TouchableOpacity
-                    style={styles.planCard}
-                    onPress={() => onPlanPress(plan.id)}
-                    activeOpacity={0.7}
-                  >
-                    <CoverImage plan={plan} width={140} height={88} colors={colors} />
-                    <View style={styles.planCardBody}>
-                      <Text style={styles.planCardTitle} numberOfLines={2}>
-                        {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
-                      </Text>
-                      {formatPlanCadenceLabel(plan, t) ? (
-                        <Text style={styles.planCadence} numberOfLines={1}>
-                          {formatPlanCadenceLabel(plan, t)}
-                        </Text>
-                      ) : null}
-                      <View style={styles.planCardMeta}>
-                        <View style={styles.durationBadge}>
-                          <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.enrollBadge,
-                            isEnrolled
-                              ? { backgroundColor: colors.accentPrimary }
-                              : { borderWidth: 1, borderColor: colors.accentPrimary },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.enrollBadgeText,
-                              { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
-                            ]}
-                          >
-                            {isEnrolled ? t('readingPlans.enrolled') : t('readingPlans.startPlan')}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
+              renderItem={({ item: plan }) => renderBrowsePlanCard(plan)}
             />
           </View>
         );

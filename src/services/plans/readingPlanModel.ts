@@ -9,6 +9,10 @@ const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const UUID_PLAN_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLAN_SESSION_ORDER: PlanSessionKey[] = ['morning', 'midday', 'evening'];
+const RECURRING_PLAN_SCHEDULE_MODES = new Set<ReadingPlan['scheduleMode']>([
+  'calendar-day-of-month',
+  'calendar-day-of-week',
+]);
 
 const formatLocalDateKey = (date: Date): string => {
   const year = date.getFullYear();
@@ -94,14 +98,42 @@ export function isCalendarDayOfMonthPlan(
   return plan?.scheduleMode === 'calendar-day-of-month';
 }
 
+export function isCalendarDayOfWeekPlan(
+  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
+): boolean {
+  return plan?.scheduleMode === 'calendar-day-of-week';
+}
+
+export function isRecurringPlan(
+  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
+): boolean {
+  return RECURRING_PLAN_SCHEDULE_MODES.has(plan?.scheduleMode);
+}
+
+function getRecurringPlanDayNumber(
+  plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
+  today: Date
+): number | null {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return today.getDate();
+  }
+
+  if (isCalendarDayOfWeekPlan(plan)) {
+    return today.getDay() + 1;
+  }
+
+  return null;
+}
+
 export function getActivePlanDayNumber(
   plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
   progress?: Pick<UserReadingPlanProgress, 'current_day'> | null,
   today: Date = new Date()
 ): number {
-  if (isCalendarDayOfMonthPlan(plan)) {
-    const maxDay = plan.duration_days > 0 ? plan.duration_days : today.getDate();
-    return Math.min(Math.max(today.getDate(), 1), maxDay);
+  const recurringDayNumber = getRecurringPlanDayNumber(plan, today);
+  if (recurringDayNumber != null) {
+    const maxDay = plan.duration_days > 0 ? plan.duration_days : recurringDayNumber;
+    return Math.min(Math.max(recurringDayNumber, 1), maxDay);
   }
 
   return Math.max(progress?.current_day ?? 1, 1);
@@ -117,7 +149,7 @@ export function getVisiblePlanDayNumbers(
     (left, right) => left - right
   );
 
-  if (!isCalendarDayOfMonthPlan(plan)) {
+  if (!isRecurringPlan(plan)) {
     return uniqueDayNumbers;
   }
 
@@ -130,7 +162,7 @@ export function getPlanCompletionEntryKey(
   dayNumber: number,
   today: Date = new Date()
 ): string {
-  return isCalendarDayOfMonthPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
+  return isRecurringPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
 }
 
 function isPlanSessionKey(value: string | null | undefined): value is PlanSessionKey {

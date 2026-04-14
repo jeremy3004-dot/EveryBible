@@ -344,6 +344,32 @@ test('recurring calendar plans record completion by occurrence date without fini
   assert.deepEqual(store.getState().completedPlanIds, []);
 });
 
+test('weekly recurring session plans record the completed date without advancing the plan forever', async () => {
+  const mod = await import('./readingPlansStore');
+
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+
+  store.getState().enrollPlan('kathisma-weekly');
+  const updated = store.getState().markSessionComplete('kathisma-weekly', 2, 'evening', {
+    completionKey: '2026-04-13:evening',
+    dayCompletionKey: '2026-04-13',
+    totalDays: 7,
+    isFinalSession: true,
+    advanceDayOnCompletion: false,
+    nextSessionKey: null,
+  });
+
+  assert.ok(updated);
+  assert.equal(updated?.current_day, 2);
+  assert.equal(updated?.current_session, null);
+  assert.equal(updated?.is_completed, false);
+  assert.equal(updated?.completed_at, null);
+  assert.equal(updated?.completed_entries['2026-04-13'] !== undefined, true);
+  assert.equal(updated?.completed_sessions?.['2026-04-13:evening'] !== undefined, true);
+  assert.deepEqual(store.getState().completedPlanIds, []);
+});
+
 test('replacing remote progress clears stale local plans while preserving saved plans', async () => {
   const mod = await import('./readingPlansStore');
 

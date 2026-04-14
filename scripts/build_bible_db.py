@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "assets" / "databases" / "bible-bsb-v2.db"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 SOURCE_DATA = [
     {
         "translation_id": "bsb",

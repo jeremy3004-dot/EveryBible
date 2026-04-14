@@ -57,6 +57,11 @@ test('BibleReaderScreen keeps read-mode plan completion explicit while still rou
     false,
     'BibleReaderScreen should keep plan completion explicit instead of auto-completing listen sessions'
   );
+  assert.equal(
+    source.includes('if (!sessionCompletionReady) {'),
+    false,
+    'BibleReaderScreen should not turn the explicit final-step check button into a no-op just because passive activity summary state has not updated yet'
+  );
 });
 
 test('BibleReaderScreen keeps rhythm completions inside the reader until the final segment, then returns to RhythmDetail', () => {
@@ -128,8 +133,13 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
   );
   assert.match(
     source,
-    /showPlanSessionChrome &&[\s\S]*chapterSessionMode === 'read' &&[\s\S]*hasPlanReadDockNextAction[\s\S]*await handleCompletePlanDay\(\);/s,
+    /showPlanSessionChrome &&[\s\S]*chapterSessionMode === 'read' &&[\s\S]*planReadDockTrailingActionState\?\.showCompletionAction &&[\s\S]*hasPlanReadDockNextAction[\s\S]*await handleCompletePlanDay\(\);/s,
     'BibleReaderScreen should complete the active plan day from the shared dock when the final read-mode chapter is reached'
+  );
+  assert.equal(
+    source.includes("chapterSessionMode === 'read' &&\n      !hasNextChapter &&"),
+    false,
+    'BibleReaderScreen should not require the entire Bible to be out of chapters before the final plan-day checkmark can complete the active reading plan'
   );
   assert.match(
     source,
