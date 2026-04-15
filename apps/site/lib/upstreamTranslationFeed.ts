@@ -44,28 +44,6 @@ interface FeedOverride {
   translationId: string;
 }
 
-const HIDDEN_TRANSLATION_IDS = new Set([
-  'darby',
-  'eng-kjv2006',
-  'engdby',
-  'engdra',
-  'enggnv',
-  'eng-web',
-  'eng-webbe',
-  'engwebp',
-  'engwebpb',
-  'engwebu',
-  'engasvbt',
-  'engfbv',
-  'engkjvcpb',
-  'engmsb',
-  'engwebster',
-  'engwmbb',
-  'engwyc2017',
-  'engwyc2018',
-  'web',
-]);
-
 export interface UpstreamTranslationRecord {
   abbreviation: string;
   catalog?: {
@@ -348,7 +326,7 @@ export async function fetchUpstreamTranslations(): Promise<UpstreamTranslationRe
   const skippedSourceIds = new Set(FEED_OVERRIDES.map((override) => override.sourceTranslationId));
 
   const records = eligibleRows
-    .filter((row) => !skippedSourceIds.has(row.translationId) && !HIDDEN_TRANSLATION_IDS.has(row.translationId))
+    .filter((row) => !skippedSourceIds.has(row.translationId))
     .map((row) => mapToUpstreamRecord(row, textPackManifest.get(row.translationId) ?? null));
 
   for (const override of FEED_OVERRIDES) {
