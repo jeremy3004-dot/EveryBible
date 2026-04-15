@@ -691,6 +691,7 @@ export function BibleReaderScreen() {
     playChapter,
     playChapterForTranslation,
     addToQueue,
+    stop,
     togglePlayPause,
     previousChapter,
     nextChapter,
@@ -1760,6 +1761,10 @@ export function BibleReaderScreen() {
         return;
       }
 
+      if (status === 'playing' || status === 'paused' || status === 'loading') {
+        await stop();
+      }
+
       clearPlanDayResume(activePlanId, planDayNumber);
 
       if (!rootNavigationRef.isReady()) {
@@ -1788,6 +1793,8 @@ export function BibleReaderScreen() {
     markChapterRead,
     planDayNumber,
     returnToPlanOnComplete,
+    status,
+    stop,
   ]);
 
   useEffect(
