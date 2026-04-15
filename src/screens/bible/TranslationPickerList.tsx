@@ -40,6 +40,7 @@ import {
   getTranslationSelectionState,
   resolvePreferredTranslationLanguage,
 } from './bibleTranslationModel';
+import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
@@ -476,7 +477,6 @@ export function TranslationPickerList({
                   )}
                 </TouchableOpacity>
               ) : null}
-
               {shouldShowAudioChips && audioCollectionActions.includes('new-testament') ? (
                 <TouchableOpacity
                   style={[
@@ -668,8 +668,7 @@ export function TranslationPickerList({
                 </TouchableOpacity>
               ) : null}
 
-              {(isTextDownloaded || translation.downloadedAudioBooks.length > 0) &&
-              translation.id !== 'bsb' &&
+              {hasTranslationDownloadData(translation) &&
               !isTextDownloadActive &&
               !isActiveAudioJob ? (
                 <TouchableOpacity

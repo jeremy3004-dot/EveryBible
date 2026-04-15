@@ -14,6 +14,8 @@ import {
   subscribeBibleNowPlayingRemoteCommands,
   syncBibleNowPlaying,
 } from '../services/audio';
+import { expoAudioFileSystemAdapter } from '../services/audio/audioDownloadStorage';
+import { fetchRemoteChapterAudio } from '../services/audio/audioRemote';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackAnonymousUsageEvent, trackEvent } from '../services/analytics';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
@@ -320,7 +322,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       try {
         const startPositionMs = Math.max(0, Math.round(options?.startPositionMs ?? 0));
-        const audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
+        let audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
+        const initialAudioUrl = audioData?.url ?? null;
 
         if (playRequestId !== playRequestIdRef.current) {
           return;
@@ -333,7 +336,36 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           return;
         }
 
-        await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+        try {
+          await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+        } catch (initialLoadError) {
+          const shouldRetryWithRemoteFallback = audioData.url.startsWith('file://');
+          if (!shouldRetryWithRemoteFallback) {
+            throw initialLoadError;
+          }
+
+          const remoteFallback = await fetchRemoteChapterAudio(
+            targetTranslationId,
+            bookId,
+            chapter,
+            verse
+          );
+
+          if (!remoteFallback || remoteFallback.url === audioData.url) {
+            throw initialLoadError;
+          }
+
+          await audioPlayer.loadAndPlay(remoteFallback.url, playbackRate);
+          audioData = remoteFallback;
+
+          // If a downloaded chapter file can no longer be decoded, remove it so
+          // future playback prefers the healthy remote asset instead of looping
+          // on the same broken local file forever.
+          if (initialAudioUrl && expoAudioFileSystemAdapter.deleteFile) {
+            await expoAudioFileSystemAdapter.deleteFile(initialAudioUrl).catch(() => {});
+          }
+        }
+
         if (startPositionMs > 0) {
           await audioPlayer.seekTo(startPositionMs);
           setPosition(startPositionMs);

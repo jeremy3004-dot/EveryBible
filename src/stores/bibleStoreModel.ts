@@ -108,3 +108,40 @@ export function mergeDownloadedAudioBook(
     downloadedAudioBooks: [...translation.downloadedAudioBooks, bookId],
   };
 }
+
+export function hasTranslationDownloadData(
+  translation: Pick<
+    BibleTranslation,
+    | 'downloadedAudioBooks'
+    | 'textPackLocalPath'
+    | 'pendingTextPackLocalPath'
+    | 'rollbackTextPackLocalPath'
+  >
+): boolean {
+  return Boolean(
+    translation.textPackLocalPath ||
+      translation.pendingTextPackLocalPath ||
+      translation.rollbackTextPackLocalPath ||
+      translation.downloadedAudioBooks.length > 0
+  );
+}
+
+export function resetTranslationDownloadState(translation: BibleTranslation): BibleTranslation {
+  const hasBundledReadableText = translation.source !== 'runtime' && translation.hasText;
+
+  return {
+    ...translation,
+    isDownloaded: hasBundledReadableText,
+    downloadedBooks: [],
+    downloadedAudioBooks: [],
+    activeTextPackVersion: null,
+    pendingTextPackVersion: null,
+    pendingTextPackLocalPath: null,
+    textPackLocalPath: null,
+    rollbackTextPackVersion: null,
+    rollbackTextPackLocalPath: null,
+    lastInstallError: null,
+    activeDownloadJob: null,
+    installState: translation.source === 'runtime' ? 'remote-only' : hasBundledReadableText ? 'seeded' : translation.installState,
+  };
+}

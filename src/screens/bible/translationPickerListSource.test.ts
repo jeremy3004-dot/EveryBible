@@ -238,6 +238,12 @@ test('shared translation picker can filter by language and download runtime tran
     'TranslationPickerList should render language labels with native-script support where available'
   );
 
+  assert.equal(
+    source.includes('deleteTranslation'),
+    true,
+    'TranslationPickerList should route remove-download actions through the shared store cleanup path'
+  );
+
   assert.match(
     source,
     /pickerMode === 'languages'/,
@@ -334,5 +340,33 @@ test('translation picker renders collection, by-book, and text chip download act
     source,
     /audioDownloadChip:[\s\S]*paddingHorizontal:\s*10,[\s\S]*paddingVertical:\s*6/,
     'TranslationPickerList should keep the pills readable without making them oversized'
+  );
+});
+
+test('translation picker keeps the delete chip available for any translation with removable local data', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.equal(
+    source.includes('hasTranslationDownloadData'),
+    true,
+    'TranslationPickerList should gate destructive remove-download chips on real local assets instead of hard-coded translation ids'
+  );
+
+  assert.equal(
+    source.includes('trash-outline'),
+    true,
+    'TranslationPickerList should keep the trash icon on the remove-download chip'
+  );
+
+  assert.equal(
+    source.includes('translation.id !== \'bsb\''),
+    false,
+    'TranslationPickerList should not hard-block BSB from the remove-download flow'
+  );
+
+  assert.equal(
+    source.includes('deleteTranslation(translation.id)'),
+    true,
+    'TranslationPickerList should route delete-chip presses through the shared translation cleanup action'
   );
 });

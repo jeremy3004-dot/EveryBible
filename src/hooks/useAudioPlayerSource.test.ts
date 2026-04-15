@@ -138,3 +138,31 @@ test('useAudioPlayer resumes interruptions from the saved chapter position inste
     'useAudioPlayer should treat an in-progress loaded chapter as resumable instead of replaying it from the beginning'
   );
 });
+
+test('useAudioPlayer retries the remote chapter stream when a downloaded local audio file fails to load', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.match(
+    source,
+    /const shouldRetryWithRemoteFallback = audioData\.url\.startsWith\('file:\/\/'\);/,
+    'useAudioPlayer should only trigger the recovery path when the failed asset was a downloaded local file'
+  );
+
+  assert.match(
+    source,
+    /const remoteFallback = await fetchRemoteChapterAudio\(\s*targetTranslationId,\s*bookId,\s*chapter,\s*verse\s*\);/s,
+    'useAudioPlayer should resolve the matching remote chapter asset before giving up on playback'
+  );
+
+  assert.match(
+    source,
+    /await audioPlayer\.loadAndPlay\(remoteFallback\.url, playbackRate\);/,
+    'useAudioPlayer should retry playback immediately with the remote chapter asset'
+  );
+
+  assert.match(
+    source,
+    /await expoAudioFileSystemAdapter\.deleteFile\(initialAudioUrl\)\.catch\(\(\) => \{\}\);/,
+    'useAudioPlayer should prune the broken local file after a successful remote fallback'
+  );
+});

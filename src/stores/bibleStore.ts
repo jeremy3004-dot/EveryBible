@@ -47,6 +47,8 @@ import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
   reconcileMissingRuntimeTranslationPacks,
+  hasTranslationDownloadData,
+  resetTranslationDownloadState,
 } from './bibleStoreModel';
 
 interface BibleState {
@@ -96,7 +98,7 @@ interface BibleState {
   downloadAudioForBooks: (translationId: string, bookIds: string[]) => Promise<void>;
   downloadAudioForTranslation: (translationId: string) => Promise<void>;
   cancelDownload: () => void;
-  deleteTranslation: (translationId: string) => void;
+  deleteTranslation: (translationId: string) => Promise<void>;
   isBookDownloaded: (translationId: string, bookId: string) => boolean;
   isAudioBookDownloaded: (translationId: string, bookId: string) => boolean;
 }
@@ -794,34 +796,92 @@ export const useBibleStore = create<BibleState>()(
         set({ downloadProgress: null });
       },
 
-      deleteTranslation: (translationId) => {
-        if (translationId === 'bsb') {
-          return; // Can't delete the default translation
+      deleteTranslation: async (translationId) => {
+        const state = get();
+        const translation = state.translations.find((item) => item.id === translationId);
+
+        if (!translation || !hasTranslationDownloadData(translation)) {
+          return;
         }
 
-        set((state) => ({
-          translations: state.translations.map((t) => {
-            if (t.id === translationId) {
-              return {
-                ...t,
-                isDownloaded: false,
-                downloadedBooks: [],
-                downloadedAudioBooks: [],
-                activeTextPackVersion: null,
-                pendingTextPackVersion: null,
-                pendingTextPackLocalPath: null,
-                textPackLocalPath: null,
-                rollbackTextPackVersion: null,
-                rollbackTextPackLocalPath: null,
-                lastInstallError: null,
-                installState: t.source === 'runtime' ? 'remote-only' : t.installState,
-              };
+        const filePaths = Array.from(
+          new Set(
+            [
+              translation.textPackLocalPath,
+              translation.pendingTextPackLocalPath,
+              translation.rollbackTextPackLocalPath,
+            ].filter((value): value is string => typeof value === 'string' && value.length > 0)
+          )
+        );
+
+        await Promise.all(
+          filePaths.map(async (localPath) => {
+            try {
+              await invalidateInstalledBibleDatabaseAtPath(localPath);
+              await FileSystem.deleteAsync(localPath, { idempotent: true });
+            } catch (error) {
+              console.warn('[Bible] Failed to remove translation text pack:', translationId, localPath, error);
             }
-            return t;
-          }),
-          currentTranslation:
-            state.currentTranslation === translationId ? 'bsb' : state.currentTranslation,
-        }));
+          })
+        );
+
+        try {
+          await FileSystem.deleteAsync(`${AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`, {
+            idempotent: true,
+          });
+        } catch (error) {
+          console.warn('[Bible] Failed to remove translation audio downloads:', translationId, error);
+        }
+
+        try {
+          const jobStore = await createAudioDownloadJobStore({
+            fileSystem: expoAudioFileSystemAdapter,
+            rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+          });
+          const transport = await createBackgroundAudioDownloadTransport();
+          const jobs = await jobStore.listJobs();
+
+          await Promise.all(
+            jobs
+              .filter((job) => job.translationId === translationId)
+              .map(async (job) => {
+                try {
+                  await transport.cancelJob?.(job.id);
+                } catch (error) {
+                  console.warn('[Bible] Failed to cancel translation download job:', job.id, error);
+                }
+
+                await jobStore.removeJob(job.id);
+              })
+          );
+        } catch (error) {
+          console.warn('[Bible] Failed to clear translation download jobs:', translationId, error);
+        }
+
+        let nextTranslationsSnapshot: BibleTranslation[] = [];
+
+        set((currentState) => {
+          const nextTranslations = currentState.translations.map((item) =>
+            item.id === translationId ? resetTranslationDownloadState(item) : item
+          );
+          nextTranslationsSnapshot = nextTranslations;
+          const nextCurrentTranslation =
+            currentState.currentTranslation === translationId && translationId !== 'bsb'
+              ? 'bsb'
+              : currentState.currentTranslation;
+
+          return {
+            translations: nextTranslations,
+            currentTranslation: nextCurrentTranslation,
+            downloadProgress:
+              currentState.downloadProgress?.translationId === translationId
+                ? null
+                : currentState.downloadProgress,
+          };
+        });
+
+        syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
+        syncVerseTimestampMetadataResolverWithTranslations(nextTranslationsSnapshot);
       },
 
       isBookDownloaded: (translationId, bookId) => {
