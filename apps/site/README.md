@@ -4,3 +4,4 @@ Production rules:
 - `apps/site` on `main` is the only deploy source for `everybible.app`.
 - Do not ship production website changes from feature branches or dirty local trees.
 - If the live site ever differs from `main`, treat that as drift and reconcile back into `main` immediately.
+- Use `/download` as the canonical smart CTA and QR target so phones land in the correct app store automatically.

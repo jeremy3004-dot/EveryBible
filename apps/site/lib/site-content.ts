@@ -1,5 +1,8 @@
 import {
+  EVERYBIBLE_APP_STORE_URL,
+  EVERYBIBLE_GOOGLE_PLAY_URL,
   EVERYBIBLE_PRIVACY_PATH,
+  EVERYBIBLE_SMART_DOWNLOAD_PATH,
   EVERYBIBLE_SUPPORT_EMAIL,
   EVERYBIBLE_TERMS_PATH,
 } from './site-links';
@@ -9,8 +12,6 @@ export interface SiteNavigationItem {
   href: string;
 }
 
-const APP_STORE_URL = 'https://apps.apple.com/app/id6758254335';
-const GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.everybible.app';
 export interface HeroContent {
   title: string;
   description: string;
@@ -93,13 +94,13 @@ export const heroContent: HeroContent = {
   storeLinks: [
     {
       label: 'Google Play',
-      href: GOOGLE_PLAY_URL,
+      href: EVERYBIBLE_GOOGLE_PLAY_URL,
       eyebrow: 'Get it on',
       platform: 'google-play',
     },
     {
       label: 'App Store',
-      href: APP_STORE_URL,
+      href: EVERYBIBLE_APP_STORE_URL,
       eyebrow: 'Download on the',
       platform: 'app-store',
     },
@@ -133,7 +134,7 @@ export const featureCards: FeatureCard[] = [
     title: 'Install the App Now',
     description:
       'EveryBible is completely free to use, with no ads and no purchases.',
-    href: GOOGLE_PLAY_URL,
+    href: EVERYBIBLE_SMART_DOWNLOAD_PATH,
     actionLabel: 'Download the Free EveryBible App',
     iconSrc: '/everybible/icons/install-app.svg',
     iconAlt: 'Install the App Now',
@@ -152,7 +153,7 @@ export const verseOfDay: VerseOfDayContent = {
   },
   secondaryAction: {
     label: 'Get Verse of the Day',
-    href: GOOGLE_PLAY_URL,
+    href: EVERYBIBLE_SMART_DOWNLOAD_PATH,
   },
 };
 
@@ -179,7 +180,7 @@ export const footerColumns: FooterColumn[] = [
       { label: 'Verse of the Day', href: '#verse-of-the-day' },
       { label: 'Privacy Policy', href: EVERYBIBLE_PRIVACY_PATH },
       { label: 'Terms of Service', href: EVERYBIBLE_TERMS_PATH },
-      { label: 'Get the app', href: '/support' },
+      { label: 'Get the app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH },
     ],
   },
 ];
@@ -190,11 +191,11 @@ export const mobileTabs: MobileTabItem[] = [
   { label: 'Home', href: '#top', icon: 'home', active: true },
   { label: 'Mission', href: '#mission', icon: 'bible' },
   { label: 'Support', href: '/support', icon: 'plans' },
-  { label: 'Get App', href: GOOGLE_PLAY_URL, icon: 'videos' },
+  { label: 'Get App', href: EVERYBIBLE_SMART_DOWNLOAD_PATH, icon: 'videos' },
 ];
 
 export const supportChannels = {
-  appStoreUrl: APP_STORE_URL,
-  googlePlayUrl: GOOGLE_PLAY_URL,
+  appStoreUrl: EVERYBIBLE_APP_STORE_URL,
+  googlePlayUrl: EVERYBIBLE_GOOGLE_PLAY_URL,
   supportEmail: EVERYBIBLE_SUPPORT_EMAIL,
 };

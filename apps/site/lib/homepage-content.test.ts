@@ -90,7 +90,7 @@ test('resolveHomepageContent falls back per section when the payload is partial 
       storeLinks: [
         {
           label: 'App Store',
-          href: 'https://apps.apple.com/app/id6758254335',
+          href: 'https://apps.apple.com/us/app/every-bible/id6758254335',
           eyebrow: 'Download on the',
           platform: 'app-store',
         },

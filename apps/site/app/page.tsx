@@ -1,14 +1,19 @@
+import Image from 'next/image';
+
 import { HeroDeviceStack } from '../components/HeroDeviceStack';
 import { getHomepageContent } from '../lib/homepage-content';
 import {
   footerColumns,
   siteNavigation,
 } from '../lib/site-content';
+import {
+  EVERYBIBLE_APP_STORE_URL,
+  EVERYBIBLE_GOOGLE_PLAY_URL,
+  EVERYBIBLE_SMART_DOWNLOAD_PATH,
+  EVERYBIBLE_SMART_DOWNLOAD_URL,
+} from '../lib/site-links';
 
 export const dynamic = 'force-dynamic';
-
-const APP_STORE_URL = 'https://apps.apple.com/app/id6758254335';
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.everybible.app';
 
 /* ── Icons ──────────────────────────────────────────────────── */
 function ArrowRight() {
@@ -92,13 +97,13 @@ export default async function Home() {
             ))}
           </nav>
 
-          <a className="site-nav__cta" href="#download">
+          <a className="site-nav__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
             Get the App
           </a>
 
           <div className="site-mobile-menu">
             <a href="/about">Mission</a>
-            <a className="site-mobile-menu__cta" href="#download">
+            <a className="site-mobile-menu__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
               Get the App
             </a>
           </div>
@@ -207,7 +212,7 @@ export default async function Home() {
 
             <p className="scripture__ref">{verseOfDay.reference}</p>
 
-            <a className="scripture__cta" href={PLAY_STORE_URL}>
+            <a className="scripture__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
               <DownloadIcon />
               Get Daily Verses Free
             </a>
@@ -225,19 +230,43 @@ export default async function Home() {
             <p className="download-cta__sub">
               EveryBible is completely free — no ads, no purchases, no subscriptions. Just God&rsquo;s Word.
             </p>
-            <div className="download-cta__badges">
-              <StoreBadge
-                eyebrow="Download on the"
-                label="App Store"
-                href={APP_STORE_URL}
-                platform="app-store"
-              />
-              <StoreBadge
-                eyebrow="Get it on"
-                label="Google Play"
-                href={PLAY_STORE_URL}
-                platform="google-play"
-              />
+            <div className="download-cta__actions">
+              <div className="download-cta__badges">
+                <StoreBadge
+                  eyebrow="Download on the"
+                  label="App Store"
+                  href={EVERYBIBLE_APP_STORE_URL}
+                  platform="app-store"
+                />
+                <StoreBadge
+                  eyebrow="Get it on"
+                  label="Google Play"
+                  href={EVERYBIBLE_GOOGLE_PLAY_URL}
+                  platform="google-play"
+                />
+              </div>
+
+              <div className="download-cta__qr">
+                <div className="download-cta__qr-card">
+                  <Image
+                    className="download-cta__qr-image"
+                    src="/everybible/download-qr.svg"
+                    alt="QR code that opens the right EveryBible store page for your phone."
+                    width={220}
+                    height={220}
+                    unoptimized
+                  />
+                </div>
+                <div className="download-cta__qr-copy">
+                  <p className="download-cta__qr-eyebrow">Scan on your phone</p>
+                  <p className="download-cta__qr-text">
+                    Android opens Google Play. iPhone opens the App Store.
+                  </p>
+                  <a className="download-cta__qr-link" href={EVERYBIBLE_SMART_DOWNLOAD_URL}>
+                    {EVERYBIBLE_SMART_DOWNLOAD_URL.replace('https://', '')}
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
