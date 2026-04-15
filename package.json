@@ -1,6 +1,7 @@
 {
   "name": "everybible",
   "version": "1.0.1",
+  "packageManager": "npm@11.11.0",
   "workspaces": [
     "apps/*",
     "packages/*"
