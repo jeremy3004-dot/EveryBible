@@ -256,12 +256,17 @@ export default async function Home() {
                     height={220}
                     unoptimized
                   />
+                  <div className="download-cta__qr-icon-shell" aria-hidden="true">
+                    <Image
+                      className="download-cta__qr-icon"
+                      src="/everybible/app-icon.png"
+                      alt=""
+                      width={56}
+                      height={56}
+                    />
+                  </div>
                 </div>
                 <div className="download-cta__qr-copy">
-                  <p className="download-cta__qr-eyebrow">Scan on your phone</p>
-                  <p className="download-cta__qr-text">
-                    Android opens Google Play. iPhone opens the App Store.
-                  </p>
                   <a className="download-cta__qr-link" href={EVERYBIBLE_SMART_DOWNLOAD_URL}>
                     {EVERYBIBLE_SMART_DOWNLOAD_URL.replace('https://', '')}
                   </a>
