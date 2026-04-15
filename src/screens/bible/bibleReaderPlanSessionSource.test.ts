@@ -294,6 +294,11 @@ test('BibleReaderScreen avoids auto-completing plan chapters on open and returns
   );
   assert.match(
     source,
+    /if \(status === 'playing' \|\| status === 'paused' \|\| status === 'loading'\) \{[\s\S]*await stop\(\);[\s\S]*\}[\s\S]*clearPlanDayResume\(activePlanId, planDayNumber\);[\s\S]*rootNavigationRef\.navigate\('Plans', \{\s*screen:\s*'PlansHome',?\s*\}\);/s,
+    'BibleReaderScreen should stop active reader audio before clearing plan resume state and navigating back to My Plans'
+  );
+  assert.match(
+    source,
     /rootNavigationRef\.navigate\('Plans', \{\s*screen:\s*'PlansHome',?\s*\}\);/s,
     'BibleReaderScreen should return plan completion back to the My Plans surface instead of chaining into another detail screen'
   );
