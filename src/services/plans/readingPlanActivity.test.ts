@@ -598,6 +598,90 @@ test('getCurrentPlanDaySummary keeps weekly multi-session rhythms ordered across
   );
 });
 
+test('getCurrentPlanDaySummary honors persisted recurring session completion when chapter activity is incomplete', () => {
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({
+      id: 'kathisma-weekly',
+      slug: 'kathisma-weekly',
+      scheduleMode: 'calendar-day-of-week',
+      format: 'multi-session',
+      sessionOrder: ['morning', 'evening'],
+      duration_days: 7,
+    }),
+    entries: [
+      makeEntry({
+        id: 'mon-morning-1',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 25,
+        chapter_end: 32,
+      }),
+      makeEntry({
+        id: 'mon-morning-2',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'morning',
+        session_title: 'Morning Kathismata',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 33,
+        chapter_end: 37,
+      }),
+      makeEntry({
+        id: 'mon-evening-1',
+        plan_id: 'kathisma-weekly',
+        day_number: 2,
+        session_key: 'evening',
+        session_title: 'Evening Kathismata',
+        session_order: 2,
+        book: 'PSA',
+        chapter_start: 38,
+        chapter_end: 45,
+      }),
+    ],
+    progress: makeProgress('kathisma-weekly', {
+      started_at: new Date(2026, 3, 1, 7, 0, 0).toISOString(),
+      current_day: 1,
+      completed_sessions: {
+        '2026-04-13:morning': new Date(2026, 3, 13, 8, 55, 0).toISOString(),
+      },
+    }),
+    chaptersRead: {},
+    listeningHistory: [],
+    today: new Date(2026, 3, 13, 12, 0, 0),
+  });
+
+  assert.equal(summary.dayNumber, 2);
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(summary.nextIncompleteSessionKey, 'evening');
+  assert.deepEqual(
+    summary.sessionSummaries.map((session) => ({
+      key: session.sessionKey,
+      complete: session.isComplete,
+      completed: session.completedChapterCount,
+      remaining: session.remainingChapterCount,
+    })),
+    [
+      {
+        key: 'morning',
+        complete: true,
+        completed: 13,
+        remaining: 0,
+      },
+      {
+        key: 'evening',
+        complete: false,
+        completed: 0,
+        remaining: 8,
+      },
+    ]
+  );
+});
+
 test('getPlanChapterListenStatus suppresses listen-counted credit when the chapter was already completed by reading', () => {
   const status = getPlanChapterListenStatus({
     chapterKey: 'GEN_1',

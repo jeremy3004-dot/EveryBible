@@ -14,6 +14,7 @@ import type {
 import { formatLocalDateKey } from '../progress/readingActivity';
 import {
   getActivePlanDayNumber,
+  buildPlanSessionCompletionKey,
   getDaySessionEntries,
   isRecurringPlan,
   isMultiSessionPlan,
@@ -574,11 +575,18 @@ export function getCurrentPlanDaySummary({
   const completedChapterCount = summary.completedActivity.filter((record) =>
     summary.targetChapterKeys.includes(record.chapterKey)
   ).length;
-  const sessionSummaries = buildPlanDaySessionSummaries(entries, resolvedDayNumber, {
-    chaptersRead,
-    listeningHistory,
-    now: today,
-    listenCompletionThreshold,
+  const sessionSummaries = buildPlanDaySessionSummaries({
+    plan,
+    progress,
+    entries,
+    dayNumber: resolvedDayNumber,
+    today,
+    input: {
+      chaptersRead,
+      listeningHistory,
+      now: today,
+      listenCompletionThreshold,
+    },
   });
   const completedSessionCount = sessionSummaries.filter((session) => session.isComplete).length;
 
@@ -603,31 +611,52 @@ export function getCurrentPlanDaySummary({
   };
 }
 
-function buildPlanDaySessionSummaries(
-  entries: ReadingPlanEntry[],
-  dayNumber: number,
-  input: MergeTodayChapterActivityInput
-): PlanDaySessionSummary[] {
+function buildPlanDaySessionSummaries({
+  plan,
+  progress,
+  entries,
+  dayNumber,
+  today,
+  input,
+}: {
+  plan?: ReadingPlan | null;
+  progress: UserReadingPlanProgress;
+  entries: ReadingPlanEntry[];
+  dayNumber: number;
+  today: Date;
+  input: MergeTodayChapterActivityInput;
+}): PlanDaySessionSummary[] {
   return getDaySessionEntries(entries, dayNumber).map((sessionGroup) => {
     const sessionCompletionSummary = buildPlanDayCompletionSummary(sessionGroup.entries, dayNumber, input);
-    const completedChapterCount = sessionCompletionSummary.completedActivity.filter((record) =>
-      sessionCompletionSummary.targetChapterKeys.includes(record.chapterKey)
-    ).length;
+    const persistedCompletionKey = plan
+      ? buildPlanSessionCompletionKey(plan, dayNumber, sessionGroup.sessionKey, today)
+      : `${dayNumber}:${sessionGroup.sessionKey}`;
+    const isPersistedSessionComplete = Boolean(
+      progress.completed_sessions?.[persistedCompletionKey]
+    );
+    const completedChapterKeys = isPersistedSessionComplete
+      ? sessionCompletionSummary.targetChapterKeys
+      : sessionCompletionSummary.completedChapterKeys.filter((chapterKey) =>
+          sessionCompletionSummary.targetChapterKeys.includes(chapterKey)
+        );
+    const completedChapterCount = isPersistedSessionComplete
+      ? sessionCompletionSummary.targetChapterKeys.length
+      : sessionCompletionSummary.completedActivity.filter((record) =>
+          sessionCompletionSummary.targetChapterKeys.includes(record.chapterKey)
+        ).length;
 
     return {
       sessionKey: sessionGroup.sessionKey,
       title: sessionGroup.title,
       targetChapterKeys: sessionCompletionSummary.targetChapterKeys,
-      completedChapterKeys: sessionCompletionSummary.completedChapterKeys.filter((chapterKey) =>
-        sessionCompletionSummary.targetChapterKeys.includes(chapterKey)
-      ),
+      completedChapterKeys,
       targetChapterCount: sessionCompletionSummary.targetChapterKeys.length,
       completedChapterCount,
       remainingChapterCount: Math.max(
         sessionCompletionSummary.targetChapterKeys.length - completedChapterCount,
         0
       ),
-      isComplete: sessionCompletionSummary.isComplete,
+      isComplete: isPersistedSessionComplete || sessionCompletionSummary.isComplete,
     };
   });
 }
