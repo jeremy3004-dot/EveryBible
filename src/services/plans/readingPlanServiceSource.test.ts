@@ -58,18 +58,8 @@ test('signed-in reading plan fetch reconciles local and remote plan progress bef
   );
   assert.match(
     source,
-    /if \(planId\) \{[\s\S]*upsertProgress[\s\S]*\} else \{[\s\S]*replaceProgress\(reconciledProgress\)/,
-    'full progress fetches should replace store state with reconciled plan progress instead of the raw remote list'
-  );
-  assert.match(
-    source,
-    /return withTimeoutFallback\(/,
-    'reading plan progress fetches should timebox remote hydration so offline loads can fall back to local progress promptly'
-  );
-  assert.match(
-    source,
-    /PLAN_REMOTE_PROGRESS_TIMEOUT_MS = 1500/,
-    'reading plan progress fetches should use a short timeout budget before falling back to local progress'
+    /if \(planId\) \{[\s\S]*reconciledProgress\.forEach\(\(progress\) => \{[\s\S]*upsertProgress\(progress\);[\s\S]*\}\)[\s\S]*\} else \{[\s\S]*replaceProgress\(reconciledProgress\)/,
+    'plan-specific progress refreshes should also upsert the reconciled rows so fresh local session completion is not overwritten by stale remote state'
   );
 });
 

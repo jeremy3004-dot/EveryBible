@@ -445,7 +445,7 @@ export async function getUserPlanProgress(
             ? localProgress
             : reconcileFetchedPlanProgress(localProgress, remoteProgress, fetchedAt);
         if (planId) {
-          remoteProgress.forEach((progress) => {
+          reconciledProgress.forEach((progress) => {
             readingPlansStore.getState().upsertProgress(progress);
           });
         } else {

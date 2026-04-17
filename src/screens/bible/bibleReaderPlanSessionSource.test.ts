@@ -281,7 +281,16 @@ test('BibleReaderScreen bounds audio playback to the active plan or rhythm slice
   );
 });
 
-test('BibleReaderScreen avoids auto-completing plan chapters on open and returns completion to My Plans', () => {
+test('BibleReaderScreen avoids auto-completing plan chapters on open and returns completed multi-session plans to plan detail', () => {
+  const handleCompletePlanDayMatch = source.match(
+    /const handleCompletePlanDay = useCallback\(async \(\) => \{[\s\S]*?\n\s+\}, \[/
+  );
+  assert.ok(
+    handleCompletePlanDayMatch,
+    'BibleReaderScreen should define the plan completion handler inline'
+  );
+  const handleCompletePlanDaySource = handleCompletePlanDayMatch?.[0] ?? '';
+
   assert.match(
     source,
     /if \(!returnToPlanOnComplete\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
@@ -293,13 +302,8 @@ test('BibleReaderScreen avoids auto-completing plan chapters on open and returns
     'BibleReaderScreen should only count the current chapter as read when the user explicitly completes the plan step in read mode'
   );
   assert.match(
-    source,
-    /if \(status === 'playing' \|\| status === 'paused' \|\| status === 'loading'\) \{[\s\S]*await stop\(\);[\s\S]*\}[\s\S]*clearPlanDayResume\(activePlanId, planDayNumber\);[\s\S]*rootNavigationRef\.navigate\('Plans', \{\s*screen:\s*'PlansHome',?\s*\}\);/s,
-    'BibleReaderScreen should stop active reader audio before clearing plan resume state and navigating back to My Plans'
-  );
-  assert.match(
-    source,
-    /rootNavigationRef\.navigate\('Plans', \{\s*screen:\s*'PlansHome',?\s*\}\);/s,
-    'BibleReaderScreen should return plan completion back to the My Plans surface instead of chaining into another detail screen'
+    handleCompletePlanDaySource,
+    /const shouldReturnToPlanDetail =[\s\S]*activePlanSessionIndex <[\s\S]*sessionSummaries\.length[\s\S]*- 1[\s\S]*await stop\(\);[\s\S]*clearAudioPlaybackSequence\(\);[\s\S]*setAudioTrack\(null,\s*null,\s*null\);[\s\S]*clearPlanDayResume\(activePlanId, planDayNumber\);[\s\S]*rootNavigationRef\.navigate\(\s*'Plans',\s*shouldReturnToPlanDetail[\s\S]*screen:\s*'PlanDetail',[\s\S]*params:\s*\{\s*planId:\s*activePlanId\s*\}[\s\S]*screen:\s*'PlansHome'[\s\S]*\);/s,
+    'BibleReaderScreen should fully tear down playback, then return non-final multi-session completion to plan detail while final completion still falls back to My Plans'
   );
 });
