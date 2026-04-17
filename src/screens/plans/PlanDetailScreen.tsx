@@ -349,6 +349,11 @@ interface DayRowProps {
   isCompleted: boolean;
   isCurrent: boolean;
   sessionBadges?: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
+  sessionActions?: Array<{
+    sessionKey: PlanSessionKey;
+    label: string;
+    state: 'done' | 'next' | 'upcoming' | 'available';
+  }>;
   onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
 }
 
@@ -362,6 +367,7 @@ function DayRow({
   isCompleted,
   isCurrent,
   sessionBadges = [],
+  sessionActions = [],
   onPress,
 }: DayRowProps) {
   const { colors } = useTheme();
@@ -370,118 +376,168 @@ function DayRow({
   const accessibilityLabel = isCurrent
     ? `Current plan day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
     : `Day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
+  const surfaceStyle = {
+    backgroundColor: colors.cardBackground,
+    borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
+    borderWidth: isCurrent ? 1.5 : 1,
+  } as const;
+  const hasSessionActions = sessionActions.length > 0;
 
   return (
-    <TouchableOpacity
-      testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-      onPress={() => onPress(dayNumber, launchSessionKey)}
-      activeOpacity={0.85}
-      style={[
-        dayRowStyles.row,
-        {
-          backgroundColor: colors.cardBackground,
-          borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
-          borderWidth: isCurrent ? 1.5 : 1,
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      <View
-        style={[
-          dayRowStyles.badge,
-          {
-            backgroundColor:
-              isCompleted
-                ? colors.accentPrimary
-                : colors.background,
-            borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
-            borderWidth: isCompleted ? 0 : 1,
-          },
-        ]}
+    <View style={[dayRowStyles.container, surfaceStyle]}>
+      <TouchableOpacity
+        testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
+        onPress={() => onPress(dayNumber, launchSessionKey)}
+        activeOpacity={0.85}
+        style={dayRowStyles.row}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
       >
-        {isCompleted ? (
-          <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
-        ) : (
-          <Text
-            style={[
-              dayRowStyles.badgeText,
-              { color: isCurrent ? colors.accentPrimary : colors.secondaryText },
-            ]}
-          >
-            {dayNumber}
-          </Text>
-        )}
-      </View>
+        <View
+          style={[
+            dayRowStyles.badge,
+            {
+              backgroundColor:
+                isCompleted
+                  ? colors.accentPrimary
+                  : colors.background,
+              borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
+              borderWidth: isCompleted ? 0 : 1,
+            },
+          ]}
+        >
+          {isCompleted ? (
+            <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
+          ) : (
+            <Text
+              style={[
+                dayRowStyles.badgeText,
+                { color: isCurrent ? colors.accentPrimary : colors.secondaryText },
+              ]}
+            >
+              {dayNumber}
+            </Text>
+          )}
+        </View>
 
-      <View style={dayRowStyles.content}>
-        {dateLabel ? (
-          <Text style={[dayRowStyles.dateLabel, { color: colors.secondaryText }]}>
-            {dateLabel}
+        <View style={dayRowStyles.content}>
+          {dateLabel ? (
+            <Text style={[dayRowStyles.dateLabel, { color: colors.secondaryText }]}>
+              {dateLabel}
+            </Text>
+          ) : null}
+          <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
+            {refs}
           </Text>
-        ) : null}
-        <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
-          {refs}
-        </Text>
-        {sessionBadges.length > 0 ? (
-          <View style={dayRowStyles.sessionBadgeRow}>
-            {sessionBadges.map((badge) => {
-              const palette =
-                badge.state === 'done'
+          {!hasSessionActions && sessionBadges.length > 0 ? (
+            <View style={dayRowStyles.sessionBadgeRow}>
+              {sessionBadges.map((badge) => {
+                const palette =
+                  badge.state === 'done'
+                    ? {
+                        backgroundColor: colors.accentPrimary,
+                        borderColor: colors.accentPrimary,
+                        textColor: colors.cardBackground,
+                      }
+                    : badge.state === 'next'
+                      ? {
+                          backgroundColor: colors.cardBackground,
+                          borderColor: colors.accentPrimary,
+                          textColor: colors.accentPrimary,
+                        }
+                      : {
+                          backgroundColor: colors.background,
+                          borderColor: colors.cardBorder,
+                          textColor: colors.secondaryText,
+                        };
+
+                return (
+                  <View
+                    key={`${dayNumber}-${badge.label}`}
+                    style={[
+                      dayRowStyles.sessionBadge,
+                      {
+                        backgroundColor: palette.backgroundColor,
+                        borderColor: palette.borderColor,
+                      },
+                    ]}
+                  >
+                    <Text style={[dayRowStyles.sessionBadgeText, { color: palette.textColor }]}>
+                      {badge.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
+
+        <Ionicons
+          name={isCompleted ? 'chevron-forward' : 'chevron-forward-outline'}
+          size={16}
+          color={colors.secondaryText}
+        />
+      </TouchableOpacity>
+
+      {hasSessionActions ? (
+        <View style={dayRowStyles.sessionActionRow}>
+          {sessionActions.map((action) => {
+            const palette =
+              action.state === 'done'
+                ? {
+                    backgroundColor: colors.accentPrimary,
+                    borderColor: colors.accentPrimary,
+                    textColor: colors.cardBackground,
+                  }
+                : action.state === 'next'
                   ? {
                       backgroundColor: colors.accentPrimary,
                       borderColor: colors.accentPrimary,
                       textColor: colors.cardBackground,
                     }
-                  : badge.state === 'next'
-                    ? {
-                        backgroundColor: colors.cardBackground,
-                        borderColor: colors.accentPrimary,
-                        textColor: colors.accentPrimary,
-                      }
-                    : {
-                        backgroundColor: colors.background,
-                        borderColor: colors.cardBorder,
-                        textColor: colors.secondaryText,
-                      };
+                  : {
+                      backgroundColor: colors.background,
+                      borderColor: colors.cardBorder,
+                      textColor: colors.primaryText,
+                    };
 
-              return (
-                <View
-                  key={`${dayNumber}-${badge.label}`}
-                  style={[
-                    dayRowStyles.sessionBadge,
-                    {
-                      backgroundColor: palette.backgroundColor,
-                      borderColor: palette.borderColor,
-                    },
-                  ]}
-                >
-                  <Text style={[dayRowStyles.sessionBadgeText, { color: palette.textColor }]}>
-                    {badge.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-      </View>
-
-      <Ionicons
-        name={isCompleted ? 'chevron-forward' : 'chevron-forward-outline'}
-        size={16}
-        color={colors.secondaryText}
-      />
-    </TouchableOpacity>
+            return (
+              <TouchableOpacity
+                key={`${dayNumber}-${action.sessionKey}`}
+                onPress={() => onPress(dayNumber, action.sessionKey)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`${action.label} for day ${dayNumber}`}
+                style={[
+                  dayRowStyles.sessionActionButton,
+                  {
+                    backgroundColor: palette.backgroundColor,
+                    borderColor: palette.borderColor,
+                  },
+                ]}
+              >
+                <Text style={[dayRowStyles.sessionActionLabel, { color: palette.textColor }]}>
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const dayRowStyles = StyleSheet.create({
+  container: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderWidth: 1,
-    borderRadius: radius.md,
     minHeight: 72,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -519,6 +575,24 @@ const dayRowStyles = StyleSheet.create({
     paddingVertical: 4,
   },
   sessionBadgeText: {
+    ...typography.micro,
+  },
+  sessionActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: -spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sessionActionButton: {
+    minHeight: 36,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  sessionActionLabel: {
     ...typography.micro,
   },
 });
@@ -921,6 +995,28 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
                 state,
               } as const;
             });
+            const sessionActions = daySessionGroups.map((group) => {
+              const matchingSummary =
+                isCurrent && isEnrolled
+                  ? currentDaySummary?.sessionSummaries.find(
+                      (session) => session.sessionKey === group.sessionKey
+                    ) ?? null
+                  : null;
+              const state =
+                !isCurrent || !isEnrolled
+                  ? 'available'
+                  : matchingSummary?.isComplete
+                    ? 'done'
+                    : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
+                      ? 'next'
+                      : 'upcoming';
+
+              return {
+                sessionKey: group.sessionKey,
+                label: group.title,
+                state,
+              } as const;
+            });
             return (
               <DayRow
                 key={dayNumber}
@@ -931,6 +1027,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
                 isCompleted={isCompleted}
                 isCurrent={isCurrent && isEnrolled}
                 sessionBadges={sessionBadges}
+                sessionActions={sessionActions}
                 onPress={handleOpenChapter}
               />
             );

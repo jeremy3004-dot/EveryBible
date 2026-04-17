@@ -84,6 +84,29 @@ test('PlanDetailScreen only renders the active day for recurring rhythm plans', 
   );
 });
 
+test('PlanDetailScreen exposes direct session buttons for multi-session days', () => {
+  assert.match(
+    source,
+    /const sessionActions = daySessionGroups\.map\(\(group\) => \{/,
+    'PlanDetailScreen should derive explicit per-session actions from each day session group'
+  );
+  assert.match(
+    source,
+    /sessionActions=\{sessionActions\}/,
+    'PlanDetailScreen should pass the per-session actions into each day row'
+  );
+  assert.match(
+    source,
+    /sessionActions\.map\(\(action\) => \{/,
+    'PlanDetailScreen should render a button for each available session on that day'
+  );
+  assert.match(
+    source,
+    /onPress=\{\(\) => onPress\(dayNumber, action\.sessionKey\)\}/,
+    'PlanDetailScreen should open the exact tapped session instead of always defaulting to the first one'
+  );
+});
+
 test('PlanDetailScreen does not render save, sample, or public completion controls', () => {
   assert.doesNotMatch(
     source,
