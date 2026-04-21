@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  InteractionManager,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -36,6 +37,7 @@ export function PrivacyPreferencesScreen() {
   const currentMode = usePrivacyStore((state) => state.mode);
   const hasExistingPin = usePrivacyStore((state) => state.hasPin);
   const saveConfiguration = usePrivacyStore((state) => state.saveConfiguration);
+  const lockPrivacy = usePrivacyStore((state) => state.lock);
   const [selectedMode, setSelectedMode] = useState<PrivacyAppIconMode>(currentMode);
   const [pinInput, setPinInput] = useState('');
   const [pinConfirmation, setPinConfirmation] = useState('');
@@ -83,6 +85,12 @@ export function PrivacyPreferencesScreen() {
       }
 
       navigation.goBack();
+
+      if (savePlan.input.mode === 'discreet') {
+        InteractionManager.runAfterInteractions(() => {
+          lockPrivacy();
+        });
+      }
     } finally {
       setIsSaving(false);
     }
