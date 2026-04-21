@@ -34,3 +34,25 @@ test('PrivacyPreferencesScreen keeps the discreet secure-code form above the key
     'PrivacyPreferencesScreen should keep extra bottom breathing room so the secure-code card can scroll fully above the keyboard'
   );
 });
+
+test('PrivacyPreferencesScreen activates the calculator lock after enabling discreet mode', () => {
+  const source = readRelativeSource('./PrivacyPreferencesScreen.tsx');
+
+  assert.equal(
+    source.includes('InteractionManager'),
+    true,
+    'PrivacyPreferencesScreen should defer calculator lock activation until after leaving preferences'
+  );
+
+  assert.match(
+    source,
+    /const lockPrivacy = usePrivacyStore\(\(state\) => state\.lock\);/,
+    'PrivacyPreferencesScreen should subscribe to the existing privacy lock action'
+  );
+
+  assert.match(
+    source,
+    /navigation\.goBack\(\);\s+if \(savePlan\.input\.mode === 'discreet'\) \{\s+InteractionManager\.runAfterInteractions\(\(\) => \{\s+lockPrivacy\(\);/s,
+    'PrivacyPreferencesScreen should lock only after a successful discreet-mode save and navigation'
+  );
+});
