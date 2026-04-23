@@ -1,0 +1,32 @@
+name: Google Play Listing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-listing:
+    name: Publish Google Play listing assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write Google Play service account key
+        run: |
+          set -euo pipefail
+          printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > ./google-play-service-account.json
+
+      - name: Publish listing text and images
+        run: npm run play:publish-listing
