@@ -51,7 +51,8 @@
     "import:open-bible-audio": "tsx scripts/import-open-bible-audio.ts",
     "manifest:text-packs": "tsx scripts/generate-r2-text-pack-manifest.ts",
     "verify:android-page-size": "node scripts/check_android_page_size.mjs",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "play:publish-listing": "node scripts/publish_google_play_listing.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
