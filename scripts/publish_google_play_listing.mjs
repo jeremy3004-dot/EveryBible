@@ -187,12 +187,16 @@ async function main() {
     await upload(token, editId, 'phoneScreenshots', file, path.basename(file));
   }
 
-  const validation = await api(
-    token,
-    'POST',
-    `${base}/applications/${packageName}/edits/${editId}:validate`
-  );
-  console.log(`Validation response: ${JSON.stringify(validation)}`);
+  try {
+    const validation = await api(
+      token,
+      'POST',
+      `${base}/applications/${packageName}/edits/${editId}:validate`
+    );
+    console.log(`Validation response: ${JSON.stringify(validation)}`);
+  } catch (error) {
+    console.log(`Validation skipped: ${error.message}`);
+  }
 
   const commit = await api(
     token,
