@@ -23,11 +23,11 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
   {
     id: 'ambient',
     label: 'Ambient',
-    description: 'Soft atmospheric pad underneath narration.',
+    description: 'Looped underwater pads and bells underneath narration.',
     license: 'CC0',
-    credit: 'isaiah658',
-    sourceUrl: 'https://opengameart.org/content/ambient-relaxing-loop',
-    defaultVolume: 0.2,
+    credit: 'Cleyton Kauffman',
+    sourceUrl: 'https://opengameart.org/content/underwater-theme',
+    defaultVolume: 0.16,
   },
   {
     id: 'piano',

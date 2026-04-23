@@ -5,10 +5,12 @@ These files are bundled into EveryBible for offline listen-mode background audio
 ## Ambient
 
 - Bundled file: `ambient.m4a`
-- Derived from: `Ambient-Loop-isaiah658.ogg`
-- Source page: <https://opengameart.org/content/ambient-relaxing-loop>
-- Original author: `isaiah658`
+- Derived from: `Cleyton RX - Underwater_0.mp3`
+- Source page: <https://opengameart.org/content/underwater-theme>
+- Original author: `Cleyton Kauffman`
 - License: `CC0`
+- Source page attribution notice: `Music by Cleyton Kauffman - https://soundcloud.com/cleytonkauffman`
+- Shipping note: source is advertised as looped; runtime playback overlaps the end and start with a short crossfade to avoid an audible loop boundary.
 
 ## Piano
 
