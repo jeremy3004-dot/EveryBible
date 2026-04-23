@@ -78,4 +78,4 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.submit }}
         run: |
           set -euo pipefail
-          npx -y eas-cli submit --platform android --profile production --path "${{ steps.build.outputs.aab_path }}" --non-interactive --no-wait
+          npx -y eas-cli submit --platform android --profile production --path "${{ steps.build.outputs.aab_path }}" --non-interactive --wait
