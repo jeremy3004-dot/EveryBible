@@ -14,6 +14,8 @@ import {
   subscribeBibleNowPlayingRemoteCommands,
   syncBibleNowPlaying,
 } from '../services/audio';
+import { expoAudioFileSystemAdapter } from '../services/audio/audioDownloadStorage';
+import { fetchRemoteChapterAudio } from '../services/audio/audioRemote';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackAnonymousUsageEvent, trackEvent } from '../services/analytics';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
@@ -320,7 +322,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       try {
         const startPositionMs = Math.max(0, Math.round(options?.startPositionMs ?? 0));
-        const audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
+        let audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
+        const initialAudioUrl = audioData?.url ?? null;
 
         if (playRequestId !== playRequestIdRef.current) {
           return;
@@ -333,7 +336,36 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           return;
         }
 
-        await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+        try {
+          await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+        } catch (initialLoadError) {
+          const shouldRetryWithRemoteFallback = audioData.url.startsWith('file://');
+          if (!shouldRetryWithRemoteFallback) {
+            throw initialLoadError;
+          }
+
+          const remoteFallback = await fetchRemoteChapterAudio(
+            targetTranslationId,
+            bookId,
+            chapter,
+            verse
+          );
+
+          if (!remoteFallback || remoteFallback.url === audioData.url) {
+            throw initialLoadError;
+          }
+
+          await audioPlayer.loadAndPlay(remoteFallback.url, playbackRate);
+          audioData = remoteFallback;
+
+          // If a downloaded chapter file can no longer be decoded, remove it so
+          // future playback prefers the healthy remote asset instead of looping
+          // on the same broken local file forever.
+          if (initialAudioUrl && expoAudioFileSystemAdapter.deleteFile) {
+            await expoAudioFileSystemAdapter.deleteFile(initialAudioUrl).catch(() => {});
+          }
+        }
+
         if (startPositionMs > 0) {
           await audioPlayer.seekTo(startPositionMs);
           setPosition(startPositionMs);
@@ -399,8 +431,24 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Handle playback status updates from track-player wrapper
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
-      const currentPosition = useAudioStore.getState().currentPosition;
-      const currentDuration = useAudioStore.getState().duration;
+      const store = useAudioStore.getState();
+      const activeBookId = store.currentBookId;
+      const activeChapter = store.currentChapter;
+
+      // Ignore late native callbacks once stop/resetPlayback has cleared the
+      // active track so completion can't resurrect a stale return-tab state.
+      if (!activeBookId || !activeChapter) {
+        if (interpolationTimerRef.current) {
+          clearInterval(interpolationTimerRef.current);
+          interpolationTimerRef.current = null;
+        }
+        stopAudioProgressTelemetryTimer();
+        lastNowPlayingSignatureRef.current = null;
+        return;
+      }
+
+      const currentPosition = store.currentPosition;
+      const currentDuration = store.duration;
       // Keep the visible position monotonic so stop-like snapshots from
       // background-music teardown cannot pull the Bible progress bar backward.
       const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
@@ -410,13 +458,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       setPosition(nextPosition);
       setDuration(nextDuration);
       syncCurrentNowPlaying({
-        translationId: useAudioStore.getState().currentTranslationId ?? translationId,
-        bookId: useAudioStore.getState().currentBookId ?? undefined,
-        chapter: useAudioStore.getState().currentChapter ?? undefined,
+        translationId: store.currentTranslationId ?? translationId,
+        bookId: activeBookId,
+        chapter: activeChapter,
         positionMs: nextPosition,
         durationMs: nextDuration,
         isPlaying: snapshot.isPlaying,
-        playbackRate: useAudioStore.getState().playbackRate ?? 1,
+        playbackRate: store.playbackRate ?? 1,
       });
 
       // Record the real poll anchor for interpolation

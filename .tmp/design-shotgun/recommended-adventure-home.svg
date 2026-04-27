@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="2868" viewBox="0 0 1320 2868">
+  <defs>
+    <style>
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+      .title { font: 800 56px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .h2 { font: 800 42px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .body { font: 700 30px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .small { font: 700 23px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tiny { font: 700 19px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+    <pattern id="grain" width="18" height="18" patternUnits="userSpaceOnUse">
+      <rect width="18" height="18" fill="#17110f"/>
+      <rect x="2" y="2" width="3" height="3" fill="#ffffff" opacity=".035"/>
+      <rect x="12" y="9" width="2" height="2" fill="#ffffff" opacity=".03"/>
+    </pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="0" flood-color="#000" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <rect width="1320" height="2868" fill="#17110f"/>
+  <rect width="1320" height="2868" fill="url(#grain)"/>
+
+  <rect x="0" y="0" width="1320" height="166" fill="#120d0b"/>
+  <text x="194" y="116" class="mono" font-size="50" font-weight="800" fill="#f7f0d4">9:41</text>
+  <rect x="958" y="88" width="22" height="34" rx="4" fill="#f7f0d4"/>
+  <rect x="990" y="70" width="22" height="52" rx="4" fill="#f7f0d4"/>
+  <rect x="1022" y="52" width="22" height="70" rx="4" fill="#f7f0d4"/>
+  <path d="M1070 72 Q1118 34 1166 72" fill="none" stroke="#f7f0d4" stroke-width="12" stroke-linecap="round"/>
+  <path d="M1091 96 Q1118 76 1145 96" fill="none" stroke="#f7f0d4" stroke-width="12" stroke-linecap="round"/>
+  <rect x="1200" y="78" width="78" height="44" rx="12" fill="none" stroke="#f7f0d4" stroke-width="6"/>
+  <rect x="1210" y="87" width="48" height="26" rx="7" fill="#7fbf92"/>
+
+  <g transform="translate(56 214)">
+    <text x="0" y="0" class="title mono" fill="#f7cf67">Adventure</text>
+    <text x="0" y="48" class="small mono" fill="#c6b493">Choose your next quest</text>
+    <rect x="850" y="-47" width="144" height="58" rx="8" fill="#241d19" stroke="#8dd2d8" stroke-width="4"/>
+    <circle cx="881" cy="-18" r="15" fill="#8dd2d8"/>
+    <text x="914" y="-6" class="small mono" fill="#8dd2d8">297</text>
+    <rect x="1030" y="-47" width="138" height="58" rx="8" fill="#241d19" stroke="#f7cf67" stroke-width="4"/>
+    <text x="1064" y="-6" class="small mono" fill="#f7cf67">⚡ 13</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="396" width="1208" height="236" rx="12" fill="#261d22" stroke="#d5a246" stroke-width="8"/>
+    <rect x="84" y="424" width="180" height="180" fill="#d5a246"/>
+    <rect x="112" y="454" width="124" height="124" fill="#181722"/>
+    <rect x="143" y="472" width="64" height="24" fill="#7d4b35"/>
+    <rect x="134" y="497" width="82" height="44" fill="#e6b28a"/>
+    <rect x="146" y="550" width="58" height="32" fill="#d7d1bd"/>
+    <rect x="145" y="512" width="16" height="16" fill="#111"/>
+    <rect x="190" y="512" width="16" height="16" fill="#111"/>
+    <rect x="164" y="535" width="28" height="8" fill="#7d4b35"/>
+    <text x="306" y="477" class="small mono" fill="#a99577">YOUR HERO</text>
+    <text x="306" y="542" class="title mono" fill="#f4d06f">David</text>
+    <text x="306" y="590" class="body mono" fill="#ede5cf">The Shepherd King</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="696" width="1208" height="228" rx="12" fill="#211d27" stroke="#7fbf92" stroke-width="8"/>
+    <text x="92" y="771" class="small mono" fill="#a8cbb1">TODAY'S RUN</text>
+    <text x="92" y="845" class="h2 mono" fill="#fbf1d0">Daily Challenge</text>
+    <rect x="740" y="754" width="162" height="86" rx="8" fill="#2c2630" stroke="#4c414f" stroke-width="4"/>
+    <circle cx="788" cy="797" r="26" fill="#f7cf67"/>
+    <text x="824" y="809" class="tiny mono" fill="#c6b493">STREAK</text>
+    <rect x="930" y="754" width="162" height="86" rx="8" fill="#2c2630" stroke="#4c414f" stroke-width="4"/>
+    <circle cx="978" cy="797" r="26" fill="#f7f0d4"/>
+    <text x="1018" y="809" class="tiny mono" fill="#c6b493">BEST</text>
+    <circle cx="1165" cy="810" r="56" fill="#7fbf92"/>
+    <text x="1149" y="833" class="h2 mono" fill="#17110f">›</text>
+  </g>
+
+  <text x="56" y="1034" class="body mono" fill="#b4a88f">QUIZZES</text>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="1082" width="1208" height="188" rx="12" fill="#242035" stroke="#c88953" stroke-width="7"/>
+    <rect x="93" y="1118" width="124" height="124" rx="8" fill="#1b1b25"/>
+    <rect x="139" y="1136" width="24" height="72" transform="rotate(45 151 1172)" fill="#dfeef8"/>
+    <rect x="111" y="1172" width="92" height="16" transform="rotate(45 157 1180)" fill="#8f6a3d"/>
+    <rect x="127" y="1216" width="66" height="14" transform="rotate(-12 160 1223)" fill="#ffcc55"/>
+    <text x="270" y="1156" class="h2 mono" fill="#f3bb74">Hero Quiz</text>
+    <text x="270" y="1214" class="body mono" fill="#d7d1c2">Bible people and brave decisions</text>
+    <text x="1180" y="1197" class="h2 mono" fill="#f3bb74">›</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="1310" width="1208" height="188" rx="12" fill="#242035" stroke="#80ad6a" stroke-width="7"/>
+    <rect x="93" y="1346" width="124" height="124" rx="8" fill="#e0bc72"/>
+    <path d="M107 1385 C145 1355 164 1415 203 1382" fill="none" stroke="#3f8795" stroke-width="14"/>
+    <path d="M108 1431 C145 1402 164 1450 202 1426" fill="none" stroke="#3f8795" stroke-width="12"/>
+    <text x="270" y="1384" class="h2 mono" fill="#b5d881">Maps Quiz</text>
+    <text x="270" y="1442" class="body mono" fill="#d7d1c2">Places, journeys, and kingdoms</text>
+    <text x="1180" y="1425" class="h2 mono" fill="#b5d881">›</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="1538" width="584" height="270" rx="12" fill="#242035" stroke="#719cc4" stroke-width="7"/>
+    <rect x="250" y="1598" width="140" height="96" rx="7" fill="#8e5638"/>
+    <rect x="222" y="1570" width="76" height="136" rx="7" fill="#d8b16a"/>
+    <rect x="342" y="1570" width="76" height="136" rx="7" fill="#d8b16a"/>
+    <rect x="296" y="1582" width="48" height="124" fill="#f0d18d"/>
+    <text x="204" y="1760" class="body mono" fill="#9fc6e8">Book Quiz</text>
+
+    <rect x="680" y="1538" width="584" height="270" rx="12" fill="#242035" stroke="#8dd2d8" stroke-width="7"/>
+    <rect x="876" y="1594" width="172" height="120" rx="7" fill="#e8dcc2"/>
+    <rect x="896" y="1623" width="50" height="8" fill="#6f6258"/>
+    <rect x="896" y="1646" width="50" height="8" fill="#6f6258"/>
+    <rect x="964" y="1623" width="48" height="8" fill="#6f6258"/>
+    <rect x="964" y="1646" width="48" height="8" fill="#6f6258"/>
+    <circle cx="1006" cy="1690" r="34" fill="none" stroke="#b7c7d7" stroke-width="12"/>
+    <rect x="1030" y="1712" width="50" height="12" transform="rotate(45 1055 1718)" fill="#b7c7d7"/>
+    <text x="808" y="1760" class="body mono" fill="#91e0df">Chapter Quiz</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="1850" width="584" height="270" rx="12" fill="#242035" stroke="#7fbf92" stroke-width="7"/>
+    <rect x="237" y="1910" width="140" height="110" rx="6" fill="#d6c1a1"/>
+    <circle cx="418" cy="1918" r="42" fill="#fff8bf"/>
+    <text x="196" y="2072" class="body mono" fill="#98d598">Wisdom Quiz</text>
+
+    <rect x="680" y="1850" width="584" height="270" rx="12" fill="#242035" stroke="#d5a246" stroke-width="7"/>
+    <text x="896" y="1990" class="mono" font-size="138" font-weight="900" fill="#f7cf67">?</text>
+    <text x="852" y="2072" class="body mono" fill="#f4d06f">Mystery Quiz</text>
+  </g>
+
+  <rect x="0" y="2578" width="1320" height="290" fill="#0d0d16"/>
+  <rect x="0" y="2578" width="1320" height="8" fill="#d5a246"/>
+  <rect x="56" y="2610" width="190" height="170" fill="#242035" stroke="#f7cf67" stroke-width="7"/>
+  <text x="110" y="2688" class="h2 mono" fill="#7fbf92">⌂</text>
+  <text x="105" y="2744" class="tiny mono" fill="#f7cf67">HOME</text>
+  <rect x="326" y="2630" width="190" height="132" fill="#12121e" stroke="#35354a" stroke-width="7"/>
+  <text x="394" y="2702" class="h2 mono" fill="#76758b">⌄</text>
+  <text x="386" y="2744" class="tiny mono" fill="#a4a1ab">CHAT</text>
+  <rect x="596" y="2630" width="190" height="132" fill="#12121e" stroke="#35354a" stroke-width="7"/>
+  <text x="662" y="2702" class="h2 mono" fill="#76758b">✦</text>
+  <text x="654" y="2744" class="tiny mono" fill="#a4a1ab">RANK</text>
+  <rect x="866" y="2630" width="190" height="132" fill="#12121e" stroke="#35354a" stroke-width="7"/>
+  <text x="932" y="2702" class="h2 mono" fill="#76758b">▧</text>
+  <text x="928" y="2744" class="tiny mono" fill="#a4a1ab">BIBLE</text>
+  <rect x="1136" y="2630" width="128" height="132" fill="#12121e" stroke="#35354a" stroke-width="7"/>
+  <text x="1178" y="2702" class="h2 mono" fill="#76758b">♙</text>
+  <text x="1170" y="2744" class="tiny mono" fill="#a4a1ab">YOU</text>
+</svg>

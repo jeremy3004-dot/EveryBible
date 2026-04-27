@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-EveryBible is a mobile Bible study app built with Expo/React Native. It provides offline Bible reading, audio playback, discipleship courses (Four Fields), group study features, and multi-language support (EN, ES, NE, HI). The app uses Supabase for backend services and supports Apple/Google OAuth authentication.
+EveryBible is a mobile Bible study app built with Expo/React Native. It provides offline Bible reading, audio playback, discipleship courses (Four Fields), group study features, and broad multi-language support. The app uses Supabase for backend services and supports Apple/Google OAuth authentication.
 
 **Tech Stack:** React Native 0.81, Expo SDK 54, TypeScript, Zustand, Supabase, React Navigation, i18next, SQLite
 **Current Phase:** Production - App is live on iOS/Android
@@ -15,7 +15,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 2. **Never commit .env file** - Why: Contains Supabase keys, OAuth credentials, API keys
 3. **Always use barrel exports (index.ts)** - Why: Maintains clean import paths across codebase
 4. **Theme context for all colors** - Why: App supports dark mode, hardcoded colors break theming
-5. **Translation keys for ALL user-facing text** - Why: App supports 4 languages, no hardcoded strings
+5. **Translation keys for ALL user-facing text** - Why: App ships a broad interface language set, and hardcoded strings break localization coverage
 6. **Use Zustand stores for global state** - Why: Lightweight, persistent via AsyncStorage, already established pattern
 7. **Offline-first architecture** - Why: Bible data is SQLite-based for offline access
 8. **Test on both iOS and Android** - Why: Platform-specific issues with audio, notifications, OAuth
@@ -56,7 +56,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 - **Navigation:** React Navigation v7 (Bottom Tabs + Native Stack navigators)
 - **Styling:** StyleSheet.create() with ThemeContext colors - no inline styles
 - **API Layer:** Supabase client for backend, SQLite for Bible data
-- **Reading Plans:** Plan catalog and plan entries are bundled locally in `src/data/readingPlans.generated.ts`; Supabase may sync user progress, but it is not the source of truth for which plans exist
+- **Reading Plans:** Plan catalog and plan entries are bundled locally in `src/data/readingPlans.generated.ts`; signed-in user progress syncs remotely by `plan_slug`, but Supabase is not the source of truth for which plans exist
 - **Error Handling:** ErrorBoundary component wraps app, try/catch in async operations
 - **i18n:** react-i18next with expo-localization for device locale detection
 - **Routing:** Tab-based with nested stacks (Home, Bible, Harvest/Learn, More)
@@ -75,10 +75,25 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 
 ## Commands & Workflow
 
+### Token-Saving Prompt Shorthands
+
+Use these as compact standing conventions for this repo so the human does not need to restate the full workflow every time:
+
+- `polish sim: <change>` = apply a small targeted UI tweak to the current screen/component, keep the rest of the design intact, run the smallest relevant verification for touched files, rebuild/update the iPhone 17 Pro simulator, and reply briefly with the result. Do not push or release unless explicitly asked.
+- `sim check: <thing>` = inspect the current simulator state for the named screen/issue and report what is visible. Only change code if the request explicitly asks for a fix.
+- `ship main` = safely finish the current scoped change, verify it, and land it on local `main` and `origin/main` without disturbing unrelated local edits.
+- `ship tf internal` = use the safe clean-worktree iOS release flow: verify release state, build locally with the repo's preferred production path, submit to TestFlight, and confirm the build reaches the internal tester group before calling it done.
+
+Default assumptions for terse follow-ups:
+
+- If the human asks for a tiny visual adjustment right after a simulator screenshot or UI change, assume it applies to the most recently discussed element.
+- For tiny UI polish requests, prefer the minimal code change plus focused verification over broad test suites.
+- Never infer `push`, `ship`, or `TestFlight` from a UI tweak request; those still require explicit wording.
+
 ### Development
 ```bash
 npm start              # Start Expo dev server (press 'i' for iOS, 'a' for Android)
-npm run ios            # Build and run on iOS simulator (requires Xcode)
+npm run ios            # Build and run on the iPhone 17 Pro simulator, launching Expo dev client with an explicit Metro initial URL
 npm run android        # Build and run on Android emulator
 npm run web            # Start web version (limited functionality)
 npm run lint           # ESLint check

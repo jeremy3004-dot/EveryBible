@@ -1,0 +1,7 @@
+appId: com.everybible.app
+---
+- launchApp
+- tapOn: "Plans"
+- tapOn: "Rhythms"
+- tapOn: "Create Rhythm"
+- takeScreenshot: rhythm-composer

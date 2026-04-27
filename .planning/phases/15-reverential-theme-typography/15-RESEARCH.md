@@ -571,6 +571,168 @@ The design system phase is primarily a visual/manual verification domain. The on
 
 ---
 
+## Reader Layout Principles
+
+This addendum focuses on scripture readability mechanics rather than palette or brand voice. The strongest cross-source pattern is simple: readable Bible layout behaves more like disciplined editorial text and less like standard app UI. The key levers are measure, leading, whitespace, and intrusions.
+
+**Evidence-backed defaults**
+- Keep long-form reading blocks left-aligned, not fully justified. WCAG calls out justification as a readability risk because irregular word spacing creates visual rivers and makes tracking harder.
+- Keep reading width narrow. WCAG's upper bound is 80 characters; Crossway's own Bible production guide says readable single-column Bible setting lands around 45-75 characters, and general mobile readability guidance trends lower than that.
+- Give text more vertical room than default app typography. WCAG's spacing guidance and typography practice both support looser leading for sustained reading than typical interface copy uses.
+
+**Inferred product guidance**
+- On phones, EveryBible should target the lower half of those ranges, because scripture is continuous long-form reading, not skimmable UI copy.
+- Reader mode should optimize for reading flow first, not verse addressability first. Study affordances can remain available, but they should stop dominating the text block.
+
+## Prose Layout Rules
+
+### Measure and margins
+- Target prose measure at roughly **34-42 characters per line** on phones, with **30-50 CPL** as the safe operating band.
+- Use **20-24 px** horizontal reader margins on standard phones. Increase to **28-32 px** on larger phones/tablets rather than letting the line length sprawl.
+- Keep the text in a single centered column. Do not use full-width edge-to-edge text for reading surfaces.
+
+### Leading and paragraph rhythm
+- Set prose line-height to **1.45-1.55** for continuous scripture reading.
+- Ensure the layout still survives user overrides at **1.5x line spacing** and larger paragraph spacing without clipping or overlap.
+- Use **one paragraph signal only**:
+  - Reader mode recommendation: first-line indent for narrative prose.
+  - Study mode alternative: paragraph spacing with no first-line indent.
+- If using indents, keep them shallow on mobile: **1.0-1.5 em**. Avoid deep print-style indents that waste narrow screen width.
+- If using paragraph spacing instead, use **0.4-0.75 line-height** between paragraphs. Avoid blank-line-sized gaps in ordinary narrative prose.
+
+### Alignment and emphasis
+- Keep prose left-aligned.
+- Avoid routine bolding inside the text block. Use italic or color sparingly for headings only.
+- Keep sentence rhythm visually clean: no decorative underlines, no dense inline metadata, no aggressive contrast shifts inside the paragraph body.
+
+## Poetry And Quote Layout Rules
+
+Poetry needs a different rhythm from prose. The main rule is to preserve line meaning without turning the page into a staircase.
+
+### Poetry lines
+- Preserve each poetic line as a real line, not as soft-wrapped prose.
+- Use a slightly tighter line-height than prose: **1.3-1.4** usually reads best for Psalms, prophetic poetry, and quoted canticles.
+- Keep stanza or thought-group spacing modest: **0.5-0.75 line-height** between grouped units.
+
+### Indentation
+- Prefer **shallow, semantic indentation**, not a rigid alternating pattern on every second line.
+- Mark Ward's reader-Bible critique is useful here: he explicitly praises sparing indentation and finds aggressively alternating poetic indents jarring.
+- For wrapped poetic lines, use a **hanging continuation indent** so wrapped text reads as continuation, not a new poetic unit.
+- In wisdom literature like Proverbs, keep couplets visually grouped. Do not insert full empty-line gaps after every short line unless the source structure truly demands it.
+
+### Quotes and embedded speech
+- Distinguish block quotations from body prose with structure first:
+  - **16-24 px** inset
+  - subtle left rule or tonal shift only if needed
+  - preserve the same base type size when possible
+- Do not make quotes feel like cards. They should remain text-first, not component-first.
+
+## Bible-Specific Layout Decisions
+
+### Verse numbers
+- Verse numbers should help navigation without breaking reading flow.
+- In reader mode, prefer either:
+  - hidden verse numbers, or
+  - very quiet inline numbers at roughly **0.72-0.82 em** of body size with reduced contrast.
+- Keep verse numbers baseline-aligned or slightly raised, but do not let them materially change line-height.
+- Never bold verse numbers.
+- If a verse starts a new paragraph, the paragraph structure should remain the dominant signal, not the number.
+
+### Section headings
+- Use restrained headings. ESV-style readability benefits from headings that orient without shouting.
+- Best default:
+  - serif italic or quiet small-caps treatment
+  - size roughly **1.1-1.25x** body text
+  - generous spacing above, tighter spacing below
+- Do not use oversized app-style headers inside the reading column.
+
+### Chapter landmarks
+- Chapter numbers may remain visually prominent, but they should function as occasional landmarks, not repeated interruptions.
+- A chapter opening can carry more ornament or whitespace than the rest of the text block, but once reading begins, the page should settle into a stable rhythm quickly.
+
+### Reader vs study behavior
+- Split the modes conceptually:
+  - **Reader mode:** prose-first, low-noise, minimal verse markers.
+  - **Study mode:** keeps verse numbers, tighter spacing, clearer sectional scaffolding.
+- Both modes should share the same core typographic voice so switching modes does not feel like switching apps.
+
+## Why ESV Feels Easier To Read
+
+Crossway's own materials point to the big reasons:
+- generous margins
+- spacious layout
+- single-column reading
+- removal or reduction of verse-number noise in reader-oriented editions
+- careful attention to line length, leading, and page orderliness
+
+The ESV feel is not magic. It is mostly restraint.
+
+What ESV-style layout gets right:
+- It treats scripture as reading, not as a database dump.
+- It reduces inline clutter so the eye can stay in the paragraph.
+- It gives the text block enough margin and leading to breathe.
+- It uses hierarchy softly instead of relying on loud UI chrome.
+
+What ESV does less well, based on Bible typography criticism worth taking seriously:
+- Some reader-Bible implementations can become too regimented in poetry, using line breaks and indents that feel mechanically consistent rather than semantically expressive.
+- EveryBible should not blindly copy ESV poetic indentation. The better lesson is its restraint, then improve on poetry grouping with subtler indent logic.
+
+## EveryBible Implementation Defaults
+
+These are the recommended starting defaults for the React Native reader unless device testing disproves them:
+
+### Reader mode
+- Body size: **18 px** default
+- Line-height: **1.48**
+- Horizontal padding: **22 px**
+- Target measure: **~36-40 CPL**
+- Alignment: left
+- Paragraphs: first-line indent **1.1 em**, no extra paragraph gap
+- Verse numbers: hidden by default or ultra-muted
+- Section headings: serif italic, about **1.15x** body size
+
+### Study mode
+- Body size: **17 px** default
+- Line-height: **1.4**
+- Horizontal padding: **20 px**
+- Paragraphs: no indent, modest paragraph spacing
+- Verse numbers: visible, muted, small
+- Section headings: same family, slightly stronger contrast
+
+### Poetry mode
+- Body size: match current mode
+- Line-height: **1.34-1.4**
+- Preserve source line breaks
+- Use semantic indents only
+- Wrapped lines get hanging continuation indents
+- Couplets and stanzas stay visually grouped; avoid excessive empty-line fragmentation
+
+### Large-screen rule
+- On tablets or wide panes, preserve the same effective measure by increasing margins or narrowing the column.
+- Do not let the reader text block expand to full available width just because space exists.
+
+## Open Questions / Validation Needs
+
+1. **Prose measure on actual devices**
+   - Verify the recommended defaults on the smallest supported iPhone and a large Pro Max class device.
+   - The implementation target is the same visual measure, not the same raw padding value.
+
+2. **Verse number strategy**
+   - Validate whether muted inline verse numbers are acceptable in reader mode or whether the app should fully hide them there and reserve visible numbers for study mode.
+
+3. **Poetry indentation logic**
+   - Test representative passages from Psalms, Proverbs, Isaiah, and the Gospels' embedded quotations.
+   - The goal is to confirm that poetic grouping feels natural and not over-designed.
+
+4. **Heading restraint**
+   - Compare italic serif headings against small-caps + letterspaced roman headings.
+   - Choose the quieter option that still preserves section discoverability.
+
+5. **Accessibility overrides**
+   - Confirm the reader survives larger line spacing, larger paragraph spacing, and increased text size without overlap, clipping, or broken verse-number placement.
+
+---
+
 ## Open Questions
 
 1. **Lora font license for App Store distribution**
@@ -604,6 +766,12 @@ The design system phase is primarily a visual/manual verification domain. The on
 - [Cormorant Garamond vs EB Garamond comparison](https://typogram.co/font-discovery/how-to-use-cormorant-font) — Cormorant better for digital at display sizes; both challenging at body text sizes
 - [Lora Google Fonts](https://fonts.google.com/specimen/Lora) — designed for screen body text, moderate contrast, calligraphic origin; OFL-1.1 license
 - @expo-google-fonts/lora npm package — 2.0MB unpacked (all 8 weights); selective bundling of individual TTF files preferred
+- [W3C WCAG 2.2: Visual Presentation](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html) — text blocks should support narrow width, no full justification, and increased leading/paragraph spacing
+- [W3C WCAG 2.2: Text Spacing](https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html) — concrete spacing override requirements that the reader layout must survive
+- [Butterick's Practical Typography summary](https://www.practicaltypography.com/summary-of-key-rules.html) — practical ranges for line length, line spacing, and paragraph treatment
+- [Crossway Bible Production Guide (2024)](https://uploads.crossway.org/extra/esv-bible-production-guide-2024-reduced.pdf) — Bible-specific readability terms for line length, leading, line matching, and margins
+- [Crossway: ESV Psalms, Photography Edition](https://www.crossway.org/articles/introducing-esv-psalms-photography-edition/) — explicitly ties spacious layout, generous margins, and removal of verse numbers to easier psalm reading
+- [Mark Ward on reader Bible layout](https://byfaithweunderstand.com/2017/09/13/review-brand-new-csb-readers-bible/) — useful critique of poetic indentation, line-break rigidity, and visual grouping in reader-focused Bible typography
 
 ### Tertiary (LOW confidence)
 - Glorify app reference screenshots — visual direction only; implementation details unknown
@@ -620,5 +788,5 @@ The design system phase is primarily a visual/manual verification domain. The on
 - Pitfalls: HIGH — derived from actual codebase reading (hardcoded colors found, BibleReader glass effects confirmed)
 - Font selection: MEDIUM — recommendation based on screen readability research; Lora vs Cormorant evidence is clear but exact rendering on device should be confirmed
 
-**Research date:** 2026-03-22
-**Valid until:** 2026-06-22 (90 days — Expo font APIs are stable; palette values are design decisions that don't expire)
+**Research date:** 2026-04-12 (layout/readability addendum), 2026-03-22 (theme/font baseline)
+**Valid until:** 2026-07-12 for layout addendum; 2026-06-22 for prior theme/font baseline

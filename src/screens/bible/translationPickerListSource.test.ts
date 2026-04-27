@@ -7,7 +7,7 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('translation picker keeps the clean two-button translation row and language mode', () => {
+test('translation picker keeps the translation action row and language mode', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
 
   assert.equal(
@@ -47,6 +47,12 @@ test('translation picker keeps the clean two-button translation row and language
   );
 
   assert.equal(
+    source.includes('remove-action-'),
+    true,
+    'TranslationPickerList should expose a remove-download action when a translation has local assets to clear'
+  );
+
+  assert.equal(
     source.includes('document-text-outline'),
     true,
     'TranslationPickerList should keep the text button icon readable at a glance'
@@ -59,6 +65,12 @@ test('translation picker keeps the clean two-button translation row and language
   );
 
   assert.equal(
+    source.includes('trash-outline'),
+    true,
+    'TranslationPickerList should use a clear destructive icon for removing downloaded translation data'
+  );
+
+  assert.equal(
     source.includes("label={t('audio.showText')}"),
     true,
     'TranslationPickerList should keep the Text button label explicit'
@@ -68,6 +80,12 @@ test('translation picker keeps the clean two-button translation row and language
     source.includes('label="Audio"'),
     true,
     'TranslationPickerList should keep the Audio button label explicit'
+  );
+
+  assert.equal(
+    source.includes("label={t('translations.delete')}"),
+    true,
+    'TranslationPickerList should label the destructive control explicitly'
   );
 
   assert.equal(
@@ -168,6 +186,12 @@ test('translation picker still resolves runtime catalog and audio availability b
     source.includes('downloadAudioForTranslation'),
     true,
     'TranslationPickerList should still call the shared audio download action'
+  );
+
+  assert.equal(
+    source.includes('deleteTranslation'),
+    true,
+    'TranslationPickerList should route remove-download actions through the shared store cleanup path'
   );
 
   assert.match(

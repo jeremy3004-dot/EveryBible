@@ -51,13 +51,31 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
   );
 });
 
-test('TabNavigator freezes inactive tabs so Home, Bible, and Gather do not keep repainting off-screen', () => {
+test('TabNavigator keeps freezing inactive tabs by default but leaves the Bible tab live during audio-return handoffs', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
   assert.match(
     source,
-    /freezeOnBlur:\s*true/,
-    'TabNavigator should freeze inactive tabs to reduce lag while switching between Home, Bible, and Gather'
+    /useAudioStore\(\(state\) => state\.audioReturnTarget\)/,
+    'TabNavigator should observe the shared audio return target before deciding whether the Bible tab can freeze off-screen'
+  );
+
+  assert.match(
+    source,
+    /useAudioStore\(\(state\) => state\.status\)/,
+    'TabNavigator should observe the shared audio playback status before deciding whether the Bible tab can freeze off-screen'
+  );
+
+  assert.match(
+    source,
+    /const shouldKeepBibleTabLiveWhileAudioReturns =\s*Boolean\(audioReturnTarget\) && audioStatus === 'playing';/,
+    'TabNavigator should keep the Bible tab unfrozen while the edge return tab is actively offering a live audio handoff'
+  );
+
+  assert.match(
+    source,
+    /freezeOnBlur:\s*route\.name === 'Bible' \? !shouldKeepBibleTabLiveWhileAudioReturns : true/,
+    'TabNavigator should only disable freezeOnBlur for the Bible tab during an active audio-return handoff and keep freezing all other inactive tabs'
   );
 });
 

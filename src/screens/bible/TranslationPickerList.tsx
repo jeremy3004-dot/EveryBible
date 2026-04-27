@@ -35,6 +35,7 @@ import {
   getVisibleTranslationsForPicker,
   resolvePreferredTranslationLanguage,
 } from './bibleTranslationModel';
+import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
@@ -134,6 +135,7 @@ export function TranslationPickerList({
   );
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
+  const deleteTranslation = useBibleStore((state) => state.deleteTranslation);
 
   const [pickerMode, setPickerMode] = useState<'translations' | 'languages'>('translations');
   const [languageSearchQuery, setLanguageSearchQuery] = useState('');
@@ -365,6 +367,29 @@ export function TranslationPickerList({
     }
   };
 
+  const handleDeleteTranslation = (translation: BibleTranslation) => {
+    Alert.alert(
+      t('translations.deleteConfirmTitle'),
+      t('translations.deleteConfirmMessage', { name: translation.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('translations.delete'),
+          style: 'destructive',
+          onPress: () => {
+            void deleteTranslation(translation.id).catch((error) => {
+              Alert.alert(
+                t('common.error'),
+                error instanceof Error ? error.message : t('bible.failedToLoad'),
+                [{ text: t('common.ok') }]
+              );
+            });
+          },
+        },
+      ]
+    );
+  };
+
   const renderTranslationRow = (translation: BibleTranslation) => {
     const isSelected = currentTranslation === translation.id;
     const audioAvailability = getTranslationAudioAvailability(translation);
@@ -391,6 +416,7 @@ export function TranslationPickerList({
     );
     const canDownloadAudio =
       canManageAudio && audioAvailability.canDownloadAudio && hasFullBibleAudio && audioBooks.length > 0;
+    const canRemoveDownload = hasTranslationDownloadData(translation);
     const isBusy = isTextDownloading || isAudioDownloading;
 
     return (
@@ -448,6 +474,17 @@ export function TranslationPickerList({
                 void handleDownloadAudioTranslation(translation);
               }}
             />
+            {canRemoveDownload ? (
+              <ActionButton
+                testID={`remove-action-${translation.id}`}
+                label={t('translations.delete')}
+                iconName="trash-outline"
+                disabled={isBusy}
+                onPress={() => {
+                  handleDeleteTranslation(translation);
+                }}
+              />
+            ) : null}
           </View>
         </View>
       </TouchableOpacity>

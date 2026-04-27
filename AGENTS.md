@@ -117,6 +117,12 @@ Reactions are lightweight social signals. Humans use them constantly — they sa
 
 Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes (camera names, SSH details, voice preferences) in `TOOLS.md`.
 
+## Release Notes
+
+- For TestFlight releases, if a new build does not appear quickly in App Store Connect, do not assume Apple is just slow. Check both the EAS submission state and `asc builds uploads list` immediately to distinguish a real processing delay from an upload rejection.
+- If Apple has already approved or distributed marketing version `X.Y.Z`, do not upload another binary with `CFBundleShortVersionString = X.Y.Z`. Bump the marketing version first or Apple will reject the upload with closed pre-release train errors.
+- When using Expo remote app versioning, make sure the EAS remote pre-build counter matches the latest accepted App Store Connect build before rebuilding. A failed upload does not advance App Store Connect's accepted build number.
+
 **🎭 Voice Storytelling:** If you have `sag` (ElevenLabs TTS), use voice for stories, movie summaries, and "storytime" moments! Way more engaging than walls of text. Surprise people with funny voices.
 
 **📝 Platform Formatting:**

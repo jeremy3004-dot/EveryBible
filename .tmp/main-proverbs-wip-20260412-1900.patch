@@ -1,0 +1,155 @@
+diff --git a/src/components/audio/ReaderPlaybackDock.tsx b/src/components/audio/ReaderPlaybackDock.tsx
+index 9981c39..44094ca 100644
+--- a/src/components/audio/ReaderPlaybackDock.tsx
++++ b/src/components/audio/ReaderPlaybackDock.tsx
+@@ -18,6 +18,9 @@ interface ReaderPlaybackDockProps {
+   isLoading: boolean;
+   hasPreviousChapter: boolean;
+   hasNextChapter: boolean;
++  nextIconName?: 'checkmark' | 'chevron-forward';
++  nextButtonColor?: string;
++  nextIconColor?: string;
+   onPreviousChapter: () => void;
+   onNextChapter: () => void;
+   onPlayPause: () => void;
+@@ -37,6 +40,9 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
+   isLoading,
+   hasPreviousChapter,
+   hasNextChapter,
++  nextIconName = 'chevron-forward',
++  nextButtonColor,
++  nextIconColor,
+   onPreviousChapter,
+   onNextChapter,
+   onPlayPause,
+@@ -192,8 +198,8 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
+           style={[
+             styles.sideTransportButton,
+             {
+-              backgroundColor: colors.bibleSurface,
+-              borderColor: colors.bibleDivider,
++              backgroundColor: nextButtonColor ?? colors.bibleSurface,
++              borderColor: nextButtonColor ?? colors.bibleDivider,
+             },
+           ]}
+           onPress={onNextChapter}
+@@ -202,9 +208,15 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
+           accessibilityLabel="Next chapter"
+         >
+           <Ionicons
+-            name="chevron-forward"
++            name={nextIconName}
+             size={22}
+-            color={hasNextChapter ? colors.biblePrimaryText : colors.bibleSecondaryText}
++            color={
++              hasNextChapter
++                ? nextIconColor ?? colors.biblePrimaryText
++                : nextIconColor
++                  ? nextIconColor + '66'
++                  : colors.bibleSecondaryText
++            }
+           />
+         </Pressable>
+       </Animated.View>
+diff --git a/src/screens/bible/BibleReaderScreen.tsx b/src/screens/bible/BibleReaderScreen.tsx
+index 3002743..f9cf6e6 100644
+--- a/src/screens/bible/BibleReaderScreen.tsx
++++ b/src/screens/bible/BibleReaderScreen.tsx
+@@ -2669,6 +2669,14 @@ export function BibleReaderScreen() {
+   const hasPlanReadDockNextAction = Boolean(
+     planReadDockTrailingActionState?.showCompletionAction && planReadDockTrailingActionState.isEnabled
+   );
++  const readerPlaybackDockNextIconName =
++    showPlanSessionChrome && chapterSessionMode === 'read'
++      ? planReadDockTrailingActionState?.iconName ?? 'chevron-forward'
++      : 'chevron-forward';
++  const readerPlaybackDockNextButtonColor =
++    showPlanSessionChrome && chapterSessionMode === 'read' ? colors.accentPrimary : undefined;
++  const readerPlaybackDockNextIconColor =
++    showPlanSessionChrome && chapterSessionMode === 'read' ? colors.onAccent : undefined;
+   const hasReaderPlaybackDockNextChapter =
+     showPlanSessionChrome && chapterSessionMode === 'read'
+       ? hasNextChapter || hasPlanReadDockNextAction
+@@ -3003,7 +3011,7 @@ export function BibleReaderScreen() {
+                 showPlanCompletionAction
+                   ? [
+                       styles.planSessionBottomBarCompleteButton,
+-                      { backgroundColor: colors.primaryText },
++                      { backgroundColor: colors.accentPrimary },
+                     ]
+                   : null,
+                 !trailingActionEnabled ? styles.disabledSessionModeButton : null,
+@@ -3026,10 +3034,8 @@ export function BibleReaderScreen() {
+                 size={22}
+                 color={
+                   trailingActionEnabled
+-                    ? showPlanCompletionAction
+-                      ? colors.accentPrimary
+-                      : colors.primaryText
+-                    : colors.primaryText + '66'
++                    ? colors.onAccent
++                    : colors.onAccent + '66'
+                 }
+               />
+             </TouchableOpacity>
+@@ -3586,6 +3592,9 @@ export function BibleReaderScreen() {
+               isLoading={isCurrentAudioChapter && status === 'loading'}
+               hasPreviousChapter={hasPrevChapter}
+               hasNextChapter={hasReaderPlaybackDockNextChapter}
++              nextIconName={readerPlaybackDockNextIconName}
++              nextButtonColor={readerPlaybackDockNextButtonColor}
++              nextIconColor={readerPlaybackDockNextIconColor}
+               onPreviousChapter={() => void handlePreviousReadChapter()}
+               onNextChapter={() => void handleReaderPlaybackDockNextChapter()}
+               onPlayPause={handlePlayDisplayedChapter}
+diff --git a/src/screens/bible/bibleReaderPlanFlowSource.test.ts b/src/screens/bible/bibleReaderPlanFlowSource.test.ts
+index 11274a9..70a7f5d 100644
+--- a/src/screens/bible/bibleReaderPlanFlowSource.test.ts
++++ b/src/screens/bible/bibleReaderPlanFlowSource.test.ts
+@@ -131,6 +131,16 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
+     /await handleCompletePlanDay\(\);/,
+     'BibleReaderScreen should complete the active plan day from the dock when the final read-mode chapter is reached'
+   );
++  assert.match(
++    source,
++    /const readerPlaybackDockNextIconName =[\s\S]*planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward'/s,
++    'BibleReaderScreen should let the shared dock switch from a forward arrow to a checkmark on the final chapter of the active plan day'
++  );
++  assert.match(
++    source,
++    /const readerPlaybackDockNextButtonColor =[\s\S]*colors\.accentPrimary/s,
++    'BibleReaderScreen should tint the shared read-mode dock next action with the darker accent color while a plan session is active'
++  );
+ });
+ 
+ test('BibleReaderScreen shows transient chapter-counted feedback when listening satisfies a plan chapter', () => {
+diff --git a/src/screens/bible/bibleReaderPlanSessionSource.test.ts b/src/screens/bible/bibleReaderPlanSessionSource.test.ts
+index 1e61925..81dccce 100644
+--- a/src/screens/bible/bibleReaderPlanSessionSource.test.ts
++++ b/src/screens/bible/bibleReaderPlanSessionSource.test.ts
+@@ -205,6 +205,16 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
+     /name=\{showPlanCompletionAction \? 'checkmark' : 'chevron-forward'\}/,
+     'BibleReaderScreen should render a checkmark icon instead of a forward arrow on the final plan-day chapter'
+   );
++  assert.match(
++    source,
++    /showPlanCompletionAction[\s\S]*backgroundColor: colors\.accentPrimary/s,
++    'BibleReaderScreen should use the darker accent color for the listen-mode trailing plan action'
++  );
++  assert.match(
++    source,
++    /trailingActionEnabled[\s\S]*\? colors\.onAccent[\s\S]*: colors\.onAccent \+ '66'/s,
++    'BibleReaderScreen should keep the listen-mode trailing action icon in the accent contrast color on top of the red action button'
++  );
+   assert.match(
+     source,
+     /showChapterNavigation=\{!showPlanSessionChrome\}/,
+@@ -225,7 +235,7 @@ test('BibleReaderScreen keeps the shared floating playback dock above the plan s
+   );
+   assert.match(
+     source,
+-    /<ReaderPlaybackDock[\s\S]*hasNextChapter=\{hasReaderPlaybackDockNextChapter\}/s,
++    /<ReaderPlaybackDock[\s\S]*hasNextChapter=\{hasReaderPlaybackDockNextChapter\}[\s\S]*nextIconName=\{readerPlaybackDockNextIconName\}[\s\S]*nextButtonColor=\{readerPlaybackDockNextButtonColor\}[\s\S]*nextIconColor=\{readerPlaybackDockNextIconColor\}/s,
+     'BibleReaderScreen should keep using the shared ReaderPlaybackDock while a plan read session is active'
+   );
+   assert.match(

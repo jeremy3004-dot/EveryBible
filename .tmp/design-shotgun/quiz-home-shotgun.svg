@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260">
+  <defs>
+    <style>
+      .bg { fill: #0b0b10; }
+      .label { font: 700 28px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #f6f1df; letter-spacing: 0; }
+      .sub { font: 500 17px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #aaa7b5; letter-spacing: 0; }
+      .tiny { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #b7b1a0; letter-spacing: 0; }
+      .phoneTitle { font: 800 22px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+      .pixel { font: 800 20px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+      .smallPixel { font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+      .body { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+    </style>
+
+    <pattern id="noise" width="12" height="12" patternUnits="userSpaceOnUse">
+      <rect width="12" height="12" fill="#000" opacity="0"/>
+      <rect x="1" y="1" width="2" height="2" fill="#fff" opacity=".035"/>
+      <rect x="9" y="6" width="2" height="2" fill="#fff" opacity=".025"/>
+    </pattern>
+
+    <g id="avatar">
+      <rect x="0" y="0" width="72" height="72" fill="#181722"/>
+      <rect x="18" y="14" width="36" height="10" fill="#7d4b35"/>
+      <rect x="14" y="24" width="44" height="20" fill="#e6b28a"/>
+      <rect x="20" y="48" width="34" height="18" fill="#d7d1bd"/>
+      <rect x="17" y="30" width="8" height="8" fill="#111"/>
+      <rect x="47" y="30" width="8" height="8" fill="#111"/>
+      <rect x="28" y="42" width="18" height="4" fill="#7d4b35"/>
+    </g>
+
+    <g id="swordIcon">
+      <rect x="34" y="12" width="12" height="66" transform="rotate(45 40 45)" fill="#dfeef8"/>
+      <rect x="20" y="52" width="54" height="10" transform="rotate(45 47 57)" fill="#8f6a3d"/>
+      <rect x="27" y="78" width="34" height="8" transform="rotate(-12 44 82)" fill="#ffcc55"/>
+    </g>
+
+    <g id="mapIcon">
+      <rect x="14" y="16" width="92" height="72" rx="3" fill="#e0bc72"/>
+      <path d="M22 34 C42 18 51 46 70 31 C88 17 91 49 105 40" fill="none" stroke="#3f8795" stroke-width="9"/>
+      <path d="M28 67 C44 55 51 75 67 61 C82 49 86 77 102 66" fill="none" stroke="#3f8795" stroke-width="8"/>
+      <path d="M25 27 L33 24 L43 31 L53 26 L64 31 L73 25 L86 33 L99 29" fill="none" stroke="#7f5f3d" stroke-width="2"/>
+    </g>
+
+    <g id="bookIcon">
+      <rect x="22" y="48" width="70" height="46" rx="3" fill="#8e5638"/>
+      <rect x="18" y="24" width="32" height="62" rx="3" fill="#d8b16a"/>
+      <rect x="66" y="24" width="32" height="62" rx="3" fill="#d8b16a"/>
+      <rect x="48" y="29" width="20" height="57" fill="#f0d18d"/>
+      <path d="M28 41 L43 46 L34 54" fill="none" stroke="#745139" stroke-width="3"/>
+      <path d="M74 42 L90 47 L82 55" fill="none" stroke="#745139" stroke-width="3"/>
+    </g>
+
+    <g id="chapterIcon">
+      <rect x="18" y="24" width="86" height="64" rx="3" fill="#d9b687"/>
+      <rect x="25" y="17" width="72" height="54" fill="#e8dcc2"/>
+      <rect x="33" y="28" width="22" height="4" fill="#6f6258"/>
+      <rect x="33" y="39" width="22" height="4" fill="#6f6258"/>
+      <rect x="63" y="28" width="21" height="4" fill="#6f6258"/>
+      <rect x="63" y="39" width="21" height="4" fill="#6f6258"/>
+      <circle cx="78" cy="60" r="16" fill="none" stroke="#b7c7d7" stroke-width="7"/>
+      <rect x="89" y="72" width="22" height="7" transform="rotate(45 100 75)" fill="#b7c7d7"/>
+    </g>
+
+    <g id="currentPhone">
+      <rect width="370" height="800" rx="34" fill="#000"/>
+      <rect x="18" y="52" width="334" height="696" fill="#020205"/>
+      <text x="33" y="112" class="phoneTitle" fill="#ffe83f">ADVENTURE HOME</text>
+      <rect x="18" y="138" width="334" height="4" fill="#e8c200"/>
+
+      <rect x="28" y="166" width="314" height="110" fill="#292a55" stroke="#ffe33a" stroke-width="8"/>
+      <use href="#avatar" x="54" y="191"/>
+      <text x="154" y="206" class="smallPixel" fill="#9d9ba6">YOUR HERO</text>
+      <text x="154" y="237" class="pixel" fill="#ffe73c">DAVID</text>
+      <text x="154" y="266" class="smallPixel" fill="#ffffff">Shepherd King</text>
+
+      <rect x="28" y="302" width="314" height="94" fill="#292a55" stroke="#ffe33a" stroke-width="6"/>
+      <text x="45" y="337" class="smallPixel" fill="#a2a0a9">TODAY'S RUN</text>
+      <text x="45" y="371" class="pixel" fill="#ffe73c">DAILY CHALLENGE</text>
+      <rect x="230" y="320" width="42" height="42" fill="#111" stroke="#ffe33a" stroke-width="4"/>
+      <text x="283" y="352" class="pixel" fill="#ffe73c">→</text>
+
+      <text x="28" y="441" class="smallPixel" fill="#9d9ba6">CHOOSE A QUIZ</text>
+      <rect x="28" y="462" width="142" height="150" fill="#292a55" stroke="#ff9d4a" stroke-width="4"/>
+      <use href="#swordIcon" x="52" y="482" transform="scale(.8)"/>
+      <text x="62" y="574" class="smallPixel" fill="#ffb45f">HERO QUIZ</text>
+      <rect x="200" y="462" width="142" height="150" fill="#292a55" stroke="#89bf6a" stroke-width="4"/>
+      <use href="#mapIcon" x="217" y="484" transform="scale(.78)"/>
+      <text x="232" y="574" class="smallPixel" fill="#a8cf78">MAPS QUIZ</text>
+      <rect x="28" y="636" width="142" height="94" fill="#292a55" stroke="#72a7d4" stroke-width="4"/>
+      <use href="#bookIcon" x="56" y="648" transform="scale(.7)"/>
+      <text x="62" y="715" class="smallPixel" fill="#93c7ee">BOOK QUIZ</text>
+      <rect x="200" y="636" width="142" height="94" fill="#292a55" stroke="#00d9d9" stroke-width="4"/>
+      <use href="#chapterIcon" x="226" y="649" transform="scale(.7)"/>
+      <text x="224" y="715" class="smallPixel" fill="#20e6e6">CHAPTER</text>
+    </g>
+
+    <g id="warmPhone">
+      <rect width="370" height="800" rx="34" fill="#120f0c"/>
+      <rect x="18" y="52" width="334" height="696" fill="#17110f"/>
+      <rect x="18" y="52" width="334" height="696" fill="url(#noise)"/>
+      <text x="33" y="106" class="phoneTitle" fill="#f7cf67">Adventure</text>
+      <text x="33" y="135" class="smallPixel" fill="#c6b493">Choose your next quest</text>
+      <rect x="272" y="83" width="52" height="30" rx="4" fill="#241d19" stroke="#8dd2d8" stroke-width="2"/>
+      <text x="284" y="105" class="smallPixel" fill="#8dd2d8">297</text>
+
+      <rect x="30" y="166" width="310" height="96" rx="7" fill="#261d22" stroke="#d5a246" stroke-width="3"/>
+      <rect x="44" y="184" width="64" height="64" fill="#d5a246"/>
+      <use href="#avatar" x="48" y="188" transform="scale(.78)"/>
+      <text x="124" y="199" class="smallPixel" fill="#a99577">YOUR HERO</text>
+      <text x="124" y="227" class="pixel" fill="#f4d06f">David</text>
+      <text x="124" y="249" class="smallPixel" fill="#ede5cf">The Shepherd King</text>
+
+      <rect x="30" y="283" width="310" height="88" rx="7" fill="#211d27" stroke="#7fbf92" stroke-width="3"/>
+      <text x="48" y="313" class="smallPixel" fill="#a8cbb1">TODAY'S RUN</text>
+      <text x="48" y="344" class="pixel" fill="#fbf1d0">Daily Challenge</text>
+      <circle cx="289" cy="327" r="23" fill="#7fbf92"/>
+      <text x="281" y="335" class="pixel" fill="#16110f">›</text>
+
+      <text x="30" y="420" class="smallPixel" fill="#b4a88f">QUIZZES</text>
+      <rect x="30" y="443" width="310" height="84" rx="7" fill="#242035" stroke="#c88953" stroke-width="3"/>
+      <use href="#swordIcon" x="48" y="454" transform="scale(.62)"/>
+      <text x="128" y="476" class="pixel" fill="#f3bb74">Hero Quiz</text>
+      <text x="128" y="502" class="smallPixel" fill="#d7d1c2">Bible people and decisions</text>
+      <rect x="30" y="543" width="310" height="84" rx="7" fill="#242035" stroke="#80ad6a" stroke-width="3"/>
+      <use href="#mapIcon" x="48" y="554" transform="scale(.62)"/>
+      <text x="128" y="576" class="pixel" fill="#b5d881">Maps Quiz</text>
+      <text x="128" y="602" class="smallPixel" fill="#d7d1c2">Places, journeys, kingdoms</text>
+      <rect x="30" y="643" width="148" height="84" rx="7" fill="#242035" stroke="#719cc4" stroke-width="3"/>
+      <use href="#bookIcon" x="51" y="654" transform="scale(.52)"/>
+      <text x="94" y="715" class="smallPixel" fill="#9fc6e8">Books</text>
+      <rect x="192" y="643" width="148" height="84" rx="7" fill="#242035" stroke="#8dd2d8" stroke-width="3"/>
+      <use href="#chapterIcon" x="211" y="654" transform="scale(.52)"/>
+      <text x="248" y="715" class="smallPixel" fill="#91e0df">Chapter</text>
+    </g>
+
+    <g id="focusPhone">
+      <rect width="370" height="800" rx="34" fill="#080c12"/>
+      <rect x="18" y="52" width="334" height="696" fill="#0d1520"/>
+      <text x="33" y="106" class="phoneTitle" fill="#f9e9a2">Adventure Home</text>
+      <rect x="33" y="124" width="158" height="6" fill="#4bc1a3"/>
+      <rect x="256" y="82" width="76" height="32" rx="4" fill="#122233" stroke="#3d5872" stroke-width="2"/>
+      <text x="268" y="104" class="smallPixel" fill="#f9e9a2">⚡ 13</text>
+
+      <rect x="30" y="160" width="310" height="118" rx="8" fill="#132133" stroke="#38546d" stroke-width="2"/>
+      <rect x="45" y="178" width="82" height="82" rx="4" fill="#1f3249" stroke="#4bc1a3" stroke-width="3"/>
+      <use href="#avatar" x="50" y="183"/>
+      <text x="146" y="198" class="smallPixel" fill="#8da1b5">READY HERO</text>
+      <text x="146" y="230" class="pixel" fill="#f7cd66">David</text>
+      <text x="146" y="255" class="smallPixel" fill="#e8edf1">Shepherd King</text>
+
+      <rect x="30" y="299" width="310" height="96" rx="8" fill="#123329" stroke="#4bc1a3" stroke-width="3"/>
+      <text x="49" y="328" class="smallPixel" fill="#a7d7c9">NEXT BEST ACTION</text>
+      <text x="49" y="360" class="pixel" fill="#effbf2">Start Daily Challenge</text>
+      <text x="286" y="361" class="pixel" fill="#f7cd66">›</text>
+
+      <text x="30" y="443" class="smallPixel" fill="#8da1b5">PICK A MODE</text>
+      <rect x="30" y="466" width="310" height="126" rx="8" fill="#17263b" stroke="#f7cd66" stroke-width="3"/>
+      <use href="#swordIcon" x="48" y="485" transform="scale(.86)"/>
+      <text x="150" y="510" class="pixel" fill="#f7cd66">Hero Quiz</text>
+      <text x="150" y="537" class="smallPixel" fill="#dce5eb">Most popular</text>
+      <rect x="150" y="552" width="80" height="18" rx="3" fill="#4bc1a3"/>
+      <text x="164" y="566" class="smallPixel" fill="#0d1520">START</text>
+
+      <rect x="30" y="614" width="94" height="94" rx="8" fill="#111c2d" stroke="#3d5872" stroke-width="2"/>
+      <use href="#mapIcon" x="44" y="627" transform="scale(.52)"/>
+      <text x="52" y="696" class="smallPixel" fill="#b2c5d8">Maps</text>
+      <rect x="138" y="614" width="94" height="94" rx="8" fill="#111c2d" stroke="#3d5872" stroke-width="2"/>
+      <use href="#bookIcon" x="152" y="627" transform="scale(.52)"/>
+      <text x="160" y="696" class="smallPixel" fill="#b2c5d8">Books</text>
+      <rect x="246" y="614" width="94" height="94" rx="8" fill="#111c2d" stroke="#3d5872" stroke-width="2"/>
+      <use href="#chapterIcon" x="260" y="627" transform="scale(.52)"/>
+      <text x="264" y="696" class="smallPixel" fill="#b2c5d8">Chapter</text>
+    </g>
+
+    <g id="arcadePhone">
+      <rect width="370" height="800" rx="34" fill="#050509"/>
+      <rect x="18" y="52" width="334" height="696" fill="#10101b"/>
+      <rect x="18" y="52" width="334" height="696" fill="url(#noise)"/>
+      <text x="33" y="105" class="phoneTitle" fill="#fff4a5">Adventure</text>
+      <text x="33" y="135" class="smallPixel" fill="#89d8ff">Home base</text>
+      <rect x="262" y="78" width="64" height="42" rx="4" fill="#19192a" stroke="#ffe761" stroke-width="2"/>
+      <text x="276" y="106" class="smallPixel" fill="#ffe761">297</text>
+
+      <rect x="30" y="160" width="310" height="180" rx="8" fill="#1b1b31" stroke="#2f3151" stroke-width="2"/>
+      <text x="48" y="190" class="smallPixel" fill="#a8a9c5">FEATURED RUN</text>
+      <use href="#avatar" x="48" y="208" transform="scale(1.05)"/>
+      <text x="142" y="228" class="pixel" fill="#ffe761">David</text>
+      <text x="142" y="254" class="smallPixel" fill="#f1f0f6">The Shepherd King</text>
+      <rect x="48" y="292" width="244" height="30" rx="4" fill="#ff5d73"/>
+      <text x="68" y="313" class="smallPixel" fill="#150b12">DAILY CHALLENGE  ›</text>
+
+      <text x="30" y="389" class="smallPixel" fill="#a8a9c5">QUIZ PATHS</text>
+      <rect x="30" y="412" width="148" height="118" rx="8" fill="#1b1b31" stroke="#ff9c55" stroke-width="3"/>
+      <use href="#swordIcon" x="64" y="426" transform="scale(.62)"/>
+      <text x="60" y="512" class="smallPixel" fill="#ffb06d">Hero</text>
+      <rect x="192" y="412" width="148" height="118" rx="8" fill="#1b1b31" stroke="#5fd28e" stroke-width="3"/>
+      <use href="#mapIcon" x="219" y="427" transform="scale(.62)"/>
+      <text x="222" y="512" class="smallPixel" fill="#92e0a8">Maps</text>
+      <rect x="30" y="548" width="148" height="118" rx="8" fill="#1b1b31" stroke="#76b7ff" stroke-width="3"/>
+      <use href="#bookIcon" x="64" y="563" transform="scale(.62)"/>
+      <text x="58" y="648" class="smallPixel" fill="#99cbff">Books</text>
+      <rect x="192" y="548" width="148" height="118" rx="8" fill="#1b1b31" stroke="#b889ff" stroke-width="3"/>
+      <use href="#chapterIcon" x="226" y="563" transform="scale(.62)"/>
+      <text x="213" y="648" class="smallPixel" fill="#caa7ff">Chapter</text>
+
+      <rect x="18" y="700" width="334" height="48" fill="#0a0b12"/>
+      <rect x="39" y="709" width="44" height="30" rx="3" fill="#ffe761"/>
+      <rect x="111" y="716" width="44" height="16" rx="3" fill="#23243a"/>
+      <rect x="183" y="716" width="44" height="16" rx="3" fill="#23243a"/>
+      <rect x="255" y="716" width="44" height="16" rx="3" fill="#23243a"/>
+    </g>
+  </defs>
+
+  <rect class="bg" width="1800" height="1260"/>
+  <rect x="0" y="0" width="1800" height="1260" fill="url(#noise)"/>
+  <text x="70" y="86" class="label">Adventure Home color + UX shotgun</text>
+  <text x="70" y="122" class="sub">Same pixel-game identity, but with calmer contrast, clearer hierarchy, and fewer competing accents.</text>
+
+  <g transform="translate(70 180)">
+    <text x="0" y="-30" class="phoneTitle" fill="#a9a6b1">Current</text>
+    <use href="#currentPhone"/>
+    <text x="0" y="835" class="tiny">Issue: every panel shouts at once.</text>
+    <text x="0" y="860" class="tiny">Yellow chrome competes with quiz accents.</text>
+  </g>
+
+  <g transform="translate(505 180)">
+    <text x="0" y="-30" class="phoneTitle" fill="#f7cf67">A. Warm Quest</text>
+    <use href="#warmPhone"/>
+    <text x="0" y="835" class="tiny">Best balance for Bible game tone.</text>
+    <text x="0" y="860" class="tiny">Gold becomes brand, not border noise.</text>
+  </g>
+
+  <g transform="translate(940 180)">
+    <text x="0" y="-30" class="phoneTitle" fill="#4bc1a3">B. Focus Mode</text>
+    <use href="#focusPhone"/>
+    <text x="0" y="835" class="tiny">Strongest UX hierarchy.</text>
+    <text x="0" y="860" class="tiny">One primary action, secondary modes below.</text>
+  </g>
+
+  <g transform="translate(1375 180)">
+    <text x="0" y="-30" class="phoneTitle" fill="#ff5d73">C. Clean Arcade</text>
+    <use href="#arcadePhone"/>
+    <text x="0" y="835" class="tiny">Most playful and modern.</text>
+    <text x="0" y="860" class="tiny">Keeps color variety but makes it systematic.</text>
+  </g>
+
+  <rect x="70" y="1100" width="1660" height="92" rx="10" fill="#14141f" stroke="#2d2d3d" stroke-width="2"/>
+  <text x="96" y="1134" class="pixel" fill="#f7cf67">Recommended direction: A with B's structure</text>
+  <text x="96" y="1166" class="sub">Use a warm deep background, one gold brand accent, subdued card borders, and make Daily Challenge the obvious next tap. The quiz grid can stay fun, but each tile should stop fighting the hero and CTA.</text>
+</svg>

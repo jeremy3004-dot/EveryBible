@@ -13,6 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { layout, spacing, typography } from '../design/system';
+import { useAudioStore } from '../stores/audioStore';
 import { useBibleStore } from '../stores/bibleStore';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -66,11 +67,15 @@ const resolveActiveNestedRoute = (route: {
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const audioReturnTarget = useAudioStore((state) => state.audioReturnTarget);
+  const audioStatus = useAudioStore((state) => state.status);
   const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
   const isPlanSessionReaderActive = useBibleStore((state) => state.isPlanSessionReaderActive);
   const currentBibleBook = useBibleStore((state) => state.currentBook);
   const currentBibleChapter = useBibleStore((state) => state.currentChapter);
   const preferredBibleMode = useBibleStore((state) => state.preferredChapterLaunchMode);
+  const shouldKeepBibleTabLiveWhileAudioReturns =
+    Boolean(audioReturnTarget) && audioStatus === 'playing';
   const tabBarBottomPadding = spacing.lg;
   const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
@@ -101,7 +106,7 @@ export function TabNavigator() {
       id="RootTab"
       screenOptions={({ route }) => ({
         headerShown: false,
-        freezeOnBlur: true,
+        freezeOnBlur: route.name === 'Bible' ? !shouldKeepBibleTabLiveWhileAudioReturns : true,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: (() => {

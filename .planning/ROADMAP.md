@@ -609,3 +609,50 @@ Plans:
 - [ ] 33-02-PLAN.md — Add the off-by-default settings toggle, BibleReader feedback entry point, thumbs up/down UI, optional comment field, and submission client
 - [ ] 33-03-PLAN.md — Add failure visibility, regression coverage, manual QA guidance, and operator setup docs for the spreadsheet pipeline
 - [ ] 33-04-PLAN.md — Run release verification, ship a new local iOS build to TestFlight, and push the branch plus PR update to GitHub
+
+### Phase 35: Signup Simplification And Deferred Auth Conversion
+
+**Goal**: Remove the first-run auth detour and replace the split sign-in/sign-up flow with a lighter, guest-first auth experience that preserves local-first reading behavior and only asks people to authenticate when it adds clear value.
+**Depends on**: Phase 33
+**Requirements**: AUTH-01, AUTH-02, LOCL-01, SYNC-02
+**Success Criteria** (what must be TRUE):
+
+1. First-run onboarding completes interface language, country, and content-language setup without forcing an immediate auth choice, and the user lands in the app as a guest by default.
+2. Users see one unified auth entry surface with Apple/Google plus a minimal email fallback instead of separate sign-in and sign-up screens.
+3. Authentication is requested at the moment it helps the user sync or protect account-bound actions, while local-first guest flows that already work continue to work.
+   **Plans**: 3 plans
+
+Plans:
+
+- [ ] 35-01-PLAN.md — Remove the first-run auth detour and keep onboarding guest-first
+- [ ] 35-02-PLAN.md — Replace split sign-in/sign-up screens with one unified auth surface
+- [ ] 35-03-PLAN.md — Add just-in-time auth prompts, intent handoff, and regression coverage
+
+## Supplemental Milestones
+
+### M002: Durable Docs And Architecture Memory
+
+**Goal:** Capture high-leverage architecture and release knowledge in durable docs so future product, release, and onboarding work does not depend on chat memory.
+**Status:** Complete
+**Slices:** 5/5 complete
+
+Slices:
+
+- [x] M002-S01 — Publish `docs/architecture-overview.md`
+- [x] M002-S02 — Publish `docs/new-engineer-onboarding.md`
+- [x] M002-S03 — Publish `docs/release-runbook.md`
+- [x] M002-S04 — Publish `docs/system-glossary.md`
+- [x] M002-S05 — Run cross-doc verification sweep and correct inaccuracies across all deliverables
+
+**Verification Note (2026-04-15):** Verified 189 claims across the four docs above and fixed 12 inaccuracies before marking the milestone complete.
+
+## Backlog
+
+### Phase 999.1: Orthodox Kathisma Psalter Rhythm (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with $gsd-review-backlog when ready)

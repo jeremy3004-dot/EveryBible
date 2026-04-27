@@ -6,6 +6,8 @@ import {
   mergeRuntimeCatalogTranslations,
   reconcileMissingRuntimeTranslationPacks,
   mergeDownloadedAudioBook,
+  hasTranslationDownloadData,
+  resetTranslationDownloadState,
 } from './bibleStoreModel';
 
 function makeTranslation(overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name'>): BibleTranslation {
@@ -340,4 +342,75 @@ test('mergeDownloadedAudioBook appends each finished audio book exactly once', (
 
   assert.deepEqual(withJohn.downloadedAudioBooks, ['GEN', 'JHN']);
   assert.equal(withJohnAgain, withJohn);
+});
+
+test('hasTranslationDownloadData only reports removable local assets', () => {
+  const seededBundledTranslation = makeTranslation({
+    id: 'bsb',
+    name: 'Berean Standard Bible',
+    hasText: true,
+    isDownloaded: true,
+    source: 'bundled',
+    installState: 'seeded',
+  });
+  const downloadedBundledAudio = makeTranslation({
+    id: 'bsb',
+    name: 'Berean Standard Bible',
+    hasText: true,
+    isDownloaded: true,
+    source: 'bundled',
+    installState: 'seeded',
+    downloadedAudioBooks: ['EPH'],
+  });
+  const installedRuntimeTextPack = makeTranslation({
+    id: 'niv',
+    name: 'New International Version',
+    hasText: true,
+    isDownloaded: true,
+    source: 'runtime',
+    installState: 'installed',
+    textPackLocalPath: '/data/niv.sqlite',
+  });
+
+  assert.equal(hasTranslationDownloadData(seededBundledTranslation), false);
+  assert.equal(hasTranslationDownloadData(downloadedBundledAudio), true);
+  assert.equal(hasTranslationDownloadData(installedRuntimeTextPack), true);
+});
+
+test('resetTranslationDownloadState clears local assets while preserving bundled readable text', () => {
+  const resetBsb = resetTranslationDownloadState(
+    makeTranslation({
+      id: 'bsb',
+      name: 'Berean Standard Bible',
+      hasText: true,
+      hasAudio: true,
+      isDownloaded: true,
+      source: 'bundled',
+      installState: 'seeded',
+      downloadedAudioBooks: ['EPH'],
+      textPackLocalPath: '/data/bsb.sqlite',
+    })
+  );
+  const resetNiv = resetTranslationDownloadState(
+    makeTranslation({
+      id: 'niv',
+      name: 'New International Version',
+      hasText: true,
+      isDownloaded: true,
+      source: 'runtime',
+      installState: 'installed',
+      textPackLocalPath: '/data/niv.sqlite',
+      downloadedAudioBooks: ['JHN'],
+    })
+  );
+
+  assert.equal(resetBsb.isDownloaded, true);
+  assert.equal(resetBsb.installState, 'seeded');
+  assert.deepEqual(resetBsb.downloadedAudioBooks, []);
+  assert.equal(resetBsb.textPackLocalPath, null);
+
+  assert.equal(resetNiv.isDownloaded, false);
+  assert.equal(resetNiv.installState, 'remote-only');
+  assert.deepEqual(resetNiv.downloadedAudioBooks, []);
+  assert.equal(resetNiv.textPackLocalPath, null);
 });

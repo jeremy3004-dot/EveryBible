@@ -653,6 +653,8 @@ export function BibleReaderScreen() {
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
   const setAudioReturnTarget = useAudioStore((state) => state.setAudioReturnTarget);
+  const setAudioTrack = useAudioStore((state) => state.setCurrentTrack);
+  const clearAudioPlaybackSequence = useAudioStore((state) => state.clearPlaybackSequence);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
   const addChapterToDefaultPlaylist = useLibraryStore((state) => state.addChapterToDefaultPlaylist);
   const listeningHistory = useLibraryStore((state) => state.history);
@@ -1761,9 +1763,15 @@ export function BibleReaderScreen() {
         return;
       }
 
-      if (status === 'playing' || status === 'paused' || status === 'loading') {
-        await stop();
-      }
+      const shouldReturnToPlanDetail =
+        activePlanIsMultiSession &&
+        activePlanSessionIndex >= 0 &&
+        activePlanSessionIndex <
+          ((activePlanDaySummary?.sessionSummaries.length ?? 0) - 1);
+
+      await stop();
+      clearAudioPlaybackSequence();
+      setAudioTrack(null, null, null);
 
       clearPlanDayResume(activePlanId, planDayNumber);
 
@@ -1771,29 +1779,40 @@ export function BibleReaderScreen() {
         return;
       }
 
-      rootNavigationRef.navigate('Plans', {
-        screen: 'PlansHome',
-      });
+      rootNavigationRef.navigate(
+        'Plans',
+        shouldReturnToPlanDetail
+          ? {
+              screen: 'PlanDetail',
+              params: { planId: activePlanId },
+            }
+          : {
+              screen: 'PlansHome',
+            }
+      );
     } finally {
       planDayCompletionGuardRef.current = null;
     }
   }, [
     activeChapterKey,
     activePlanChapterIndex,
+    activePlanDaySummary?.sessionSummaries.length,
     activePlanId,
     activePlanProgress,
     activePlanIsMultiSession,
+    activePlanSessionIndex,
     activePlanSessionKey,
     bookId,
     chapter,
     chapterSessionMode,
     chaptersRead,
+    clearAudioPlaybackSequence,
     clearPlanDayResume,
     isLastPlanChapter,
     markChapterRead,
     planDayNumber,
     returnToPlanOnComplete,
-    status,
+    setAudioTrack,
     stop,
   ]);
 

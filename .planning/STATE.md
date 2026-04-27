@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-stopped_at: Completed 18-03-PLAN.md
-last_updated: "2026-04-07T02:32:20.731Z"
+status: M002 complete — verified docs sweep landed
+stopped_at: Completed M002-S05 cross-doc verification sweep
+last_updated: "2026-04-16T06:36:47Z"
 progress:
-  total_phases: 35
+  total_phases: 36
   completed_phases: 25
-  total_plans: 70
+  total_plans: 73
   completed_plans: 68
 ---
 
@@ -19,9 +19,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** When someone opens the app, they can reliably read or listen to scripture and continue their discipleship journey even when network conditions are weak or backend features are partially unavailable.
-**Current focus:** Phase 18 — reading-plans
+**Current focus:** M002 — durable docs and architecture memory (complete)
 
 ## Current Position
+
+Docs milestone: M002 (durable docs and architecture memory) — COMPLETE
+Slices: 5 of 5 complete
+Deliverables: `docs/architecture-overview.md`, `docs/new-engineer-onboarding.md`, `docs/release-runbook.md`, `docs/system-glossary.md`
+Verification: 189 claims checked across the four docs above; 12 inaccuracies fixed before closeout on 2026-04-15
 
 Phase: 18 (reading-plans) — EXECUTING
 Plan: 4 of 4
@@ -215,6 +220,7 @@ Recent decisions affecting current work:
 - Phase 31 added: Push Notification Implementation — complete APNs/FCM setup, token registration, daily reading reminders, group alerts
 - Phase 32 added: Bible Verse Deep Linking — everybible://bible/john/3/16 deep link scheme + share verse functionality
 - Phase 33 added: Chapter Feedback And Review Pipeline — opt-in thumbs up/down plus optional written chapter feedback routed into Supabase and spreadsheet review ops
+- Phase 35 added: Signup Simplification And Deferred Auth Conversion — guest-first onboarding, unified auth UI, and just-in-time sign-in prompts
 
 ### Blockers/Concerns
 

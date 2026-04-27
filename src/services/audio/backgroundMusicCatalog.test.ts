@@ -13,7 +13,8 @@ test('background music catalog exposes the bundled listen options with source me
 
   const ambient = BACKGROUND_MUSIC_OPTIONS.find((option) => option.id === 'ambient');
   assert.equal(ambient?.license, 'CC0');
-  assert.match(ambient?.sourceUrl ?? '', /opengameart\.org/);
+  assert.match(ambient?.credit ?? '', /Cleyton Kauffman/);
+  assert.match(ambient?.sourceUrl ?? '', /underwater-theme/);
 
   const sitar = BACKGROUND_MUSIC_OPTIONS.find((option) => option.id === 'sitar');
   assert.match(sitar?.license ?? '', /CC-BY/);

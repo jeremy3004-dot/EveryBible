@@ -12,7 +12,8 @@ class BackgroundMusicPlayer {
   private isConfigured = false;
   private loadRequestId = 0;
   private targetVolume = 0.2;
-  private fadeTimer: ReturnType<typeof setInterval> | null = null;
+  private fadeTimers = new Map<Audio.Sound, ReturnType<typeof setInterval>>();
+  private retiringSounds = new Set<Audio.Sound>();
   private shouldBePlaying = false;
 
   async configure(): Promise<void> {
@@ -24,51 +25,77 @@ class BackgroundMusicPlayer {
     this.isConfigured = true;
   }
 
-  private clearFadeTimer(): void {
-    if (this.fadeTimer != null) {
-      clearInterval(this.fadeTimer);
-      this.fadeTimer = null;
+  private clearFadeTimer(sound: Audio.Sound): void {
+    const timer = this.fadeTimers.get(sound);
+    if (timer != null) {
+      clearInterval(timer);
+      this.fadeTimers.delete(sound);
     }
+  }
+
+  private clearFadeTimers(): void {
+    for (const timer of this.fadeTimers.values()) {
+      clearInterval(timer);
+    }
+    this.fadeTimers.clear();
   }
 
   private async unloadCurrentSound(): Promise<void> {
-    this.clearFadeTimer();
+    this.clearFadeTimers();
 
-    if (!this.sound) {
+    const sounds = [...this.retiringSounds];
+    if (this.sound) {
+      sounds.push(this.sound);
+    }
+
+    if (sounds.length === 0) {
       return;
     }
 
-    const sound = this.sound;
     this.sound = null;
+    this.retiringSounds.clear();
 
-    try {
-      sound.setOnPlaybackStatusUpdate(null);
-      await sound.stopAsync();
-      await sound.unloadAsync();
-    } catch {
-      // Ignore unload races for rapid preset switches.
+    for (const sound of sounds) {
+      try {
+        sound.setOnPlaybackStatusUpdate(null);
+        await sound.stopAsync();
+        await sound.unloadAsync();
+      } catch {
+        // Ignore unload races for rapid preset switches.
+      }
     }
   }
 
-  private fadeVolume(
-    sound: Audio.Sound,
-    from: number,
-    to: number,
-    onComplete?: () => void
-  ): void {
-    this.clearFadeTimer();
+  private async unloadRetiringSounds(): Promise<void> {
+    const sounds = [...this.retiringSounds];
+    this.retiringSounds.clear();
+
+    for (const sound of sounds) {
+      try {
+        this.clearFadeTimer(sound);
+        sound.setOnPlaybackStatusUpdate(null);
+        await sound.stopAsync();
+        await sound.unloadAsync();
+      } catch {
+        // Ignore cleanup races for rapid pause or preset switches.
+      }
+    }
+  }
+
+  private fadeVolume(sound: Audio.Sound, from: number, to: number, onComplete?: () => void): void {
+    this.clearFadeTimer(sound);
 
     const steps = Math.max(1, Math.round(FADE_DURATION_MS / FADE_STEP_MS));
     const delta = (to - from) / steps;
     let currentStep = 0;
     let currentVolume = from;
 
-    this.fadeTimer = setInterval(() => {
+    const timer = setInterval(() => {
       currentStep++;
       currentVolume = Math.min(1, Math.max(0, currentVolume + delta));
 
       if (currentStep >= steps) {
-        this.clearFadeTimer();
+        this.clearFadeTimer(sound);
         currentVolume = to;
         sound.setVolumeAsync(currentVolume).catch(() => {});
         onComplete?.();
@@ -77,6 +104,8 @@ class BackgroundMusicPlayer {
 
       sound.setVolumeAsync(currentVolume).catch(() => {});
     }, FADE_STEP_MS);
+
+    this.fadeTimers.set(sound, timer);
   }
 
   private handlePlaybackStatus = (status: AVPlaybackStatus): void => {
@@ -120,8 +149,10 @@ class BackgroundMusicPlayer {
         progressUpdateIntervalMillis: 500,
       });
 
-      // Fade out old, fade in new simultaneously
+      // Fade out old, fade in new simultaneously so the loop boundary is masked.
+      this.retiringSounds.add(oldSound);
       this.fadeVolume(oldSound, this.targetVolume, 0, () => {
+        this.retiringSounds.delete(oldSound);
         oldSound.stopAsync().catch(() => {});
         oldSound.unloadAsync().catch(() => {});
       });
@@ -207,7 +238,8 @@ class BackgroundMusicPlayer {
       }
 
       try {
-        this.clearFadeTimer();
+        this.clearFadeTimers();
+        await this.unloadRetiringSounds();
         await this.sound.setVolumeAsync(0);
         await this.sound.pauseAsync();
       } catch {
