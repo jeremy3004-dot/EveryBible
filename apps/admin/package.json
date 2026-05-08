@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.91.0",
+    "@trigger.dev/sdk": "^4.4.5",
     "maplibre-gl": "^5.21.1",
     "next": "^15.4.5",
     "react": "19.1.0",

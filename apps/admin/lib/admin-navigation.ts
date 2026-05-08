@@ -12,6 +12,11 @@ export const adminNavigation: AdminNavigationItem[] = [
     description: 'Syncs, distribution state, and upstream catalog operations.',
   },
   {
+    label: 'LangQuest',
+    href: '/langquest',
+    description: 'Translation ownership review, selected ingestion, and R2 artifact health.',
+  },
+  {
     label: 'Verse of the Day',
     href: '/content/verse-of-day',
     description: 'Draft, schedule, publish, and archive daily Scripture cards.',

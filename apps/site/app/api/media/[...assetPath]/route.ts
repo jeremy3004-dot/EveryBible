@@ -10,6 +10,35 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+const RANGE_NOT_SATISFIABLE_HEADERS = {
+  'accept-ranges': 'bytes',
+  'content-range': 'bytes */*',
+};
+
+function resolveRequestRange(request: Request): string | null | false {
+  const rangeHeader = request.headers.get('range')?.trim();
+
+  if (!rangeHeader) {
+    return null;
+  }
+
+  if (rangeHeader.includes(',')) {
+    return false;
+  }
+
+  const match = /^bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/.exec(rangeHeader);
+
+  if (!match || (!match[1] && !match[2])) {
+    return null;
+  }
+
+  if (match[1] && match[2] && Number(match[1]) > Number(match[2])) {
+    return false;
+  }
+
+  return `bytes=${match[1]}-${match[2]}`;
+}
+
 function getResponseHeaders(result: GetObjectCommandOutput): Headers {
   const headers = new Headers();
 
@@ -25,6 +54,11 @@ function getResponseHeaders(result: GetObjectCommandOutput): Headers {
     headers.set('etag', result.ETag);
   }
 
+  if (result.ContentRange) {
+    headers.set('content-range', result.ContentRange);
+  }
+
+  headers.set('accept-ranges', result.AcceptRanges || 'bytes');
   headers.set('cache-control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
   return headers;
 }
@@ -53,6 +87,14 @@ function isMissingObjectError(error: unknown): boolean {
   return error.name === 'NoSuchKey' || error.name === 'NotFound';
 }
 
+function isInvalidRangeError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === 'InvalidRange' || error.name === 'RequestedRangeNotSatisfiable';
+}
+
 interface RouteContext {
   params: Promise<{
     assetPath?: string[];
@@ -67,6 +109,15 @@ async function handleRequest(request: Request, context: RouteContext): Promise<R
     return new Response('Not found', { status: 404 });
   }
 
+  const requestRange = resolveRequestRange(request);
+
+  if (requestRange === false) {
+    return new Response(null, {
+      headers: RANGE_NOT_SATISFIABLE_HEADERS,
+      status: 416,
+    });
+  }
+
   try {
     const env = getBibleMediaEnv();
     const client = getBibleMediaClient(env);
@@ -74,21 +125,29 @@ async function handleRequest(request: Request, context: RouteContext): Promise<R
       new GetObjectCommand({
         Bucket: env.bucket,
         Key: objectKey,
+        Range: requestRange || undefined,
       })
     );
-    const bodyStream = resolveBodyStream(result.Body);
+    const bodyStream = request.method === 'HEAD' ? null : resolveBodyStream(result.Body);
 
-    if (!bodyStream) {
+    if (request.method !== 'HEAD' && !bodyStream) {
       return new Response('Not found', { status: 404 });
     }
 
     return new Response(bodyStream, {
       headers: getResponseHeaders(result),
-      status: 200,
+      status: result.ContentRange ? 206 : 200,
     });
   } catch (error) {
     if (isMissingObjectError(error)) {
       return new Response('Not found', { status: 404 });
+    }
+
+    if (isInvalidRangeError(error)) {
+      return new Response(null, {
+        headers: RANGE_NOT_SATISFIABLE_HEADERS,
+        status: 416,
+      });
     }
 
     throw error;
