@@ -1,0 +1,80 @@
+name: LangQuest Workflows Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/workflows/**
+      - packages/langquest-ingest/**
+      - package-lock.json
+      - package.json
+      - .github/workflows/langquest-workflows-deploy.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Trigger.dev environment to deploy
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-workflows:
+    name: Deploy Trigger.dev workflows
+    runs-on: ubuntu-latest
+    env:
+      TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
+      TRIGGER_PROJECT_REF: ${{ secrets.TRIGGER_PROJECT_REF }}
+    steps:
+      - name: Check Trigger.dev deploy secrets
+        id: trigger-secrets
+        run: |
+          set -euo pipefail
+          if [ -n "${TRIGGER_ACCESS_TOKEN:-}" ] && [ -n "${TRIGGER_PROJECT_REF:-}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping Trigger.dev deploy because TRIGGER_ACCESS_TOKEN or TRIGGER_PROJECT_REF is not configured."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repo
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Type-check workflows
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        run: npm run workflows:typecheck
+
+      - name: Create empty env file for deploy CLI
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        run: |
+          : > .env
+
+      - name: Deploy workflows
+        if: steps.trigger-secrets.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_ENV="${{ inputs.environment }}"
+          else
+            TARGET_ENV="prod"
+          fi
+
+          npm run "workflows:deploy:${TARGET_ENV}"

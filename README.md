@@ -60,10 +60,12 @@ cp .env.example .env
 ```
 
 Required variables:
+
 - `EXPO_PUBLIC_SUPABASE_URL` - Your Supabase project URL
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
 
 Optional for full features:
+
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Google OAuth web client ID
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Google OAuth iOS client ID
 - `EXPO_PUBLIC_BIBLE_IS_API_KEY` - Bible.is API key for any future additional streamed audio sources
@@ -71,6 +73,7 @@ Optional for full features:
 Expo also mirrors the supported `EXPO_PUBLIC_*` auth/runtime values into `extra.publicRuntimeConfig` during builds via [`app.config.js`](./app.config.js), so preview and production bundles must be created with these variables available.
 
 For the web apps, `.env.example` also includes the required Next.js and admin variables:
+
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_SITE_URL`
@@ -79,8 +82,12 @@ For the web apps, `.env.example` also includes the required Next.js and admin va
 - `EVERYBIBLE_UPSTREAM_API_BASE_URL`
 - `EVERYBIBLE_UPSTREAM_API_KEY`
 - `OPENAI_API_KEY` - optional for the admin-side AI helper chat
+- `TRIGGER_SECRET_KEY` - optional until `/langquest` manual workflow enqueue is enabled
+- `TRIGGER_ACCESS_TOKEN` - required for non-interactive Trigger.dev workflow deploys
 
 If those admin variables are missing, `admin.everybible.app` now renders a setup screen listing the missing keys instead of crashing with a server error.
+
+LangQuest ingestion workflows additionally require `TRIGGER_PROJECT_REF`, `LANGQUEST_SUPABASE_URL`, `LANGQUEST_SUPABASE_SERVICE_ROLE_KEY`, `LANGQUEST_STORAGE_BUCKET`, `LANGQUEST_ALLOWED_PROJECT_IDS`, and the R2 server-only variables. Trigger.dev documents `TRIGGER_ACCESS_TOKEN` as the non-interactive deploy credential for CI/CD. Use `npm run langquest:ops-check` before enabling the 24-hour ingestion schedule.
 
 ### 3. Supabase Setup
 
@@ -146,6 +153,9 @@ npm run site:build        # Build the public Next.js site
 npm run admin:build       # Build the internal Next.js admin app
 npm run admin:lint        # Lint the admin app
 npm run admin:typecheck   # Type-check the admin app
+npm run workflows:typecheck       # Type-check Trigger.dev workflow tasks
+npm run workflows:deploy:dry-run  # Dry-run Trigger.dev workflow deployment
+npm run langquest:ops-check       # Verify LangQuest/Supabase/R2 operational readiness
 ```
 
 ### Building
@@ -259,12 +269,14 @@ The execution model is split intentionally:
 ## Key Features
 
 ### Offline Bible Reading
+
 - Complete BSB text stored in SQLite
 - Works without network connection
 - Fast search and navigation
 - Bookmarks and reading history
 
 ### Audio Bible
+
 - Stream and download Berean Standard Bible chapter audio from the public-domain/CC0 OpenBible/Bible Hub source without extra credentials
 - Stream and download World English Bible chapter audio from eBible.org without extra credentials
 - Optionally support any future Bible.is-backed translation when `EXPO_PUBLIC_BIBLE_IS_API_KEY` is configured
@@ -273,7 +285,9 @@ The execution model is split intentionally:
 - Playback controls and progress tracking
 
 ### Four Fields Discipleship
+
 Implementation of the Four Fields training model:
+
 1. **Field 1 (Entry):** Relationship building and storytelling
 2. **Field 2 (Gospel):** Bible stories and salvation message
 3. **Field 3 (Discipleship):** One-on-one spiritual growth
@@ -282,12 +296,14 @@ Implementation of the Four Fields training model:
 Each field contains courses and lessons with progress tracking.
 
 ### Group Study
+
 - Create and manage study groups
 - Conduct sessions following Four Fields model
 - Track attendance and progress
 - Group leader and member roles
 
 ### User Accounts & Sync
+
 - Email/password authentication
 - Apple Sign-In (iOS)
 - Google Sign-In (iOS & Android)
@@ -295,6 +311,7 @@ Each field contains courses and lessons with progress tracking.
 - Works offline, syncs when online
 
 ### Multi-language Support
+
 - English (default)
 - Spanish
 - Nepali
@@ -314,33 +331,39 @@ Each field contains courses and lessons with progress tracking.
 ## Troubleshooting
 
 ### Metro bundler cache issues
+
 ```bash
 npx expo start -c
 ```
 
 ### iOS build fails
+
 ```bash
 cd ios && pod install && cd ..
 # If still failing, clear Xcode derived data
 ```
 
 ### Android build fails
+
 ```bash
 cd android && ./gradlew clean && cd ..
 ```
 
 ### Supabase connection error
+
 - Verify .env file exists and has correct credentials
 - Check that all env vars start with `EXPO_PUBLIC_`
 - Restart Expo dev server after changing .env
 
 ### Google Sign-In not working
+
 - Ensure the supported client IDs are configured (web and iOS)
 - Android-only Google client ID setup is not supported in this repo
 - Web client ID must be added to Supabase auth providers
 - Test on physical device (doesn't work in Expo Go)
 
 ### Apple Sign-In not working
+
 - Only works on physical iOS devices
 - Requires development build (not Expo Go)
 - Verify `usesAppleSignIn: true` in app.json

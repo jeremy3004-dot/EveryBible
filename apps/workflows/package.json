@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "trigger dev --config trigger.config.ts --env-file ../../.env",
+    "deploy:dry-run": "CI=1 trigger deploy . --env staging --dry-run --env-file ../../.env",
+    "deploy:staging": "CI=1 trigger deploy . --env staging --env-file ../../.env",
+    "deploy:prod": "CI=1 trigger deploy . --env prod --env-file ../../.env",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -13,6 +17,7 @@
     "@supabase/supabase-js": "^2.91.0"
   },
   "devDependencies": {
+    "trigger.dev": "^4.4.5",
     "typescript": "~5.9.2"
   }
 }

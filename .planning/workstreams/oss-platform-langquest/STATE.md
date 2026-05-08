@@ -12,14 +12,16 @@ Implementation workstream executed through the first production-capable slice:
 - Admin ownership checklist, approval gates, publish-state controls, filters, and manual workflow enqueue actions complete.
 - R2 ingest primitives and media proxy Range support complete.
 - Promotion manifest task complete for approved LangQuest artifacts.
+- Production Supabase migration applied and verified.
+- Operational deploy/readiness scripts complete.
 
 ## Current Phase
 
-Implementation complete through the admin-controlled ingestion and promotion-manifest slice. Remaining work is staging rollout with real LangQuest credentials and app playback/product publishing decisions.
+Implementation complete through the admin-controlled ingestion and promotion-manifest slice. Supabase and R2 are operational; Trigger.dev deployment and LangQuest source ingestion are blocked on external credentials.
 
 ## Next Action
 
-Apply the migration and run the first credentialed staging dry run against one allowlisted project with `LANGQUEST_INGEST_CHAPTER_LIMIT` set.
+Configure `TRIGGER_ACCESS_TOKEN`, `TRIGGER_SECRET_KEY`, `TRIGGER_PROJECT_REF`, and LangQuest source credentials, then run `npm run langquest:ops-check` until it fully passes.
 
 ## Guardrails
 

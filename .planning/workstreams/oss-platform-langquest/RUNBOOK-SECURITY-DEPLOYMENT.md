@@ -18,6 +18,7 @@ Admin environment:
 - `NEXT_PUBLIC_SUPABASE_URL`: EveryBible Supabase project URL.
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only key used by admin server actions.
 - `TRIGGER_SECRET_KEY`: server-only Trigger.dev key for manual enqueue from `/langquest`.
+- `TRIGGER_ACCESS_TOKEN`: Trigger.dev personal access token for non-interactive workflow deploys.
 
 Workflow environment:
 
@@ -40,7 +41,9 @@ Site media proxy environment:
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY`, `LANGQUEST_SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SECRET_KEY`, `R2_ACCESS_KEY_ID`, or `R2_SECRET_ACCESS_KEY` to client bundles, mobile runtime config, logs, screenshots, PR comments, or committed files.
+Never expose `SUPABASE_SERVICE_ROLE_KEY`, `LANGQUEST_SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SECRET_KEY`, `TRIGGER_ACCESS_TOKEN`, `R2_ACCESS_KEY_ID`, or `R2_SECRET_ACCESS_KEY` to client bundles, mobile runtime config, logs, screenshots, PR comments, or committed files.
+
+Trigger.dev documents `TRIGGER_ACCESS_TOKEN` as the non-interactive deploy credential for CI/CD. Treat it like a write-capable deployment secret.
 
 ## Least-Privilege Rules
 
@@ -94,8 +97,19 @@ Preconditions:
 Deploy:
 
 ```bash
-npx trigger.dev@latest deploy --project-ref "$TRIGGER_PROJECT_REF" --config apps/workflows/trigger.config.ts
+npm run langquest:ops-check
+npm run workflows:deploy:staging
+npm run workflows:deploy:prod
 ```
+
+GitHub Actions deploy path:
+
+- Workflow: `.github/workflows/langquest-workflows-deploy.yml`
+- Required repo secrets:
+  - `TRIGGER_ACCESS_TOKEN`
+  - `TRIGGER_PROJECT_REF`
+- Pushes to `main` that touch workflow sources deploy to Trigger.dev `prod`.
+- Manual dispatch can deploy either `staging` or `prod`.
 
 Verify deployment:
 

@@ -1,0 +1,7 @@
+-- Remote migration history placeholder.
+--
+-- The production Supabase migration table already contains version 20260412084907,
+-- but the original migration file was not present in the repository when the
+-- LangQuest operations workstream was landed. Keeping this no-op file in source
+-- control lets `supabase db push` reconcile local and remote migration history
+-- without marking the remote version as reverted.
