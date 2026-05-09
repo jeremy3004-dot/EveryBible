@@ -28,7 +28,7 @@ export interface UserPreferences {
   id: string;
   user_id: string;
   font_size: 'small' | 'medium' | 'large';
-  theme: 'dark' | 'light' | 'low-light';
+  theme: 'dark' | 'light' | 'low-light' | 'parchment' | 'midnight';
   appearance_palette: AppearancePaletteId;
   language: LanguageCode;
   country_code: string | null;

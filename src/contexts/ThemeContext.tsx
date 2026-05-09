@@ -8,7 +8,7 @@ import {
   DEFAULT_APPEARANCE_PALETTE,
 } from '../constants/appearancePalettes';
 
-export type ThemeMode = 'dark' | 'light' | 'low-light';
+export type ThemeMode = 'dark' | 'light' | 'low-light' | 'parchment' | 'midnight';
 
 export interface ThemeColors {
   background: string;
@@ -57,7 +57,9 @@ interface ThemeContextValue {
 
 const themeContext = createContext<ThemeContextValue | null>(null);
 
-const defaultPalette = APPEARANCE_PALETTES.find((palette) => palette.id === DEFAULT_APPEARANCE_PALETTE) ?? APPEARANCE_PALETTES[0];
+const defaultPalette =
+  APPEARANCE_PALETTES.find((palette) => palette.id === DEFAULT_APPEARANCE_PALETTE) ??
+  APPEARANCE_PALETTES[0];
 const defaultPaletteSwatches = defaultPalette.swatches;
 const accentContrast = '#FDFAF5';
 
@@ -136,6 +138,50 @@ const baseLowLightColors: ThemeColors = {
   bibleControlBackground: '#F4E8D7',
 };
 
+const baseParchmentColors: ThemeColors = {
+  background: '#F4E9D2',
+  cardBackground: '#FFF9ED',
+  cardBorder: '#DECDAF',
+  primaryText: '#241A12',
+  secondaryText: '#756651',
+  ...defaultPaletteColors,
+  error: '#B44139',
+  success: '#397A54',
+  warning: '#9C6E2E',
+  overlay: 'rgba(30, 22, 14, 0.36)',
+  tabActive: '#241A12',
+  tabInactive: '#7D6F5C',
+  bibleBackground: '#F4E9D2',
+  bibleSurface: '#FFF7E8',
+  bibleElevatedSurface: '#EBDCC2',
+  bibleDivider: '#DAC7A8',
+  biblePrimaryText: '#241A12',
+  bibleSecondaryText: '#756651',
+  bibleControlBackground: '#241A12',
+};
+
+const baseMidnightColors: ThemeColors = {
+  background: '#080B12',
+  cardBackground: '#101623',
+  cardBorder: '#212B3D',
+  primaryText: '#F2F6FF',
+  secondaryText: '#A5B0C3',
+  ...defaultPaletteColors,
+  error: '#FF7B72',
+  success: '#7FCB9B',
+  warning: '#D5A65D',
+  overlay: 'rgba(0, 0, 0, 0.66)',
+  tabActive: '#F2F6FF',
+  tabInactive: '#7E899A',
+  bibleBackground: '#080B12',
+  bibleSurface: '#101623',
+  bibleElevatedSurface: '#172033',
+  bibleDivider: '#233049',
+  biblePrimaryText: '#F2F6FF',
+  bibleSecondaryText: '#A5B0C3',
+  bibleControlBackground: '#F2F6FF',
+};
+
 const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
   const palette =
     APPEARANCE_PALETTES.find((entry) => entry.id === paletteId)?.swatches ?? defaultPaletteSwatches;
@@ -156,10 +202,24 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
     return { ...baseLowLightColors, ...accentTokens };
   }
 
+  if (mode === 'parchment') {
+    return { ...baseParchmentColors, ...accentTokens };
+  }
+
+  if (mode === 'midnight') {
+    return { ...baseMidnightColors, ...accentTokens };
+  }
+
   return { ...baseDarkColors, ...accentTokens };
 };
 
-export { baseDarkColors as darkColors, baseLightColors as lightColors, baseLowLightColors as lowLightColors };
+export {
+  baseDarkColors as darkColors,
+  baseLightColors as lightColors,
+  baseLowLightColors as lowLightColors,
+  baseParchmentColors as parchmentColors,
+  baseMidnightColors as midnightColors,
+};
 export type { AppearancePaletteId } from '../constants/appearancePalettes';
 
 export const appearancePaletteOptions: AppearancePaletteOption[] = [
@@ -194,11 +254,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  const storedTheme = ['dark', 'light', 'low-light'].includes(preferences.theme)
+  const storedTheme = ['dark', 'light', 'low-light', 'parchment', 'midnight'].includes(
+    preferences.theme
+  )
     ? preferences.theme
     : null;
-  const themeMode: ThemeMode =
-    storedTheme ?? (systemColorScheme === 'light' ? 'light' : 'dark');
+  const themeMode: ThemeMode = storedTheme ?? (systemColorScheme === 'light' ? 'light' : 'dark');
 
   const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
     preferences.appearancePalette

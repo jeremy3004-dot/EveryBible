@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { appearancePaletteOptions, useTheme } from '../../contexts/ThemeContext';
+import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { mmkvInstance } from '../../stores';
 import { useFontSize, useI18n } from '../../hooks';
@@ -74,7 +74,7 @@ export function SettingsScreen() {
     setShowTimePicker(true);
   };
 
-  const handleThemeChange = (mode: 'dark' | 'light' | 'low-light') => {
+  const handleThemeChange = (mode: ThemeMode) => {
     setTheme(mode);
     syncPreferences().catch(() => {});
   };
@@ -395,14 +395,18 @@ export function SettingsScreen() {
               </Text>
             </View>
             <View style={styles.themeSelectorRow}>
-              {(['dark', 'light', 'low-light'] as const).map((mode) => {
+              {(['dark', 'light', 'low-light', 'parchment', 'midnight'] as const).map((mode) => {
                 const isActive = themeMode === mode;
                 const label =
                   mode === 'dark'
                     ? t('settings.themeDark')
                     : mode === 'light'
                       ? t('settings.themeLight')
-                      : t('settings.themeLowLight');
+                      : mode === 'low-light'
+                        ? t('settings.themeLowLight')
+                        : mode === 'parchment'
+                          ? 'Parchment'
+                          : 'Midnight';
                 return (
                   <TouchableOpacity
                     key={mode}
@@ -686,7 +690,6 @@ export function SettingsScreen() {
                     ]}
                   />
                 </View>
-
               </View>
 
               {chapterFeedbackIdentityError ? (
@@ -1349,7 +1352,10 @@ const styles = StyleSheet.create({
   },
   themeSelectorRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     gap: 6,
+    maxWidth: 220,
   },
   themeSelectorButton: {
     paddingHorizontal: 12,

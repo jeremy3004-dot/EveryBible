@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
   font_size TEXT DEFAULT 'medium',
-  theme TEXT DEFAULT 'dark',
+  theme TEXT DEFAULT 'dark' CHECK (
+    theme IN ('dark', 'light', 'low-light', 'parchment', 'midnight')
+  ),
   appearance_palette TEXT NOT NULL DEFAULT 'ember' CHECK (
     appearance_palette IN ('ember', 'sapphire', 'teal', 'olive')
   ),

@@ -54,7 +54,7 @@ import {
   getTranslatedBookName,
 } from '../../constants';
 import { config } from '../../constants/config';
-import { appearancePaletteOptions, useTheme } from '../../contexts/ThemeContext';
+import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
@@ -175,6 +175,49 @@ interface AudioPortionShareDraft {
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
+const readerThemePreviewOptions: Array<{
+  mode: ThemeMode;
+  label: string;
+  background: readonly [string, string];
+  paper: string;
+  line: string;
+}> = [
+  {
+    mode: 'light',
+    label: 'Ivory',
+    background: ['#FFF8EF', '#F3E6D1'],
+    paper: '#FFFDF8',
+    line: '#4B4338',
+  },
+  {
+    mode: 'parchment',
+    label: 'Parchment',
+    background: ['#F4E9D2', '#E6D2AB'],
+    paper: '#FFF4DD',
+    line: '#3F2F20',
+  },
+  {
+    mode: 'low-light',
+    label: 'Sepia',
+    background: ['#2B231D', '#19120E'],
+    paper: '#332820',
+    line: '#EEDCC2',
+  },
+  {
+    mode: 'dark',
+    label: 'Ink',
+    background: ['#17191D', '#0B0C0E'],
+    paper: '#111111',
+    line: '#F5F2EA',
+  },
+  {
+    mode: 'midnight',
+    label: 'Midnight',
+    background: ['#172033', '#070A11'],
+    paper: '#0B1020',
+    line: '#ECF3FF',
+  },
+];
 
 interface AudioRangeSelectorProps {
   durationMs: number;
@@ -2025,7 +2068,7 @@ export function BibleReaderScreen() {
   const handleCloseFontSizeSheet = () => {
     setShowFontSizeSheet(false);
   };
-  const handleReaderThemeChange = (mode: 'dark' | 'light' | 'low-light') => {
+  const handleReaderThemeChange = (mode: ThemeMode) => {
     setTheme(mode);
     syncPreferences().catch(() => {});
   };
@@ -4156,51 +4199,53 @@ export function BibleReaderScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.readerThemeModeRow}>
-                {(['light', 'low-light', 'dark'] as const).map((mode) => {
-                  const isActive = themeMode === mode;
-                  const modeBackground =
-                    mode === 'light' ? '#FFF7ED' : mode === 'low-light' ? '#27221D' : '#111111';
-                  const modeLine =
-                    mode === 'light' ? '#3E3932' : mode === 'low-light' ? '#F0E2CE' : '#FFFFFF';
-
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.readerThemeModeRail}
+              >
+                {readerThemePreviewOptions.map((option) => {
+                  const isActive = themeMode === option.mode;
                   return (
                     <TouchableOpacity
-                      key={mode}
+                      key={option.mode}
                       style={[
                         styles.readerThemeTile,
                         {
-                          backgroundColor: modeBackground,
                           borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
                         },
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel={
-                        mode === 'light'
-                          ? t('settings.themeLight')
-                          : mode === 'low-light'
-                            ? t('settings.themeLowLight')
-                            : t('settings.themeDark')
-                      }
-                      onPress={() => handleReaderThemeChange(mode)}
+                      accessibilityLabel={option.label}
+                      onPress={() => handleReaderThemeChange(option.mode)}
                       activeOpacity={0.86}
                     >
-                      <View style={styles.readerThemeLineStack}>
-                        <View style={[styles.readerThemeLine, { backgroundColor: modeLine }]} />
-                        <View
-                          style={[
-                            styles.readerThemeLine,
-                            styles.readerThemeLineMedium,
-                            { backgroundColor: modeLine },
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.readerThemeLine,
-                            styles.readerThemeLineShort,
-                            { backgroundColor: modeLine },
-                          ]}
-                        />
+                      <LinearGradient
+                        colors={option.background}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View style={[styles.readerThemePaper, { backgroundColor: option.paper }]}>
+                        <View style={styles.readerThemeLineStack}>
+                          <View
+                            style={[styles.readerThemeLine, { backgroundColor: option.line }]}
+                          />
+                          <View
+                            style={[
+                              styles.readerThemeLine,
+                              styles.readerThemeLineMedium,
+                              { backgroundColor: option.line },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.readerThemeLine,
+                              styles.readerThemeLineShort,
+                              { backgroundColor: option.line },
+                            ]}
+                          />
+                        </View>
                       </View>
                       <View
                         style={[
@@ -4218,7 +4263,7 @@ export function BibleReaderScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -4243,10 +4288,22 @@ export function BibleReaderScreen() {
                       activeOpacity={0.86}
                     >
                       <View style={styles.readerPaletteSwatches}>
+                        <LinearGradient
+                          colors={option.previewColors}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.readerPaletteGradient}
+                        />
                         {option.previewColors.map((swatchColor) => (
                           <View
                             key={swatchColor}
-                            style={[styles.readerPaletteSwatch, { backgroundColor: swatchColor }]}
+                            style={[
+                              styles.readerPaletteSwatch,
+                              {
+                                backgroundColor: swatchColor,
+                                borderColor: colors.bibleSurface,
+                              },
+                            ]}
                           />
                         ))}
                       </View>
@@ -6365,17 +6422,29 @@ const styles = StyleSheet.create({
     fontSize: 42,
     lineHeight: 48,
   },
-  readerThemeModeRow: {
-    flexDirection: 'row',
+  readerThemeModeRail: {
     gap: 10,
+    paddingRight: 2,
   },
   readerThemeTile: {
-    flex: 1,
+    width: 128,
     height: 112,
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 14,
+    padding: 10,
     justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  readerThemePaper: {
+    minHeight: 60,
+    borderRadius: radius.md,
+    padding: 10,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
   readerThemeLineStack: {
     gap: 8,
@@ -6406,22 +6475,33 @@ const styles = StyleSheet.create({
     paddingRight: 2,
   },
   readerPaletteTile: {
-    width: 104,
+    width: 116,
     height: 96,
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: 12,
     justifyContent: 'space-between',
+    overflow: 'hidden',
   },
   readerPaletteSwatches: {
     flexDirection: 'row',
     alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 76,
+    height: 34,
+  },
+  readerPaletteGradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.pill,
+    opacity: 0.38,
   },
   readerPaletteSwatch: {
-    width: 20,
-    height: 32,
+    width: 24,
+    height: 34,
     borderRadius: radius.pill,
-    marginHorizontal: -2,
+    borderWidth: 2,
+    marginHorizontal: -4,
   },
   readerAllSettingsButton: {
     minHeight: layout.minTouchTarget,
