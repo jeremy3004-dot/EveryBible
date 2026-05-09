@@ -138,6 +138,7 @@ import {
   getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
+  getReaderInlineActiveVerse,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
@@ -1166,6 +1167,11 @@ export function BibleReaderScreen() {
     activeAudioBookId,
     activeAudioChapter,
   });
+  const readerInlineActiveVerse = getReaderInlineActiveVerse({
+    isCurrentAudioChapter,
+    activeFollowAlongVerse,
+    focusVerse,
+  });
   const showPremiumReadMode =
     chapterPresentationMode === 'text' &&
     chapterSessionMode === 'read' &&
@@ -1492,9 +1498,9 @@ export function BibleReaderScreen() {
     });
   }, [activeFollowAlongVerse, showFollowAlongText]);
 
-  // Fetch verse timestamps when Follow Along opens; clear when chapter changes.
+  // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {
-    if (!showFollowAlongText) return;
+    if (!showFollowAlongText && (!isCurrentAudioChapter || verses.length === 0)) return;
 
     let isCancelled = false;
     setChapterTimestamps(null);
@@ -1518,7 +1524,14 @@ export function BibleReaderScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [showFollowAlongText, currentTranslation, bookId, chapter]);
+  }, [
+    showFollowAlongText,
+    isCurrentAudioChapter,
+    verses.length,
+    currentTranslation,
+    bookId,
+    chapter,
+  ]);
 
   useEffect(() => {
     if (
@@ -3409,7 +3422,7 @@ export function BibleReaderScreen() {
           !annotation.deleted_at && annotationOverlapsVerse(annotation, verse.verse)
       );
       const highlightAnnotation = verseAnnotations.find((annotation) => annotation.type === 'highlight');
-      const isFocused = verse.verse === focusVerse;
+      const isFocused = verse.verse === readerInlineActiveVerse;
       const verseBackgroundColor = isFocused
         ? colors.bibleAccent + '30'
         : highlightAnnotation?.color

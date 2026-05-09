@@ -14,6 +14,7 @@ import {
   READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
+  getReaderInlineActiveVerse,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
@@ -575,6 +576,34 @@ test('timestamps with a single verse return that verse for any position', () => 
       timestamps,
     }),
     1
+  );
+});
+
+test('uses the live audio verse for inline reader highlighting when the displayed chapter is playing', () => {
+  assert.equal(
+    getReaderInlineActiveVerse({
+      isCurrentAudioChapter: true,
+      activeFollowAlongVerse: 7,
+      focusVerse: 2,
+    }),
+    7
+  );
+
+  assert.equal(
+    getReaderInlineActiveVerse({
+      isCurrentAudioChapter: false,
+      activeFollowAlongVerse: 7,
+      focusVerse: 2,
+    }),
+    2
+  );
+
+  assert.equal(
+    getReaderInlineActiveVerse({
+      isCurrentAudioChapter: true,
+      activeFollowAlongVerse: null,
+    }),
+    null
   );
 });
 

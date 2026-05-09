@@ -73,6 +73,12 @@ interface EstimatedFollowAlongVerseInput {
   timestamps?: Record<number, number> | null;
 }
 
+interface ReaderInlineActiveVerseInput {
+  isCurrentAudioChapter: boolean;
+  activeFollowAlongVerse: number | null;
+  focusVerse?: number;
+}
+
 interface NextFollowAlongVisibilityInput {
   currentlyVisible: boolean;
   nextSessionMode: ChapterSessionMode;
@@ -374,6 +380,18 @@ export const getEstimatedFollowAlongVerse = ({
   }
 
   return verses[verses.length - 1]?.verse ?? fallbackVerse ?? null;
+};
+
+export const getReaderInlineActiveVerse = ({
+  isCurrentAudioChapter,
+  activeFollowAlongVerse,
+  focusVerse,
+}: ReaderInlineActiveVerseInput): number | null => {
+  if (isCurrentAudioChapter && activeFollowAlongVerse != null) {
+    return activeFollowAlongVerse;
+  }
+
+  return focusVerse ?? null;
 };
 
 export const getNextFollowAlongVisibility = ({
