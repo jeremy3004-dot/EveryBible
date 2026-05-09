@@ -12,8 +12,8 @@ test('PlaybackControls supports a chapter-only transport variant without 10-seco
 
   assert.match(
     source,
-    /variant\?: 'default' \| 'chapter-only'/,
-    'PlaybackControls should expose a chapter-only variant for simplified Bible listen layouts'
+    /variant\?: 'default' \| 'chapter-only' \| 'utilities-only'/,
+    'PlaybackControls should expose chapter-only and utilities-only variants for simplified Bible audio layouts'
   );
 
   assert.match(
@@ -117,9 +117,7 @@ test('PlaybackControls supports icon-only text and share utilities for the chapt
 
 test('PlaybackControls lets the centered chapter-only utility cluster wrap on compact screens', () => {
   const source = readRelativeSource('./PlaybackControls.tsx');
-  const utilityGap = Number(
-    (source.match(/utilityPrimaryGroup:\s*{[\s\S]*gap:\s*(\d+)/) ?? [])[1]
-  );
+  const utilityGap = Number((source.match(/utilityPrimaryGroup:\s*{[\s\S]*gap:\s*(\d+)/) ?? [])[1]);
   const baseUtilityWidth = Number(
     (source.match(/utilityButton:\s*{[\s\S]*minWidth:\s*(\d+)/) ?? [])[1]
   );
@@ -221,7 +219,7 @@ test('Bible listen surfaces opt into the chapter-only transport variant', () => 
 
   assert.match(
     readerSource,
-    /<PlaybackControls[\s\S]*onShowText=\{\(\) => setShowFollowAlongText\(true\)\}/,
-    'BibleReaderScreen listen mode should pass the inline show-text action into PlaybackControls'
+    /<PlaybackControls[\s\S]*variant="chapter-only"[\s\S]*showUtilityRow=\{false\}/,
+    'BibleReaderScreen audio-only mode should keep the chapter transport visible while moving utilities to the top audio menu'
   );
 });

@@ -51,8 +51,8 @@ test('BibleReaderScreen reuses the shared top chrome in listen mode and removes 
 
   assert.match(
     source,
-    /const showMinimalListenChrome =[\s\S]*(stableSessionMode|chapterSessionMode) === 'listen' \|\| chapterPresentationMode === 'audio-first';/,
-    'BibleReaderScreen should still compute a dedicated listen-chrome mode for listen and audio-first chapters'
+    /const showMinimalListenChrome =[\s\S]*chapterPresentationMode === 'audio-first'[\s\S]*stableSessionMode === 'listen' && !canReadDisplayedChapter/s,
+    'BibleReaderScreen should only use minimal listen chrome for audio-first or unreadable audio chapters'
   );
 
   assert.match(
@@ -109,7 +109,7 @@ test('BibleReaderScreen brings the shared top chrome back in sync with the colla
 
   assert.match(
     source,
-    /opacity:\s*interpolate\(readerBottomChromeProgressShared\.value,\s*\[0,\s*1\],\s*\[1,\s*0\],\s*Extrapolation\.CLAMP\)/s,
+    /opacity:\s*interpolate\(\s*readerBottomChromeProgressShared\.value,\s*\[0,\s*1\],\s*\[1,\s*0\],\s*Extrapolation\.CLAMP\s*\)/s,
     'BibleReaderScreen should fade the top chrome out as the reader dock collapses and fade it back in when the dock returns'
   );
 });
@@ -206,13 +206,13 @@ test('BibleReaderScreen preserves poetry indentation when verse formatting metad
   );
 });
 
-test('listen mode moves the show-text action into the inline utility row and keeps the controls comfortably above the bottom edge', () => {
+test('audio-only mode keeps only the chapter transport in the page player', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
     source.includes('styles.listenActionsRow'),
     false,
-    'BibleReaderScreen should remove the standalone listen action row once show text is inline'
+    'BibleReaderScreen should remove the standalone listen action row once audio utilities move to the top menu'
   );
 
   assert.equal(
@@ -223,40 +223,40 @@ test('listen mode moves the show-text action into the inline utility row and kee
 
   assert.match(
     source,
-    /listenPlayerCard:\s*{[\s\S]*paddingBottom:\s*20,/,
-    'BibleReaderScreen should give the listen player card extra bottom breathing room so the utility row does not clip'
+    /<PlaybackControls[\s\S]*variant="chapter-only"[\s\S]*showUtilityRow={false}/s,
+    'BibleReaderScreen should hide speed, timer, repeat, music, and share utilities from the page player'
   );
 });
 
-test('listen mode delegates bundled background-music selection to PlaybackControls', () => {
+test('top audio button opens the shared utility controls', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /<PlaybackControls[\s\S]*backgroundMusicChoice=\{backgroundMusicChoice\}[\s\S]*onChangeBackgroundMusicChoice=\{changeBackgroundMusicChoice\}/,
-    'BibleReaderScreen listen mode should pass the bundled background-music props into PlaybackControls'
+    /const \[showAudioOptionsSheet, setShowAudioOptionsSheet\] = useState\(false\);/,
+    'BibleReaderScreen should keep local state for the top-level audio options sheet'
   );
 
-  assert.equal(
-    source.includes('showAudioOptionsSheet'),
-    false,
-    'BibleReaderScreen should remove the old placeholder audio-options sheet once the inline music picker is live'
+  assert.match(
+    source,
+    /Ionicons name="volume-medium-outline"/,
+    'BibleReaderScreen should expose a compact speaker button in the top chrome'
   );
 
-  assert.equal(
-    source.includes('Ambient layers are not available for this chapter yet'),
-    false,
-    'BibleReaderScreen should remove the placeholder ambient-copy path once bundled music ships'
+  assert.match(
+    source,
+    /<PlaybackControls[\s\S]*variant="utilities-only"[\s\S]*backgroundMusicChoice={backgroundMusicChoice}[\s\S]*onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}/s,
+    'BibleReaderScreen should place playback speed, timer, repeat, music, and share utilities inside the audio sheet'
   );
 });
 
-test('listen mode passes chapter audio sharing into the shared playback controls and removes the old header button', () => {
+test('top audio utility sheet owns chapter audio sharing', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /<PlaybackControls[\s\S]*onShareAudio=\{\(\) => setShowChapterAudioShareSheet\(true\)\}/s,
-    'BibleReaderScreen listen mode should move the audio-share action into PlaybackControls'
+    /<PlaybackControls[\s\S]*variant="utilities-only"[\s\S]*onShareAudio={handleOpenChapterAudioShareSheet}/s,
+    'BibleReaderScreen should expose audio sharing from the top audio utility sheet'
   );
 
   assert.equal(
@@ -370,7 +370,7 @@ test('BibleReaderScreen hands the premium read bottom controls to the dedicated 
   );
 
   assert.equal(
-      source.includes('styles.floatingReaderChapterNavOverlay') &&
+    source.includes('styles.floatingReaderChapterNavOverlay') &&
       source.includes('bottomDockAnimatedStyle') &&
       source.includes('translateY: interpolate(') &&
       source.includes('[layout.tabBarBaseHeight + spacing.xxl, safeInsets.bottom + spacing.xl]') &&
@@ -429,7 +429,9 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
   );
 
   assert.equal(
-    source.includes('premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderVisibleBottomPadding'),
+    source.includes(
+      'premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderVisibleBottomPadding'
+    ),
     false,
     'BibleReaderScreen should not manufacture extra bottom filler space from viewport-minus-content height once the shared tab bar collapses'
   );
@@ -529,7 +531,7 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.equal(
-    source.includes('navigation.navigate(\'BibleBrowser\')'),
+    source.includes("navigation.navigate('BibleBrowser')"),
     false,
     'BibleReaderScreen should remove the old top-left back button from the legacy header'
   );
@@ -565,23 +567,23 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
   );
 });
 
-test('switching the chapter session into listen mode starts playback for the displayed chapter', () => {
+test('pressing the reader dock play button starts playback for the displayed chapter', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*if \(nextMode === 'listen' && !isCurrentAudioChapter\) \{[\s\S]*void playChapter\(bookId, chapter\);[\s\S]*\}/,
-    'BibleReaderScreen should start chapter playback when the user switches from read into listen mode'
+    /const handlePlayDisplayedChapter = \(\) => \{[\s\S]*void playChapter\([\s\S]*bookId,[\s\S]*chapter,/s,
+    'BibleReaderScreen should start chapter playback from the persistent reader play button'
   );
 });
 
-test('switching the chapter session into listen mode dismisses the verse selection tray', () => {
+test('audio-only mode clears verse selection before showing the artwork player', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*if \(nextMode === 'listen'\) \{[\s\S]*dismissSelectedVerseSelection\(\);[\s\S]*\}/s,
-    'BibleReaderScreen should clear the selection tray as part of entering listen mode'
+    /if \(chapterPresentationMode === 'audio-first'\) \{[\s\S]*dismissSelectedVerseSelection\(\);/s,
+    'BibleReaderScreen should clear the selection tray when the chapter has no text and falls back to the audio artwork player'
   );
 });
 
@@ -645,9 +647,11 @@ test('premium read mode keeps the animated overlay while the top controls rise w
   );
 
   assert.equal(
-    (source.match(/const topChromeAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*?\}\)\);/)?.[0] ?? '').includes(
-      'translateY:'
-    ),
+    (
+      source.match(
+        /const topChromeAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*?\}\)\);/
+      )?.[0] ?? ''
+    ).includes('translateY:'),
     true,
     'BibleReaderScreen should let the shared top chrome slide back into view alongside the collapsing reader dock'
   );
@@ -682,8 +686,8 @@ test('premium read mode moves book, chapter, and translation into the top-left p
 
   assert.match(
     source,
-    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderModeRail[\s\S]*styles\.floatingReaderMenuButton/s,
-    'BibleReaderScreen should keep the read/listen rail centered with the flat overflow button still on the right'
+    /styles\.floatingReaderTopBar[\s\S]*styles\.floatingReaderReferencePill[\s\S]*styles\.floatingReaderTopActionGroup[\s\S]*styles\.floatingReaderMenuButton/s,
+    'BibleReaderScreen should keep the reference pill on the left and compact top actions on the right'
   );
 
   assert.match(
@@ -880,7 +884,9 @@ test('BibleReaderScreen closes the font size sheet when tapping outside the moda
   );
 
   assert.equal(
-    source.includes('onTouchStart={showFontSizeSheet ? dismissFontSizeSheetFromReader : undefined}'),
+    source.includes(
+      'onTouchStart={showFontSizeSheet ? dismissFontSizeSheetFromReader : undefined}'
+    ),
     false,
     'BibleReaderScreen should stop relying on touch-through content taps to close the font size sheet'
   );
@@ -970,34 +976,28 @@ test('active audio chapter sync preserves the current session mode when the read
   );
 });
 
-test('changing the listen-or-read rail keeps the route preferred mode in sync for later chapter and translation changes', () => {
+test('BibleReaderScreen keeps readable chapters in read mode instead of restoring the old listen tab', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const handleSessionModePress = \(requestedMode: 'listen' \| 'read'\) => \{[\s\S]*navigation\.setParams\(\{[\s\S]*preferredMode: nextMode,[\s\S]*}\);/s,
-    'BibleReaderScreen should update the route preferredMode whenever the user switches between listen and read'
+    /const hasText = verses\.length > 0;[\s\S]*const nextSessionMode = hasText\s*\?\s*'read'\s*:\s*getInitialChapterSessionMode/s,
+    'BibleReaderScreen should force chapters with text onto the read surface'
   );
 });
 
-test('chapter session resets preserve the live transcript when the next chapter remains in listen mode with text', () => {
+test('chapter session resets close the live transcript because readable chapters stay on the read surface', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /const nextSessionMode = getInitialChapterSessionMode\(/,
-    'BibleReaderScreen should derive the next chapter session mode before deciding whether to keep live transcript open'
-  );
-
-  assert.match(
-    source,
-    /setShowFollowAlongText\(\(current\) =>\s*getNextFollowAlongVisibility\(\{[\s\S]*currentlyVisible: current,[\s\S]*nextSessionMode,[\s\S]*hasText: verses.length > 0,[\s\S]*}\)\s*\);/s,
-    'BibleReaderScreen should preserve the live transcript when chapter changes stay in listen mode with readable text'
+    /setShowFollowAlongText\(\(current\) => \{[\s\S]*if \(hasText \|\| nextSessionMode === 'read'\) \{[\s\S]*return false;[\s\S]*setChapterSessionMode\(nextSessionMode\);/s,
+    'BibleReaderScreen should close the old listen-mode transcript when resetting the chapter session'
   );
 
   assert.doesNotMatch(
     source,
-    /sessionKeyRef\.current = sessionKey;\s*setShowFollowAlongText\(false\);/,
-    'BibleReaderScreen should not unconditionally close the live transcript on every chapter session reset'
+    /getNextFollowAlongVisibility/,
+    'BibleReaderScreen should no longer preserve a listen transcript for readable chapters'
   );
 });

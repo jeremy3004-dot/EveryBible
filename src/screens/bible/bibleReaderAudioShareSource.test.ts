@@ -24,7 +24,7 @@ test('BibleReaderScreen wires full-chapter sharing and an in-app audio-portion r
 
   assert.match(
     source,
-    /const \[audioPortionShareDraft, setAudioPortionShareDraft\] = useState<AudioPortionShareDraft \| null>\(\s*null\s*\);/s,
+    /const \[audioPortionShareDraft, setAudioPortionShareDraft\] =\s*useState<AudioPortionShareDraft \| null>\(\s*null\s*\);/s,
     'BibleReaderScreen should keep draft state for in-app audio portion selection'
   );
 
