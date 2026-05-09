@@ -411,6 +411,10 @@ export function HomeScreen() {
   });
   const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
   const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
+  const verseCardImageOpacity = isDark ? 0.34 : 0.48;
+  const verseCardOverlayColors = isDark
+    ? (['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.72)'] as const)
+    : (['rgba(255, 255, 255, 0.04)', 'rgba(12, 11, 9, 0.18)'] as const);
 
   const renderVerseShareButton = () => (
     <TouchableOpacity
@@ -489,15 +493,11 @@ export function HomeScreen() {
           borderColor: colors.cardBorder,
         },
       ]}
-      imageStyle={[styles.verseCardImage, { opacity: isDark ? 0.34 : 0.18 }]}
+      imageStyle={[styles.verseCardImage, { opacity: verseCardImageOpacity }]}
       resizeMode="cover"
     >
       <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.72)']
-            : ['rgba(245, 240, 232, 0.08)', 'rgba(245, 240, 232, 0.56)']
-        }
+        colors={verseCardOverlayColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.verseCardOverlay}

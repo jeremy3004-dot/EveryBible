@@ -94,3 +94,19 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
     'HomeScreen should not render the broken common.share key on the verse share control'
   );
 });
+
+test('HomeScreen keeps light-theme verse artwork visible behind the text', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  assert.match(
+    source,
+    /const verseCardImageOpacity = isDark \? 0\.34 : 0\.48;/,
+    'Light theme should keep the verse background image visible instead of fading it into a washed-out card'
+  );
+
+  assert.match(
+    source,
+    /const verseCardOverlayColors = isDark[\s\S]*: \(\['rgba\(255, 255, 255, 0\.04\)', 'rgba\(12, 11, 9, 0\.18\)'\] as const\);/,
+    'Light theme should use only a minimal white veil plus a soft dark readability gradient'
+  );
+});
