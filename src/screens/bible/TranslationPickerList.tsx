@@ -30,6 +30,7 @@ import {
 import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
+  filterTranslationLanguagesBySearchQuery,
   filterTranslationsByLanguage,
   filterTranslationsBySearchQuery,
   getTranslationAvailabilitySummary,
@@ -38,6 +39,7 @@ import {
   getVisibleTranslationsForPicker,
   getTranslationLanguageDisplayLabel,
   getTranslationSelectionState,
+  normalizeTranslationLanguage,
   resolvePreferredTranslationLanguage,
 } from './bibleTranslationModel';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
@@ -60,7 +62,9 @@ export function TranslationPickerList({
   const translations = useBibleStore((state) => state.translations);
   const downloadProgress = useBibleStore((state) => state.downloadProgress);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
-  const setPreferredTranslationLanguage = useBibleStore((state) => state.setPreferredTranslationLanguage);
+  const setPreferredTranslationLanguage = useBibleStore(
+    (state) => state.setPreferredTranslationLanguage
+  );
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);
@@ -72,6 +76,7 @@ export function TranslationPickerList({
   const [activeAudioDownloadKey, setActiveAudioDownloadKey] = useState<string | null>(null);
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const hasActiveSearchQuery = searchQuery.trim().length > 0;
   const hasHydratedRuntimeCatalog = useMemo(
     () => hasRuntimeCatalogTranslations(translations),
     [translations]
@@ -137,8 +142,15 @@ export function TranslationPickerList({
     [currentTranslation, preferredTranslationLanguage, visibleTranslations]
   );
   const sections = useMemo(
-    () => buildTranslationPickerSections(filteredTranslations, resolvedPreferredLanguage),
-    [filteredTranslations, resolvedPreferredLanguage]
+    () =>
+      buildTranslationPickerSections(filteredTranslations, resolvedPreferredLanguage, {
+        includeAllAvailableTranslations: hasActiveSearchQuery,
+      }),
+    [filteredTranslations, hasActiveSearchQuery, resolvedPreferredLanguage]
+  );
+  const languageSearchResults = useMemo(
+    () => filterTranslationLanguagesBySearchQuery(visibleTranslations, searchQuery),
+    [searchQuery, visibleTranslations]
   );
   const languageOptions = useMemo(
     () =>
@@ -150,17 +162,10 @@ export function TranslationPickerList({
   );
 
   useEffect(() => {
-    if (
-      resolvedPreferredLanguage &&
-      preferredTranslationLanguage !== resolvedPreferredLanguage
-    ) {
+    if (resolvedPreferredLanguage && preferredTranslationLanguage !== resolvedPreferredLanguage) {
       setPreferredTranslationLanguage(resolvedPreferredLanguage);
     }
-  }, [
-    preferredTranslationLanguage,
-    resolvedPreferredLanguage,
-    setPreferredTranslationLanguage,
-  ]);
+  }, [preferredTranslationLanguage, resolvedPreferredLanguage, setPreferredTranslationLanguage]);
 
   useEffect(() => {
     if (pickerMode === 'languages' && languageOptions.length <= 1) {
@@ -226,6 +231,7 @@ export function TranslationPickerList({
     });
 
     if (selectionState.isSelectable) {
+      setPreferredTranslationLanguage(normalizeTranslationLanguage(nextTranslation.language));
       setCurrentTranslation(nextTranslation.id);
       onRequestClose?.();
       onTranslationActivated?.(nextTranslation);
@@ -240,7 +246,10 @@ export function TranslationPickerList({
     if (selectionState.reason === 'download-required') {
       Alert.alert(
         nextTranslation.name,
-        t('translations.downloadPrompt', { name: nextTranslation.name, size: nextTranslation.sizeInMB }),
+        t('translations.downloadPrompt', {
+          name: nextTranslation.name,
+          size: nextTranslation.sizeInMB,
+        }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -259,6 +268,20 @@ export function TranslationPickerList({
       t('bible.translationComingSoon', { name: nextTranslation.name }),
       [{ text: t('common.ok') }]
     );
+  };
+
+  const handleLanguageSearchResultSelect = (language: string) => {
+    const matchingTranslations = filterTranslationsByLanguage(visibleTranslations, language);
+
+    setPreferredTranslationLanguage(language);
+
+    if (matchingTranslations.length === 1) {
+      void handleTranslationSelect(matchingTranslations[0]);
+      return;
+    }
+
+    setSearchQuery('');
+    setPickerMode('translations');
   };
 
   const handleDownloadAudioCollection = async (action: 'full-bible' | 'new-testament') => {
@@ -350,16 +373,18 @@ export function TranslationPickerList({
     );
     const isFullBibleAudioDownloading = activeAudioDownloadKey === `all-${translation.id}`;
     const isNewTestamentAudioDownloading = activeAudioDownloadKey === `nt-${translation.id}`;
-    const isBookAudioDownloading = activeAudioDownloadKey?.startsWith('book:') || isBookAudioJobActive;
+    const isBookAudioDownloading =
+      activeAudioDownloadKey?.startsWith('book:') || isBookAudioJobActive;
     const activeDownloadProgress =
       isBookAudioJobActive || isTranslationAudioJobActive
         ? activeAudioJob.progress
         : isTextDownloadActive
-          ? downloadProgress?.progress ?? 0
+          ? (downloadProgress?.progress ?? 0)
           : null;
     const isTextChipVisible =
       translation.hasText || Boolean(translation.catalog?.text?.downloadUrl) || isTextDownloaded;
-    const shouldShowAudioChips = audioAvailability.canManageAudio && translationAudioBooks.length > 0;
+    const shouldShowAudioChips =
+      audioAvailability.canManageAudio && translationAudioBooks.length > 0;
     const availabilitySummary = getTranslationAvailabilitySummary(translation, t);
     return (
       <View
@@ -378,7 +403,9 @@ export function TranslationPickerList({
             void handleTranslationSelect(translation);
           }}
           activeOpacity={0.85}
-          disabled={(isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) || isTextDownloadActive}
+          disabled={
+            (isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) || isTextDownloadActive
+          }
         >
           <View style={styles.translationInfo}>
             <View style={styles.translationNameRow}>
@@ -398,7 +425,10 @@ export function TranslationPickerList({
             </Text>
             {availabilitySummary ? (
               <Text
-                style={[styles.translationAvailabilitySummary, { color: colors.bibleSecondaryText }]}
+                style={[
+                  styles.translationAvailabilitySummary,
+                  { color: colors.bibleSecondaryText },
+                ]}
               >
                 {availabilitySummary}
               </Text>
@@ -415,10 +445,8 @@ export function TranslationPickerList({
                   style={[
                     styles.audioDownloadChip,
                     {
-                      backgroundColor: isAudioDownloaded
-                        ? colors.success + '18'
-                        : colors.bibleElevatedSurface,
-                      borderColor: isAudioDownloaded ? colors.success : colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
                     },
                   ]}
                   disabled={
@@ -441,12 +469,14 @@ export function TranslationPickerList({
                       setActiveAudioDownloadKey(null);
                     }
                   }}
-                  >
+                >
                   {isFullBibleAudioDownloading ? (
                     <>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                       <Ionicons name="headset-outline" size={14} color={colors.bibleAccent} />
-                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                      <Text
+                        style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}
+                      >
                         {translation.activeDownloadJob?.progress ?? 0}%
                       </Text>
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
@@ -458,7 +488,7 @@ export function TranslationPickerList({
                       <Ionicons
                         name="headset-outline"
                         size={14}
-                        color={isAudioDownloaded ? colors.success : colors.bibleAccent}
+                        color={colors.biblePrimaryText}
                       />
                       <Ionicons
                         name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
@@ -468,7 +498,7 @@ export function TranslationPickerList({
                       <Text
                         style={[
                           styles.audioDownloadChipLabel,
-                          { color: isAudioDownloaded ? colors.success : colors.biblePrimaryText },
+                          { color: colors.biblePrimaryText },
                         ]}
                       >
                         {t('bible.fullBible')}
@@ -482,10 +512,8 @@ export function TranslationPickerList({
                   style={[
                     styles.audioDownloadChip,
                     {
-                      backgroundColor: isNewTestamentAudioDownloaded
-                        ? colors.success + '18'
-                        : colors.bibleElevatedSurface,
-                      borderColor: isNewTestamentAudioDownloaded ? colors.success : colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
                     },
                   ]}
                   disabled={
@@ -511,12 +539,14 @@ export function TranslationPickerList({
                       setActiveAudioDownloadKey(null);
                     }
                   }}
-                  >
+                >
                   {isNewTestamentAudioDownloading ? (
                     <>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                       <Ionicons name="headset-outline" size={14} color={colors.bibleAccent} />
-                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                      <Text
+                        style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}
+                      >
                         {translation.activeDownloadJob?.progress ?? 0}%
                       </Text>
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
@@ -528,10 +558,12 @@ export function TranslationPickerList({
                       <Ionicons
                         name="headset-outline"
                         size={14}
-                        color={isNewTestamentAudioDownloaded ? colors.success : colors.bibleAccent}
+                        color={colors.biblePrimaryText}
                       />
                       <Ionicons
-                        name={isNewTestamentAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
+                        name={
+                          isNewTestamentAudioDownloaded ? 'checkmark-circle' : 'download-outline'
+                        }
                         size={14}
                         color={isNewTestamentAudioDownloaded ? colors.success : colors.bibleAccent}
                       />
@@ -539,9 +571,7 @@ export function TranslationPickerList({
                         style={[
                           styles.audioDownloadChipLabel,
                           {
-                            color: isNewTestamentAudioDownloaded
-                              ? colors.success
-                              : colors.biblePrimaryText,
+                            color: colors.biblePrimaryText,
                           },
                         ]}
                       >
@@ -557,19 +587,17 @@ export function TranslationPickerList({
                   style={[
                     styles.audioDownloadChip,
                     {
-                      backgroundColor: isAudioDownloaded
-                        ? colors.success + '18'
-                        : colors.bibleElevatedSurface,
-                      borderColor: isAudioDownloaded ? colors.success : colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
                     },
                   ]}
                   onPress={() => setAudioManagerTranslationId(translation.id)}
                   activeOpacity={0.85}
-                  >
+                >
                   <Ionicons
                     name="headset-outline"
                     size={14}
-                    color={isAudioDownloaded ? colors.success : colors.bibleAccent}
+                    color={colors.biblePrimaryText}
                   />
                   <Ionicons
                     name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
@@ -579,7 +607,7 @@ export function TranslationPickerList({
                   <Text
                     style={[
                       styles.audioDownloadChipLabel,
-                      { color: isAudioDownloaded ? colors.success : colors.biblePrimaryText },
+                      { color: colors.biblePrimaryText },
                     ]}
                   >
                     {t('bible.byBook')}
@@ -612,10 +640,8 @@ export function TranslationPickerList({
                   style={[
                     styles.audioDownloadChip,
                     {
-                      backgroundColor: isTextDownloaded
-                        ? colors.success + '18'
-                        : colors.bibleElevatedSurface,
-                      borderColor: isTextDownloaded ? colors.success : colors.bibleDivider,
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
                     },
                   ]}
                   disabled={isTextDownloaded || isTextDownloadActive || isBookAudioDownloading}
@@ -634,15 +660,23 @@ export function TranslationPickerList({
                       <Text style={[styles.audioDownloadChipLabel, { color: colors.bibleAccent }]}>
                         {t('audio.showText')}
                       </Text>
-                      <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
+                      <Text
+                        style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}
+                      >
                         {downloadProgress?.progress ?? 0}%
                       </Text>
                       <ActivityIndicator size="small" color={colors.bibleAccent} />
                     </>
                   ) : isTextDownloaded ? (
                     <>
-                      <Ionicons name="chatbox-ellipses-outline" size={14} color={colors.success} />
-                      <Text style={[styles.audioDownloadChipLabel, { color: colors.success }]}>
+                      <Ionicons
+                        name="chatbox-ellipses-outline"
+                        size={14}
+                        color={colors.biblePrimaryText}
+                      />
+                      <Text
+                        style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}
+                      >
                         {t('audio.showText')}
                       </Text>
                       <Ionicons name="checkmark-circle" size={14} color={colors.success} />
@@ -655,10 +689,7 @@ export function TranslationPickerList({
                         color={colors.biblePrimaryText}
                       />
                       <Text
-                        style={[
-                          styles.audioDownloadChipLabel,
-                          { color: colors.biblePrimaryText },
-                        ]}
+                        style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}
                       >
                         {t('audio.showText')}
                       </Text>
@@ -674,12 +705,14 @@ export function TranslationPickerList({
                 <TouchableOpacity
                   style={[
                     styles.audioDownloadChip,
+                    styles.removeDownloadChip,
                     {
-                      backgroundColor: colors.error + '18',
-                      borderColor: colors.error,
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
                     },
                   ]}
                   activeOpacity={0.85}
+                  accessibilityLabel={t('translations.delete')}
                   onPress={() => {
                     Alert.alert(
                       t('translations.deleteConfirmTitle'),
@@ -696,9 +729,6 @@ export function TranslationPickerList({
                   }}
                 >
                   <Ionicons name="trash-outline" size={14} color={colors.error} />
-                  <Text style={[styles.audioDownloadChipLabel, { color: colors.error }]}>
-                    {t('translations.delete')}
-                  </Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -746,9 +776,7 @@ export function TranslationPickerList({
                 style={[
                   styles.languageOptionCard,
                   {
-                    backgroundColor: isSelected
-                      ? colors.bibleElevatedSurface
-                      : 'transparent',
+                    backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
                     borderColor: colors.bibleDivider,
                   },
                 ]}
@@ -762,9 +790,7 @@ export function TranslationPickerList({
                   <Text style={[styles.languageOptionTitle, { color: colors.biblePrimaryText }]}>
                     {language.label}
                   </Text>
-                  <Text
-                    style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}
-                  >
+                  <Text style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}>
                     {language.count}
                   </Text>
                 </View>
@@ -810,29 +836,73 @@ export function TranslationPickerList({
             ) : null}
           </View>
 
-          <View
-            style={[
-              styles.preferenceCard,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <Text style={[styles.preferenceEyebrow, { color: colors.bibleSecondaryText }]}>
-              {t('translations.languagePreference')}
-            </Text>
-            <TouchableOpacity
-              style={styles.preferenceRow}
-              onPress={() => setPickerMode('languages')}
-              activeOpacity={0.82}
+          {hasActiveSearchQuery && languageSearchResults.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              {languageSearchResults.map((language) => {
+                const isSelected = resolvedPreferredLanguage === language.value;
+
+                return (
+                  <TouchableOpacity
+                    key={`search-language-${language.value}`}
+                    testID="translation-picker-language-search-result"
+                    style={[
+                      styles.languageOptionCard,
+                      {
+                        backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
+                        borderColor: colors.bibleDivider,
+                      },
+                    ]}
+                    onPress={() => handleLanguageSearchResultSelect(language.value)}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.languageOptionInfo}>
+                      <Text
+                        style={[styles.languageOptionTitle, { color: colors.biblePrimaryText }]}
+                      >
+                        {language.label}
+                      </Text>
+                      <Text
+                        style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}
+                      >
+                        {language.translationCount}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'checkmark' : 'chevron-forward'}
+                      size={18}
+                      color={isSelected ? colors.bibleAccent : colors.bibleSecondaryText}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {!hasActiveSearchQuery ? (
+            <View
+              style={[
+                styles.preferenceCard,
+                {
+                  backgroundColor: colors.bibleElevatedSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
             >
-              <Text style={[styles.preferenceValue, { color: colors.biblePrimaryText }]}>
-                {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+              <Text style={[styles.preferenceEyebrow, { color: colors.bibleSecondaryText }]}>
+                {t('translations.languagePreference')}
               </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.bibleSecondaryText} />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.preferenceRow}
+                onPress={() => setPickerMode('languages')}
+                activeOpacity={0.82}
+              >
+                <Text style={[styles.preferenceValue, { color: colors.biblePrimaryText }]}>
+                  {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.bibleSecondaryText} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {sections.myTranslations.length > 0 ? (
             <View style={styles.sectionBlock}>
@@ -848,9 +918,11 @@ export function TranslationPickerList({
               <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
                 {t('translations.available')}
               </Text>
-              <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
-                {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
-              </Text>
+              {!hasActiveSearchQuery ? (
+                <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
+                  {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+                </Text>
+              ) : null}
               {sections.availableTranslations.map((translation) =>
                 renderTranslationCard(translation)
               )}
@@ -881,9 +953,7 @@ export function TranslationPickerList({
                   {t('bible.audioDownloads')}
                 </Text>
                 {audioManagerTranslation ? (
-                  <Text
-                    style={[styles.audioModalSubtitle, { color: colors.bibleSecondaryText }]}
-                  >
+                  <Text style={[styles.audioModalSubtitle, { color: colors.bibleSecondaryText }]}>
                     {audioManagerTranslation.name}
                   </Text>
                 ) : null}
@@ -899,12 +969,12 @@ export function TranslationPickerList({
             </View>
 
             {audioManagerTranslation ? (
-            <ScrollView
-              style={styles.translationList}
-              contentInsetAdjustmentBehavior="never"
-              contentContainerStyle={styles.translationListContent}
-              showsVerticalScrollIndicator={false}
-            >
+              <ScrollView
+                style={styles.translationList}
+                contentInsetAdjustmentBehavior="never"
+                contentContainerStyle={styles.translationListContent}
+                showsVerticalScrollIndicator={false}
+              >
                 {audioManagerCollectionAction ? (
                   <TouchableOpacity
                     style={[
@@ -941,14 +1011,13 @@ export function TranslationPickerList({
                       {activeAudioDownloadKey === 'all' || activeAudioDownloadKey === 'nt' ? (
                         <>
                           <Text
-                            style={[
-                              styles.downloadAllDescription,
-                              { color: colors.bibleAccent },
-                            ]}
+                            style={[styles.downloadAllDescription, { color: colors.bibleAccent }]}
                           >
-                            {audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                              audioManagerBooks.some((book) => book.id === bookId)
-                            ).length}
+                            {
+                              audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
+                                audioManagerBooks.some((book) => book.id === bookId)
+                              ).length
+                            }
                             /{audioManagerBooks.length} books (
                             {audioManagerBooks.length > 0
                               ? Math.round(
@@ -973,15 +1042,16 @@ export function TranslationPickerList({
                                 {
                                   backgroundColor: colors.bibleAccent,
                                   width: `${
-                                  audioManagerBooks.length > 0
-                                    ? Math.round(
-                                        (audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                                          audioManagerBooks.some((book) => book.id === bookId)
-                                        ).length /
-                                          audioManagerBooks.length) *
+                                    audioManagerBooks.length > 0
+                                      ? Math.round(
+                                          (audioManagerTranslation.downloadedAudioBooks.filter(
+                                            (bookId) =>
+                                              audioManagerBooks.some((book) => book.id === bookId)
+                                          ).length /
+                                            audioManagerBooks.length) *
                                             100
-                                      )
-                                    : 0
+                                        )
+                                      : 0
                                   }%`,
                                 },
                               ]}
@@ -1063,9 +1133,7 @@ export function TranslationPickerList({
                             : () => void handleDownloadBookAudio(book.id)
                         }
                         activeOpacity={
-                          bookAudioDownloaded || !bookAudioAvailability.canDownloadAudio
-                            ? 1
-                            : 0.85
+                          bookAudioDownloaded || !bookAudioAvailability.canDownloadAudio ? 1 : 0.85
                         }
                         disabled={
                           bookAudioDownloaded ||
@@ -1337,6 +1405,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minWidth: 0,
     flexShrink: 1,
+  },
+  removeDownloadChip: {
+    width: 30,
+    height: 30,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'center',
+    marginLeft: 2,
   },
   audioDownloadChipLabel: {
     fontSize: 12,
