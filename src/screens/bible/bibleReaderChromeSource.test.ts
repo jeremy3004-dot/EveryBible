@@ -896,13 +896,19 @@ test('premium read mode keeps a pinned bottom playback dock that can rise when t
   );
 });
 
-test('BibleReaderScreen still exposes font size from the overflow menu', () => {
+test('BibleReaderScreen exposes fonts and settings from the overflow menu', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     source,
-    /key: 'font-size'[\s\S]*label: t\('settings\.fontSize'\)/,
-    'BibleReaderScreen should keep font size inside the overflow menu'
+    /key: 'font-size'[\s\S]*label: 'Fonts & Settings'/,
+    'BibleReaderScreen should label the reader appearance action as Fonts & Settings'
+  );
+
+  assert.match(
+    source,
+    /Fonts & Settings[\s\S]*readerFontStepperRow[\s\S]*handleOpenAllSettings/s,
+    'BibleReaderScreen should render the reader appearance sheet with font controls and all settings'
   );
 });
 

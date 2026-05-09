@@ -54,7 +54,7 @@ import {
   getTranslatedBookName,
 } from '../../constants';
 import { config } from '../../constants/config';
-import { useTheme } from '../../contexts/ThemeContext';
+import { appearancePaletteOptions, useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
@@ -90,6 +90,7 @@ import {
 import { markDayComplete, markPlanSessionComplete } from '../../services/plans/readingPlanService';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import { getDaySessionEntries, isMultiSessionPlan } from '../../services/plans/readingPlanModel';
+import { syncPreferences } from '../../services/sync';
 import {
   useAudioStore,
   useAuthStore,
@@ -439,7 +440,7 @@ export function BibleReaderScreen() {
     returnToPlanOnComplete = false,
     sessionContext,
   } = route.params;
-  const { colors } = useTheme();
+  const { colors, themeMode, appearancePalette, setTheme, setAppearancePalette } = useTheme();
   const { t, i18n } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
@@ -715,7 +716,7 @@ export function BibleReaderScreen() {
       downloadedAudioBooks: translation.downloadedAudioBooks,
       bookId: targetBookId,
     });
-  const { fontSize, scaleValue, setSize } = useFontSize();
+  const { scaleValue, increase, decrease, canIncrease, canDecrease } = useFontSize();
   const {
     status,
     currentTranslationId: activeAudioTranslationId,
@@ -2023,6 +2024,23 @@ export function BibleReaderScreen() {
   };
   const handleCloseFontSizeSheet = () => {
     setShowFontSizeSheet(false);
+  };
+  const handleReaderThemeChange = (mode: 'dark' | 'light' | 'low-light') => {
+    setTheme(mode);
+    syncPreferences().catch(() => {});
+  };
+  const handleReaderAppearancePaletteChange = (
+    palette: (typeof appearancePaletteOptions)[number]['id']
+  ) => {
+    setAppearancePalette(palette);
+    syncPreferences().catch(() => {});
+  };
+  const handleOpenAllSettings = () => {
+    handleCloseFontSizeSheet();
+
+    if (rootNavigationRef.isReady()) {
+      rootNavigationRef.navigate('More', { screen: 'Settings' });
+    }
   };
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -4085,59 +4103,179 @@ export function BibleReaderScreen() {
                 ]}
               />
               <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
-                {t('settings.fontSize')}
+                Fonts & Settings
               </Text>
-              <View style={styles.fontOptionRow}>
-                {(
-                  [
-                    { key: 'small', label: t('settings.fontSizeSmall'), sampleSize: 16 },
-                    { key: 'medium', label: t('settings.fontSizeMedium'), sampleSize: 20 },
-                    { key: 'large', label: t('settings.fontSizeLarge'), sampleSize: 24 },
-                  ] as const
-                ).map((option) => {
-                  const isSelected = fontSize === option.key;
+              <View style={styles.readerFontStepperRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.readerFontStepperButton,
+                    { backgroundColor: colors.bibleElevatedSurface },
+                    !canDecrease && styles.readerFontStepperDisabled,
+                  ]}
+                  onPress={decrease}
+                  disabled={!canDecrease}
+                  activeOpacity={0.82}
+                >
+                  <Text
+                    style={[
+                      styles.readerFontStepperText,
+                      styles.readerFontStepperSmallText,
+                      {
+                        color: canDecrease
+                          ? colors.biblePrimaryText
+                          : colors.bibleSecondaryText + '88',
+                      },
+                    ]}
+                  >
+                    A
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.readerFontStepperButton,
+                    styles.readerFontStepperButtonLarge,
+                    { backgroundColor: colors.bibleElevatedSurface },
+                    !canIncrease && styles.readerFontStepperDisabled,
+                  ]}
+                  onPress={increase}
+                  disabled={!canIncrease}
+                  activeOpacity={0.82}
+                >
+                  <Text
+                    style={[
+                      styles.readerFontStepperText,
+                      styles.readerFontStepperLargeText,
+                      {
+                        color: canIncrease
+                          ? colors.biblePrimaryText
+                          : colors.bibleSecondaryText + '88',
+                      },
+                    ]}
+                  >
+                    A
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.readerThemeModeRow}>
+                {(['light', 'low-light', 'dark'] as const).map((mode) => {
+                  const isActive = themeMode === mode;
+                  const modeBackground =
+                    mode === 'light' ? '#FFF7ED' : mode === 'low-light' ? '#27221D' : '#111111';
+                  const modeLine =
+                    mode === 'light' ? '#3E3932' : mode === 'low-light' ? '#F0E2CE' : '#FFFFFF';
 
                   return (
                     <TouchableOpacity
-                      key={option.key}
+                      key={mode}
                       style={[
-                        styles.fontOptionButton,
+                        styles.readerThemeTile,
                         {
-                          backgroundColor: isSelected
-                            ? colors.bibleControlBackground
-                            : colors.bibleBackground,
-                          borderColor: isSelected
-                            ? colors.bibleControlBackground
-                            : colors.bibleDivider,
+                          backgroundColor: modeBackground,
+                          borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
                         },
                       ]}
-                      onPress={() => setSize(option.key)}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        mode === 'light'
+                          ? t('settings.themeLight')
+                          : mode === 'low-light'
+                            ? t('settings.themeLowLight')
+                            : t('settings.themeDark')
+                      }
+                      onPress={() => handleReaderThemeChange(mode)}
+                      activeOpacity={0.86}
                     >
-                      <Text
+                      <View style={styles.readerThemeLineStack}>
+                        <View style={[styles.readerThemeLine, { backgroundColor: modeLine }]} />
+                        <View
+                          style={[
+                            styles.readerThemeLine,
+                            styles.readerThemeLineMedium,
+                            { backgroundColor: modeLine },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.readerThemeLine,
+                            styles.readerThemeLineShort,
+                            { backgroundColor: modeLine },
+                          ]}
+                        />
+                      </View>
+                      <View
                         style={[
-                          styles.fontOptionSample,
+                          styles.readerThemeCheckCircle,
                           {
-                            color: isSelected ? colors.bibleBackground : colors.biblePrimaryText,
-                            fontSize: option.sampleSize,
+                            borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
+                            backgroundColor: isActive ? colors.accentPrimary : 'transparent',
                           },
                         ]}
                       >
-                        A
-                      </Text>
-                      <Text
-                        style={[
-                          styles.fontOptionLabel,
-                          {
-                            color: isSelected ? colors.bibleBackground : colors.bibleSecondaryText,
-                          },
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
+                        {isActive ? (
+                          <Ionicons name="checkmark" size={18} color={colors.onAccent} />
+                        ) : null}
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
               </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.readerPaletteRail}
+              >
+                {appearancePaletteOptions.map((option) => {
+                  const isActive = appearancePalette === option.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.readerPaletteTile,
+                        {
+                          borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
+                          backgroundColor: colors.bibleElevatedSurface,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(option.labelKey)}
+                      onPress={() => handleReaderAppearancePaletteChange(option.id)}
+                      activeOpacity={0.86}
+                    >
+                      <View style={styles.readerPaletteSwatches}>
+                        {option.previewColors.map((swatchColor) => (
+                          <View
+                            key={swatchColor}
+                            style={[styles.readerPaletteSwatch, { backgroundColor: swatchColor }]}
+                          />
+                        ))}
+                      </View>
+                      <View
+                        style={[
+                          styles.readerThemeCheckCircle,
+                          {
+                            borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
+                            backgroundColor: isActive ? colors.accentPrimary : 'transparent',
+                          },
+                        ]}
+                      >
+                        {isActive ? (
+                          <Ionicons name="checkmark" size={18} color={colors.onAccent} />
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.readerAllSettingsButton}
+                onPress={handleOpenAllSettings}
+                activeOpacity={0.82}
+              >
+                <Text style={[styles.readerAllSettingsLabel, { color: colors.biblePrimaryText }]}>
+                  All Settings
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -4183,7 +4321,7 @@ export function BibleReaderScreen() {
                     {
                       key: 'font-size',
                       icon: 'text-outline',
-                      label: t('settings.fontSize'),
+                      label: 'Fonts & Settings',
                       onPress: handleOpenFontSizeOptions,
                     },
                   ]
@@ -6182,10 +6320,10 @@ const styles = StyleSheet.create({
   },
   fontSheet: {
     borderTopWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 16,
-    gap: 14,
+    gap: 16,
   },
   fontSheetHandle: {
     width: 44,
@@ -6194,10 +6332,105 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   fontSheetTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  readerFontStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  readerFontStepperButton: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerFontStepperButtonLarge: {
+    flex: 1.2,
+  },
+  readerFontStepperDisabled: {
+    opacity: 0.48,
+  },
+  readerFontStepperText: {
+    fontWeight: '500',
+  },
+  readerFontStepperSmallText: {
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  readerFontStepperLargeText: {
+    fontSize: 42,
+    lineHeight: 48,
+  },
+  readerThemeModeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  readerThemeTile: {
+    flex: 1,
+    height: 112,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 14,
+    justifyContent: 'space-between',
+  },
+  readerThemeLineStack: {
+    gap: 8,
+  },
+  readerThemeLine: {
+    width: '82%',
+    height: 4,
+    borderRadius: radius.pill,
+    opacity: 0.88,
+  },
+  readerThemeLineMedium: {
+    width: '64%',
+  },
+  readerThemeLineShort: {
+    width: '48%',
+  },
+  readerThemeCheckCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  readerPaletteRail: {
+    gap: 10,
+    paddingRight: 2,
+  },
+  readerPaletteTile: {
+    width: 104,
+    height: 96,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  readerPaletteSwatches: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+  },
+  readerPaletteSwatch: {
+    width: 20,
+    height: 32,
+    borderRadius: radius.pill,
+    marginHorizontal: -2,
+  },
+  readerAllSettingsButton: {
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerAllSettingsLabel: {
+    fontSize: 16,
+    fontWeight: '800',
   },
   fontOptionRow: {
     flexDirection: 'row',
