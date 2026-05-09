@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { radius, shadows, spacing, typography } from '../../design/system';
 
 const HIGHLIGHT_COLORS = [
   { id: 'red', hex: '#D95B57' },
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: 1,
     borderBottomWidth: 0,
-    paddingHorizontal: layout.screenPadding,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     ...shadows.floating,
@@ -396,21 +396,21 @@ const styles = StyleSheet.create({
   selectionControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     minWidth: 0,
     overflow: 'visible',
   },
   highlightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
     flexShrink: 0,
   },
   colorDot: {
     position: 'relative',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -423,8 +423,8 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     minWidth: 0,
-    width: 50,
-    minHeight: 60,
+    width: 44,
+    minHeight: 58,
     borderWidth: 1,
     borderRadius: 14,
     alignItems: 'center',
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   actionButtonRail: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 4,
+    gap: 3,
     minWidth: 0,
     flexShrink: 0,
   },

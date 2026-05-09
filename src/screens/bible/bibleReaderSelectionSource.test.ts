@@ -194,14 +194,20 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     traySource,
-    /minHeight:\s*60/,
+    /minHeight:\s*58/,
     'The action pills should be slightly shorter than before'
   );
 
   assert.match(
     traySource,
-    /width:\s*50/,
+    /width:\s*44/,
     'The action pills should be sized tighter so the whole row can stay mostly on screen'
+  );
+
+  assert.match(
+    traySource,
+    /paddingHorizontal:\s*spacing\.lg/,
+    'The tray should use compact side padding so the final image action is not clipped'
   );
 
   assert.equal(
