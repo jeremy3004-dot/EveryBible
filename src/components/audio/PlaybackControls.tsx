@@ -256,16 +256,11 @@ export function PlaybackControls({
                 size={18}
                 color={sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText}
               />
-              <Text
-                style={[
-                  styles.utilityText,
-                  {
-                    color: sleepTimerRemaining ? colors.bibleAccent : colors.biblePrimaryText,
-                  },
-                ]}
-              >
-                {sleepTimerRemaining ? `${sleepTimerRemaining}m` : '...'}
-              </Text>
+              {sleepTimerRemaining ? (
+                <Text style={[styles.utilityText, { color: colors.bibleAccent }]}>
+                  {`${sleepTimerRemaining}m`}
+                </Text>
+              ) : null}
             </TouchableOpacity>
 
             <TouchableOpacity
