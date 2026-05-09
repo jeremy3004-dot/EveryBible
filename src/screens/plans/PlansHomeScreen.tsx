@@ -10,7 +10,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import Fuse from 'fuse.js';
@@ -740,15 +739,11 @@ interface FindPlansSectionProps {
 
 function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindPlansSectionProps) {
   const { t } = useTranslation();
-  const { width: windowWidth } = useWindowDimensions();
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
   const [searchQuery, setSearchQuery] = useState('');
-  const cardWidth = Math.max(
-    156,
-    Math.floor((windowWidth - layout.screenPadding * 2 - spacing.md) / 2)
-  );
+  const cardWidth = 156;
   const coverWidth = cardWidth - spacing.sm * 2;
-  const coverHeight = Math.max(112, Math.round(coverWidth * 0.68));
+  const coverHeight = 112;
 
   const searchablePlans = React.useMemo(
     () =>
@@ -869,7 +864,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
             { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
           ]}
         >
-          <Ionicons name="search" size={28} color={colors.secondaryText} />
+          <Ionicons name="search" size={24} color={colors.secondaryText} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -890,7 +885,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
           accessibilityRole="button"
           accessibilityLabel={t('common.filter', { defaultValue: 'Filter' })}
         >
-          <Ionicons name="options-outline" size={24} color={colors.secondaryText} />
+          <Ionicons name="options-outline" size={22} color={colors.secondaryText} />
         </View>
       </View>
 
@@ -961,33 +956,33 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
+      gap: spacing.sm,
       borderWidth: 1,
-      borderRadius: 24,
-      minHeight: 64,
-      paddingHorizontal: spacing.lg,
+      borderRadius: 18,
+      minHeight: 48,
+      paddingHorizontal: spacing.md,
     },
     filterButton: {
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       borderWidth: 1,
-      borderRadius: 32,
+      borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
     },
     searchInput: {
-      ...typography.cardTitle,
+      ...typography.body,
       fontWeight: '500',
       flex: 1,
-      paddingVertical: spacing.md,
+      paddingVertical: spacing.sm,
     },
     categorySection: {
       gap: spacing.lg,
     },
     categoryHeader: {
       ...typography.readingHeading,
-      fontSize: 26,
-      lineHeight: 32,
+      fontSize: 22,
+      lineHeight: 28,
       color: colors.primaryText,
     },
     categoryList: {
@@ -1009,13 +1004,12 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     planCardTitle: {
       ...typography.readingHeading,
-      fontSize: 20,
-      lineHeight: 24,
+      fontSize: 18,
+      lineHeight: 22,
       color: colors.primaryText,
     },
     planCadence: {
-      ...typography.body,
-      lineHeight: 18,
+      ...typography.micro,
       color: colors.secondaryText,
     },
     planCardMeta: {
@@ -1028,27 +1022,27 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     durationBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      minHeight: 36,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      minHeight: 32,
       justifyContent: 'center',
       flexShrink: 0,
     },
     durationBadgeText: {
-      ...typography.bodyStrong,
+      ...typography.micro,
       color: colors.secondaryText,
     },
     enrollBadge: {
       borderRadius: radius.pill,
-      minHeight: 36,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
+      minHeight: 32,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     enrollBadgeText: {
-      ...typography.bodyStrong,
+      ...typography.label,
     },
     emptyState: {
       alignItems: 'center',
@@ -1369,16 +1363,16 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     title: {
       ...typography.readingHeading,
-      fontSize: 40,
-      lineHeight: 48,
+      fontSize: 34,
+      lineHeight: 42,
       color: colors.primaryText,
       paddingHorizontal: layout.screenPadding,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
     },
     tabSticky: {
       backgroundColor: colors.background,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
     },
     tabRow: {
       flexDirection: 'row',
@@ -1396,8 +1390,8 @@ const createMainStyles = (colors: ThemeColors) =>
       flex: 1,
       minWidth: 108,
       paddingHorizontal: spacing.md,
-      minHeight: 54,
-      borderRadius: 15,
+      minHeight: 44,
+      borderRadius: 13,
       borderWidth: 1,
       borderColor: 'transparent',
       backgroundColor: 'transparent',
@@ -1406,7 +1400,7 @@ const createMainStyles = (colors: ThemeColors) =>
       flexShrink: 0,
     },
     tabLabel: {
-      ...typography.bodyStrong,
+      ...typography.label,
     },
     loadingContainer: {
       minHeight: 240,
