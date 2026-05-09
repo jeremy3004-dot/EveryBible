@@ -19,10 +19,8 @@ import urllib.error
 # Configuration
 OT_DIR = Path("/Users/dev/Desktop/Bible App!!!/Audio Bible/BSB-32kbps/BSB_00_Souer_OT")
 NT_DIR = Path("/Users/dev/Desktop/Bible App!!!/Audio Bible/BSB-32kbps/BSB_00_Souer_NT")
-SUPABASE_URL = "https://ganmududzdzpruvdulkg.supabase.co"
 BUCKET = "bible-audio"
 TRANSLATION = "bsb"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdhbm11ZHVkemR6cHJ1dmR1bGtnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzExOTQ2MCwiZXhwIjoyMDg4Njk1NDYwfQ.HXXICyjMmuFqNKrWHJV2myAWRiKcd7PHvrQpj_RD6g0"
 
 # Map from filename abbreviation to canonical BOOK_ID
 # Special case: Tts -> TIT (Titus)
@@ -48,6 +46,14 @@ BOOK_MAP = {
 PATTERN = re.compile(r"^BSB_\d+_([A-Za-z0-9]+)_(\d+)\.m4a$")
 
 
+def require_env(name: str) -> str:
+    """Read a required environment variable."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        sys.exit(f"ERROR: Set {name} in your environment")
+    return value
+
+
 def collect_files():
     """Collect all .m4a files and parse into (local_path, book_id, chapter) tuples."""
     files = []
@@ -67,13 +73,21 @@ def collect_files():
     return files
 
 
-def upload_file(filepath: Path, book_id: str, chapter: int, dry_run: bool) -> tuple[bool, str]:
+def upload_file(
+    filepath: Path,
+    book_id: str,
+    chapter: int,
+    dry_run: bool,
+    supabase_url: str,
+    service_key: str,
+) -> tuple[bool, str]:
     """Upload a single file. Returns (success, message)."""
     dest_path = f"{BUCKET}/{TRANSLATION}/{book_id}/{chapter}.m4a"
-    url = f"{SUPABASE_URL}/storage/v1/object/{dest_path}"
 
     if dry_run:
         return True, f"[DRY RUN] {filepath.name} -> {dest_path}"
+
+    url = f"{supabase_url.rstrip('/')}/storage/v1/object/{dest_path}"
 
     with open(filepath, "rb") as f:
         data = f.read()
@@ -83,7 +97,7 @@ def upload_file(filepath: Path, book_id: str, chapter: int, dry_run: bool) -> tu
         data=data,
         method="POST",
         headers={
-            "Authorization": f"Bearer {SERVICE_KEY}",
+            "Authorization": f"Bearer {service_key}",
             "Content-Type": "audio/mp4",
             "x-upsert": "true",  # overwrite if exists
         },
@@ -111,6 +125,12 @@ def main():
     if args.dry_run:
         print("[DRY RUN] No files will be uploaded.")
 
+    supabase_url = ""
+    service_key = ""
+    if not args.dry_run:
+        supabase_url = require_env("SUPABASE_URL")
+        service_key = require_env("SUPABASE_SERVICE_ROLE_KEY")
+
     files = collect_files()
     total = len(files)
     print(f"Found {total} .m4a files to upload")
@@ -123,7 +143,15 @@ def main():
 
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         future_to_file = {
-            executor.submit(upload_file, fp, book_id, chapter, args.dry_run): (fp, book_id, chapter)
+            executor.submit(
+                upload_file,
+                fp,
+                book_id,
+                chapter,
+                args.dry_run,
+                supabase_url,
+                service_key,
+            ): (fp, book_id, chapter)
             for fp, book_id, chapter in files
         }
 
