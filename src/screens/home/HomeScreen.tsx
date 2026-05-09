@@ -24,7 +24,6 @@ import { bibleTranslations, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
-import { useProgressStore } from '../../stores/progressStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
@@ -34,7 +33,7 @@ import {
   gatherFoundations,
 } from '../../data/gatherFoundations';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
-import { getHomeScreenLayout, shouldUseCompactHomeStatsLayout } from './homeLayoutModel';
+import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans, type HomeContinuePlan } from './homeReadingPlansModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { formatDailyScriptureReferenceLabel, getDailyScripture } from '../../services/bible';
@@ -77,9 +76,11 @@ function PlanResumeCover({ plan }: { plan: ReadingPlan }) {
 function ContinuePlanCard({
   item,
   onPress,
+  showDivider = false,
 }: {
   item: HomeContinuePlan;
   onPress: (planId: string) => void;
+  showDivider?: boolean;
 }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -94,10 +95,10 @@ function ContinuePlanCard({
       activeOpacity={0.85}
       onPress={() => onPress(item.plan.id)}
       style={[
-        planResumeStyles.card,
+        planResumeStyles.row,
+        showDivider ? { borderTopColor: colors.cardBorder, borderTopWidth: 1 } : null,
         {
-          backgroundColor: colors.cardBackground,
-          borderColor: colors.cardBorder,
+          backgroundColor: 'transparent',
         },
       ]}
       accessibilityRole="button"
@@ -111,7 +112,7 @@ function ContinuePlanCard({
         <View style={planResumeStyles.textColumn}>
           <Text
             style={[planResumeStyles.title, { color: colors.primaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
             adjustsFontSizeToFit
             minimumFontScale={0.82}
           >
@@ -126,7 +127,7 @@ function ContinuePlanCard({
         </View>
         <View style={[planResumeStyles.cta, { backgroundColor: colors.accentPrimary }]}>
           <Text
-            style={[planResumeStyles.ctaText, { color: colors.cardBackground }]}
+            style={[planResumeStyles.ctaText, { color: colors.onAccent }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.72}
@@ -168,7 +169,6 @@ export function HomeScreen() {
   const verseSharePreviewRef = useRef<View | null>(null);
   const verseBackground = getHomeVerseBackground();
   const homeLayout = getHomeScreenLayout(screenWidth, screenHeight, bottomTabBarHeight);
-  const isCompactHomeStatsLayout = shouldUseCompactHomeStatsLayout(screenWidth);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) =>
@@ -180,10 +180,6 @@ export function HomeScreen() {
   const remoteAudioAvailable =
     config.features.audioEnabled && isRemoteAudioAvailable(currentTranslation);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
-  const getTodayCount = useProgressStore((state) => state.getTodayCount);
-  const getWeekCount = useProgressStore((state) => state.getWeekCount);
-  const getMonthCount = useProgressStore((state) => state.getMonthCount);
-  const getYearCount = useProgressStore((state) => state.getYearCount);
 
   const completedLessons = useGatherStore((state) => state.completedLessons);
 
@@ -325,13 +321,6 @@ export function HomeScreen() {
       cancelled = true;
     };
   }, []);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t('home.goodMorning');
-    if (hour < 17) return t('home.goodAfternoon');
-    return t('home.goodEvening');
-  };
 
   const handlePlayDailyAudio = () => {
     if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
@@ -672,7 +661,7 @@ export function HomeScreen() {
           styles.content,
           {
             paddingHorizontal: homeLayout.screenPadding,
-            paddingVertical: homeLayout.screenPadding,
+            paddingTop: Math.max(spacing.sm, homeLayout.screenPadding - spacing.sm),
             paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
             gap: homeLayout.sectionGap,
           },
@@ -684,24 +673,6 @@ export function HomeScreen() {
         contentInsetAdjustmentBehavior="never"
       >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
-          <View style={styles.headerBlock}>
-            <Text
-              style={[
-                styles.greeting,
-                {
-                  color: colors.primaryText,
-                  fontSize: homeLayout.greetingFontSize,
-                  lineHeight: homeLayout.greetingLineHeight,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              {getGreeting()}
-            </Text>
-          </View>
-
           {/* Continue in Foundations card */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -718,30 +689,14 @@ export function HomeScreen() {
               } as any)
             }
           >
-            <Text
-              style={[
-                styles.cardTitle,
-                {
-                  color: colors.secondaryText,
-                  paddingHorizontal: homeLayout.cardPadding,
-                  paddingTop: homeLayout.cardPadding,
-                  marginBottom: homeLayout.cardTitleGap,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-            >
-              {foundationCardEyebrow}
-            </Text>
             <View
               style={[
                 styles.foundationCardBody,
                 {
                   gap: homeLayout.foundationCardGap,
                   paddingHorizontal: homeLayout.cardPadding,
-                  paddingBottom: homeLayout.cardPadding,
-                  paddingTop: 0,
+                  paddingTop: homeLayout.cardPadding + spacing.md,
+                  paddingBottom: homeLayout.cardPadding + spacing.xs,
                 },
               ]}
             >
@@ -755,6 +710,14 @@ export function HomeScreen() {
                 ]}
               />
               <View style={[styles.foundationCardInfo, { gap: homeLayout.bodyGap }]}>
+                <Text
+                  style={[styles.cardTitle, { color: colors.accentPrimary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  {foundationCardEyebrow}
+                </Text>
                 <Text
                   style={[styles.foundationCardTitle, { color: colors.primaryText }]}
                   numberOfLines={homeLayout.foundationTitleLines}
@@ -771,16 +734,42 @@ export function HomeScreen() {
                 >
                   {activeFoundationDescription}
                 </Text>
-                <Text
-                  style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}
-                  numberOfLines={1}
-                >
-                  {t('gather.lessonsProgress', {
-                    completed: activeFoundationDone,
-                    total: activeFoundationTotal,
-                  })}
-                </Text>
+                <View style={styles.foundationProgressRow}>
+                  <Text
+                    style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}
+                    numberOfLines={1}
+                  >
+                    {t('gather.lessonsProgress', {
+                      completed: activeFoundationDone,
+                      total: activeFoundationTotal,
+                    })}
+                  </Text>
+                  <View
+                    style={[styles.foundationProgressTrack, { backgroundColor: colors.cardBorder }]}
+                  >
+                    <View
+                      style={[
+                        styles.foundationProgressFill,
+                        {
+                          width: `${
+                            Math.max(
+                              0,
+                              Math.min(
+                                1,
+                                activeFoundationTotal > 0
+                                  ? activeFoundationDone / activeFoundationTotal
+                                  : 0
+                              )
+                            ) * 100
+                          }%`,
+                          backgroundColor: colors.accentPrimary,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
               </View>
+              <Ionicons name="chevron-forward" size={26} color={colors.secondaryText} />
             </View>
           </TouchableOpacity>
 
@@ -806,213 +795,67 @@ export function HomeScreen() {
                     width: screenWidth - homeLayout.screenPadding * 2,
                   },
                 ]}
-                >
+              >
                 {renderVerseOfTheDayCard(false)}
               </View>
             </>
           )}
 
           {continuePlans.length > 0 ? (
-            <View
-              style={[
-                styles.card,
-                {
-                  backgroundColor: colors.cardBackground,
-                  borderColor: colors.cardBorder,
-                  padding: homeLayout.cardPadding,
-                  gap: homeLayout.bodyGap,
-                },
-              ]}
-            >
-              <Text
+            <View style={styles.myPlansSection}>
+              <View style={styles.myPlansHeader}>
+                <Text
+                  style={[
+                    styles.sectionHeading,
+                    {
+                      color: colors.primaryText,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  {t('readingPlans.myPlans')}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.82}
+                  onPress={() => navigation.navigate('Plans', { screen: 'PlansHome' })}
+                  style={styles.viewAllButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('readingPlans.browsePlans')}
+                >
+                  <Text
+                    style={[styles.viewAllText, { color: colors.accentPrimary }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.78}
+                  >
+                    {t('tabs.plans')}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
+                </TouchableOpacity>
+              </View>
+              <View
                 style={[
-                  styles.cardTitle,
-                  { color: colors.secondaryText, marginBottom: homeLayout.cardTitleGap },
+                  styles.card,
+                  styles.myPlansCard,
+                  {
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.cardBorder,
+                  },
                 ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.78}
               >
-                {t('readingPlans.myPlans')}
-              </Text>
-              <View style={{ gap: homeLayout.bodyGap }}>
-                {continuePlans.map((item) => (
+                {continuePlans.map((item, index) => (
                   <ContinuePlanCard
                     key={item.plan.id}
                     item={item}
                     onPress={handleContinuePlan}
+                    showDivider={index > 0}
                   />
                 ))}
               </View>
             </View>
           ) : null}
-
-          {/* Stats Card */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: colors.cardBorder,
-                padding: isCompactHomeStatsLayout
-                  ? homeLayout.denseCardPadding
-                  : homeLayout.cardPadding,
-                paddingBottom:
-                  (isCompactHomeStatsLayout
-                    ? homeLayout.denseCardPadding
-                    : homeLayout.cardPadding) - 2,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.cardTitle,
-                { color: colors.secondaryText, marginBottom: homeLayout.cardTitleGap },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-            >
-              {t('home.chaptersRead')}
-            </Text>
-            <View
-              style={[
-                styles.statsRow,
-                {
-                  gap: isCompactHomeStatsLayout ? homeLayout.bodyGap : homeLayout.statsRowGap,
-                },
-              ]}
-            >
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statNumber,
-                    {
-                      color: colors.primaryText,
-                      fontSize: homeLayout.statNumberFontSize,
-                      lineHeight: homeLayout.statNumberLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {getTodayCount()}
-                </Text>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    {
-                      color: colors.secondaryText,
-                      fontSize: homeLayout.statLabelFontSize,
-                      lineHeight: homeLayout.statLabelLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {t('home.today')}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statNumber,
-                    {
-                      color: colors.primaryText,
-                      fontSize: homeLayout.statNumberFontSize,
-                      lineHeight: homeLayout.statNumberLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {getWeekCount()}
-                </Text>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    {
-                      color: colors.secondaryText,
-                      fontSize: homeLayout.statLabelFontSize,
-                      lineHeight: homeLayout.statLabelLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {t('home.week')}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statNumber,
-                    {
-                      color: colors.primaryText,
-                      fontSize: homeLayout.statNumberFontSize,
-                      lineHeight: homeLayout.statNumberLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {getMonthCount()}
-                </Text>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    {
-                      color: colors.secondaryText,
-                      fontSize: homeLayout.statLabelFontSize,
-                      lineHeight: homeLayout.statLabelLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {t('home.month')}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statNumber,
-                    {
-                      color: colors.primaryText,
-                      fontSize: homeLayout.statNumberFontSize,
-                      lineHeight: homeLayout.statNumberLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {getYearCount()}
-                </Text>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    {
-                      color: colors.secondaryText,
-                      fontSize: homeLayout.statLabelFontSize,
-                      lineHeight: homeLayout.statLabelLineHeight,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
-                >
-                  {t('home.year')}
-                </Text>
-              </View>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -1064,6 +907,9 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.eyebrow,
     marginBottom: 0,
+  },
+  sectionHeading: {
+    ...typography.sectionTitle,
   },
   verseText: {
     ...typography.readingDisplay,
@@ -1132,32 +978,70 @@ const styles = StyleSheet.create({
   },
   foundationCardInfo: {
     flex: 1,
+    minWidth: 0,
   },
   foundationCardTitle: {
     ...typography.bodyStrong,
+    fontSize: 18,
+    lineHeight: 24,
   },
   foundationCardSubtitle: {
-    ...typography.micro,
+    ...typography.body,
   },
   foundationCardProgress: {
     ...typography.label,
+    minWidth: 46,
+  },
+  foundationProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  foundationProgressTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  foundationProgressFill: {
+    height: 4,
+    borderRadius: radius.pill,
   },
   homeStack: {
     flex: 1,
     minHeight: 0,
   },
-  headerBlock: {
-    alignItems: 'flex-start',
+  myPlansSection: {
+    gap: spacing.md,
+  },
+  myPlansHeader: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 32,
+    flexShrink: 0,
+  },
+  viewAllText: {
+    ...typography.label,
+  },
+  myPlansCard: {
+    overflow: 'hidden',
   },
 });
 
 const planResumeStyles = StyleSheet.create({
-  card: {
+  row: {
     alignSelf: 'stretch',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   topRow: {
     flexDirection: 'row',
@@ -1165,15 +1049,15 @@ const planResumeStyles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverImage: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
     flexShrink: 0,
   },
   coverFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -1185,20 +1069,24 @@ const planResumeStyles = StyleSheet.create({
   },
   title: {
     ...typography.bodyStrong,
+    fontSize: 16,
+    lineHeight: 21,
   },
   meta: {
-    ...typography.micro,
+    ...typography.body,
   },
   cta: {
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    minHeight: 44,
   },
   ctaText: {
     ...typography.label,
+    fontSize: 14,
   },
   progressTrack: {
     height: 3,

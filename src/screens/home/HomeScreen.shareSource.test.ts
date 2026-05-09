@@ -24,12 +24,6 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /import \{ useProgressStore \} from '\.\.\/\.\.\/stores\/progressStore';/,
-    'HomeScreen should import the progress store directly on the startup path'
-  );
-
-  assert.match(
-    source,
     /import \{ useBibleStore \} from '\.\.\/\.\.\/stores\/bibleStore';/,
     'HomeScreen should import the bible store directly on the startup path'
   );
