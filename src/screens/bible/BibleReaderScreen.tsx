@@ -569,8 +569,8 @@ export function BibleReaderScreen() {
   }, [navigation]);
   const getRootTabBarStyle = useCallback(
     (collapseProgress: number) => ({
-      backgroundColor: colors.background,
-      borderTopColor: colors.cardBorder,
+      backgroundColor: colors.bibleBackground,
+      borderTopColor: colors.bibleDivider,
       borderTopWidth: 1,
       position: 'absolute' as const,
       left: 0,
@@ -582,7 +582,7 @@ export function BibleReaderScreen() {
       transform: [{ translateY: rootTabBarHeight * collapseProgress }],
       opacity: 1 - collapseProgress,
     }),
-    [colors.background, colors.cardBorder, rootTabBarBottomPadding, rootTabBarHeight]
+    [colors.bibleBackground, colors.bibleDivider, rootTabBarBottomPadding, rootTabBarHeight]
   );
   // Keep the chapter content padding stable so dock taps do not reflow the
   // ScrollView when the user is already pinned at the bottom of the chapter.

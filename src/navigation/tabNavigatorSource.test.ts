@@ -34,7 +34,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /const getCollapsingTabBarStyle = \(collapseProgress: number\) => \(\{/,
+    /const getCollapsingTabBarStyle = \(collapseProgress: number, useReaderTheme = false\) => \(\{/,
     'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
   );
 
@@ -46,7 +46,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress\)\s*:\s*defaultTabBarStyle/s,
+    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress, useReaderTheme\)[\s\S]*:\s*defaultTabBarStyle/s,
     'TabNavigator should choose between the normal and collapsing tab-bar styles from the reader progress signal'
   );
 });
@@ -122,6 +122,34 @@ test('TabNavigator blends the bar into the screen background instead of a separa
     source.includes('backgroundColor: colors.cardBackground'),
     false,
     'TabNavigator should use the screen background so the bottom bar does not read like a dark slab'
+  );
+});
+
+test('TabNavigator uses Bible reader colors while the reader is focused', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(
+    source,
+    /const readerTabBarStyle = \{[\s\S]*backgroundColor: colors\.bibleBackground,[\s\S]*borderTopColor: colors\.bibleDivider,/s,
+    'TabNavigator should provide a reader-themed tab bar style for the Bible reader'
+  );
+
+  assert.match(
+    source,
+    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.biblePrimaryText[\s\S]*: colors\.tabActive/s,
+    'TabNavigator should switch active tab text and icons to Bible reader text colors'
+  );
+
+  assert.match(
+    source,
+    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.bibleSecondaryText[\s\S]*: colors\.tabInactive/s,
+    'TabNavigator should switch inactive tab text and icons to Bible reader secondary text colors'
+  );
+
+  assert.match(
+    source,
+    /getCollapsingTabBarStyle\(tabBarCollapseProgress, useReaderTheme\)/,
+    'TabNavigator should keep the reader theme while the reader-driven tab bar collapses'
   );
 });
 

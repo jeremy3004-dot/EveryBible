@@ -462,6 +462,12 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
 
   assert.match(
     source,
+    /const getRootTabBarStyle = useCallback\([\s\S]*backgroundColor:\s*colors\.bibleBackground,[\s\S]*borderTopColor:\s*colors\.bibleDivider/s,
+    'BibleReaderScreen should keep its live root tab-bar override on the Bible reader color tokens'
+  );
+
+  assert.match(
+    source,
     /const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;/,
     'BibleReaderScreen should keep the premium reader bottom padding stable so the dock motion does not feed back into scroll reflow'
   );
