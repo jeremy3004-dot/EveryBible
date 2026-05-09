@@ -1277,7 +1277,10 @@ export function PlansHomeScreen() {
             style={[
               styles.tabPill,
               activeTab === tab.key
-                ? { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary }
+                ? [
+                    styles.tabPillActive,
+                    { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary },
+                  ]
                 : { borderColor: colors.cardBorder },
             ]}
             activeOpacity={0.8}
@@ -1285,7 +1288,9 @@ export function PlansHomeScreen() {
             <Text
               style={[
                 styles.tabLabel,
-                { color: activeTab === tab.key ? colors.cardBackground : colors.secondaryText },
+                activeTab === tab.key
+                  ? [styles.tabLabelActive, { color: colors.onAccent }]
+                  : { color: colors.secondaryText },
               ]}
               numberOfLines={1}
             >
@@ -1378,11 +1383,11 @@ const createMainStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       flexGrow: 1,
       marginHorizontal: layout.screenPadding,
-      padding: 4,
+      padding: 3,
       gap: 0,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      borderRadius: 18,
+      borderRadius: 17,
       backgroundColor: colors.cardBackground,
       alignItems: 'center',
     },
@@ -1399,8 +1404,22 @@ const createMainStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       flexShrink: 0,
     },
+    tabPillActive: {
+      minHeight: 46,
+      borderRadius: 14,
+    },
     tabLabel: {
       ...typography.label,
+      fontSize: 15,
+      lineHeight: 19,
+    },
+    tabLabelActive: {
+      ...typography.bodyStrong,
+      fontSize: 16,
+      lineHeight: 20,
+      textShadowColor: 'rgba(0, 0, 0, 0.28)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
     },
     loadingContainer: {
       minHeight: 240,
