@@ -39,6 +39,35 @@ test('Bible browser exposes a search input that drives the deferred query', () =
   );
 });
 
+test('Bible browser can focus search when launched from the reader chrome', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+  const navigationTypes = readRelativeSource('../../navigation/types.ts');
+
+  assert.match(
+    navigationTypes,
+    /BibleBrowser:[\s\S]*focusSearch\?: boolean;/,
+    'BibleBrowser route params should accept a focusSearch flag from the reader search button'
+  );
+
+  assert.match(
+    source,
+    /const shouldFocusSearch = route\.params\?\.focusSearch === true;/,
+    'BibleBrowserScreen should read the focusSearch launch flag'
+  );
+
+  assert.match(
+    source,
+    /searchInputRef\.current\?\.focus\(\);/,
+    'BibleBrowserScreen should focus the search input when requested'
+  );
+
+  assert.match(
+    source,
+    /<TextInput[\s\S]*ref=\{searchInputRef\}/s,
+    'BibleBrowserScreen should attach the search input ref to the rendered field'
+  );
+});
+
 test('Bible browser modal picker shows a dismiss control and opens on the requested book', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 

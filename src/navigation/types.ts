@@ -11,12 +11,18 @@ export type HomeStackParamList = {
 
 // Bible Stack
 export type BibleStackParamList = {
-  BibleBrowser: {
-    initialBookId?: string;
-  } | undefined;
-  BiblePicker: {
-    initialBookId?: string;
-  } | undefined;
+  BibleBrowser:
+    | {
+        initialBookId?: string;
+        focusSearch?: boolean;
+      }
+    | undefined;
+  BiblePicker:
+    | {
+        initialBookId?: string;
+        focusSearch?: boolean;
+      }
+    | undefined;
   BibleReader: {
     bookId: string;
     chapter: number;
@@ -142,7 +148,10 @@ export type ReadingActivityScreenProps = NativeStackScreenProps<
   'ReadingActivity'
 >;
 export type AnnotationsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Annotations'>;
-export type TranslationBrowserScreenProps = NativeStackScreenProps<MoreStackParamList, 'TranslationBrowser'>;
+export type TranslationBrowserScreenProps = NativeStackScreenProps<
+  MoreStackParamList,
+  'TranslationBrowser'
+>;
 export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About'>;
 
 // Tab screen props

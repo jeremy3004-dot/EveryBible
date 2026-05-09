@@ -500,6 +500,7 @@ export function BibleReaderScreen() {
   const readerBottomChromeProgressRef = useRef(0);
   const readerBottomChromeCollapsedRef = useRef(false);
   const rootTabBarCollapseProgressRef = useRef(0);
+  const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
   const readerLastScrollOffsetYRef = useRef(0);
   const readerRevealTabBarOnUpScrollRef = useRef(false);
   const readerBottomChromeProgressShared = useSharedValue(0);
@@ -594,6 +595,41 @@ export function BibleReaderScreen() {
     syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : 0);
   }, [
     chapterSessionMode,
+    shouldForceHideRootTabBar,
+    syncRootTabBarCollapseProgress,
+    syncRootTabBarVisibility,
+  ]);
+
+  useEffect(() => {
+    if (selectedVerses.length > 0) {
+      if (selectedVersePreviousTabBarCollapseProgressRef.current == null) {
+        selectedVersePreviousTabBarCollapseProgressRef.current =
+          rootTabBarCollapseProgressRef.current;
+      }
+
+      syncRootTabBarVisibility(!shouldForceHideRootTabBar);
+      syncRootTabBarCollapseProgress(1);
+      return;
+    }
+
+    const previousProgress = selectedVersePreviousTabBarCollapseProgressRef.current;
+    if (previousProgress == null) {
+      return;
+    }
+
+    selectedVersePreviousTabBarCollapseProgressRef.current = null;
+    syncRootTabBarVisibility(
+      shouldForceHideRootTabBar
+        ? false
+        : getNextBibleTabBarVisibility({
+            sessionMode: chapterSessionMode,
+            action: 'enter',
+          })
+    );
+    syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : previousProgress);
+  }, [
+    chapterSessionMode,
+    selectedVerses.length,
     shouldForceHideRootTabBar,
     syncRootTabBarCollapseProgress,
     syncRootTabBarVisibility,
@@ -1998,6 +2034,17 @@ export function BibleReaderScreen() {
   const handleOpenBookPicker = () => {
     navigation.push('BiblePicker', {
       initialBookId: bookId,
+    });
+  };
+
+  const handleOpenBibleSearch = () => {
+    setShowAudioOptionsSheet(false);
+    setShowFontSizeSheet(false);
+    setShowTranslationSheet(false);
+    setShowChapterActionsSheet(false);
+    navigation.navigate('BibleBrowser', {
+      initialBookId: bookId,
+      focusSearch: true,
     });
   };
 
@@ -3826,6 +3873,24 @@ export function BibleReaderScreen() {
             </View>
           </TouchableOpacity>
         ) : null}
+
+        <TouchableOpacity
+          style={[
+            styles.floatingReaderMenuButton,
+            {
+              backgroundColor: colors.bibleElevatedSurface,
+              borderColor: colors.bibleElevatedSurface,
+            },
+          ]}
+          activeOpacity={0.85}
+          onPress={handleOpenBibleSearch}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.search')}
+        >
+          <View style={styles.floatingReaderMenuButtonContent}>
+            <Ionicons name="search-outline" size={22} color={colors.biblePrimaryText} />
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[

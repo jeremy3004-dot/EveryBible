@@ -11,6 +11,7 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
+  type TextInput as TextInputType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -56,9 +57,7 @@ const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
 const SEARCH_RESULT_ESTIMATED_SIZE = 118;
 
 function getBibleBrowserRowIndex(bookId: string) {
-  return bibleBrowserRows.findIndex(
-    (row) => row.type === 'books' && row.books[0]?.id === bookId
-  );
+  return bibleBrowserRows.findIndex((row) => row.type === 'books' && row.books[0]?.id === bookId);
 }
 
 if (Platform.OS === 'android') {
@@ -72,6 +71,7 @@ export function BibleBrowserScreen() {
   const { t, currentLanguage } = useI18n();
   const currentBook = useBibleStore((state) => state.currentBook);
   const initialBookId = route.params?.initialBookId ?? null;
+  const shouldFocusSearch = route.params?.focusSearch === true;
   const hasExplicitInitialBook = initialBookId != null && Boolean(getBookById(initialBookId));
   const resolvedInitialBookId = hasExplicitInitialBook ? initialBookId : currentBook;
   const [expandedBookId, setExpandedBookId] = useState<string | null>(resolvedInitialBookId);
@@ -81,6 +81,7 @@ export function BibleBrowserScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
+  const searchInputRef = useRef<TextInputType | null>(null);
   const browserListRef = useRef<FlashList<BibleBrowserRow> | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -89,18 +90,33 @@ export function BibleBrowserScreen() {
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
 
-  const currentTranslationInfo = translations.find((translation) => translation.id === currentTranslation);
+  const currentTranslationInfo = translations.find(
+    (translation) => translation.id === currentTranslation
+  );
   const isPickerModal = route.name === 'BiblePicker';
   const canDismissModal = isPickerModal;
-  const canOpenTranslationPicker =
-    !isPickerModal && config.features.multipleTranslations;
+  const canOpenTranslationPicker = !isPickerModal && config.features.multipleTranslations;
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
-    [currentLanguage],
+    [currentLanguage]
   );
   const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
   const failedToLoadMessage = t('bible.failedToLoad');
   const searchUnavailableMessage = t('bible.searchUnavailable');
+
+  useEffect(() => {
+    if (!shouldFocusSearch) {
+      return;
+    }
+
+    const animationFrameId = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [shouldFocusSearch]);
 
   useEffect(() => {
     if (hasExplicitInitialBook) {
@@ -129,10 +145,7 @@ export function BibleBrowserScreen() {
 
   useEffect(() => {
     let isCancelled = false;
-    const deferredSearchIntent = resolveBibleSearchIntent(
-      deferredSearchQuery,
-      parseRef
-    );
+    const deferredSearchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
 
     if (deferredSearchIntent.kind !== 'full-text') {
       searchRequestIdRef.current += 1;
@@ -285,12 +298,7 @@ export function BibleBrowserScreen() {
         </TouchableOpacity>
 
         {isExpanded && (
-          <View
-            style={[
-              styles.chapterGrid,
-              { backgroundColor: colors.bibleElevatedSurface },
-            ]}
-          >
+          <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
             <View style={styles.chapterGridInner}>
               {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
                 <TouchableOpacity
@@ -319,7 +327,9 @@ export function BibleBrowserScreen() {
 
   const renderSearchResult = ({ item }: { item: Verse }) => {
     const bookName = getTranslatedBookName(item.bookId, t);
-    const referenceLabel = formatBibleSearchReference(item, (bookId) => getTranslatedBookName(bookId, t));
+    const referenceLabel = formatBibleSearchReference(item, (bookId) =>
+      getTranslatedBookName(bookId, t)
+    );
 
     return (
       <TouchableOpacity
@@ -351,11 +361,12 @@ export function BibleBrowserScreen() {
     );
   };
 
-  const referenceMeta = searchIntent.kind === 'reference'
-    ? searchIntent.target.focusVerse
-      ? `${t('bible.chapter')} ${searchIntent.target.chapter} • ${t('bible.verse')} ${searchIntent.target.focusVerse}`
-      : `${t('bible.chapter')} ${searchIntent.target.chapter}`
-    : null;
+  const referenceMeta =
+    searchIntent.kind === 'reference'
+      ? searchIntent.target.focusVerse
+        ? `${t('bible.chapter')} ${searchIntent.target.chapter} • ${t('bible.verse')} ${searchIntent.target.focusVerse}`
+        : `${t('bible.chapter')} ${searchIntent.target.chapter}`
+      : null;
 
   return (
     <SafeAreaView
@@ -415,6 +426,7 @@ export function BibleBrowserScreen() {
         >
           <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
           <TextInput
+            ref={searchInputRef}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder={t('common.search')}

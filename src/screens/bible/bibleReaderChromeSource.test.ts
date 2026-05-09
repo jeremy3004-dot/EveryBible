@@ -266,6 +266,44 @@ test('top audio utility sheet owns chapter audio sharing', () => {
   );
 });
 
+test('reader top chrome places search between audio and overflow actions', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const handleOpenBibleSearch = \(\) => \{[\s\S]*navigation\.navigate\('BibleBrowser', \{[\s\S]*initialBookId: bookId,[\s\S]*focusSearch: true,/s,
+    'BibleReaderScreen should open Bible search focused on the current book from the top search button'
+  );
+
+  assert.match(
+    source,
+    /Ionicons name="volume-medium-outline"[\s\S]*Ionicons name="search-outline"[\s\S]*Ionicons name="ellipsis-horizontal"/s,
+    'BibleReaderScreen should render the search button between the audio button and the overflow button'
+  );
+});
+
+test('selecting verses hides the root tab bar until the selection closes', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const selectedVersePreviousTabBarCollapseProgressRef = useRef<number \| null>\(null\);/,
+    'BibleReaderScreen should remember the previous tab-bar collapse progress before verse selection hides the tabs'
+  );
+
+  assert.match(
+    source,
+    /if \(selectedVerses\.length > 0\) \{[\s\S]*selectedVersePreviousTabBarCollapseProgressRef\.current =\s*rootTabBarCollapseProgressRef\.current;[\s\S]*syncRootTabBarCollapseProgress\(1\);/s,
+    'BibleReaderScreen should hide the root tab bar while the verse action sheet is visible'
+  );
+
+  assert.match(
+    source,
+    /const previousProgress = selectedVersePreviousTabBarCollapseProgressRef\.current;[\s\S]*syncRootTabBarCollapseProgress\(shouldForceHideRootTabBar \? 1 : previousProgress\);/s,
+    'BibleReaderScreen should restore the pre-selection tab-bar collapse progress when selection clears'
+  );
+});
+
 test('BibleReaderScreen keeps the root tab bar visible while read mode scroll gestures update the chrome', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
