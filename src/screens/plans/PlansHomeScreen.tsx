@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Fuse from 'fuse.js';
@@ -29,10 +30,7 @@ import {
   unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
-import {
-  getActivePlanDayNumber,
-  isRecurringPlan,
-} from '../../services/plans/readingPlanModel';
+import { getActivePlanDayNumber, isRecurringPlan } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { useProgressStore } from '../../stores/progressStore';
 import {
@@ -159,6 +157,10 @@ function ProgressBar({
       />
     </View>
   );
+}
+
+function formatProgressPercent(progress: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
 }
 
 const inlineStyles = StyleSheet.create({
@@ -374,28 +376,37 @@ function MyPlansSection({
       chaptersRead,
       listeningHistory,
     });
-      const progressRatio =
-        plan.duration_days > 0
+    const progressRatio =
+      plan.duration_days > 0
         ? isRecurringPlan(plan)
           ? currentDay / plan.duration_days
           : (currentDay - 1) / plan.duration_days
         : 0;
+    const sessionStatus = isMultiSessionPlan(plan)
+      ? formatSessionStatusSummary(currentDaySummary, t)
+      : null;
+    const ctaLabel =
+      isRecurringPlan(plan) && currentDaySummary?.nextIncompleteSessionKey
+        ? getLocalizedSessionLabel(currentDaySummary.nextIncompleteSessionKey, t)
+        : t('common.continue');
 
     return (
-      <SwipeablePlanRow
-        key={plan.id}
-        onDelete={() => onDeletePlan(plan.id)}
-      >
+      <SwipeablePlanRow key={plan.id} onDelete={() => onDeletePlan(plan.id)}>
         <TouchableOpacity
           style={styles.card}
           onPress={() => onPlanPress(plan.id)}
           activeOpacity={0.7}
         >
-          <CoverImage plan={plan} width={68} height={68} colors={colors} />
+          <View style={styles.coverFrame}>
+            <CoverImage plan={plan} width={88} height={88} colors={colors} />
+          </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {t(plan.title_key as Parameters<typeof t>[0])}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {t(plan.title_key as Parameters<typeof t>[0])}
+              </Text>
+              <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
+            </View>
             <View style={styles.progressBlock}>
               <Text style={styles.dayCounter}>
                 {t('readingPlans.dayOf', {
@@ -403,12 +414,43 @@ function MyPlansSection({
                   total: plan.duration_days,
                 })}
               </Text>
-              {isMultiSessionPlan(plan) ? (
-                <Text style={styles.sessionSummary} numberOfLines={2}>
-                  {formatSessionStatusSummary(currentDaySummary, t)}
-                </Text>
+              {sessionStatus ? (
+                <View style={styles.sessionRow}>
+                  <View style={styles.sessionDot}>
+                    <Ionicons name="checkmark" size={12} color={colors.cardBackground} />
+                  </View>
+                  <Text style={styles.sessionSummary} numberOfLines={1}>
+                    {sessionStatus}
+                  </Text>
+                </View>
               ) : null}
               <ProgressBar progress={progressRatio} colors={colors} />
+              <View style={styles.cardFooter}>
+                <Text style={styles.percentText}>{formatProgressPercent(progressRatio)}</Text>
+                <View
+                  style={[
+                    styles.actionPill,
+                    isRecurringPlan(plan)
+                      ? { borderColor: colors.accentPrimary }
+                      : {
+                          backgroundColor: colors.accentPrimary,
+                          borderColor: colors.accentPrimary,
+                        },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.actionPillText,
+                      {
+                        color: isRecurringPlan(plan) ? colors.accentPrimary : colors.cardBackground,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {ctaLabel}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -418,19 +460,45 @@ function MyPlansSection({
 
   return (
     <View style={styles.content}>
+      <View style={styles.statsPanel}>
+        <View style={styles.statItem}>
+          <View style={styles.statIcon}>
+            <Ionicons name="layers-outline" size={19} color={colors.accentPrimary} />
+          </View>
+          <Text style={styles.statText}>
+            {activePlans.length} {t('tabs.plans').toLowerCase()}
+          </Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <View style={styles.statIcon}>
+            <Ionicons name="calendar-outline" size={19} color={colors.accentPrimary} />
+          </View>
+          <Text style={styles.statText}>
+            {t('home.today')}: {dailyReadingPlans.length}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('readingPlans.dailyReadings')}</Text>
-          {activePlans.length === 0 ? (
-            <TouchableOpacity
-              onPress={onAddPlan}
-              activeOpacity={0.8}
-              style={styles.primaryButton}
-            >
-              <Ionicons name="add" size={16} color={colors.cardBackground} />
+          <TouchableOpacity
+            onPress={onAddPlan}
+            activeOpacity={0.8}
+            style={activePlans.length === 0 ? styles.primaryButton : styles.iconButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('readingPlans.findPlans')}
+          >
+            <Ionicons
+              name="add"
+              size={activePlans.length === 0 ? 16 : 22}
+              color={activePlans.length === 0 ? colors.cardBackground : colors.accentPrimary}
+            />
+            {activePlans.length === 0 ? (
               <Text style={styles.primaryButtonLabel}>{t('readingPlans.addFirstPlan')}</Text>
-            </TouchableOpacity>
-          ) : null}
+            ) : null}
+          </TouchableOpacity>
         </View>
 
         {activePlans.length === 0 ? (
@@ -462,17 +530,60 @@ const createMyPlansStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     content: {
       paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
       gap: spacing.xl,
+    },
+    statsPanel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      backgroundColor: colors.cardBackground,
+      minHeight: 68,
+      paddingHorizontal: spacing.lg,
+      overflow: 'hidden',
+    },
+    statItem: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    statIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(210, 106, 92, 0.12)',
+    },
+    statText: {
+      ...typography.bodyStrong,
+      color: colors.secondaryText,
+    },
+    statDivider: {
+      width: 1,
+      height: 38,
+      backgroundColor: colors.cardBorder,
+      marginHorizontal: spacing.md,
     },
     sectionBlock: {
       gap: spacing.md,
     },
     sectionHeader: {
-      gap: spacing.sm,
+      minHeight: layout.minTouchTarget,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
     },
     sectionTitle: {
-      ...typography.cardTitle,
+      ...typography.readingHeading,
+      fontSize: 25,
+      lineHeight: 31,
       color: colors.primaryText,
     },
     primaryButton: {
@@ -488,6 +599,16 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     primaryButtonLabel: {
       ...typography.label,
       color: colors.cardBackground,
+    },
+    iconButton: {
+      width: layout.minTouchTarget,
+      height: layout.minTouchTarget,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.cardBackground,
     },
     emptyState: {
       alignItems: 'center',
@@ -506,34 +627,86 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     },
     card: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: spacing.lg,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      minHeight: 108,
+      minHeight: 132,
       paddingHorizontal: layout.cardPadding,
       paddingVertical: spacing.lg,
+    },
+    coverFrame: {
+      borderRadius: radius.lg,
+      overflow: 'hidden',
+      backgroundColor: colors.cardBorder,
     },
     cardBody: {
       flex: 1,
       gap: spacing.sm,
     },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     cardTitle: {
-      ...typography.bodyStrong,
+      ...typography.readingHeading,
+      fontSize: 21,
+      lineHeight: 26,
       color: colors.primaryText,
+      flex: 1,
     },
     progressBlock: {
       gap: spacing.sm,
     },
     dayCounter: {
-      ...typography.micro,
+      ...typography.body,
+      lineHeight: 20,
       color: colors.secondaryText,
     },
+    sessionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    sessionDot: {
+      width: 20,
+      height: 20,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accentPrimary,
+    },
     sessionSummary: {
-      ...typography.micro,
-      color: colors.primaryText,
+      ...typography.body,
+      lineHeight: 20,
+      color: colors.secondaryText,
+      flex: 1,
+    },
+    cardFooter: {
+      minHeight: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    percentText: {
+      ...typography.bodyStrong,
+      color: colors.secondaryText,
+    },
+    actionPill: {
+      minHeight: 36,
+      minWidth: 104,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    actionPillText: {
+      ...typography.bodyStrong,
     },
   });
 
@@ -554,7 +727,6 @@ const swipeableStyles = StyleSheet.create({
   },
 });
 
-
 // ---------------------------------------------------------------------------
 // Find Plans section
 // ---------------------------------------------------------------------------
@@ -566,16 +738,17 @@ interface FindPlansSectionProps {
   colors: ThemeColors;
 }
 
-
-function FindPlansSection({
-  allPlans,
-  userProgress,
-  onPlanPress,
-  colors,
-}: FindPlansSectionProps) {
+function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindPlansSectionProps) {
   const { t } = useTranslation();
+  const { width: windowWidth } = useWindowDimensions();
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
   const [searchQuery, setSearchQuery] = useState('');
+  const cardWidth = Math.max(
+    156,
+    Math.floor((windowWidth - layout.screenPadding * 2 - spacing.md) / 2)
+  );
+  const coverWidth = cardWidth - spacing.sm * 2;
+  const coverHeight = Math.max(112, Math.round(coverWidth * 0.68));
 
   const searchablePlans = React.useMemo(
     () =>
@@ -618,7 +791,9 @@ function FindPlansSection({
       .map(({ plan }) => plan);
     const fuzzyMatches = planSearch.search(trimmedQuery).map((result) => result.item.plan);
 
-    return [...new Map([...prefixMatches, ...fuzzyMatches].map((plan) => [plan.id, plan])).values()];
+    return [
+      ...new Map([...prefixMatches, ...fuzzyMatches].map((plan) => [plan.id, plan])).values(),
+    ];
   }, [allPlans, planSearch, searchQuery, searchablePlans]);
 
   const dailyRhythmPlans = filteredPlans.filter((plan) => isRecurringPlan(plan));
@@ -638,14 +813,17 @@ function FindPlansSection({
 
   const renderBrowsePlanCard = (plan: ReadingPlan) => {
     const isEnrolled = enrolledPlanIds.has(plan.id);
+    const actionLabel = isEnrolled
+      ? t('readingPlans.enrolled')
+      : t('readingPlans.startPlan', { defaultValue: 'Start Plan' }).replace(/\s+Plan$/i, '');
 
     return (
       <TouchableOpacity
-        style={styles.planCard}
+        style={[styles.planCard, { width: cardWidth }]}
         onPress={() => onPlanPress(plan.id)}
         activeOpacity={0.7}
       >
-        <CoverImage plan={plan} width={140} height={88} colors={colors} />
+        <CoverImage plan={plan} width={coverWidth} height={coverHeight} colors={colors} />
         <View style={styles.planCardBody}>
           <Text style={styles.planCardTitle} numberOfLines={2}>
             {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
@@ -673,7 +851,7 @@ function FindPlansSection({
                   { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
                 ]}
               >
-                {isEnrolled ? t('readingPlans.enrolled') : t('readingPlans.startPlan')}
+                {actionLabel}
               </Text>
             </View>
           </View>
@@ -684,19 +862,36 @@ function FindPlansSection({
 
   return (
     <View style={styles.content}>
-      <View style={[styles.searchWrap, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}>
-        <Ionicons name="search" size={16} color={colors.secondaryText} />
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t('readingPlans.searchPlansPlaceholder')}
-          placeholderTextColor={colors.secondaryText}
-          style={[styles.searchInput, { color: colors.primaryText }]}
-          accessibilityLabel={t('readingPlans.searchPlansPlaceholder')}
-          autoCapitalize="none"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-        />
+      <View style={styles.searchRow}>
+        <View
+          style={[
+            styles.searchWrap,
+            { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+          ]}
+        >
+          <Ionicons name="search" size={28} color={colors.secondaryText} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t('readingPlans.searchPlansPlaceholder')}
+            placeholderTextColor={colors.secondaryText}
+            style={[styles.searchInput, { color: colors.primaryText }]}
+            accessibilityLabel={t('readingPlans.searchPlansPlaceholder')}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+          />
+        </View>
+        <View
+          style={[
+            styles.filterButton,
+            { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.filter', { defaultValue: 'Filter' })}
+        >
+          <Ionicons name="options-outline" size={24} color={colors.secondaryText} />
+        </View>
       </View>
 
       {dailyRhythmPlans.length > 0 ? (
@@ -753,36 +948,53 @@ const createFindPlansStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     content: {
       paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.md,
-      gap: spacing.xl,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
+      gap: spacing.xxl,
     },
-    searchWrap: {
+    searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      borderWidth: 1,
-      borderRadius: radius.pill,
-      minHeight: 40,
-      paddingHorizontal: spacing.md,
-    },
-    searchInput: {
-      ...typography.body,
-      flex: 1,
-      paddingVertical: spacing.sm,
-    },
-    categorySection: {
       gap: spacing.md,
     },
-    categoryHeader: {
+    searchWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      borderWidth: 1,
+      borderRadius: 24,
+      minHeight: 64,
+      paddingHorizontal: spacing.lg,
+    },
+    filterButton: {
+      width: 64,
+      height: 64,
+      borderWidth: 1,
+      borderRadius: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchInput: {
       ...typography.cardTitle,
+      fontWeight: '500',
+      flex: 1,
+      paddingVertical: spacing.md,
+    },
+    categorySection: {
+      gap: spacing.lg,
+    },
+    categoryHeader: {
+      ...typography.readingHeading,
+      fontSize: 26,
+      lineHeight: 32,
       color: colors.primaryText,
     },
     categoryList: {
-      gap: spacing.lg,
-      paddingRight: spacing.lg,
+      gap: spacing.md,
+      paddingRight: layout.screenPadding,
     },
     planCard: {
-      width: 156,
       backgroundColor: colors.cardBackground,
       borderRadius: radius.lg,
       borderWidth: 1,
@@ -796,11 +1008,14 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
     },
     planCardTitle: {
-      ...typography.label,
+      ...typography.readingHeading,
+      fontSize: 20,
+      lineHeight: 24,
       color: colors.primaryText,
     },
     planCadence: {
-      ...typography.micro,
+      ...typography.body,
+      lineHeight: 18,
       color: colors.secondaryText,
     },
     planCardMeta: {
@@ -813,27 +1028,27 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     durationBadge: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
-      minHeight: 32,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      minHeight: 36,
       justifyContent: 'center',
       flexShrink: 0,
     },
     durationBadgeText: {
-      ...typography.micro,
+      ...typography.bodyStrong,
       color: colors.secondaryText,
     },
     enrollBadge: {
       borderRadius: radius.pill,
-      minHeight: 32,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
+      minHeight: 36,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     enrollBadgeText: {
-      ...typography.label,
+      ...typography.bodyStrong,
     },
     emptyState: {
       alignItems: 'center',
@@ -886,10 +1101,7 @@ function CompletedPlansSection({
             })
           : null;
         return (
-          <SwipeablePlanRow
-            key={item.id}
-            onDelete={() => onDeletePlan(item.plan.id)}
-          >
+          <SwipeablePlanRow key={item.id} onDelete={() => onDeletePlan(item.plan.id)}>
             <TouchableOpacity
               style={styles.card}
               onPress={() => onPlanPress(item.plan.id)}
@@ -900,9 +1112,7 @@ function CompletedPlansSection({
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {t(item.plan.title_key as Parameters<typeof t>[0])}
                 </Text>
-                {completedDate && (
-                  <Text style={styles.completedDate}>{completedDate}</Text>
-                )}
+                {completedDate && <Text style={styles.completedDate}>{completedDate}</Text>}
               </View>
               <Ionicons name="checkmark-circle" size={24} color={colors.accentPrimary} />
             </TouchableOpacity>
@@ -978,7 +1188,9 @@ export function PlansHomeScreen() {
 
   const userProgress = React.useMemo(
     () =>
-      Object.values(progressByPlanId).sort((left, right) => right.started_at.localeCompare(left.started_at)),
+      Object.values(progressByPlanId).sort((left, right) =>
+        right.started_at.localeCompare(left.started_at)
+      ),
     [progressByPlanId]
   );
   const completedPlans = React.useMemo(
@@ -1003,17 +1215,20 @@ export function PlansHomeScreen() {
     await getUserPlanProgress().catch(() => {});
   }, []);
 
-  const loadAllData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
+  const loadAllData = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setLoading(true);
 
-    const allPlansResult = await listReadingPlans();
-    if (allPlansResult.success && allPlansResult.data) {
-      setAllPlans(allPlansResult.data);
-    }
-    if (!quiet) setLoading(false);
+      const allPlansResult = await listReadingPlans();
+      if (allPlansResult.success && allPlansResult.data) {
+        setAllPlans(allPlansResult.data);
+      }
+      if (!quiet) setLoading(false);
 
-    void hydratePlanProgress();
-  }, [hydratePlanProgress]);
+      void hydratePlanProgress();
+    },
+    [hydratePlanProgress]
+  );
 
   useEffect(() => {
     loadAllData(); // eslint-disable-line react-hooks/set-state-in-effect
@@ -1038,12 +1253,15 @@ export function PlansHomeScreen() {
     [navigation]
   );
 
-  const handleDeletePlan = useCallback(async (planId: string) => {
-    const result = await unenrollFromPlan(planId);
-    if (!result.success && result.error) {
-      Alert.alert(t('common.error'), result.error);
-    }
-  }, [t]);
+  const handleDeletePlan = useCallback(
+    async (planId: string) => {
+      const result = await unenrollFromPlan(planId);
+      if (!result.success && result.error) {
+        Alert.alert(t('common.error'), result.error);
+      }
+    },
+    [t]
+  );
 
   const handleAddPlan = useCallback(() => {
     setActiveTab('find-plans');
@@ -1092,7 +1310,11 @@ export function PlansHomeScreen() {
         contentContainerStyle={styles.scrollContent}
         stickyHeaderIndices={[1]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accentPrimary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.accentPrimary}
+          />
         }
       >
         <Text style={styles.title}>{t('readingPlans.title')}</Text>
@@ -1146,36 +1368,45 @@ const createMainStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     title: {
-      ...typography.screenTitle,
+      ...typography.readingHeading,
+      fontSize: 40,
+      lineHeight: 48,
       color: colors.primaryText,
       paddingHorizontal: layout.screenPadding,
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.sm,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.lg,
     },
     tabSticky: {
       backgroundColor: colors.background,
-      paddingBottom: spacing.sm,
+      paddingBottom: spacing.md,
     },
     tabRow: {
       flexDirection: 'row',
-      paddingHorizontal: layout.screenPadding,
-      gap: spacing.sm,
-      paddingBottom: spacing.md,
+      flexGrow: 1,
+      marginHorizontal: layout.screenPadding,
+      padding: 4,
+      gap: 0,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: 18,
+      backgroundColor: colors.cardBackground,
       alignItems: 'center',
     },
     tabPill: {
+      flex: 1,
+      minWidth: 108,
       paddingHorizontal: spacing.md,
-      minHeight: layout.minTouchTarget,
-      borderRadius: radius.pill,
+      minHeight: 54,
+      borderRadius: 15,
       borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     tabLabel: {
-      ...typography.tabLabel,
+      ...typography.bodyStrong,
     },
     loadingContainer: {
       minHeight: 240,
