@@ -38,6 +38,8 @@ import { useGatherStore } from '../../stores/gatherStore';
 // Helpers
 // ---------------------------------------------------------------------------
 
+const LESSON_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
+
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -359,21 +361,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Settings: playback speed and font size
   // -------------------------------------------------------------------------
 
-  const adjustPlaybackSpeed = useCallback(
-    async (delta: number) => {
-      const newSpeed = Math.min(
-        2.5,
-        Math.max(0.5, Math.round((playbackSpeed + delta) * 100) / 100)
-      );
-      setPlaybackSpeed(newSpeed);
-      try {
-        await soundRef.current?.setRateAsync(newSpeed, true);
-      } catch {
-        // Ignore
-      }
-    },
-    [playbackSpeed]
-  );
+  const setPlaybackSpeedValue = useCallback(async (rate: number) => {
+    setPlaybackSpeed(rate);
+    try {
+      await soundRef.current?.setRateAsync(rate, true);
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   const adjustFontSize = useCallback((delta: number) => {
     setFontSizeMultiplier((prev) =>
@@ -690,7 +685,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       <Modal
         visible={showSettings}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowSettings(false)}
       >
         <TouchableOpacity
@@ -707,62 +702,107 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             },
           ]}
         >
-          {/* Playback Speed */}
-          <View style={[styles.sheetRow, { borderBottomColor: colors.cardBorder }]}>
-            <Text style={[styles.sheetRowIcon]}>⚡</Text>
-            <Text style={[styles.sheetRowLabel, { color: colors.primaryText }]}>
-              Playback Speed
-            </Text>
-            <View style={styles.sheetRowControls}>
-              <TouchableOpacity
-                onPress={() => adjustPlaybackSpeed(-0.25)}
-                style={styles.sheetStepButton}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={[styles.sheetStepText, { color: colors.accentPrimary }]}>−</Text>
-              </TouchableOpacity>
-              <Text style={[styles.sheetValueText, { color: colors.primaryText }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: colors.secondaryText + '55' }]} />
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.sheetTitle, { color: colors.primaryText }]}>Playback & Text</Text>
+            <TouchableOpacity
+              style={[styles.sheetIconCloseButton, { backgroundColor: colors.background }]}
+              onPress={() => setShowSettings(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            >
+              <Ionicons name="close" size={18} color={colors.secondaryText} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.editorSection}>
+            <View style={styles.editorSectionHeader}>
+              <Ionicons name="flash" size={18} color={colors.accentPrimary} />
+              <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
+                Playback Speed
+              </Text>
+              <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {speedPercent}%
               </Text>
-              <TouchableOpacity
-                onPress={() => adjustPlaybackSpeed(0.25)}
-                style={styles.sheetStepButton}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={[styles.sheetStepText, { color: colors.accentPrimary }]}>+</Text>
-              </TouchableOpacity>
+            </View>
+            <View style={styles.speedChipRow}>
+              {LESSON_PLAYBACK_RATES.map((rate) => {
+                const isActive = rate === playbackSpeed;
+
+                return (
+                  <TouchableOpacity
+                    key={rate}
+                    style={[
+                      styles.speedChip,
+                      {
+                        backgroundColor: isActive ? colors.accentPrimary : colors.background,
+                        borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
+                      },
+                    ]}
+                    onPress={() => void setPlaybackSpeedValue(rate)}
+                    activeOpacity={0.82}
+                  >
+                    <Text
+                      style={[
+                        styles.speedChipText,
+                        { color: isActive ? colors.background : colors.primaryText },
+                      ]}
+                    >
+                      {rate}x
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
-          {/* Font Size */}
-          <View style={[styles.sheetRow, { borderBottomColor: 'transparent' }]}>
-            <Text style={[styles.sheetRowIcon]}>Tt</Text>
-            <Text style={[styles.sheetRowLabel, { color: colors.primaryText }]}>Font Size</Text>
-            <View style={styles.sheetRowControls}>
-              <TouchableOpacity
-                onPress={() => adjustFontSize(-0.1)}
-                style={styles.sheetStepButton}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={[styles.sheetStepText, { color: colors.accentPrimary }]}>−</Text>
-              </TouchableOpacity>
-              <Text style={[styles.sheetValueText, { color: colors.primaryText }]}>
+          <View style={styles.editorSection}>
+            <View style={styles.editorSectionHeader}>
+              <Text style={[styles.fontSectionIcon, { color: colors.primaryText }]}>Tt</Text>
+              <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
+                Font Size
+              </Text>
+              <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {fontPercent}%
               </Text>
+            </View>
+            <View style={styles.fontStepperRow}>
+              <TouchableOpacity
+                onPress={() => adjustFontSize(-0.1)}
+                style={[styles.fontStepperButton, { backgroundColor: colors.background }]}
+                activeOpacity={0.82}
+              >
+                <Text
+                  style={[
+                    styles.fontStepperText,
+                    styles.fontStepperSmallText,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  A
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => adjustFontSize(0.1)}
-                style={styles.sheetStepButton}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={[
+                  styles.fontStepperButton,
+                  styles.fontStepperButtonLarge,
+                  { backgroundColor: colors.background },
+                ]}
+                activeOpacity={0.82}
               >
-                <Text style={[styles.sheetStepText, { color: colors.accentPrimary }]}>+</Text>
+                <Text
+                  style={[
+                    styles.fontStepperText,
+                    styles.fontStepperLargeText,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  A
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Close */}
-          <TouchableOpacity style={styles.sheetCloseButton} onPress={() => setShowSettings(false)}>
-            <Text style={[styles.sheetCloseText, { color: colors.accentPrimary }]}>✕ Close</Text>
-          </TouchableOpacity>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1216,53 +1256,98 @@ const styles = StyleSheet.create({
   bottomSheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    gap: 16,
   },
-  sheetRow: {
+  sheetHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: radius.pill,
+    alignSelf: 'center',
+  },
+  sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: spacing.md,
+    justifyContent: 'space-between',
   },
-  sheetRowIcon: {
+  sheetTitle: {
     fontSize: 18,
-    width: 28,
-    textAlign: 'center',
+    fontWeight: '800',
   },
-  sheetRowLabel: {
-    ...typography.body,
-    flex: 1,
-  },
-  sheetRowControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  sheetStepButton: {
+  sheetIconCloseButton: {
     width: 32,
     height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetStepText: {
-    fontSize: 20,
-    fontWeight: '600',
-    lineHeight: 24,
+  editorSection: {
+    gap: 12,
   },
-  sheetValueText: {
+  editorSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editorSectionTitle: {
     ...typography.bodyStrong,
-    minWidth: 52,
-    textAlign: 'center',
+    flex: 1,
   },
-  sheetCloseButton: {
+  editorSectionValue: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
+  },
+  fontSectionIcon: {
+    fontSize: 18,
+    width: 18,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  speedChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  speedChip: {
+    flexGrow: 1,
+    minWidth: 78,
+    minHeight: 44,
+    borderRadius: radius.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    marginHorizontal: 24,
-    marginTop: spacing.sm,
+    paddingHorizontal: 12,
   },
-  sheetCloseText: {
-    ...typography.button,
+  speedChipText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  fontStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fontStepperButton: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fontStepperButtonLarge: {
+    flex: 1.2,
+  },
+  fontStepperText: {
+    fontWeight: '500',
+  },
+  fontStepperSmallText: {
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  fontStepperLargeText: {
+    fontSize: 42,
+    lineHeight: 48,
   },
 });
