@@ -71,6 +71,24 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes('filterTranslationLanguagesBySearchQuery'),
+    true,
+    'TranslationPickerList should show matching language results from the global translation catalog while searching'
+  );
+
+  assert.equal(
+    source.includes('includeAllAvailableTranslations: hasActiveSearchQuery'),
+    true,
+    'TranslationPickerList should not restrict active search results to the preferred language'
+  );
+
+  assert.equal(
+    source.includes('translation-picker-language-search-result'),
+    true,
+    'TranslationPickerList should let language search results switch language or open the only translation'
+  );
+
+  assert.equal(
     source.includes('translation-picker-search'),
     true,
     'TranslationPickerList should render a search bar at the top of the picker'

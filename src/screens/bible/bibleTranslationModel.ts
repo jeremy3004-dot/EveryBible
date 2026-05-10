@@ -22,6 +22,10 @@ export interface TranslationLanguageFilter {
   label: string;
 }
 
+export interface TranslationLanguageSearchResult extends TranslationLanguageFilter {
+  translationCount: number;
+}
+
 export interface TranslationPickerSections<T> {
   myTranslations: T[];
   availableTranslations: T[];
@@ -96,7 +100,9 @@ function isSearchableCharacter(char: string): boolean {
     return false;
   }
 
-  return SEARCHABLE_CODE_POINT_RANGES.some(([start, end]) => codePoint >= start && codePoint <= end);
+  return SEARCHABLE_CODE_POINT_RANGES.some(
+    ([start, end]) => codePoint >= start && codePoint <= end
+  );
 }
 
 export function normalizeTranslationLanguage(language: string | null | undefined): string {
@@ -143,8 +149,7 @@ function fuzzyTokenMatches(haystack: string, token: string): boolean {
 
 export function getTranslationLanguageDisplayLabel(language: string | null | undefined): string {
   const normalizedLanguage = normalizeTranslationLanguage(language);
-  const nativeLabel =
-    TRANSLATION_LANGUAGE_NATIVE_LABELS[normalizedLanguage.toLowerCase()] ?? null;
+  const nativeLabel = TRANSLATION_LANGUAGE_NATIVE_LABELS[normalizedLanguage.toLowerCase()] ?? null;
 
   if (
     nativeLabel == null ||
@@ -156,15 +161,19 @@ export function getTranslationLanguageDisplayLabel(language: string | null | und
   return `${normalizedLanguage} / ${nativeLabel}`;
 }
 
-export const isAudioOnlyTranslation = (translation: Pick<TranslationSelectionOptions, 'hasText' | 'hasAudio'>): boolean =>
-  !translation.hasText && translation.hasAudio;
+export const isAudioOnlyTranslation = (
+  translation: Pick<TranslationSelectionOptions, 'hasText' | 'hasAudio'>
+): boolean => !translation.hasText && translation.hasAudio;
 
 export const isTranslationReadableLocally = ({
   isDownloaded,
   hasText,
   source,
   textPackLocalPath,
-}: Pick<TranslationSelectionOptions, 'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'>): boolean => {
+}: Pick<
+  TranslationSelectionOptions,
+  'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'
+>): boolean => {
   if (isDownloaded) {
     return true;
   }
@@ -244,7 +253,7 @@ export function getTranslationAvailabilitySummary(
 }
 
 export const resolvePreferredTranslationLanguage = <
-  T extends { id: string; language: string | null | undefined }
+  T extends { id: string; language: string | null | undefined },
 >(
   translations: T[],
   preferredLanguage: string | null | undefined,
@@ -297,7 +306,7 @@ export const filterTranslationsBySearchQuery = <
     hasText?: boolean;
     hasAudio?: boolean;
     catalog?: BibleTranslation['catalog'];
-  }
+  },
 >(
   translations: T[],
   query: string
@@ -330,6 +339,35 @@ export const filterTranslationsBySearchQuery = <
     return queryTokens.every((token) => fuzzyTokenMatches(haystack, token));
   });
 };
+
+export function filterTranslationLanguagesBySearchQuery<
+  T extends { language: string | null | undefined },
+>(translations: T[], query: string): TranslationLanguageSearchResult[] {
+  const normalizedQuery = normalizeTranslationSearchText(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  const languageCounts = new Map<string, number>();
+
+  for (const translation of translations) {
+    const language = normalizeTranslationLanguage(translation.language);
+    languageCounts.set(language, (languageCounts.get(language) ?? 0) + 1);
+  }
+
+  return Array.from(languageCounts.entries())
+    .map(([value, translationCount]) => ({
+      value,
+      label: getTranslationLanguageDisplayLabel(value),
+      translationCount,
+    }))
+    .filter((language) => {
+      const haystack = normalizeTranslationSearchText([language.value, language.label].join(' '));
+      return queryTokens.every((token) => fuzzyTokenMatches(haystack, token));
+    })
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
 
 function inferTranslationAudioCoverage(
   translation: Pick<BibleTranslation, 'id' | 'catalog'>
@@ -408,10 +446,11 @@ export const buildTranslationPickerSections = <
     hasText: boolean;
     source?: 'bundled' | 'runtime';
     textPackLocalPath?: string | null;
-  }
+  },
 >(
   translations: T[],
-  preferredLanguage: string | null
+  preferredLanguage: string | null,
+  options: { includeAllAvailableTranslations?: boolean } = {}
 ): TranslationPickerSections<T> => {
   const visibleTranslations = translations.filter(
     (translation) => !isHiddenTranslationId(translation.id)
@@ -426,13 +465,15 @@ export const buildTranslationPickerSections = <
     })
   );
   const myTranslationIds = new Set(myTranslations.map((translation) => translation.id));
-  const availableTranslations = preferredLanguage
-    ? visibleTranslations.filter(
-        (translation) =>
-          normalizeTranslationLanguage(translation.language) === preferredLanguage &&
-          !myTranslationIds.has(translation.id)
-      )
-    : visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id));
+  const availableTranslations = options.includeAllAvailableTranslations
+    ? visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id))
+    : preferredLanguage
+      ? visibleTranslations.filter(
+          (translation) =>
+            normalizeTranslationLanguage(translation.language) === preferredLanguage &&
+            !myTranslationIds.has(translation.id)
+        )
+      : visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id));
 
   return {
     myTranslations,
@@ -443,12 +484,17 @@ export const buildTranslationPickerSections = <
 export const getVisibleTranslationsForPicker = <
   T extends {
     id: string;
-  } & Pick<TranslationSelectionOptions, 'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'>
+  } & Pick<
+    TranslationSelectionOptions,
+    'isDownloaded' | 'hasText' | 'source' | 'textPackLocalPath'
+  >,
 >(
   translations: T[],
   { isHydratingRuntimeCatalog, hasHydratedRuntimeCatalog }: TranslationPickerVisibilityOptions
 ): T[] => {
-  const visibleTranslations = translations.filter((translation) => !isHiddenTranslationId(translation.id));
+  const visibleTranslations = translations.filter(
+    (translation) => !isHiddenTranslationId(translation.id)
+  );
 
   if (!isHydratingRuntimeCatalog || hasHydratedRuntimeCatalog) {
     return visibleTranslations;

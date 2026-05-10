@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
+  filterTranslationLanguagesBySearchQuery,
   filterTranslationsBySearchQuery,
   getTranslationAvailabilitySummary,
   getTranslationAudioCollectionActions,
@@ -439,10 +440,7 @@ test('translation language display labels include native scripts when available'
 });
 
 test('translation language filters expose bilingual labels while preserving canonical values', () => {
-  const filters = buildTranslationLanguageFilters([
-    { language: 'Nepali' },
-    { language: 'Hindi' },
-  ]);
+  const filters = buildTranslationLanguageFilters([{ language: 'Nepali' }, { language: 'Hindi' }]);
 
   assert.deepEqual(filters, [
     { value: 'Hindi', label: 'Hindi / हिन्दी' },
@@ -488,6 +486,36 @@ test('translation picker sections split local translations from the preferred la
   assert.deepEqual(
     sections.availableTranslations.map((translation) => translation.id),
     ['niv']
+  );
+});
+
+test('translation picker sections can show global available results while searching', () => {
+  const sections = buildTranslationPickerSections(
+    [
+      {
+        id: 'bsb',
+        language: 'English',
+        isDownloaded: true,
+        hasText: true,
+        source: 'bundled' as const,
+        textPackLocalPath: null,
+      },
+      {
+        id: 'urdirv',
+        language: 'Urdu',
+        isDownloaded: false,
+        hasText: true,
+        source: 'runtime' as const,
+        textPackLocalPath: null,
+      },
+    ],
+    'English',
+    { includeAllAvailableTranslations: true }
+  );
+
+  assert.deepEqual(
+    sections.availableTranslations.map((translation) => translation.id),
+    ['urdirv']
   );
 });
 
@@ -552,7 +580,9 @@ test('translation search matches name, abbreviation, description, and language l
   );
 
   assert.deepEqual(
-    filterTranslationsBySearchQuery(translations, 'benbcv audio').map((translation) => translation.id),
+    filterTranslationsBySearchQuery(translations, 'benbcv audio').map(
+      (translation) => translation.id
+    ),
     ['benbcv']
   );
 
@@ -583,6 +613,21 @@ test('translation search matches name, abbreviation, description, and language l
     ).map((translation) => translation.id),
     ['rst']
   );
+});
+
+test('translation language search returns matching languages with translation counts', () => {
+  const results = filterTranslationLanguagesBySearchQuery(
+    [{ language: 'English' }, { language: 'Urdu' }, { language: 'Urdu' }, { language: 'Nepali' }],
+    'urdu'
+  );
+
+  assert.deepEqual(results, [
+    {
+      value: 'Urdu',
+      label: 'Urdu / اردو',
+      translationCount: 2,
+    },
+  ]);
 });
 
 test('availability summary labels text and audio coverage compactly', () => {
