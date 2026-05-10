@@ -14,6 +14,7 @@ import {
   READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
+  getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
@@ -604,6 +605,38 @@ test('uses the live audio verse for inline reader highlighting when the displaye
       activeFollowAlongVerse: null,
     }),
     null
+  );
+});
+
+test('auto-scrolls the inline audio highlight only when it nears the bottom safe zone', () => {
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 300,
+      viewportHeight: 700,
+      verseOffsetY: 760,
+      bottomSafeZone: 180,
+    }),
+    null
+  );
+
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 300,
+      viewportHeight: 700,
+      verseOffsetY: 860,
+      bottomSafeZone: 180,
+    }),
+    340
+  );
+
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 0,
+      viewportHeight: 700,
+      verseOffsetY: 680,
+      bottomSafeZone: 180,
+    }),
+    160
   );
 });
 

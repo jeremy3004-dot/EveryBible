@@ -131,6 +131,7 @@ import {
   getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
   getEstimatedFollowAlongVerse,
+  getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
@@ -546,6 +547,7 @@ export function BibleReaderScreen() {
   const rootTabBarCollapseProgressRef = useRef(0);
   const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
   const readerLastScrollOffsetYRef = useRef(0);
+  const readerScrollViewportHeightRef = useRef(0);
   const readerRevealTabBarOnUpScrollRef = useRef(false);
   const readerBottomChromeProgressShared = useSharedValue(0);
   const rootTabBarVisibleRef = useRef<boolean | null>(null);
@@ -1273,9 +1275,10 @@ export function BibleReaderScreen() {
   const sharedTopChromeTop = safeInsets.top + premiumTopInset;
   const readerContentTopPadding = sharedTopChromeTop + 98;
   const updateReaderBottomChromeState = useCallback(
-    (offsetY: number, isAtBottom: boolean) => {
+    (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
       const scrollDeltaY = offsetY - readerLastScrollOffsetYRef.current;
       readerLastScrollOffsetYRef.current = offsetY;
+      readerScrollViewportHeightRef.current = viewportHeight;
       const isScrollingUp = scrollDeltaY < -6;
       const isScrollingDown = scrollDeltaY > 6;
       if (isScrollingUp && offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD) {
@@ -1370,7 +1373,7 @@ export function BibleReaderScreen() {
         viewportHeight > 0 && contentHeight > 0
           ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
           : false;
-      runOnJS(updateReaderBottomChromeState)(nextOffsetY, isAtBottom);
+      runOnJS(updateReaderBottomChromeState)(nextOffsetY, isAtBottom, viewportHeight);
     },
   });
 
@@ -1595,6 +1598,33 @@ export function BibleReaderScreen() {
       animated: true,
     });
   }, [activeFollowAlongVerse, showFollowAlongText]);
+
+  useEffect(() => {
+    if (!showPremiumReadMode || !isCurrentAudioChapter || readerInlineActiveVerse == null) {
+      return;
+    }
+
+    const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
+    if (verseOffset == null) {
+      return;
+    }
+
+    const targetOffset = getReaderAutoScrollTarget({
+      currentScrollOffsetY: readerLastScrollOffsetYRef.current,
+      viewportHeight: readerScrollViewportHeightRef.current,
+      verseOffsetY: verseOffset,
+      bottomSafeZone: rootTabBarHeight + layout.minTouchTarget + spacing.xxl,
+    });
+
+    if (targetOffset == null) {
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo({
+      y: targetOffset,
+      animated: true,
+    });
+  }, [isCurrentAudioChapter, readerInlineActiveVerse, rootTabBarHeight, showPremiumReadMode]);
 
   // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {
@@ -3550,6 +3580,30 @@ export function BibleReaderScreen() {
       };
     };
 
+    const updateInlineParagraphVerseOffsets = (
+      paragraphVerses: Verse[],
+      paragraphOffsetY: number,
+      paragraphHeight: number
+    ) => {
+      const totalWeight = paragraphVerses.reduce(
+        (sum, verse) => sum + Math.max(verse.text.length, 12),
+        0
+      );
+      if (totalWeight <= 0) {
+        for (const verse of paragraphVerses) {
+          verseOffsetsRef.current[verse.verse] = paragraphOffsetY;
+        }
+        return;
+      }
+
+      let cumulativeWeight = 0;
+      for (const verse of paragraphVerses) {
+        verseOffsetsRef.current[verse.verse] =
+          paragraphOffsetY + (cumulativeWeight / totalWeight) * paragraphHeight;
+        cumulativeWeight += Math.max(verse.text.length, 12);
+      }
+    };
+
     const renderStackedVerse = (verse: Verse) => {
       const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
         getVersePresentation(verse);
@@ -3647,6 +3701,18 @@ export function BibleReaderScreen() {
             style={[styles.readerBlock, usePremiumTypography ? styles.premiumReaderBlock : null]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
+              const hasFormattedVerse = paragraph.verses.some(
+                (verse) => (verse.formatting?.lines.length ?? 0) > 0
+              );
+              if (usePremiumTypography && !hasFormattedVerse) {
+                updateInlineParagraphVerseOffsets(
+                  paragraph.verses,
+                  y,
+                  event.nativeEvent.layout.height
+                );
+                return;
+              }
+
               for (const v of paragraph.verses) {
                 verseOffsetsRef.current[v.verse] = y;
               }
@@ -3777,6 +3843,9 @@ export function BibleReaderScreen() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}
+            onLayout={(event) => {
+              readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
+            }}
             onScrollBeginDrag={() => {
               handleReaderScrollBeginDrag();
               setShowFontSizeSheet((current) =>

@@ -79,6 +79,13 @@ interface ReaderInlineActiveVerseInput {
   focusVerse?: number;
 }
 
+interface ReaderAutoScrollTargetInput {
+  currentScrollOffsetY: number;
+  viewportHeight: number;
+  verseOffsetY: number;
+  bottomSafeZone: number;
+}
+
 interface NextFollowAlongVisibilityInput {
   currentlyVisible: boolean;
   nextSessionMode: ChapterSessionMode;
@@ -392,6 +399,24 @@ export const getReaderInlineActiveVerse = ({
   }
 
   return focusVerse ?? null;
+};
+
+export const getReaderAutoScrollTarget = ({
+  currentScrollOffsetY,
+  viewportHeight,
+  verseOffsetY,
+  bottomSafeZone,
+}: ReaderAutoScrollTargetInput): number | null => {
+  if (viewportHeight <= 0 || verseOffsetY < 0) {
+    return null;
+  }
+
+  const lowerVisibleBound = currentScrollOffsetY + viewportHeight - bottomSafeZone;
+  if (verseOffsetY <= lowerVisibleBound) {
+    return null;
+  }
+
+  return Math.max(verseOffsetY - viewportHeight + bottomSafeZone, 0);
 };
 
 export const getNextFollowAlongVisibility = ({

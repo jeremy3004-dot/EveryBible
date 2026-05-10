@@ -130,6 +130,41 @@ test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens
   );
 });
 
+test('BibleReaderScreen auto-scrolls inline audio highlights before they leave the viewport', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const modelSource = readRelativeSource('./bibleReaderModel.ts');
+
+  assert.match(
+    modelSource,
+    /export const getReaderAutoScrollTarget =/,
+    'The reader model should expose a deterministic auto-scroll threshold helper'
+  );
+
+  assert.match(
+    source,
+    /readerScrollViewportHeightRef/,
+    'BibleReaderScreen should remember the visible reader viewport height for audio highlight scrolling'
+  );
+
+  assert.match(
+    source,
+    /getReaderAutoScrollTarget\(\{[\s\S]*verseOffsetY:\s*verseOffset,[\s\S]*bottomSafeZone:\s*rootTabBarHeight \+ layout\.minTouchTarget \+ spacing\.xxl/s,
+    'BibleReaderScreen should only scroll when the active audio verse crosses the lower safe zone'
+  );
+
+  assert.match(
+    source,
+    /scrollViewRef\.current\?\.scrollTo\(\{[\s\S]*y:\s*targetOffset,[\s\S]*animated:\s*true/s,
+    'BibleReaderScreen should gently scroll the reader when the highlighted audio verse nears the bottom'
+  );
+
+  assert.match(
+    source,
+    /updateInlineParagraphVerseOffsets/,
+    'Premium inline paragraphs should estimate per-verse offsets instead of treating the whole paragraph as one scroll target'
+  );
+});
+
 test('listen mode no longer renders the extra eyebrow and play-CTA card copy above the player', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
