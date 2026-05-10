@@ -69,6 +69,8 @@ export type BackgroundMusicChoice =
   | 'ambient'
   | 'piano'
   | 'soft-guitar'
+  | 'harp'
+  | 'flute'
   | 'sitar'
   | 'ocean-waves';
 
@@ -77,6 +79,8 @@ export const BACKGROUND_MUSIC_CHOICES: BackgroundMusicChoice[] = [
   'ambient',
   'piano',
   'soft-guitar',
+  'harp',
+  'flute',
   'sitar',
   'ocean-waves',
 ];

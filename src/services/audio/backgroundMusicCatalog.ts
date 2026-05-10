@@ -48,6 +48,24 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     defaultVolume: 0.18,
   },
   {
+    id: 'harp',
+    label: 'Harp',
+    description: 'Light solo harp theme with a gentle devotional feel.',
+    license: 'CC0',
+    credit: 'cynicmusic / The Cynic Project',
+    sourceUrl: 'https://opengameart.org/content/a-new-town-rpg-theme',
+    defaultVolume: 0.15,
+  },
+  {
+    id: 'flute',
+    label: 'Flute',
+    description: 'Short flute-forward loop with soft fantasy ambience.',
+    license: 'CC0',
+    credit: 'KiluaBoy',
+    sourceUrl: 'https://opengameart.org/content/through-fire-through-sea-violin-flute-loop',
+    defaultVolume: 0.14,
+  },
+  {
     id: 'sitar',
     label: 'Sitar',
     description: 'Warm desert-style sitar texture for longer listening sessions.',
@@ -80,6 +98,10 @@ export const getBackgroundMusicSource = (choice: BackgroundMusicChoice): number 
       return require('../../../assets/audio/background/piano.m4a');
     case 'soft-guitar':
       return require('../../../assets/audio/background/soft-guitar.m4a');
+    case 'harp':
+      return require('../../../assets/audio/background/harp.m4a');
+    case 'flute':
+      return require('../../../assets/audio/background/flute.m4a');
     case 'sitar':
       return require('../../../assets/audio/background/sitar.m4a');
     case 'ocean-waves':

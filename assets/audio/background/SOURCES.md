@@ -29,6 +29,24 @@ These files are bundled into EveryBible for offline listen-mode background audio
 - Original author: `Kistol`
 - License: `CC0`
 
+## Harp
+
+- Bundled file: `harp.m4a`
+- Derived from: `025_A_New_Town.mp3`
+- Source page: <https://opengameart.org/content/a-new-town-rpg-theme>
+- Original author: `cynicmusic / The Cynic Project`
+- License: `CC0`
+- Source page attribution notice: `Please credit -- The Cynic Project / pixelsphere.org / cynicmusic.com`
+
+## Flute
+
+- Bundled file: `flute.m4a`
+- Derived from: `ThroughSea.ogg`
+- Source page: <https://opengameart.org/content/through-fire-through-sea-violin-flute-loop>
+- Original author: `KiluaBoy`
+- License: `CC0`
+- Source page attribution notice: `To Kilua Boy, only if you want to help me :)`
+
 ## Sitar
 
 - Bundled file: `sitar.m4a`

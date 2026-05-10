@@ -580,10 +580,10 @@ test('sanitizePersistedAudioState falls back to off for unsupported background m
 
 test('sanitizePersistedAudioState preserves supported bundled background music choices', () => {
   const sanitized = sanitizePersistedAudioState({
-    backgroundMusicChoice: 'ocean-waves',
+    backgroundMusicChoice: 'harp',
   });
 
-  assert.equal(sanitized.backgroundMusicChoice, 'ocean-waves');
+  assert.equal(sanitized.backgroundMusicChoice, 'harp');
 });
 
 test('sanitizePersistedLibraryState keeps only valid favorites, playlists, and history entries', () => {

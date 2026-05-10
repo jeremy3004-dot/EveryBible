@@ -5,7 +5,7 @@ import { BACKGROUND_MUSIC_OPTIONS } from './backgroundMusicCatalog';
 test('background music catalog exposes the bundled listen options with source metadata', () => {
   assert.deepEqual(
     BACKGROUND_MUSIC_OPTIONS.map((option) => option.id),
-    ['off', 'ambient', 'piano', 'soft-guitar', 'sitar', 'ocean-waves']
+    ['off', 'ambient', 'piano', 'soft-guitar', 'harp', 'flute', 'sitar', 'ocean-waves']
   );
 
   assert.equal(BACKGROUND_MUSIC_OPTIONS[0]?.label, 'Off');
@@ -19,4 +19,14 @@ test('background music catalog exposes the bundled listen options with source me
   const sitar = BACKGROUND_MUSIC_OPTIONS.find((option) => option.id === 'sitar');
   assert.match(sitar?.license ?? '', /CC-BY/);
   assert.match(sitar?.credit ?? '', /Spring Spring/);
+
+  const harp = BACKGROUND_MUSIC_OPTIONS.find((option) => option.id === 'harp');
+  assert.equal(harp?.license, 'CC0');
+  assert.match(harp?.credit ?? '', /Cynic Project/);
+  assert.match(harp?.sourceUrl ?? '', /a-new-town-rpg-theme/);
+
+  const flute = BACKGROUND_MUSIC_OPTIONS.find((option) => option.id === 'flute');
+  assert.equal(flute?.license, 'CC0');
+  assert.match(flute?.credit ?? '', /KiluaBoy/);
+  assert.match(flute?.sourceUrl ?? '', /through-fire-through-sea/);
 });
