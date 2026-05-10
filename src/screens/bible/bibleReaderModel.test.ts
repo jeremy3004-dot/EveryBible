@@ -613,8 +613,8 @@ test('auto-scrolls the inline audio highlight to the top before it reaches the p
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 300,
       viewportHeight: 700,
-      verseOffsetY: 719,
-      triggerViewportFraction: 3 / 5,
+      verseOffsetY: 684,
+      triggerViewportFraction: 0.55,
       targetTopOffset: 150,
     }),
     null
@@ -624,22 +624,22 @@ test('auto-scrolls the inline audio highlight to the top before it reaches the p
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 300,
       viewportHeight: 700,
-      verseOffsetY: 720,
-      triggerViewportFraction: 3 / 5,
+      verseOffsetY: 685,
+      triggerViewportFraction: 0.55,
       targetTopOffset: 150,
     }),
-    570
+    535
   );
 
   assert.equal(
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 0,
       viewportHeight: 700,
-      verseOffsetY: 420,
-      triggerViewportFraction: 3 / 5,
+      verseOffsetY: 386,
+      triggerViewportFraction: 0.55,
       targetTopOffset: 140,
     }),
-    280
+    246
   );
 });
 
