@@ -1613,8 +1613,8 @@ export function BibleReaderScreen() {
       currentScrollOffsetY: readerLastScrollOffsetYRef.current,
       viewportHeight: readerScrollViewportHeightRef.current,
       verseOffsetY: verseOffset,
-      triggerViewportFraction: 0.55,
-      targetTopOffset: sharedTopChromeTop + spacing.xl,
+      triggerViewportFraction: 0.48,
+      targetTopOffset: sharedTopChromeTop + spacing.md,
     });
 
     if (targetOffset == null) {

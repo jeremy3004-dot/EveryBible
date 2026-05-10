@@ -148,7 +148,7 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
-    /getReaderAutoScrollTarget\(\{[\s\S]*verseOffsetY:\s*verseOffset,[\s\S]*triggerViewportFraction:\s*0\.55,[\s\S]*targetTopOffset:\s*sharedTopChromeTop \+ spacing\.xl/s,
+    /getReaderAutoScrollTarget\(\{[\s\S]*verseOffsetY:\s*verseOffset,[\s\S]*triggerViewportFraction:\s*0\.48,[\s\S]*targetTopOffset:\s*sharedTopChromeTop \+ spacing\.md/s,
     'BibleReaderScreen should scroll the active audio verse to the top before the playback dock covers it'
   );
 
