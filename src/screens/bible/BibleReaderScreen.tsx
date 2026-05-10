@@ -1613,7 +1613,7 @@ export function BibleReaderScreen() {
       currentScrollOffsetY: readerLastScrollOffsetYRef.current,
       viewportHeight: readerScrollViewportHeightRef.current,
       verseOffsetY: verseOffset,
-      triggerViewportFraction: 2 / 3,
+      triggerViewportFraction: 3 / 5,
       targetTopOffset: sharedTopChromeTop + spacing.xl,
     });
 

@@ -148,8 +148,8 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
-    /getReaderAutoScrollTarget\(\{[\s\S]*verseOffsetY:\s*verseOffset,[\s\S]*triggerViewportFraction:\s*2 \/ 3,[\s\S]*targetTopOffset:\s*sharedTopChromeTop \+ spacing\.xl/s,
-    'BibleReaderScreen should scroll the active audio verse to the top after it reaches the lower third'
+    /getReaderAutoScrollTarget\(\{[\s\S]*verseOffsetY:\s*verseOffset,[\s\S]*triggerViewportFraction:\s*3 \/ 5,[\s\S]*targetTopOffset:\s*sharedTopChromeTop \+ spacing\.xl/s,
+    'BibleReaderScreen should scroll the active audio verse to the top before the playback dock covers it'
   );
 
   assert.match(
