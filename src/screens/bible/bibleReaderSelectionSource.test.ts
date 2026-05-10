@@ -189,19 +189,31 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   assert.match(
     traySource,
     /Ionicons[\s\S]*name={icon}[\s\S]*size=\{16\}/s,
-    'The action pills should be a bit smaller so the tray feels lighter'
+    'The action pills should keep compact icons so larger buttons still feel balanced'
   );
 
   assert.match(
     traySource,
-    /minHeight:\s*58/,
-    'The action pills should be slightly shorter than before'
+    /minHeight:\s*62/,
+    'The action pills should be tall enough for comfortable bottom-tray tapping'
   );
 
   assert.match(
     traySource,
-    /width:\s*44/,
-    'The action pills should be sized tighter so the whole row can stay mostly on screen'
+    /width:\s*52/,
+    'The action pills should be wider so the controls fill the available bottom-tray space'
+  );
+
+  assert.match(
+    traySource,
+    /highlightRow:[\s\S]*justifyContent:\s*'space-between'[\s\S]*flex:\s*1/,
+    'The highlight colors should distribute across their share of the tray instead of clustering left'
+  );
+
+  assert.match(
+    traySource,
+    /actionButtonRail:[\s\S]*justifyContent:\s*'space-between'[\s\S]*flex:\s*1\.8/,
+    'The action buttons should distribute across the remaining tray width'
   );
 
   assert.match(
