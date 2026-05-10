@@ -1613,7 +1613,8 @@ export function BibleReaderScreen() {
       currentScrollOffsetY: readerLastScrollOffsetYRef.current,
       viewportHeight: readerScrollViewportHeightRef.current,
       verseOffsetY: verseOffset,
-      bottomSafeZone: rootTabBarHeight + layout.minTouchTarget + spacing.xxl,
+      triggerViewportFraction: 2 / 3,
+      targetTopOffset: sharedTopChromeTop + spacing.xl,
     });
 
     if (targetOffset == null) {
@@ -1624,7 +1625,7 @@ export function BibleReaderScreen() {
       y: targetOffset,
       animated: true,
     });
-  }, [isCurrentAudioChapter, readerInlineActiveVerse, rootTabBarHeight, showPremiumReadMode]);
+  }, [isCurrentAudioChapter, readerInlineActiveVerse, sharedTopChromeTop, showPremiumReadMode]);
 
   // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {

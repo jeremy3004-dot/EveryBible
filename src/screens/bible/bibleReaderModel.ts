@@ -83,7 +83,8 @@ interface ReaderAutoScrollTargetInput {
   currentScrollOffsetY: number;
   viewportHeight: number;
   verseOffsetY: number;
-  bottomSafeZone: number;
+  triggerViewportFraction: number;
+  targetTopOffset: number;
 }
 
 interface NextFollowAlongVisibilityInput {
@@ -405,18 +406,20 @@ export const getReaderAutoScrollTarget = ({
   currentScrollOffsetY,
   viewportHeight,
   verseOffsetY,
-  bottomSafeZone,
+  triggerViewportFraction,
+  targetTopOffset,
 }: ReaderAutoScrollTargetInput): number | null => {
-  if (viewportHeight <= 0 || verseOffsetY < 0) {
+  if (viewportHeight <= 0 || verseOffsetY < 0 || triggerViewportFraction <= 0) {
     return null;
   }
 
-  const lowerVisibleBound = currentScrollOffsetY + viewportHeight - bottomSafeZone;
-  if (verseOffsetY <= lowerVisibleBound) {
+  const clampedTriggerFraction = Math.min(triggerViewportFraction, 1);
+  const triggerOffsetY = currentScrollOffsetY + viewportHeight * clampedTriggerFraction;
+  if (verseOffsetY < triggerOffsetY) {
     return null;
   }
 
-  return Math.max(verseOffsetY - viewportHeight + bottomSafeZone, 0);
+  return Math.max(verseOffsetY - targetTopOffset, 0);
 };
 
 export const getNextFollowAlongVisibility = ({

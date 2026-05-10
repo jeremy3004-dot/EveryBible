@@ -608,13 +608,14 @@ test('uses the live audio verse for inline reader highlighting when the displaye
   );
 });
 
-test('auto-scrolls the inline audio highlight only when it nears the bottom safe zone', () => {
+test('auto-scrolls the inline audio highlight to the top once it reaches the lower third', () => {
   assert.equal(
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 300,
       viewportHeight: 700,
       verseOffsetY: 760,
-      bottomSafeZone: 180,
+      triggerViewportFraction: 2 / 3,
+      targetTopOffset: 150,
     }),
     null
   );
@@ -623,20 +624,22 @@ test('auto-scrolls the inline audio highlight only when it nears the bottom safe
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 300,
       viewportHeight: 700,
-      verseOffsetY: 860,
-      bottomSafeZone: 180,
+      verseOffsetY: 780,
+      triggerViewportFraction: 2 / 3,
+      targetTopOffset: 150,
     }),
-    340
+    630
   );
 
   assert.equal(
     getReaderAutoScrollTarget({
       currentScrollOffsetY: 0,
       viewportHeight: 700,
-      verseOffsetY: 680,
-      bottomSafeZone: 180,
+      verseOffsetY: 470,
+      triggerViewportFraction: 2 / 3,
+      targetTopOffset: 140,
     }),
-    160
+    330
   );
 });
 
