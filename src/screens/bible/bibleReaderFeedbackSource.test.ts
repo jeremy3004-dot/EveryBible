@@ -29,6 +29,11 @@ test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps t
   );
   assert.match(
     source,
+    /chapterFeedbackEnabled[\s\S]*accessibilityLabel=\{t\('bible\.chapterFeedback'\)\}[\s\S]*chatbox-ellipses-outline/,
+    'BibleReaderScreen should expose a direct chapter feedback button in the reader chrome when feedback is enabled'
+  );
+  assert.match(
+    source,
     /const showMinimalListenChrome =[\s\S]*chapterPresentationMode === 'audio-first'/,
     'BibleReaderScreen should treat audio-first chapters as listen-mode chrome for inline feedback visibility'
   );

@@ -705,6 +705,12 @@ test('chapter feedback renders inline on the listen page while keeping the overf
 
   assert.match(
     source,
+    /chapterFeedbackEnabled[\s\S]*chatbox-ellipses-outline/s,
+    'BibleReaderScreen should show a direct feedback affordance in the top chapter chrome'
+  );
+
+  assert.match(
+    source,
     /handleSubmitChapterFeedback\('listener'\)/,
     'BibleReaderScreen should submit inline feedback as listener feedback'
   );

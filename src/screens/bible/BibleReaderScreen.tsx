@@ -4035,6 +4035,26 @@ export function BibleReaderScreen() {
           </View>
         </TouchableOpacity>
 
+        {chapterFeedbackEnabled ? (
+          <TouchableOpacity
+            style={[
+              styles.floatingReaderMenuButton,
+              {
+                backgroundColor: colors.bibleElevatedSurface,
+                borderColor: colors.bibleElevatedSurface,
+              },
+            ]}
+            activeOpacity={0.85}
+            onPress={handleOpenChapterFeedback}
+            accessibilityRole="button"
+            accessibilityLabel={t('bible.chapterFeedback')}
+          >
+            <View style={styles.floatingReaderMenuButtonContent}>
+              <Ionicons name="chatbox-ellipses-outline" size={21} color={colors.biblePrimaryText} />
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
         <TouchableOpacity
           style={[
             styles.floatingReaderMenuButton,
