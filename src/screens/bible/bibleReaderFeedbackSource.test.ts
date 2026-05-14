@@ -48,7 +48,7 @@ test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps t
     'BibleReaderScreen should keep the reader modal submission path intact'
   );
   assert.doesNotMatch(
-    source.match(/const handleOpenChapterFeedback = \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '',
+    source.match(/const handleOpenChapterFeedback = \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '',
     /chapterFeedbackSignInRequired/,
     'BibleReaderScreen should let reviewers open the feedback form before enforcing sign-in on submit'
   );

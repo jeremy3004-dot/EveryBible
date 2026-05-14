@@ -58,7 +58,6 @@ import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contex
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
-import { getCurrentSession } from '../../services/auth';
 import {
   getAnnotationsForChapter,
   softDeleteAnnotation,
@@ -725,10 +724,6 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
   }, []);
 
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const hasLiveAuthSession = useAuthStore((state) => state.session !== null);
-  const hasStoredAuthSession = isAuthenticated || hasLiveAuthSession;
-  const [hasRestoredAuthSession, setHasRestoredAuthSession] = useState(hasStoredAuthSession);
   const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
   const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
   const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
@@ -1180,7 +1175,6 @@ export function BibleReaderScreen() {
   const showMinimalListenChrome =
     chapterPresentationMode === 'audio-first' ||
     (stableSessionMode === 'listen' && !canReadDisplayedChapter);
-  const hasReaderAuthSession = hasStoredAuthSession || hasRestoredAuthSession;
   const showInlineChapterFeedbackComposer =
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
@@ -1753,28 +1747,6 @@ export function BibleReaderScreen() {
     navigation,
     resolvePlanSessionRouteParams,
   ]);
-
-  useEffect(() => {
-    setHasRestoredAuthSession(hasStoredAuthSession);
-  }, [hasStoredAuthSession]);
-
-  useEffect(() => {
-    if (hasStoredAuthSession) {
-      return;
-    }
-
-    let isCancelled = false;
-
-    void getCurrentSession().then(({ session }) => {
-      if (!isCancelled) {
-        setHasRestoredAuthSession(session !== null);
-      }
-    });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [hasStoredAuthSession]);
 
   useEffect(() => {
     const loadAnnotations = async () => {
