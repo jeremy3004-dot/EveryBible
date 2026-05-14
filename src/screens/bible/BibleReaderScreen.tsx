@@ -586,6 +586,8 @@ export function BibleReaderScreen() {
     }),
     [colors.bibleBackground, colors.bibleDivider, rootTabBarBottomPadding, rootTabBarHeight]
   );
+  const rootTabBarStyleBuilderRef = useRef(getRootTabBarStyle);
+  rootTabBarStyleBuilderRef.current = getRootTabBarStyle;
   // Keep the chapter content padding stable so dock taps do not reflow the
   // ScrollView when the user is already pinned at the bottom of the chapter.
   const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;
@@ -621,13 +623,25 @@ export function BibleReaderScreen() {
       const rootTabNavigation = getRootTabNavigation();
       if (rootTabNavigation) {
         rootTabNavigation.setOptions({
-          tabBarStyle: getRootTabBarStyle(clampedProgress),
+          tabBarStyle: rootTabBarStyleBuilderRef.current(clampedProgress),
         });
       }
       navigation.setParams({ tabBarCollapseProgress: clampedProgress });
     },
-    [getRootTabBarStyle, getRootTabNavigation, navigation]
+    [getRootTabNavigation, navigation]
   );
+
+  useEffect(() => {
+    const rootTabNavigation = getRootTabNavigation();
+    if (!rootTabNavigation || shouldForceHideRootTabBar) {
+      return;
+    }
+
+    rootTabNavigation.setOptions({
+      tabBarStyle: getRootTabBarStyle(rootTabBarCollapseProgressRef.current),
+    });
+    navigation.setParams({ tabBarCollapseProgress: rootTabBarCollapseProgressRef.current });
+  }, [getRootTabBarStyle, getRootTabNavigation, navigation, shouldForceHideRootTabBar]);
 
   useEffect(() => {
     syncRootTabBarVisibility(

@@ -485,7 +485,7 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
 
   assert.match(
     source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*getRootTabBarStyle\(clampedProgress\),\s*\}\)/,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*rootTabBarStyleBuilderRef\.current\(clampedProgress\),\s*\}\)/,
     'BibleReaderScreen should push the normalized collapse style directly to the parent navigator so the live root tab bar actually moves with the reader dock'
   );
 
@@ -587,6 +587,28 @@ test('BibleReaderScreen routes tab-bar control through RootTab id lookups and ha
     source,
     /const shouldForceHideRootTabBar =\s*Boolean\(activePlanId\) && typeof planDayNumber === 'number' && returnToPlanOnComplete;/,
     'BibleReaderScreen should keep the force-hide decision explicit for plan sessions before pushing shared tab-bar state'
+  );
+});
+
+test('BibleReaderScreen refreshes the live root tab-bar override when reader theme colors change', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /rootTabBarStyleBuilderRef\.current = getRootTabBarStyle;/,
+    'BibleReaderScreen should keep the latest reader tab-bar color builder available to the scroll sync callback'
+  );
+
+  assert.match(
+    source,
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*getRootTabBarStyle\(rootTabBarCollapseProgressRef\.current\),\s*\}\)/s,
+    'BibleReaderScreen should push refreshed reader colors into the already-mounted root tab bar without waiting for scroll progress to change'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /syncRootTabBarCollapseProgress,\s*\]/,
+    'BibleReaderScreen should not rerun the enter-state tab-bar effect just because the style builder changed'
   );
 });
 
