@@ -1184,8 +1184,6 @@ export function BibleReaderScreen() {
   const showInlineChapterFeedbackComposer =
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
-    hasReaderAuthSession &&
-    savedChapterFeedbackIdentity != null &&
     showMinimalListenChrome;
   const selectedVerseReferenceLabel =
     selectedVerses.length > 0

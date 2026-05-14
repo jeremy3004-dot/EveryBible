@@ -42,7 +42,7 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
         data: {
           success: true,
           saved: true,
-          exported: true,
+          exported: false,
           feedbackId: 'feedback-1',
         } satisfies ChapterFeedbackFunctionResponse,
         error: null,
@@ -62,7 +62,7 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
   );
   assert.equal(result.success, true);
   assert.equal(result.saved, true);
-  assert.equal(result.exported, true);
+  assert.equal(result.exported, false);
   assert.equal(result.feedbackId, 'feedback-1');
   assert.deepEqual(getTrackedBibleExperienceEvents(), [
     {
@@ -72,7 +72,7 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
       chapter: 3,
       sentiment: 'up',
       source: 'reader-feedback',
-      detail: 'exported',
+      detail: 'saved',
     },
   ]);
 });
@@ -90,7 +90,7 @@ test('submitChapterFeedback sends the live access token explicitly when one is a
           data: {
             success: true,
             saved: true,
-            exported: true,
+            exported: false,
             feedbackId: 'feedback-auth-header',
           },
           error: null,
@@ -141,7 +141,7 @@ test('submitChapterFeedback converts a blank comment to null before invoke', asy
   assert.equal(calls[0]?.comment, null);
 });
 
-test('submitChapterFeedback preserves degraded success when the row was saved but not exported', async () => {
+test('submitChapterFeedback treats the saved database row as the successful outcome', async () => {
   resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {
     invoke: async () => ({
@@ -150,7 +150,6 @@ test('submitChapterFeedback preserves degraded success when the row was saved bu
         saved: true,
         exported: false,
         feedbackId: 'feedback-3',
-        error: 'Missing required secret: GOOGLE_SHEETS_SPREADSHEET_ID',
       },
       error: null,
     }),
@@ -159,7 +158,7 @@ test('submitChapterFeedback preserves degraded success when the row was saved bu
   assert.equal(result.success, true);
   assert.equal(result.saved, true);
   assert.equal(result.exported, false);
-  assert.equal(result.error, 'Missing required secret: GOOGLE_SHEETS_SPREADSHEET_ID');
+  assert.equal(result.error, undefined);
   assert.deepEqual(getTrackedBibleExperienceEvents(), [
     {
       name: 'chapter_feedback_submitted',
@@ -168,7 +167,7 @@ test('submitChapterFeedback preserves degraded success when the row was saved bu
       chapter: 3,
       sentiment: 'up',
       source: 'reader-feedback',
-      detail: 'saved-not-exported',
+      detail: 'saved',
     },
   ]);
 });
@@ -186,7 +185,7 @@ test('submitChapterFeedback tracks listener feedback with a listener source tag'
         data: {
           success: true,
           saved: true,
-          exported: true,
+          exported: false,
           feedbackId: 'feedback-listener',
         },
         error: null,
@@ -203,7 +202,7 @@ test('submitChapterFeedback tracks listener feedback with a listener source tag'
       chapter: 3,
       sentiment: 'up',
       source: 'listener-feedback',
-      detail: 'exported',
+      detail: 'saved',
     },
   ]);
 });
@@ -363,7 +362,7 @@ test('submitChapterFeedback refreshes the session and retries once after a 401 e
       chapter: 3,
       sentiment: 'up',
       source: 'reader-feedback',
-      detail: 'exported',
+      detail: 'saved',
     },
   ]);
 });

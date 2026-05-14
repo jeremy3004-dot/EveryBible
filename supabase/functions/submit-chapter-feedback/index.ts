@@ -5,30 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
-const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-const SHEET_HEADER = [
-  'submission_id',
-  'created_at',
-  'translation_language',
-  'translation_id',
-  'book_id',
-  'chapter',
-  'sentiment',
-  'comment',
-  'participant_name',
-  'participant_role',
-  'participant_id_number',
-  'interface_language',
-  'content_language_code',
-  'content_language_name',
-  'source_screen',
-  'app_platform',
-  'app_version',
-  'user_id',
-];
-
 type Sentiment = 'up' | 'down';
 
 interface ChapterFeedbackRequest {
@@ -96,36 +72,6 @@ const requireNonEmptyString = (value: unknown): string | null => {
   return trimmed && trimmed.length > 0 ? trimmed : null;
 };
 
-const normalizeSheetTitle = (value: string): string => {
-  const cleaned = value.replace(/[\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
-  return (cleaned || 'Unknown Language').slice(0, 100);
-};
-
-const encodeBase64Url = (value: string | Uint8Array): string => {
-  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-};
-
-const decodePem = (pem: string): Uint8Array => {
-  const sanitized = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s+/g, '');
-  const binary = atob(sanitized);
-  const output = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    output[index] = binary.charCodeAt(index);
-  }
-
-  return output;
-};
-
 const getRequiredSecret = (name: string): string => {
   const value = Deno.env.get(name)?.trim();
   if (!value) {
@@ -134,190 +80,9 @@ const getRequiredSecret = (name: string): string => {
   return value;
 };
 
-const createGoogleAccessToken = async (): Promise<string> => {
-  const serviceAccountEmail = getRequiredSecret('GOOGLE_SERVICE_ACCOUNT_EMAIL');
-  const privateKey = getRequiredSecret('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY').replace(
-    /\\n/g,
-    '\n'
-  );
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const header = encodeBase64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = encodeBase64Url(
-    JSON.stringify({
-      iss: serviceAccountEmail,
-      scope: GOOGLE_SHEETS_SCOPE,
-      aud: GOOGLE_TOKEN_URL,
-      exp: issuedAt + 3600,
-      iat: issuedAt,
-    })
-  );
-  const unsignedToken = `${header}.${payload}`;
-  const signingKey = await crypto.subtle.importKey(
-    'pkcs8',
-    decodePem(privateKey),
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    signingKey,
-    new TextEncoder().encode(unsignedToken)
-  );
-  const assertion = `${unsignedToken}.${encodeBase64Url(new Uint8Array(signature))}`;
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Google token request failed with ${response.status}`);
-  }
-
-  const json = (await response.json()) as { access_token?: string };
-  if (!json.access_token) {
-    throw new Error('Google token response did not include access_token');
-  }
-
-  return json.access_token;
-};
-
-const googleSheetsRequest = async <T>(
-  accessToken: string,
-  url: string,
-  init?: RequestInit
-): Promise<T> => {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown Google Sheets error');
-    throw new Error(`Google Sheets request failed (${response.status}): ${errorText}`);
-  }
-
-  return (await response.json()) as T;
-};
-
-const ensureSheetExists = async (
-  accessToken: string,
-  spreadsheetId: string,
-  sheetTitle: string
-): Promise<void> => {
-  const metadata = await googleSheetsRequest<{ sheets?: Array<{ properties?: { title?: string } }> }>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}?fields=sheets.properties.title`
-  );
-  const alreadyExists = metadata.sheets?.some((sheet) => sheet.properties?.title === sheetTitle);
-
-  if (alreadyExists) {
-    return;
-  }
-
-  await googleSheetsRequest<Record<string, never>>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: sheetTitle,
-              },
-            },
-          },
-        ],
-      }),
-    }
-  );
-};
-
-const ensureHeaderRow = async (
-  accessToken: string,
-  spreadsheetId: string,
-  sheetTitle: string
-): Promise<void> => {
-  const range = encodeURIComponent(`${sheetTitle}!1:1`);
-  const existing = await googleSheetsRequest<{ values?: string[][] }>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}`
-  );
-  const existingHeader = existing.values?.[0] ?? [];
-
-  if (existingHeader.join('|') === SHEET_HEADER.join('|')) {
-    return;
-  }
-
-  await googleSheetsRequest<Record<string, never>>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({
-        values: [SHEET_HEADER],
-      }),
-    }
-  );
-};
-
-const appendSheetRow = async (
-  accessToken: string,
-  spreadsheetId: string,
-  row: ChapterFeedbackRow
-): Promise<void> => {
-  const sheetTitle = normalizeSheetTitle(row.translation_language);
-  await ensureSheetExists(accessToken, spreadsheetId, sheetTitle);
-  await ensureHeaderRow(accessToken, spreadsheetId, sheetTitle);
-
-  const range = encodeURIComponent(`${sheetTitle}!A:R`);
-  await googleSheetsRequest<Record<string, never>>(
-    accessToken,
-    `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        values: [
-          [
-            row.id,
-            row.created_at,
-            row.translation_language,
-            row.translation_id,
-            row.book_id,
-            row.chapter,
-            row.sentiment,
-            row.comment ?? '',
-            row.participant_name,
-            row.participant_role,
-            row.participant_id_number,
-            row.interface_language,
-            row.content_language_code ?? '',
-            row.content_language_name ?? '',
-            row.source_screen,
-            row.app_platform ?? '',
-            row.app_version ?? '',
-            row.user_id,
-          ],
-        ],
-      }),
-    }
-  );
-};
-
-const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbackInsert; error?: string } => {
+const validateRequest = (
+  body: ChapterFeedbackRequest
+): { value?: ChapterFeedbackInsert; error?: string } => {
   const translationId = requireNonEmptyString(body.translationId);
   const translationLanguage = requireNonEmptyString(body.translationLanguage);
   const bookId = requireNonEmptyString(body.bookId);
@@ -370,7 +135,7 @@ const validateRequest = (body: ChapterFeedbackRequest): { value?: ChapterFeedbac
       source_screen: requireNonEmptyString(body.sourceScreen) ?? 'reader',
       app_platform: trimOptionalText(body.appPlatform),
       app_version: trimOptionalText(body.appVersion),
-      export_status: 'pending',
+      export_status: 'exported',
     },
   };
 };
@@ -446,47 +211,12 @@ Deno.serve(async (req) => {
 
     const feedbackRow = insertedRow as ChapterFeedbackRow;
 
-    try {
-      const spreadsheetId = getRequiredSecret('GOOGLE_SHEETS_SPREADSHEET_ID');
-      const googleAccessToken = await createGoogleAccessToken();
-      await appendSheetRow(googleAccessToken, spreadsheetId, feedbackRow);
-
-      const exportedAt = new Date().toISOString();
-      await supabase
-        .from('chapter_feedback_submissions')
-        .update({
-          export_status: 'exported',
-          exported_at: exportedAt,
-          export_error: null,
-        })
-        .eq('id', feedbackRow.id);
-
-      return jsonResponse(200, {
-        success: true,
-        saved: true,
-        exported: true,
-        feedbackId: feedbackRow.id,
-      });
-    } catch (exportError) {
-      const exportMessage =
-        exportError instanceof Error ? exportError.message : 'Unknown spreadsheet export failure';
-
-      await supabase
-        .from('chapter_feedback_submissions')
-        .update({
-          export_status: 'failed',
-          export_error: exportMessage,
-        })
-        .eq('id', feedbackRow.id);
-
-      return jsonResponse(200, {
-        success: true,
-        saved: true,
-        exported: false,
-        feedbackId: feedbackRow.id,
-        error: exportMessage,
-      });
-    }
+    return jsonResponse(200, {
+      success: true,
+      saved: true,
+      exported: false,
+      feedbackId: feedbackRow.id,
+    });
   } catch (error) {
     return jsonResponse(500, {
       success: false,

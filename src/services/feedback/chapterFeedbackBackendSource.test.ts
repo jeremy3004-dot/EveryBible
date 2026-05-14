@@ -48,7 +48,7 @@ test('chapter feedback backend migration creates the durable preference flag and
   assert.match(
     migration,
     /CHECK \(export_status IN \('pending', 'exported', 'failed'\)\)/,
-    'Expected the migration to track export_status for spreadsheet delivery'
+    'Expected the legacy migration to keep export_status compatible with existing databases'
   );
   assert.match(
     identityMigration,
@@ -108,7 +108,7 @@ test('chapter feedback backend contract is wired into Supabase types and synced 
   );
 });
 
-test('chapter feedback function and ops doc preserve the Supabase-first export contract', () => {
+test('chapter feedback function and ops doc preserve the Supabase admin review contract', () => {
   const functionPath = 'supabase/functions/submit-chapter-feedback/index.ts';
   const docsPath = 'docs/chapter-feedback-ops.md';
 
@@ -153,23 +153,23 @@ test('chapter feedback function and ops doc preserve the Supabase-first export c
   );
   assert.match(
     functionSource,
-    /GOOGLE_SHEETS_SPREADSHEET_ID/,
-    'Expected the Edge Function to read the Google Sheets spreadsheet ID from secrets'
+    /export_status:\s*'exported'/,
+    'Expected the Edge Function to mark database-saved feedback as ready for admin review'
   );
-  assert.match(
+  assert.doesNotMatch(
     functionSource,
-    /export_status/,
-    'Expected the Edge Function to update export_status after attempting spreadsheet export'
+    /GOOGLE_SHEETS_SPREADSHEET_ID|createGoogleAccessToken|appendSheetRow/,
+    'Expected the Edge Function to avoid the retired Google Sheets export path'
+  );
+  assert.doesNotMatch(
+    docs,
+    /GOOGLE_SHEETS_SPREADSHEET_ID|GOOGLE_SERVICE_ACCOUNT/,
+    'Expected the ops doc to stop requiring Google Sheets secrets'
   );
   assert.match(
     docs,
-    /GOOGLE_SHEETS_SPREADSHEET_ID/,
-    'Expected the ops doc to list the required Google Sheets secrets'
-  );
-  assert.match(
-    docs,
-    /export_status='failed'|export_status = 'failed'/,
-    'Expected the ops doc to describe how operators find failed exports'
+    /admin backend|admin/i,
+    'Expected the ops doc to describe admin backend review'
   );
   assert.match(
     docs,

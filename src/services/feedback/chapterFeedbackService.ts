@@ -35,7 +35,9 @@ export interface ChapterFeedbackFunctionResponse {
 
 interface ChapterFeedbackFunctionError {
   message?: string;
-  context?: Response | { status?: number; json?: () => Promise<unknown>; text?: () => Promise<string> };
+  context?:
+    | Response
+    | { status?: number; json?: () => Promise<unknown>; text?: () => Promise<string> };
 }
 
 interface ChapterFeedbackFunctionClient {
@@ -65,10 +67,12 @@ function buildNormalizedIdentity(
     role: input.participantRole,
   });
 
-  return identity ?? {
-    name: normalizeSubmissionText(input.participantName),
-    role: normalizeSubmissionText(input.participantRole),
-  };
+  return (
+    identity ?? {
+      name: normalizeSubmissionText(input.participantName),
+      role: normalizeSubmissionText(input.participantRole),
+    }
+  );
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -144,7 +148,9 @@ function buildPayload(
   };
 }
 
-function getAnalyticsSource(sourceScreen: ChapterFeedbackSourceScreen): 'reader-feedback' | 'listener-feedback' {
+function getAnalyticsSource(
+  sourceScreen: ChapterFeedbackSourceScreen
+): 'reader-feedback' | 'listener-feedback' {
   return sourceScreen === 'listener' ? 'listener-feedback' : 'reader-feedback';
 }
 
@@ -154,7 +160,10 @@ function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): num
   }
 
   const response = error.context;
-  return response && typeof response === 'object' && 'status' in response && typeof response.status === 'number'
+  return response &&
+    typeof response === 'object' &&
+    'status' in response &&
+    typeof response.status === 'number'
     ? response.status
     : null;
 }
@@ -255,15 +264,15 @@ export async function submitChapterFeedback(
   const payload = buildPayload(input);
 
   if (!resolvedClient) {
-      trackBibleExperienceEvent({
-        name: 'chapter_feedback_failed',
-        translationId: payload.translationId,
-        bookId: payload.bookId,
-        chapter: payload.chapter,
-        sentiment: payload.sentiment,
-        source: getAnalyticsSource(payload.sourceScreen),
-        detail: 'backend-unconfigured',
-      });
+    trackBibleExperienceEvent({
+      name: 'chapter_feedback_failed',
+      translationId: payload.translationId,
+      bookId: payload.bookId,
+      chapter: payload.chapter,
+      sentiment: payload.sentiment,
+      source: getAnalyticsSource(payload.sourceScreen),
+      detail: 'backend-unconfigured',
+    });
     return {
       success: false,
       saved: false,
@@ -336,7 +345,7 @@ export async function submitChapterFeedback(
       chapter: payload.chapter,
       sentiment: payload.sentiment,
       source: getAnalyticsSource(payload.sourceScreen),
-      detail: data.success ? (data.exported ? 'exported' : 'saved-not-exported') : data.error,
+      detail: data.success ? 'saved' : data.error,
     });
     return data;
   } catch (error) {

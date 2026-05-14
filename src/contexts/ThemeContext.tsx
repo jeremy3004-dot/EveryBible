@@ -1,5 +1,4 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
 import type { AppearancePaletteId } from '../constants/appearancePalettes';
 import {
@@ -250,7 +249,6 @@ export const appearancePaletteOptions: AppearancePaletteOption[] = [
 ];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemColorScheme = useColorScheme();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
@@ -259,7 +257,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
     ? preferences.theme
     : null;
-  const themeMode: ThemeMode = storedTheme ?? (systemColorScheme === 'light' ? 'light' : 'dark');
+  const themeMode: ThemeMode = storedTheme ?? 'midnight';
 
   const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
     preferences.appearancePalette

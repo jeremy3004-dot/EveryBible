@@ -37,6 +37,11 @@ export const adminNavigation: AdminNavigationItem[] = [
     description: 'Inspect account, device, and sync state without unsafe mutations.',
   },
   {
+    label: 'Feedback',
+    href: '/feedback',
+    description: 'Review chapter feedback submitted from the mobile reader and listener.',
+  },
+  {
     label: 'Analytics',
     href: '/analytics',
     description: 'Listening metrics and privacy-safe geography reporting.',

@@ -56,9 +56,21 @@ test('baseDarkColors, baseLightColors, and baseLowLightColors all declare the sa
 test('ThemeContext exports all three palettes and appearance options as named constants', () => {
   const source = readThemeSource();
 
-  assert.match(source, /export\s*\{[^}]*baseDarkColors\s+as\s+darkColors/, 'darkColors must be a named export');
-  assert.match(source, /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/, 'lightColors must be a named export');
-  assert.match(source, /export\s*\{[^}]*baseLowLightColors\s+as\s+lowLightColors/, 'lowLightColors must be a named export');
+  assert.match(
+    source,
+    /export\s*\{[^}]*baseDarkColors\s+as\s+darkColors/,
+    'darkColors must be a named export'
+  );
+  assert.match(
+    source,
+    /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/,
+    'lightColors must be a named export'
+  );
+  assert.match(
+    source,
+    /export\s*\{[^}]*baseLowLightColors\s+as\s+lowLightColors/,
+    'lowLightColors must be a named export'
+  );
   assert.match(source, /appearancePaletteOptions/, 'appearancePaletteOptions must be exported');
 });
 
@@ -90,12 +102,11 @@ test('ThemeContext exposes isDark and isLowLight flags', () => {
   assert.match(source, /isLowLight/, 'ThemeContextValue should include isLowLight');
 });
 
-test('ThemeContext resolves themeMode from stored preference with system fallback', () => {
+test('ThemeContext resolves themeMode from stored preference with midnight fallback', () => {
   const source = readThemeSource();
 
-  // Must read preferences.theme and fall back to systemColorScheme
   assert.match(source, /preferences\.theme/, 'should read theme from stored preferences');
-  assert.match(source, /systemColorScheme/, 'should fall back to system color scheme');
+  assert.match(source, /storedTheme\s*\?\?\s*'midnight'/, 'should default to midnight');
 });
 
 // ---------------------------------------------------------------------------
@@ -111,7 +122,7 @@ test('Supabase client validates URL by requiring https protocol', () => {
   assert.match(
     clientSource,
     /url\.protocol === ['"]https:['"]|protocol.*https/,
-    "client.ts must enforce the https: protocol when validating the Supabase URL"
+    'client.ts must enforce the https: protocol when validating the Supabase URL'
   );
 });
 

@@ -530,7 +530,7 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
 
 export const defaultAuthPreferences: UserPreferences = {
   fontSize: 'medium',
-  theme: 'dark',
+  theme: 'midnight',
   appearancePalette: DEFAULT_APPEARANCE_PALETTE,
   language: 'en',
   countryCode: null,

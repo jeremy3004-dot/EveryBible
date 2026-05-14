@@ -121,6 +121,26 @@ interface AuditLogRow {
   summary: string;
 }
 
+interface ChapterFeedbackRow {
+  app_platform: string | null;
+  app_version: string | null;
+  book_id: string;
+  chapter: number;
+  comment: string | null;
+  content_language_code: string | null;
+  content_language_name: string | null;
+  created_at: string;
+  id: string;
+  interface_language: string;
+  participant_name: string | null;
+  participant_role: string | null;
+  sentiment: 'up' | 'down';
+  source_screen: string;
+  translation_id: string;
+  translation_language: string;
+  user_id: string | null;
+}
+
 export interface DashboardSummary {
   adminPathCount: number;
   failedSyncCount: number;
@@ -197,6 +217,23 @@ export interface SupportUserDetail {
   sessionCount: number;
 }
 
+export interface ChapterFeedbackListItem {
+  appLabel: string;
+  bookId: string;
+  chapter: number;
+  comment: string | null;
+  contentLanguage: string | null;
+  createdAt: string;
+  id: string;
+  interfaceLanguage: string;
+  participantLabel: string;
+  sentiment: 'up' | 'down';
+  sourceScreen: string;
+  translationId: string;
+  translationLanguage: string;
+  userId: string | null;
+}
+
 export interface AnalyticsOverview {
   activeCountryCount: number;
   activeLocationCount: number;
@@ -233,11 +270,7 @@ interface AnalyticsOverviewRpcPayload {
   userCountWithListening?: number;
 }
 
-function isWithinWindow(
-  startsAt: string | null,
-  endsAt: string | null,
-  now = Date.now()
-): boolean {
+function isWithinWindow(startsAt: string | null, endsAt: string | null, now = Date.now()): boolean {
   const startsOk = !startsAt || new Date(startsAt).getTime() <= now;
   const endsOk = !endsAt || new Date(endsAt).getTime() >= now;
   return startsOk && endsOk;
@@ -246,13 +279,7 @@ function isWithinWindow(
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const service = createAdminServiceClient();
 
-  const [
-    translations,
-    failedSyncs,
-    liveVerses,
-    liveImages,
-    supportUsers,
-  ] = await Promise.all([
+  const [translations, failedSyncs, liveVerses, liveImages, supportUsers] = await Promise.all([
     service.from('translation_catalog').select('translation_id', { count: 'exact', head: true }),
     service
       .from('translation_sync_runs')
@@ -334,7 +361,7 @@ export async function listTranslations(searchTerm?: string): Promise<Translation
     (versions ?? []).map((row) => [row.translation_id as string, row.version_number as number])
   );
 
-  return (catalog as TranslationCatalogRow[] | null ?? []).map((row) => ({
+  return ((catalog as TranslationCatalogRow[] | null) ?? []).map((row) => ({
     abbreviation: row.abbreviation,
     adminNotes: row.admin_notes,
     currentVersion: currentVersionByTranslation.get(row.translation_id) ?? null,
@@ -384,8 +411,7 @@ export async function getTranslationDetail(
     return null;
   }
 
-  const currentVersion =
-    (versions ?? []).find((row) => row.is_current)?.version_number ?? null;
+  const currentVersion = (versions ?? []).find((row) => row.is_current)?.version_number ?? null;
 
   const { data: runs, error: runsError } = await service
     .from('translation_sync_runs')
@@ -433,6 +459,67 @@ export async function listSyncRuns(limit = 10): Promise<SyncRunRow[]> {
   }
 
   return (data ?? []) as SyncRunRow[];
+}
+
+export async function listChapterFeedback(searchTerm?: string): Promise<ChapterFeedbackListItem[]> {
+  const service = createAdminServiceClient();
+  let query = service
+    .from('chapter_feedback_submissions')
+    .select(
+      [
+        'id',
+        'user_id',
+        'translation_id',
+        'translation_language',
+        'interface_language',
+        'content_language_code',
+        'content_language_name',
+        'participant_name',
+        'participant_role',
+        'book_id',
+        'chapter',
+        'sentiment',
+        'comment',
+        'source_screen',
+        'app_platform',
+        'app_version',
+        'created_at',
+      ].join(', ')
+    )
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (searchTerm && searchTerm.trim().length > 0) {
+    const term = searchTerm.trim();
+    query = query.or(
+      `translation_id.ilike.%${term}%,translation_language.ilike.%${term}%,book_id.ilike.%${term}%,participant_name.ilike.%${term}%,participant_role.ilike.%${term}%,comment.ilike.%${term}%`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load chapter feedback: ${error.message}`);
+  }
+
+  return ((data ?? []) as unknown as ChapterFeedbackRow[]).map((row) => ({
+    appLabel: [row.app_platform, row.app_version].filter(Boolean).join(' ') || 'Unknown app',
+    bookId: row.book_id,
+    chapter: row.chapter,
+    comment: row.comment,
+    contentLanguage: row.content_language_name ?? row.content_language_code,
+    createdAt: row.created_at,
+    id: row.id,
+    interfaceLanguage: row.interface_language,
+    participantLabel:
+      [row.participant_name, row.participant_role].filter(Boolean).join(' / ') ||
+      'Unknown reviewer',
+    sentiment: row.sentiment,
+    sourceScreen: row.source_screen,
+    translationId: row.translation_id,
+    translationLanguage: row.translation_language,
+    userId: row.user_id,
+  }));
 }
 
 export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
@@ -498,10 +585,7 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
       severity: 'critical',
       title: 'No successful translation sync',
     });
-  } else if (
-    new Date(latestSuccessfulSync.started_at).getTime() <
-    now - 1000 * 60 * 60 * 24
-  ) {
+  } else if (new Date(latestSuccessfulSync.started_at).getTime() < now - 1000 * 60 * 60 * 24) {
     issues.push({
       description: 'The latest successful sync is more than 24 hours old.',
       href: '/translations',
@@ -511,7 +595,10 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
   }
 
   const liveVerseCount = (verses.data ?? []).filter((row) => {
-    return row.state === 'live' && isWithinWindow(row.starts_at as string | null, row.ends_at as string | null);
+    return (
+      row.state === 'live' &&
+      isWithinWindow(row.starts_at as string | null, row.ends_at as string | null)
+    );
   }).length;
 
   if (liveVerseCount === 0) {
@@ -524,7 +611,11 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
   }
 
   const brokenImage = (images.data ?? []).find((row) => {
-    return row.state === 'live' && (!row.public_url || !isWithinWindow(row.starts_at as string | null, row.ends_at as string | null));
+    return (
+      row.state === 'live' &&
+      (!row.public_url ||
+        !isWithinWindow(row.starts_at as string | null, row.ends_at as string | null))
+    );
   });
 
   if (brokenImage) {
@@ -586,10 +677,7 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
   }
 
   const [preferences, progress, devices, engagement] = await Promise.all([
-    service
-      .from('user_preferences')
-      .select('user_id, country_name')
-      .in('user_id', userIds),
+    service.from('user_preferences').select('user_id, country_name').in('user_id', userIds),
     service
       .from('user_progress')
       .select('user_id, current_book, current_chapter, streak_days, last_read_date')
@@ -639,69 +727,58 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
   });
 }
 
-export async function getSupportUserDetail(
-  userId: string
-): Promise<SupportUserDetail | null> {
+export async function getSupportUserDetail(userId: string): Promise<SupportUserDetail | null> {
   const service = createAdminServiceClient();
-  const [
-    profile,
-    preferences,
-    progress,
-    devices,
-    engagement,
-    plans,
-    feedback,
-    events,
-    audits,
-  ] = await Promise.all([
-    service
-      .from('profiles')
-      .select('id, email, display_name, created_at, updated_at, admin_role')
-      .eq('id', userId)
-      .maybeSingle<ProfileRow>(),
-    service
-      .from('user_preferences')
-      .select(
-        'user_id, language, theme, country_code, country_name, content_language_name, synced_at'
-      )
-      .eq('user_id', userId)
-      .maybeSingle<UserPreferencesRow>(),
-    service
-      .from('user_progress')
-      .select('user_id, current_book, current_chapter, streak_days, last_read_date')
-      .eq('user_id', userId)
-      .maybeSingle<UserProgressRow>(),
-    service
-      .from('user_devices')
-      .select('id, user_id, push_token, platform, app_version, is_active, created_at')
-      .eq('user_id', userId),
-    service
-      .from('user_engagement_summary')
-      .select(
-        'user_id, engagement_score, total_chapters_read, total_listening_minutes, total_sessions, last_active_date'
-      )
-      .eq('user_id', userId)
-      .maybeSingle<UserEngagementRow>(),
-    service
-      .from('user_reading_plan_progress')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId),
-    service
-      .from('chapter_feedback_submissions')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId),
-    service
-      .from('analytics_events')
-      .select('session_id')
-      .eq('user_id', userId)
-      .not('session_id', 'is', null),
-    service
-      .from('admin_audit_logs')
-      .select('id, action, actor_email, entity_type, entity_id, summary, created_at')
-      .contains('metadata', { targetUserId: userId })
-      .order('created_at', { ascending: false })
-      .limit(10),
-  ]);
+  const [profile, preferences, progress, devices, engagement, plans, feedback, events, audits] =
+    await Promise.all([
+      service
+        .from('profiles')
+        .select('id, email, display_name, created_at, updated_at, admin_role')
+        .eq('id', userId)
+        .maybeSingle<ProfileRow>(),
+      service
+        .from('user_preferences')
+        .select(
+          'user_id, language, theme, country_code, country_name, content_language_name, synced_at'
+        )
+        .eq('user_id', userId)
+        .maybeSingle<UserPreferencesRow>(),
+      service
+        .from('user_progress')
+        .select('user_id, current_book, current_chapter, streak_days, last_read_date')
+        .eq('user_id', userId)
+        .maybeSingle<UserProgressRow>(),
+      service
+        .from('user_devices')
+        .select('id, user_id, push_token, platform, app_version, is_active, created_at')
+        .eq('user_id', userId),
+      service
+        .from('user_engagement_summary')
+        .select(
+          'user_id, engagement_score, total_chapters_read, total_listening_minutes, total_sessions, last_active_date'
+        )
+        .eq('user_id', userId)
+        .maybeSingle<UserEngagementRow>(),
+      service
+        .from('user_reading_plan_progress')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      service
+        .from('chapter_feedback_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      service
+        .from('analytics_events')
+        .select('session_id')
+        .eq('user_id', userId)
+        .not('session_id', 'is', null),
+      service
+        .from('admin_audit_logs')
+        .select('id, action, actor_email, entity_type, entity_id, summary, created_at')
+        .contains('metadata', { targetUserId: userId })
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ]);
 
   if (!profile.data) {
     return null;
@@ -756,7 +833,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   const translationBreakdown = buildTranslationBreakdown(
     (overview.translationCountryMetrics ?? []) as TranslationCountryRollup[],
     (overview.translationLocationMetrics ?? []) as TranslationLocationRollup[],
-    (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[],
+    (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[]
   );
 
   return {
