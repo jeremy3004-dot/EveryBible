@@ -29,7 +29,7 @@ The admin backend shows the fixed submission contract:
 17. `app_version`
 18. `user_id`
 
-`participant_id_number` is not user-entered. The Edge Function fills it from the authenticated Supabase user UUID so reviewers only need to save their name and role in the app.
+`participant_id_number` is not user-entered. When the app has an authenticated Supabase session, the Edge Function fills `user_id` and `participant_id_number` from that user UUID. Anonymous submissions are allowed and store those fields as `null`; reviewer name and role are also optional.
 
 ## How To Review Feedback
 
@@ -57,14 +57,15 @@ order by created_at desc;
 
 ## Manual QA Checklist
 
-1. Enable chapter feedback in Settings, submit thumbs up only, and confirm:
+1. Enable chapter feedback in Settings, submit thumbs up while signed out, and confirm:
    - the chapter action appears in the reader
    - a new Supabase row is created
+   - `user_id` and `participant_id_number` are `null`
    - the row appears in the admin backend feedback page
-2. Submit thumbs down plus comment and confirm:
+2. Submit thumbs down plus comment with reviewer name and role saved and confirm:
    - the comment persists in Supabase
    - the reviewer name and role persist in Supabase and the admin backend
-   - `participant_id_number` matches the authenticated Supabase user UUID
+   - `participant_id_number` matches the authenticated Supabase user UUID when signed in, or remains `null` when signed out
    - the same comment text appears in the admin backend row
 3. Disable the feature in Settings and confirm the reader action disappears.
 4. Confirm the feedback page filter finds rows by translation, book, reviewer, and comment.

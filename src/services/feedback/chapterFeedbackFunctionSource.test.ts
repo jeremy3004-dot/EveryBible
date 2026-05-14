@@ -23,7 +23,7 @@ test('submit-chapter-feedback stores feedback in Supabase without Google Sheets 
   );
 });
 
-test('submit-chapter-feedback derives the reviewer ID column from the authenticated user instead of a manual request field', () => {
+test('submit-chapter-feedback stores optional reviewer identity and derives user columns only when authenticated', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
 
   assert.equal(
@@ -33,17 +33,22 @@ test('submit-chapter-feedback derives the reviewer ID column from the authentica
   );
   assert.match(
     source,
-    /participant_id_number:\s*user\.id/,
-    'submit-chapter-feedback should source participant_id_number from the authenticated Supabase user UUID'
+    /participant_id_number:\s*userId/,
+    'submit-chapter-feedback should source participant_id_number from the Supabase user UUID when available'
   );
   assert.doesNotMatch(
     source,
-    /participantIdNumber are required|participantIdNumber\)/,
-    'submit-chapter-feedback should not require a reviewer-entered participantIdNumber field'
+    /participantIdNumber are required|participantIdNumber\)|participantName, and participantRole are required/,
+    'submit-chapter-feedback should not require reviewer-entered identity fields'
+  );
+  assert.match(
+    source,
+    /let userId:\s*string \| null = null/,
+    'submit-chapter-feedback should allow anonymous feedback rows'
   );
 });
 
-test('submit-chapter-feedback disables the legacy edge JWT gate and authenticates inside the function', () => {
+test('submit-chapter-feedback disables the legacy edge JWT gate and only enriches auth when present', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
   const config = readFileSync(CONFIG_PATH, 'utf8');
 
@@ -55,7 +60,7 @@ test('submit-chapter-feedback disables the legacy edge JWT gate and authenticate
   assert.match(
     source,
     /getRequiredSecret\('SUPABASE_ANON_KEY'\)/,
-    'Expected submit-chapter-feedback to load the anon key for request-scoped auth verification'
+    'Expected submit-chapter-feedback to load the anon key for optional request-scoped auth lookup'
   );
   assert.match(
     source,
@@ -66,5 +71,10 @@ test('submit-chapter-feedback disables the legacy edge JWT gate and authenticate
     source,
     /createClient\(supabaseUrl,\s*serviceRoleKey/,
     'Expected submit-chapter-feedback to keep a separate service-role client for admin writes'
+  );
+  assert.doesNotMatch(
+    source,
+    /Missing bearer token|Not authenticated/,
+    'Expected submit-chapter-feedback not to block anonymous feedback submissions'
   );
 });

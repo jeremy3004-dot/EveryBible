@@ -18,8 +18,8 @@ export interface ChapterFeedbackSubmissionInput {
   interfaceLanguage: string;
   contentLanguageCode: string | null;
   contentLanguageName: string | null;
-  participantName: string;
-  participantRole: string;
+  participantName: string | null;
+  participantRole: string | null;
   sourceScreen: ChapterFeedbackSourceScreen;
   appPlatform: string;
   appVersion: string;
@@ -61,18 +61,24 @@ function normalizeSubmissionText(value: string | null | undefined): string {
 
 function buildNormalizedIdentity(
   input: Pick<ChapterFeedbackSubmissionInput, 'participantName' | 'participantRole'>
-): ChapterFeedbackIdentity {
+): ChapterFeedbackIdentity | null {
   const identity = normalizeChapterFeedbackIdentity({
-    name: input.participantName,
-    role: input.participantRole,
+    name: input.participantName ?? '',
+    role: input.participantRole ?? '',
   });
 
-  return (
-    identity ?? {
-      name: normalizeSubmissionText(input.participantName),
-      role: normalizeSubmissionText(input.participantRole),
-    }
-  );
+  if (identity) {
+    return identity;
+  }
+
+  const name = normalizeSubmissionText(input.participantName);
+  const role = normalizeSubmissionText(input.participantRole);
+
+  if (!name && !role) {
+    return null;
+  }
+
+  return { name, role };
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -141,8 +147,8 @@ function buildPayload(
   return {
     ...input,
     comment: normalizeComment(input.comment ?? null),
-    participantName: normalizedIdentity.name,
-    participantRole: normalizedIdentity.role,
+    participantName: normalizedIdentity?.name ?? null,
+    participantRole: normalizedIdentity?.role ?? null,
     appPlatform: input.appPlatform ?? process.env.EXPO_OS ?? 'unknown',
     appVersion: input.appVersion ?? config.version,
   };

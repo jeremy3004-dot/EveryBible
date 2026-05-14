@@ -141,6 +141,37 @@ test('submitChapterFeedback converts a blank comment to null before invoke', asy
   assert.equal(calls[0]?.comment, null);
 });
 
+test('submitChapterFeedback allows anonymous reviewer identity', async () => {
+  resetTrackedBibleExperienceEvents();
+  const calls: Array<ChapterFeedbackSubmissionInput> = [];
+
+  const result = await submitChapterFeedback(
+    {
+      ...baseInput,
+      participantName: null,
+      participantRole: null,
+    },
+    {
+      invoke: async (_functionName, { body }) => {
+        calls.push(body);
+        return {
+          data: {
+            success: true,
+            saved: true,
+            exported: false,
+            feedbackId: 'feedback-anonymous',
+          },
+          error: null,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(calls[0]?.participantName, null);
+  assert.equal(calls[0]?.participantRole, null);
+});
+
 test('submitChapterFeedback treats the saved database row as the successful outcome', async () => {
   resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {

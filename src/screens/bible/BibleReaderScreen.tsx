@@ -2662,11 +2662,6 @@ export function BibleReaderScreen() {
   const handleOpenChapterFeedback = () => {
     setShowChapterActionsSheet(false);
 
-    if (!hasReaderAuthSession) {
-      Alert.alert(t('common.error'), t('bible.chapterFeedbackSignInRequired'));
-      return;
-    }
-
     trackBibleExperienceEvent({
       name: 'chapter_feedback_opened',
       translationId: currentTranslation,
@@ -2683,16 +2678,6 @@ export function BibleReaderScreen() {
       return;
     }
 
-    if (!hasReaderAuthSession) {
-      setFeedbackSubmitError(t('bible.chapterFeedbackSignInRequired'));
-      return;
-    }
-
-    if (!savedChapterFeedbackIdentity) {
-      setFeedbackSubmitError(t('settings.chapterFeedbackIdentityRequired'));
-      return;
-    }
-
     setIsSubmittingFeedback(true);
     setFeedbackSubmitError(null);
 
@@ -2706,8 +2691,8 @@ export function BibleReaderScreen() {
       interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
       contentLanguageCode,
       contentLanguageName,
-      participantName: savedChapterFeedbackIdentity.name,
-      participantRole: savedChapterFeedbackIdentity.role,
+      participantName: savedChapterFeedbackIdentity?.name ?? null,
+      participantRole: savedChapterFeedbackIdentity?.role ?? null,
       sourceScreen,
       appPlatform: Platform.OS,
       appVersion: config.version,

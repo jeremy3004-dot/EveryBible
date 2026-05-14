@@ -148,8 +148,8 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     functionSource,
-    /participant_id_number:\s*user\.id/,
-    'Expected the Edge Function to derive the reviewer id number from the authenticated Supabase UUID'
+    /participant_id_number:\s*userId/,
+    'Expected the Edge Function to derive the reviewer id number from the authenticated Supabase UUID when available'
   );
   assert.match(
     functionSource,
@@ -173,7 +173,7 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     docs,
-    /UUID|authenticated user/i,
-    'Expected the ops doc to explain that participant_id_number is sourced from the authenticated user UUID'
+    /UUID|authenticated user|anonymous/i,
+    'Expected the ops doc to explain reviewer identity for authenticated or anonymous submissions'
   );
 });

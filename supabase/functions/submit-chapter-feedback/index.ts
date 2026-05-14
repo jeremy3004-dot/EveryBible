@@ -25,15 +25,15 @@ interface ChapterFeedbackRequest {
 }
 
 interface ChapterFeedbackInsert {
-  user_id: string;
+  user_id: string | null;
   translation_id: string;
   translation_language: string;
   interface_language: string;
   content_language_code: string | null;
   content_language_name: string | null;
-  participant_name: string;
-  participant_role: string;
-  participant_id_number: string;
+  participant_name: string | null;
+  participant_role: string | null;
+  participant_id_number: string | null;
   book_id: string;
   chapter: number;
   sentiment: Sentiment;
@@ -88,20 +88,13 @@ const validateRequest = (
   const bookId = requireNonEmptyString(body.bookId);
   const interfaceLanguage = requireNonEmptyString(body.interfaceLanguage);
   const comment = trimOptionalText(body.comment);
-  const participantName = requireNonEmptyString(body.participantName);
-  const participantRole = requireNonEmptyString(body.participantRole);
+  const participantName = trimOptionalText(body.participantName);
+  const participantRole = trimOptionalText(body.participantRole);
 
-  if (
-    !translationId ||
-    !translationLanguage ||
-    !bookId ||
-    !interfaceLanguage ||
-    !participantName ||
-    !participantRole
-  ) {
+  if (!translationId || !translationLanguage || !bookId || !interfaceLanguage) {
     return {
       error:
-        'translationId, translationLanguage, bookId, chapter, sentiment, interfaceLanguage, participantName, and participantRole are required',
+        'translationId, translationLanguage, bookId, chapter, sentiment, and interfaceLanguage are required',
     };
   }
 
@@ -119,7 +112,7 @@ const validateRequest = (
 
   return {
     value: {
-      user_id: '',
+      user_id: null,
       translation_id: translationId,
       translation_language: translationLanguage,
       interface_language: interfaceLanguage,
@@ -127,7 +120,7 @@ const validateRequest = (
       content_language_name: trimOptionalText(body.contentLanguageName),
       participant_name: participantName,
       participant_role: participantRole,
-      participant_id_number: '',
+      participant_id_number: null,
       book_id: bookId,
       chapter: body.chapter,
       sentiment: body.sentiment,
@@ -154,31 +147,26 @@ Deno.serve(async (req) => {
     const anonKey = getRequiredSecret('SUPABASE_ANON_KEY');
     const serviceRoleKey = getRequiredSecret('SUPABASE_SERVICE_ROLE_KEY');
     const authorization = req.headers.get('Authorization');
-
-    if (!authorization?.startsWith('Bearer ')) {
-      return jsonResponse(401, { success: false, error: 'Missing bearer token' });
-    }
-
-    const accessToken = authorization.slice('Bearer '.length).trim();
-    const authClient = createClient(supabaseUrl, anonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
-    const {
-      data: { user },
-      error: authError,
-    } = await authClient.auth.getUser(accessToken);
 
-    if (authError || !user) {
-      return jsonResponse(401, { success: false, error: 'Not authenticated' });
+    let userId: string | null = null;
+    if (authorization?.startsWith('Bearer ')) {
+      const accessToken = authorization.slice('Bearer '.length).trim();
+      const authClient = createClient(supabaseUrl, anonKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+      const {
+        data: { user },
+      } = await authClient.auth.getUser(accessToken);
+      userId = user?.id ?? null;
     }
 
     const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
@@ -190,8 +178,8 @@ Deno.serve(async (req) => {
 
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
-      user_id: user.id,
-      participant_id_number: user.id,
+      user_id: userId,
+      participant_id_number: userId,
     };
 
     const { data: insertedRow, error: insertError } = await supabase

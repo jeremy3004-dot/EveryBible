@@ -47,6 +47,11 @@ test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps t
     /handleSubmitChapterFeedback\('reader'\)/,
     'BibleReaderScreen should keep the reader modal submission path intact'
   );
+  assert.doesNotMatch(
+    source.match(/const handleOpenChapterFeedback = \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '',
+    /chapterFeedbackSignInRequired/,
+    'BibleReaderScreen should let reviewers open the feedback form before enforcing sign-in on submit'
+  );
 });
 
 test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an optional multiline comment', () => {
@@ -110,12 +115,19 @@ test('BibleReaderScreen uses the saved reviewer name and role but does not depen
   );
   assert.match(
     source,
-    /participantName:\s*savedChapterFeedbackIdentity\.name/,
-    'BibleReaderScreen should keep sending the saved reviewer name'
+    /participantName:\s*savedChapterFeedbackIdentity\?\.name\s*\?\?\s*null/,
+    'BibleReaderScreen should send the saved reviewer name when present without requiring it'
   );
   assert.match(
     source,
-    /participantRole:\s*savedChapterFeedbackIdentity\.role/,
-    'BibleReaderScreen should keep sending the saved reviewer role'
+    /participantRole:\s*savedChapterFeedbackIdentity\?\.role\s*\?\?\s*null/,
+    'BibleReaderScreen should send the saved reviewer role when present without requiring it'
+  );
+  assert.doesNotMatch(
+    source.match(
+      /const handleSubmitChapterFeedback =[\s\S]*?setIsSubmittingFeedback\(true\);/
+    )?.[0] ?? '',
+    /hasReaderAuthSession|chapterFeedbackIdentityRequired/,
+    'BibleReaderScreen should not require sign-in or reviewer identity before submitting chapter feedback'
   );
 });
