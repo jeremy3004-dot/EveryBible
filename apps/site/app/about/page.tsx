@@ -33,7 +33,7 @@ export default function AboutPage() {
         <h2>Language reach</h2>
         <p>
           The current platform direction is designed around broad Scripture access, with support
-          for thousands of Bible versions across more than 1,600 languages and a long-term goal of
+          for 233 Bible translations across 174 languages and a long-term goal of
           making the whole Bible available in every language where people are still waiting.
         </p>
       </section>

@@ -115,7 +115,7 @@ export const featureCards: FeatureCard[] = [
   {
     title: 'Experience it anywhere',
     description:
-      'Choose from more than 2,400 Bible versions in over 1,600 languages on your computer, phone, or tablet.',
+      'Choose from 233 Bible translations in 174 languages on your computer, phone, or tablet.',
     href: '/about#languages',
     actionLabel: 'See the language vision',
     iconSrc: '/everybible/icons/experience-anywhere.svg',
