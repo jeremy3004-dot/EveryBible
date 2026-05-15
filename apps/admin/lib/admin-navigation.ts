@@ -37,7 +37,7 @@ export const adminNavigation: AdminNavigationItem[] = [
     description: 'Inspect account, device, and sync state without unsafe mutations.',
   },
   {
-    label: 'Feedback',
+    label: 'Chapter Feedback',
     href: '/feedback',
     description: 'Review chapter feedback submitted from the mobile reader and listener.',
   },

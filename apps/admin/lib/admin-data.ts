@@ -144,6 +144,7 @@ interface ChapterFeedbackRow {
 export interface DashboardSummary {
   adminPathCount: number;
   failedSyncCount: number;
+  feedbackCount: number;
   liveImageCount: number;
   liveVerseCount: number;
   supportUserCount: number;
@@ -279,16 +280,18 @@ function isWithinWindow(startsAt: string | null, endsAt: string | null, now = Da
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const service = createAdminServiceClient();
 
-  const [translations, failedSyncs, liveVerses, liveImages, supportUsers] = await Promise.all([
-    service.from('translation_catalog').select('translation_id', { count: 'exact', head: true }),
-    service
-      .from('translation_sync_runs')
-      .select('id', { count: 'exact', head: true })
-      .eq('state', 'failed'),
-    service.from('verse_of_day_entries').select('id, starts_at, ends_at, state'),
-    service.from('content_images').select('id, starts_at, ends_at, state'),
-    service.from('profiles').select('id', { count: 'exact', head: true }),
-  ]);
+  const [translations, failedSyncs, liveVerses, liveImages, supportUsers, feedback] =
+    await Promise.all([
+      service.from('translation_catalog').select('translation_id', { count: 'exact', head: true }),
+      service
+        .from('translation_sync_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('state', 'failed'),
+      service.from('verse_of_day_entries').select('id, starts_at, ends_at, state'),
+      service.from('content_images').select('id, starts_at, ends_at, state'),
+      service.from('profiles').select('id', { count: 'exact', head: true }),
+      service.from('chapter_feedback_submissions').select('id', { count: 'exact', head: true }),
+    ]);
 
   const liveVerseCount = (liveVerses.data ?? []).filter((item) => {
     return item.state === 'live' && isWithinWindow(item.starts_at, item.ends_at);
@@ -301,6 +304,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   return {
     adminPathCount: adminNavigation.length,
     failedSyncCount: failedSyncs.count ?? 0,
+    feedbackCount: feedback.count ?? 0,
     liveImageCount,
     liveVerseCount,
     supportUserCount: supportUsers.count ?? 0,

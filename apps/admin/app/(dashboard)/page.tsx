@@ -52,6 +52,11 @@ export default async function AdminOverviewPage() {
           <span>Support users</span>
           <strong>{summary.supportUserCount}</strong>
         </article>
+        <Link href="/feedback" className="metric-card">
+          <span>Chapter feedback</span>
+          <strong>{summary.feedbackCount}</strong>
+          <small>Open review queue</small>
+        </Link>
         <article className="metric-card">
           <span>Admin modules</span>
           <strong>{summary.adminPathCount}</strong>
