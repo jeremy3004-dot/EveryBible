@@ -159,7 +159,13 @@ This preserves the visible picker order and chip behavior, but changes the perfo
 
 After this picker virtualization pass, `cd android && ./gradlew assembleRelease` rebuilt the release APK successfully. Metro bundled the Android JS in `11149ms` with `4830` modules. The source regression test now asserts that translation mode renders from `translationRows` through `FlashList` with `getItemType`, and does not regress to eager `sections.availableTranslations.map(renderTranslationCard)` rendering.
 
-The targeted Android `FLOW_FILTER=translation_picker_scroll` smoke run is currently blocked by first-run onboarding automation on the temporary headless AVD. The latest UI dump remained on `Set Up Your Bible Experience` step 1, so the `gfxinfo` samples from that run are not valid translation-picker measurements and should not be compared against the earlier picker-scroll baseline. The harness now attempts to pick a visible onboarding setup option before pressing the primary action, but this still needs a successful rerun on a device or an updated onboarding bypass fixture.
+The Android smoke harness now completes the direct first-run translation chooser, avoids stale `Coming Soon` alert states, opens the shared picker from the Bible browser translation pill, and rejects scroll samples that land on an availability alert instead of the picker list.
+
+After tuning the `FlashList` estimated row size to match the taller real translation cards, `cd android && ./gradlew assembleRelease` rebuilt the release APK successfully. Metro bundled the Android JS in `13592ms` with `4830` modules. A targeted `RUNS=1 CONTENT_RUNS=1 UI_POLL_ATTEMPTS=10 UI_DUMP_TIMEOUT_SECONDS=3 FLOW_FILTER=translation_picker_scroll npm run perf:android` run completed end-to-end and cleaned up the temporary emulator:
+
+- Translation picker repeated scroll command response: `4057ms`, `found=true`, `76` rendered frames, `5` janky frames (`6.58%`), p50 `26ms`, p90 `48ms`, p95 `57ms`, p99 `81ms`.
+
+Compared with the earlier pre-virtualization picker scroll sample (`10.81%` janky frames, p50 `24ms`, p90 `32ms`, p95 `48ms`, p99 `69ms`), the virtualized picker reduced total janky frames on this emulator but still has a slower frame-time tail. Treat this as a useful Android regression guard, not final proof for physical low-end hardware.
 
 ## Remaining Measurements To Capture On Device
 

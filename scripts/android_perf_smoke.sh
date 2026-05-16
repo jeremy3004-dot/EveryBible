@@ -322,7 +322,7 @@ prepare_bible_browser() {
 }
 
 open_browser_translation_picker() {
-  adb_shell input tap 570 140 >/dev/null 2>&1 || true
+  adb_shell input tap 490 140 >/dev/null 2>&1 || true
   sleep 1.2
   poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null
 }
@@ -375,8 +375,14 @@ complete_onboarding_if_needed() {
       return 0
     fi
 
+    if rg -q "Coming Soon|will be available" /tmp/everybible-android-perf-window.xml; then
+      tap_matching_ui "OK" 580 760
+      sleep 0.8
+      continue
+    fi
+
     if rg -q "Berean Standard Bible|Public-domain Berean|onboarding-translation-search|Translations" /tmp/everybible-android-perf-window.xml; then
-      tap_matching_ui "Berean Standard Bible|BSB|Public-domain Berean" 360 430
+      tap_matching_ui "Berean Standard Bible|Public-domain Berean" 360 315
       sleep 2.5
       continue
     fi
@@ -656,7 +662,7 @@ measure_translation_picker_open() {
 measure_translation_picker_scroll() {
   echo "## translation_picker_scroll command_response"
   prepare_bible_browser
-  open_browser_translation_picker || true
+  open_browser_translation_picker
 
   for run in $(seq 1 "$CONTENT_RUNS"); do
     local start
@@ -666,7 +672,7 @@ measure_translation_picker_scroll() {
     adb_shell input swipe 360 1040 360 360 450 >/dev/null 2>&1 || true
     local settled_ms="NA"
     local found="false"
-    if settled_ms="$(poll_content "World English Bible|King James Version|American Standard Version|WEB|KJV|ASV")"; then
+    if settled_ms="$(poll_content_without "Select Translation|translation-picker-search|Revised Version|World Messianic Bible|Young's Literal Translation" "Coming Soon|will be available")"; then
       found="true"
     fi
     local end
