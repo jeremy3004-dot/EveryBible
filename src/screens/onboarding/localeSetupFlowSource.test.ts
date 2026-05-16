@@ -23,6 +23,57 @@ test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
   );
 });
 
+test('LocaleSetupFlow initial onboarding is a direct Bible translation chooser', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+  const modelSource = readRelativeSource('./localeSetupModel.ts');
+
+  assert.match(
+    modelSource,
+    /return \['translation'\];/,
+    'Initial onboarding should ask for a Bible translation instead of walking through locale setup'
+  );
+
+  assert.equal(
+    flowSource.includes('onboarding-translation-search'),
+    true,
+    'Initial onboarding should expose a direct translation search field'
+  );
+
+  assert.equal(
+    flowSource.includes('onboarding-interface-language-search'),
+    false,
+    'Initial onboarding should not force a separate interface-language search step'
+  );
+});
+
+test('LocaleSetupFlow falls back to bundled Hindi or Nepali for India and Nepal language misses', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+  const fallbackSource = readFileSync(
+    fileURLToPath(
+      new URL('../../services/translations/regionalTranslationFallback.ts', import.meta.url).href
+    ),
+    'utf8'
+  );
+
+  assert.match(
+    fallbackSource,
+    /REGIONAL_FALLBACK_TRANSLATION_IDS[\s\S]*IN:\s*'hincv'[\s\S]*NP:\s*'npiulb'/,
+    'Initial onboarding should know the bundled Hindi and Nepali fallback translations'
+  );
+
+  assert.match(
+    fallbackSource,
+    /resolveRegionalFallbackTranslation[\s\S]*countryCodes\.includes\('NP'\)[\s\S]*REGIONAL_FALLBACK_TRANSLATION_IDS\.NP[\s\S]*countryCodes\.includes\('IN'\)[\s\S]*REGIONAL_FALLBACK_TRANSLATION_IDS\.IN/,
+    'Initial onboarding should prefer Nepali/Hindi fallbacks for Nepal/India language selections'
+  );
+
+  assert.equal(
+    flowSource.includes('resolveRegionalFallbackTranslation'),
+    true,
+    'Initial onboarding should use the shared regional fallback resolver'
+  );
+});
+
 test('App boot no longer routes onboarding completion through accessMode', () => {
   const appSource = readRelativeSource('../../../App.tsx');
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');

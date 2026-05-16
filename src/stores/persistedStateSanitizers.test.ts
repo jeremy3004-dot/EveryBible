@@ -174,8 +174,9 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
-test('sanitizePersistedBibleState keeps seeded runtime translations aligned with persisted runtime metadata', () => {
+test('sanitizePersistedBibleState treats bundled Hindi text as preloaded and readable', () => {
   const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'hincv',
     translations: [
       {
         id: 'hincv',
@@ -200,11 +201,13 @@ test('sanitizePersistedBibleState keeps seeded runtime translations aligned with
 
   const hincv = sanitized.translations.find((translation) => translation.id === 'hincv');
 
+  assert.equal(sanitized.currentTranslation, 'hincv');
   assert.ok(hincv);
-  assert.equal(hincv.source, 'runtime');
+  assert.equal(hincv.source, 'bundled');
   assert.equal(hincv.hasText, true);
-  assert.equal(hincv.description, 'Hindi remote catalog entry');
-  assert.equal(hincv.installState, 'remote-only');
+  assert.equal(hincv.isDownloaded, true);
+  assert.equal(hincv.description, 'हिंदी समकालीन संस्करण — सार्वजनिक डोमेन');
+  assert.equal(hincv.installState, 'seeded');
 });
 
 test('sanitizePersistedBibleState drops runtime aliases that collapse onto bundled translations', () => {
@@ -291,7 +294,6 @@ test('sanitizePersistedBibleState falls back when runtime translation is not loc
   assert.equal(runtime.installState, 'remote-only');
   assert.equal(runtime.isDownloaded, false);
 });
-
 
 test('sanitizePersistedBibleState drops malformed runtime translations', () => {
   const sanitized = sanitizePersistedBibleState({

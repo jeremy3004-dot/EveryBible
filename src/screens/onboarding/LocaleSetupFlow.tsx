@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,14 +14,30 @@ import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LANGUAGES, type Language, type LanguageCode } from '../../constants/languages';
+import { LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { useAuthStore } from '../../stores/authStore';
+import { useBibleStore } from '../../stores/bibleStore';
 import { changeLanguage } from '../../i18n';
-import { interfaceLanguageSearchEngine } from '../../services/onboarding/interfaceLanguageSelection';
 import { syncPreferences } from '../../services/sync';
+import {
+  ensureRuntimeCatalogLoaded,
+  hasRuntimeCatalogTranslations,
+} from '../../services/translations';
+import { resolveRegionalFallbackTranslation } from '../../services/translations/regionalTranslationFallback';
 import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
 import { getLocaleSetupSteps, type SetupMode, type SetupStep } from './localeSetupModel';
 import { radius } from '../../design/system';
+import type { BibleTranslation } from '../../types';
+import {
+  filterTranslationsBySearchQuery,
+  getTranslationAvailabilitySummary,
+  getTranslationSelectionState,
+  getVisibleTranslationsForPicker,
+  normalizeTranslationLanguage,
+} from '../bible/bibleTranslationModel';
+import { getAudioAvailability } from '../../services/audio/audioAvailability';
+import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
+import { config } from '../../constants';
 
 interface LocaleSetupFlowProps {
   mode?: SetupMode;
@@ -40,32 +58,41 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const { t } = useTranslation();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
+  const translations = useBibleStore((state) => state.translations);
+  const downloadProgress = useBibleStore((state) => state.downloadProgress);
+  const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
+  const setPreferredTranslationLanguage = useBibleStore(
+    (state) => state.setPreferredTranslationLanguage
+  );
+  const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const steps = useMemo(() => getLocaleSetupSteps(mode), [mode]);
 
-  const deviceCountryCode = Localization.getLocales()[0]?.regionCode ?? null;
+  const deviceLocale = Localization.getLocales()[0];
+  const deviceCountryCode = deviceLocale?.regionCode ?? null;
+  const deviceLanguageCode = deviceLocale?.languageCode as LanguageCode | undefined;
   const initialCountry =
     localeSearchEngine.getCountryByCode(preferences.countryCode || deviceCountryCode) ?? null;
   const initialLanguage = localeSearchEngine.getLanguageByCode(preferences.contentLanguageCode);
   const totalSteps = steps.length;
-  const initialInterfaceLanguage =
-    interfaceLanguageSearchEngine.getLanguageByCode(preferences.language) ?? LANGUAGES.en;
+  const initialInterfaceLanguageCode =
+    mode === 'initial' && deviceLanguageCode && LANGUAGES[deviceLanguageCode]
+      ? deviceLanguageCode
+      : preferences.language;
 
-  const [step, setStep] = useState<SetupStep>(steps[0] ?? 'interface');
-  const [interfaceLanguageQuery, setInterfaceLanguageQuery] = useState('');
+  const [step, setStep] = useState<SetupStep>(steps[0] ?? 'translation');
+  const [translationQuery, setTranslationQuery] = useState('');
   const [countryQuery, setCountryQuery] = useState('');
   const [languageQuery, setLanguageQuery] = useState('');
-  const [selectedInterfaceLanguageCode, setSelectedInterfaceLanguageCode] = useState<LanguageCode>(
-    initialInterfaceLanguage.code
-  );
+  const selectedInterfaceLanguageCode = initialInterfaceLanguageCode;
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(
     initialCountry?.code ?? null
   );
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string | null>(
     initialLanguage?.code ?? null
   );
+  const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
+  const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
 
-  const selectedInterfaceLanguage =
-    interfaceLanguageSearchEngine.getLanguageByCode(selectedInterfaceLanguageCode) ?? LANGUAGES.en;
   const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
   const selectedLanguage = localeSearchEngine.getLanguageByCode(selectedLanguageCode);
   const selectedCountryDisplayName = selectedCountry
@@ -73,10 +100,23 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     : '';
   const currentStepNumber = Math.max(steps.indexOf(step) + 1, 1);
   const isFinalStep = step === steps[steps.length - 1];
+  const hasHydratedRuntimeCatalog = useMemo(
+    () => hasRuntimeCatalogTranslations(translations),
+    [translations]
+  );
 
-  const interfaceLanguageResults = useMemo(
-    () => interfaceLanguageSearchEngine.search(interfaceLanguageQuery, 24),
-    [interfaceLanguageQuery]
+  const visibleTranslations = useMemo(
+    () =>
+      getVisibleTranslationsForPicker(translations, {
+        isHydratingRuntimeCatalog,
+        hasHydratedRuntimeCatalog,
+      }),
+    [hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog, translations]
+  );
+
+  const translationResults = useMemo(
+    () => filterTranslationsBySearchQuery(visibleTranslations, translationQuery),
+    [translationQuery, visibleTranslations]
   );
 
   const countryResults = useMemo(
@@ -88,6 +128,30 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     () => localeSearchEngine.searchLanguages(languageQuery, selectedCountryCode, 30),
     [languageQuery, selectedCountryCode]
   );
+
+  useEffect(() => {
+    if (mode !== 'initial' || hasHydratedRuntimeCatalog) {
+      setIsHydratingRuntimeCatalog(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsHydratingRuntimeCatalog(true);
+
+    void ensureRuntimeCatalogLoaded()
+      .catch((error) => {
+        console.warn('[Onboarding] Failed to hydrate runtime translation catalog:', error);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsHydratingRuntimeCatalog(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasHydratedRuntimeCatalog, mode]);
 
   const completeSetup = async () => {
     if (!selectedCountry || !selectedLanguage) {
@@ -110,6 +174,110 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     onComplete?.();
   };
 
+  const resolveTranslationLanguage = (translation: BibleTranslation): LocaleLanguage | null => {
+    return (
+      localeSearchEngine.searchLanguages(translation.language ?? '', null, 1).global[0] ?? null
+    );
+  };
+
+  const completeInitialSetup = async (translation: BibleTranslation) => {
+    const translationLanguage = resolveTranslationLanguage(translation);
+    const mappedInterfaceLanguageCode = translationLanguage
+      ? localeSearchEngine.mapLanguageToAppLanguage(translationLanguage)
+      : null;
+    const interfaceLanguageCode = mappedInterfaceLanguageCode ?? selectedInterfaceLanguageCode;
+    const deviceCountry = localeSearchEngine.getCountryByCode(deviceCountryCode);
+
+    await changeLanguage(interfaceLanguageCode);
+    setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
+    setCurrentTranslation(translation.id);
+
+    setPreferences({
+      language: interfaceLanguageCode,
+      countryCode: deviceCountry?.code ?? null,
+      countryName: deviceCountry?.name ?? null,
+      contentLanguageCode: translationLanguage?.code ?? null,
+      contentLanguageName:
+        translationLanguage?.name ?? normalizeTranslationLanguage(translation.language),
+      contentLanguageNativeName:
+        translationLanguage?.nativeName ?? normalizeTranslationLanguage(translation.language),
+      onboardingCompleted: true,
+    });
+
+    syncPreferences().catch(() => {});
+    onComplete?.();
+  };
+
+  const handleTranslationSelect = async (translation: BibleTranslation) => {
+    const availability = getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: translation.hasAudio,
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+      downloadedAudioBooks: translation.downloadedAudioBooks,
+    });
+    const selectionState = getTranslationSelectionState({
+      isDownloaded: translation.isDownloaded,
+      hasText: translation.hasText,
+      hasAudio: translation.hasAudio,
+      canPlayAudio: availability.canPlayAudio,
+      hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+      source: translation.source,
+      textPackLocalPath: translation.textPackLocalPath,
+    });
+
+    if (selectionState.reason === 'download-required') {
+      try {
+        setInstallingTranslationId(translation.id);
+        await downloadTranslation(translation.id);
+        const installedTranslation =
+          useBibleStore
+            .getState()
+            .translations.find((candidate) => candidate.id === translation.id) ?? translation;
+        await completeInitialSetup(installedTranslation);
+      } catch (error) {
+        const fallbackTranslation = resolveRegionalFallbackTranslation(
+          useBibleStore.getState().translations,
+          translation,
+          deviceCountryCode
+        );
+        if (fallbackTranslation) {
+          await completeInitialSetup(fallbackTranslation);
+          return;
+        }
+
+        Alert.alert(
+          t('common.error'),
+          error instanceof Error ? error.message : t('bible.failedToLoad'),
+          [{ text: t('common.ok') }]
+        );
+      } finally {
+        setInstallingTranslationId(null);
+      }
+      return;
+    }
+
+    if (selectionState.isSelectable) {
+      await completeInitialSetup(translation);
+      return;
+    }
+
+    const fallbackTranslation = resolveRegionalFallbackTranslation(
+      useBibleStore.getState().translations,
+      translation,
+      deviceCountryCode
+    );
+    if (fallbackTranslation) {
+      await completeInitialSetup(fallbackTranslation);
+      return;
+    }
+
+    Alert.alert(
+      t('common.comingSoon'),
+      t('bible.translationComingSoon', { name: translation.name }),
+      [{ text: t('common.ok') }]
+    );
+  };
+
   const goToStep = (targetStep: SetupStep) => {
     if (steps.includes(targetStep)) {
       setStep(targetStep);
@@ -130,30 +298,61 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     }
   };
 
-  const renderInterfaceLanguageRow = (language: Language) => {
-    const isSelected = selectedInterfaceLanguageCode === language.code;
+  const renderTranslationRow = (translation: BibleTranslation) => {
+    const isInstalling = installingTranslationId === translation.id;
+    const progress =
+      downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
+    const availability = getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: translation.hasAudio,
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+      downloadedAudioBooks: translation.downloadedAudioBooks,
+    });
+    const selectionState = getTranslationSelectionState({
+      isDownloaded: translation.isDownloaded,
+      hasText: translation.hasText,
+      hasAudio: translation.hasAudio,
+      canPlayAudio: availability.canPlayAudio,
+      hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+      source: translation.source,
+      textPackLocalPath: translation.textPackLocalPath,
+    });
+    const statusLabel =
+      selectionState.reason === 'download-required'
+        ? t('translations.download')
+        : selectionState.isSelectable
+          ? t('common.continue')
+          : t('common.comingSoon');
 
     return (
       <TouchableOpacity
-        key={language.code}
+        key={translation.id}
         style={[
           styles.optionCard,
           {
             backgroundColor: colors.cardBackground,
-            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
+            borderColor: colors.cardBorder,
           },
         ]}
-        onPress={() => {
-          setSelectedInterfaceLanguageCode(language.code);
-          void changeLanguage(language.code);
-        }}
+        onPress={() => void handleTranslationSelect(translation)}
+        disabled={isInstalling}
         activeOpacity={0.9}
       >
         <View style={styles.optionCopy}>
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
-            {language.nativeName}
+          <View style={styles.translationTitleRow}>
+            <Text style={[styles.optionTitle, { color: colors.primaryText }]} numberOfLines={1}>
+              {translation.name}
+            </Text>
+            <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
+              {translation.abbreviation}
+            </Text>
+          </View>
+          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
+            {normalizeTranslationLanguage(translation.language)}
           </Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{language.name}</Text>
+          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
+            {getTranslationAvailabilitySummary(translation, t)}
+          </Text>
           <View style={styles.badgeRow}>
             <View
               style={[
@@ -165,14 +364,18 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               ]}
             >
               <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                {language.appLanguageLabel}
+                {isInstalling && progress != null
+                  ? `${t('translations.downloading')} ${progress}%`
+                  : statusLabel}
               </Text>
             </View>
           </View>
         </View>
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-        ) : null}
+        {isInstalling ? (
+          <ActivityIndicator color={colors.accentGreen} />
+        ) : (
+          <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
+        )}
       </TouchableOpacity>
     );
   };
@@ -262,10 +465,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     );
   };
 
-  const stepSubtitle = t('onboarding.stepProgress', {
-    current: currentStepNumber,
-    count: totalSteps,
-  });
+  const stepSubtitle =
+    mode === 'initial'
+      ? ''
+      : t('onboarding.stepProgress', {
+          current: currentStepNumber,
+          count: totalSteps,
+        });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -282,7 +488,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
             {t('onboarding.title')}
           </Text>
-          <Text style={[styles.headerStep, { color: colors.secondaryText }]}>{stepSubtitle}</Text>
+          {stepSubtitle ? (
+            <Text style={[styles.headerStep, { color: colors.secondaryText }]}>{stepSubtitle}</Text>
+          ) : null}
         </View>
 
         {mode === 'settings' ? (
@@ -297,21 +505,21 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {step === 'interface' ? (
+        {step === 'translation' ? (
           <>
             <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-              {t('onboarding.interfaceLanguageTitle')}
+              {t('onboarding.languageTitle')}
             </Text>
             <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('onboarding.interfaceLanguageBody')}
+              {t('home.defaultVerse')}
             </Text>
 
             <TextInput
-              value={interfaceLanguageQuery}
-              onChangeText={setInterfaceLanguageQuery}
-              testID="onboarding-interface-language-search"
-              accessibilityLabel={t('onboarding.interfaceLanguageSearchPlaceholder')}
-              placeholder={t('onboarding.interfaceLanguageSearchPlaceholder')}
+              value={translationQuery}
+              onChangeText={setTranslationQuery}
+              testID="onboarding-translation-search"
+              accessibilityLabel={t('onboarding.languageSearchPlaceholder')}
+              placeholder={t('onboarding.languageSearchPlaceholder')}
               placeholderTextColor={colors.secondaryText}
               style={[
                 styles.searchInput,
@@ -327,9 +535,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
             <View style={styles.listSection}>
               <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                {t('onboarding.availableInterfaceLanguages')}
+                {t('translations.title')}
               </Text>
-              {interfaceLanguageResults.map((language) => renderInterfaceLanguageRow(language))}
+              {isHydratingRuntimeCatalog ? <ActivityIndicator color={colors.accentGreen} /> : null}
+              {translationResults.map((translation) => renderTranslationRow(translation))}
             </View>
           </>
         ) : step === 'country' ? (
@@ -454,84 +663,62 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         ) : null}
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: colors.cardBorder }]}>
-        {step !== steps[0] ? (
+      {mode === 'settings' ? (
+        <View style={[styles.footer, { borderTopColor: colors.cardBorder }]}>
+          {step !== steps[0] ? (
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+              ]}
+              testID="onboarding-secondary-action"
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              onPress={goToPreviousStep}
+            >
+              <Text style={[styles.secondaryButtonText, { color: colors.primaryText }]}>
+                {t('common.back')}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.footerSpacer} />
+          )}
+
           <TouchableOpacity
             style={[
-              styles.secondaryButton,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+              styles.primaryButton,
+              {
+                backgroundColor: colors.bibleControlBackground,
+                opacity:
+                  step === 'country' ? (selectedCountry ? 1 : 0.45) : selectedLanguage ? 1 : 0.45,
+              },
             ]}
-            testID="onboarding-secondary-action"
+            testID="onboarding-primary-action"
             accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            onPress={goToPreviousStep}
+            accessibilityLabel={isFinalStep ? t('onboarding.finish') : t('common.continue')}
+            onPress={async () => {
+              if (step === 'country') {
+                if (selectedCountry) {
+                  goToNextStep();
+                }
+                return;
+              }
+
+              if (step === 'contentLanguage') {
+                if (selectedLanguage) {
+                  void completeSetup();
+                }
+                return;
+              }
+            }}
+            disabled={step === 'country' ? !selectedCountry : !selectedLanguage}
           >
-            <Text style={[styles.secondaryButtonText, { color: colors.primaryText }]}>
-              {t('common.back')}
+            <Text style={[styles.primaryButtonText, { color: colors.bibleBackground }]}>
+              {isFinalStep ? t('onboarding.finish') : t('common.continue')}
             </Text>
           </TouchableOpacity>
-        ) : (
-          <View style={styles.footerSpacer} />
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            {
-              backgroundColor: colors.bibleControlBackground,
-              opacity:
-                step === 'interface'
-                  ? selectedInterfaceLanguage
-                    ? 1
-                    : 0.45
-                  : step === 'country'
-                      ? selectedCountry
-                        ? 1
-                        : 0.45
-                      : selectedLanguage
-                        ? 1
-                        : 0.45,
-            },
-          ]}
-          testID="onboarding-primary-action"
-          accessibilityRole="button"
-          accessibilityLabel={
-            isFinalStep ? t('onboarding.finish') : t('common.continue')
-          }
-          onPress={async () => {
-            if (step === 'interface') {
-              await changeLanguage(selectedInterfaceLanguageCode);
-              goToNextStep();
-              return;
-            }
-
-            if (step === 'country') {
-              if (selectedCountry) {
-                goToNextStep();
-              }
-              return;
-            }
-
-            if (step === 'contentLanguage') {
-              if (selectedLanguage) {
-                void completeSetup();
-              }
-              return;
-            }
-          }}
-          disabled={
-            step === 'interface'
-              ? !selectedInterfaceLanguage
-              : step === 'country'
-                  ? !selectedCountry
-                  : !selectedLanguage
-          }
-        >
-          <Text style={[styles.primaryButtonText, { color: colors.bibleBackground }]}>
-            {isFinalStep ? t('onboarding.finish') : t('common.continue')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -618,6 +805,11 @@ const styles = StyleSheet.create({
   optionCopy: {
     flex: 1,
     gap: 4,
+  },
+  translationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   countryTitleRow: {
     flexDirection: 'row',

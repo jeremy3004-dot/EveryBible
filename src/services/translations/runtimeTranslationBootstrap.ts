@@ -6,6 +6,7 @@ import {
   mapCatalogEntryToBibleTranslation,
 } from './translationService';
 import { normalizeCatalogTranslationId } from './translationCatalogModel';
+import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
 
 let runtimeCatalogHydrationPromise: Promise<void> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
@@ -73,7 +74,9 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
 
   const preferredId = preferenceResult.data.primary_translation.trim().toLowerCase();
   const state = useBibleStore.getState();
-  const preferredTranslation = state.translations.find((translation) => translation.id === preferredId);
+  const preferredTranslation = state.translations.find(
+    (translation) => translation.id === preferredId
+  );
 
   if (!preferredTranslation || !isReadableLocally(preferredTranslation)) {
     if (preferredTranslation?.catalog?.text?.downloadUrl) {
@@ -81,6 +84,15 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
         await state.downloadTranslation(preferredId);
         useBibleStore.getState().setCurrentTranslation(preferredId);
       } catch (error) {
+        const fallbackTranslation = resolveRegionalFallbackTranslation(
+          useBibleStore.getState().translations,
+          preferredTranslation
+        );
+        if (fallbackTranslation) {
+          useBibleStore.getState().setCurrentTranslation(fallbackTranslation.id);
+          return;
+        }
+
         console.warn('[Bible] Failed to install preferred translation:', preferredId, error);
       }
     }

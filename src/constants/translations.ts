@@ -114,7 +114,7 @@ export const bibleTranslations: BibleTranslation[] = [
   },
   // ── Other languages (cloud-downloadable from Supabase) ──────────────────────
   {
-    id: 'sparv1909',  // resolves to 'spaRV1909' in Supabase via case-insensitive lookup
+    id: 'sparv1909', // resolves to 'spaRV1909' in Supabase via case-insensitive lookup
     name: 'Reina Valera 1909',
     abbreviation: 'RVR',
     language: 'Spanish',
@@ -138,16 +138,16 @@ export const bibleTranslations: BibleTranslation[] = [
     language: 'Hindi',
     description: 'हिंदी समकालीन संस्करण — सार्वजनिक डोमेन',
     copyright: 'Public Domain',
-    isDownloaded: false,
+    isDownloaded: true,
     downloadedBooks: [],
     downloadedAudioBooks: [],
     totalBooks: 66,
     sizeInMB: 4.5,
-    hasText: false,
+    hasText: true,
     hasAudio: false,
     audioGranularity: 'none',
-    source: 'runtime' as const,
-    installState: 'remote-only' as const,
+    source: 'bundled' as const,
+    installState: 'seeded' as const,
   },
   {
     id: 'npiulb',
@@ -156,16 +156,16 @@ export const bibleTranslations: BibleTranslation[] = [
     language: 'Nepali',
     description: 'Unlocked Literal Bible — सार्वजनिक डोमेन',
     copyright: 'Public Domain',
-    isDownloaded: false,
+    isDownloaded: true,
     downloadedBooks: [],
     downloadedAudioBooks: [],
     totalBooks: 66,
     sizeInMB: 4.5,
-    hasText: false,
+    hasText: true,
     hasAudio: false,
     audioGranularity: 'none',
-    source: 'runtime' as const,
-    installState: 'remote-only' as const,
+    source: 'bundled' as const,
+    installState: 'seeded' as const,
   },
 ];
 
