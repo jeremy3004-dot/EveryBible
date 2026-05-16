@@ -7,10 +7,10 @@ import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
-import { CompanionSection } from '../../components';
+import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
-import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
-import { useBibleStore, useProgressStore } from '../../stores';
+import { useBibleStore } from '../../stores/bibleStore';
+import { useProgressStore } from '../../stores/progressStore';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
 import type { BookCompanionCardModel } from './bookCompanionModel';
 import { buildBookCompanionSections } from './bookCompanionModel';
@@ -27,6 +27,16 @@ type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = getChapterGridItemSize(width);
+
+function trackBookHubEvent(
+  event: Parameters<
+    typeof import('../../services/analytics/bibleExperienceAnalytics').trackBibleExperienceEvent
+  >[0]
+) {
+  void import('../../services/analytics/bibleExperienceAnalytics').then((module) => {
+    module.trackBibleExperienceEvent(event);
+  });
+}
 
 export function ChapterSelectorScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -55,7 +65,7 @@ export function ChapterSelectorScreen() {
   const companionSections = buildBookCompanionSections(bookId);
 
   const navigateToChapter = (chapter: number) => {
-    trackBibleExperienceEvent({
+    trackBookHubEvent({
       name: 'book_hub_chapter_opened',
       bookId,
       chapter,
@@ -69,7 +79,7 @@ export function ChapterSelectorScreen() {
   };
 
   const handleCompanionPress = (item: BookCompanionCardModel) => {
-    trackBibleExperienceEvent({
+    trackBookHubEvent({
       name: 'book_companion_opened',
       bookId: item.target.bookId,
       chapter: item.target.chapter,

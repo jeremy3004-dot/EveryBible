@@ -173,6 +173,30 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
+    source.includes("import { FlashList } from '@shopify/flash-list'"),
+    true,
+    'TranslationPickerList should virtualize the large translation picker list on Android'
+  );
+
+  assert.equal(
+    source.includes('TRANSLATION_PICKER_ROW_ESTIMATED_SIZE'),
+    true,
+    'TranslationPickerList should provide FlashList an estimated row size so long translation catalogs scroll smoothly'
+  );
+
+  assert.match(
+    source,
+    /data=\{translationRows\}[\s\S]*renderItem=\{renderTranslationRow\}[\s\S]*getItemType=\{\(item\) => item\.type\}/,
+    'TranslationPickerList should render the translation mode from a typed virtualized row model'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /sections\.availableTranslations\.map\(\(translation\) =>\s*renderTranslationCard\(translation\)/,
+    'TranslationPickerList should not eagerly render every available translation card in a ScrollView'
+  );
+
+  assert.equal(
     source.includes('downloadAudioForBooks'),
     true,
     'TranslationPickerList should use the shared batch audio download action for collection audio buttons'
@@ -387,7 +411,7 @@ test('translation picker keeps the delete chip available for any translation wit
   );
 
   assert.equal(
-    source.includes('translation.id !== \'bsb\''),
+    source.includes("translation.id !== 'bsb'"),
     false,
     'TranslationPickerList should not hard-block BSB from the remove-download flow'
   );

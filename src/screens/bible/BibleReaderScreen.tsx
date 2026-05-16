@@ -23,7 +23,6 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -38,10 +37,6 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import VideoTrimModule, {
-  isValidFile as isValidTrimMediaFile,
-  trim as trimAudioMedia,
-} from 'react-native-video-trim';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,17 +58,11 @@ import {
   softDeleteAnnotation,
   upsertAnnotation,
 } from '../../services/annotations/annotationService';
-import { buildBibleDeepLink, getChapter } from '../../services/bible';
+import { getChapter } from '../../services/bible/bibleService';
+import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
-import {
-  AUDIO_DOWNLOAD_ROOT_URI,
-  expoAudioFileSystemAdapter,
-  fetchRemoteChapterAudio,
-  getAudioAvailability,
-  getDownloadedChapterAudioUri,
-  isRemoteAudioAvailable,
-  prepareChapterAudioShareAsset,
-} from '../../services/audio';
+import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
+import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
 import { submitChapterFeedback } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
@@ -90,21 +79,22 @@ import { markDayComplete, markPlanSessionComplete } from '../../services/plans/r
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import { getDaySessionEntries, isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import { syncPreferences } from '../../services/sync';
-import {
-  useAudioStore,
-  useAuthStore,
-  useBibleStore,
-  useLibraryStore,
-  useProgressStore,
-  useReadingPlansStore,
-} from '../../stores';
+import { useAudioStore } from '../../stores/audioStore';
+import { useAuthStore } from '../../stores/authStore';
+import { useBibleStore } from '../../stores/bibleStore';
+import { useLibraryStore } from '../../stores/libraryStore';
+import { useProgressStore } from '../../stores/progressStore';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
-import { useFontSize, useAudioPlayer } from '../../hooks';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useFontSize } from '../../hooks/useFontSize';
 import { selectionHaptic } from '../../utils/haptics';
-import { VersesSkeleton, AudioProgressScrubber, PlaybackControls } from '../../components';
+import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
+import { PlaybackControls } from '../../components/audio/PlaybackControls';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
 import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
+import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
@@ -175,6 +165,40 @@ interface AudioPortionShareDraft {
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
+
+async function loadAudioShareDependencies() {
+  const [downloadStorage, downloadService, remoteAudio, shareService, FileSystem] =
+    await Promise.all([
+      import('../../services/audio/audioDownloadStorage'),
+      import('../../services/audio/audioDownloadService'),
+      import('../../services/audio/audioRemote'),
+      import('../../services/audio/audioShareService'),
+      import('expo-file-system/legacy'),
+    ]);
+
+  return {
+    AUDIO_DOWNLOAD_ROOT_URI: downloadStorage.AUDIO_DOWNLOAD_ROOT_URI,
+    expoAudioFileSystemAdapter: downloadStorage.expoAudioFileSystemAdapter,
+    fetchRemoteChapterAudio: remoteAudio.fetchRemoteChapterAudio,
+    getDownloadedChapterAudioUri: downloadService.getDownloadedChapterAudioUri,
+    prepareChapterAudioShareAsset: shareService.prepareChapterAudioShareAsset,
+    chapterAudioShareRootUri: `${
+      FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
+    }everybible-audio-share/`,
+  };
+}
+
+async function loadVideoTrimDependencies() {
+  const videoTrimModule = await import('react-native-video-trim');
+  const VideoTrimModule = videoTrimModule.default ?? videoTrimModule;
+
+  return {
+    VideoTrimModule,
+    isValidTrimMediaFile: videoTrimModule.isValidFile,
+    trimAudioMedia: videoTrimModule.trim,
+  };
+}
+
 const readerThemePreviewOptions: Array<{
   mode: ThemeMode;
   label: string;
@@ -736,7 +760,6 @@ export function BibleReaderScreen() {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
   const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
-  const setPlanSessionReaderActive = useBibleStore((state) => state.setPlanSessionReaderActive);
   const setPreferredChapterLaunchMode = useBibleStore(
     (state) => state.setPreferredChapterLaunchMode
   );
@@ -943,13 +966,6 @@ export function BibleReaderScreen() {
     playbackSequenceEntries,
   ]);
   useEffect(() => {
-    setPlanSessionReaderActive(showPlanSessionChrome);
-
-    return () => {
-      setPlanSessionReaderActive(false);
-    };
-  }, [setPlanSessionReaderActive, showPlanSessionChrome]);
-  useEffect(() => {
     const rootTabNavigation = getRootTabNavigation();
     if (!rootTabNavigation) {
       return;
@@ -1138,9 +1154,6 @@ export function BibleReaderScreen() {
       translationLanguage: currentTranslationInfo?.language,
     }) || translationLabel;
   const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
-  const chapterAudioShareRootUri = `${
-    FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
-  }everybible-audio-share/`;
   const chapterAudioShareActionLabel =
     pendingChapterAudioShareAction === 'portion'
       ? t('bible.shareAudioPortion')
@@ -2241,6 +2254,14 @@ export function BibleReaderScreen() {
 
     try {
       await waitForChapterAudioShareSheetDismissal();
+      const {
+        AUDIO_DOWNLOAD_ROOT_URI,
+        chapterAudioShareRootUri,
+        expoAudioFileSystemAdapter,
+        fetchRemoteChapterAudio,
+        getDownloadedChapterAudioUri,
+        prepareChapterAudioShareAsset,
+      } = await loadAudioShareDependencies();
 
       const audioShareAsset = await prepareChapterAudioShareAsset({
         translationId: currentTranslation,
@@ -2311,6 +2332,14 @@ export function BibleReaderScreen() {
 
     try {
       await waitForChapterAudioShareSheetDismissal();
+      const {
+        AUDIO_DOWNLOAD_ROOT_URI,
+        chapterAudioShareRootUri,
+        expoAudioFileSystemAdapter,
+        fetchRemoteChapterAudio,
+        getDownloadedChapterAudioUri,
+        prepareChapterAudioShareAsset,
+      } = await loadAudioShareDependencies();
 
       const audioShareAsset = await prepareChapterAudioShareAsset({
         translationId: currentTranslation,
@@ -2345,6 +2374,7 @@ export function BibleReaderScreen() {
         detail: 'share-audio-clip',
       });
 
+      const { VideoTrimModule, isValidTrimMediaFile } = await loadVideoTrimDependencies();
       const validateTrimMediaFile =
         typeof isValidTrimMediaFile === 'function'
           ? isValidTrimMediaFile
@@ -2487,6 +2517,7 @@ export function BibleReaderScreen() {
       return;
     }
 
+    const { VideoTrimModule, trimAudioMedia } = await loadVideoTrimDependencies();
     const trimMediaFile =
       typeof trimAudioMedia === 'function'
         ? trimAudioMedia

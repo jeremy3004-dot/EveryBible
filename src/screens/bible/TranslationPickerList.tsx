@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -48,6 +49,19 @@ interface TranslationPickerListProps {
   onRequestClose?: () => void;
   onTranslationActivated?: (translation: BibleTranslation) => void;
 }
+
+type TranslationLanguageSearchResult = ReturnType<
+  typeof filterTranslationLanguagesBySearchQuery
+>[number];
+
+type TranslationPickerRow =
+  | { type: 'search'; id: string }
+  | { type: 'language-search-result'; id: string; language: TranslationLanguageSearchResult }
+  | { type: 'preference'; id: string }
+  | { type: 'section-header'; id: string; label: string; title?: string }
+  | { type: 'translation'; id: string; translation: BibleTranslation };
+
+const TRANSLATION_PICKER_ROW_ESTIMATED_SIZE = 116;
 
 export function TranslationPickerList({
   onRequestClose,
@@ -349,6 +363,176 @@ export function TranslationPickerList({
     }
   };
 
+  const translationRows = useMemo<TranslationPickerRow[]>(() => {
+    const rows: TranslationPickerRow[] = [{ type: 'search', id: 'search' }];
+
+    if (hasActiveSearchQuery) {
+      languageSearchResults.forEach((language) => {
+        rows.push({
+          type: 'language-search-result',
+          id: `search-language-${language.value}`,
+          language,
+        });
+      });
+    } else {
+      rows.push({ type: 'preference', id: 'preference' });
+    }
+
+    if (sections.myTranslations.length > 0) {
+      rows.push({
+        type: 'section-header',
+        id: 'section-my-translations',
+        label: t('translations.myTranslations'),
+      });
+
+      sections.myTranslations.forEach((translation) => {
+        rows.push({
+          type: 'translation',
+          id: `my-${translation.id}`,
+          translation,
+        });
+      });
+    }
+
+    if (sections.availableTranslations.length > 0) {
+      rows.push({
+        type: 'section-header',
+        id: 'section-available-translations',
+        label: t('translations.available'),
+        title: hasActiveSearchQuery
+          ? undefined
+          : getTranslationLanguageDisplayLabel(resolvedPreferredLanguage),
+      });
+
+      sections.availableTranslations.forEach((translation) => {
+        rows.push({
+          type: 'translation',
+          id: `available-${translation.id}`,
+          translation,
+        });
+      });
+    }
+
+    return rows;
+  }, [
+    hasActiveSearchQuery,
+    languageSearchResults,
+    resolvedPreferredLanguage,
+    sections.availableTranslations,
+    sections.myTranslations,
+    t,
+  ]);
+
+  const renderTranslationRow = ({ item }: { item: TranslationPickerRow }) => {
+    if (item.type === 'search') {
+      return (
+        <View
+          style={[
+            styles.searchInputShell,
+            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+          ]}
+        >
+          <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            testID="translation-picker-search"
+            accessibilityLabel={t('common.search')}
+            placeholder={t('common.search')}
+            placeholderTextColor={colors.bibleSecondaryText}
+            style={[styles.searchInput, { color: colors.biblePrimaryText }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    }
+
+    if (item.type === 'language-search-result') {
+      const isSelected = resolvedPreferredLanguage === item.language.value;
+
+      return (
+        <TouchableOpacity
+          testID="translation-picker-language-search-result"
+          style={[
+            styles.languageOptionCard,
+            {
+              backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+          onPress={() => handleLanguageSearchResultSelect(item.language.value)}
+          activeOpacity={0.82}
+        >
+          <View style={styles.languageOptionInfo}>
+            <Text style={[styles.languageOptionTitle, { color: colors.biblePrimaryText }]}>
+              {item.language.label}
+            </Text>
+            <Text style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}>
+              {item.language.translationCount}
+            </Text>
+          </View>
+          <Ionicons
+            name={isSelected ? 'checkmark' : 'chevron-forward'}
+            size={18}
+            color={isSelected ? colors.bibleAccent : colors.bibleSecondaryText}
+          />
+        </TouchableOpacity>
+      );
+    }
+
+    if (item.type === 'preference') {
+      return (
+        <View
+          style={[
+            styles.preferenceCard,
+            {
+              backgroundColor: colors.bibleElevatedSurface,
+              borderColor: colors.bibleDivider,
+            },
+          ]}
+        >
+          <Text style={[styles.preferenceEyebrow, { color: colors.bibleSecondaryText }]}>
+            {t('translations.languagePreference')}
+          </Text>
+          <TouchableOpacity
+            style={styles.preferenceRow}
+            onPress={() => setPickerMode('languages')}
+            activeOpacity={0.82}
+          >
+            <Text style={[styles.preferenceValue, { color: colors.biblePrimaryText }]}>
+              {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.bibleSecondaryText} />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (item.type === 'section-header') {
+      return (
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+            {item.label}
+          </Text>
+          {item.title ? (
+            <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
+              {item.title}
+            </Text>
+          ) : null}
+        </View>
+      );
+    }
+
+    return renderTranslationCard(item.translation);
+  };
+
   const renderTranslationCard = (translation: BibleTranslation) => {
     const isSelected = currentTranslation === translation.id;
     const audioAvailability = getTranslationAudioAvailability(translation);
@@ -493,21 +677,14 @@ export function TranslationPickerList({
                     </>
                   ) : (
                     <>
-                      <Ionicons
-                        name="headset-outline"
-                        size={14}
-                        color={colors.biblePrimaryText}
-                      />
+                      <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
                       <Ionicons
                         name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
                         size={14}
                         color={isAudioDownloaded ? colors.success : colors.bibleAccent}
                       />
                       <Text
-                        style={[
-                          styles.audioDownloadChipLabel,
-                          { color: colors.biblePrimaryText },
-                        ]}
+                        style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}
                       >
                         {t('bible.fullBible')}
                       </Text>
@@ -563,11 +740,7 @@ export function TranslationPickerList({
                     </>
                   ) : (
                     <>
-                      <Ionicons
-                        name="headset-outline"
-                        size={14}
-                        color={colors.biblePrimaryText}
-                      />
+                      <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
                       <Ionicons
                         name={
                           isNewTestamentAudioDownloaded ? 'checkmark-circle' : 'download-outline'
@@ -602,22 +775,13 @@ export function TranslationPickerList({
                   onPress={() => setAudioManagerTranslationId(translation.id)}
                   activeOpacity={0.85}
                 >
-                  <Ionicons
-                    name="headset-outline"
-                    size={14}
-                    color={colors.biblePrimaryText}
-                  />
+                  <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
                   <Ionicons
                     name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
                     size={14}
                     color={isAudioDownloaded ? colors.success : colors.bibleAccent}
                   />
-                  <Text
-                    style={[
-                      styles.audioDownloadChipLabel,
-                      { color: colors.biblePrimaryText },
-                    ]}
-                  >
+                  <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
                     {t('bible.byBook')}
                   </Text>
                 </TouchableOpacity>
@@ -812,131 +976,26 @@ export function TranslationPickerList({
           })}
         </ScrollView>
       ) : (
-        <ScrollView
+        <FlashList
           style={styles.translationList}
-          contentInsetAdjustmentBehavior="never"
+          data={translationRows}
+          renderItem={renderTranslationRow}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.translationListContent}
           showsVerticalScrollIndicator={false}
-        >
-          <View
-            style={[
-              styles.searchInputShell,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-          >
-            <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              testID="translation-picker-search"
-              accessibilityLabel={t('common.search')}
-              placeholder={t('common.search')}
-              placeholderTextColor={colors.bibleSecondaryText}
-              style={[styles.searchInput, { color: colors.biblePrimaryText }]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 ? (
-              <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {hasActiveSearchQuery && languageSearchResults.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              {languageSearchResults.map((language) => {
-                const isSelected = resolvedPreferredLanguage === language.value;
-
-                return (
-                  <TouchableOpacity
-                    key={`search-language-${language.value}`}
-                    testID="translation-picker-language-search-result"
-                    style={[
-                      styles.languageOptionCard,
-                      {
-                        backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
-                        borderColor: colors.bibleDivider,
-                      },
-                    ]}
-                    onPress={() => handleLanguageSearchResultSelect(language.value)}
-                    activeOpacity={0.82}
-                  >
-                    <View style={styles.languageOptionInfo}>
-                      <Text
-                        style={[styles.languageOptionTitle, { color: colors.biblePrimaryText }]}
-                      >
-                        {language.label}
-                      </Text>
-                      <Text
-                        style={[styles.languageOptionMeta, { color: colors.bibleSecondaryText }]}
-                      >
-                        {language.translationCount}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={isSelected ? 'checkmark' : 'chevron-forward'}
-                      size={18}
-                      color={isSelected ? colors.bibleAccent : colors.bibleSecondaryText}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {!hasActiveSearchQuery ? (
-            <View
-              style={[
-                styles.preferenceCard,
-                {
-                  backgroundColor: colors.bibleElevatedSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-            >
-              <Text style={[styles.preferenceEyebrow, { color: colors.bibleSecondaryText }]}>
-                {t('translations.languagePreference')}
-              </Text>
-              <TouchableOpacity
-                style={styles.preferenceRow}
-                onPress={() => setPickerMode('languages')}
-                activeOpacity={0.82}
-              >
-                <Text style={[styles.preferenceValue, { color: colors.biblePrimaryText }]}>
-                  {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {sections.myTranslations.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
-                {t('translations.myTranslations')}
-              </Text>
-              {sections.myTranslations.map((translation) => renderTranslationCard(translation))}
-            </View>
-          ) : null}
-
-          {sections.availableTranslations.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
-                {t('translations.available')}
-              </Text>
-              {!hasActiveSearchQuery ? (
-                <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
-                  {getTranslationLanguageDisplayLabel(resolvedPreferredLanguage)}
-                </Text>
-              ) : null}
-              {sections.availableTranslations.map((translation) =>
-                renderTranslationCard(translation)
-              )}
-            </View>
-          ) : null}
-        </ScrollView>
+          estimatedItemSize={TRANSLATION_PICKER_ROW_ESTIMATED_SIZE}
+          getItemType={(item) => item.type}
+          keyboardShouldPersistTaps="handled"
+          extraData={{
+            activeAudioDownloadKey,
+            colors,
+            currentTranslation,
+            downloadProgress,
+            isHydratingRuntimeCatalog,
+            resolvedPreferredLanguage,
+            searchQuery,
+          }}
+        />
       )}
 
       <Modal
@@ -1235,6 +1294,9 @@ const styles = StyleSheet.create({
   },
   sectionBlock: {
     marginBottom: spacing.md,
+  },
+  sectionHeaderRow: {
+    marginBottom: spacing.xs,
   },
   sectionEyebrow: {
     fontSize: 12,

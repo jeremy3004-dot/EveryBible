@@ -12,7 +12,7 @@ test('bibleStore emits analytics when a text translation download completes', ()
 
   assert.match(
     source,
-    /trackEvent\(\s*'text_translation_download_completed'/,
+    /trackBibleStoreEvent\(\s*'text_translation_download_completed'/,
     'Bible store should track a completed text translation download event'
   );
 
@@ -28,7 +28,7 @@ test('bibleStore emits analytics when audio downloads complete', () => {
 
   assert.match(
     source,
-    /trackEvent\(\s*'audio_download_completed'/,
+    /trackBibleStoreEvent\(\s*'audio_download_completed'/,
     'Bible store should track completed audio download events'
   );
 

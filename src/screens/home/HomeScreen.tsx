@@ -36,9 +36,10 @@ import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans, type HomeContinuePlan } from './homeReadingPlansModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
-import { formatDailyScriptureReferenceLabel, getDailyScripture } from '../../services/bible';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
-import { getAudioAvailability, isRemoteAudioAvailable } from '../../services/audio';
+import { formatDailyScriptureReferenceLabel } from '../../services/bible/presentation';
+import { getAudioAvailability } from '../../services/audio/audioAvailability';
+import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import type { ReadingPlan } from '../../services/plans/types';
@@ -239,6 +240,7 @@ export function HomeScreen() {
           return;
         }
 
+        const { getDailyScripture } = await import('../../services/bible/bibleService');
         const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
           allowInitialization,
         });

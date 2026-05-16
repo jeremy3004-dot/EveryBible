@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as FileSystem from 'expo-file-system/legacy';
 import { zustandStorage } from './mmkvStorage';
 import { bibleBooks, config, getBookById } from '../constants';
 import type {
@@ -9,27 +8,20 @@ import type {
   TranslationDownloadJob,
   TranslationDownloadProgress,
 } from '../types';
+import { getAudioAvailability } from '../services/audio/audioAvailability';
 import {
-  AUDIO_DOWNLOAD_ROOT_URI,
-  createAudioDownloadJobStore,
-  createBackgroundAudioDownloadTransport,
-  downloadAudioBook,
-  downloadAudioTranslation,
-  expoAudioFileSystemAdapter,
-  fetchRemoteChapterAudio,
-  getAudioAvailability,
-  ensureBackgroundAudioDownloadsRunning,
   isRemoteAudioAvailable,
   syncRemoteAudioMetadataResolverWithTranslations,
-  type AudioDownloadBookProgress,
-  type AudioDownloadCollectionProgress,
-  type AudioDownloadJobRecord,
-} from '../services/audio';
+} from '../services/audio/audioRemote';
+import type {
+  AudioDownloadBookProgress,
+  AudioDownloadCollectionProgress,
+  AudioDownloadJobRecord,
+} from '../services/audio/audioDownloadService';
 import {
   invalidateInstalledBibleDatabaseAtPath,
   setBibleDatabaseSourceResolver,
 } from '../services/bible/bibleDatabase';
-import { syncVerseTimestampMetadataResolverWithTranslations } from '../services/bible/verseTimestamps';
 import {
   activateTranslationPackCandidate,
   buildInstalledBibleDatabaseSource,
@@ -41,7 +33,6 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
-import { trackEvent } from '../services/analytics/analyticsService';
 import { setUserTranslationPreferences } from '../services/translations';
 import {
   mergeRuntimeCatalogTranslations,
@@ -51,11 +42,55 @@ import {
   resetTranslationDownloadState,
 } from './bibleStoreModel';
 
+type AudioDownloadModules = typeof import('../services/audio/audioDownloadService') &
+  typeof import('../services/audio/audioDownloadStorage') &
+  typeof import('../services/audio/audioRemote');
+
+async function loadAudioDownloadModules(): Promise<AudioDownloadModules> {
+  const [downloadService, downloadStorage, audioRemote] = await Promise.all([
+    import('../services/audio/audioDownloadService'),
+    import('../services/audio/audioDownloadStorage'),
+    import('../services/audio/audioRemote'),
+  ]);
+
+  return {
+    ...downloadService,
+    ...downloadStorage,
+    ...audioRemote,
+  };
+}
+
+async function deleteFileSystemPath(localPath: string): Promise<void> {
+  const FileSystem = await import('expo-file-system/legacy');
+  await FileSystem.deleteAsync(localPath, { idempotent: true });
+}
+
+async function fileSystemPathExists(localPath: string): Promise<boolean> {
+  const FileSystem = await import('expo-file-system/legacy');
+  const fileInfo = await FileSystem.getInfoAsync(localPath);
+  return fileInfo.exists;
+}
+
+function trackBibleStoreEvent(eventName: string, properties: Record<string, unknown>): void {
+  void import('../services/analytics/analyticsService')
+    .then(({ trackEvent }) => {
+      trackEvent(eventName, properties);
+    })
+    .catch(() => {});
+}
+
+function syncVerseTimestampMetadata(translations: BibleTranslation[]): void {
+  void import('../services/bible/verseTimestamps')
+    .then(({ syncVerseTimestampMetadataResolverWithTranslations }) => {
+      syncVerseTimestampMetadataResolverWithTranslations(translations);
+    })
+    .catch(() => {});
+}
+
 interface BibleState {
   currentBook: string;
   currentChapter: number;
   hasReaderHistory: boolean;
-  isPlanSessionReaderActive: boolean;
   preferredChapterLaunchMode: 'listen' | 'read';
   verses: Verse[];
   isLoading: boolean;
@@ -70,7 +105,6 @@ interface BibleState {
   // Basic actions
   setCurrentBook: (bookId: string) => void;
   setCurrentChapter: (chapter: number) => void;
-  setPlanSessionReaderActive: (active: boolean) => void;
   setPreferredChapterLaunchMode: (mode: 'listen' | 'read') => void;
   applySyncedReadingPosition: (readingPosition: { bookId: string; chapter: number }) => void;
   setVerses: (verses: Verse[]) => void;
@@ -215,7 +249,6 @@ export const useBibleStore = create<BibleState>()(
       currentBook: 'GEN',
       currentChapter: 1,
       hasReaderHistory: false,
-      isPlanSessionReaderActive: false,
       preferredChapterLaunchMode: 'listen',
       verses: [],
       isLoading: false,
@@ -227,7 +260,6 @@ export const useBibleStore = create<BibleState>()(
 
       setCurrentBook: (bookId) => set({ currentBook: bookId, hasReaderHistory: true }),
       setCurrentChapter: (chapter) => set({ currentChapter: chapter, hasReaderHistory: true }),
-      setPlanSessionReaderActive: (isPlanSessionReaderActive) => set({ isPlanSessionReaderActive }),
       setPreferredChapterLaunchMode: (preferredChapterLaunchMode) =>
         set({ preferredChapterLaunchMode }),
       applySyncedReadingPosition: ({ bookId, chapter }) => {
@@ -344,7 +376,7 @@ export const useBibleStore = create<BibleState>()(
         });
 
         syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
-        syncVerseTimestampMetadataResolverWithTranslations(nextTranslationsSnapshot);
+        syncVerseTimestampMetadata(nextTranslationsSnapshot);
       },
 
       reconcileTranslationPacks: async () => {
@@ -361,9 +393,7 @@ export const useBibleStore = create<BibleState>()(
         await Promise.all(
           runtimeTranslations.map(async (translation) => {
             try {
-              const fileInfo = await FileSystem.getInfoAsync(translation.textPackLocalPath ?? '');
-
-              if (!fileInfo.exists) {
+              if (!(await fileSystemPathExists(translation.textPackLocalPath ?? ''))) {
                 missingTranslationIds.add(translation.id);
               }
             } catch {
@@ -386,11 +416,12 @@ export const useBibleStore = create<BibleState>()(
       },
 
       reattachAudioDownloads: async () => {
-        const jobStore = await createAudioDownloadJobStore({
-          fileSystem: expoAudioFileSystemAdapter,
-          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+        const audio = await loadAudioDownloadModules();
+        const jobStore = await audio.createAudioDownloadJobStore({
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
         });
-        const transport = await createBackgroundAudioDownloadTransport();
+        const transport = await audio.createBackgroundAudioDownloadTransport();
         const jobs = await jobStore.listJobs();
         const latestJobsByTranslation = getLatestPersistedAudioJobByTranslation(
           jobs.filter((job) => job.status !== 'completed')
@@ -406,7 +437,7 @@ export const useBibleStore = create<BibleState>()(
           })
         );
 
-        await ensureBackgroundAudioDownloadsRunning();
+        await audio.ensureBackgroundAudioDownloadsRunning();
 
         const activeJobs = Array.from(latestJobsByTranslation.values());
 
@@ -569,7 +600,7 @@ export const useBibleStore = create<BibleState>()(
             ),
           }));
 
-          trackEvent('text_translation_download_completed', {
+          trackBibleStoreEvent('text_translation_download_completed', {
             content_kind: 'text',
             download_scope: 'translation',
             download_units: 1,
@@ -604,11 +635,12 @@ export const useBibleStore = create<BibleState>()(
           throw new Error('Audio downloads are not available for this book.');
         }
 
-        const jobStore = await createAudioDownloadJobStore({
-          fileSystem: expoAudioFileSystemAdapter,
-          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+        const audio = await loadAudioDownloadModules();
+        const jobStore = await audio.createAudioDownloadJobStore({
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
         });
-        const transport = await createBackgroundAudioDownloadTransport();
+        const transport = await audio.createBackgroundAudioDownloadTransport();
         const handleAudioJobUpdate = (job: AudioDownloadJobRecord) => {
           set((state) => ({
             translations: state.translations.map((item) =>
@@ -637,12 +669,12 @@ export const useBibleStore = create<BibleState>()(
           }));
         };
 
-        await downloadAudioBook({
-          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+        await audio.downloadAudioBook({
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
           translationId,
           book,
-          fileSystem: expoAudioFileSystemAdapter,
-          resolveRemoteAudio: fetchRemoteChapterAudio,
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
           jobStore,
           transport,
           hooks: {
@@ -669,7 +701,7 @@ export const useBibleStore = create<BibleState>()(
           downloadProgress: null,
         }));
 
-        trackEvent('audio_download_completed', {
+        trackBibleStoreEvent('audio_download_completed', {
           book_count: 1,
           book_id: bookId,
           chapter_count: book.chapters,
@@ -691,11 +723,12 @@ export const useBibleStore = create<BibleState>()(
           throw new Error('Audio downloads are not available for the selected books.');
         }
 
-        const jobStore = await createAudioDownloadJobStore({
-          fileSystem: expoAudioFileSystemAdapter,
-          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+        const audio = await loadAudioDownloadModules();
+        const jobStore = await audio.createAudioDownloadJobStore({
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
         });
-        const transport = await createBackgroundAudioDownloadTransport();
+        const transport = await audio.createBackgroundAudioDownloadTransport();
         const handleAudioJobUpdate = (job: AudioDownloadJobRecord) => {
           set((state) => ({
             translations: state.translations.map((item) =>
@@ -728,12 +761,12 @@ export const useBibleStore = create<BibleState>()(
           }));
         };
 
-        const result = await downloadAudioTranslation({
-          rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+        const result = await audio.downloadAudioTranslation({
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
           translationId,
           books: selectedBooks,
-          fileSystem: expoAudioFileSystemAdapter,
-          resolveRemoteAudio: fetchRemoteChapterAudio,
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
           jobStore,
           transport,
           hooks: {
@@ -762,7 +795,7 @@ export const useBibleStore = create<BibleState>()(
           downloadProgress: null,
         }));
 
-        trackEvent('audio_download_completed', {
+        trackBibleStoreEvent('audio_download_completed', {
           book_count: result.downloadedBookIds.length,
           chapter_count: selectedBooks.reduce((total, book) => total + book.chapters, 0),
           content_kind: 'audio',
@@ -784,11 +817,14 @@ export const useBibleStore = create<BibleState>()(
         const progress = get().downloadProgress;
         if (progress) {
           // Attempt to cancel the background download transport
-          createBackgroundAudioDownloadTransport()
+          loadAudioDownloadModules()
             .then((transport) => {
-              if (transport.cancelJob && progress.translationId) {
+              if (transport.createBackgroundAudioDownloadTransport && progress.translationId) {
                 const jobId = `${progress.translationId}:${progress.bookId ?? 'all'}`;
-                transport.cancelJob(jobId).catch(() => {});
+                transport
+                  .createBackgroundAudioDownloadTransport()
+                  .then((activeTransport) => activeTransport.cancelJob?.(jobId))
+                  .catch(() => {});
               }
             })
             .catch(() => {});
@@ -818,7 +854,7 @@ export const useBibleStore = create<BibleState>()(
           filePaths.map(async (localPath) => {
             try {
               await invalidateInstalledBibleDatabaseAtPath(localPath);
-              await FileSystem.deleteAsync(localPath, { idempotent: true });
+              await deleteFileSystemPath(localPath);
             } catch (error) {
               console.warn('[Bible] Failed to remove translation text pack:', translationId, localPath, error);
             }
@@ -826,19 +862,19 @@ export const useBibleStore = create<BibleState>()(
         );
 
         try {
-          await FileSystem.deleteAsync(`${AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`, {
-            idempotent: true,
-          });
+          const audio = await loadAudioDownloadModules();
+          await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
         } catch (error) {
           console.warn('[Bible] Failed to remove translation audio downloads:', translationId, error);
         }
 
         try {
-          const jobStore = await createAudioDownloadJobStore({
-            fileSystem: expoAudioFileSystemAdapter,
-            rootUri: AUDIO_DOWNLOAD_ROOT_URI,
+          const audio = await loadAudioDownloadModules();
+          const jobStore = await audio.createAudioDownloadJobStore({
+            fileSystem: audio.expoAudioFileSystemAdapter,
+            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
           });
-          const transport = await createBackgroundAudioDownloadTransport();
+          const transport = await audio.createBackgroundAudioDownloadTransport();
           const jobs = await jobStore.listJobs();
 
           await Promise.all(
@@ -881,7 +917,7 @@ export const useBibleStore = create<BibleState>()(
         });
 
         syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
-        syncVerseTimestampMetadataResolverWithTranslations(nextTranslationsSnapshot);
+        syncVerseTimestampMetadata(nextTranslationsSnapshot);
       },
 
       isBookDownloaded: (translationId, bookId) => {
@@ -929,4 +965,4 @@ setBibleDatabaseSourceResolver((translationId) => {
 });
 
 syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);
-syncVerseTimestampMetadataResolverWithTranslations(useBibleStore.getState().translations);
+syncVerseTimestampMetadata(useBibleStore.getState().translations);

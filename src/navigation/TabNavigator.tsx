@@ -13,7 +13,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { layout, spacing, typography } from '../design/system';
-import { useBibleStore } from '../stores/bibleStore';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -63,14 +62,22 @@ const resolveActiveNestedRoute = (route: {
   };
 };
 
+function getBibleTabResumeState() {
+  const { useBibleStore } =
+    require('../stores/bibleStore') as typeof import('../stores/bibleStore');
+  const state = useBibleStore.getState();
+
+  return {
+    hasReaderHistory: state.hasReaderHistory,
+    currentBibleBook: state.currentBook,
+    currentBibleChapter: state.currentChapter,
+    preferredBibleMode: state.preferredChapterLaunchMode,
+  };
+}
+
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
-  const isPlanSessionReaderActive = useBibleStore((state) => state.isPlanSessionReaderActive);
-  const currentBibleBook = useBibleStore((state) => state.currentBook);
-  const currentBibleChapter = useBibleStore((state) => state.currentChapter);
-  const preferredBibleMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const tabBarBottomPadding = spacing.lg;
   const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
   const defaultTabBarStyle = {
@@ -140,11 +147,9 @@ export function TabNavigator() {
           };
           const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(nestedRouteState);
           const useReaderTheme = route.name === 'Bible' && nestedRouteName === 'BibleReader';
-          const shouldForceHidePlanReaderTabs = route.name === 'Bible' && isPlanSessionReaderActive;
           const shouldHideNestedBibleScreen =
-            ((route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
-              shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams)) ||
-            shouldForceHidePlanReaderTabs;
+            (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
+            shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
           const routeCollapseProgress =
             typeof nestedRouteParams?.tabBarCollapseProgress === 'number'
               ? Math.max(0, Math.min(nestedRouteParams.tabBarCollapseProgress, 1))
@@ -191,6 +196,12 @@ export function TabNavigator() {
             const nestedRouteParams = focusedRoute?.params ?? bibleRouteState.params?.params;
             const isPlanSessionReader =
               nestedRouteName === 'BibleReader' && typeof nestedRouteParams?.planId === 'string';
+            const {
+              hasReaderHistory,
+              currentBibleBook,
+              currentBibleChapter,
+              preferredBibleMode,
+            } = getBibleTabResumeState();
             const shouldResumeReader =
               hasReaderHistory && (nestedRouteName !== 'BibleReader' || isPlanSessionReader);
 

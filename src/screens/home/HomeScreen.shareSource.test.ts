@@ -22,6 +22,24 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
     'HomeScreen should avoid the stores barrel on the startup path'
   );
 
+  assert.equal(
+    source.includes("from '../../services/bible';"),
+    false,
+    'HomeScreen should avoid the bible barrel because it evaluates reader/download modules before the first screen'
+  );
+
+  assert.equal(
+    source.includes("from '../../services/audio';"),
+    false,
+    'HomeScreen should avoid the audio barrel because it evaluates playback/download modules before the first screen'
+  );
+
+  assert.match(
+    source,
+    /const \{ getDailyScripture \} = await import\('\.\.\/\.\.\/services\/bible\/bibleService'\);/,
+    'HomeScreen should lazy-load Bible database access after interactions when loading verse-of-day text'
+  );
+
   assert.match(
     source,
     /import \{ useBibleStore \} from '\.\.\/\.\.\/stores\/bibleStore';/,

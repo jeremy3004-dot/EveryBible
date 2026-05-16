@@ -29,13 +29,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
 import {
-  BibleSearchUnavailableError,
   buildBibleBrowserRows,
-  parsePassageReferenceLocale,
-  searchBible,
   type BibleBrowserRow,
+} from '../../services/bible/browserRows';
+import {
+  parsePassageReferenceLocale,
   type PassageReferenceTarget,
-} from '../../services/bible';
+} from '../../services/bible/referenceParser';
 import type { BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
 import {
@@ -45,12 +45,12 @@ import {
 } from './bibleSearchModel';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getBookIcon } from '../../constants/bookIcons';
-import { TranslationPickerList } from './TranslationPickerList';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
   | RouteProp<BibleStackParamList, 'BibleBrowser'>
   | RouteProp<BibleStackParamList, 'BiblePicker'>;
+type TranslationPickerListComponent = typeof import('./TranslationPickerList').TranslationPickerList;
 
 const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
@@ -58,6 +58,10 @@ const SEARCH_RESULT_ESTIMATED_SIZE = 118;
 
 function getBibleBrowserRowIndex(bookId: string) {
   return bibleBrowserRows.findIndex((row) => row.type === 'books' && row.books[0]?.id === bookId);
+}
+
+function isBibleSearchUnavailableError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'BibleSearchUnavailableError';
 }
 
 if (Platform.OS === 'android') {
@@ -76,6 +80,8 @@ export function BibleBrowserScreen() {
   const resolvedInitialBookId = hasExplicitInitialBook ? initialBookId : currentBook;
   const [expandedBookId, setExpandedBookId] = useState<string | null>(resolvedInitialBookId);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [TranslationPickerComponent, setTranslationPickerComponent] =
+    useState<TranslationPickerListComponent | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -117,6 +123,24 @@ export function BibleBrowserScreen() {
       cancelAnimationFrame(animationFrameId);
     };
   }, [shouldFocusSearch]);
+
+  useEffect(() => {
+    if (!showTranslationModal || TranslationPickerComponent) {
+      return;
+    }
+
+    let isMounted = true;
+
+    void import('./TranslationPickerList').then((module) => {
+      if (isMounted) {
+        setTranslationPickerComponent(() => module.TranslationPickerList);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [TranslationPickerComponent, showTranslationModal]);
 
   useEffect(() => {
     if (hasExplicitInitialBook) {
@@ -166,6 +190,7 @@ export function BibleBrowserScreen() {
     const timeoutId = setTimeout(() => {
       void (async () => {
         try {
+          const { searchBible } = await import('../../services/bible/bibleService');
           const results = await searchBible(currentTranslation, deferredSearchIntent.query);
 
           if (!isCancelled && requestId === searchRequestIdRef.current) {
@@ -176,7 +201,7 @@ export function BibleBrowserScreen() {
             console.error('Error searching Bible:', error);
             setSearchResults([]);
             setSearchError(
-              error instanceof BibleSearchUnavailableError
+              isBibleSearchUnavailableError(error)
                 ? searchUnavailableMessage
                 : failedToLoadMessage
             );
@@ -532,7 +557,21 @@ export function BibleBrowserScreen() {
                   <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
                 </TouchableOpacity>
               </View>
-              <TranslationPickerList onRequestClose={() => setShowTranslationModal(false)} />
+              {TranslationPickerComponent ? (
+                <TranslationPickerComponent onRequestClose={() => setShowTranslationModal(false)} />
+              ) : (
+                <View style={styles.translationPickerLoading}>
+                  <ActivityIndicator color={colors.bibleAccent} />
+                  <Text
+                    style={[
+                      styles.translationPickerLoadingText,
+                      { color: colors.bibleSecondaryText },
+                    ]}
+                  >
+                    {t('common.loading')}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -750,6 +789,15 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.cardTitle,
+  },
+  translationPickerLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  translationPickerLoadingText: {
+    ...typography.label,
   },
   translationLanguageScroller: {
     marginBottom: spacing.sm,

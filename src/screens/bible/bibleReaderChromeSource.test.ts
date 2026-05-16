@@ -130,6 +130,40 @@ test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens
   );
 });
 
+test('BibleReaderScreen avoids broad barrels on the reader open path', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.equal(
+    source.includes("from '../../stores';"),
+    false,
+    'BibleReaderScreen should not evaluate every Zustand store before the reader can open'
+  );
+
+  assert.equal(
+    source.includes("from '../../hooks';"),
+    false,
+    'BibleReaderScreen should not evaluate unrelated hooks before the reader can open'
+  );
+
+  assert.equal(
+    source.includes("from '../../components';"),
+    false,
+    'BibleReaderScreen should not evaluate unrelated component groups before the reader can open'
+  );
+
+  assert.match(
+    source,
+    /from '\.\.\/\.\.\/stores\/bibleStore';/,
+    'BibleReaderScreen should import its reader-critical stores directly'
+  );
+
+  assert.match(
+    source,
+    /from '\.\.\/\.\.\/components\/skeleton\/VersesSkeleton';/,
+    'BibleReaderScreen should import reader loading UI directly'
+  );
+});
+
 test('BibleReaderScreen auto-scrolls inline audio highlights before they leave the viewport', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
   const modelSource = readRelativeSource('./bibleReaderModel.ts');
@@ -373,19 +407,19 @@ test('BibleReaderScreen keeps the root tab bar visible while read mode scroll ge
   );
 });
 
-test('BibleReaderScreen publishes plan-session reader state to the shared store', () => {
+test('BibleReaderScreen relies on route params and root-tab options for plan-session tab visibility', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /setPlanSessionReaderActive\(showPlanSessionChrome\);/,
-    'BibleReaderScreen should mark the plan-session reader as active while the red plan banner chrome is visible'
+    /setPlanSessionReaderActive/,
+    'BibleReaderScreen should not publish plan-session tab state through the Bible store'
   );
 
   assert.match(
     source,
-    /return \(\) => \{\s*setPlanSessionReaderActive\(false\);\s*\};/s,
-    'BibleReaderScreen should always clear the shared plan-session reader signal when leaving the reader screen'
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle: \{ display: 'none' \},\s*\}\);/,
+    'BibleReaderScreen should still hard-hide root tabs through the active root tab navigation options while plan chrome is visible'
   );
 });
 

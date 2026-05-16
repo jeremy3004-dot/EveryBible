@@ -89,13 +89,19 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
   );
 });
 
-test('TabNavigator reads the shared plan-session reader signal before hiding the root tabs', () => {
+test('TabNavigator keeps the Bible store off the root tab render path', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.doesNotMatch(
+    source,
+    /import \{ useBibleStore \} from '\.\.\/stores\/bibleStore';/,
+    'TabNavigator should not eagerly import the Bible store while rendering the app shell'
+  );
 
   assert.match(
     source,
-    /useBibleStore\(\(state\) => state\.isPlanSessionReaderActive\)/,
-    'TabNavigator should subscribe to the shared plan-session reader signal so tab visibility does not depend on fragile nested route params'
+    /function getBibleTabResumeState\(\)[\s\S]*require\('\.\.\/stores\/bibleStore'\)/,
+    'TabNavigator should load the Bible store only when Bible-tab resume state is needed'
   );
 });
 
@@ -207,23 +213,9 @@ test('TabNavigator hides BibleReader only when it is launched as a plan session'
 test('TabNavigator resumes the last open Bible chapter when the Bible tab is pressed from a cold start', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.hasReaderHistory\)/,
-    'TabNavigator should read persisted Bible reader history before deciding where the Bible tab should open'
-  );
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.currentBook\)/,
-    'TabNavigator should read the last open Bible book from the shared store'
-  );
-
-  assert.match(
-    source,
-    /useBibleStore\(\(state\) => state\.currentChapter\)/,
-    'TabNavigator should read the last open Bible chapter from the shared store'
-  );
+  assert.match(source, /hasReaderHistory:\s*state\.hasReaderHistory/);
+  assert.match(source, /currentBibleBook:\s*state\.currentBook/);
+  assert.match(source, /currentBibleChapter:\s*state\.currentChapter/);
 
   assert.match(
     source,
@@ -233,7 +225,7 @@ test('TabNavigator resumes the last open Bible chapter when the Bible tab is pre
 
   assert.match(
     source,
-    /navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
+    /const \{[\s\S]*hasReaderHistory,[\s\S]*currentBibleBook,[\s\S]*currentBibleChapter,[\s\S]*preferredBibleMode,[\s\S]*\} = getBibleTabResumeState\(\);[\s\S]*navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
     'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
   );
 });

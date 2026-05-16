@@ -6,6 +6,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+.next/
+apps/*/.next/
 
 # Native
 .kotlin/
@@ -40,3 +42,10 @@ yarn-error.*
 .env
 .claude-flow/
 every-bible-485319-82e2f287e3f8.json
+
+# OpenClaw: exclude local/generated scratch data from cloud build upload
+tmp/
+*.log
+.cache/
+.gsd/
+.gstack/

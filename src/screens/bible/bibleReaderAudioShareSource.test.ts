@@ -30,8 +30,20 @@ test('BibleReaderScreen wires full-chapter sharing and an in-app audio-portion r
 
   assert.match(
     source,
-    /import VideoTrimModule,\s*\{\s*isValidFile as isValidTrimMediaFile,\s*trim as trimAudioMedia,\s*\}\s*from 'react-native-video-trim';/s,
-    'BibleReaderScreen should import the trim function for headless audio clipping instead of opening the native editor UI'
+    /import\('react-native-video-trim'\)/,
+    'BibleReaderScreen should load the trim module only when the user starts audio-portion sharing'
+  );
+
+  assert.equal(
+    source.includes("from 'react-native-video-trim';"),
+    false,
+    'BibleReaderScreen should not evaluate the native trim module while opening the reader'
+  );
+
+  assert.equal(
+    source.includes("from '../../services/audio/audioDownloadStorage';"),
+    false,
+    'BibleReaderScreen should not evaluate filesystem-backed audio download storage while opening the reader'
   );
 
   assert.match(
@@ -74,6 +86,12 @@ test('BibleReaderScreen wires full-chapter sharing and an in-app audio-portion r
     source,
     /await prepareChapterAudioShareAsset\(/,
     'BibleReaderScreen should prepare a real audio file before launching chapter sharing or portion selection'
+  );
+
+  assert.match(
+    source,
+    /import\('\.\.\/\.\.\/services\/audio\/audioShareService'\)/,
+    'BibleReaderScreen should lazy-load audio-share preparation off the initial reader import path'
   );
 
   assert.match(

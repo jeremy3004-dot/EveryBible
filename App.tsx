@@ -8,35 +8,17 @@ import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
-import { initBibleData } from './src/services/bible/bibleService';
-import { bootstrapRuntimeTranslationsAndPreferences } from './src/services/translations';
 import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
 import { useAuthStore } from './src/stores/authStore';
-import { useBibleStore } from './src/stores/bibleStore';
 import { usePrivacyStore } from './src/stores/privacyStore';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
-import { usePrivacyLock } from './src/hooks/usePrivacyLock';
-import { useSync } from './src/hooks/useSync';
 import i18n, { changeLanguage } from './src/i18n';
 import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
-import {
-  endAnonymousUsageSession,
-  flushAnonymousUsageEvents,
-  startAnonymousUsageSession,
-  endSession,
-  flushEvents,
-  startSession,
-} from './src/services/analytics';
-import {
-  setupNotificationHandler,
-  setupAndroidChannels,
-  registerPushToken,
-  deactivatePushToken,
-} from './src/services/notifications';
+import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -60,19 +42,26 @@ function LoadingScreen() {
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
-  const reconcileTranslationPacks = useBibleStore((state) => state.reconcileTranslationPacks);
-  const reattachAudioDownloads = useBibleStore((state) => state.reattachAudioDownloads);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const startupCoordinator = useMemo(
     () =>
       createStartupCoordinator({
         initializeAuth,
         initializePrivacy,
-        preloadBibleData: initBibleData,
-        preloadRuntimeTranslations: bootstrapRuntimeTranslationsAndPreferences,
+        preloadBibleData: async () => {
+          const { initBibleData } = await import('./src/services/bible/bibleService');
+          await initBibleData();
+        },
+        preloadRuntimeTranslations: async () => {
+          const { bootstrapRuntimeTranslationsAndPreferences } = await import(
+            './src/services/translations'
+          );
+          await bootstrapRuntimeTranslationsAndPreferences();
+          const { useBibleStore } = await import('./src/stores/bibleStore');
+          await useBibleStore.getState().reconcileTranslationPacks();
+        },
         migrateStorage: async () => {
           await migrateFromAsyncStorage();
-          await reconcileTranslationPacks();
         },
         scheduleTask: (task) => {
           const handle = InteractionManager.runAfterInteractions(() => {
@@ -92,7 +81,7 @@ function LoadingScreen() {
           );
         },
       }),
-    [initializeAuth, initializePrivacy, reconcileTranslationPacks]
+    [initializeAuth, initializePrivacy]
   );
 
   useEffect(() => {
@@ -152,9 +141,11 @@ function LoadingScreen() {
     }
 
     const recoverAudioDownloads = () => {
-      void reattachAudioDownloads().catch((error) => {
-        console.error('Failed to reattach persisted audio downloads:', error);
-      });
+      void import('./src/stores/bibleStore')
+        .then(({ useBibleStore }) => useBibleStore.getState().reattachAudioDownloads())
+        .catch((error) => {
+          console.error('Failed to reattach persisted audio downloads:', error);
+        });
     };
 
     recoverAudioDownloads();
@@ -170,7 +161,7 @@ function LoadingScreen() {
     return () => {
       subscription.remove();
     };
-  }, [isReady, preferences.onboardingCompleted, reattachAudioDownloads]);
+  }, [isReady, preferences.onboardingCompleted]);
 
   useEffect(() => {
     if (preferences.language) {
@@ -240,32 +231,45 @@ function AppContent() {
   const prevAuthRef = useRef(isAuthenticated);
   const prevUserUidRef = useRef(user?.uid ?? null);
   const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
-  useSync();
-  usePrivacyLock();
 
   useEffect(() => {
     if (!onboardingCompleted || isPrivacyLocked) {
       return;
     }
 
+    const startAnalyticsSessions = () => {
+      void import('./src/services/analytics').then(
+        ({ startAnonymousUsageSession, startSession }) => {
+          startAnonymousUsageSession();
+          startSession();
+        }
+      );
+    };
+
+    const endAndFlushAnalyticsSessions = () => {
+      void import('./src/services/analytics').then(
+        ({ endAnonymousUsageSession, flushAnonymousUsageEvents, endSession, flushEvents }) => {
+          endAnonymousUsageSession();
+          void flushAnonymousUsageEvents();
+          endSession();
+          void flushEvents();
+        }
+      );
+    };
+
     if (AppState.currentState === 'active') {
-      startAnonymousUsageSession();
-      startSession();
+      startAnalyticsSessions();
     }
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       const previousAppState = anonymousUsageAppStateRef.current;
 
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
-        startAnonymousUsageSession();
-        startSession();
+        startAnalyticsSessions();
       }
 
       if (previousAppState === 'active' && nextAppState.match(/inactive|background/)) {
-        endAnonymousUsageSession();
-        void flushAnonymousUsageEvents();
-        endSession();
-        void flushEvents();
+        endAndFlushAnalyticsSessions();
       }
 
       anonymousUsageAppStateRef.current = nextAppState;
@@ -275,23 +279,30 @@ function AppContent() {
       subscription.remove();
 
       if (anonymousUsageAppStateRef.current === 'active') {
-        endAnonymousUsageSession();
-        void flushAnonymousUsageEvents();
-        endSession();
-        void flushEvents();
+        endAndFlushAnalyticsSessions();
       }
     };
   }, [isPrivacyLocked, onboardingCompleted]);
 
   // Set up Android notification channels on mount (idempotent, no-op on iOS).
   useEffect(() => {
-    void setupAndroidChannels();
+    const handle = InteractionManager.runAfterInteractions(() => {
+      void import('./src/services/notifications').then(({ setupAndroidChannels }) =>
+        setupAndroidChannels()
+      );
+    });
+
+    return () => {
+      handle.cancel();
+    };
   }, []);
 
   // Register push token after authentication. Re-runs whenever the user changes.
   useEffect(() => {
     if (isAuthenticated && user?.uid) {
-      void registerPushToken(user.uid);
+      void import('./src/services/notifications').then(({ registerPushToken }) =>
+        registerPushToken(user.uid)
+      );
     }
   }, [isAuthenticated, user?.uid]);
 
@@ -304,7 +315,9 @@ function AppContent() {
     prevUserUidRef.current = user?.uid ?? null;
 
     if (wasAuthenticated && !isAuthenticated && prevUid) {
-      void deactivatePushToken(prevUid);
+      void import('./src/services/notifications').then(({ deactivatePushToken }) =>
+        deactivatePushToken(prevUid)
+      );
     }
   }, [isAuthenticated, user?.uid]);
 
@@ -323,7 +336,9 @@ function AppContent() {
     const subscription = Notifications.addPushTokenListener((devicePushToken) => {
       const currentUser = useAuthStore.getState().user;
       if (currentUser?.uid) {
-        void registerPushToken(currentUser.uid, devicePushToken);
+        void import('./src/services/notifications').then(({ registerPushToken }) =>
+          registerPushToken(currentUser.uid, devicePushToken)
+        );
       }
     });
     return () => subscription.remove();
@@ -332,11 +347,44 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <AppRuntimeEffectsHost enabled={onboardingCompleted} />
       <ErrorBoundary>
         <LoadingScreen />
       </ErrorBoundary>
     </>
   );
+}
+
+type RuntimeEffectsComponent = () => null;
+
+function AppRuntimeEffectsHost({ enabled }: { enabled: boolean }) {
+  const [RuntimeEffects, setRuntimeEffects] = useState<RuntimeEffectsComponent | null>(null);
+
+  useEffect(() => {
+    if (!enabled || RuntimeEffects) {
+      return;
+    }
+
+    let isCancelled = false;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      void import('./src/services/startup/AppRuntimeEffects')
+        .then(({ AppRuntimeEffects }) => {
+          if (!isCancelled) {
+            setRuntimeEffects(() => AppRuntimeEffects);
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load runtime app effects:', error);
+        });
+    });
+
+    return () => {
+      isCancelled = true;
+      handle.cancel();
+    };
+  }, [RuntimeEffects, enabled]);
+
+  return RuntimeEffects ? <RuntimeEffects /> : null;
 }
 
 const styles = StyleSheet.create({

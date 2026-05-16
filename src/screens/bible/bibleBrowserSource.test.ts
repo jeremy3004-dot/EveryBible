@@ -39,6 +39,28 @@ test('Bible browser exposes a search input that drives the deferred query', () =
   );
 });
 
+test('Bible browser keeps SQLite search services out of the first browser render', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes("import { searchBible } from '../../services/bible/bibleService';"),
+    false,
+    'BibleBrowserScreen should not statically import the SQLite-backed search service before the user types a full-text query'
+  );
+
+  assert.equal(
+    source.includes("from '../../services/bible/bibleDatabase'"),
+    false,
+    'BibleBrowserScreen should not statically import the database module just to classify search errors'
+  );
+
+  assert.match(
+    source,
+    /const \{ searchBible \} = await import\('\.\.\/\.\.\/services\/bible\/bibleService'\);/,
+    'BibleBrowserScreen should load the search service inside the debounced full-text search path'
+  );
+});
+
 test('Bible browser can focus search when launched from the reader chrome', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
   const navigationTypes = readRelativeSource('../../navigation/types.ts');
@@ -263,6 +285,28 @@ test('Bible browser translation selector is delegated to the shared picker', () 
     source.includes('TranslationPickerList'),
     true,
     'BibleBrowserScreen should delegate the selector UI to TranslationPickerList so Bible and Settings stay aligned'
+  );
+});
+
+test('Bible browser defers the shared translation picker until the modal opens', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes("import { TranslationPickerList } from './TranslationPickerList';"),
+    false,
+    'BibleBrowserScreen should not statically import TranslationPickerList because that pulls catalog and audio helpers into the browser first render'
+  );
+
+  assert.match(
+    source,
+    /void import\('\.\/TranslationPickerList'\)\.then/,
+    'BibleBrowserScreen should dynamically import TranslationPickerList when the translation modal is requested'
+  );
+
+  assert.match(
+    source,
+    /!showTranslationModal \|\| TranslationPickerComponent/,
+    'BibleBrowserScreen should gate the dynamic picker import on the modal being opened'
   );
 });
 

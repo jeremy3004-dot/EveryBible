@@ -4,6 +4,7 @@ import type { DevicePushToken } from 'expo-notifications';
 import Constants from 'expo-constants';
 import i18n from '../../i18n';
 import { supabase } from '../supabase';
+export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
  * Module-level cache for the current push token.
@@ -29,23 +30,6 @@ function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null
   }
 
   return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
-}
-
-/**
- * Register the foreground notification handler so banners are shown instead
- * of being silently dropped while the app is in the foreground.
- *
- * Must be called at module scope (before any component renders) in App.tsx.
- */
-export function setupNotificationHandler(): void {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
 }
 
 /**
