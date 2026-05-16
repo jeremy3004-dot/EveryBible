@@ -291,6 +291,16 @@ test('translation picker keeps the sheet open while a runtime translation still 
   );
 });
 
+test('translation picker activates a runtime text translation after download completes', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /await downloadTranslation\(translation\.id\);[\s\S]*setCurrentTranslation\(translation\.id\);[\s\S]*onRequestClose\?\.\(\);[\s\S]*onTranslationActivated\?\.\(/,
+    'Downloaded runtime text translations should become the active Bible immediately after the install finishes'
+  );
+});
+
 test('translation picker renders collection, by-book, and text chip download actions', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
 

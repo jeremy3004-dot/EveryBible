@@ -76,6 +76,14 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
   const preferredTranslation = state.translations.find((translation) => translation.id === preferredId);
 
   if (!preferredTranslation || !isReadableLocally(preferredTranslation)) {
+    if (preferredTranslation?.catalog?.text?.downloadUrl) {
+      try {
+        await state.downloadTranslation(preferredId);
+        useBibleStore.getState().setCurrentTranslation(preferredId);
+      } catch (error) {
+        console.warn('[Bible] Failed to install preferred translation:', preferredId, error);
+      }
+    }
     return;
   }
 

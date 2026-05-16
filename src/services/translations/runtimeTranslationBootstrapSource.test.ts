@@ -28,3 +28,13 @@ test('ensureRuntimeCatalogLoaded refreshes once per launch instead of stopping a
     'bootstrapRuntimeTranslations should mark the launch-scoped hydration flag once the remote catalog has been applied'
   );
 });
+
+test('primary translation reconciliation installs remote text packs before falling back to BSB', () => {
+  const source = readRelativeSource('./runtimeTranslationBootstrap.ts');
+
+  assert.match(
+    source,
+    /preferredTranslation\?\.catalog\?\.text\?\.downloadUrl[\s\S]*await state\.downloadTranslation\(preferredId\);[\s\S]*useBibleStore\.getState\(\)\.setCurrentTranslation\(preferredId\);/,
+    'Preferred runtime translations with text packs should be downloaded and activated during startup reconciliation'
+  );
+});

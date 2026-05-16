@@ -15,12 +15,12 @@ import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '..
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n } from '../../hooks';
+import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import {
-  getAudioAvailability,
   isAudioBookDownloaded,
-  isRemoteAudioAvailable,
   isTranslationAudioDownloaded,
-} from '../../services/audio';
+} from '../../services/audio/audioDownloads';
+import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { BibleTranslation } from '../../types';
 import {
@@ -315,6 +315,14 @@ export function TranslationPickerList({
 
     try {
       await downloadTranslation(translation.id);
+      setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
+      setCurrentTranslation(translation.id);
+      onRequestClose?.();
+      onTranslationActivated?.(
+        useBibleStore
+          .getState()
+          .translations.find((candidate) => candidate.id === translation.id) ?? translation
+      );
     } catch (error) {
       Alert.alert(
         t('common.error'),
