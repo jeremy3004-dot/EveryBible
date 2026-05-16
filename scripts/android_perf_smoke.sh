@@ -315,6 +315,18 @@ open_reader_translation_picker() {
   poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null
 }
 
+prepare_bible_browser() {
+  prepare_fresh_onboarded_home
+  adb_shell input tap 216 1185 >/dev/null 2>&1 || true
+  poll_content "Old Testament|Genesis|Exodus|Bible" >/dev/null || true
+}
+
+open_browser_translation_picker() {
+  adb_shell input tap 570 140 >/dev/null 2>&1 || true
+  sleep 1.2
+  poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null
+}
+
 get_gfxinfo_summary() {
   local output
   output="$(adb_shell dumpsys gfxinfo "$PACKAGE_NAME" 2>/dev/null || true)"
@@ -620,13 +632,11 @@ measure_reader_audio_start() {
 measure_translation_picker_open() {
   echo "## translation_picker_open content_ready"
   for run in $(seq 1 "$CONTENT_RUNS"); do
-    adb_shell am force-stop "$PACKAGE_NAME" >/dev/null 2>&1 || true
-    adb_shell am start -W -a android.intent.action.VIEW -d com.everybible.app://bible/john/3 "$PACKAGE_NAME" >/dev/null 2>&1 || true
-    poll_content "John 3|For God|Previous chapter|Play chapter audio" >/dev/null || true
+    prepare_bible_browser
 
     local start
     start="$(now_ms)"
-    open_reader_translation_picker
+    open_browser_translation_picker
 
     local content_ms="NA"
     local found="false"
@@ -645,10 +655,8 @@ measure_translation_picker_open() {
 
 measure_translation_picker_scroll() {
   echo "## translation_picker_scroll command_response"
-  adb_shell am force-stop "$PACKAGE_NAME" >/dev/null 2>&1 || true
-  adb_shell am start -W -a android.intent.action.VIEW -d com.everybible.app://bible/john/3 "$PACKAGE_NAME" >/dev/null 2>&1 || true
-  poll_content "John 3|For God|Previous chapter|Play chapter audio" >/dev/null || true
-  open_reader_translation_picker || true
+  prepare_bible_browser
+  open_browser_translation_picker || true
 
   for run in $(seq 1 "$CONTENT_RUNS"); do
     local start

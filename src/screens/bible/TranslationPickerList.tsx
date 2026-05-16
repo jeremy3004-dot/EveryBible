@@ -61,7 +61,7 @@ type TranslationPickerRow =
   | { type: 'section-header'; id: string; label: string; title?: string }
   | { type: 'translation'; id: string; translation: BibleTranslation };
 
-const TRANSLATION_PICKER_ROW_ESTIMATED_SIZE = 116;
+const TRANSLATION_PICKER_ROW_ESTIMATED_SIZE = 172;
 
 export function TranslationPickerList({
   onRequestClose,
