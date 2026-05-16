@@ -259,8 +259,9 @@ import sys
 path, pattern = sys.argv[1], sys.argv[2]
 source = open(path, encoding="utf-8", errors="ignore").read()
 matcher = re.compile(pattern, re.I)
+candidates = []
 
-for node in re.findall(r"<node\b[^>]*>", source):
+for index, node in enumerate(re.findall(r"<node\b[^>]*>", source)):
     text_match = re.search(r'text="([^"]*)"', node)
     desc_match = re.search(r'content-desc="([^"]*)"', node)
     label = " ".join(
@@ -276,8 +277,16 @@ for node in re.findall(r"<node\b[^>]*>", source):
         continue
 
     x1, y1, x2, y2 = map(int, bounds_match.groups())
+    if x2 <= x1 or y2 <= y1:
+        continue
+
+    clickable = 'clickable="true"' in node
+    area = (x2 - x1) * (y2 - y1)
+    candidates.append((0 if clickable else 1, -area, index, x1, y1, x2, y2))
+
+if candidates:
+    _, _, _, x1, y1, x2, y2 = sorted(candidates)[0]
     print(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
-    break
 PY
     )"
   fi
@@ -291,6 +300,19 @@ PY
 
 reset_gfxinfo() {
   adb_shell dumpsys gfxinfo "$PACKAGE_NAME" reset >/dev/null 2>&1 || true
+}
+
+open_reader_translation_picker() {
+  for tap_point in "212 128" "236 128" "212 154"; do
+    adb_shell input tap $tap_point >/dev/null 2>&1 || true
+    sleep 0.7
+    if poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null; then
+      return 0
+    fi
+  done
+
+  tap_matching_ui "BSB|Berean|Standard" 212 128
+  poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null
 }
 
 get_gfxinfo_summary() {
@@ -335,13 +357,19 @@ PY
 }
 
 complete_onboarding_if_needed() {
-  for _ in $(seq 1 6); do
+  for _ in $(seq 1 8); do
     dump_ui_xml /tmp/everybible-android-perf-window.xml || return 0
     if ! rg -q "Set Up Your Bible Experience|Step [0-9]+ of [0-9]+" /tmp/everybible-android-perf-window.xml; then
       return 0
     fi
 
-    tap_matching_ui "Berean|World English|King James|English|Español|Spanish|United States|Nepal" 360 360
+    if rg -q "Berean Standard Bible|Public-domain Berean|onboarding-translation-search|Translations" /tmp/everybible-android-perf-window.xml; then
+      tap_matching_ui "Berean Standard Bible|BSB|Public-domain Berean" 360 430
+      sleep 2.5
+      continue
+    fi
+
+    tap_matching_ui "English|United States|Nepal|Español|Spanish" 360 360
     sleep 0.5
     tap_matching_ui "Continue|Get Started|Start|Done|Finish" 500 1160
     sleep 1.2
@@ -598,7 +626,7 @@ measure_translation_picker_open() {
 
     local start
     start="$(now_ms)"
-    tap_matching_ui "BSB|Berean|Standard" 330 128
+    open_reader_translation_picker
 
     local content_ms="NA"
     local found="false"
@@ -620,8 +648,7 @@ measure_translation_picker_scroll() {
   adb_shell am force-stop "$PACKAGE_NAME" >/dev/null 2>&1 || true
   adb_shell am start -W -a android.intent.action.VIEW -d com.everybible.app://bible/john/3 "$PACKAGE_NAME" >/dev/null 2>&1 || true
   poll_content "John 3|For God|Previous chapter|Play chapter audio" >/dev/null || true
-  tap_matching_ui "BSB|Berean|Standard" 330 128
-  poll_content "Select Translation|My Translations|Available|translation-picker-search" >/dev/null || true
+  open_reader_translation_picker || true
 
   for run in $(seq 1 "$CONTENT_RUNS"); do
     local start
