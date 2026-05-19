@@ -86,7 +86,15 @@ export default async function Home() {
       <header className="site-header" aria-label="EveryBible navigation">
         <div className="site-header__inner">
           <a className="site-wordmark" href="/" aria-label="EveryBible">
-            EveryBible
+            <Image
+              className="site-wordmark__mark"
+              src="/everylanguage/symbol-blue.png"
+              alt=""
+              width={42}
+              height={30}
+              priority
+            />
+            <span>EveryBible</span>
           </a>
 
           <nav className="site-nav" aria-label="Primary">
@@ -123,7 +131,7 @@ export default async function Home() {
 
             <h1 className="hero__headline">
               God&rsquo;s Word.<br />
-              <em>Every Language.</em><br />
+              <span>Every Language.</span><br />
               Every Device.
             </h1>
 
@@ -188,7 +196,14 @@ export default async function Home() {
           <div className="features__grid">
             {featureCards.map((card) => (
               <article key={card.title} className="feature-card">
-                <div className="feature-card__accent" aria-hidden="true" />
+                <Image
+                  className="feature-card__icon"
+                  src={card.iconSrc}
+                  alt=""
+                  width={48}
+                  height={48}
+                  aria-hidden="true"
+                />
                 <h3 className="feature-card__title">{card.title}</h3>
                 <p className="feature-card__desc">{card.description}</p>
                 <a className="feature-card__link" href={card.href}>
