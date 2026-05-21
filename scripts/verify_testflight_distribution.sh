@@ -152,7 +152,7 @@ fi
 
 if [[ -z "$GROUP_ID" && -n "$GROUP_NAME" ]]; then
   GROUPS_JSON="$TMP_DIR/groups.json"
-  asc testflight beta-groups list --app "$APP_ID" --output json > "$GROUPS_JSON"
+  asc testflight groups list --app "$APP_ID" --output json > "$GROUPS_JSON"
   GROUP_ID="$(
     GROUP_NAME_ENV="$GROUP_NAME" python3 - "$GROUPS_JSON" <<'PY'
 import json
@@ -177,7 +177,7 @@ fi
 GROUP_HAS_BUILD="unknown"
 if [[ -n "$GROUP_ID" ]]; then
   GROUP_BUILDS_JSON="$TMP_DIR/group-builds.json"
-  asc testflight beta-groups relationships get --group-id "$GROUP_ID" --type builds --output json > "$GROUP_BUILDS_JSON"
+  asc testflight groups links view --group-id "$GROUP_ID" --type builds --paginate --output json > "$GROUP_BUILDS_JSON"
   GROUP_HAS_BUILD="$(
     BUILD_ID_ENV="$BUILD_ID" python3 - "$GROUP_BUILDS_JSON" <<'PY'
 import json
@@ -194,8 +194,8 @@ PY
   echo "group_has_build=$GROUP_HAS_BUILD"
 
   if [[ "$GROUP_HAS_BUILD" != "true" && "$ATTACH_GROUP_IF_MISSING" == "true" ]]; then
-    asc builds add-groups --build "$BUILD_ID" --group "$GROUP_ID" >/dev/null
-    asc testflight beta-groups relationships get --group-id "$GROUP_ID" --type builds --output json > "$GROUP_BUILDS_JSON"
+    asc builds add-groups --build-id "$BUILD_ID" --group "$GROUP_ID" >/dev/null
+    asc testflight groups links view --group-id "$GROUP_ID" --type builds --paginate --output json > "$GROUP_BUILDS_JSON"
     GROUP_HAS_BUILD="$(
       BUILD_ID_ENV="$BUILD_ID" python3 - "$GROUP_BUILDS_JSON" <<'PY'
 import json
@@ -215,7 +215,7 @@ fi
 
 if [[ -z "$TESTER_ID" && -n "$TESTER_EMAIL" ]]; then
   TESTERS_JSON="$TMP_DIR/testers.json"
-  asc testflight beta-testers list --app "$APP_ID" --output json > "$TESTERS_JSON"
+  asc testflight testers list --app "$APP_ID" --output json > "$TESTERS_JSON"
   TESTER_ID="$(
     TESTER_EMAIL_ENV="$TESTER_EMAIL" python3 - "$TESTERS_JSON" <<'PY'
 import json
@@ -241,7 +241,7 @@ fi
 TESTER_HAS_BUILD="unknown"
 if [[ -n "$TESTER_ID" ]]; then
   TESTER_BUILDS_JSON="$TMP_DIR/tester-builds.json"
-  asc testflight beta-testers builds list --tester-id "$TESTER_ID" --output json > "$TESTER_BUILDS_JSON"
+  asc testflight testers builds list --tester-id "$TESTER_ID" --output json > "$TESTER_BUILDS_JSON"
   TESTER_HAS_BUILD="$(
     BUILD_ID_ENV="$BUILD_ID" python3 - "$TESTER_BUILDS_JSON" <<'PY'
 import json
@@ -256,8 +256,8 @@ PY
   )"
 
   if [[ "$TESTER_HAS_BUILD" != "true" && "$ATTACH_TESTER_IF_MISSING" == "true" ]]; then
-    asc testflight beta-testers add-builds --id "$TESTER_ID" --build "$BUILD_ID" >/dev/null
-    asc testflight beta-testers builds list --tester-id "$TESTER_ID" --output json > "$TESTER_BUILDS_JSON"
+    asc testflight testers add-builds --id "$TESTER_ID" --build-id "$BUILD_ID" >/dev/null
+    asc testflight testers builds list --tester-id "$TESTER_ID" --output json > "$TESTER_BUILDS_JSON"
     TESTER_HAS_BUILD="$(
       BUILD_ID_ENV="$BUILD_ID" python3 - "$TESTER_BUILDS_JSON" <<'PY'
 import json
