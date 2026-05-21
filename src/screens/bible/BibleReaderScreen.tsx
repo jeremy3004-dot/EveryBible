@@ -173,6 +173,7 @@ const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
 const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
+const CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS = 3000;
 
 type ChapterFeedbackAudioState =
   | 'idle'
@@ -181,6 +182,37 @@ type ChapterFeedbackAudioState =
   | 'uploading'
   | 'success'
   | 'error';
+
+const waitForFeedbackAudioActiveAppState = async (): Promise<boolean> => {
+  if (AppState.currentState === 'active') {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        settle(true);
+      }
+    });
+    const timeout = setTimeout(() => {
+      settle(AppState.currentState === 'active');
+    }, CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS);
+    if (AppState.currentState === 'active') {
+      settle(true);
+    }
+
+    function settle(isActive: boolean) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      subscription.remove();
+      resolve(isActive);
+    }
+  });
+};
 
 async function loadAudioShareDependencies() {
   const [downloadStorage, downloadService, remoteAudio, shareService, FileSystem] =
@@ -2766,6 +2798,15 @@ export function BibleReaderScreen() {
 
       setFeedbackAudioDraft(null);
       setFeedbackAudioElapsedMs(0);
+      const isAppActive = await waitForFeedbackAudioActiveAppState();
+      if (!isAppActive) {
+        setFeedbackAudioState('error');
+        setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -2788,14 +2829,10 @@ export function BibleReaderScreen() {
           void stopFeedbackAudioRecording();
         }
       }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
-    } catch (recordingError) {
+    } catch {
       clearFeedbackAudioTimer();
       setFeedbackAudioState('error');
-      setFeedbackSubmitError(
-        recordingError instanceof Error
-          ? recordingError.message
-          : t('bible.chapterFeedbackAudioStartError')
-      );
+      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
     }
   };
 

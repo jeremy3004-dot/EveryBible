@@ -102,6 +102,10 @@ test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen
 
 test('BibleReaderScreen submits chapter feedback through the dedicated service and preserves retry state on failure', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const startRecordingBlock = source.slice(
+    source.indexOf('const startFeedbackAudioRecording'),
+    source.indexOf('const playFeedbackAudioPreview')
+  );
 
   assert.match(
     source,
@@ -112,6 +116,21 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
     source,
     /uploadChapterFeedbackAudio/,
     'BibleReaderScreen should upload a recorded audio response before submitting metadata'
+  );
+  assert.match(
+    source,
+    /waitForFeedbackAudioActiveAppState/,
+    'BibleReaderScreen should wait for the app to become active after the microphone permission prompt before preparing audio'
+  );
+  assert.match(
+    source,
+    /AppState\.addEventListener\('change'/,
+    'BibleReaderScreen should guard audio recording startup with AppState'
+  );
+  assert.doesNotMatch(
+    startRecordingBlock,
+    /recordingError instanceof Error[\s\S]*recordingError\.message/,
+    'BibleReaderScreen should not show raw native recording errors in the feedback modal'
   );
   assert.match(
     source,
