@@ -10,7 +10,25 @@ interface TranslationTree {
   [key: string]: string | TranslationTree;
 }
 
-const ALLOWED_ENGLISH_VALUES = new Set(['auth.emailPlaceholder', 'gather.lessonsProgress']);
+const ALLOWED_ENGLISH_VALUES = new Set([
+  'auth.emailPlaceholder',
+  'gather.lessonsProgress',
+  'bible.chapterFeedbackAudioIdle',
+  'bible.chapterFeedbackAudioRecording',
+  'bible.chapterFeedbackAudioReady',
+  'bible.chapterFeedbackAudioLimit',
+  'bible.chapterFeedbackAudioRecord',
+  'bible.chapterFeedbackAudioStop',
+  'bible.chapterFeedbackAudioPreview',
+  'bible.chapterFeedbackAudioRerecord',
+  'bible.chapterFeedbackAudioUploading',
+  'bible.chapterFeedbackAudioPermissionDenied',
+  'bible.chapterFeedbackAudioPermissionHelp',
+  'bible.chapterFeedbackAudioStartError',
+  'bible.chapterFeedbackAudioStopError',
+  'bible.chapterFeedbackAudioRecordingMissing',
+  'bible.chapterFeedbackAudioUploadError',
+]);
 
 const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, string]> =>
   Object.entries(tree).flatMap(([key, value]) => {

@@ -15,6 +15,8 @@ test('chapter feedback backend migration creates the durable preference flag and
   const migrationPath = 'supabase/migrations/20260327190000_create_chapter_feedback_pipeline.sql';
   const identityMigrationPath =
     'supabase/migrations/20260328180000_add_chapter_feedback_identity.sql';
+  const audioMigrationPath =
+    'supabase/migrations/20260521120000_add_chapter_feedback_audio_responses.sql';
 
   assert.equal(
     existsSync(resolveRepoPath(migrationPath)),
@@ -26,9 +28,15 @@ test('chapter feedback backend migration creates the durable preference flag and
     true,
     'Expected a follow-up migration for the chapter feedback identity fields'
   );
+  assert.equal(
+    existsSync(resolveRepoPath(audioMigrationPath)),
+    true,
+    'Expected a follow-up migration for chapter feedback audio responses'
+  );
 
   const migration = readRepoFile(migrationPath);
   const identityMigration = readRepoFile(identityMigrationPath);
+  const audioMigration = readRepoFile(audioMigrationPath);
 
   assert.match(
     migration,
@@ -75,6 +83,21 @@ test('chapter feedback backend migration creates the durable preference flag and
     /ADD COLUMN IF NOT EXISTS participant_id_number TEXT/,
     'Expected chapter_feedback_submissions to store the reviewer id number'
   );
+  assert.match(
+    audioMigration,
+    /chapter-feedback-audio/,
+    'Expected a private storage bucket for chapter feedback audio responses'
+  );
+  assert.match(
+    audioMigration,
+    /audio_response_path/,
+    'Expected chapter_feedback_submissions to store the audio storage path'
+  );
+  assert.match(
+    audioMigration,
+    /audio_response_duration_ms/,
+    'Expected chapter_feedback_submissions to store the audio duration'
+  );
 });
 
 test('chapter feedback backend contract is wired into Supabase types and synced preferences', () => {
@@ -90,6 +113,11 @@ test('chapter feedback backend contract is wired into Supabase types and synced 
     supabaseTypes,
     /export interface ChapterFeedbackSubmission/,
     'Expected Supabase types to expose a ChapterFeedbackSubmission record'
+  );
+  assert.match(
+    supabaseTypes,
+    /audio_response_path/,
+    'Expected Supabase feedback types to expose audio response metadata'
   );
   assert.match(
     syncService,
@@ -153,6 +181,16 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     functionSource,
+    /audio_response_path/,
+    'Expected the Edge Function to persist audio response metadata'
+  );
+  assert.match(
+    functionSource,
+    /audio responses require an authenticated user/,
+    'Expected the Edge Function to reject audio metadata without an authenticated owner'
+  );
+  assert.match(
+    functionSource,
     /export_status:\s*'exported'/,
     'Expected the Edge Function to mark database-saved feedback as ready for admin review'
   );
@@ -175,5 +213,10 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
     docs,
     /UUID|authenticated user|anonymous/i,
     'Expected the ops doc to explain reviewer identity for authenticated or anonymous submissions'
+  );
+  assert.match(
+    docs,
+    /chapter-feedback-audio|audio-message/i,
+    'Expected the ops doc to describe audio response storage and review'
   );
 });

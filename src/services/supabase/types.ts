@@ -58,6 +58,12 @@ export interface ChapterFeedbackSubmission {
   participant_name: string | null;
   participant_role: string | null;
   participant_id_number: string | null;
+  audio_response_bucket: string | null;
+  audio_response_path: string | null;
+  audio_response_mime_type: string | null;
+  audio_response_size_bytes: number | null;
+  audio_response_duration_ms: number | null;
+  audio_response_created_at: string | null;
   book_id: string;
   chapter: number;
   sentiment: 'up' | 'down';

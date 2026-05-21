@@ -52,6 +52,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                 <th>Sentiment</th>
                 <th>Reviewer</th>
                 <th>Comment</th>
+                <th>Audio</th>
                 <th>Source</th>
               </tr>
             </thead>
@@ -81,6 +82,26 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                   </td>
                   <td>{item.comment ?? <span className="table-note">No comment</span>}</td>
                   <td>
+                    {item.audioResponse?.signedUrl ? (
+                      <div>
+                        <audio
+                          controls
+                          preload="none"
+                          src={item.audioResponse.signedUrl}
+                          aria-label={`Audio response for ${item.bookId} ${item.chapter}`}
+                        />
+                        <p className="table-note">
+                          {Math.round(item.audioResponse.durationMs / 1000)}s /{' '}
+                          {item.audioResponse.mimeType}
+                        </p>
+                      </div>
+                    ) : item.audioResponse ? (
+                      <span className="table-note">Audio unavailable</span>
+                    ) : (
+                      <span className="table-note">No audio</span>
+                    )}
+                  </td>
+                  <td>
                     {item.sourceScreen}
                     <p className="table-note">
                       {item.appLabel} / {item.interfaceLanguage}
@@ -90,7 +111,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
               ))}
               {feedback.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No chapter feedback matches this filter.</td>
+                  <td colSpan={7}>No chapter feedback matches this filter.</td>
                 </tr>
               ) : null}
             </tbody>

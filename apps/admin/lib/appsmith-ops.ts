@@ -32,6 +32,12 @@ type SyncRunOpsRow = {
 type ChapterFeedbackOpsRow = {
   app_platform: string | null;
   app_version: string | null;
+  audio_response_bucket: string | null;
+  audio_response_created_at: string | null;
+  audio_response_duration_ms: number | null;
+  audio_response_mime_type: string | null;
+  audio_response_path: string | null;
+  audio_response_size_bytes: number | null;
   book_id: string;
   chapter: number;
   comment: string | null;
@@ -230,7 +236,7 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
   let query = service
     .from('chapter_feedback_submissions')
     .select(
-      'id, created_at, translation_language, translation_id, book_id, chapter, sentiment, comment, participant_name, participant_role, interface_language, content_language_code, content_language_name, source_screen, app_platform, app_version, export_status, exported_at, export_error'
+      'id, created_at, translation_language, translation_id, book_id, chapter, sentiment, comment, participant_name, participant_role, interface_language, content_language_code, content_language_name, source_screen, app_platform, app_version, export_status, exported_at, export_error, audio_response_bucket, audio_response_path, audio_response_mime_type, audio_response_size_bytes, audio_response_duration_ms, audio_response_created_at'
     )
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -245,6 +251,23 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
   }
 
   const rows = (data ?? []) as ChapterFeedbackOpsRow[];
+  const signedAudioUrls = await Promise.all(
+    rows.map(async (row) => {
+      if (!row.audio_response_bucket || !row.audio_response_path) {
+        return null;
+      }
+
+      const { data: signedUrlData, error: signedUrlError } = await service.storage
+        .from(row.audio_response_bucket)
+        .createSignedUrl(row.audio_response_path, 60 * 60);
+
+      if (signedUrlError) {
+        return null;
+      }
+
+      return signedUrlData.signedUrl;
+    })
+  );
   const statusCounts = summarizeCounts(
     rows.map((row) => row.export_status),
     ['pending', 'exported', 'failed'] as const
@@ -263,9 +286,19 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
       exportStatus: statusCounts,
       sentiment: sentimentCounts,
     },
-    feedback: rows.map((row) => ({
+    feedback: rows.map((row, index) => ({
       appPlatform: row.app_platform,
       appVersion: row.app_version,
+      audioResponse:
+        row.audio_response_path && row.audio_response_duration_ms && row.audio_response_mime_type
+          ? {
+              createdAt: row.audio_response_created_at,
+              durationMs: row.audio_response_duration_ms,
+              mimeType: row.audio_response_mime_type,
+              playbackUrl: signedAudioUrls[index],
+              sizeBytes: row.audio_response_size_bytes,
+            }
+          : null,
       bookId: row.book_id,
       chapter: row.chapter,
       commentPreview: row.comment ? row.comment.slice(0, 240) : null,

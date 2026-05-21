@@ -19,9 +19,19 @@ interface ChapterFeedbackRequest {
   contentLanguageName?: string | null;
   participantName?: string | null;
   participantRole?: string | null;
+  audioResponse?: ChapterFeedbackAudioRequest | null;
   sourceScreen?: string;
   appPlatform?: string | null;
   appVersion?: string | null;
+}
+
+interface ChapterFeedbackAudioRequest {
+  bucket?: string;
+  path?: string;
+  durationMs?: number;
+  mimeType?: string;
+  sizeBytes?: number | null;
+  createdAt?: string;
 }
 
 interface ChapterFeedbackInsert {
@@ -34,6 +44,12 @@ interface ChapterFeedbackInsert {
   participant_name: string | null;
   participant_role: string | null;
   participant_id_number: string | null;
+  audio_response_bucket: string | null;
+  audio_response_path: string | null;
+  audio_response_mime_type: string | null;
+  audio_response_size_bytes: number | null;
+  audio_response_duration_ms: number | null;
+  audio_response_created_at: string | null;
   book_id: string;
   chapter: number;
   sentiment: Sentiment;
@@ -81,7 +97,8 @@ const getRequiredSecret = (name: string): string => {
 };
 
 const validateRequest = (
-  body: ChapterFeedbackRequest
+  body: ChapterFeedbackRequest,
+  userId: string | null
 ): { value?: ChapterFeedbackInsert; error?: string } => {
   const translationId = requireNonEmptyString(body.translationId);
   const translationLanguage = requireNonEmptyString(body.translationLanguage);
@@ -110,6 +127,48 @@ const validateRequest = (
     return { error: 'comment must be 2000 characters or fewer' };
   }
 
+  const audioResponse = body.audioResponse ?? null;
+  if (audioResponse) {
+    if (!userId) {
+      return { error: 'audio responses require an authenticated user' };
+    }
+
+    if (audioResponse.bucket !== 'chapter-feedback-audio') {
+      return { error: 'audio response bucket is not supported' };
+    }
+
+    const audioPath = requireNonEmptyString(audioResponse.path);
+    if (!audioPath || !audioPath.startsWith(`${userId}/`)) {
+      return { error: 'audio response path is invalid for this user' };
+    }
+
+    if (audioResponse.mimeType !== 'audio/mp4') {
+      return { error: 'audio response must use audio/mp4' };
+    }
+
+    if (
+      !Number.isInteger(audioResponse.durationMs) ||
+      (audioResponse.durationMs ?? 0) < 500 ||
+      (audioResponse.durationMs ?? 0) > 120000
+    ) {
+      return { error: 'audio response duration must be between 0.5 and 120 seconds' };
+    }
+
+    if (
+      audioResponse.sizeBytes != null &&
+      (!Number.isInteger(audioResponse.sizeBytes) ||
+        audioResponse.sizeBytes < 1 ||
+        audioResponse.sizeBytes > 5242880)
+    ) {
+      return { error: 'audio response size must be 5 MB or smaller' };
+    }
+
+    const createdAtTime = Date.parse(audioResponse.createdAt ?? '');
+    if (!Number.isFinite(createdAtTime)) {
+      return { error: 'audio response createdAt must be an ISO timestamp' };
+    }
+  }
+
   return {
     value: {
       user_id: null,
@@ -121,6 +180,12 @@ const validateRequest = (
       participant_name: participantName,
       participant_role: participantRole,
       participant_id_number: null,
+      audio_response_bucket: audioResponse ? 'chapter-feedback-audio' : null,
+      audio_response_path: audioResponse?.path ?? null,
+      audio_response_mime_type: audioResponse?.mimeType ?? null,
+      audio_response_size_bytes: audioResponse?.sizeBytes ?? null,
+      audio_response_duration_ms: audioResponse?.durationMs ?? null,
+      audio_response_created_at: audioResponse?.createdAt ?? null,
       book_id: bookId,
       chapter: body.chapter,
       sentiment: body.sentiment,
@@ -170,7 +235,7 @@ Deno.serve(async (req) => {
     }
 
     const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
-    const validation = validateRequest(requestBody);
+    const validation = validateRequest(requestBody, userId);
 
     if (!validation.value) {
       return jsonResponse(400, { success: false, error: validation.error });

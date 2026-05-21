@@ -20,9 +20,19 @@ export interface ChapterFeedbackSubmissionInput {
   contentLanguageName: string | null;
   participantName: string | null;
   participantRole: string | null;
+  audioResponse?: ChapterFeedbackAudioResponseInput | null;
   sourceScreen: ChapterFeedbackSourceScreen;
   appPlatform: string;
   appVersion: string;
+}
+
+export interface ChapterFeedbackAudioResponseInput {
+  bucket: string;
+  path: string;
+  durationMs: number;
+  mimeType: string;
+  sizeBytes: number | null;
+  createdAt: string;
 }
 
 export interface ChapterFeedbackFunctionResponse {
@@ -149,6 +159,7 @@ function buildPayload(
     comment: normalizeComment(input.comment ?? null),
     participantName: normalizedIdentity?.name ?? null,
     participantRole: normalizedIdentity?.role ?? null,
+    audioResponse: input.audioResponse ?? null,
     appPlatform: input.appPlatform ?? process.env.EXPO_OS ?? 'unknown',
     appVersion: input.appVersion ?? config.version,
   };

@@ -141,6 +141,50 @@ test('submitChapterFeedback converts a blank comment to null before invoke', asy
   assert.equal(calls[0]?.comment, null);
 });
 
+test('submitChapterFeedback forwards uploaded audio response metadata', async () => {
+  resetTrackedBibleExperienceEvents();
+  const calls: Array<ChapterFeedbackSubmissionInput> = [];
+
+  const result = await submitChapterFeedback(
+    {
+      ...baseInput,
+      comment: null,
+      audioResponse: {
+        bucket: 'chapter-feedback-audio',
+        path: 'user-1/bsb/jhn/3/audio.m4a',
+        durationMs: 42000,
+        mimeType: 'audio/mp4',
+        sizeBytes: 345678,
+        createdAt: '2026-05-21T12:00:00.000Z',
+      },
+    },
+    {
+      invoke: async (_functionName, { body }) => {
+        calls.push(body);
+        return {
+          data: {
+            success: true,
+            saved: true,
+            exported: false,
+            feedbackId: 'feedback-audio',
+          },
+          error: null,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(calls[0]?.audioResponse, {
+    bucket: 'chapter-feedback-audio',
+    path: 'user-1/bsb/jhn/3/audio.m4a',
+    durationMs: 42000,
+    mimeType: 'audio/mp4',
+    sizeBytes: 345678,
+    createdAt: '2026-05-21T12:00:00.000Z',
+  });
+});
+
 test('submitChapterFeedback allows anonymous reviewer identity', async () => {
   resetTrackedBibleExperienceEvents();
   const calls: Array<ChapterFeedbackSubmissionInput> = [];

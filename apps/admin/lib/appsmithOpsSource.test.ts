@@ -102,8 +102,11 @@ test('Appsmith ops responses omit raw internal notes and media delivery values',
 test('Appsmith ops feedback endpoint returns triage data without raw user identifiers', () => {
   assert.match(opsSource, /participant_name/);
   assert.match(opsSource, /commentPreview/);
+  assert.match(opsSource, /audioResponse/);
+  assert.match(opsSource, /playbackUrl/);
   assert.doesNotMatch(opsSource, /participant_id_number/);
   assert.doesNotMatch(opsSource, /user_id/);
+  assert.doesNotMatch(opsSource, /path:\s*row\.audio_response_path/);
 });
 
 test('Appsmith ops media health encodes manifest-policy issue names', () => {

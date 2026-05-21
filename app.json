@@ -21,6 +21,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
+        "NSMicrophoneUsageDescription": "Allow Every Bible to record audio responses for chapter feedback.",
         "NSCameraUsageDescription": "Allow Every Bible to access your camera if you choose to take a profile photo.",
         "NSPhotoLibraryUsageDescription": "Allow Every Bible to access your photo library so you can choose a profile photo.",
         "UIBackgroundModes": [
@@ -41,6 +42,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.FOREGROUND_SERVICE"
       ]
     },

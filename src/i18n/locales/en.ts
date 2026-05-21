@@ -145,6 +145,23 @@ export const en = {
     chapterFeedbackPlaceholder: 'Optional comment about this chapter',
     chapterFeedbackSelectionHint: 'Tap thumbs up or thumbs down to add an optional note.',
     chapterFeedbackSubmit: 'Send feedback',
+    chapterFeedbackAudioIdle: 'Record an audio response instead',
+    chapterFeedbackAudioRecording: 'Recording {{duration}}',
+    chapterFeedbackAudioReady: 'Audio response ready: {{duration}}',
+    chapterFeedbackAudioLimit: 'M4A, 2 min max',
+    chapterFeedbackAudioRecord: 'Record audio',
+    chapterFeedbackAudioStop: 'Stop',
+    chapterFeedbackAudioPreview: 'Preview audio response',
+    chapterFeedbackAudioRerecord: 'Re-record audio response',
+    chapterFeedbackAudioUploading: 'Uploading audio...',
+    chapterFeedbackAudioPermissionDenied: 'Microphone access is off. You can still type a response.',
+    chapterFeedbackAudioPermissionHelp:
+      'Turn on microphone access in system settings to submit audio feedback.',
+    chapterFeedbackAudioStartError: 'Unable to start recording. You can still type a response.',
+    chapterFeedbackAudioStopError: 'Unable to finish this recording. Please try again.',
+    chapterFeedbackAudioRecordingMissing: 'The recording could not be saved. Please try again.',
+    chapterFeedbackAudioUploadError:
+      'Audio upload failed. Your recording is still here; try submitting again.',
     chapterFeedbackSuccess:
       'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
     chapterFeedbackSavedFallback:

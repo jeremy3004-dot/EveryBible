@@ -23,6 +23,7 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -65,6 +66,12 @@ import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
 import { submitChapterFeedback } from '../../services/feedback';
+import {
+  CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
+  CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
+  uploadChapterFeedbackAudio,
+  type ChapterFeedbackAudioDraft,
+} from '../../services/feedback/chapterFeedbackAudio';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
 import {
@@ -165,6 +172,15 @@ interface AudioPortionShareDraft {
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
+const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
+
+type ChapterFeedbackAudioState =
+  | 'idle'
+  | 'recording'
+  | 'preview'
+  | 'uploading'
+  | 'success'
+  | 'error';
 
 async function loadAudioShareDependencies() {
   const [downloadStorage, downloadService, remoteAudio, shareService, FileSystem] =
@@ -553,8 +569,27 @@ export function BibleReaderScreen() {
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackAudioState, setFeedbackAudioState] =
+    useState<ChapterFeedbackAudioState>('idle');
+  const [feedbackAudioDraft, setFeedbackAudioDraft] =
+    useState<ChapterFeedbackAudioDraft | null>(null);
+  const [feedbackAudioElapsedMs, setFeedbackAudioElapsedMs] = useState(0);
+  const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
+  const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
+  const feedbackAudioStartedAtRef = useRef<number | null>(null);
+  const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
+  useEffect(() => {
+    return () => {
+      if (feedbackAudioTimerRef.current) {
+        clearInterval(feedbackAudioTimerRef.current);
+      }
+      void feedbackAudioPreviewSoundRef.current?.unloadAsync();
+      void feedbackAudioRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
+    };
+  }, []);
   const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
@@ -1166,7 +1201,7 @@ export function BibleReaderScreen() {
   const canSubmitFeedback =
     shouldEnableChapterFeedbackSubmit({
       sentiment: feedbackSentiment,
-      isSubmitting: isSubmittingFeedback,
+      isSubmitting: isSubmittingFeedback || feedbackAudioState === 'recording',
     }) && savedChapterFeedbackIdentity != null;
   const rawPresentationMode = getChapterPresentationMode({
     verses,
@@ -2647,9 +2682,156 @@ export function BibleReaderScreen() {
     setShowTranslationSheet(true);
   };
 
+  const clearFeedbackAudioTimer = () => {
+    if (feedbackAudioTimerRef.current) {
+      clearInterval(feedbackAudioTimerRef.current);
+      feedbackAudioTimerRef.current = null;
+    }
+  };
+
+  const formatFeedbackAudioDuration = (durationMs: number) => {
+    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const stopFeedbackAudioPreview = async () => {
+    if (!feedbackAudioPreviewSoundRef.current) {
+      return;
+    }
+
+    await feedbackAudioPreviewSoundRef.current.unloadAsync().catch(() => undefined);
+    feedbackAudioPreviewSoundRef.current = null;
+  };
+
+  const stopFeedbackAudioRecording = async () => {
+    const recording = feedbackAudioRecordingRef.current;
+    if (!recording) {
+      return;
+    }
+
+    clearFeedbackAudioTimer();
+    feedbackAudioRecordingRef.current = null;
+    setFeedbackAudioState('preview');
+
+    try {
+      const status = await recording.getStatusAsync();
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+
+      if (!uri) {
+        setFeedbackAudioState('error');
+        setFeedbackSubmitError(t('bible.chapterFeedbackAudioRecordingMissing'));
+        return;
+      }
+
+      const durationMs =
+        typeof status.durationMillis === 'number'
+          ? status.durationMillis
+          : feedbackAudioElapsedMs;
+      setFeedbackAudioDraft({
+        uri,
+        durationMs: Math.max(durationMs, feedbackAudioElapsedMs),
+        mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
+      });
+      setFeedbackAudioElapsedMs(Math.max(durationMs, feedbackAudioElapsedMs));
+    } catch (recordingError) {
+      setFeedbackAudioState('error');
+      setFeedbackSubmitError(
+        recordingError instanceof Error
+          ? recordingError.message
+          : t('bible.chapterFeedbackAudioStopError')
+      );
+    }
+  };
+
+  const startFeedbackAudioRecording = async () => {
+    if (isSubmittingFeedback || feedbackAudioState === 'recording') {
+      return;
+    }
+
+    await stopFeedbackAudioPreview();
+    setFeedbackSubmitError(null);
+    setFeedbackAudioPermissionDenied(false);
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        setFeedbackAudioPermissionDenied(true);
+        setFeedbackAudioState('error');
+        setFeedbackSubmitError(t('bible.chapterFeedbackAudioPermissionDenied'));
+        return;
+      }
+
+      setFeedbackAudioDraft(null);
+      setFeedbackAudioElapsedMs(0);
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      feedbackAudioRecordingRef.current = recording;
+      feedbackAudioStartedAtRef.current = Date.now();
+      setFeedbackAudioState('recording');
+      feedbackAudioTimerRef.current = setInterval(() => {
+        const elapsedMs = feedbackAudioStartedAtRef.current
+          ? Date.now() - feedbackAudioStartedAtRef.current
+          : 0;
+        setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
+
+        if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
+          void stopFeedbackAudioRecording();
+        }
+      }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
+    } catch (recordingError) {
+      clearFeedbackAudioTimer();
+      setFeedbackAudioState('error');
+      setFeedbackSubmitError(
+        recordingError instanceof Error
+          ? recordingError.message
+          : t('bible.chapterFeedbackAudioStartError')
+      );
+    }
+  };
+
+  const playFeedbackAudioPreview = async () => {
+    if (!feedbackAudioDraft) {
+      return;
+    }
+
+    await stopFeedbackAudioPreview();
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: feedbackAudioDraft.uri },
+      { shouldPlay: true }
+    );
+    feedbackAudioPreviewSoundRef.current = sound;
+  };
+
+  const discardFeedbackAudioDraft = () => {
+    void stopFeedbackAudioPreview();
+    setFeedbackAudioDraft(null);
+    setFeedbackAudioElapsedMs(0);
+    setFeedbackAudioState('idle');
+    setFeedbackAudioPermissionDenied(false);
+    setFeedbackSubmitError(null);
+  };
+
   const resetFeedbackDraft = () => {
+    if (feedbackAudioState === 'recording') {
+      void stopFeedbackAudioRecording();
+    }
+    void stopFeedbackAudioPreview();
     setFeedbackSentiment(null);
     setFeedbackComment('');
+    setFeedbackAudioDraft(null);
+    setFeedbackAudioElapsedMs(0);
+    setFeedbackAudioState('idle');
+    setFeedbackAudioPermissionDenied(false);
     setFeedbackSubmitError(null);
   };
 
@@ -2682,7 +2864,25 @@ export function BibleReaderScreen() {
     }
 
     setIsSubmittingFeedback(true);
+    if (feedbackAudioDraft) {
+      setFeedbackAudioState('uploading');
+    }
     setFeedbackSubmitError(null);
+
+    const audioUploadResult = feedbackAudioDraft
+      ? await uploadChapterFeedbackAudio(feedbackAudioDraft, {
+          translationId: currentTranslation,
+          bookId,
+          chapter,
+        })
+      : null;
+
+    if (audioUploadResult && !audioUploadResult.success) {
+      setIsSubmittingFeedback(false);
+      setFeedbackAudioState('error');
+      setFeedbackSubmitError(audioUploadResult.error ?? t('bible.chapterFeedbackAudioUploadError'));
+      return;
+    }
 
     const result = await submitChapterFeedback({
       translationId: currentTranslation,
@@ -2696,6 +2896,7 @@ export function BibleReaderScreen() {
       contentLanguageName,
       participantName: savedChapterFeedbackIdentity?.name ?? null,
       participantRole: savedChapterFeedbackIdentity?.role ?? null,
+      audioResponse: audioUploadResult?.data ?? null,
       sourceScreen,
       appPlatform: Platform.OS,
       appVersion: config.version,
@@ -2709,6 +2910,7 @@ export function BibleReaderScreen() {
       if (sourceScreen === 'reader') {
         setShowFeedbackModal(false);
       }
+      setFeedbackAudioState('success');
       resetFeedbackDraft();
 
       Alert.alert(
@@ -2720,7 +2922,149 @@ export function BibleReaderScreen() {
       return;
     }
 
+    if (feedbackAudioDraft) {
+      setFeedbackAudioState('preview');
+    }
     setFeedbackSubmitError(result.error ?? t('common.unexpectedError'));
+  };
+
+  const renderChapterFeedbackAudioControls = (compact = false) => {
+    const isRecording = feedbackAudioState === 'recording';
+    const isUploadingAudio = feedbackAudioState === 'uploading';
+    const previewDurationMs = feedbackAudioDraft?.durationMs ?? feedbackAudioElapsedMs;
+    const statusLabel = isRecording
+      ? t('bible.chapterFeedbackAudioRecording', {
+          duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
+        })
+      : feedbackAudioDraft
+        ? t('bible.chapterFeedbackAudioReady', {
+            duration: formatFeedbackAudioDuration(previewDurationMs),
+          })
+        : t('bible.chapterFeedbackAudioIdle');
+
+    return (
+      <View
+        style={[
+          styles.feedbackAudioCard,
+          compact ? styles.feedbackAudioCardCompact : null,
+          {
+            backgroundColor: colors.bibleElevatedSurface,
+            borderColor: colors.bibleDivider,
+          },
+        ]}
+      >
+        <View style={styles.feedbackAudioHeader}>
+          <View style={styles.feedbackAudioStatus}>
+            <Ionicons
+              name={isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'}
+              size={18}
+              color={isRecording ? colors.error : colors.biblePrimaryText}
+            />
+            <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
+              {statusLabel}
+            </Text>
+          </View>
+          <Text style={[styles.feedbackAudioLimitText, { color: colors.bibleSecondaryText }]}>
+            {t('bible.chapterFeedbackAudioLimit')}
+          </Text>
+        </View>
+
+        {feedbackAudioPermissionDenied ? (
+          <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
+            {t('bible.chapterFeedbackAudioPermissionHelp')}
+          </Text>
+        ) : null}
+
+        <View style={styles.feedbackAudioActionRow}>
+          {!isRecording && !feedbackAudioDraft ? (
+            <TouchableOpacity
+              style={[
+                styles.feedbackAudioButton,
+                {
+                  borderColor: colors.bibleDivider,
+                  backgroundColor: colors.bibleSurface,
+                },
+              ]}
+              accessibilityLabel={t('bible.chapterFeedbackAudioRecord')}
+              onPress={() => {
+                void startFeedbackAudioRecording();
+              }}
+              disabled={isSubmittingFeedback}
+            >
+              <Ionicons name="mic-outline" size={17} color={colors.biblePrimaryText} />
+              <Text style={[styles.feedbackAudioButtonText, { color: colors.biblePrimaryText }]}>
+                {t('bible.chapterFeedbackAudioRecord')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {isRecording ? (
+            <TouchableOpacity
+              style={[
+                styles.feedbackAudioButton,
+                {
+                  borderColor: colors.accentPrimary,
+                  backgroundColor: colors.accentPrimary,
+                },
+              ]}
+              accessibilityLabel={t('bible.chapterFeedbackAudioStop')}
+              onPress={() => {
+                void stopFeedbackAudioRecording();
+              }}
+            >
+              <Ionicons name="stop-outline" size={17} color={colors.cardBackground} />
+              <Text style={[styles.feedbackAudioButtonText, { color: colors.cardBackground }]}>
+                {t('bible.chapterFeedbackAudioStop')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {feedbackAudioDraft ? (
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.feedbackAudioIconButton,
+                  {
+                    borderColor: colors.bibleDivider,
+                    backgroundColor: colors.bibleSurface,
+                  },
+                ]}
+                accessibilityLabel={t('bible.chapterFeedbackAudioPreview')}
+                onPress={() => {
+                  void playFeedbackAudioPreview();
+                }}
+                disabled={isSubmittingFeedback}
+              >
+                <Ionicons name="play-outline" size={18} color={colors.biblePrimaryText} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.feedbackAudioIconButton,
+                  {
+                    borderColor: colors.bibleDivider,
+                    backgroundColor: colors.bibleSurface,
+                  },
+                ]}
+                accessibilityLabel={t('bible.chapterFeedbackAudioRerecord')}
+                onPress={discardFeedbackAudioDraft}
+                disabled={isSubmittingFeedback}
+              >
+                <Ionicons name="refresh-outline" size={18} color={colors.biblePrimaryText} />
+              </TouchableOpacity>
+            </>
+          ) : null}
+
+          {isUploadingAudio ? (
+            <View style={styles.feedbackAudioUploading}>
+              <ActivityIndicator size="small" color={colors.accentPrimary} />
+              <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
+                {t('bible.chapterFeedbackAudioUploading')}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    );
   };
 
   const handlePlayDisplayedChapter = () => {
@@ -3461,6 +3805,7 @@ export function BibleReaderScreen() {
                     },
                   ]}
                 />
+                {renderChapterFeedbackAudioControls(true)}
                 <TouchableOpacity
                   style={[
                     styles.feedbackActionButton,
@@ -4683,6 +5028,8 @@ export function BibleReaderScreen() {
                   },
                 ]}
               />
+
+              {renderChapterFeedbackAudioControls()}
 
               {feedbackSubmitError ? (
                 <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
@@ -6126,6 +6473,69 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     textAlignVertical: 'top',
+  },
+  feedbackAudioCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  feedbackAudioCardCompact: {
+    padding: spacing.sm,
+  },
+  feedbackAudioHeader: {
+    gap: 4,
+  },
+  feedbackAudioStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  feedbackAudioStatusText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedbackAudioLimitText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  feedbackAudioHelpText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  feedbackAudioActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  feedbackAudioButton: {
+    minHeight: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  feedbackAudioButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  feedbackAudioIconButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackAudioUploading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   feedbackErrorText: {
     fontSize: 13,

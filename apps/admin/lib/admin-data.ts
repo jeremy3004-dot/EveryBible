@@ -124,6 +124,12 @@ interface AuditLogRow {
 interface ChapterFeedbackRow {
   app_platform: string | null;
   app_version: string | null;
+  audio_response_bucket: string | null;
+  audio_response_created_at: string | null;
+  audio_response_duration_ms: number | null;
+  audio_response_mime_type: string | null;
+  audio_response_path: string | null;
+  audio_response_size_bytes: number | null;
   book_id: string;
   chapter: number;
   comment: string | null;
@@ -220,6 +226,14 @@ export interface SupportUserDetail {
 
 export interface ChapterFeedbackListItem {
   appLabel: string;
+  audioResponse: {
+    createdAt: string | null;
+    durationMs: number;
+    mimeType: string;
+    path: string;
+    signedUrl: string | null;
+    sizeBytes: number | null;
+  } | null;
   bookId: string;
   chapter: number;
   comment: string | null;
@@ -480,6 +494,12 @@ export async function listChapterFeedback(searchTerm?: string): Promise<ChapterF
         'content_language_name',
         'participant_name',
         'participant_role',
+        'audio_response_bucket',
+        'audio_response_path',
+        'audio_response_mime_type',
+        'audio_response_size_bytes',
+        'audio_response_duration_ms',
+        'audio_response_created_at',
         'book_id',
         'chapter',
         'sentiment',
@@ -506,8 +526,38 @@ export async function listChapterFeedback(searchTerm?: string): Promise<ChapterF
     throw new Error(`Unable to load chapter feedback: ${error.message}`);
   }
 
-  return ((data ?? []) as unknown as ChapterFeedbackRow[]).map((row) => ({
+  const rows = (data ?? []) as unknown as ChapterFeedbackRow[];
+  const signedAudioUrls = await Promise.all(
+    rows.map(async (row) => {
+      if (!row.audio_response_bucket || !row.audio_response_path) {
+        return null;
+      }
+
+      const { data: signedUrlData, error: signedUrlError } = await service.storage
+        .from(row.audio_response_bucket)
+        .createSignedUrl(row.audio_response_path, 60 * 60);
+
+      if (signedUrlError) {
+        return null;
+      }
+
+      return signedUrlData.signedUrl;
+    })
+  );
+
+  return rows.map((row, index) => ({
     appLabel: [row.app_platform, row.app_version].filter(Boolean).join(' ') || 'Unknown app',
+    audioResponse:
+      row.audio_response_path && row.audio_response_duration_ms && row.audio_response_mime_type
+        ? {
+            createdAt: row.audio_response_created_at,
+            durationMs: row.audio_response_duration_ms,
+            mimeType: row.audio_response_mime_type,
+            path: row.audio_response_path,
+            signedUrl: signedAudioUrls[index] ?? null,
+            sizeBytes: row.audio_response_size_bytes,
+          }
+        : null,
     bookId: row.book_id,
     chapter: row.chapter,
     comment: row.comment,

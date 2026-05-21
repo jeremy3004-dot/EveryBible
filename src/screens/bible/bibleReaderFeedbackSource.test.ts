@@ -72,6 +72,21 @@ test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an 
     /feedbackSentiment === 'down'|setFeedbackSentiment\('down'\)/,
     'BibleReaderScreen should expose a thumbs-down action for chapter feedback'
   );
+  assert.match(
+    source,
+    /startFeedbackAudioRecording/,
+    'BibleReaderScreen should expose audio recording from the chapter feedback composer'
+  );
+  assert.match(
+    source,
+    /playFeedbackAudioPreview/,
+    'BibleReaderScreen should allow preview playback before submitting audio feedback'
+  );
+  assert.match(
+    source,
+    /discardFeedbackAudioDraft/,
+    'BibleReaderScreen should allow re-recording without losing the text feedback path'
+  );
 });
 
 test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen mode and the modal', () => {
@@ -92,6 +107,16 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
     source,
     /submitChapterFeedback\(/,
     'BibleReaderScreen should submit feedback through submitChapterFeedback'
+  );
+  assert.match(
+    source,
+    /uploadChapterFeedbackAudio/,
+    'BibleReaderScreen should upload a recorded audio response before submitting metadata'
+  );
+  assert.match(
+    source,
+    /audioResponse:\s*audioUploadResult\?\.data\s*\?\?\s*null/,
+    'BibleReaderScreen should attach uploaded audio metadata to the feedback payload'
   );
   assert.match(
     source,

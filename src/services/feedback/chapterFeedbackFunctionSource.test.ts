@@ -48,6 +48,17 @@ test('submit-chapter-feedback stores optional reviewer identity and derives user
   );
 });
 
+test('submit-chapter-feedback validates audio responses against authenticated storage ownership', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.match(source, /interface ChapterFeedbackAudioRequest/);
+  assert.match(source, /audio responses require an authenticated user/);
+  assert.match(source, /audioResponse\.bucket !== 'chapter-feedback-audio'/);
+  assert.equal(source.includes('audioPath.startsWith(`${userId}/`)'), true);
+  assert.match(source, /audioResponse\.mimeType !== 'audio\/mp4'/);
+  assert.match(source, /audio_response_duration_ms/);
+});
+
 test('submit-chapter-feedback disables the legacy edge JWT gate and only enriches auth when present', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
   const config = readFileSync(CONFIG_PATH, 'utf8');
