@@ -41,7 +41,20 @@ Audio-message responses are stored in the private Supabase Storage bucket `chapt
 
 ## How To Review Feedback
 
-Use the admin backend feedback page, or query Supabase directly:
+Use the admin backend feedback page at `/feedback`, or query Supabase directly.
+
+The admin page is organized for review by:
+
+- language
+- translation
+- book
+- chapter
+- sentiment
+- response type, including audio-only submissions
+
+The coverage table summarizes the recent feedback volume by language, including how many books,
+chapters, and audio responses are represented. Click a language in that table to jump into the
+filtered review list.
 
 ```sql
 select
@@ -78,7 +91,8 @@ order by created_at desc;
    - `participant_id_number` matches the authenticated Supabase user UUID when signed in, or remains `null` when signed out
    - the same comment text appears in the admin backend row
 3. Disable the feature in Settings and confirm the reader action disappears.
-4. Confirm the feedback page filter finds rows by translation, book, reviewer, and comment.
+4. Confirm the feedback page filters find rows by language, translation, book, chapter, reviewer,
+   comment, sentiment, and audio/text response type.
 5. While signed in, record an audio-only response and confirm:
    - microphone permission prompts gracefully
    - stop, preview, re-record, and submit all work

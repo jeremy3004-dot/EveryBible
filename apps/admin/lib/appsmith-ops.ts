@@ -230,8 +230,15 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
   const url = new URL(requestUrl);
   const limit = clampFeedbackLimit(url.searchParams.get('limit'));
   const status = url.searchParams.get('status');
+  const language = url.searchParams.get('language')?.trim();
+  const translationId = url.searchParams.get('translationId')?.trim();
+  const bookId = url.searchParams.get('bookId')?.trim().toUpperCase();
+  const chapter = Number.parseInt(url.searchParams.get('chapter') ?? '', 10);
+  const sentiment = url.searchParams.get('sentiment');
+  const responseType = url.searchParams.get('responseType');
   const validStatus =
     status === 'pending' || status === 'exported' || status === 'failed' ? status : null;
+  const validSentiment = sentiment === 'up' || sentiment === 'down' ? sentiment : null;
 
   let query = service
     .from('chapter_feedback_submissions')
@@ -243,6 +250,26 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
 
   if (validStatus) {
     query = query.eq('export_status', validStatus);
+  }
+  if (language) {
+    query = query.eq('translation_language', language);
+  }
+  if (translationId) {
+    query = query.eq('translation_id', translationId);
+  }
+  if (bookId) {
+    query = query.eq('book_id', bookId);
+  }
+  if (Number.isInteger(chapter) && chapter > 0) {
+    query = query.eq('chapter', chapter);
+  }
+  if (validSentiment) {
+    query = query.eq('sentiment', validSentiment);
+  }
+  if (responseType === 'audio') {
+    query = query.not('audio_response_path', 'is', null);
+  } else if (responseType === 'text') {
+    query = query.not('comment', 'is', null);
   }
 
   const { data, error } = await query;
@@ -279,6 +306,15 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
 
   return {
     generatedAt: new Date().toISOString(),
+    filters: {
+      bookId: bookId || null,
+      chapter: Number.isInteger(chapter) && chapter > 0 ? chapter : null,
+      language: language || null,
+      responseType: responseType === 'audio' || responseType === 'text' ? responseType : null,
+      sentiment: validSentiment,
+      status: validStatus,
+      translationId: translationId || null,
+    },
     limit,
     statusFilter: validStatus,
     summary: {

@@ -1,11 +1,40 @@
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { StatusPill } from '@/components/StatusPill';
-import { listChapterFeedback } from '@/lib/admin-data';
+import { getChapterFeedbackReviewModel, type ChapterFeedbackFilters } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 import { formatDateTime } from '@/lib/format';
 
 interface FeedbackPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function firstParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return value ?? '';
+}
+
+function parseChapter(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function buildFilters(searchParams: Record<string, string | string[] | undefined>) {
+  const responseType = firstParam(searchParams.responseType);
+  const sentiment = firstParam(searchParams.sentiment);
+  const filters: ChapterFeedbackFilters = {
+    bookId: firstParam(searchParams.bookId).toUpperCase() || undefined,
+    chapter: parseChapter(firstParam(searchParams.chapter)),
+    language: firstParam(searchParams.language) || undefined,
+    query: firstParam(searchParams.query) || undefined,
+    responseType: responseType === 'audio' || responseType === 'text' ? responseType : undefined,
+    sentiment: sentiment === 'up' || sentiment === 'down' ? sentiment : undefined,
+    translationId: firstParam(searchParams.translationId) || undefined,
+  };
+
+  return filters;
 }
 
 export default async function FeedbackPage({ searchParams }: FeedbackPageProps) {
@@ -15,8 +44,9 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
   }
 
   const resolvedSearchParams = await searchParams;
-  const query = typeof resolvedSearchParams.query === 'string' ? resolvedSearchParams.query : '';
-  const feedback = await listChapterFeedback(query);
+  const filters = buildFilters(resolvedSearchParams);
+  const reviewModel = await getChapterFeedbackReviewModel(filters);
+  const feedback = reviewModel.feedback;
 
   return (
     <div className="page-stack">
@@ -31,18 +61,119 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
       </section>
 
       <section className="card">
-        <form className="filter-form">
+        <form className="filter-form filter-form--wrap">
           <input
             type="search"
             name="query"
-            defaultValue={query}
+            defaultValue={filters.query ?? ''}
             placeholder="Search by translation, book, reviewer, or comment"
           />
+          <select name="language" defaultValue={filters.language ?? ''} aria-label="Language">
+            <option value="">All languages</option>
+            {reviewModel.filters.languages.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </select>
+          <select
+            name="translationId"
+            defaultValue={filters.translationId ?? ''}
+            aria-label="Translation"
+          >
+            <option value="">All translations</option>
+            {reviewModel.filters.translations.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </select>
+          <select name="bookId" defaultValue={filters.bookId ?? ''} aria-label="Book">
+            <option value="">All books</option>
+            {reviewModel.filters.books.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            name="chapter"
+            defaultValue={filters.chapter ?? ''}
+            placeholder="Chapter"
+            aria-label="Chapter"
+          />
+          <select name="sentiment" defaultValue={filters.sentiment ?? ''} aria-label="Sentiment">
+            <option value="">All ratings</option>
+            <option value="down">Needs work</option>
+            <option value="up">Helpful</option>
+          </select>
+          <select
+            name="responseType"
+            defaultValue={filters.responseType ?? ''}
+            aria-label="Response type"
+          >
+            <option value="">Text and audio</option>
+            <option value="audio">Audio only</option>
+            <option value="text">Text only</option>
+          </select>
           <button type="submit" className="button">
             Filter
           </button>
+          <a href="/feedback" className="button button-secondary">
+            Reset
+          </a>
         </form>
+      </section>
 
+      <section className="card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">Coverage</p>
+            <h3>Feedback by language</h3>
+          </div>
+          <span className="table-note">{reviewModel.totalAvailable} recent submissions sampled</span>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Language</th>
+                <th>Submissions</th>
+                <th>Books</th>
+                <th>Chapters</th>
+                <th>Audio</th>
+                <th>Latest</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reviewModel.coverage.map((item) => (
+                <tr key={item.language}>
+                  <td>
+                    <a href={`/feedback?language=${encodeURIComponent(item.language)}`}>
+                      {item.language}
+                    </a>
+                  </td>
+                  <td>{item.submissionCount}</td>
+                  <td>{item.bookCount}</td>
+                  <td>{item.chapterCount}</td>
+                  <td>{item.audioCount}</td>
+                  <td>{formatDateTime(item.latestAt)}</td>
+                </tr>
+              ))}
+              {reviewModel.coverage.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>No chapter feedback has been submitted yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
         <div className="table-wrap">
           <table className="data-table">
             <thead>

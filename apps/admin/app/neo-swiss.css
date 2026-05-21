@@ -1103,6 +1103,33 @@ label {
   margin-bottom: 1rem;
 }
 
+.filter-form--wrap {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.filter-form--wrap input,
+.filter-form--wrap select {
+  min-width: 8rem;
+}
+
+.filter-form--wrap input[type='search'] {
+  min-width: 16rem;
+  flex: 2 1 18rem;
+}
+
+.filter-form--wrap input[type='number'] {
+  max-width: 8rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -70,6 +70,7 @@ The repo now exposes three read-only admin API endpoints for Appsmith:
 - `GET /api/ops/appsmith/translations`
 - `GET /api/ops/appsmith/media-health`
 - `GET /api/ops/appsmith/feedback?limit=200`
+- `GET /api/ops/appsmith/feedback?language=English&bookId=JHN&chapter=3&responseType=audio`
 
 Authentication:
 
@@ -254,6 +255,8 @@ limit 500;
 Operator actions for POC:
 
 - Read and filter through `GET /api/ops/appsmith/feedback?limit=200`.
+- Use structured query params for operational checks: `language`, `translationId`, `bookId`,
+  `chapter`, `sentiment`, `status`, and `responseType`.
 - For failed exports, follow `docs/chapter-feedback-ops.md`: append manually to the correct Google Sheets tab, verify the row, then mark exported in Supabase.
 
 Do not expose `user_id` by default. It is needed for the existing Sheets header and durable record, but Appsmith triage can usually operate on submission ID plus participant fields. If user-level support is needed, deep-link to the existing support page in `apps/admin`.

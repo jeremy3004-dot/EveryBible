@@ -102,6 +102,9 @@ test('Appsmith ops responses omit raw internal notes and media delivery values',
 test('Appsmith ops feedback endpoint returns triage data without raw user identifiers', () => {
   assert.match(opsSource, /participant_name/);
   assert.match(opsSource, /commentPreview/);
+  assert.match(opsSource, /url\.searchParams\.get\('language'\)/);
+  assert.match(opsSource, /url\.searchParams\.get\('bookId'\)/);
+  assert.match(opsSource, /url\.searchParams\.get\('chapter'\)/);
   assert.match(opsSource, /audioResponse/);
   assert.match(opsSource, /playbackUrl/);
   assert.doesNotMatch(opsSource, /participant_id_number/);

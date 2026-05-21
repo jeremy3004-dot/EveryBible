@@ -235,6 +235,10 @@ textarea {
   font-weight: 700;
 }
 
+.button-secondary {
+  color: var(--text-muted);
+}
+
 .notice {
   padding: 0.95rem 1.05rem;
   border: 1px solid var(--border);
@@ -1214,6 +1218,22 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.filter-form--wrap {
+  grid-template-columns: minmax(14rem, 2fr) repeat(4, minmax(8rem, 1fr)) auto auto;
+}
+
+.filter-form--wrap input[type='number'] {
+  min-width: 7rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1844,4 +1864,3 @@ textarea {
   }
 
 }
-

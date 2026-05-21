@@ -15,7 +15,11 @@ test('admin backend exposes chapter feedback submissions', async () => {
   ]);
 
   assert.match(adminData, /listChapterFeedback/);
+  assert.match(adminData, /getChapterFeedbackReviewModel/);
   assert.match(adminData, /from\('chapter_feedback_submissions'\)/);
+  assert.match(adminData, /translation_language/);
+  assert.match(adminData, /book_id/);
+  assert.match(adminData, /chapter/);
   assert.match(adminData, /audio_response_path/);
   assert.match(adminData, /createSignedUrl/);
   assert.match(adminData, /feedbackCount/);
@@ -23,7 +27,11 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(navigation, /href:\s*'\/feedback'/);
   assert.match(overview, /href="\/feedback"/);
   assert.match(overview, /summary\.feedbackCount/);
-  assert.match(page, /listChapterFeedback/);
+  assert.match(page, /getChapterFeedbackReviewModel/);
+  assert.match(page, /name="language"/);
+  assert.match(page, /name="bookId"/);
+  assert.match(page, /name="chapter"/);
+  assert.match(page, /Feedback by language/);
   assert.match(page, /Chapter feedback/);
   assert.match(page, /<audio/);
 });

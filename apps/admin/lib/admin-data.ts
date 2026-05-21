@@ -147,6 +147,9 @@ interface ChapterFeedbackRow {
   user_id: string | null;
 }
 
+type ChapterFeedbackSentiment = 'up' | 'down';
+type ChapterFeedbackResponseType = 'audio' | 'text';
+
 export interface DashboardSummary {
   adminPathCount: number;
   failedSyncCount: number;
@@ -247,6 +250,42 @@ export interface ChapterFeedbackListItem {
   translationId: string;
   translationLanguage: string;
   userId: string | null;
+}
+
+export interface ChapterFeedbackFilters {
+  bookId?: string;
+  chapter?: number;
+  language?: string;
+  query?: string;
+  responseType?: ChapterFeedbackResponseType;
+  sentiment?: ChapterFeedbackSentiment;
+  translationId?: string;
+}
+
+export interface ChapterFeedbackFilterOption {
+  count: number;
+  label: string;
+  value: string;
+}
+
+export interface ChapterFeedbackCoverageItem {
+  audioCount: number;
+  bookCount: number;
+  chapterCount: number;
+  language: string;
+  latestAt: string;
+  submissionCount: number;
+}
+
+export interface ChapterFeedbackReviewModel {
+  coverage: ChapterFeedbackCoverageItem[];
+  feedback: ChapterFeedbackListItem[];
+  filters: {
+    books: ChapterFeedbackFilterOption[];
+    languages: ChapterFeedbackFilterOption[];
+    translations: ChapterFeedbackFilterOption[];
+  };
+  totalAvailable: number;
 }
 
 export interface AnalyticsOverview {
@@ -479,72 +518,60 @@ export async function listSyncRuns(limit = 10): Promise<SyncRunRow[]> {
   return (data ?? []) as SyncRunRow[];
 }
 
-export async function listChapterFeedback(searchTerm?: string): Promise<ChapterFeedbackListItem[]> {
-  const service = createAdminServiceClient();
-  let query = service
-    .from('chapter_feedback_submissions')
-    .select(
-      [
-        'id',
-        'user_id',
-        'translation_id',
-        'translation_language',
-        'interface_language',
-        'content_language_code',
-        'content_language_name',
-        'participant_name',
-        'participant_role',
-        'audio_response_bucket',
-        'audio_response_path',
-        'audio_response_mime_type',
-        'audio_response_size_bytes',
-        'audio_response_duration_ms',
-        'audio_response_created_at',
-        'book_id',
-        'chapter',
-        'sentiment',
-        'comment',
-        'source_screen',
-        'app_platform',
-        'app_version',
-        'created_at',
-      ].join(', ')
-    )
-    .order('created_at', { ascending: false })
-    .limit(200);
+const chapterFeedbackSelectColumns = [
+  'id',
+  'user_id',
+  'translation_id',
+  'translation_language',
+  'interface_language',
+  'content_language_code',
+  'content_language_name',
+  'participant_name',
+  'participant_role',
+  'audio_response_bucket',
+  'audio_response_path',
+  'audio_response_mime_type',
+  'audio_response_size_bytes',
+  'audio_response_duration_ms',
+  'audio_response_created_at',
+  'book_id',
+  'chapter',
+  'sentiment',
+  'comment',
+  'source_screen',
+  'app_platform',
+  'app_version',
+  'created_at',
+].join(', ');
 
-  if (searchTerm && searchTerm.trim().length > 0) {
-    const term = searchTerm.trim();
-    query = query.or(
-      `translation_id.ilike.%${term}%,translation_language.ilike.%${term}%,book_id.ilike.%${term}%,participant_name.ilike.%${term}%,participant_role.ilike.%${term}%,comment.ilike.%${term}%`
-    );
+function normalizeChapterFeedbackFilters(
+  filtersOrSearchTerm?: ChapterFeedbackFilters | string
+): ChapterFeedbackFilters {
+  if (typeof filtersOrSearchTerm === 'string') {
+    return { query: filtersOrSearchTerm };
   }
 
-  const { data, error } = await query;
+  return filtersOrSearchTerm ?? {};
+}
 
-  if (error) {
-    throw new Error(`Unable to load chapter feedback: ${error.message}`);
+function countOption(map: Map<string, ChapterFeedbackFilterOption>, value: string, label = value) {
+  const existing = map.get(value);
+  if (existing) {
+    existing.count += 1;
+    return;
   }
 
-  const rows = (data ?? []) as unknown as ChapterFeedbackRow[];
-  const signedAudioUrls = await Promise.all(
-    rows.map(async (row) => {
-      if (!row.audio_response_bucket || !row.audio_response_path) {
-        return null;
-      }
+  map.set(value, { count: 1, label, value });
+}
 
-      const { data: signedUrlData, error: signedUrlError } = await service.storage
-        .from(row.audio_response_bucket)
-        .createSignedUrl(row.audio_response_path, 60 * 60);
+function byCountThenLabel(a: ChapterFeedbackFilterOption, b: ChapterFeedbackFilterOption) {
+  return b.count - a.count || a.label.localeCompare(b.label);
+}
 
-      if (signedUrlError) {
-        return null;
-      }
-
-      return signedUrlData.signedUrl;
-    })
-  );
-
+function mapChapterFeedbackRows(
+  rows: ChapterFeedbackRow[],
+  signedAudioUrls: Array<string | null>
+): ChapterFeedbackListItem[] {
   return rows.map((row, index) => ({
     appLabel: [row.app_platform, row.app_version].filter(Boolean).join(' ') || 'Unknown app',
     audioResponse:
@@ -574,6 +601,162 @@ export async function listChapterFeedback(searchTerm?: string): Promise<ChapterF
     translationLanguage: row.translation_language,
     userId: row.user_id,
   }));
+}
+
+async function signChapterFeedbackAudioRows(rows: ChapterFeedbackRow[]): Promise<Array<string | null>> {
+  const service = createAdminServiceClient();
+
+  return Promise.all(
+    rows.map(async (row) => {
+      if (!row.audio_response_bucket || !row.audio_response_path) {
+        return null;
+      }
+
+      const { data: signedUrlData, error: signedUrlError } = await service.storage
+        .from(row.audio_response_bucket)
+        .createSignedUrl(row.audio_response_path, 60 * 60);
+
+      if (signedUrlError) {
+        return null;
+      }
+
+      return signedUrlData.signedUrl;
+    })
+  );
+}
+
+export async function listChapterFeedback(
+  filtersOrSearchTerm?: ChapterFeedbackFilters | string
+): Promise<ChapterFeedbackListItem[]> {
+  const service = createAdminServiceClient();
+  const filters = normalizeChapterFeedbackFilters(filtersOrSearchTerm);
+  let query = service
+    .from('chapter_feedback_submissions')
+    .select(chapterFeedbackSelectColumns)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (filters.language) {
+    query = query.eq('translation_language', filters.language);
+  }
+
+  if (filters.translationId) {
+    query = query.eq('translation_id', filters.translationId);
+  }
+
+  if (filters.bookId) {
+    query = query.eq('book_id', filters.bookId.toUpperCase());
+  }
+
+  if (filters.chapter && Number.isInteger(filters.chapter) && filters.chapter > 0) {
+    query = query.eq('chapter', filters.chapter);
+  }
+
+  if (filters.sentiment) {
+    query = query.eq('sentiment', filters.sentiment);
+  }
+
+  if (filters.responseType === 'audio') {
+    query = query.not('audio_response_path', 'is', null);
+  } else if (filters.responseType === 'text') {
+    query = query.not('comment', 'is', null);
+  }
+
+  if (filters.query && filters.query.trim().length > 0) {
+    const term = filters.query.trim().replaceAll(',', ' ');
+    query = query.or(
+      `translation_id.ilike.%${term}%,translation_language.ilike.%${term}%,book_id.ilike.%${term}%,participant_name.ilike.%${term}%,participant_role.ilike.%${term}%,comment.ilike.%${term}%`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load chapter feedback: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as unknown as ChapterFeedbackRow[];
+  const signedAudioUrls = await signChapterFeedbackAudioRows(rows);
+
+  return mapChapterFeedbackRows(rows, signedAudioUrls);
+}
+
+export async function getChapterFeedbackReviewModel(
+  filters: ChapterFeedbackFilters = {}
+): Promise<ChapterFeedbackReviewModel> {
+  const service = createAdminServiceClient();
+  const [feedback, optionRowsResult] = await Promise.all([
+    listChapterFeedback(filters),
+    service
+      .from('chapter_feedback_submissions')
+      .select(
+        'translation_language, translation_id, content_language_name, content_language_code, book_id, chapter, audio_response_path, created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(2000),
+  ]);
+
+  if (optionRowsResult.error) {
+    throw new Error(`Unable to load chapter feedback filters: ${optionRowsResult.error.message}`);
+  }
+
+  const languageOptions = new Map<string, ChapterFeedbackFilterOption>();
+  const translationOptions = new Map<string, ChapterFeedbackFilterOption>();
+  const bookOptions = new Map<string, ChapterFeedbackFilterOption>();
+  const coverageByLanguage = new Map<
+    string,
+    {
+      audioCount: number;
+      books: Set<string>;
+      chapters: Set<string>;
+      latestAt: string;
+      submissionCount: number;
+    }
+  >();
+
+  for (const row of optionRowsResult.data ?? []) {
+    countOption(languageOptions, row.translation_language, row.translation_language);
+    countOption(translationOptions, row.translation_id, row.translation_id);
+    countOption(bookOptions, row.book_id, row.book_id);
+
+    const coverage = coverageByLanguage.get(row.translation_language) ?? {
+      audioCount: 0,
+      books: new Set<string>(),
+      chapters: new Set<string>(),
+      latestAt: row.created_at,
+      submissionCount: 0,
+    };
+
+    coverage.books.add(row.book_id);
+    coverage.chapters.add(`${row.book_id} ${row.chapter}`);
+    coverage.submissionCount += 1;
+    coverage.latestAt = coverage.latestAt > row.created_at ? coverage.latestAt : row.created_at;
+    if (row.audio_response_path) {
+      coverage.audioCount += 1;
+    }
+    coverageByLanguage.set(row.translation_language, coverage);
+  }
+
+  return {
+    coverage: Array.from(coverageByLanguage.entries())
+      .map(([language, coverage]) => ({
+        audioCount: coverage.audioCount,
+        bookCount: coverage.books.size,
+        chapterCount: coverage.chapters.size,
+        language,
+        latestAt: coverage.latestAt,
+        submissionCount: coverage.submissionCount,
+      }))
+      .sort((a, b) => b.submissionCount - a.submissionCount || a.language.localeCompare(b.language))
+      .slice(0, 12),
+    feedback,
+    filters: {
+      books: Array.from(bookOptions.values()).sort(byCountThenLabel),
+      languages: Array.from(languageOptions.values()).sort(byCountThenLabel),
+      translations: Array.from(translationOptions.values()).sort(byCountThenLabel),
+    },
+    totalAvailable: optionRowsResult.data?.length ?? 0,
+  };
 }
 
 export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
