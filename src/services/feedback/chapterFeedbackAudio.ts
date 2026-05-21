@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getCurrentUserId, isSupabaseConfigured, supabase } from '../supabase';
 
 export const CHAPTER_FEEDBACK_AUDIO_BUCKET = 'chapter-feedback-audio';
