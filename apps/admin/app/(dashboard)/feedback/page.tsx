@@ -3,6 +3,7 @@ import { StatusPill } from '@/components/StatusPill';
 import { getChapterFeedbackReviewModel, type ChapterFeedbackFilters } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 import { formatDateTime } from '@/lib/format';
+import { markChapterFeedbackScriptureCouncilFixedAction } from './actions';
 
 interface FeedbackPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -22,11 +23,13 @@ function parseChapter(value: string) {
 }
 
 function buildFilters(searchParams: Record<string, string | string[] | undefined>) {
+  const fixStatus = firstParam(searchParams.fixStatus);
   const responseType = firstParam(searchParams.responseType);
   const sentiment = firstParam(searchParams.sentiment);
   const filters: ChapterFeedbackFilters = {
     bookId: firstParam(searchParams.bookId).toUpperCase() || undefined,
     chapter: parseChapter(firstParam(searchParams.chapter)),
+    fixStatus: fixStatus === 'open' || fixStatus === 'fixed' ? fixStatus : undefined,
     language: firstParam(searchParams.language) || undefined,
     query: firstParam(searchParams.query) || undefined,
     responseType: responseType === 'audio' || responseType === 'text' ? responseType : undefined,
@@ -37,6 +40,24 @@ function buildFilters(searchParams: Record<string, string | string[] | undefined
   return filters;
 }
 
+function buildReturnTo(searchParams: Record<string, string | string[] | undefined>) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (key === 'notice' || key === 'error') {
+      continue;
+    }
+
+    const firstValue = firstParam(value);
+    if (firstValue) {
+      params.set(key, firstValue);
+    }
+  }
+
+  const query = params.toString();
+  return query ? `/feedback?${query}` : '/feedback';
+}
+
 export default async function FeedbackPage({ searchParams }: FeedbackPageProps) {
   const missingKeys = getAdminRequiredEnvKeys();
   if (missingKeys.length > 0) {
@@ -45,6 +66,9 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
 
   const resolvedSearchParams = await searchParams;
   const filters = buildFilters(resolvedSearchParams);
+  const returnTo = buildReturnTo(resolvedSearchParams);
+  const notice = firstParam(resolvedSearchParams.notice);
+  const error = firstParam(resolvedSearchParams.error);
   const reviewModel = await getChapterFeedbackReviewModel(filters);
   const feedback = reviewModel.feedback;
 
@@ -57,6 +81,8 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
           <p className="page-copy">
             Submissions are stored directly in Supabase and shown here for admin review.
           </p>
+          {notice ? <p className="notice notice--success">{notice}</p> : null}
+          {error ? <p className="notice notice--warning">{error}</p> : null}
         </div>
       </section>
 
@@ -118,6 +144,11 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             <option value="audio">Audio only</option>
             <option value="text">Text only</option>
           </select>
+          <select name="fixStatus" defaultValue={filters.fixStatus ?? ''} aria-label="Fix status">
+            <option value="">All fix states</option>
+            <option value="open">Open council fixes</option>
+            <option value="fixed">Fixed by translator</option>
+          </select>
           <button type="submit" className="button">
             Filter
           </button>
@@ -174,6 +205,52 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
       </section>
 
       <section className="card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">Coverage</p>
+            <h3>Feedback by translation</h3>
+          </div>
+          <span className="table-note">Open council fixes stay visible until marked fixed</span>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Translation</th>
+                <th>Language</th>
+                <th>Submissions</th>
+                <th>Open council fixes</th>
+                <th>Fixed</th>
+                <th>Latest</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reviewModel.translationCoverage.map((item) => (
+                <tr key={item.translationId}>
+                  <td>
+                    <a href={`/feedback?translationId=${encodeURIComponent(item.translationId)}`}>
+                      {item.translationId}
+                    </a>
+                  </td>
+                  <td>{item.language}</td>
+                  <td>{item.submissionCount}</td>
+                  <td>{item.openCouncilFixCount}</td>
+                  <td>{item.fixedCount}</td>
+                  <td>{formatDateTime(item.latestAt)}</td>
+                </tr>
+              ))}
+              {reviewModel.translationCoverage.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>No translation feedback has been submitted yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -184,6 +261,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                 <th>Reviewer</th>
                 <th>Comment</th>
                 <th>Audio</th>
+                <th>Council fix</th>
                 <th>Source</th>
               </tr>
             </thead>
@@ -233,6 +311,38 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                     )}
                   </td>
                   <td>
+                    {item.scriptureCouncilFix ? (
+                      <div>
+                        <StatusPill tone="success">Fixed</StatusPill>
+                        <p className="table-note">
+                          {formatDateTime(item.scriptureCouncilFix.fixedAt)}
+                        </p>
+                        <p className="table-note">
+                          By {item.scriptureCouncilFix.fixedBy ?? 'unknown admin'}
+                        </p>
+                        {item.scriptureCouncilFix.note ? (
+                          <p className="table-note">{item.scriptureCouncilFix.note}</p>
+                        ) : null}
+                      </div>
+                    ) : item.sentiment === 'down' ? (
+                      <form action={markChapterFeedbackScriptureCouncilFixedAction}>
+                        <input type="hidden" name="feedbackId" value={item.id} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
+                        <input
+                          type="text"
+                          name="note"
+                          placeholder="Optional fix note"
+                          aria-label={`Fix note for ${item.bookId} ${item.chapter}`}
+                        />
+                        <button type="submit" className="button button-secondary">
+                          Mark fixed
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="table-note">No fix needed</span>
+                    )}
+                  </td>
+                  <td>
                     {item.sourceScreen}
                     <p className="table-note">
                       {item.appLabel} / {item.interfaceLanguage}
@@ -242,7 +352,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
               ))}
               {feedback.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>No chapter feedback matches this filter.</td>
+                  <td colSpan={8}>No chapter feedback matches this filter.</td>
                 </tr>
               ) : null}
             </tbody>

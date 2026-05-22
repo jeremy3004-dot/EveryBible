@@ -105,6 +105,9 @@ test('Appsmith ops feedback endpoint returns triage data without raw user identi
   assert.match(opsSource, /url\.searchParams\.get\('language'\)/);
   assert.match(opsSource, /url\.searchParams\.get\('bookId'\)/);
   assert.match(opsSource, /url\.searchParams\.get\('chapter'\)/);
+  assert.match(opsSource, /url\.searchParams\.get\('fixStatus'\)/);
+  assert.match(opsSource, /scripture_council_fixed_at/);
+  assert.match(opsSource, /scriptureCouncilFix/);
   assert.match(opsSource, /audioResponse/);
   assert.match(opsSource, /playbackUrl/);
   assert.doesNotMatch(opsSource, /participant_id_number/);

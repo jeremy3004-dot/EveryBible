@@ -68,6 +68,9 @@ export interface ChapterFeedbackSubmission {
   chapter: number;
   sentiment: 'up' | 'down';
   comment: string | null;
+  scripture_council_fixed_at: string | null;
+  scripture_council_fixed_by: string | null;
+  scripture_council_fixed_note: string | null;
   source_screen: string;
   app_platform: string | null;
   app_version: string | null;
@@ -381,8 +384,19 @@ export interface Database {
       };
       chapter_feedback_submissions: {
         Row: ChapterFeedbackSubmission;
-        Insert: Omit<ChapterFeedbackSubmission, 'id' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<
+          ChapterFeedbackSubmission,
+          | 'id'
+          | 'created_at'
+          | 'updated_at'
+          | 'scripture_council_fixed_at'
+          | 'scripture_council_fixed_by'
+          | 'scripture_council_fixed_note'
+        > & {
           export_status?: ChapterFeedbackSubmission['export_status'];
+          scripture_council_fixed_at?: string | null;
+          scripture_council_fixed_by?: string | null;
+          scripture_council_fixed_note?: string | null;
           source_screen?: string;
         };
         Update: Partial<Omit<ChapterFeedbackSubmission, 'id' | 'created_at'>>;

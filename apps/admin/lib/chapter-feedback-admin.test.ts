@@ -7,10 +7,11 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 test('admin backend exposes chapter feedback submissions', async () => {
-  const [adminData, navigation, page, overview] = await Promise.all([
+  const [adminData, navigation, page, actions, overview] = await Promise.all([
     readFile(path.join(repoRoot, 'apps/admin/lib/admin-data.ts'), 'utf8'),
     readFile(path.join(repoRoot, 'apps/admin/lib/admin-navigation.ts'), 'utf8'),
     readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/page.tsx'), 'utf8'),
+    readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/actions.ts'), 'utf8'),
     readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/page.tsx'), 'utf8'),
   ]);
 
@@ -21,6 +22,8 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(adminData, /book_id/);
   assert.match(adminData, /chapter/);
   assert.match(adminData, /audio_response_path/);
+  assert.match(adminData, /scripture_council_fixed_at/);
+  assert.match(adminData, /translationCoverage/);
   assert.match(adminData, /createSignedUrl/);
   assert.match(adminData, /feedbackCount/);
   assert.match(navigation, /label:\s*'Chapter Feedback'/);
@@ -32,6 +35,12 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(page, /name="bookId"/);
   assert.match(page, /name="chapter"/);
   assert.match(page, /Feedback by language/);
+  assert.match(page, /Feedback by translation/);
+  assert.match(page, /fixStatus/);
+  assert.match(page, /Mark fixed/);
   assert.match(page, /Chapter feedback/);
   assert.match(page, /<audio/);
+  assert.match(actions, /markChapterFeedbackScriptureCouncilFixedAction/);
+  assert.match(actions, /scripture_council_fixed_at/);
+  assert.match(actions, /chapter_feedback\.scripture_council_fix\.mark_fixed/);
 });

@@ -17,6 +17,8 @@ test('chapter feedback backend migration creates the durable preference flag and
     'supabase/migrations/20260328180000_add_chapter_feedback_identity.sql';
   const audioMigrationPath =
     'supabase/migrations/20260521120000_add_chapter_feedback_audio_responses.sql';
+  const councilFixMigrationPath =
+    'supabase/migrations/20260522164000_add_chapter_feedback_scripture_council_fix_status.sql';
 
   assert.equal(
     existsSync(resolveRepoPath(migrationPath)),
@@ -33,10 +35,16 @@ test('chapter feedback backend migration creates the durable preference flag and
     true,
     'Expected a follow-up migration for chapter feedback audio responses'
   );
+  assert.equal(
+    existsSync(resolveRepoPath(councilFixMigrationPath)),
+    true,
+    'Expected a follow-up migration for Scripture Council fix tracking'
+  );
 
   const migration = readRepoFile(migrationPath);
   const identityMigration = readRepoFile(identityMigrationPath);
   const audioMigration = readRepoFile(audioMigrationPath);
+  const councilFixMigration = readRepoFile(councilFixMigrationPath);
 
   assert.match(
     migration,
@@ -97,6 +105,16 @@ test('chapter feedback backend migration creates the durable preference flag and
     audioMigration,
     /audio_response_duration_ms/,
     'Expected chapter_feedback_submissions to store the audio duration'
+  );
+  assert.match(
+    councilFixMigration,
+    /scripture_council_fixed_at/,
+    'Expected chapter feedback rows to store when a translator marks council feedback fixed'
+  );
+  assert.match(
+    councilFixMigration,
+    /scripture_council_fixed_by/,
+    'Expected chapter feedback rows to store who marked council feedback fixed'
   );
 });
 

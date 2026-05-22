@@ -51,6 +51,9 @@ type ChapterFeedbackOpsRow = {
   interface_language: string;
   participant_name: string | null;
   participant_role: string | null;
+  scripture_council_fixed_at: string | null;
+  scripture_council_fixed_by: string | null;
+  scripture_council_fixed_note: string | null;
   sentiment: 'up' | 'down';
   source_screen: string;
   translation_id: string;
@@ -236,14 +239,16 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
   const chapter = Number.parseInt(url.searchParams.get('chapter') ?? '', 10);
   const sentiment = url.searchParams.get('sentiment');
   const responseType = url.searchParams.get('responseType');
+  const fixStatus = url.searchParams.get('fixStatus');
   const validStatus =
     status === 'pending' || status === 'exported' || status === 'failed' ? status : null;
   const validSentiment = sentiment === 'up' || sentiment === 'down' ? sentiment : null;
+  const validFixStatus = fixStatus === 'open' || fixStatus === 'fixed' ? fixStatus : null;
 
   let query = service
     .from('chapter_feedback_submissions')
     .select(
-      'id, created_at, translation_language, translation_id, book_id, chapter, sentiment, comment, participant_name, participant_role, interface_language, content_language_code, content_language_name, source_screen, app_platform, app_version, export_status, exported_at, export_error, audio_response_bucket, audio_response_path, audio_response_mime_type, audio_response_size_bytes, audio_response_duration_ms, audio_response_created_at'
+      'id, created_at, translation_language, translation_id, book_id, chapter, sentiment, comment, participant_name, participant_role, interface_language, content_language_code, content_language_name, source_screen, app_platform, app_version, export_status, exported_at, export_error, audio_response_bucket, audio_response_path, audio_response_mime_type, audio_response_size_bytes, audio_response_duration_ms, audio_response_created_at, scripture_council_fixed_at, scripture_council_fixed_by, scripture_council_fixed_note'
     )
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -265,6 +270,11 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
   }
   if (validSentiment) {
     query = query.eq('sentiment', validSentiment);
+  }
+  if (validFixStatus === 'open') {
+    query = query.eq('sentiment', 'down').is('scripture_council_fixed_at', null);
+  } else if (validFixStatus === 'fixed') {
+    query = query.not('scripture_council_fixed_at', 'is', null);
   }
   if (responseType === 'audio') {
     query = query.not('audio_response_path', 'is', null);
@@ -310,6 +320,7 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
       bookId: bookId || null,
       chapter: Number.isInteger(chapter) && chapter > 0 ? chapter : null,
       language: language || null,
+      fixStatus: validFixStatus,
       responseType: responseType === 'audio' || responseType === 'text' ? responseType : null,
       sentiment: validSentiment,
       status: validStatus,
@@ -348,6 +359,13 @@ export async function getOpsChapterFeedbackTriage(requestUrl: string) {
       interfaceLanguage: row.interface_language,
       participantName: row.participant_name,
       participantRole: row.participant_role,
+      scriptureCouncilFix: row.scripture_council_fixed_at
+        ? {
+            fixedAt: row.scripture_council_fixed_at,
+            fixedBy: row.scripture_council_fixed_by,
+            note: row.scripture_council_fixed_note,
+          }
+        : null,
       sentiment: row.sentiment,
       sourceScreen: row.source_screen,
       translationId: row.translation_id,

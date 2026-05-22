@@ -34,6 +34,9 @@ The admin backend shows the fixed submission contract:
 22. `audio_response_size_bytes`
 23. `audio_response_duration_ms`
 24. `audio_response_created_at`
+25. `scripture_council_fixed_at`
+26. `scripture_council_fixed_by`
+27. `scripture_council_fixed_note`
 
 `participant_id_number` is not user-entered. When the app has an authenticated Supabase session, the Edge Function fills `user_id` and `participant_id_number` from that user UUID. Anonymous submissions are allowed and store those fields as `null`; reviewer name and role are also optional.
 
@@ -60,10 +63,17 @@ The admin page is organized for review by:
 - chapter
 - sentiment
 - response type, including audio-only submissions
+- Scripture Council fix status
 
 The coverage table summarizes the recent feedback volume by language, including how many books,
 chapters, and audio responses are represented. Click a language in that table to jump into the
 filtered review list.
+
+The feedback-by-translation table highlights open Scripture Council fixes for thumbs-down feedback.
+When a translator has applied the requested fix, an admin can mark the feedback fixed from `/feedback`.
+That writes `scripture_council_fixed_at`, `scripture_council_fixed_by`, and an optional
+`scripture_council_fixed_note` on the original feedback row so the backend shows when the fix was
+completed and who recorded it.
 
 ```sql
 select
@@ -75,6 +85,8 @@ select
   chapter,
   sentiment,
   comment,
+  scripture_council_fixed_at,
+  scripture_council_fixed_by,
   audio_response_path,
   audio_response_duration_ms
 from public.chapter_feedback_submissions
@@ -116,3 +128,7 @@ order by created_at desc;
    - `participant_id_number` matches the authenticated Supabase user UUID
    - the admin backend `/feedback` row plays the audio in the browser
 7. Deny microphone permission and confirm typed feedback can still be submitted.
+8. From `/feedback`, filter to `Open council fixes`, mark a thumbs-down feedback item fixed, and confirm:
+   - the row shows `Fixed` with a timestamp
+   - the feedback-by-translation table moves that item out of open council fixes
+   - `scripture_council_fixed_at` and `scripture_council_fixed_by` are saved in Supabase

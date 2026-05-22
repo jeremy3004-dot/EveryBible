@@ -142,6 +142,9 @@ interface ChapterFeedbackRow {
   participant_role: string | null;
   sentiment: 'up' | 'down';
   source_screen: string;
+  scripture_council_fixed_at: string | null;
+  scripture_council_fixed_by: string | null;
+  scripture_council_fixed_note: string | null;
   translation_id: string;
   translation_language: string;
   user_id: string | null;
@@ -149,6 +152,7 @@ interface ChapterFeedbackRow {
 
 type ChapterFeedbackSentiment = 'up' | 'down';
 type ChapterFeedbackResponseType = 'audio' | 'text';
+type ChapterFeedbackFixStatus = 'open' | 'fixed';
 
 export interface DashboardSummary {
   adminPathCount: number;
@@ -245,6 +249,11 @@ export interface ChapterFeedbackListItem {
   id: string;
   interfaceLanguage: string;
   participantLabel: string;
+  scriptureCouncilFix: {
+    fixedAt: string;
+    fixedBy: string | null;
+    note: string | null;
+  } | null;
   sentiment: 'up' | 'down';
   sourceScreen: string;
   translationId: string;
@@ -255,6 +264,7 @@ export interface ChapterFeedbackListItem {
 export interface ChapterFeedbackFilters {
   bookId?: string;
   chapter?: number;
+  fixStatus?: ChapterFeedbackFixStatus;
   language?: string;
   query?: string;
   responseType?: ChapterFeedbackResponseType;
@@ -277,6 +287,15 @@ export interface ChapterFeedbackCoverageItem {
   submissionCount: number;
 }
 
+export interface ChapterFeedbackTranslationCoverageItem {
+  fixedCount: number;
+  language: string;
+  latestAt: string;
+  openCouncilFixCount: number;
+  submissionCount: number;
+  translationId: string;
+}
+
 export interface ChapterFeedbackReviewModel {
   coverage: ChapterFeedbackCoverageItem[];
   feedback: ChapterFeedbackListItem[];
@@ -285,6 +304,7 @@ export interface ChapterFeedbackReviewModel {
     languages: ChapterFeedbackFilterOption[];
     translations: ChapterFeedbackFilterOption[];
   };
+  translationCoverage: ChapterFeedbackTranslationCoverageItem[];
   totalAvailable: number;
 }
 
@@ -538,6 +558,9 @@ const chapterFeedbackSelectColumns = [
   'chapter',
   'sentiment',
   'comment',
+  'scripture_council_fixed_at',
+  'scripture_council_fixed_by',
+  'scripture_council_fixed_note',
   'source_screen',
   'app_platform',
   'app_version',
@@ -595,6 +618,13 @@ function mapChapterFeedbackRows(
     participantLabel:
       [row.participant_name, row.participant_role].filter(Boolean).join(' / ') ||
       'Unknown reviewer',
+    scriptureCouncilFix: row.scripture_council_fixed_at
+      ? {
+          fixedAt: row.scripture_council_fixed_at,
+          fixedBy: row.scripture_council_fixed_by,
+          note: row.scripture_council_fixed_note,
+        }
+      : null,
     sentiment: row.sentiment,
     sourceScreen: row.source_screen,
     translationId: row.translation_id,
@@ -656,6 +686,12 @@ export async function listChapterFeedback(
     query = query.eq('sentiment', filters.sentiment);
   }
 
+  if (filters.fixStatus === 'open') {
+    query = query.eq('sentiment', 'down').is('scripture_council_fixed_at', null);
+  } else if (filters.fixStatus === 'fixed') {
+    query = query.not('scripture_council_fixed_at', 'is', null);
+  }
+
   if (filters.responseType === 'audio') {
     query = query.not('audio_response_path', 'is', null);
   } else if (filters.responseType === 'text') {
@@ -690,7 +726,7 @@ export async function getChapterFeedbackReviewModel(
     service
       .from('chapter_feedback_submissions')
       .select(
-        'translation_language, translation_id, content_language_name, content_language_code, book_id, chapter, audio_response_path, created_at'
+        'translation_language, translation_id, content_language_name, content_language_code, book_id, chapter, sentiment, audio_response_path, scripture_council_fixed_at, created_at'
       )
       .order('created_at', { ascending: false })
       .limit(2000),
@@ -703,6 +739,17 @@ export async function getChapterFeedbackReviewModel(
   const languageOptions = new Map<string, ChapterFeedbackFilterOption>();
   const translationOptions = new Map<string, ChapterFeedbackFilterOption>();
   const bookOptions = new Map<string, ChapterFeedbackFilterOption>();
+  const coverageByTranslation = new Map<
+    string,
+    {
+      fixedCount: number;
+      language: string;
+      latestAt: string;
+      openCouncilFixCount: number;
+      submissionCount: number;
+      translationId: string;
+    }
+  >();
   const coverageByLanguage = new Map<
     string,
     {
@@ -735,6 +782,24 @@ export async function getChapterFeedbackReviewModel(
       coverage.audioCount += 1;
     }
     coverageByLanguage.set(row.translation_language, coverage);
+
+    const translationCoverage = coverageByTranslation.get(row.translation_id) ?? {
+      fixedCount: 0,
+      language: row.translation_language,
+      latestAt: row.created_at,
+      openCouncilFixCount: 0,
+      submissionCount: 0,
+      translationId: row.translation_id,
+    };
+    translationCoverage.submissionCount += 1;
+    translationCoverage.latestAt =
+      translationCoverage.latestAt > row.created_at ? translationCoverage.latestAt : row.created_at;
+    if (row.scripture_council_fixed_at) {
+      translationCoverage.fixedCount += 1;
+    } else if (row.sentiment === 'down') {
+      translationCoverage.openCouncilFixCount += 1;
+    }
+    coverageByTranslation.set(row.translation_id, translationCoverage);
   }
 
   return {
@@ -755,6 +820,14 @@ export async function getChapterFeedbackReviewModel(
       languages: Array.from(languageOptions.values()).sort(byCountThenLabel),
       translations: Array.from(translationOptions.values()).sort(byCountThenLabel),
     },
+    translationCoverage: Array.from(coverageByTranslation.values())
+      .sort(
+        (a, b) =>
+          b.openCouncilFixCount - a.openCouncilFixCount ||
+          b.submissionCount - a.submissionCount ||
+          a.translationId.localeCompare(b.translationId)
+      )
+      .slice(0, 12),
     totalAvailable: optionRowsResult.data?.length ?? 0,
   };
 }
