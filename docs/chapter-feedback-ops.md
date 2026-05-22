@@ -55,6 +55,16 @@ Translator reviewers can also use the hidden mobile review mode for chapter-leve
 
 The mobile review mode stores the unlock flag and read/listened markers locally on the device. It does not sync reviewer state across devices. The feedback rows and private audio URLs still come from Supabase through the `review-chapter-feedback` Edge Function.
 
+When mobile translator review mode is enabled, the Bible book picker shows feedback badges for
+books and chapters in the active translation. A red exclamation badge means at least one feedback
+item still needs review on that device. A green check badge means that feedback exists and every
+known item has been marked read, and listened to when it has audio. If a newer feedback row arrives
+for the same book or chapter, that item has no local marker yet, so the badge returns to red until
+the translator reviews it. These badges are not rendered for normal readers.
+
+On chapter screens, translator review tools appear above the chapter content so translators can see
+new feedback before reading or listening through the chapter. Normal readers do not see this panel.
+
 The admin page is organized for review by:
 
 - language

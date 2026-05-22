@@ -1,4 +1,7 @@
-import { TRANSLATOR_REVIEW_PASSCODE } from './translatorFeedbackReviewModel';
+import {
+  TRANSLATOR_REVIEW_PASSCODE,
+  type TranslatorFeedbackChapterSummary,
+} from './translatorFeedbackReviewModel';
 
 export type ChapterFeedbackReviewSentiment = 'up' | 'down';
 
@@ -33,9 +36,20 @@ export interface ChapterFeedbackReviewInput {
   chapter: number;
 }
 
+export interface ChapterFeedbackReviewSummaryInput {
+  translationId: string;
+  bookId?: string;
+}
+
 export interface ChapterFeedbackReviewResponse {
   success: boolean;
   feedback: ChapterFeedbackReviewItem[];
+  error?: string;
+}
+
+export interface ChapterFeedbackReviewSummaryResponse {
+  success: boolean;
+  chapters: TranslatorFeedbackChapterSummary[];
   error?: string;
 }
 
@@ -43,10 +57,12 @@ interface ChapterFeedbackReviewFunctionClient {
   invoke: (
     functionName: string,
     options: {
-      body: ChapterFeedbackReviewInput & { passcode: string };
+      body: (ChapterFeedbackReviewInput | ChapterFeedbackReviewSummaryInput) & {
+        passcode: string;
+      };
     }
   ) => Promise<{
-    data: ChapterFeedbackReviewResponse | null;
+    data: ChapterFeedbackReviewResponse | ChapterFeedbackReviewSummaryResponse | null;
     error: { message?: string } | null;
   }>;
 }
@@ -91,11 +107,59 @@ export async function fetchChapterFeedbackForTranslatorReview(
       };
     }
 
-    return data ?? { success: false, feedback: [], error: 'Unable to load translator feedback.' };
+    if (data && 'feedback' in data) {
+      return data;
+    }
+
+    return { success: false, feedback: [], error: 'Unable to load translator feedback.' };
   } catch (error) {
     return {
       success: false,
       feedback: [],
+      error: error instanceof Error ? error.message : 'Unable to load translator feedback.',
+    };
+  }
+}
+
+export async function fetchChapterFeedbackReviewSummaryForTranslation(
+  input: ChapterFeedbackReviewSummaryInput,
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<ChapterFeedbackReviewSummaryResponse> {
+  const resolvedClient = client ?? (await resolveDefaultClient());
+
+  if (!resolvedClient) {
+    return {
+      success: false,
+      chapters: [],
+      error: 'EveryBible backend is not configured for this build yet.',
+    };
+  }
+
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: {
+        ...input,
+        passcode: TRANSLATOR_REVIEW_PASSCODE,
+      },
+    });
+
+    if (error) {
+      return {
+        success: false,
+        chapters: [],
+        error: error.message ?? 'Unable to load translator feedback right now.',
+      };
+    }
+
+    if (data && 'chapters' in data) {
+      return data;
+    }
+
+    return { success: false, chapters: [], error: 'Unable to load translator feedback.' };
+  } catch (error) {
+    return {
+      success: false,
+      chapters: [],
       error: error instanceof Error ? error.message : 'Unable to load translator feedback.',
     };
   }

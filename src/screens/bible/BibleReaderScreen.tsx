@@ -4539,8 +4539,8 @@ export function BibleReaderScreen() {
           >
             <View style={[styles.premiumReaderContentShell]}>
               <View>
-                {renderReaderVerses(true)}
                 {renderTranslatorFeedbackReviewTools()}
+                {renderReaderVerses(true)}
               </View>
             </View>
           </Animated.ScrollView>
@@ -4777,8 +4777,8 @@ export function BibleReaderScreen() {
             { backgroundColor: colors.bibleBackground },
           ]}
         >
-          {renderLegacyContent()}
           {renderTranslatorFeedbackReviewTools()}
+          {renderLegacyContent()}
         </View>
       </ScrollView>
     </>
@@ -6875,7 +6875,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: 16,
-    marginTop: 20,
+    marginBottom: 20,
     gap: 12,
   },
   translatorReviewHeader: {

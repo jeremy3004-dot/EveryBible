@@ -12,11 +12,19 @@ export interface TranslatorFeedbackReviewStateInput {
   hasAudio: boolean;
 }
 
+export interface TranslatorFeedbackChapterSummary {
+  bookId: string;
+  chapter: number;
+  feedback: TranslatorFeedbackReviewStateInput[];
+}
+
 export interface TranslatorFeedbackReviewStatus {
   isRead: boolean;
   isListened: boolean;
   needsReview: boolean;
 }
+
+export type TranslatorFeedbackAggregateStatus = 'pending' | 'addressed';
 
 export function canEnableTranslatorReviewMode(passcode: string): boolean {
   return passcode.trim() === TRANSLATOR_REVIEW_PASSCODE;
@@ -35,6 +43,38 @@ export function getTranslatorFeedbackReviewStatus(
     isListened,
     needsReview: !isRead || !isListened,
   };
+}
+
+export function getTranslatorFeedbackChapterSummaryStatus(
+  summary: TranslatorFeedbackChapterSummary,
+  markers: TranslatorFeedbackReviewMarkers
+): TranslatorFeedbackAggregateStatus | null {
+  if (summary.feedback.length === 0) {
+    return null;
+  }
+
+  const hasPendingFeedback = summary.feedback.some(
+    (item) => getTranslatorFeedbackReviewStatus(item, markers).needsReview
+  );
+
+  return hasPendingFeedback ? 'pending' : 'addressed';
+}
+
+export function getTranslatorFeedbackBookSummaryStatus(
+  bookId: string,
+  summaries: TranslatorFeedbackChapterSummary[],
+  markers: TranslatorFeedbackReviewMarkers
+): TranslatorFeedbackAggregateStatus | null {
+  const bookSummaries = summaries.filter((summary) => summary.bookId === bookId);
+  if (bookSummaries.length === 0) {
+    return null;
+  }
+
+  const hasPendingFeedback = bookSummaries.some(
+    (summary) => getTranslatorFeedbackChapterSummaryStatus(summary, markers) === 'pending'
+  );
+
+  return hasPendingFeedback ? 'pending' : 'addressed';
 }
 
 export function markTranslatorFeedbackRead(

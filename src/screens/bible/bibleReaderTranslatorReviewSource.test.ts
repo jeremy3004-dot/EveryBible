@@ -16,3 +16,16 @@ test('BibleReaderScreen lets translators mark text read and audio listened', () 
   assert.match(source, /playTranslatorFeedbackAudio\(\s*item\.id/);
   assert.match(source, /markTranslatorFeedbackListened\(feedbackId\)/);
 });
+
+test('BibleReaderScreen places translator feedback review before chapter content', () => {
+  assert.match(
+    source,
+    /\{renderTranslatorFeedbackReviewTools\(\)\}[\s\S]*\{renderReaderVerses\(true\)\}/,
+    'Premium reader content should show translator feedback review before verses'
+  );
+  assert.match(
+    source,
+    /\{renderTranslatorFeedbackReviewTools\(\)\}[\s\S]*\{renderLegacyContent\(\)\}/,
+    'Legacy reader content should show translator feedback review before the chapter body'
+  );
+});

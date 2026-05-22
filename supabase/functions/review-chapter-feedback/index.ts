@@ -34,6 +34,13 @@ interface ChapterFeedbackReviewRow {
   audio_response_created_at: string | null;
 }
 
+interface ChapterFeedbackSummaryRow {
+  id: string;
+  book_id: string;
+  chapter: number;
+  audio_response_path: string | null;
+}
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
     status,
@@ -80,10 +87,18 @@ Deno.serve(async (request) => {
     const translationId = trimRequiredText(body.translationId);
     const bookId = trimRequiredText(body.bookId)?.toUpperCase() ?? null;
 
-    if (!translationId || !bookId || !Number.isInteger(body.chapter) || (body.chapter ?? 0) < 1) {
+    if (!translationId) {
       return jsonResponse(400, {
         success: false,
-        error: 'translationId, bookId, and chapter are required',
+        error: 'translationId is required',
+      });
+    }
+
+    const hasChapter = body.chapter != null;
+    if (hasChapter && (!bookId || !Number.isInteger(body.chapter) || (body.chapter ?? 0) < 1)) {
+      return jsonResponse(400, {
+        success: false,
+        error: 'bookId and a valid chapter are required',
       });
     }
 
@@ -92,6 +107,54 @@ Deno.serve(async (request) => {
     const service = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     });
+
+    if (!hasChapter) {
+      let summaryQuery = service
+        .from('chapter_feedback_submissions')
+        .select('id, book_id, chapter, audio_response_path')
+        .eq('translation_id', translationId)
+        .order('book_id', { ascending: true })
+        .order('chapter', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+      if (bookId) {
+        summaryQuery = summaryQuery.eq('book_id', bookId);
+      }
+
+      const { data: summaryData, error: summaryError } = await summaryQuery;
+
+      if (summaryError) {
+        return jsonResponse(500, { success: false, error: summaryError.message });
+      }
+
+      const summaryByChapter = new Map<
+        string,
+        { bookId: string; chapter: number; feedback: Array<{ id: string; hasAudio: boolean }> }
+      >();
+
+      ((summaryData ?? []) as ChapterFeedbackSummaryRow[]).forEach((row) => {
+        const key = `${row.book_id}:${row.chapter}`;
+        const summary =
+          summaryByChapter.get(key) ??
+          {
+            bookId: row.book_id,
+            chapter: row.chapter,
+            feedback: [],
+          };
+
+        summary.feedback.push({
+          id: row.id,
+          hasAudio: row.audio_response_path != null,
+        });
+        summaryByChapter.set(key, summary);
+      });
+
+      return jsonResponse(200, {
+        success: true,
+        chapters: Array.from(summaryByChapter.values()),
+      });
+    }
 
     const { data, error } = await service
       .from('chapter_feedback_submissions')

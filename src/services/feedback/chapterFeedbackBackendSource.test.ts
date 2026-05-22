@@ -19,6 +19,8 @@ test('chapter feedback backend migration creates the durable preference flag and
     'supabase/migrations/20260521120000_add_chapter_feedback_audio_responses.sql';
   const councilFixMigrationPath =
     'supabase/migrations/20260522164000_add_chapter_feedback_scripture_council_fix_status.sql';
+  const reviewSummaryMigrationPath =
+    'supabase/migrations/20260523051500_add_chapter_feedback_review_summary_index.sql';
 
   assert.equal(
     existsSync(resolveRepoPath(migrationPath)),
@@ -40,11 +42,17 @@ test('chapter feedback backend migration creates the durable preference flag and
     true,
     'Expected a follow-up migration for Scripture Council fix tracking'
   );
+  assert.equal(
+    existsSync(resolveRepoPath(reviewSummaryMigrationPath)),
+    true,
+    'Expected a follow-up migration for translator feedback summary review'
+  );
 
   const migration = readRepoFile(migrationPath);
   const identityMigration = readRepoFile(identityMigrationPath);
   const audioMigration = readRepoFile(audioMigrationPath);
   const councilFixMigration = readRepoFile(councilFixMigrationPath);
+  const reviewSummaryMigration = readRepoFile(reviewSummaryMigrationPath);
 
   assert.match(
     migration,
@@ -115,6 +123,31 @@ test('chapter feedback backend migration creates the durable preference flag and
     councilFixMigration,
     /scripture_council_fixed_by/,
     'Expected chapter feedback rows to store who marked council feedback fixed'
+  );
+  assert.match(
+    reviewSummaryMigration,
+    /translation_id, book_id, chapter, created_at DESC/,
+    'Expected translator review summaries to have an index for book and chapter badges'
+  );
+});
+
+test('review-chapter-feedback can return translator-only book and chapter summaries', () => {
+  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
+
+  assert.match(
+    reviewFunction,
+    /ChapterFeedbackSummaryRow/,
+    'Expected the translator review function to model summary rows'
+  );
+  assert.match(
+    reviewFunction,
+    /chapters: Array\.from\(summaryByChapter\.values\(\)\)/,
+    'Expected the translator review function to return grouped chapter summaries'
+  );
+  assert.match(
+    reviewFunction,
+    /hasAudio: row\.audio_response_path != null/,
+    'Expected summary badges to know whether feedback still needs audio listening'
   );
 });
 

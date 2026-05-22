@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
 } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
+import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { useI18n } from '../../hooks';
 import {
   buildBibleBrowserRows,
@@ -38,6 +39,13 @@ import {
 } from '../../services/bible/referenceParser';
 import type { BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
+import {
+  fetchChapterFeedbackReviewSummaryForTranslation,
+  getTranslatorFeedbackBookSummaryStatus,
+  getTranslatorFeedbackChapterSummaryStatus,
+  type TranslatorFeedbackAggregateStatus,
+  type TranslatorFeedbackChapterSummary,
+} from '../../services/feedback';
 import {
   BIBLE_SEARCH_DEBOUNCE_MS,
   formatBibleSearchReference,
@@ -86,7 +94,11 @@ export function BibleBrowserScreen() {
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [translatorFeedbackSummaries, setTranslatorFeedbackSummaries] = useState<
+    TranslatorFeedbackChapterSummary[]
+  >([]);
   const searchRequestIdRef = useRef(0);
+  const translatorFeedbackSummaryRequestIdRef = useRef(0);
   const searchInputRef = useRef<TextInputType | null>(null);
   const browserListRef = useRef<FlashList<BibleBrowserRow> | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -94,6 +106,8 @@ export function BibleBrowserScreen() {
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const translations = useBibleStore((state) => state.translations);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
+  const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
   const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
 
   const currentTranslationInfo = translations.find(
@@ -226,6 +240,70 @@ export function BibleBrowserScreen() {
     searchUnavailableMessage,
   ]);
 
+  useEffect(() => {
+    if (!translatorReviewEnabled) {
+      translatorFeedbackSummaryRequestIdRef.current += 1;
+      setTranslatorFeedbackSummaries([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const requestId = translatorFeedbackSummaryRequestIdRef.current + 1;
+    translatorFeedbackSummaryRequestIdRef.current = requestId;
+
+    void (async () => {
+      const result = await fetchChapterFeedbackReviewSummaryForTranslation({
+        translationId: currentTranslation,
+      });
+
+      if (isCancelled || requestId !== translatorFeedbackSummaryRequestIdRef.current) {
+        return;
+      }
+
+      setTranslatorFeedbackSummaries(result.success ? result.chapters : []);
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentTranslation, translatorReviewEnabled]);
+
+  const translatorFeedbackSummaryByChapter = useMemo(() => {
+    const summariesByChapter = new Map<string, TranslatorFeedbackChapterSummary>();
+
+    translatorFeedbackSummaries.forEach((summary) => {
+      summariesByChapter.set(`${summary.bookId}:${summary.chapter}`, summary);
+    });
+
+    return summariesByChapter;
+  }, [translatorFeedbackSummaries]);
+
+  const getTranslatorFeedbackBadge = (status: TranslatorFeedbackAggregateStatus | null) => {
+    if (!translatorReviewEnabled || !status) {
+      return null;
+    }
+
+    const isPending = status === 'pending';
+    return (
+      <View
+        pointerEvents="none"
+        style={[
+          styles.translatorFeedbackBadge,
+          {
+            backgroundColor: isPending ? colors.accentPrimary : colors.accentGreen,
+            borderColor: colors.bibleBackground,
+          },
+        ]}
+      >
+        <Ionicons
+          name={isPending ? 'alert' : 'checkmark'}
+          size={10}
+          color={colors.cardBackground}
+        />
+      </View>
+    );
+  };
+
   const handleBookPress = (book: BibleBook) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedBookId((prev) => (prev === book.id ? null : book.id));
@@ -297,6 +375,11 @@ export function BibleBrowserScreen() {
     const book = item.books[0];
     if (!book) return null;
     const isExpanded = book.id === expandedBookId;
+    const bookFeedbackStatus = getTranslatorFeedbackBookSummaryStatus(
+      book.id,
+      translatorFeedbackSummaries,
+      translatorFeedbackMarkers
+    );
 
     return (
       <View>
@@ -306,11 +389,14 @@ export function BibleBrowserScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.bookRowLeft}>
-            <Image
-              source={getBookIcon(book.id)}
-              style={[styles.bookIcon, { tintColor: colors.biblePrimaryText }]}
-              resizeMode="contain"
-            />
+            <View style={styles.bookIconWrap}>
+              <Image
+                source={getBookIcon(book.id)}
+                style={[styles.bookIcon, { tintColor: colors.biblePrimaryText }]}
+                resizeMode="contain"
+              />
+              {getTranslatorFeedbackBadge(bookFeedbackStatus)}
+            </View>
             <Text style={[styles.bookName, { color: colors.biblePrimaryText }]}>
               {getTranslatedBookName(book.id, t)}
             </Text>
@@ -325,24 +411,37 @@ export function BibleBrowserScreen() {
         {isExpanded && (
           <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
             <View style={styles.chapterGridInner}>
-              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => (
-                <TouchableOpacity
-                  key={chapter}
-                  style={[
-                    styles.chapterButton,
-                    {
-                      backgroundColor: colors.bibleSurface,
-                      borderColor: colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => handleChapterPress(book.id, chapter)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.chapterNumber, { color: colors.biblePrimaryText }]}>
-                    {chapter}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => {
+                const chapterSummary = translatorFeedbackSummaryByChapter.get(
+                  `${book.id}:${chapter}`
+                );
+                const chapterFeedbackStatus = chapterSummary
+                  ? getTranslatorFeedbackChapterSummaryStatus(
+                      chapterSummary,
+                      translatorFeedbackMarkers
+                    )
+                  : null;
+
+                return (
+                  <TouchableOpacity
+                    key={chapter}
+                    style={[
+                      styles.chapterButton,
+                      {
+                        backgroundColor: colors.bibleSurface,
+                        borderColor: colors.bibleDivider,
+                      },
+                    ]}
+                    onPress={() => handleChapterPress(book.id, chapter)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chapterNumber, { color: colors.biblePrimaryText }]}>
+                      {chapter}
+                    </Text>
+                    {getTranslatorFeedbackBadge(chapterFeedbackStatus)}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -531,7 +630,13 @@ export function BibleBrowserScreen() {
           showsVerticalScrollIndicator={false}
           estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
           getItemType={(item) => item.type}
-          extraData={{ colors, expandedBookId }}
+          extraData={{
+            colors,
+            expandedBookId,
+            translatorFeedbackMarkers,
+            translatorFeedbackSummaries,
+            translatorReviewEnabled,
+          }}
         />
       )}
 
@@ -728,6 +833,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
+  bookIconWrap: {
+    width: 40,
+    height: 40,
+  },
   bookName: {
     fontSize: 19,
     fontWeight: '500',
@@ -746,6 +855,17 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.sm,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  translatorFeedbackBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

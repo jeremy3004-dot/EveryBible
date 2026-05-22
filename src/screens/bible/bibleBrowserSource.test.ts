@@ -158,6 +158,22 @@ test('Bible browser restores the saved book when no explicit initial book is sup
   );
 });
 
+test('Bible browser gates translator feedback badges behind translator review mode', () => {
+  const source = readRelativeSource('./BibleBrowserScreen.tsx');
+
+  assert.match(source, /useTranslatorReviewStore\(\(state\) => state\.enabled\)/);
+  assert.match(source, /fetchChapterFeedbackReviewSummaryForTranslation/);
+  assert.match(source, /getTranslatorFeedbackBookSummaryStatus/);
+  assert.match(source, /getTranslatorFeedbackChapterSummaryStatus/);
+  assert.match(
+    source,
+    /if \(!translatorReviewEnabled \|\| !status\) \{[\s\S]*return null;[\s\S]*\}/,
+    'Feedback badges should not render for normal readers'
+  );
+  assert.match(source, /name=\{isPending \? 'alert' : 'checkmark'\}/);
+  assert.match(source, /backgroundColor: isPending \? colors\.accentPrimary : colors\.accentGreen/);
+});
+
 test('Bible browser scrolls the restored book into view on open', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
 
