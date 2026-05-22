@@ -103,12 +103,12 @@ const sanitizePathSegment = (value: string): string =>
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'unknown';
 
-const buildAnonymousAudioPath = (body: ChapterFeedbackRequest): string => {
+const buildStoredAudioPath = (body: ChapterFeedbackRequest, userId: string | null): string => {
   const createdAt = Date.now();
   const randomSuffix = crypto.randomUUID();
 
   return [
-    'anonymous',
+    userId ?? 'anonymous',
     sanitizePathSegment(body.translationId ?? ''),
     sanitizePathSegment(body.bookId ?? ''),
     String(body.chapter ?? 'unknown'),
@@ -181,7 +181,7 @@ const validateRequest = (
       return { error: 'audio response bucket is not supported' };
     }
 
-    const audioPath = requireNonEmptyString(audioResponse.path);
+    const preuploadedAudioPath = requireNonEmptyString(audioResponse.path);
     const base64Data = requireNonEmptyString(audioResponse.base64Data);
 
     if (audioResponse.mimeType !== 'audio/mp4') {
@@ -210,17 +210,7 @@ const validateRequest = (
       return { error: 'audio response createdAt must be an ISO timestamp' };
     }
 
-    if (userId) {
-      if (!audioPath || !audioPath.startsWith(`${userId}/`)) {
-        return { error: 'audio response path is invalid for this user' };
-      }
-
-      audioResponsePath = audioPath;
-    } else {
-      if (!base64Data) {
-        return { error: 'anonymous audio responses must include upload data' };
-      }
-
+    if (base64Data) {
       if (
         audioResponse.sizeBytes != null &&
         base64DecodedSize(base64Data) !== audioResponse.sizeBytes
@@ -228,13 +218,25 @@ const validateRequest = (
         return { error: 'audio response size does not match upload data' };
       }
 
-      audioResponsePath = buildAnonymousAudioPath(body);
+      audioResponsePath = buildStoredAudioPath(body, userId);
       pendingAudioUpload = {
         base64Data,
         path: audioResponsePath,
         mimeType: audioResponse.mimeType,
         sizeBytes: audioResponse.sizeBytes ?? null,
       };
+    } else if (userId && preuploadedAudioPath) {
+      if (!preuploadedAudioPath.startsWith(`${userId}/`)) {
+        return { error: 'audio response path is invalid for this user' };
+      }
+
+      audioResponsePath = preuploadedAudioPath;
+    } else {
+      return { error: 'audio responses must include upload data' };
+    }
+
+    if (userId && !audioResponsePath.startsWith(`${userId}/`)) {
+      return { error: 'audio response path is invalid for this user' };
     }
   }
 

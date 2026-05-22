@@ -21,7 +21,7 @@ test('chapter feedback audio upload uses the Expo FileSystem legacy API for SDK 
   );
 });
 
-test('chapter feedback audio upload keeps anonymous responses on the Edge Function path', () => {
+test('chapter feedback audio upload always uses the Edge Function storage path', () => {
   const source = readFileSync(AUDIO_SERVICE_PATH, 'utf8');
 
   assert.doesNotMatch(
@@ -32,11 +32,16 @@ test('chapter feedback audio upload keeps anonymous responses on the Edge Functi
   assert.match(
     source,
     /base64Data/,
-    'anonymous audio feedback should send encoded upload data to the Edge Function'
+    'audio feedback should send encoded upload data to the Edge Function'
   );
   assert.match(
     source,
     /path:\s*null/,
-    'anonymous audio feedback should let the Edge Function assign the private storage path'
+    'audio feedback should let the Edge Function assign the private storage path'
+  );
+  assert.doesNotMatch(
+    source,
+    /getCurrentUserId|supabase\.storage|\.upload\(/,
+    'mobile audio feedback should not bypass the Edge Function with direct storage uploads'
   );
 });

@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { getCurrentUserId, isSupabaseConfigured, supabase } from '../supabase';
+import { isSupabaseConfigured } from '../supabase';
 
 export const CHAPTER_FEEDBACK_AUDIO_BUCKET = 'chapter-feedback-audio';
 export const CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS = 120000;
@@ -36,25 +36,6 @@ export interface ChapterFeedbackAudioUploadResult {
   error?: string;
 }
 
-const sanitizePathSegment = (value: string): string =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'unknown';
-
-const readFileAsUint8Array = async (uri: string): Promise<Uint8Array> => {
-  const base64 = await readFileAsBase64(uri);
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-
-  for (let index = 0; index < binaryString.length; index += 1) {
-    bytes[index] = binaryString.charCodeAt(index);
-  }
-
-  return bytes;
-};
-
 const readFileAsBase64 = async (uri: string): Promise<string> => {
   return FileSystem.readAsStringAsync(uri, {
     encoding: 'base64' as const,
@@ -74,31 +55,13 @@ const assertValidBase64AudioSize = (
   return decodedSizeBytes === expectedSizeBytes;
 };
 
-const buildFeedbackAudioPath = (
-  userId: string,
-  context: ChapterFeedbackAudioUploadContext
-): string => {
-  const createdAt = Date.now();
-  const randomSuffix = Math.random().toString(36).slice(2, 10);
-
-  return [
-    userId,
-    sanitizePathSegment(context.translationId),
-    sanitizePathSegment(context.bookId),
-    String(context.chapter),
-    `${createdAt}-${randomSuffix}.${CHAPTER_FEEDBACK_AUDIO_EXTENSION}`,
-  ].join('/');
-};
-
 export async function uploadChapterFeedbackAudio(
   draft: ChapterFeedbackAudioDraft,
-  context: ChapterFeedbackAudioUploadContext
+  _context: ChapterFeedbackAudioUploadContext
 ): Promise<ChapterFeedbackAudioUploadResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
   }
-
-  const userId = await getCurrentUserId();
 
   const durationMs = Math.max(0, Math.round(draft.durationMs));
   if (durationMs < 500) {
@@ -121,49 +84,22 @@ export async function uploadChapterFeedbackAudio(
       return { success: false, error: 'Audio responses must be 5 MB or smaller.' };
     }
 
-    if (!userId) {
-      const base64Data = await readFileAsBase64(draft.uri);
+    const base64Data = await readFileAsBase64(draft.uri);
 
-      if (!assertValidBase64AudioSize(base64Data, sizeBytes)) {
-        return { success: false, error: 'The recorded audio file could not be read.' };
-      }
-
-      return {
-        success: true,
-        data: {
-          bucket: CHAPTER_FEEDBACK_AUDIO_BUCKET,
-          path: null,
-          durationMs,
-          mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-          sizeBytes,
-          createdAt: new Date().toISOString(),
-          base64Data,
-        },
-      };
-    }
-
-    const path = buildFeedbackAudioPath(userId, context);
-    const audioBytes = await readFileAsUint8Array(draft.uri);
-    const { error: uploadError } = await supabase.storage
-      .from(CHAPTER_FEEDBACK_AUDIO_BUCKET)
-      .upload(path, audioBytes, {
-        contentType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      return { success: false, error: uploadError.message };
+    if (!assertValidBase64AudioSize(base64Data, sizeBytes)) {
+      return { success: false, error: 'The recorded audio file could not be read.' };
     }
 
     return {
       success: true,
       data: {
         bucket: CHAPTER_FEEDBACK_AUDIO_BUCKET,
-        path,
+        path: null,
         durationMs,
         mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
         sizeBytes,
         createdAt: new Date().toISOString(),
+        base64Data,
       },
     };
   } catch (error) {

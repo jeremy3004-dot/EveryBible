@@ -48,16 +48,17 @@ test('submit-chapter-feedback stores optional reviewer identity and derives user
   );
 });
 
-test('submit-chapter-feedback accepts anonymous audio through service-role storage upload', () => {
+test('submit-chapter-feedback accepts audio upload data through service-role storage upload', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
 
   assert.match(source, /interface ChapterFeedbackAudioRequest/);
   assert.doesNotMatch(source, /audio responses require an authenticated user/);
   assert.match(source, /base64Data\?: string/);
-  assert.match(source, /anonymous audio responses must include upload data/);
+  assert.match(source, /audio responses must include upload data/);
   assert.match(source, /\.storage[\s\S]*\.from\('chapter-feedback-audio'\)[\s\S]*\.upload/);
   assert.match(source, /audioResponse\.bucket !== 'chapter-feedback-audio'/);
-  assert.equal(source.includes('audioPath.startsWith(`${userId}/`)'), true);
+  assert.match(source, /buildStoredAudioPath\(body,\s*userId\)/);
+  assert.equal(source.includes('preuploadedAudioPath.startsWith(`${userId}/`)'), true);
   assert.match(source, /audioResponse\.mimeType !== 'audio\/mp4'/);
   assert.match(source, /audio_response_duration_ms/);
 });

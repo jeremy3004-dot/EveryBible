@@ -191,8 +191,8 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     functionSource,
-    /anonymous audio responses must include upload data/,
-    'Expected anonymous audio submissions to upload through the Edge Function'
+    /audio responses must include upload data/,
+    'Expected audio submissions to upload through the Edge Function'
   );
   assert.match(
     functionSource,
