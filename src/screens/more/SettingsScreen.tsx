@@ -72,6 +72,7 @@ export function SettingsScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
+  const disableTranslatorReviewMode = useTranslatorReviewStore((state) => state.disable);
 
   const openTimePicker = () => {
     const pickerState = getReminderPickerState(preferences.reminderTime, MINUTES);
@@ -211,6 +212,18 @@ export function SettingsScreen() {
     setTranslatorAccessPasscode('');
     setTranslatorAccessError(null);
     setShowTranslatorAccessModal(true);
+  };
+
+  const handleTranslatorReviewToggle = (enabled: boolean) => {
+    if (enabled) {
+      openTranslatorAccessModal();
+      return;
+    }
+
+    disableTranslatorReviewMode();
+    setShowTranslatorAccessModal(false);
+    setTranslatorAccessPasscode('');
+    setTranslatorAccessError(null);
   };
 
   const handleTranslatorAccessDigit = (digit: string) => {
@@ -533,7 +546,7 @@ export function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={openTranslatorAccessModal}
+            onPress={() => handleTranslatorReviewToggle(!translatorReviewEnabled)}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="keypad-outline" size={24} color={colors.secondaryText} />
@@ -554,12 +567,12 @@ export function SettingsScreen() {
                 </Text>
               </View>
             </View>
-            <View style={styles.settingRight}>
-              {translatorReviewEnabled ? (
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-              ) : null}
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
+            <Switch
+              value={translatorReviewEnabled}
+              onValueChange={handleTranslatorReviewToggle}
+              trackColor={{ false: colors.cardBorder, true: colors.success }}
+              thumbColor={colors.cardBackground}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -18,3 +18,23 @@ test('SettingsScreen unlocks translator review mode through a numeric passcode m
   assert.match(source, /enableTranslatorReviewMode\(translatorAccessPasscode\)/);
   assert.match(source, /translatorAccessIncorrect/);
 });
+
+test('SettingsScreen lets translators toggle review mode off and requires passcode to turn it back on', () => {
+  assert.match(source, /disableTranslatorReviewMode/);
+  assert.match(source, /handleTranslatorReviewToggle/);
+  assert.match(
+    source,
+    /if \(enabled\) \{[\s\S]*openTranslatorAccessModal\(\);[\s\S]*return;[\s\S]*\}/,
+    'Turning translator review mode on should reopen the passcode modal'
+  );
+  assert.match(
+    source,
+    /disableTranslatorReviewMode\(\);/,
+    'Turning translator review mode off should persist disabled translator mode'
+  );
+  assert.match(
+    source,
+    /value=\{translatorReviewEnabled\}[\s\S]*onValueChange=\{handleTranslatorReviewToggle\}/,
+    'Translator Access should expose a real Settings switch'
+  );
+});
