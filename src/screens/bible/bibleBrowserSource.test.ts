@@ -171,7 +171,8 @@ test('Bible browser gates translator feedback badges behind translator review mo
     'Feedback badges should not render for normal readers'
   );
   assert.match(source, /name=\{isPending \? 'alert' : 'checkmark'\}/);
-  assert.match(source, /backgroundColor: isPending \? colors\.accentPrimary : colors\.accentGreen/);
+  assert.match(source, /backgroundColor: isPending \? colors\.accentPrimary : colors\.success/);
+  assert.match(source, /color=\{colors\.onAccent\}/);
 });
 
 test('Bible browser scrolls the restored book into view on open', () => {

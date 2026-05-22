@@ -290,7 +290,7 @@ export function BibleBrowserScreen() {
         style={[
           styles.translatorFeedbackBadge,
           {
-            backgroundColor: isPending ? colors.accentPrimary : colors.accentGreen,
+            backgroundColor: isPending ? colors.accentPrimary : colors.success,
             borderColor: colors.bibleBackground,
           },
         ]}
@@ -298,7 +298,7 @@ export function BibleBrowserScreen() {
         <Ionicons
           name={isPending ? 'alert' : 'checkmark'}
           size={10}
-          color={colors.cardBackground}
+          color={colors.onAccent}
         />
       </View>
     );
