@@ -377,6 +377,9 @@ deno_version = 2
 [functions.submit-chapter-feedback]
 verify_jwt = false
 
+[functions.review-chapter-feedback]
+verify_jwt = false
+
 [functions.track-analytics-events]
 verify_jwt = false
 

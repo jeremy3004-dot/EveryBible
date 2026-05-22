@@ -28,6 +28,29 @@ const ALLOWED_ENGLISH_VALUES = new Set([
   'bible.chapterFeedbackAudioStopError',
   'bible.chapterFeedbackAudioRecordingMissing',
   'bible.chapterFeedbackAudioUploadError',
+  'bible.translatorReviewTitle',
+  'bible.translatorReviewSummary',
+  'bible.translatorReviewLoading',
+  'bible.translatorReviewEmpty',
+  'bible.translatorReviewUnknownUser',
+  'bible.translatorReviewUnread',
+  'bible.translatorReviewSubmittedAt',
+  'bible.translatorReviewSubmittedBy',
+  'bible.translatorReviewNoComment',
+  'bible.translatorReviewRead',
+  'bible.translatorReviewMarkRead',
+  'bible.translatorReviewListened',
+  'bible.translatorReviewListen',
+  'settings.translatorAccess',
+  'settings.translatorAccessTitle',
+  'settings.translatorAccessBody',
+  'settings.translatorAccessPlaceholder',
+  'settings.translatorAccessUnlock',
+  'settings.translatorAccessIncorrect',
+  'settings.translatorAccessEnabled',
+  'settings.translatorAccessEnabledBody',
+  'settings.translatorAccessSummaryOn',
+  'settings.translatorAccessSummaryOff',
 ]);
 
 const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, string]> =>
@@ -87,7 +110,11 @@ test('every supported locale preserves the full English keyset', async () => {
     assert.ok(localeTree, `Expected locale export for ${language.code}`);
     const localeKeys = flattenKeys(localeTree).sort();
 
-    assert.deepEqual(localeKeys, englishKeys, `Missing or mismatched locale keys for ${language.code}`);
+    assert.deepEqual(
+      localeKeys,
+      englishKeys,
+      `Missing or mismatched locale keys for ${language.code}`
+    );
   }
 });
 

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
+import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores';
 import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
@@ -54,6 +55,9 @@ export function SettingsScreen() {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChapterFeedbackIdentityModal, setShowChapterFeedbackIdentityModal] = useState(false);
+  const [showTranslatorAccessModal, setShowTranslatorAccessModal] = useState(false);
+  const [translatorAccessPasscode, setTranslatorAccessPasscode] = useState('');
+  const [translatorAccessError, setTranslatorAccessError] = useState<string | null>(null);
   const [pendingChapterFeedbackEnabled, setPendingChapterFeedbackEnabled] = useState(false);
   const [chapterFeedbackIdentityName, setChapterFeedbackIdentityName] = useState('');
   const [chapterFeedbackIdentityRole, setChapterFeedbackIdentityRole] = useState('');
@@ -66,6 +70,8 @@ export function SettingsScreen() {
   const [selectedMinute, setSelectedMinute] = useState('00');
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
+  const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
 
   const openTimePicker = () => {
     const pickerState = getReminderPickerState(preferences.reminderTime, MINUTES);
@@ -199,6 +205,32 @@ export function SettingsScreen() {
 
   const handleOpenChapterFeedbackIdentityEditor = () => {
     openChapterFeedbackIdentityModal(false);
+  };
+
+  const openTranslatorAccessModal = () => {
+    setTranslatorAccessPasscode('');
+    setTranslatorAccessError(null);
+    setShowTranslatorAccessModal(true);
+  };
+
+  const handleTranslatorAccessDigit = (digit: string) => {
+    setTranslatorAccessPasscode((current) => `${current}${digit}`.slice(0, 6));
+    if (translatorAccessError) {
+      setTranslatorAccessError(null);
+    }
+  };
+
+  const handleTranslatorAccessSubmit = () => {
+    const enabled = enableTranslatorReviewMode(translatorAccessPasscode);
+
+    if (!enabled) {
+      setTranslatorAccessError(t('settings.translatorAccessIncorrect'));
+      return;
+    }
+
+    setShowTranslatorAccessModal(false);
+    setTranslatorAccessPasscode('');
+    Alert.alert(t('settings.translatorAccessEnabled'), t('settings.translatorAccessEnabledBody'));
   };
 
   const localeSummary = (() => {
@@ -500,6 +532,37 @@ export function SettingsScreen() {
           </View>
 
           <TouchableOpacity
+            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
+            onPress={openTranslatorAccessModal}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="keypad-outline" size={24} color={colors.secondaryText} />
+              <View style={styles.settingCopy}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    styles.settingLabelNoMargin,
+                    { color: colors.primaryText },
+                  ]}
+                >
+                  {t('settings.translatorAccess')}
+                </Text>
+                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
+                  {translatorReviewEnabled
+                    ? t('settings.translatorAccessSummaryOn')
+                    : t('settings.translatorAccessSummaryOff')}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.settingRight}>
+              {translatorReviewEnabled ? (
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+              ) : null}
+              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.settingItem, styles.lastItem, styles.feedbackIdentityRow]}
             onPress={handleOpenChapterFeedbackIdentityEditor}
           >
@@ -733,6 +796,129 @@ export function SettingsScreen() {
                       {t('common.save')}
                     </Text>
                   )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={showTranslatorAccessModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowTranslatorAccessModal(false)}
+        >
+          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => setShowTranslatorAccessModal(false)}
+            />
+            <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+                {t('settings.translatorAccessTitle')}
+              </Text>
+              <Text style={[styles.translatorAccessBody, { color: colors.secondaryText }]}>
+                {t('settings.translatorAccessBody')}
+              </Text>
+              <TextInput
+                value={translatorAccessPasscode}
+                editable={false}
+                secureTextEntry
+                keyboardType="number-pad"
+                placeholder={t('settings.translatorAccessPlaceholder')}
+                placeholderTextColor={colors.secondaryText}
+                style={[
+                  styles.translatorAccessInput,
+                  {
+                    color: colors.primaryText,
+                    borderColor: colors.cardBorder,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              />
+              {translatorAccessError ? (
+                <Text style={[styles.feedbackIdentityError, { color: colors.error }]}>
+                  {translatorAccessError}
+                </Text>
+              ) : null}
+              <View style={styles.translatorKeypad}>
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'delete'].map(
+                  (key) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.translatorKey,
+                        {
+                          backgroundColor:
+                            key === 'clear' || key === 'delete'
+                              ? colors.cardBorder
+                              : colors.background,
+                        },
+                      ]}
+                      onPress={() => {
+                        if (key === 'clear') {
+                          setTranslatorAccessPasscode('');
+                          setTranslatorAccessError(null);
+                          return;
+                        }
+
+                        if (key === 'delete') {
+                          setTranslatorAccessPasscode((current) => current.slice(0, -1));
+                          setTranslatorAccessError(null);
+                          return;
+                        }
+
+                        handleTranslatorAccessDigit(key);
+                      }}
+                    >
+                      <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
+                        {key === 'clear'
+                          ? t('privacy.clearKey')
+                          : key === 'delete'
+                            ? t('privacy.deleteKey')
+                            : key}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: colors.cardBorder }]}
+                  onPress={() => setShowTranslatorAccessModal(false)}
+                >
+                  <Text style={[styles.modalButtonTextCancel, { color: colors.primaryText }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonPrimary,
+                    {
+                      backgroundColor:
+                        translatorAccessPasscode.length > 0
+                          ? colors.accentPrimary
+                          : colors.cardBorder,
+                    },
+                  ]}
+                  onPress={handleTranslatorAccessSubmit}
+                  disabled={translatorAccessPasscode.length === 0}
+                >
+                  <Text
+                    style={[
+                      styles.modalButtonText,
+                      {
+                        color:
+                          translatorAccessPasscode.length > 0
+                            ? colors.onAccent
+                            : colors.secondaryText,
+                      },
+                    ]}
+                  >
+                    {t('settings.translatorAccessUnlock')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1260,6 +1446,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
+  },
+  translatorAccessBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  translatorAccessInput: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 20,
+    letterSpacing: 0,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  translatorKeypad: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  translatorKey: {
+    width: '31.5%',
+    minHeight: 44,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  translatorKeyText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   timePickerContainer: {
     flexDirection: 'row',

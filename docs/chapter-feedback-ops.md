@@ -43,6 +43,15 @@ Audio-message responses are stored in the private Supabase Storage bucket `chapt
 
 Use the admin backend feedback page at `/feedback`, or query Supabase directly.
 
+Translator reviewers can also use the hidden mobile review mode for chapter-level checks:
+
+1. Open Settings.
+2. Tap `Translator Access` directly below `Chapter Feedback`.
+3. Enter the translator passcode.
+4. Open a chapter to review that chapter's submitted feedback, including text, sentiment, submitter identity when available, and signed audio playback.
+
+The mobile review mode stores the unlock flag and read/listened markers locally on the device. It does not sync reviewer state across devices. The feedback rows and private audio URLs still come from Supabase through the `review-chapter-feedback` Edge Function.
+
 The admin page is organized for review by:
 
 - language

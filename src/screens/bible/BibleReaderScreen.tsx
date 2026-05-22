@@ -65,7 +65,12 @@ import { getChapterPresentationMode } from '../../services/bible/presentation';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import { submitChapterFeedback } from '../../services/feedback';
+import {
+  fetchChapterFeedbackForTranslatorReview,
+  getTranslatorFeedbackReviewStatus,
+  submitChapterFeedback,
+  type ChapterFeedbackReviewItem,
+} from '../../services/feedback';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
   CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
@@ -92,6 +97,7 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
+import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
@@ -601,24 +607,31 @@ export function BibleReaderScreen() {
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [feedbackAudioState, setFeedbackAudioState] =
-    useState<ChapterFeedbackAudioState>('idle');
-  const [feedbackAudioDraft, setFeedbackAudioDraft] =
-    useState<ChapterFeedbackAudioDraft | null>(null);
+  const [feedbackAudioState, setFeedbackAudioState] = useState<ChapterFeedbackAudioState>('idle');
+  const [feedbackAudioDraft, setFeedbackAudioDraft] = useState<ChapterFeedbackAudioDraft | null>(
+    null
+  );
   const [feedbackAudioElapsedMs, setFeedbackAudioElapsedMs] = useState(0);
   const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
+  const [translatorFeedbackItems, setTranslatorFeedbackItems] = useState<
+    ChapterFeedbackReviewItem[]
+  >([]);
+  const [isLoadingTranslatorFeedback, setIsLoadingTranslatorFeedback] = useState(false);
+  const [translatorFeedbackError, setTranslatorFeedbackError] = useState<string | null>(null);
   const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
+  const translatorReviewAudioSoundRef = useRef<Audio.Sound | null>(null);
   useEffect(() => {
     return () => {
       if (feedbackAudioTimerRef.current) {
         clearInterval(feedbackAudioTimerRef.current);
       }
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
+      void translatorReviewAudioSoundRef.current?.unloadAsync();
       void feedbackAudioRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
     };
   }, []);
@@ -823,6 +836,10 @@ export function BibleReaderScreen() {
   const hidePlayButtonFromReadingTab = useAuthStore(
     (state) => state.preferences.hidePlayButtonFromReadingTab
   );
+  const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
+  const markTranslatorFeedbackRead = useTranslatorReviewStore((state) => state.markRead);
+  const markTranslatorFeedbackListened = useTranslatorReviewStore((state) => state.markListened);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
@@ -1259,6 +1276,16 @@ export function BibleReaderScreen() {
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
     showMinimalListenChrome;
+  const translatorFeedbackNeedingReviewCount = translatorFeedbackItems.filter(
+    (item) =>
+      getTranslatorFeedbackReviewStatus(
+        {
+          id: item.id,
+          hasAudio: item.audioResponse?.playbackUrl != null,
+        },
+        translatorFeedbackMarkers
+      ).needsReview
+  ).length;
   const selectedVerseReferenceLabel =
     selectedVerses.length > 0
       ? formatBibleSelectionReference({
@@ -1279,6 +1306,37 @@ export function BibleReaderScreen() {
       : '';
   const selectedVerseRanges =
     selectedVerses.length > 0 ? buildBibleSelectionVerseRanges(selectedVerses) : [];
+
+  const loadTranslatorFeedback = useCallback(async () => {
+    if (!translatorReviewEnabled) {
+      setTranslatorFeedbackItems([]);
+      setTranslatorFeedbackError(null);
+      return;
+    }
+
+    setIsLoadingTranslatorFeedback(true);
+    setTranslatorFeedbackError(null);
+
+    const result = await fetchChapterFeedbackForTranslatorReview({
+      translationId: currentTranslation,
+      bookId,
+      chapter,
+    });
+
+    setIsLoadingTranslatorFeedback(false);
+
+    if (!result.success) {
+      setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+      setTranslatorFeedbackItems([]);
+      return;
+    }
+
+    setTranslatorFeedbackItems(result.feedback);
+  }, [bookId, chapter, currentTranslation, t, translatorReviewEnabled]);
+
+  useEffect(() => {
+    void loadTranslatorFeedback();
+  }, [loadTranslatorFeedback]);
   const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
     annotation.verse_end ?? annotation.verse_start;
   const annotationOverlapsVerse = (
@@ -2737,6 +2795,27 @@ export function BibleReaderScreen() {
     feedbackAudioPreviewSoundRef.current = null;
   };
 
+  const playTranslatorFeedbackAudio = async (feedbackId: string, playbackUrl: string | null) => {
+    if (!playbackUrl) {
+      return;
+    }
+
+    await translatorReviewAudioSoundRef.current?.unloadAsync().catch(() => undefined);
+    const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
+    translatorReviewAudioSoundRef.current = sound;
+    markTranslatorFeedbackListened(feedbackId);
+  };
+
+  const formatTranslatorFeedbackSubmittedAt = (submittedAt: string) => {
+    const parsedDate = new Date(submittedAt);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return submittedAt;
+    }
+
+    return parsedDate.toLocaleString();
+  };
+
   const stopFeedbackAudioRecording = async () => {
     const recording = feedbackAudioRecordingRef.current;
     if (!recording) {
@@ -2759,9 +2838,7 @@ export function BibleReaderScreen() {
       }
 
       const durationMs =
-        typeof status.durationMillis === 'number'
-          ? status.durationMillis
-          : feedbackAudioElapsedMs;
+        typeof status.durationMillis === 'number' ? status.durationMillis : feedbackAudioElapsedMs;
       setFeedbackAudioDraft({
         uri,
         durationMs: Math.max(durationMs, feedbackAudioElapsedMs),
@@ -2993,7 +3070,9 @@ export function BibleReaderScreen() {
         <View style={styles.feedbackAudioHeader}>
           <View style={styles.feedbackAudioStatus}>
             <Ionicons
-              name={isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'}
+              name={
+                isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
+              }
               size={18}
               color={isRecording ? colors.error : colors.biblePrimaryText}
             />
@@ -3617,6 +3696,216 @@ export function BibleReaderScreen() {
           )}
         </View>
       </Animated.View>
+    );
+  };
+
+  const renderTranslatorFeedbackReviewTools = () => {
+    if (!translatorReviewEnabled) {
+      return null;
+    }
+
+    return (
+      <View
+        style={[
+          styles.translatorReviewCard,
+          {
+            backgroundColor: colors.bibleSurface,
+            borderColor: colors.bibleDivider,
+          },
+        ]}
+      >
+        <View style={styles.translatorReviewHeader}>
+          <View style={styles.translatorReviewHeaderCopy}>
+            <Text style={[styles.translatorReviewTitle, { color: colors.biblePrimaryText }]}>
+              {t('bible.translatorReviewTitle')}
+            </Text>
+            <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+              {t('bible.translatorReviewSummary', {
+                count: translatorFeedbackItems.length,
+                pending: translatorFeedbackNeedingReviewCount,
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.retry')}
+            style={[
+              styles.translatorReviewRefreshButton,
+              {
+                backgroundColor: colors.bibleElevatedSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
+            onPress={() => {
+              void loadTranslatorFeedback();
+            }}
+          >
+            <Ionicons name="refresh-outline" size={16} color={colors.biblePrimaryText} />
+          </TouchableOpacity>
+        </View>
+
+        {isLoadingTranslatorFeedback ? (
+          <View style={styles.translatorReviewLoadingRow}>
+            <ActivityIndicator size="small" color={colors.accentPrimary} />
+            <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+              {t('bible.translatorReviewLoading')}
+            </Text>
+          </View>
+        ) : null}
+
+        {translatorFeedbackError ? (
+          <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+            {translatorFeedbackError}
+          </Text>
+        ) : null}
+
+        {!isLoadingTranslatorFeedback &&
+        !translatorFeedbackError &&
+        translatorFeedbackItems.length === 0 ? (
+          <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+            {t('bible.translatorReviewEmpty')}
+          </Text>
+        ) : null}
+
+        {translatorFeedbackItems.map((item) => {
+          const status = getTranslatorFeedbackReviewStatus(
+            {
+              id: item.id,
+              hasAudio: item.audioResponse?.playbackUrl != null,
+            },
+            translatorFeedbackMarkers
+          );
+          const participantLabel =
+            [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
+            item.participantIdNumber ||
+            item.userId ||
+            t('bible.translatorReviewUnknownUser');
+
+          return (
+            <View
+              key={item.id}
+              style={[
+                styles.translatorReviewItem,
+                {
+                  backgroundColor: colors.bibleElevatedSurface,
+                  borderColor: status.needsReview ? colors.accentPrimary : colors.bibleDivider,
+                },
+              ]}
+            >
+              <View style={styles.translatorReviewItemHeader}>
+                <View style={styles.translatorReviewSentimentRow}>
+                  <Ionicons
+                    name={item.sentiment === 'up' ? 'thumbs-up-outline' : 'thumbs-down-outline'}
+                    size={16}
+                    color={item.sentiment === 'up' ? colors.accentGreen : colors.accentPrimary}
+                  />
+                  <Text
+                    style={[styles.translatorReviewItemTitle, { color: colors.biblePrimaryText }]}
+                  >
+                    {item.sentiment === 'up'
+                      ? t('bible.chapterFeedbackThumbsUp')
+                      : t('bible.chapterFeedbackThumbsDown')}
+                  </Text>
+                </View>
+                {status.needsReview ? (
+                  <View
+                    style={[
+                      styles.translatorReviewBadge,
+                      { backgroundColor: colors.accentPrimary },
+                    ]}
+                  >
+                    <Text style={[styles.translatorReviewBadgeText, { color: colors.onAccent }]}>
+                      {t('bible.translatorReviewUnread')}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+                {t('bible.translatorReviewSubmittedAt', {
+                  date: formatTranslatorFeedbackSubmittedAt(item.createdAt),
+                })}
+              </Text>
+              <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+                {t('bible.translatorReviewSubmittedBy', { name: participantLabel })}
+              </Text>
+
+              {item.comment ? (
+                <Text style={[styles.translatorReviewComment, { color: colors.biblePrimaryText }]}>
+                  {item.comment}
+                </Text>
+              ) : (
+                <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
+                  {t('bible.translatorReviewNoComment')}
+                </Text>
+              )}
+
+              <View style={styles.translatorReviewActionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.translatorReviewActionButton,
+                    {
+                      borderColor: colors.bibleDivider,
+                      backgroundColor: status.isRead ? colors.bibleSurface : colors.accentPrimary,
+                    },
+                  ]}
+                  onPress={() => markTranslatorFeedbackRead(item.id)}
+                >
+                  <Text
+                    style={[
+                      styles.translatorReviewActionLabel,
+                      { color: status.isRead ? colors.biblePrimaryText : colors.onAccent },
+                    ]}
+                  >
+                    {status.isRead
+                      ? t('bible.translatorReviewRead')
+                      : t('bible.translatorReviewMarkRead')}
+                  </Text>
+                </TouchableOpacity>
+
+                {item.audioResponse ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.translatorReviewActionButton,
+                      {
+                        borderColor: colors.bibleDivider,
+                        backgroundColor: status.isListened
+                          ? colors.bibleSurface
+                          : colors.accentPrimary,
+                      },
+                    ]}
+                    disabled={!item.audioResponse.playbackUrl}
+                    onPress={() => {
+                      void playTranslatorFeedbackAudio(
+                        item.id,
+                        item.audioResponse?.playbackUrl ?? null
+                      );
+                    }}
+                  >
+                    <Ionicons
+                      name="play-outline"
+                      size={15}
+                      color={status.isListened ? colors.biblePrimaryText : colors.onAccent}
+                    />
+                    <Text
+                      style={[
+                        styles.translatorReviewActionLabel,
+                        {
+                          color: status.isListened ? colors.biblePrimaryText : colors.onAccent,
+                        },
+                      ]}
+                    >
+                      {status.isListened
+                        ? t('bible.translatorReviewListened')
+                        : t('bible.translatorReviewListen')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
     );
   };
 
@@ -4249,7 +4538,10 @@ export function BibleReaderScreen() {
             ]}
           >
             <View style={[styles.premiumReaderContentShell]}>
-              <View>{renderReaderVerses(true)}</View>
+              <View>
+                {renderReaderVerses(true)}
+                {renderTranslatorFeedbackReviewTools()}
+              </View>
             </View>
           </Animated.ScrollView>
 
@@ -4486,6 +4778,7 @@ export function BibleReaderScreen() {
           ]}
         >
           {renderLegacyContent()}
+          {renderTranslatorFeedbackReviewTools()}
         </View>
       </ScrollView>
     </>
@@ -6577,6 +6870,98 @@ const styles = StyleSheet.create({
   feedbackErrorText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  translatorReviewCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginTop: 20,
+    gap: 12,
+  },
+  translatorReviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  translatorReviewHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  translatorReviewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  translatorReviewMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  translatorReviewRefreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  translatorReviewLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  translatorReviewItem: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: 12,
+    gap: 8,
+  },
+  translatorReviewItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  translatorReviewSentimentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  translatorReviewItemTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  translatorReviewBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  translatorReviewBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  translatorReviewComment: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  translatorReviewActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  translatorReviewActionButton: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  translatorReviewActionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   verseImageSheetOverlay: {
     flex: 1,
