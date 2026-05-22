@@ -27,11 +27,12 @@ interface ChapterFeedbackRequest {
 
 interface ChapterFeedbackAudioRequest {
   bucket?: string;
-  path?: string;
+  path?: string | null;
   durationMs?: number;
   mimeType?: string;
   sizeBytes?: number | null;
   createdAt?: string;
+  base64Data?: string;
 }
 
 interface ChapterFeedbackInsert {
@@ -65,6 +66,13 @@ interface ChapterFeedbackRow extends ChapterFeedbackInsert {
   created_at: string;
 }
 
+interface PendingAudioUpload {
+  base64Data: string;
+  path: string;
+  mimeType: string;
+  sizeBytes: number | null;
+}
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
     status,
@@ -88,6 +96,43 @@ const requireNonEmptyString = (value: unknown): string | null => {
   return trimmed && trimmed.length > 0 ? trimmed : null;
 };
 
+const sanitizePathSegment = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'unknown';
+
+const buildAnonymousAudioPath = (body: ChapterFeedbackRequest): string => {
+  const createdAt = Date.now();
+  const randomSuffix = crypto.randomUUID();
+
+  return [
+    'anonymous',
+    sanitizePathSegment(body.translationId ?? ''),
+    sanitizePathSegment(body.bookId ?? ''),
+    String(body.chapter ?? 'unknown'),
+    `${createdAt}-${randomSuffix}.m4a`,
+  ].join('/');
+};
+
+const base64DecodedSize = (base64Data: string): number => {
+  const normalized = base64Data.replace(/\s/g, '');
+  const paddingBytes = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
+  return Math.floor((normalized.length * 3) / 4) - paddingBytes;
+};
+
+const decodeBase64 = (base64Data: string): Uint8Array => {
+  const binaryString = atob(base64Data.replace(/\s/g, ''));
+  const bytes = new Uint8Array(binaryString.length);
+
+  for (let index = 0; index < binaryString.length; index += 1) {
+    bytes[index] = binaryString.charCodeAt(index);
+  }
+
+  return bytes;
+};
+
 const getRequiredSecret = (name: string): string => {
   const value = Deno.env.get(name)?.trim();
   if (!value) {
@@ -99,7 +144,7 @@ const getRequiredSecret = (name: string): string => {
 const validateRequest = (
   body: ChapterFeedbackRequest,
   userId: string | null
-): { value?: ChapterFeedbackInsert; error?: string } => {
+): { value?: ChapterFeedbackInsert; pendingAudioUpload?: PendingAudioUpload; error?: string } => {
   const translationId = requireNonEmptyString(body.translationId);
   const translationLanguage = requireNonEmptyString(body.translationLanguage);
   const bookId = requireNonEmptyString(body.bookId);
@@ -128,19 +173,16 @@ const validateRequest = (
   }
 
   const audioResponse = body.audioResponse ?? null;
-  if (audioResponse) {
-    if (!userId) {
-      return { error: 'audio responses require an authenticated user' };
-    }
+  let pendingAudioUpload: PendingAudioUpload | undefined;
+  let audioResponsePath: string | null = null;
 
+  if (audioResponse) {
     if (audioResponse.bucket !== 'chapter-feedback-audio') {
       return { error: 'audio response bucket is not supported' };
     }
 
     const audioPath = requireNonEmptyString(audioResponse.path);
-    if (!audioPath || !audioPath.startsWith(`${userId}/`)) {
-      return { error: 'audio response path is invalid for this user' };
-    }
+    const base64Data = requireNonEmptyString(audioResponse.base64Data);
 
     if (audioResponse.mimeType !== 'audio/mp4') {
       return { error: 'audio response must use audio/mp4' };
@@ -167,6 +209,33 @@ const validateRequest = (
     if (!Number.isFinite(createdAtTime)) {
       return { error: 'audio response createdAt must be an ISO timestamp' };
     }
+
+    if (userId) {
+      if (!audioPath || !audioPath.startsWith(`${userId}/`)) {
+        return { error: 'audio response path is invalid for this user' };
+      }
+
+      audioResponsePath = audioPath;
+    } else {
+      if (!base64Data) {
+        return { error: 'anonymous audio responses must include upload data' };
+      }
+
+      if (
+        audioResponse.sizeBytes != null &&
+        base64DecodedSize(base64Data) !== audioResponse.sizeBytes
+      ) {
+        return { error: 'audio response size does not match upload data' };
+      }
+
+      audioResponsePath = buildAnonymousAudioPath(body);
+      pendingAudioUpload = {
+        base64Data,
+        path: audioResponsePath,
+        mimeType: audioResponse.mimeType,
+        sizeBytes: audioResponse.sizeBytes ?? null,
+      };
+    }
   }
 
   return {
@@ -181,7 +250,7 @@ const validateRequest = (
       participant_role: participantRole,
       participant_id_number: null,
       audio_response_bucket: audioResponse ? 'chapter-feedback-audio' : null,
-      audio_response_path: audioResponse?.path ?? null,
+      audio_response_path: audioResponsePath,
       audio_response_mime_type: audioResponse?.mimeType ?? null,
       audio_response_size_bytes: audioResponse?.sizeBytes ?? null,
       audio_response_duration_ms: audioResponse?.durationMs ?? null,
@@ -195,6 +264,7 @@ const validateRequest = (
       app_version: trimOptionalText(body.appVersion),
       export_status: 'exported',
     },
+    pendingAudioUpload,
   };
 };
 
@@ -239,6 +309,28 @@ Deno.serve(async (req) => {
 
     if (!validation.value) {
       return jsonResponse(400, { success: false, error: validation.error });
+    }
+
+    if (validation.pendingAudioUpload) {
+      const { error: uploadError } = await supabase.storage
+        .from('chapter-feedback-audio')
+        .upload(
+          validation.pendingAudioUpload.path,
+          decodeBase64(validation.pendingAudioUpload.base64Data),
+          {
+            contentType: validation.pendingAudioUpload.mimeType,
+            upsert: false,
+          }
+        );
+
+      if (uploadError) {
+        return jsonResponse(500, {
+          success: false,
+          saved: false,
+          exported: false,
+          error: uploadError.message,
+        });
+      }
     }
 
     const insertPayload: ChapterFeedbackInsert = {

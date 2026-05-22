@@ -16,11 +16,12 @@ export interface ChapterFeedbackAudioDraft {
 
 export interface ChapterFeedbackAudioAttachment {
   bucket: typeof CHAPTER_FEEDBACK_AUDIO_BUCKET;
-  path: string;
+  path: string | null;
   durationMs: number;
   mimeType: string;
   sizeBytes: number | null;
   createdAt: string;
+  base64Data?: string;
 }
 
 export interface ChapterFeedbackAudioUploadContext {
@@ -43,9 +44,7 @@ const sanitizePathSegment = (value: string): string =>
     .replace(/^-+|-+$/g, '') || 'unknown';
 
 const readFileAsUint8Array = async (uri: string): Promise<Uint8Array> => {
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: 'base64' as const,
-  });
+  const base64 = await readFileAsBase64(uri);
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
 
@@ -54,6 +53,25 @@ const readFileAsUint8Array = async (uri: string): Promise<Uint8Array> => {
   }
 
   return bytes;
+};
+
+const readFileAsBase64 = async (uri: string): Promise<string> => {
+  return FileSystem.readAsStringAsync(uri, {
+    encoding: 'base64' as const,
+  });
+};
+
+const assertValidBase64AudioSize = (
+  base64Data: string,
+  expectedSizeBytes: number | null
+): boolean => {
+  if (!expectedSizeBytes) {
+    return true;
+  }
+
+  const paddingBytes = base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0;
+  const decodedSizeBytes = Math.floor((base64Data.length * 3) / 4) - paddingBytes;
+  return decodedSizeBytes === expectedSizeBytes;
 };
 
 const buildFeedbackAudioPath = (
@@ -81,9 +99,6 @@ export async function uploadChapterFeedbackAudio(
   }
 
   const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: false, error: 'Please sign in before sending an audio response.' };
-  }
 
   const durationMs = Math.max(0, Math.round(draft.durationMs));
   if (durationMs < 500) {
@@ -100,9 +115,31 @@ export async function uploadChapterFeedbackAudio(
       return { success: false, error: 'The recorded audio file could not be found.' };
     }
 
-    const sizeBytes = 'size' in fileInfo && typeof fileInfo.size === 'number' ? fileInfo.size : null;
+    const sizeBytes =
+      'size' in fileInfo && typeof fileInfo.size === 'number' ? fileInfo.size : null;
     if (sizeBytes && sizeBytes > CHAPTER_FEEDBACK_AUDIO_MAX_SIZE_BYTES) {
       return { success: false, error: 'Audio responses must be 5 MB or smaller.' };
+    }
+
+    if (!userId) {
+      const base64Data = await readFileAsBase64(draft.uri);
+
+      if (!assertValidBase64AudioSize(base64Data, sizeBytes)) {
+        return { success: false, error: 'The recorded audio file could not be read.' };
+      }
+
+      return {
+        success: true,
+        data: {
+          bucket: CHAPTER_FEEDBACK_AUDIO_BUCKET,
+          path: null,
+          durationMs,
+          mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
+          sizeBytes,
+          createdAt: new Date().toISOString(),
+          base64Data,
+        },
+      };
     }
 
     const path = buildFeedbackAudioPath(userId, context);

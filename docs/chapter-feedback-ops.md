@@ -37,7 +37,7 @@ The admin backend shows the fixed submission contract:
 
 `participant_id_number` is not user-entered. When the app has an authenticated Supabase session, the Edge Function fills `user_id` and `participant_id_number` from that user UUID. Anonymous submissions are allowed and store those fields as `null`; reviewer name and role are also optional.
 
-Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app uploads M4A audio (`audio/mp4`) before submitting the feedback row, with a 2 minute and 5 MB limit. Audio paths are user-scoped (`{user_id}/...`) and the Edge Function only accepts audio metadata for the authenticated owner. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
+Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app accepts M4A audio (`audio/mp4`) with a 2 minute and 5 MB limit. Authenticated submissions upload to a user-scoped path (`{user_id}/...`) before submitting the feedback row. Anonymous submissions send the encoded recording to the Edge Function, which uploads it with the service-role client under an `anonymous/...` path before saving the row. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
 
 ## How To Review Feedback
 
@@ -93,10 +93,17 @@ order by created_at desc;
 3. Disable the feature in Settings and confirm the reader action disappears.
 4. Confirm the feedback page filters find rows by language, translation, book, chapter, reviewer,
    comment, sentiment, and audio/text response type.
-5. While signed in, record an audio-only response and confirm:
+5. While signed out, record an audio-only response and confirm:
    - microphone permission prompts gracefully
    - stop, preview, re-record, and submit all work
    - upload failure leaves the recording available to retry
    - the Supabase row includes audio bucket/path/duration/mime/created metadata
+   - `user_id` and `participant_id_number` remain `null`
+   - the audio path starts with `anonymous/`
    - the admin backend `/feedback` row plays the audio in the browser
-6. Deny microphone permission and confirm typed feedback can still be submitted.
+6. While signed in, record an audio-only response and confirm:
+   - upload failure leaves the recording available to retry
+   - the Supabase row includes audio bucket/path/duration/mime/created metadata
+   - `participant_id_number` matches the authenticated Supabase user UUID
+   - the admin backend `/feedback` row plays the audio in the browser
+7. Deny microphone permission and confirm typed feedback can still be submitted.

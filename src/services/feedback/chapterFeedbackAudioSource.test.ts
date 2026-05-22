@@ -20,3 +20,23 @@ test('chapter feedback audio upload uses the Expo FileSystem legacy API for SDK 
     'SDK 54 top-level expo-file-system throws for deprecated getInfoAsync/readAsStringAsync calls'
   );
 });
+
+test('chapter feedback audio upload keeps anonymous responses on the Edge Function path', () => {
+  const source = readFileSync(AUDIO_SERVICE_PATH, 'utf8');
+
+  assert.doesNotMatch(
+    source,
+    /Please sign in before sending an audio response/,
+    'anonymous audio feedback should not be blocked by the mobile upload helper'
+  );
+  assert.match(
+    source,
+    /base64Data/,
+    'anonymous audio feedback should send encoded upload data to the Edge Function'
+  );
+  assert.match(
+    source,
+    /path:\s*null/,
+    'anonymous audio feedback should let the Edge Function assign the private storage path'
+  );
+});

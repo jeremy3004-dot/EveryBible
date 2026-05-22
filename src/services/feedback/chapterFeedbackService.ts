@@ -28,11 +28,12 @@ export interface ChapterFeedbackSubmissionInput {
 
 export interface ChapterFeedbackAudioResponseInput {
   bucket: string;
-  path: string;
+  path: string | null;
   durationMs: number;
   mimeType: string;
   sizeBytes: number | null;
   createdAt: string;
+  base64Data?: string;
 }
 
 export interface ChapterFeedbackFunctionResponse {

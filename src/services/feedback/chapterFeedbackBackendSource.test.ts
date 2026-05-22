@@ -184,10 +184,15 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
     /audio_response_path/,
     'Expected the Edge Function to persist audio response metadata'
   );
-  assert.match(
+  assert.doesNotMatch(
     functionSource,
     /audio responses require an authenticated user/,
-    'Expected the Edge Function to reject audio metadata without an authenticated owner'
+    'Expected the Edge Function to allow anonymous audio via service-role upload'
+  );
+  assert.match(
+    functionSource,
+    /anonymous audio responses must include upload data/,
+    'Expected anonymous audio submissions to upload through the Edge Function'
   );
   assert.match(
     functionSource,
