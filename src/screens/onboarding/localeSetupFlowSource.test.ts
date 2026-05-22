@@ -23,26 +23,32 @@ test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
   );
 });
 
-test('LocaleSetupFlow initial onboarding is a direct Bible translation chooser', () => {
+test('LocaleSetupFlow initial onboarding starts with interface language buttons', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
   const modelSource = readRelativeSource('./localeSetupModel.ts');
 
   assert.match(
     modelSource,
-    /return \['translation'\];/,
-    'Initial onboarding should ask for a Bible translation instead of walking through locale setup'
+    /return \['interfaceLanguage', 'translation'\];/,
+    'Initial onboarding should ask for interface language before Bible language'
   );
 
   assert.equal(
     flowSource.includes('onboarding-translation-search'),
     true,
-    'Initial onboarding should expose a direct translation search field'
+    'Initial onboarding should expose a Bible language search field after interface language'
   );
 
   assert.equal(
     flowSource.includes('onboarding-interface-language-search'),
     false,
-    'Initial onboarding should not force a separate interface-language search step'
+    'Initial onboarding should use interface language buttons instead of search'
+  );
+
+  assert.equal(
+    flowSource.includes('renderInterfaceLanguageButton'),
+    true,
+    'Initial onboarding should render tappable interface language buttons'
   );
 });
 

@@ -14,7 +14,12 @@ import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LANGUAGES, type LanguageCode } from '../../constants/languages';
+import {
+  LANGUAGES,
+  SUPPORTED_LANGUAGES,
+  type Language,
+  type LanguageCode,
+} from '../../constants/languages';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { changeLanguage } from '../../i18n';
@@ -25,7 +30,13 @@ import {
 } from '../../services/translations';
 import { resolveRegionalFallbackTranslation } from '../../services/translations/regionalTranslationFallback';
 import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
-import { getLocaleSetupSteps, type SetupMode, type SetupStep } from './localeSetupModel';
+import {
+  buildInitialOnboardingLanguageOptions,
+  getLocaleSetupSteps,
+  type InitialOnboardingLanguageOption,
+  type SetupMode,
+  type SetupStep,
+} from './localeSetupModel';
 import { radius } from '../../design/system';
 import type { BibleTranslation } from '../../types';
 import {
@@ -83,7 +94,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [translationQuery, setTranslationQuery] = useState('');
   const [countryQuery, setCountryQuery] = useState('');
   const [languageQuery, setLanguageQuery] = useState('');
-  const selectedInterfaceLanguageCode = initialInterfaceLanguageCode;
+  const [selectedInterfaceLanguageCode, setSelectedInterfaceLanguageCode] = useState<LanguageCode>(
+    initialInterfaceLanguageCode
+  );
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(
     initialCountry?.code ?? null
   );
@@ -114,10 +127,52 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     [hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog, translations]
   );
 
-  const translationResults = useMemo(
-    () => filterTranslationsBySearchQuery(visibleTranslations, translationQuery),
-    [translationQuery, visibleTranslations]
-  );
+  const eligibleOnboardingTranslations = useMemo(() => {
+    return visibleTranslations.filter((translation) => {
+      const availability = getAudioAvailability({
+        featureEnabled: config.features.audioEnabled,
+        translationHasAudio: translation.hasAudio,
+        remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
+        downloadedAudioBooks: translation.downloadedAudioBooks,
+      });
+      const selectionState = getTranslationSelectionState({
+        isDownloaded: translation.isDownloaded,
+        hasText: translation.hasText,
+        hasAudio: translation.hasAudio,
+        canPlayAudio: availability.canPlayAudio,
+        hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+        source: translation.source,
+        textPackLocalPath: translation.textPackLocalPath,
+      });
+
+      return selectionState.isSelectable || selectionState.reason === 'download-required';
+    });
+  }, [visibleTranslations]);
+  const onboardingLanguageOptions = useMemo(() => {
+    const matchingTranslations = filterTranslationsBySearchQuery(
+      eligibleOnboardingTranslations,
+      translationQuery
+    );
+
+    return buildInitialOnboardingLanguageOptions(matchingTranslations);
+  }, [eligibleOnboardingTranslations, translationQuery]);
+  const onboardingLanguageSections = useMemo(() => {
+    const sections: Array<{
+      groupLabel: string;
+      options: Array<InitialOnboardingLanguageOption<BibleTranslation>>;
+    }> = [];
+
+    for (const option of onboardingLanguageOptions) {
+      const currentSection = sections[sections.length - 1];
+      if (currentSection?.groupLabel === option.groupLabel) {
+        currentSection.options.push(option);
+      } else {
+        sections.push({ groupLabel: option.groupLabel, options: [option] });
+      }
+    }
+
+    return sections;
+  }, [onboardingLanguageOptions]);
 
   const countryResults = useMemo(
     () => localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode),
@@ -182,10 +237,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
   const completeInitialSetup = async (translation: BibleTranslation) => {
     const translationLanguage = resolveTranslationLanguage(translation);
-    const mappedInterfaceLanguageCode = translationLanguage
-      ? localeSearchEngine.mapLanguageToAppLanguage(translationLanguage)
-      : null;
-    const interfaceLanguageCode = mappedInterfaceLanguageCode ?? selectedInterfaceLanguageCode;
+    const interfaceLanguageCode = selectedInterfaceLanguageCode;
     const deviceCountry = localeSearchEngine.getCountryByCode(deviceCountryCode);
 
     await changeLanguage(interfaceLanguageCode);
@@ -298,7 +350,45 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     }
   };
 
-  const renderTranslationRow = (translation: BibleTranslation) => {
+  const handleInterfaceLanguageSelect = async (language: Language) => {
+    setSelectedInterfaceLanguageCode(language.code);
+    await changeLanguage(language.code);
+    setPreferences({ language: language.code });
+    goToStep('translation');
+  };
+
+  const renderInterfaceLanguageButton = (language: Language) => {
+    const isSelected = selectedInterfaceLanguageCode === language.code;
+
+    return (
+      <TouchableOpacity
+        key={language.code}
+        style={[
+          styles.languageButton,
+          {
+            backgroundColor: isSelected ? colors.accentGreen + '18' : colors.cardBackground,
+            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
+          },
+        ]}
+        onPress={() => void handleInterfaceLanguageSelect(language)}
+        activeOpacity={0.88}
+      >
+        <Text style={[styles.languageButtonNative, { color: colors.primaryText }]}>
+          {language.nativeName}
+        </Text>
+        {language.nativeName !== language.name ? (
+          <Text style={[styles.languageButtonEnglish, { color: colors.secondaryText }]}>
+            {language.name}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderOnboardingLanguageRow = (
+    option: InitialOnboardingLanguageOption<BibleTranslation>
+  ) => {
+    const translation = option.primaryTranslation;
     const isInstalling = installingTranslationId === translation.id;
     const progress =
       downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
@@ -320,13 +410,14 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     const statusLabel =
       selectionState.reason === 'download-required'
         ? t('translations.download')
-        : selectionState.isSelectable
-          ? t('common.continue')
-          : t('common.comingSoon');
+        : t('common.continue');
+    const translationLabel = translation.abbreviation
+      ? `${translation.name} (${translation.abbreviation})`
+      : translation.name;
 
     return (
       <TouchableOpacity
-        key={translation.id}
+        key={option.key}
         style={[
           styles.optionCard,
           {
@@ -339,16 +430,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         activeOpacity={0.9}
       >
         <View style={styles.optionCopy}>
-          <View style={styles.translationTitleRow}>
-            <Text style={[styles.optionTitle, { color: colors.primaryText }]} numberOfLines={1}>
-              {translation.name}
-            </Text>
-            <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
-              {translation.abbreviation}
-            </Text>
-          </View>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
-            {normalizeTranslationLanguage(translation.language)}
+          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{option.label}</Text>
+          <Text style={[styles.optionMeta, { color: colors.secondaryText }]} numberOfLines={1}>
+            {translationLabel}
           </Text>
           <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
             {getTranslationAvailabilitySummary(translation, t)}
@@ -505,13 +589,23 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {step === 'translation' ? (
+        {step === 'interfaceLanguage' ? (
+          <>
+            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+              {t('onboarding.interfaceLanguageTitle')}
+            </Text>
+            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
+              {t('onboarding.interfaceLanguageBody')}
+            </Text>
+
+            <View style={styles.languageButtonGrid}>
+              {SUPPORTED_LANGUAGES.map((language) => renderInterfaceLanguageButton(language))}
+            </View>
+          </>
+        ) : step === 'translation' ? (
           <>
             <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
               {t('onboarding.languageTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('home.defaultVerse')}
             </Text>
 
             <TextInput
@@ -533,13 +627,39 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               autoCorrect={false}
             />
 
-            <View style={styles.listSection}>
-              <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                {t('translations.title')}
-              </Text>
-              {isHydratingRuntimeCatalog ? <ActivityIndicator color={colors.accentGreen} /> : null}
-              {translationResults.map((translation) => renderTranslationRow(translation))}
-            </View>
+            {isHydratingRuntimeCatalog ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={colors.accentGreen} />
+              </View>
+            ) : null}
+
+            {onboardingLanguageSections.map((section) => (
+              <View key={section.groupLabel} style={styles.listSection}>
+                <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
+                  {section.groupLabel}
+                </Text>
+                {section.options.map((option) => renderOnboardingLanguageRow(option))}
+              </View>
+            ))}
+
+            {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyCard,
+                  {
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
+                  {t('onboarding.noLanguagesFound')}
+                </Text>
+                <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
+                  {t('onboarding.noLanguagesFoundBody')}
+                </Text>
+              </View>
+            ) : null}
           </>
         ) : step === 'country' ? (
           <>
@@ -782,6 +902,31 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
   },
+  languageButtonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  languageButton: {
+    minWidth: '30%',
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 3,
+  },
+  languageButtonNative: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  languageButtonEnglish: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  loadingRow: {
+    paddingTop: 20,
+  },
   listSection: {
     marginTop: 20,
     gap: 12,
@@ -805,11 +950,6 @@ const styles = StyleSheet.create({
   optionCopy: {
     flex: 1,
     gap: 4,
-  },
-  translationTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   countryTitleRow: {
     flexDirection: 'row',
