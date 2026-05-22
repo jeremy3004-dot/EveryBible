@@ -570,7 +570,7 @@ export function SettingsScreen() {
             <Switch
               value={translatorReviewEnabled}
               onValueChange={handleTranslatorReviewToggle}
-              trackColor={{ false: colors.cardBorder, true: colors.success }}
+              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
               thumbColor={colors.cardBackground}
             />
           </TouchableOpacity>
