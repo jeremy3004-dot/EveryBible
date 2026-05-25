@@ -4008,7 +4008,12 @@ export function BibleReaderScreen() {
               accessibilityHint="Opens options to share the full chapter or a selected audio portion"
             >
               <Ionicons name="share-outline" size={16} color={colors.biblePrimaryText} />
-              <Text style={[styles.listenShareButtonLabel, { color: colors.biblePrimaryText }]}>
+              <Text
+                style={[styles.listenShareButtonLabel, { color: colors.biblePrimaryText }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {t('groups.share')}
               </Text>
             </TouchableOpacity>
@@ -6323,9 +6328,11 @@ const styles = StyleSheet.create({
   listenTimeText: {
     fontSize: 12,
     fontWeight: '600',
+    minWidth: 42,
   },
   listenShareButton: {
     minHeight: 36,
+    maxWidth: '48%',
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,
@@ -6337,6 +6344,7 @@ const styles = StyleSheet.create({
   listenShareButtonLabel: {
     fontSize: 13,
     fontWeight: '800',
+    flexShrink: 1,
   },
   listenFeedbackCard: {
     borderWidth: 1,

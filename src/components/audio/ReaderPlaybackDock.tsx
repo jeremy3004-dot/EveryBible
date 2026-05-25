@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   shareAudioButton: {
     position: 'absolute',
-    top: -34,
+    top: -48,
     width: 42,
     height: 42,
     borderRadius: radius.pill,
