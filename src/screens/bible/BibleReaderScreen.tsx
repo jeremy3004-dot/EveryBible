@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  FlatList,
   LayoutAnimation,
   Image,
   ImageBackground,
@@ -175,11 +176,59 @@ interface AudioPortionShareDraft {
   durationMs: number;
 }
 
+interface ReaderParagraph {
+  key: string;
+  heading: string | null;
+  verses: Verse[];
+}
+
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
 const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
 const CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS = 3000;
+const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
+
+function buildReaderParagraphs(
+  verses: Verse[],
+  usePremiumTypography: boolean,
+  firstHeadingVerseId: number | null
+): ReaderParagraph[] {
+  const paragraphs: ReaderParagraph[] = [];
+  let currentParagraph: ReaderParagraph = {
+    key: 'paragraph-0',
+    heading: null,
+    verses: [],
+  };
+
+  for (const verse of verses) {
+    const shouldRenderHeading =
+      Boolean(verse.heading) && (!usePremiumTypography || verse.id !== firstHeadingVerseId);
+
+    if (shouldRenderHeading && currentParagraph.verses.length > 0) {
+      paragraphs.push(currentParagraph);
+      currentParagraph = {
+        key: `${String(verse.id)}-heading-${paragraphs.length}`,
+        heading: verse.heading ?? null,
+        verses: [verse],
+      };
+    } else {
+      if (shouldRenderHeading) {
+        currentParagraph.heading = verse.heading ?? null;
+      }
+      currentParagraph.verses.push(verse);
+    }
+  }
+
+  if (currentParagraph.verses.length > 0) {
+    paragraphs.push({
+      ...currentParagraph,
+      key: currentParagraph.verses.map((verse) => String(verse.id)).join(':'),
+    });
+  }
+
+  return paragraphs;
+}
 
 type ChapterFeedbackAudioState =
   | 'idle'
@@ -576,6 +625,7 @@ export function BibleReaderScreen() {
   const previousActiveAudioBookIdRef = useRef<string | null>(null);
   const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
+  const premiumReaderListRef = useRef<FlatList<ReaderParagraph> | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
@@ -1420,6 +1470,27 @@ export function BibleReaderScreen() {
   const premiumBottomInset = 18;
   const sharedTopChromeTop = safeInsets.top + premiumTopInset;
   const readerContentTopPadding = sharedTopChromeTop + 98;
+  const lastReaderScrollJsOffset = useSharedValue(0);
+  const lastReaderScrollJsAtBottom = useSharedValue(false);
+  const premiumReaderParagraphs = useMemo(
+    () => buildReaderParagraphs(verses, true, firstHeadingVerseId),
+    [firstHeadingVerseId, verses]
+  );
+  const scrollReaderToOffset = useCallback(
+    (offsetY: number, animated: boolean) => {
+      const y = Math.max(offsetY, 0);
+      if (showPremiumReadMode) {
+        premiumReaderListRef.current?.scrollToOffset({ offset: y, animated });
+        return;
+      }
+
+      scrollViewRef.current?.scrollTo({
+        y,
+        animated,
+      });
+    },
+    [showPremiumReadMode]
+  );
   const updateReaderBottomChromeState = useCallback(
     (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
       const scrollDeltaY = offsetY - readerLastScrollOffsetYRef.current;
@@ -1519,6 +1590,15 @@ export function BibleReaderScreen() {
         viewportHeight > 0 && contentHeight > 0
           ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
           : false;
+      const shouldNotifyJs =
+        Math.abs(nextOffsetY - lastReaderScrollJsOffset.value) >=
+          READER_SCROLL_JS_UPDATE_INTERVAL_PX ||
+        isAtBottom !== lastReaderScrollJsAtBottom.value;
+      if (!shouldNotifyJs) {
+        return;
+      }
+      lastReaderScrollJsOffset.value = nextOffsetY;
+      lastReaderScrollJsAtBottom.value = isAtBottom;
       runOnJS(updateReaderBottomChromeState)(nextOffsetY, isAtBottom, viewportHeight);
     },
   });
@@ -1653,9 +1733,9 @@ export function BibleReaderScreen() {
     lastFollowAlongVerseRef.current = null;
     chapterCompletionGuardRef.current = null;
     if (focusVerse == null) {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      scrollReaderToOffset(0, false);
     }
-  }, [bookId, chapter, focusVerse]);
+  }, [bookId, chapter, focusVerse, scrollReaderToOffset]);
 
   useEffect(() => {
     if (isLoading) {
@@ -1723,11 +1803,8 @@ export function BibleReaderScreen() {
       return;
     }
 
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(verseOffset - 24, 0),
-      animated: false,
-    });
-  }, [focusVerse, isLoading, verses]);
+    scrollReaderToOffset(verseOffset - 24, false);
+  }, [focusVerse, isLoading, scrollReaderToOffset, verses]);
 
   useEffect(() => {
     if (!showFollowAlongText || activeFollowAlongVerse == null) {
@@ -1767,11 +1844,14 @@ export function BibleReaderScreen() {
       return;
     }
 
-    scrollViewRef.current?.scrollTo({
-      y: targetOffset,
-      animated: true,
-    });
-  }, [isCurrentAudioChapter, readerInlineActiveVerse, sharedTopChromeTop, showPremiumReadMode]);
+    scrollReaderToOffset(targetOffset, true);
+  }, [
+    isCurrentAudioChapter,
+    readerInlineActiveVerse,
+    scrollReaderToOffset,
+    sharedTopChromeTop,
+    showPremiumReadMode,
+  ]);
 
   // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {
@@ -4218,7 +4298,7 @@ export function BibleReaderScreen() {
     );
   };
 
-  const renderReaderVerses = (usePremiumTypography: boolean) => {
+  const renderReaderVerses = (usePremiumTypography: boolean, renderVirtualized = false) => {
     const verseFontSize = usePremiumTypography
       ? scaleValue(typography.readingBody.fontSize)
       : scaleValue(20);
@@ -4228,30 +4308,9 @@ export function BibleReaderScreen() {
       : scaleValue(12);
     const headingFontSize = scaleValue(typography.readingHeading.fontSize);
 
-    // Group verses into paragraphs split by section headings
-    const paragraphs: { heading: string | null; verses: typeof verses }[] = [];
-    let currentParagraph: { heading: string | null; verses: typeof verses } = {
-      heading: null,
-      verses: [],
-    };
-
-    for (const verse of verses) {
-      const shouldRenderHeading =
-        Boolean(verse.heading) && (!usePremiumTypography || verse.id !== firstHeadingVerseId);
-
-      if (shouldRenderHeading && currentParagraph.verses.length > 0) {
-        paragraphs.push(currentParagraph);
-        currentParagraph = { heading: verse.heading ?? null, verses: [verse] };
-      } else {
-        if (shouldRenderHeading) {
-          currentParagraph.heading = verse.heading ?? null;
-        }
-        currentParagraph.verses.push(verse);
-      }
-    }
-    if (currentParagraph.verses.length > 0) {
-      paragraphs.push(currentParagraph);
-    }
+    const paragraphs = usePremiumTypography
+      ? premiumReaderParagraphs
+      : buildReaderParagraphs(verses, false, firstHeadingVerseId);
 
     const textStyle = [
       styles.verseText,
@@ -4404,12 +4463,15 @@ export function BibleReaderScreen() {
       );
     };
 
-    return (
-      <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
-        {paragraphs.map((paragraph, pIndex) => (
+    const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number) => (
           <View
-            key={pIndex}
-            style={[styles.readerBlock, usePremiumTypography ? styles.premiumReaderBlock : null]}
+            key={paragraph.key}
+            style={[
+              styles.readerBlock,
+              usePremiumTypography
+                ? [styles.premiumReaderBlock, styles.premiumReaderContentShell]
+                : null,
+            ]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
               const hasFormattedVerse = paragraph.verses.some(
@@ -4480,7 +4542,54 @@ export function BibleReaderScreen() {
               )}
             </View>
           </View>
-        ))}
+    );
+
+    if (renderVirtualized) {
+      return (
+        <Animated.FlatList
+          ref={premiumReaderListRef}
+          data={paragraphs}
+          keyExtractor={(paragraph) => paragraph.key}
+          renderItem={({ item, index }) => renderParagraph(item, index)}
+          ListHeaderComponent={renderTranslatorFeedbackReviewTools}
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={scrollHandler}
+          onLayout={(event) => {
+            readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
+          }}
+          onScrollBeginDrag={() => {
+            handleReaderScrollBeginDrag();
+            setShowFontSizeSheet((current) =>
+              getNextFontSizeSheetVisibility(current, 'scrollStart')
+            );
+            setShowTranslationSheet((current) =>
+              getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
+            );
+          }}
+          onScrollEndDrag={handleReaderScrollEndDrag}
+          onMomentumScrollEnd={handleReaderMomentumScrollEnd}
+          removeClippedSubviews
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          updateCellsBatchingPeriod={32}
+          contentContainerStyle={[
+            styles.premiumReaderScrollContent,
+            {
+              paddingTop: readerContentTopPadding,
+              paddingBottom: premiumReaderBottomPadding,
+            },
+          ]}
+          ListFooterComponent={<View style={styles.premiumReaderVirtualFooter} />}
+        />
+      );
+    }
+
+    return (
+      <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
+        {paragraphs.map((paragraph, pIndex) => renderParagraph(paragraph, pIndex))}
       </View>
     );
   };
@@ -4548,41 +4657,7 @@ export function BibleReaderScreen() {
         <Animated.View style={[{ flex: 1 }, swipeStyle]}>
           {renderSharedTopChrome(true)}
 
-          <Animated.ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onScroll={scrollHandler}
-            onLayout={(event) => {
-              readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
-            }}
-            onScrollBeginDrag={() => {
-              handleReaderScrollBeginDrag();
-              setShowFontSizeSheet((current) =>
-                getNextFontSizeSheetVisibility(current, 'scrollStart')
-              );
-              setShowTranslationSheet((current) =>
-                getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-              );
-            }}
-            onScrollEndDrag={handleReaderScrollEndDrag}
-            onMomentumScrollEnd={handleReaderMomentumScrollEnd}
-            contentContainerStyle={[
-              styles.premiumReaderScrollContent,
-              {
-                paddingTop: readerContentTopPadding,
-                paddingBottom: premiumReaderBottomPadding,
-              },
-            ]}
-          >
-            <View style={[styles.premiumReaderContentShell]}>
-              <View>
-                {renderTranslatorFeedbackReviewTools()}
-                {renderReaderVerses(true)}
-              </View>
-            </View>
-          </Animated.ScrollView>
+          {renderReaderVerses(true, true)}
 
           <Animated.View
             pointerEvents="box-none"
@@ -6236,6 +6311,9 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
+  },
+  premiumReaderVirtualFooter: {
+    height: 1,
   },
   disabledSessionModeButton: {
     opacity: 0.45,

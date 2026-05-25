@@ -208,7 +208,7 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
-    /scrollViewRef\.current\?\.scrollTo\(\{[\s\S]*y:\s*targetOffset,[\s\S]*animated:\s*true/s,
+    /scrollReaderToOffset\(targetOffset, true\)/,
     'BibleReaderScreen should move the highlighted audio verse back toward the top of the viewport'
   );
 
@@ -797,8 +797,8 @@ test('premium read mode keeps the animated overlay while the top controls rise w
 
   assert.match(
     source,
-    /Animated\.ScrollView/,
-    'BibleReaderScreen should switch the read canvas to an animated scroll view so chrome can collapse with scroll progress'
+    /Animated\.FlatList/,
+    'BibleReaderScreen should virtualize the premium read canvas with an animated FlatList so long chapters do not render all rows at once'
   );
 
   assert.match(
@@ -821,6 +821,58 @@ test('premium read mode keeps the animated overlay while the top controls rise w
     ).includes('translateY:'),
     true,
     'BibleReaderScreen should let the shared top chrome slide back into view alongside the collapsing reader dock'
+  );
+});
+
+test('premium read mode virtualizes paragraph rows and throttles JS scroll work', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /interface ReaderParagraph/,
+    'BibleReaderScreen should model paragraph rows for virtualized reader rendering'
+  );
+
+  assert.match(
+    source,
+    /buildReaderParagraphs\(verses, true, firstHeadingVerseId\)/,
+    'BibleReaderScreen should precompute premium reader paragraph rows'
+  );
+
+  assert.match(
+    source,
+    /<Animated\.FlatList[\s\S]*data=\{paragraphs\}[\s\S]*keyExtractor=\{\(paragraph\) => paragraph\.key\}[\s\S]*renderItem=\{\(\{ item, index \}\) => renderParagraph\(item, index\)\}/s,
+    'BibleReaderScreen should render premium paragraphs through FlatList rows'
+  );
+
+  assert.match(
+    source,
+    /removeClippedSubviews[\s\S]*initialNumToRender=\{8\}[\s\S]*maxToRenderPerBatch=\{6\}[\s\S]*windowSize=\{7\}/s,
+    'BibleReaderScreen should keep the premium reader list window bounded on Android'
+  );
+
+  assert.match(
+    source,
+    /const scrollReaderToOffset = useCallback\(/,
+    'BibleReaderScreen should route focus and follow-along jumps through a shared scroll abstraction'
+  );
+
+  assert.match(
+    source,
+    /premiumReaderListRef\.current\?\.scrollToOffset\(\{ offset: y, animated \}\)/,
+    'BibleReaderScreen should use FlatList scrollToOffset for premium reader jumps'
+  );
+
+  assert.match(
+    source,
+    /READER_SCROLL_JS_UPDATE_INTERVAL_PX/,
+    'BibleReaderScreen should throttle scroll work crossing from the UI thread to JS'
+  );
+
+  assert.match(
+    source,
+    /if \(!shouldNotifyJs\) \{\s*return;\s*\}/s,
+    'BibleReaderScreen should skip JS scroll updates until the offset or bottom state meaningfully changes'
   );
 });
 

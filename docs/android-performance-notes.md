@@ -156,6 +156,10 @@ The root tab shell also avoids subscribing to `bibleStore` during initial render
 
 Audio share preparation now loads lazily when the user chooses chapter audio sharing. This keeps the filesystem-backed audio download storage helpers, remote audio fetch helper, audio share preparation service, `expo-file-system/legacy`, and `react-native-video-trim` off the initial reader import path. The reader still preserves full chapter sharing and audio-portion trimming behavior once the share action is requested.
 
+Premium text-backed reader chapters now render as virtualized paragraph rows with `Animated.FlatList` instead of mounting the full chapter in a single `Animated.ScrollView`. Legacy/audio-first reader surfaces still use `ScrollView` because their content is smaller and more coupled to keyboard/modal behavior. Reader chrome scroll updates now cross from the UI thread to JS only after meaningful offset movement or bottom-state changes, reducing per-frame JS work while preserving focus-verse and audio-follow auto-scroll behavior.
+
+The i18n bootstrap now keeps only English on the synchronous startup path. Other interface locales are loaded through explicit dynamic locale loaders when `changeLanguage` needs them, with in-flight load reuse and English fallback available immediately.
+
 ## Bible Browser Path Reduced In Code
 
 `BibleBrowserScreen.tsx` no longer statically imports `TranslationPickerList`. The browser and search surface can render without immediately evaluating the shared translation picker, runtime catalog hydration, audio availability helpers, and translation download management code. The picker module is loaded when the translation modal is opened, and the existing modal sheet shows the shared loading copy while that module resolves.
