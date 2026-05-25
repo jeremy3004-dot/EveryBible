@@ -348,10 +348,16 @@ test('top audio utility sheet owns chapter audio sharing', () => {
     'BibleReaderScreen should expose audio sharing from the top audio utility sheet'
   );
 
-  assert.equal(
-    source.includes('listenShareButton'),
-    false,
-    'BibleReaderScreen should remove the old share button from the listen-mode metadata row'
+  assert.match(
+    source,
+    /styles\.listenShareButton[\s\S]*onPress=\{handleOpenChapterAudioShareSheet\}[\s\S]*accessibilityLabel=\{t\('bible\.shareAudioPortion'\)\}/s,
+    'BibleReaderScreen should expose direct audio sharing from the listen-mode scrubber row'
+  );
+
+  assert.match(
+    source,
+    /<ReaderPlaybackDock[\s\S]*onShareAudio=\{audioEnabled \? handleOpenChapterAudioShareSheet : undefined\}/s,
+    'BibleReaderScreen should expose direct audio sharing from the read-mode playback dock for text-backed audio chapters'
   );
 });
 

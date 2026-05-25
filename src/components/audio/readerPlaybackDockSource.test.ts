@@ -56,3 +56,25 @@ test('ReaderPlaybackDock collapses the side chapter arrows away while keeping th
     'ReaderPlaybackDock should disable side-arrow taps once the dock has collapsed down to the play button'
   );
 });
+
+test('ReaderPlaybackDock can expose chapter audio sharing beside the persistent play button', () => {
+  const source = readRelativeSource('./ReaderPlaybackDock.tsx');
+
+  assert.match(
+    source,
+    /onShareAudio\?: \(\) => void;/,
+    'ReaderPlaybackDock should accept an optional audio share action from the reader'
+  );
+
+  assert.match(
+    source,
+    /const showShareAudioButton = typeof onShareAudio === 'function';/,
+    'ReaderPlaybackDock should render the share affordance only when audio sharing is available'
+  );
+
+  assert.match(
+    source,
+    /styles\.shareAudioButton[\s\S]*onPress=\{onShareAudio\}[\s\S]*Ionicons name="share-outline"/s,
+    'ReaderPlaybackDock should render a direct share button that opens the existing audio share sheet'
+  );
+});

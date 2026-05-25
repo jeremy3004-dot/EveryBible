@@ -24,6 +24,7 @@ interface ReaderPlaybackDockProps {
   nextButtonColor?: string;
   nextIconColor?: string;
   nextIconName?: 'checkmark' | 'chevron-forward';
+  onShareAudio?: () => void;
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onPlayPause: () => void;
@@ -49,6 +50,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   nextButtonColor,
   nextIconColor,
   nextIconName = 'chevron-forward',
+  onShareAudio,
   onPreviousChapter,
   onNextChapter,
   onPlayPause,
@@ -75,6 +77,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   const playButtonAccessibilityLabel =
     playButtonIconName === 'pause' ? 'Pause chapter audio' : 'Play chapter audio';
   const showPlayButton = hidePlayButton !== true;
+  const showShareAudioButton = typeof onShareAudio === 'function';
 
   const leftTransportAnimatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(collapseProgress, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
@@ -144,6 +147,24 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
       {showPlayButton ? (
         <Animated.View style={[styles.playButtonWrap, centerTransportAnimatedStyle]}>
+          {showShareAudioButton ? (
+            <Pressable
+              style={[
+                styles.shareAudioButton,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+              onPress={onShareAudio}
+              accessibilityRole="button"
+              accessibilityLabel="Share chapter audio"
+              accessibilityHint="Opens options to share the full chapter or a selected audio portion"
+            >
+              <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
+            </Pressable>
+          ) : null}
+
           <Pressable
             style={[
               styles.playButton,
@@ -251,6 +272,17 @@ const styles = StyleSheet.create({
   playButtonWrap: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  shareAudioButton: {
+    position: 'absolute',
+    top: -34,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   playButton: {
     width: PLAY_BUTTON_SIZE,

@@ -3993,6 +3993,25 @@ export function BibleReaderScreen() {
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
               {formatTime(listenPosition)}
             </Text>
+            <TouchableOpacity
+              style={[
+                styles.listenShareButton,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+              activeOpacity={0.9}
+              onPress={handleOpenChapterAudioShareSheet}
+              accessibilityRole="button"
+              accessibilityLabel={t('bible.shareAudioPortion')}
+              accessibilityHint="Opens options to share the full chapter or a selected audio portion"
+            >
+              <Ionicons name="share-outline" size={16} color={colors.biblePrimaryText} />
+              <Text style={[styles.listenShareButtonLabel, { color: colors.biblePrimaryText }]}>
+                {t('groups.share')}
+              </Text>
+            </TouchableOpacity>
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
               -{formatTime(remainingDuration)}
             </Text>
@@ -4579,6 +4598,7 @@ export function BibleReaderScreen() {
               nextButtonColor={readerPlaybackDockNextButtonColor}
               nextIconColor={readerPlaybackDockNextIconColor}
               nextIconName={readerPlaybackDockNextIconName}
+              onShareAudio={audioEnabled ? handleOpenChapterAudioShareSheet : undefined}
               onPreviousChapter={() => void handlePreviousReadChapter()}
               onNextChapter={() => void handleNextReadChapter()}
               onPlayPause={handlePlayDisplayedChapter}
@@ -6303,6 +6323,20 @@ const styles = StyleSheet.create({
   listenTimeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  listenShareButton: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  listenShareButtonLabel: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   listenFeedbackCard: {
     borderWidth: 1,
