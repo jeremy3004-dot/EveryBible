@@ -10,11 +10,7 @@ import type {
   RepeatMode,
   SleepTimerOption,
 } from '../types';
-import {
-  getAudioTrackId,
-  syncAudioQueueToTrack,
-  type AudioQueueEntry,
-} from './audioQueueModel';
+import { getAudioTrackId, syncAudioQueueToTrack, type AudioQueueEntry } from './audioQueueModel';
 import { getNextRepeatMode } from './audioPlaybackCompletionModel';
 import { sanitizePersistedAudioState } from './persistedStateSanitizers';
 
@@ -134,10 +130,13 @@ export const useAudioStore = create<AudioState>()(
         }),
 
       setPosition: (position) =>
-        set({
+        set((state) => ({
           currentPosition: position,
-          lastPosition: position,
-        }),
+          lastPosition:
+            Math.abs(position - state.lastPosition) >= 5000 || position === 0
+              ? position
+              : state.lastPosition,
+        })),
 
       setDuration: (duration) => set({ duration }),
 

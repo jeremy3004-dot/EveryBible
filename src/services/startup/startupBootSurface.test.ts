@@ -53,6 +53,16 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     /import\('\.\/src\/services\/startup\/AppRuntimeEffects'\)/,
     'App.tsx should defer sync and privacy app-state hooks so NetInfo/cloud sync modules stay off the first render path'
   );
+  assert.match(
+    appSource,
+    /ANDROID_BACKGROUND_STARTUP_DELAY_MS/,
+    'App.tsx should delay Android background warmups so they do not compete with the first interactions'
+  );
+  assert.match(
+    appSource,
+    /if \(!isReady \|\| \(!fontsLoaded && !fontError\)\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
+    'App.tsx should render a stable boot shell instead of a blank null surface while startup finishes'
+  );
 });
 
 test('deferred runtime effects own sync and privacy hooks after boot', () => {

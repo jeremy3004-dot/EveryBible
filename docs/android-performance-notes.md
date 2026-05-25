@@ -117,6 +117,23 @@ After deferring the browser's static SQLite search imports, `cd android && ./gra
 - Reader search query for `love`: `8327ms`, `found=true`.
 - Reader no-result search query (`zzzqxzv`) settled: `5066ms`, `found=true`.
 
+After the Android responsiveness pass that throttled audio progress updates, made pause/stop optimistic, delayed Android background warmups, parallelized auth/privacy boot work, skipped completed AsyncStorage migration imports, ignored stale reader DB results, removed default chapter-selection autoplay, and reused the initial Bible DB readiness status, `cd android && ./gradlew assembleRelease` rebuilt the release APK successfully. Metro bundled the Android JS in `10831ms` with `4834` modules.
+
+A targeted runtime smoke run against the rebuilt APK used:
+
+```bash
+RUNS=1 CONTENT_RUNS=1 UI_POLL_ATTEMPTS=8 UI_DUMP_TIMEOUT_SECONDS=3 FLOW_FILTER=home_content,reader_deeplink_content,reader_audio_start,reader_next_chapter npm run perf:android
+```
+
+The run completed on emulator `emulator-5580`, but the content probes did not match their target UI text before timeout, so they are reachability failures rather than reliable timing baselines:
+
+- Home content visible: `contentMs=NA`, `amTotalMs=1244`, `found=false`.
+- Reader deep link content visible: `contentMs=NA`, `amTotalMs=558`, `found=false`.
+- Reader next-chapter navigation: `contentMs=32123`, `found=false`.
+- Reader first audio-control response: `responseMs=3047`, `found=true`.
+
+Treat the audio-control sample as the only usable runtime number from this pass. The content probes need a follow-up harness adjustment or manual device validation before comparing startup/reader content timings.
+
 ## Startup Path Reduced In Code
 
 The boot path in `App.tsx` now avoids static imports of:

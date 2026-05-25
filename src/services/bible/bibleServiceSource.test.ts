@@ -16,3 +16,22 @@ test('isBibleDataReady treats bundled database probe failures as not-ready inste
     'startup readiness checks should degrade to "not ready" when expo-sqlite throws so HomeScreen can fall back gracefully instead of surfacing a device-only startup error'
   );
 });
+
+test('initBibleData reuses initDatabase readiness status instead of counting verses twice', () => {
+  const source = readRelativeSource('./bibleService.ts');
+
+  assert.match(
+    source,
+    /const status = await bibleDb\.initDatabase\(MIN_READY_VERSE_COUNT\);[\s\S]*const count = status\.verseCount;/,
+    'initBibleData should use the readiness status returned by initDatabase instead of running a second bundled database inspection'
+  );
+  const initBibleDataSource = source.slice(
+    source.indexOf('export async function initBibleData'),
+    source.indexOf('export async function getChapter')
+  );
+  assert.doesNotMatch(
+    initBibleDataSource,
+    /getVerseCount\(\)/,
+    'initBibleData should not call getVerseCount immediately after initDatabase'
+  );
+});

@@ -19,11 +19,7 @@ test('getChapterGridItemSize preserves the current five-column chapter grid math
 });
 
 test('buildChapterGridRows keeps chapters grouped into fixed five-item rows', () => {
-  assert.deepEqual(buildChapterGridRows(11), [
-    [1, 2, 3, 4, 5],
-    [6, 7, 8, 9, 10],
-    [11],
-  ]);
+  assert.deepEqual(buildChapterGridRows(11), [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11]]);
 });
 
 test('buildBookHubPresentation uses seeded synopsis when local book content exists', () => {
@@ -126,7 +122,6 @@ test('buildChapterLaunchParams preserves the listen or read preference in naviga
   assert.deepEqual(buildChapterLaunchParams('MAT', 3, 'listen'), {
     bookId: 'MAT',
     chapter: 3,
-    autoplayAudio: true,
     preferredMode: 'listen',
   });
 

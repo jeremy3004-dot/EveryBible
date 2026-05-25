@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, type AppStateStatus, InteractionManager, StyleSheet, View } from 'react-native';
+import {
+  AppState,
+  type AppStateStatus,
+  InteractionManager,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -29,6 +36,22 @@ void SplashScreen.preventAutoHideAsync().catch((error) => {
 // foreground notifications display a banner instead of being silently dropped.
 setupNotificationHandler();
 
+const ANDROID_BACKGROUND_STARTUP_DELAY_MS = 1500;
+
+function scheduleAfterInteractions(task: () => void, delayMs = 0): () => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const handle = InteractionManager.runAfterInteractions(() => {
+    timeoutId = setTimeout(task, delayMs);
+  });
+
+  return () => {
+    handle.cancel();
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  };
+}
+
 function LoadingScreen() {
   const { colors } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
@@ -53,9 +76,8 @@ function LoadingScreen() {
           await initBibleData();
         },
         preloadRuntimeTranslations: async () => {
-          const { bootstrapRuntimeTranslationsAndPreferences } = await import(
-            './src/services/translations'
-          );
+          const { bootstrapRuntimeTranslationsAndPreferences } =
+            await import('./src/services/translations');
           await bootstrapRuntimeTranslationsAndPreferences();
           const { useBibleStore } = await import('./src/stores/bibleStore');
           await useBibleStore.getState().reconcileTranslationPacks();
@@ -64,13 +86,12 @@ function LoadingScreen() {
           await migrateFromAsyncStorage();
         },
         scheduleTask: (task) => {
-          const handle = InteractionManager.runAfterInteractions(() => {
-            void task();
-          });
-
-          return () => {
-            handle.cancel();
-          };
+          return scheduleAfterInteractions(
+            () => {
+              void task();
+            },
+            Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
+          );
         },
         onWarmupError: (error) => {
           console.error('Deferred startup warmup failed:', error);
@@ -140,12 +161,20 @@ function LoadingScreen() {
       return;
     }
 
+    let cancelRecovery: (() => void) | null = null;
+
     const recoverAudioDownloads = () => {
-      void import('./src/stores/bibleStore')
-        .then(({ useBibleStore }) => useBibleStore.getState().reattachAudioDownloads())
-        .catch((error) => {
-          console.error('Failed to reattach persisted audio downloads:', error);
-        });
+      cancelRecovery?.();
+      cancelRecovery = scheduleAfterInteractions(
+        () => {
+          void import('./src/stores/bibleStore')
+            .then(({ useBibleStore }) => useBibleStore.getState().reattachAudioDownloads())
+            .catch((error) => {
+              console.error('Failed to reattach persisted audio downloads:', error);
+            });
+        },
+        Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
+      );
     };
 
     recoverAudioDownloads();
@@ -159,6 +188,7 @@ function LoadingScreen() {
     });
 
     return () => {
+      cancelRecovery?.();
       subscription.remove();
     };
   }, [isReady, preferences.onboardingCompleted]);
@@ -185,7 +215,7 @@ function LoadingScreen() {
   }, [isPrivacyLocked, isReady, preferences.onboardingCompleted]);
 
   if (!isReady || (!fontsLoaded && !fontError)) {
-    return null;
+    return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
   }
 
   if (!preferences.onboardingCompleted) {
@@ -366,21 +396,24 @@ function AppRuntimeEffectsHost({ enabled }: { enabled: boolean }) {
     }
 
     let isCancelled = false;
-    const handle = InteractionManager.runAfterInteractions(() => {
-      void import('./src/services/startup/AppRuntimeEffects')
-        .then(({ AppRuntimeEffects }) => {
-          if (!isCancelled) {
-            setRuntimeEffects(() => AppRuntimeEffects);
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to load runtime app effects:', error);
-        });
-    });
+    const cancelRuntimeEffectsLoad = scheduleAfterInteractions(
+      () => {
+        void import('./src/services/startup/AppRuntimeEffects')
+          .then(({ AppRuntimeEffects }) => {
+            if (!isCancelled) {
+              setRuntimeEffects(() => AppRuntimeEffects);
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to load runtime app effects:', error);
+          });
+      },
+      Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
+    );
 
     return () => {
       isCancelled = true;
-      handle.cancel();
+      cancelRuntimeEffectsLoad();
     };
   }, [RuntimeEffects, enabled]);
 

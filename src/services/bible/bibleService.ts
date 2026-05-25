@@ -39,8 +39,8 @@ export async function initBibleData(): Promise<void> {
 
   initPromise = (async () => {
     try {
-      await bibleDb.initDatabase(MIN_READY_VERSE_COUNT);
-      const count = await bibleDb.getVerseCount();
+      const status = await bibleDb.initDatabase(MIN_READY_VERSE_COUNT);
+      const count = status.verseCount;
 
       if (count < MIN_READY_VERSE_COUNT) {
         throw new Error(
@@ -90,21 +90,34 @@ function getTodayReference(): DailyScriptureReference {
   return POPULAR_VERSE_REFERENCES[dayOfYear % POPULAR_VERSE_REFERENCES.length];
 }
 
-function getReferencePassageText(verses: Verse[], reference: DailyScriptureReference): string | null {
+function getReferencePassageText(
+  verses: Verse[],
+  reference: DailyScriptureReference
+): string | null {
   const startVerse = reference.verse;
   if (!startVerse) {
     return verses[0]?.text?.trim() ?? null;
   }
 
   const endVerse = reference.verseEnd ?? startVerse;
-  const selectedVerses = verses.filter((verse) => verse.verse >= startVerse && verse.verse <= endVerse);
-  const passageText = selectedVerses.map((verse) => verse.text.trim()).filter(Boolean).join(' ').trim();
+  const selectedVerses = verses.filter(
+    (verse) => verse.verse >= startVerse && verse.verse <= endVerse
+  );
+  const passageText = selectedVerses
+    .map((verse) => verse.text.trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
 
   if (passageText.length > 0) {
     return passageText;
   }
 
-  return verses.find((verse) => verse.verse === startVerse)?.text?.trim() ?? verses[0]?.text?.trim() ?? null;
+  return (
+    verses.find((verse) => verse.verse === startVerse)?.text?.trim() ??
+    verses[0]?.text?.trim() ??
+    null
+  );
 }
 
 export async function getVerseOfTheDay(translationId = 'bsb'): Promise<Verse | null> {

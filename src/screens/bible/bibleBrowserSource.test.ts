@@ -206,10 +206,10 @@ test('Bible browser preserves the listen-or-read launch mode when opening a chap
     'BibleBrowserScreen should forward preferredMode into BibleReader params so chapter switches preserve listen/read intent'
   );
 
-  assert.match(
+  assert.doesNotMatch(
     source,
     /preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true } : \{\}/,
-    'BibleBrowserScreen should keep autoplayAudio when the preferred launch mode is listen'
+    'BibleBrowserScreen should not auto-start audio just because the preferred launch mode is listen'
   );
 });
 

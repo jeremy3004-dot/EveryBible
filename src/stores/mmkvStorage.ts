@@ -20,6 +20,10 @@ export const mmkvInstance = new MMKV();
 
 export const zustandStorage: StateStorage = {
   setItem: (name, value) => {
+    if (mmkvInstance.getString(name) === value) {
+      return;
+    }
+
     mmkvInstance.set(name, value);
   },
   getItem: (name) => {

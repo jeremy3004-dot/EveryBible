@@ -7,12 +7,21 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   ASYNC_STORAGE_MIGRATION_COMPLETED_KEY,
   STORE_KEYS,
   migrateStoreKeys,
   migrateStoreKeysIfNeeded,
 } from './migrateFromAsyncStorage';
+
+function readSource(): string {
+  return readFileSync(
+    fileURLToPath(new URL('./migrateFromAsyncStorage.ts', import.meta.url).href),
+    'utf8'
+  );
+}
 
 test('STORE_KEYS contains exactly 7 entries', () => {
   assert.equal(STORE_KEYS.length, 7);
@@ -114,6 +123,23 @@ test('skips AsyncStorage reads after the one-time migration marker is set', asyn
   assert.equal(didMigrate, false);
   assert.equal(asyncReadCount, 0);
   assert.equal(mmkvStore.get('auth-storage'), undefined);
+});
+
+test('completed native migration returns before requiring AsyncStorage', () => {
+  const source = readSource();
+  const markerCheckIndex = source.indexOf(
+    "mmkvInstance.getString(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY) === '1'"
+  );
+  const asyncStorageRequireIndex = source.indexOf(
+    "require('@react-native-async-storage/async-storage')"
+  );
+
+  assert.ok(markerCheckIndex >= 0);
+  assert.ok(asyncStorageRequireIndex >= 0);
+  assert.ok(
+    markerCheckIndex < asyncStorageRequireIndex,
+    'migrateFromAsyncStorage should avoid loading AsyncStorage once the MMKV marker is set'
+  );
 });
 
 test('marks AsyncStorage migration complete after the first pass', async () => {

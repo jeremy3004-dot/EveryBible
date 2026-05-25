@@ -644,6 +644,8 @@ export function BibleReaderScreen() {
   );
   const [readerBottomChromeProgress, setReaderBottomChromeProgress] = useState(0);
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
+  const chapterLoadRequestIdRef = useRef(0);
+  const annotationLoadRequestIdRef = useRef(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const readerBottomChromeProgressRef = useRef(0);
   const readerBottomChromeCollapsedRef = useRef(false);
@@ -1888,7 +1890,11 @@ export function BibleReaderScreen() {
 
   useEffect(() => {
     const loadAnnotations = async () => {
+      const requestId = ++annotationLoadRequestIdRef.current;
       const result = await getAnnotationsForChapter(bookId, chapter);
+      if (requestId !== annotationLoadRequestIdRef.current) {
+        return;
+      }
       if (result.success && result.data) {
         setAnnotations(result.data);
       }
@@ -1966,7 +1972,8 @@ export function BibleReaderScreen() {
     togglePlayPause,
   ]);
 
-  const loadChapter = async () => {
+  async function loadChapter() {
+    const requestId = ++chapterLoadRequestIdRef.current;
     // Only show loading skeleton on the very first load (no verses yet).
     // For chapter-to-chapter transitions, keep the old content visible to
     // avoid a layout flash / button jump.
@@ -1976,17 +1983,25 @@ export function BibleReaderScreen() {
     setError(null);
     try {
       const data = await getChapter(currentTranslation, bookId, chapter);
+      if (requestId !== chapterLoadRequestIdRef.current) {
+        return;
+      }
       setVerses(data);
       if (!returnToPlanOnComplete) {
         markChapterRead(bookId, chapter);
       }
     } catch (err) {
+      if (requestId !== chapterLoadRequestIdRef.current) {
+        return;
+      }
       setError(t('bible.failedToLoad'));
       console.error('Error loading chapter:', err);
     } finally {
-      setIsLoading(false);
+      if (requestId === chapterLoadRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }
 
   const handleCompletePlanDay = useCallback(async () => {
     if (

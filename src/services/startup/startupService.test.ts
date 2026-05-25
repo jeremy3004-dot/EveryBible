@@ -22,6 +22,40 @@ test('critical startup only initializes auth and privacy', async () => {
   assert.deepEqual(calls, ['auth', 'privacy']);
 });
 
+test('critical startup initializes auth and privacy concurrently after storage migration', async () => {
+  const calls: string[] = [];
+  let releaseAuth: () => void = () => {};
+
+  const coordinator = createStartupCoordinator({
+    migrateStorage: async () => {
+      calls.push('migration');
+    },
+    initializeAuth: async () => {
+      calls.push('auth:start');
+      await new Promise<void>((resolve) => {
+        releaseAuth = resolve;
+      });
+      calls.push('auth:end');
+    },
+    initializePrivacy: async () => {
+      calls.push('privacy');
+    },
+    preloadBibleData: async () => {
+      calls.push('bible');
+    },
+  });
+
+  const initialization = coordinator.initializeCritical();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.deepEqual(calls, ['migration', 'auth:start', 'privacy']);
+
+  releaseAuth();
+  await initialization;
+
+  assert.deepEqual(calls, ['migration', 'auth:start', 'privacy', 'auth:end']);
+});
+
 test('deferred warmup schedules bible preload after launch and swallows warmup failures', async () => {
   const calls: string[] = [];
   const reportedErrors: string[] = [];
@@ -91,7 +125,7 @@ test('critical startup continues when auth initialization stalls', async () => {
   ]);
 
   assert.equal(outcome, 'resolved');
-  assert.deepEqual(calls, ['auth', 'timeout:auth', 'privacy']);
+  assert.deepEqual(calls, ['auth', 'privacy', 'timeout:auth']);
 });
 
 test('critical startup continues when storage migration stalls', async () => {

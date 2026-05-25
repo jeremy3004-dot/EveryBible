@@ -179,13 +179,13 @@ async function ensureBundledDatabaseReady(
 
 export async function initDatabase(
   minimumReadyVerseCount = DEFAULT_MINIMUM_READY_VERSE_COUNT
-): Promise<void> {
+): Promise<BibleDatabaseStatus> {
   if (db) {
     try {
       const existingStatus = await inspectOpenDatabase(db);
 
       if (isBundledBibleDatabaseReady(existingStatus, minimumReadyVerseCount)) {
-        return;
+        return existingStatus;
       }
 
       console.warn('[Bible] Open bundled database is stale, reloading from asset:', existingStatus);
@@ -194,7 +194,8 @@ export async function initDatabase(
     }
   }
 
-  await ensureBundledDatabaseReady(minimumReadyVerseCount);
+  const database = await ensureBundledDatabaseReady(minimumReadyVerseCount);
+  return inspectOpenDatabase(database);
 }
 
 export async function inspectBundledDatabaseStatus(
@@ -233,9 +234,7 @@ export async function inspectBundledDatabaseStatus(
   }
 }
 
-export async function getDatabase(
-  translationId: string = 'bsb'
-): Promise<SQLite.SQLiteDatabase> {
+export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite.SQLiteDatabase> {
   const source = resolveBibleDatabaseSource(translationId);
 
   if (source.kind === 'bundled') {
@@ -358,10 +357,7 @@ export async function searchVerses(
   return [];
 }
 
-export async function insertVerse(
-  translationId: string,
-  verse: Omit<Verse, 'id'>
-): Promise<void> {
+export async function insertVerse(translationId: string, verse: Omit<Verse, 'id'>): Promise<void> {
   const database = await getDatabase(translationId);
   await database.runAsync(
     `

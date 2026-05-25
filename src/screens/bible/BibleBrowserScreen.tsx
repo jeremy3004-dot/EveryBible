@@ -29,10 +29,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { useI18n } from '../../hooks';
-import {
-  buildBibleBrowserRows,
-  type BibleBrowserRow,
-} from '../../services/bible/browserRows';
+import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
 import {
   parsePassageReferenceLocale,
   type PassageReferenceTarget,
@@ -58,7 +55,8 @@ type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
   | RouteProp<BibleStackParamList, 'BibleBrowser'>
   | RouteProp<BibleStackParamList, 'BiblePicker'>;
-type TranslationPickerListComponent = typeof import('./TranslationPickerList').TranslationPickerList;
+type TranslationPickerListComponent =
+  typeof import('./TranslationPickerList').TranslationPickerList;
 
 const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
@@ -215,9 +213,7 @@ export function BibleBrowserScreen() {
             console.error('Error searching Bible:', error);
             setSearchResults([]);
             setSearchError(
-              isBibleSearchUnavailableError(error)
-                ? searchUnavailableMessage
-                : failedToLoadMessage
+              isBibleSearchUnavailableError(error) ? searchUnavailableMessage : failedToLoadMessage
             );
           }
         } finally {
@@ -295,11 +291,7 @@ export function BibleBrowserScreen() {
           },
         ]}
       >
-        <Ionicons
-          name={isPending ? 'alert' : 'checkmark'}
-          size={10}
-          color={colors.onAccent}
-        />
+        <Ionicons name={isPending ? 'alert' : 'checkmark'} size={10} color={colors.onAccent} />
       </View>
     );
   };
@@ -324,7 +316,6 @@ export function BibleBrowserScreen() {
     params: Pick<BibleStackParamList['BibleReader'], 'bookId' | 'chapter' | 'focusVerse'>
   ): BibleStackParamList['BibleReader'] => ({
     ...params,
-    ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
     preferredMode: preferredChapterLaunchMode,
   });
 

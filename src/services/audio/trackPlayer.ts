@@ -267,7 +267,7 @@ async function add(track: Track | Track[]): Promise<void> {
         shouldPlay: false,
         rate: currentRate,
         shouldCorrectPitch: true,
-        progressUpdateIntervalMillis: 100,
+        progressUpdateIntervalMillis: 500,
       },
       handleAVStatus
     );
@@ -386,10 +386,7 @@ async function destroy(): Promise<void> {
   listeners.clear();
 }
 
-function addEventListener<E extends Event>(
-  event: E,
-  listener: EventListener<E>
-): Subscription {
+function addEventListener<E extends Event>(event: E, listener: EventListener<E>): Subscription {
   let eventListeners = listeners.get(event);
   if (!eventListeners) {
     eventListeners = new Set();

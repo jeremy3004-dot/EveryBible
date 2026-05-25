@@ -12,7 +12,7 @@ test('initDatabase revalidates an already-open bundled database before reusing i
 
   assert.match(
     source,
-    /if \(db\) \{[\s\S]*const existingStatus = await inspectOpenDatabase\(db\);[\s\S]*if \(isBundledBibleDatabaseReady\(existingStatus, minimumReadyVerseCount\)\) \{[\s\S]*return;[\s\S]*\}[\s\S]*\}/,
+    /if \(db\) \{[\s\S]*const existingStatus = await inspectOpenDatabase\(db\);[\s\S]*if \(isBundledBibleDatabaseReady\(existingStatus, minimumReadyVerseCount\)\) \{[\s\S]*return existingStatus;[\s\S]*\}[\s\S]*\}/,
     'initDatabase should inspect any existing bundled database handle and only reuse it when the schema, verse count, and search index are still ready'
   );
 });

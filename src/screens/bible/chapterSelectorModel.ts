@@ -79,7 +79,6 @@ export function buildChapterLaunchParams(
   return {
     bookId,
     chapter,
-    ...(preferredMode === 'listen' ? { autoplayAudio: true } : {}),
     preferredMode,
   };
 }

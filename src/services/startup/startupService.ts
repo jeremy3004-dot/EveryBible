@@ -48,18 +48,20 @@ export const createStartupCoordinator = ({
         onTimeout: onCriticalTimeout,
       });
     }
-    await runCriticalTask({
-      taskName: 'auth',
-      task: initializeAuth,
-      timeoutMs: criticalTaskTimeoutMs,
-      onTimeout: onCriticalTimeout,
-    });
-    await runCriticalTask({
-      taskName: 'privacy',
-      task: initializePrivacy,
-      timeoutMs: criticalTaskTimeoutMs,
-      onTimeout: onCriticalTimeout,
-    });
+    await Promise.all([
+      runCriticalTask({
+        taskName: 'auth',
+        task: initializeAuth,
+        timeoutMs: criticalTaskTimeoutMs,
+        onTimeout: onCriticalTimeout,
+      }),
+      runCriticalTask({
+        taskName: 'privacy',
+        task: initializePrivacy,
+        timeoutMs: criticalTaskTimeoutMs,
+        onTimeout: onCriticalTimeout,
+      }),
+    ]);
   },
 
   startDeferredWarmups: () =>

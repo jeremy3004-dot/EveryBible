@@ -114,6 +114,26 @@ test('BibleReaderScreen brings the shared top chrome back in sync with the colla
   );
 });
 
+test('BibleReaderScreen ignores stale chapter and annotation loads during rapid navigation', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const chapterLoadRequestIdRef = useRef\(0\);/,
+    'BibleReaderScreen should track the latest chapter load request'
+  );
+  assert.match(
+    source,
+    /const requestId = \+\+chapterLoadRequestIdRef\.current;[\s\S]*await getChapter\(currentTranslation, bookId, chapter\);[\s\S]*if \(requestId !== chapterLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
+    'BibleReaderScreen should ignore stale SQLite chapter results instead of replacing the current chapter'
+  );
+  assert.match(
+    source,
+    /const annotationLoadRequestIdRef = useRef\(0\);[\s\S]*const requestId = \+\+annotationLoadRequestIdRef\.current;[\s\S]*await getAnnotationsForChapter\(bookId, chapter\);[\s\S]*if \(requestId !== annotationLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
+    'BibleReaderScreen should ignore stale annotation results during quick chapter changes'
+  );
+});
+
 test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 

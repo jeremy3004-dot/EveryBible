@@ -75,8 +75,13 @@ export async function migrateStoreKeysIfNeeded(
  * Node test runner without triggering native module resolution.
  */
 export async function migrateFromAsyncStorage(): Promise<void> {
-  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   const { mmkvInstance } = require('./mmkvStorage') as typeof import('./mmkvStorage');
+
+  if (mmkvInstance.getString(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY) === '1') {
+    return;
+  }
+
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
   const didMigrate = await migrateStoreKeysIfNeeded(
     STORE_KEYS,
