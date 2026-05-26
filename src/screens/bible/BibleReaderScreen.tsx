@@ -629,6 +629,7 @@ export function BibleReaderScreen() {
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
+  const pendingReaderAutoScrollVerseRef = useRef<number | null>(null);
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
   // Monotonic follow-along: verse index only advances forward, never retreats.
   // Prevents highlight flickering caused by interpolated position noise.
@@ -1522,6 +1523,47 @@ export function BibleReaderScreen() {
     },
     [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
   );
+  const scrollReaderToMeasuredVerse = useCallback(
+    (verseNumber: number, animated: boolean) => {
+      const verseOffset = verseOffsetsRef.current[verseNumber];
+      if (verseOffset == null) {
+        return false;
+      }
+
+      const targetOffset = getReaderAutoScrollTarget({
+        currentScrollOffsetY: readerLastScrollOffsetYRef.current,
+        viewportHeight: readerScrollViewportHeightRef.current,
+        verseOffsetY: verseOffset,
+        triggerViewportFraction: 0.48,
+        targetTopOffset: sharedTopChromeTop + spacing.md,
+      });
+
+      pendingReaderAutoScrollVerseRef.current = null;
+      if (targetOffset == null) {
+        return true;
+      }
+
+      scrollReaderToOffset(targetOffset, animated);
+      return true;
+    },
+    [scrollReaderToOffset, sharedTopChromeTop]
+  );
+  const flushPendingReaderAutoScroll = useCallback(
+    (animated: boolean) => {
+      const pendingVerse = pendingReaderAutoScrollVerseRef.current;
+      if (
+        pendingVerse == null ||
+        !showPremiumReadMode ||
+        !isCurrentAudioChapter ||
+        pendingVerse !== readerInlineActiveVerse
+      ) {
+        return;
+      }
+
+      scrollReaderToMeasuredVerse(pendingVerse, animated);
+    },
+    [isCurrentAudioChapter, readerInlineActiveVerse, scrollReaderToMeasuredVerse, showPremiumReadMode]
+  );
   const updateReaderBottomChromeState = useCallback(
     (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
       const scrollDeltaY = offsetY - readerLastScrollOffsetYRef.current;
@@ -1758,6 +1800,7 @@ export function BibleReaderScreen() {
 
   useEffect(() => {
     verseOffsetsRef.current = {};
+    pendingReaderAutoScrollVerseRef.current = null;
     followAlongOffsetsRef.current = {};
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
@@ -1855,34 +1898,23 @@ export function BibleReaderScreen() {
 
   useEffect(() => {
     if (!showPremiumReadMode || !isCurrentAudioChapter || readerInlineActiveVerse == null) {
+      pendingReaderAutoScrollVerseRef.current = null;
       return;
     }
 
     const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
     if (verseOffset == null) {
+      pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
       scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
       return;
     }
 
-    const targetOffset = getReaderAutoScrollTarget({
-      currentScrollOffsetY: readerLastScrollOffsetYRef.current,
-      viewportHeight: readerScrollViewportHeightRef.current,
-      verseOffsetY: verseOffset,
-      triggerViewportFraction: 0.48,
-      targetTopOffset: sharedTopChromeTop + spacing.md,
-    });
-
-    if (targetOffset == null) {
-      return;
-    }
-
-    scrollReaderToOffset(targetOffset, true);
+    scrollReaderToMeasuredVerse(readerInlineActiveVerse, true);
   }, [
     isCurrentAudioChapter,
     readerInlineActiveVerse,
-    scrollReaderToOffset,
+    scrollReaderToMeasuredVerse,
     scrollReaderToVerseParagraph,
-    sharedTopChromeTop,
     showPremiumReadMode,
   ]);
 
@@ -4529,12 +4561,14 @@ export function BibleReaderScreen() {
                   y,
                   event.nativeEvent.layout.height
                 );
+                flushPendingReaderAutoScroll(true);
                 return;
               }
 
               for (const v of paragraph.verses) {
                 verseOffsetsRef.current[v.verse] = y;
               }
+              flushPendingReaderAutoScroll(true);
             }}
           >
             {paragraph.heading ? (
@@ -4604,6 +4638,20 @@ export function BibleReaderScreen() {
           onScroll={scrollHandler}
           onLayout={(event) => {
             readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
+            flushPendingReaderAutoScroll(false);
+          }}
+          onScrollToIndexFailed={(info) => {
+            pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
+            premiumReaderListRef.current?.scrollToOffset({
+              offset: Math.max(info.averageItemLength * info.index - sharedTopChromeTop, 0),
+              animated: true,
+            });
+            requestAnimationFrame(() => {
+              if (readerInlineActiveVerse != null) {
+                scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
+                flushPendingReaderAutoScroll(true);
+              }
+            });
           }}
           onScrollBeginDrag={() => {
             handleReaderScrollBeginDrag();

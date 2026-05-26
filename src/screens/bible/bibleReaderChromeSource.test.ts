@@ -208,7 +208,7 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
-    /scrollReaderToOffset\(targetOffset, true\)/,
+    /scrollReaderToOffset\(targetOffset, animated\)/,
     'BibleReaderScreen should move the highlighted audio verse back toward the top of the viewport'
   );
 
@@ -222,6 +222,30 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
     source,
     /if \(verseOffset == null\) \{[\s\S]*scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\);[\s\S]*return;[\s\S]*\}/,
     'BibleReaderScreen should not drop plan follow-along scrolls when the active verse has not been measured yet'
+  );
+
+  assert.match(
+    source,
+    /const pendingReaderAutoScrollVerseRef = useRef<number \| null>\(null\);/,
+    'BibleReaderScreen should remember a pending audio-follow scroll while virtualized plan text is still measuring'
+  );
+
+  assert.match(
+    source,
+    /const flushPendingReaderAutoScroll = useCallback\([\s\S]*scrollReaderToMeasuredVerse\(pendingVerse, animated\);[\s\S]*\);/,
+    'BibleReaderScreen should retry the exact verse scroll after the paragraph layout becomes measurable'
+  );
+
+  assert.match(
+    source,
+    /updateInlineParagraphVerseOffsets\([\s\S]*flushPendingReaderAutoScroll\(true\);/,
+    'Inline paragraph layout should flush pending plan follow-along scrolls once verse offsets are estimated'
+  );
+
+  assert.match(
+    source,
+    /onScrollToIndexFailed=\{\(info\) => \{[\s\S]*pendingReaderAutoScrollVerseRef\.current = readerInlineActiveVerse;[\s\S]*scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\);[\s\S]*flushPendingReaderAutoScroll\(true\);[\s\S]*\}\}/,
+    'Virtualized reader scroll failures should retry the paragraph jump and keep the precise active verse scroll pending'
   );
 
   assert.match(
