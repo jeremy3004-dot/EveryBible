@@ -57,24 +57,18 @@ test('ReaderPlaybackDock collapses the side chapter arrows away while keeping th
   );
 });
 
-test('ReaderPlaybackDock can expose chapter audio sharing beside the persistent play button', () => {
+test('ReaderPlaybackDock does not render the floating audio share button above the play control', () => {
   const source = readRelativeSource('./ReaderPlaybackDock.tsx');
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /onShareAudio\?: \(\) => void;/,
-    'ReaderPlaybackDock should accept an optional audio share action from the reader'
+    /styles\.shareAudioButton|accessibilityLabel="Share chapter audio"|Ionicons name="share-outline"/,
+    'ReaderPlaybackDock must not reintroduce the floating share button above the persistent play button'
   );
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /const showShareAudioButton = typeof onShareAudio === 'function';/,
-    'ReaderPlaybackDock should render the share affordance only when audio sharing is available'
-  );
-
-  assert.match(
-    source,
-    /styles\.shareAudioButton[\s\S]*onPress=\{onShareAudio\}[\s\S]*Ionicons name="share-outline"/s,
-    'ReaderPlaybackDock should render a direct share button that opens the existing audio share sheet'
+    /onShareAudio\?: \(\) => void;|showShareAudioButton/,
+    'ReaderPlaybackDock should not accept or derive a share callback for the removed floating button'
   );
 });

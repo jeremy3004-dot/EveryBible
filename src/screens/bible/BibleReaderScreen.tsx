@@ -4654,7 +4654,6 @@ export function BibleReaderScreen() {
               nextButtonColor={readerPlaybackDockNextButtonColor}
               nextIconColor={readerPlaybackDockNextIconColor}
               nextIconName={readerPlaybackDockNextIconName}
-              onShareAudio={audioEnabled ? handleOpenChapterAudioShareSheet : undefined}
               onPreviousChapter={() => void handlePreviousReadChapter()}
               onNextChapter={() => void handleNextReadChapter()}
               onPlayPause={handlePlayDisplayedChapter}

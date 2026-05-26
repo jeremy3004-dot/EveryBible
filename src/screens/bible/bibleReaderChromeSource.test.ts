@@ -360,10 +360,10 @@ test('top audio utility sheet owns chapter audio sharing', () => {
     'BibleReaderScreen should remove the listen-mode share button label style with the button'
   );
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /<ReaderPlaybackDock[\s\S]*onShareAudio=\{audioEnabled \? handleOpenChapterAudioShareSheet : undefined\}/s,
-    'BibleReaderScreen should expose direct audio sharing from the read-mode playback dock for text-backed audio chapters'
+    /<ReaderPlaybackDock[^>]*onShareAudio=/s,
+    'BibleReaderScreen should not pass audio sharing into the read-mode playback dock because that creates the floating share button above play'
   );
 });
 
