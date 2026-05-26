@@ -4073,30 +4073,6 @@ export function BibleReaderScreen() {
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
               {formatTime(listenPosition)}
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.listenShareButton,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                },
-              ]}
-              activeOpacity={0.9}
-              onPress={handleOpenChapterAudioShareSheet}
-              accessibilityRole="button"
-              accessibilityLabel={t('bible.shareAudioPortion')}
-              accessibilityHint="Opens options to share the full chapter or a selected audio portion"
-            >
-              <Ionicons name="share-outline" size={16} color={colors.biblePrimaryText} />
-              <Text
-                style={[styles.listenShareButtonLabel, { color: colors.biblePrimaryText }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-              >
-                {t('groups.share')}
-              </Text>
-            </TouchableOpacity>
             <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
               -{formatTime(remainingDuration)}
             </Text>
@@ -6407,22 +6383,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     minWidth: 42,
-  },
-  listenShareButton: {
-    minHeight: 36,
-    maxWidth: '48%',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  listenShareButtonLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    flexShrink: 1,
   },
   listenFeedbackCard: {
     borderWidth: 1,
