@@ -20,8 +20,8 @@ test('BibleReaderScreen lets translators mark text read and audio listened', () 
 test('BibleReaderScreen places translator feedback review before chapter content', () => {
   assert.match(
     source,
-    /\{renderTranslatorFeedbackReviewTools\(\)\}[\s\S]*\{renderReaderVerses\(true\)\}/,
-    'Premium reader content should show translator feedback review before verses'
+    /ListHeaderComponent=\{renderTranslatorFeedbackReviewTools\}/,
+    'Premium reader content should show translator feedback review before virtualized verses'
   );
   assert.match(
     source,
