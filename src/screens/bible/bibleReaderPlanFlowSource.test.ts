@@ -118,7 +118,7 @@ test('BibleReaderScreen renders the simplified listen-mode plan chrome without t
 test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps chapter navigation bounded to the active session', () => {
   assert.match(
     source,
-    /const shouldConstrainChapterNavigationToSession = activeRhythmSession != null \|\| showPlanSessionChrome;/,
+    /const shouldConstrainChapterNavigationToSession =\s*activeRhythmSession != null \|\| showPlanSessionChrome;/,
     'BibleReaderScreen should prevent plan and rhythm sessions from leaking into adjacent Bible chapters'
   );
   assert.match(
@@ -143,7 +143,7 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
   );
   assert.match(
     source,
-    /const readerPlaybackDockNextIconName = planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward';/,
+    /const readerPlaybackDockNextIconName =\s*planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward';/,
     'BibleReaderScreen should derive the shared dock icon directly from the shared trailing-action model'
   );
   assert.match(

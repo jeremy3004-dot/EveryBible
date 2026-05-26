@@ -214,6 +214,18 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
+    /const scrollReaderToVerseParagraph = useCallback/,
+    'BibleReaderScreen should define a fallback that can scroll to an unmeasured virtualized paragraph'
+  );
+
+  assert.match(
+    source,
+    /if \(verseOffset == null\) \{[\s\S]*scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\);[\s\S]*return;[\s\S]*\}/,
+    'BibleReaderScreen should not drop plan follow-along scrolls when the active verse has not been measured yet'
+  );
+
+  assert.match(
+    source,
     /updateInlineParagraphVerseOffsets/,
     'Premium inline paragraphs should estimate per-verse offsets instead of treating the whole paragraph as one scroll target'
   );

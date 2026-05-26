@@ -1495,6 +1495,33 @@ export function BibleReaderScreen() {
     },
     [showPremiumReadMode]
   );
+  const scrollReaderToVerseParagraph = useCallback(
+    (verseNumber: number, animated: boolean) => {
+      if (!showPremiumReadMode) {
+        return false;
+      }
+
+      const paragraphIndex = premiumReaderParagraphs.findIndex((paragraph) =>
+        paragraph.verses.some((verse) => verse.verse === verseNumber)
+      );
+      if (paragraphIndex < 0) {
+        return false;
+      }
+
+      try {
+        premiumReaderListRef.current?.scrollToIndex({
+          index: paragraphIndex,
+          animated,
+          viewPosition: 0,
+          viewOffset: sharedTopChromeTop + spacing.md,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
+  );
   const updateReaderBottomChromeState = useCallback(
     (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
       const scrollDeltaY = offsetY - readerLastScrollOffsetYRef.current;
@@ -1833,6 +1860,7 @@ export function BibleReaderScreen() {
 
     const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
     if (verseOffset == null) {
+      scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
       return;
     }
 
@@ -1853,6 +1881,7 @@ export function BibleReaderScreen() {
     isCurrentAudioChapter,
     readerInlineActiveVerse,
     scrollReaderToOffset,
+    scrollReaderToVerseParagraph,
     sharedTopChromeTop,
     showPremiumReadMode,
   ]);
