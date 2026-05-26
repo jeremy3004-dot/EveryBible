@@ -180,6 +180,7 @@ export const en = {
     translatorReviewMarkRead: 'Mark read',
     translatorReviewListened: 'Listened',
     translatorReviewListen: 'Listen',
+    translatorReviewPause: 'Pause',
     nextChapterHint: 'Goes to the next chapter',
     openBookAndChapterPickerHint: 'Opens the book and chapter picker',
     openTranslationOptionsHint: 'Opens translation options',

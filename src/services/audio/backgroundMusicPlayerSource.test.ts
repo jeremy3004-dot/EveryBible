@@ -34,3 +34,11 @@ test('background music loop crossfade runs independent fade timers for both soun
     'BackgroundMusicPlayer should clean up an outgoing loop if the user pauses during a crossfade'
   );
 });
+
+test('background music does not restart when scripture status changes during chapter transitions', () => {
+  assert.match(
+    source,
+    /const wasAlreadyPlayingChoice =[\s\S]*this\.shouldBePlaying && this\.currentChoice === choice && this\.sound != null;[\s\S]*if \(wasAlreadyPlayingChoice\) \{[\s\S]*return;[\s\S]*\}[\s\S]*await this\.sound\.playAsync\(\);/s,
+    'BackgroundMusicPlayer should no-op an already-playing music bed instead of replaying and fading it when Bible audio moves from loading to playing'
+  );
+});

@@ -232,6 +232,7 @@ export const tr = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Duraklat",
     "nextChapterHint": "Bir sonraki bölüme gider",
     "openBookAndChapterPickerHint": "Kitabı ve bölüm seçiciyi açar",
     "openTranslationOptionsHint": "Çeviri seçeneklerini açar",

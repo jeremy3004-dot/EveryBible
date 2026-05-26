@@ -232,6 +232,7 @@ export const pa = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "ਰੋਕੋ",
     "nextChapterHint": "ਅਗਲੇ ਅਧਿਆਇ 'ਤੇ ਜਾਂਦਾ ਹੈ",
     "openBookAndChapterPickerHint": "ਕਿਤਾਬ ਅਤੇ ਅਧਿਆਇ ਚੋਣਕਾਰ ਨੂੰ ਖੋਲ੍ਹਦਾ ਹੈ",
     "openTranslationOptionsHint": "ਅਨੁਵਾਦ ਵਿਕਲਪ ਖੋਲ੍ਹਦਾ ਹੈ",

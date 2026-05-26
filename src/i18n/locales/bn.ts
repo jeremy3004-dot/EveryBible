@@ -232,6 +232,7 @@ export const bn = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "বিরতি",
     "nextChapterHint": "পরের অধ্যায়ে যায়",
     "openBookAndChapterPickerHint": "বই এবং অধ্যায় পিকার খোলে",
     "openTranslationOptionsHint": "অনুবাদের বিকল্প খোলে",

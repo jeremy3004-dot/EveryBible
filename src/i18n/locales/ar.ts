@@ -232,6 +232,7 @@ export const ar = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "إيقاف مؤقت",
     "nextChapterHint": "يذهب إلى الفصل التالي",
     "openBookAndChapterPickerHint": "يفتح منتقي الكتاب والفصل",
     "openTranslationOptionsHint": "يفتح خيارات الترجمة",

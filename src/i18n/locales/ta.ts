@@ -232,6 +232,7 @@ export const ta = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "இடைநிறுத்து",
     "nextChapterHint": "அடுத்த அத்தியாயத்திற்கு செல்கிறது",
     "openBookAndChapterPickerHint": "புத்தகம் மற்றும் அத்தியாயத் தேர்வியைத் திறக்கிறது",
     "openTranslationOptionsHint": "மொழிபெயர்ப்பு விருப்பங்களைத் திறக்கும்",

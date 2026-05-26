@@ -232,6 +232,7 @@ export const ko = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "일시정지",
     "nextChapterHint": "다음 장으로 이동",
     "openBookAndChapterPickerHint": "책 및 장 선택기를 엽니다.",
     "openTranslationOptionsHint": "번역 옵션을 엽니다",

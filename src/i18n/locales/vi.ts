@@ -232,6 +232,7 @@ export const vi = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Tạm dừng",
     "nextChapterHint": "Chuyển sang chương tiếp theo",
     "openBookAndChapterPickerHint": "Mở bộ chọn sách và chương",
     "openTranslationOptionsHint": "Mở tùy chọn dịch",

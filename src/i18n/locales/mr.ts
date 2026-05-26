@@ -232,6 +232,7 @@ export const mr = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "थांबा",
     "nextChapterHint": "पुढच्या अध्यायात जातो",
     "openBookAndChapterPickerHint": "पुस्तक आणि अध्याय निवडक उघडते",
     "openTranslationOptionsHint": "भाषांतर पर्याय उघडते",

@@ -163,6 +163,7 @@ export const es = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Pausar",
     "nextChapterHint": "Va al siguiente capítulo",
     "openBookAndChapterPickerHint": "Abre el selector de libro y capítulo",
     "openTranslationOptionsHint": "Abre las opciones de traducción",

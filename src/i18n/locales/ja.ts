@@ -232,6 +232,7 @@ export const ja = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "一時停止",
     "nextChapterHint": "次の章に進みます",
     "openBookAndChapterPickerHint": "ブックと章のピッカーを開きます",
     "openTranslationOptionsHint": "翻訳オプションを開きます",

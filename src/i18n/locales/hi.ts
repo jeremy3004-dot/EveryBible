@@ -164,6 +164,7 @@ export const hi = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "रोकें",
     "nextChapterHint": "अगले अध्याय पर जाता है",
     "openBookAndChapterPickerHint": "पुस्तक और अध्याय चयनक खोलता है",
     "openTranslationOptionsHint": "अनुवाद विकल्प खोलता है",

@@ -232,6 +232,7 @@ export const id = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Jeda",
     "nextChapterHint": "Lanjut ke bab berikutnya",
     "openBookAndChapterPickerHint": "Membuka pemilih buku dan bab",
     "openTranslationOptionsHint": "Membuka opsi terjemahan",

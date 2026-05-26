@@ -232,6 +232,7 @@ export const ur = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "توقف",
     "nextChapterHint": "اگلے باب میں جاتا ہے۔",
     "openBookAndChapterPickerHint": "کتاب اور باب چننے والا کھولتا ہے۔",
     "openTranslationOptionsHint": "ترجمہ کے اختیارات کھولتا ہے۔",

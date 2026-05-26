@@ -670,6 +670,9 @@ export function BibleReaderScreen() {
   >([]);
   const [isLoadingTranslatorFeedback, setIsLoadingTranslatorFeedback] = useState(false);
   const [translatorFeedbackError, setTranslatorFeedbackError] = useState<string | null>(null);
+  const [translatorReviewPlayingFeedbackId, setTranslatorReviewPlayingFeedbackId] = useState<
+    string | null
+  >(null);
   const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -682,6 +685,7 @@ export function BibleReaderScreen() {
       }
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
       void translatorReviewAudioSoundRef.current?.unloadAsync();
+      setTranslatorReviewPlayingFeedbackId(null);
       void feedbackAudioRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
     };
   }, []);
@@ -2895,9 +2899,35 @@ export function BibleReaderScreen() {
       return;
     }
 
+    if (translatorReviewPlayingFeedbackId === feedbackId && translatorReviewAudioSoundRef.current) {
+      await translatorReviewAudioSoundRef.current?.pauseAsync().catch(() => undefined);
+      setTranslatorReviewPlayingFeedbackId(null);
+      return;
+    }
+
     await translatorReviewAudioSoundRef.current?.unloadAsync().catch(() => undefined);
+    setTranslatorReviewPlayingFeedbackId(null);
+
     const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
     translatorReviewAudioSoundRef.current = sound;
+    setTranslatorReviewPlayingFeedbackId(feedbackId);
+    sound.setOnPlaybackStatusUpdate((playbackStatus) => {
+      if (!playbackStatus.isLoaded) {
+        if (translatorReviewAudioSoundRef.current === sound) {
+          translatorReviewAudioSoundRef.current = null;
+          setTranslatorReviewPlayingFeedbackId(null);
+        }
+        return;
+      }
+
+      if (playbackStatus.didJustFinish) {
+        if (translatorReviewAudioSoundRef.current === sound) {
+          translatorReviewAudioSoundRef.current = null;
+          setTranslatorReviewPlayingFeedbackId(null);
+        }
+        void sound.unloadAsync().catch(() => undefined);
+      }
+    });
     markTranslatorFeedbackListened(feedbackId);
   };
 
@@ -3870,6 +3900,7 @@ export function BibleReaderScreen() {
             },
             translatorFeedbackMarkers
           );
+          const isTranslatorFeedbackAudioPlaying = translatorReviewPlayingFeedbackId === item.id;
           const participantLabel =
             [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
             item.participantIdNumber ||
@@ -3964,9 +3995,10 @@ export function BibleReaderScreen() {
                       styles.translatorReviewActionButton,
                       {
                         borderColor: colors.bibleDivider,
-                        backgroundColor: status.isListened
-                          ? colors.bibleSurface
-                          : colors.accentPrimary,
+                        backgroundColor:
+                          status.isListened && !isTranslatorFeedbackAudioPlaying
+                            ? colors.bibleSurface
+                            : colors.accentPrimary,
                       },
                     ]}
                     disabled={!item.audioResponse.playbackUrl}
@@ -3978,21 +4010,30 @@ export function BibleReaderScreen() {
                     }}
                   >
                     <Ionicons
-                      name="play-outline"
+                      name={isTranslatorFeedbackAudioPlaying ? 'pause-outline' : 'play-outline'}
                       size={15}
-                      color={status.isListened ? colors.biblePrimaryText : colors.onAccent}
+                      color={
+                        status.isListened && !isTranslatorFeedbackAudioPlaying
+                          ? colors.biblePrimaryText
+                          : colors.onAccent
+                      }
                     />
                     <Text
                       style={[
                         styles.translatorReviewActionLabel,
                         {
-                          color: status.isListened ? colors.biblePrimaryText : colors.onAccent,
+                          color:
+                            status.isListened && !isTranslatorFeedbackAudioPlaying
+                              ? colors.biblePrimaryText
+                              : colors.onAccent,
                         },
                       ]}
                     >
-                      {status.isListened
-                        ? t('bible.translatorReviewListened')
-                        : t('bible.translatorReviewListen')}
+                      {isTranslatorFeedbackAudioPlaying
+                        ? t('bible.translatorReviewPause')
+                        : status.isListened
+                          ? t('bible.translatorReviewListened')
+                          : t('bible.translatorReviewListen')}
                     </Text>
                   </TouchableOpacity>
                 ) : null}

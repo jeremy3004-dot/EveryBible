@@ -248,9 +248,16 @@ class BackgroundMusicPlayer {
       return;
     }
 
+    const wasAlreadyPlayingChoice =
+      this.shouldBePlaying && this.currentChoice === choice && this.sound != null;
+
     await this.ensureLoaded(choice);
 
     if (!this.sound) {
+      return;
+    }
+
+    if (wasAlreadyPlayingChoice) {
       return;
     }
 

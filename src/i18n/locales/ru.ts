@@ -164,6 +164,7 @@ export const ru = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Пауза",
     "nextChapterHint": "Переходит к следующей главе",
     "openBookAndChapterPickerHint": "Открывает выбор книги и главы",
     "openTranslationOptionsHint": "Открывает параметры перевода",

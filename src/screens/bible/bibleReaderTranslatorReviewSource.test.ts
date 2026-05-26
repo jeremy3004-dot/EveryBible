@@ -17,6 +17,15 @@ test('BibleReaderScreen lets translators mark text read and audio listened', () 
   assert.match(source, /markTranslatorFeedbackListened\(feedbackId\)/);
 });
 
+
+
+test('BibleReaderScreen lets translators pause the active feedback audio', () => {
+  assert.match(source, /translatorReviewPlayingFeedbackId/);
+  assert.match(source, /translatorReviewAudioSoundRef\.current\?\.pauseAsync\(\)/);
+  assert.match(source, /isTranslatorFeedbackAudioPlaying \? 'pause-outline' : 'play-outline'/);
+  assert.match(source, /isTranslatorFeedbackAudioPlaying\s*\? t\('bible\.translatorReviewPause'\)/);
+});
+
 test('BibleReaderScreen places translator feedback review before chapter content', () => {
   assert.match(
     source,

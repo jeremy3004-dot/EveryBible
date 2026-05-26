@@ -164,6 +164,7 @@ export const ne = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "रोक्नुहोस्",
     "nextChapterHint": "अर्को अध्यायमा जान्छ",
     "openBookAndChapterPickerHint": "पुस्तक र अध्याय चयनकर्ता खोल्छ",
     "openTranslationOptionsHint": "अनुवाद विकल्पहरू खोल्छ",

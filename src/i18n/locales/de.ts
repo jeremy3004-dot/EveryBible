@@ -232,6 +232,7 @@ export const de = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "Pausieren",
     "nextChapterHint": "Geht zum nächsten Kapitel",
     "openBookAndChapterPickerHint": "Öffnet die Buch- und Kapitelauswahl",
     "openTranslationOptionsHint": "Öffnet Übersetzungsoptionen",

@@ -232,6 +232,7 @@ export const te = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "పాజ్",
     "nextChapterHint": "తదుపరి అధ్యాయానికి వెళుతుంది",
     "openBookAndChapterPickerHint": "పుస్తకం మరియు చాప్టర్ పికర్‌ను తెరుస్తుంది",
     "openTranslationOptionsHint": "అనువాద ఎంపికలను తెరుస్తుంది",

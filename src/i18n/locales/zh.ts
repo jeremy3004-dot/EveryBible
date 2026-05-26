@@ -232,6 +232,7 @@ export const zh = {
     "translatorReviewMarkRead": "Mark read",
     "translatorReviewListened": "Listened",
     "translatorReviewListen": "Listen",
+    "translatorReviewPause": "暂停",
     "nextChapterHint": "进入下一章",
     "openBookAndChapterPickerHint": "打开书籍和章节选择器",
     "openTranslationOptionsHint": "打开翻译选项",
