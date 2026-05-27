@@ -224,10 +224,28 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
     'BibleReaderScreen should not drop plan follow-along scrolls when the active verse has not been measured yet'
   );
 
+  assert.doesNotMatch(
+    source,
+    /showPlanSessionChrome && scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\)/,
+    'Plan-session audio follow-along should not jump on every verse; it should use the same threshold-based auto-scroll as regular Bible audio'
+  );
+
   assert.match(
     source,
-    /if \(showPlanSessionChrome && scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\)\) \{[\s\S]*pendingReaderAutoScrollVerseRef\.current = null;[\s\S]*return;[\s\S]*\}/,
-    'Plan-session audio follow-along should use the FlatList paragraph index instead of trusting virtualized cell-relative verse offsets'
+    /const paragraphHeightsRef = useRef<Record<string, number>>\(\{\}\);/,
+    'BibleReaderScreen should remember measured FlatList paragraph heights for plan-session auto-scroll math'
+  );
+
+  assert.match(
+    source,
+    /const getPlanReaderVerseOffset = useCallback\([\s\S]*let paragraphOffset = readerContentTopPadding;[\s\S]*paragraphOffset \+= measuredHeight;[\s\S]*return paragraphOffset \+ \(cumulativeWeight \/ totalWeight\) \* paragraphHeight;/,
+    'Plan-session audio follow-along should compute a content-space verse offset from paragraph heights before applying the regular threshold'
+  );
+
+  assert.match(
+    source,
+    /const verseOffset = showPlanSessionChrome[\s\S]*getPlanReaderVerseOffset\(verseNumber\)[\s\S]*getReaderAutoScrollTarget/s,
+    'Plan-session auto-scroll should feed the computed content-space verse offset into the same threshold helper used by regular Bible audio'
   );
 
   assert.match(

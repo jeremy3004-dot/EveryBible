@@ -630,6 +630,7 @@ export function BibleReaderScreen() {
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const pendingReaderAutoScrollVerseRef = useRef<number | null>(null);
+  const paragraphHeightsRef = useRef<Record<string, number>>({});
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
   // Monotonic follow-along: verse index only advances forward, never retreats.
   // Prevents highlight flickering caused by interpolated position noise.
@@ -1523,9 +1524,55 @@ export function BibleReaderScreen() {
     },
     [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
   );
+  const getPlanReaderVerseOffset = useCallback(
+    (verseNumber: number) => {
+      const paragraphIndex = premiumReaderParagraphs.findIndex((paragraph) =>
+        paragraph.verses.some((verse) => verse.verse === verseNumber)
+      );
+      if (paragraphIndex < 0) {
+        return null;
+      }
+
+      let paragraphOffset = readerContentTopPadding;
+      for (let index = 0; index < paragraphIndex; index += 1) {
+        const measuredHeight = paragraphHeightsRef.current[premiumReaderParagraphs[index].key];
+        if (measuredHeight == null) {
+          return null;
+        }
+        paragraphOffset += measuredHeight;
+      }
+
+      const paragraph = premiumReaderParagraphs[paragraphIndex];
+      const paragraphHeight = paragraphHeightsRef.current[paragraph.key];
+      if (paragraphHeight == null) {
+        return null;
+      }
+
+      const totalWeight = paragraph.verses.reduce(
+        (sum, verse) => sum + Math.max(verse.text.length, 12),
+        0
+      );
+      if (totalWeight <= 0) {
+        return paragraphOffset;
+      }
+
+      let cumulativeWeight = 0;
+      for (const verse of paragraph.verses) {
+        if (verse.verse === verseNumber) {
+          return paragraphOffset + (cumulativeWeight / totalWeight) * paragraphHeight;
+        }
+        cumulativeWeight += Math.max(verse.text.length, 12);
+      }
+
+      return paragraphOffset;
+    },
+    [premiumReaderParagraphs, readerContentTopPadding]
+  );
   const scrollReaderToMeasuredVerse = useCallback(
     (verseNumber: number, animated: boolean) => {
-      const verseOffset = verseOffsetsRef.current[verseNumber];
+      const verseOffset = showPlanSessionChrome
+        ? (getPlanReaderVerseOffset(verseNumber) ?? verseOffsetsRef.current[verseNumber])
+        : verseOffsetsRef.current[verseNumber];
       if (verseOffset == null) {
         return false;
       }
@@ -1546,7 +1593,7 @@ export function BibleReaderScreen() {
       scrollReaderToOffset(targetOffset, animated);
       return true;
     },
-    [scrollReaderToOffset, sharedTopChromeTop]
+    [getPlanReaderVerseOffset, scrollReaderToOffset, sharedTopChromeTop, showPlanSessionChrome]
   );
   const flushPendingReaderAutoScroll = useCallback(
     (animated: boolean) => {
@@ -1801,6 +1848,7 @@ export function BibleReaderScreen() {
   useEffect(() => {
     verseOffsetsRef.current = {};
     pendingReaderAutoScrollVerseRef.current = null;
+    paragraphHeightsRef.current = {};
     followAlongOffsetsRef.current = {};
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
@@ -1902,11 +1950,6 @@ export function BibleReaderScreen() {
       return;
     }
 
-    if (showPlanSessionChrome && scrollReaderToVerseParagraph(readerInlineActiveVerse, true)) {
-      pendingReaderAutoScrollVerseRef.current = null;
-      return;
-    }
-
     const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
     if (verseOffset == null) {
       pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
@@ -1920,7 +1963,6 @@ export function BibleReaderScreen() {
     readerInlineActiveVerse,
     scrollReaderToMeasuredVerse,
     scrollReaderToVerseParagraph,
-    showPlanSessionChrome,
     showPremiumReadMode,
   ]);
 
@@ -4558,6 +4600,7 @@ export function BibleReaderScreen() {
             ]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
+              paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
               const hasFormattedVerse = paragraph.verses.some(
                 (verse) => (verse.formatting?.lines.length ?? 0) > 0
               );
