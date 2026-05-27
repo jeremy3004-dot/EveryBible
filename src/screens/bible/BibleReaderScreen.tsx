@@ -1902,6 +1902,11 @@ export function BibleReaderScreen() {
       return;
     }
 
+    if (showPlanSessionChrome && scrollReaderToVerseParagraph(readerInlineActiveVerse, true)) {
+      pendingReaderAutoScrollVerseRef.current = null;
+      return;
+    }
+
     const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
     if (verseOffset == null) {
       pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
@@ -1915,6 +1920,7 @@ export function BibleReaderScreen() {
     readerInlineActiveVerse,
     scrollReaderToMeasuredVerse,
     scrollReaderToVerseParagraph,
+    showPlanSessionChrome,
     showPremiumReadMode,
   ]);
 

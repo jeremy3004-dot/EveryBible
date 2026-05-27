@@ -226,6 +226,12 @@ test('BibleReaderScreen auto-scrolls inline audio highlights before they leave t
 
   assert.match(
     source,
+    /if \(showPlanSessionChrome && scrollReaderToVerseParagraph\(readerInlineActiveVerse, true\)\) \{[\s\S]*pendingReaderAutoScrollVerseRef\.current = null;[\s\S]*return;[\s\S]*\}/,
+    'Plan-session audio follow-along should use the FlatList paragraph index instead of trusting virtualized cell-relative verse offsets'
+  );
+
+  assert.match(
+    source,
     /const pendingReaderAutoScrollVerseRef = useRef<number \| null>\(null\);/,
     'BibleReaderScreen should remember a pending audio-follow scroll while virtualized plan text is still measuring'
   );
