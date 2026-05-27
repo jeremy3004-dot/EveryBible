@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-video-trim/VideoTrim.podspec b/node_modules/react-native-video-trim/VideoTrim.podspec
+index 76afec4..68dadb9 100644
+--- a/node_modules/react-native-video-trim/VideoTrim.podspec
++++ b/node_modules/react-native-video-trim/VideoTrim.podspec
+@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
+   s.source       = { :git => "https://github.com/maitrungduc1410/react-native-video-trim.git", :tag => "#{s.version}" }
+ 
+   s.source_files = "ios/**/*.{h,m,mm,swift}"
+-  s.private_header_files = "ios/**/*.h"
++  s.public_header_files = "ios/**/*.h"
+ 
+   s.dependency "ffmpeg-mobile-#{ENV['FFMPEGKIT_PACKAGE'] || 'min'}", ENV['FFMPEGKIT_PACKAGE_VERSION'] || '~> 6.0'
+ 
