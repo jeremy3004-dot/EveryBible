@@ -12,7 +12,9 @@ let runtimeCatalogHydrationPromise: Promise<void> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
 
 export function hasRuntimeCatalogTranslations(translations: BibleTranslation[]): boolean {
-  return translations.some((translation) => translation.source === 'runtime');
+  return translations.some(
+    (translation) => translation.source === 'runtime' && Boolean(translation.catalog)
+  );
 }
 
 function isReadableLocally(translation: {

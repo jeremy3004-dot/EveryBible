@@ -27,6 +27,12 @@ test('ensureRuntimeCatalogLoaded refreshes once per launch instead of stopping a
     true,
     'bootstrapRuntimeTranslations should mark the launch-scoped hydration flag once the remote catalog has been applied'
   );
+
+  assert.equal(
+    source.includes("translation.source === 'runtime' && Boolean(translation.catalog)"),
+    true,
+    'Runtime catalog presence should require a catalog-backed runtime row, not only a seeded runtime placeholder'
+  );
 });
 
 test('primary translation reconciliation installs remote text packs before falling back to BSB', () => {

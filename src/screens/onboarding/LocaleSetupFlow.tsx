@@ -556,12 +556,26 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           current: currentStepNumber,
           count: totalSteps,
         });
+  const canUseHeaderBack = mode === 'settings' || step !== steps[0];
+  const handleHeaderBack = () => {
+    if (mode === 'settings') {
+      onClose?.();
+      return;
+    }
+
+    goToPreviousStep();
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-        {mode === 'settings' ? (
-          <TouchableOpacity style={styles.headerButton} onPress={onClose}>
+        {canUseHeaderBack ? (
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleHeaderBack}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
             <Ionicons name="arrow-back" size={22} color={colors.primaryText} />
           </TouchableOpacity>
         ) : (
