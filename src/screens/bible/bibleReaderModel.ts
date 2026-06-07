@@ -87,6 +87,14 @@ interface ReaderAutoScrollTargetInput {
   targetTopOffset: number;
 }
 
+interface AudioPositionRestartInput {
+  currentPosition: number;
+  previousPosition: number | null;
+  duration: number;
+  restartWindowMs?: number;
+  minimumDropMs?: number;
+}
+
 interface NextFollowAlongVisibilityInput {
   currentlyVisible: boolean;
   nextSessionMode: ChapterSessionMode;
@@ -400,6 +408,28 @@ export const getReaderInlineActiveVerse = ({
   }
 
   return focusVerse ?? null;
+};
+
+export const hasAudioPositionRestarted = ({
+  currentPosition,
+  previousPosition,
+  duration,
+  restartWindowMs = 1500,
+  minimumDropMs = 5000,
+}: AudioPositionRestartInput): boolean => {
+  if (previousPosition == null || currentPosition < 0 || previousPosition < 0) {
+    return false;
+  }
+
+  if (currentPosition > restartWindowMs) {
+    return false;
+  }
+
+  if (previousPosition - currentPosition < minimumDropMs) {
+    return false;
+  }
+
+  return duration <= 0 || previousPosition >= Math.min(duration * 0.7, duration - restartWindowMs);
 };
 
 export const getReaderAutoScrollTarget = ({

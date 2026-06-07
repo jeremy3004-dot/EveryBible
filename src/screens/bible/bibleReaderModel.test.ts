@@ -8,6 +8,7 @@ import {
   getPlanSessionTrailingActionState,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
+  hasAudioPositionRestarted,
   isReaderChromeCollapsed,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   LISTEN_PLAN_PROGRESS_CARD_TEST_ID,
@@ -640,6 +641,35 @@ test('auto-scrolls the inline audio highlight to the top before it reaches the p
       targetTopOffset: 128,
     }),
     209
+  );
+});
+
+test('detects chapter repeat playback restarting at the beginning', () => {
+  assert.equal(
+    hasAudioPositionRestarted({
+      currentPosition: 400,
+      previousPosition: 118000,
+      duration: 120000,
+    }),
+    true
+  );
+
+  assert.equal(
+    hasAudioPositionRestarted({
+      currentPosition: 117000,
+      previousPosition: 118000,
+      duration: 120000,
+    }),
+    false
+  );
+
+  assert.equal(
+    hasAudioPositionRestarted({
+      currentPosition: 400,
+      previousPosition: 2400,
+      duration: 120000,
+    }),
+    false
   );
 });
 

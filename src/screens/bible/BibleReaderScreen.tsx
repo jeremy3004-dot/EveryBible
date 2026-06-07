@@ -140,6 +140,7 @@ import {
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
   getReaderChromeAnimationProgress,
+  hasAudioPositionRestarted,
   isActiveAudioTrackMatch,
   isReaderChromeCollapsed,
   getNextFontSizeSheetVisibility,
@@ -635,6 +636,8 @@ export function BibleReaderScreen() {
   // Monotonic follow-along: verse index only advances forward, never retreats.
   // Prevents highlight flickering caused by interpolated position noise.
   const lastFollowAlongVerseRef = useRef<number | null>(null);
+  const previousFollowAlongPositionRef = useRef<number | null>(null);
+  const previousFollowAlongTrackKeyRef = useRef<string | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1434,6 +1437,14 @@ export function BibleReaderScreen() {
   const selectedNoteAnnotation = selectedVerseAnnotations.find(
     (annotation) => annotation.type === 'note'
   );
+  const isCurrentAudioChapter = isActiveAudioTrackMatch({
+    translationId: currentTranslation,
+    bookId,
+    chapter,
+    activeAudioTranslationId,
+    activeAudioBookId,
+    activeAudioChapter,
+  });
   const rawFollowAlongVerse = getEstimatedFollowAlongVerse({
     verses,
     currentPosition,
@@ -1446,24 +1457,39 @@ export function BibleReaderScreen() {
   // a verse boundary and snaps back on the next real poll.
   // Reset when the chapter changes (lastFollowAlongVerseRef is cleared in the
   // chapter-change useEffect below via followAlongOffsetsRef reset).
-  const activeFollowAlongVerse = (() => {
+  const followAlongPlaybackState = (() => {
+    const activeTrackKey = isCurrentAudioChapter
+      ? `${activeAudioTranslationId ?? currentTranslation}:${activeAudioBookId}:${activeAudioChapter}`
+      : null;
+    if (previousFollowAlongTrackKeyRef.current !== activeTrackKey) {
+      previousFollowAlongTrackKeyRef.current = activeTrackKey;
+      previousFollowAlongPositionRef.current = null;
+      lastFollowAlongVerseRef.current = null;
+    }
+
+    const didRestart =
+      activeTrackKey != null &&
+      hasAudioPositionRestarted({
+        currentPosition,
+        previousPosition: previousFollowAlongPositionRef.current,
+        duration,
+      });
+    if (didRestart) {
+      lastFollowAlongVerseRef.current = null;
+    }
+    previousFollowAlongPositionRef.current = activeTrackKey != null ? currentPosition : null;
+
     if (rawFollowAlongVerse == null) {
       lastFollowAlongVerseRef.current = null;
-      return null;
+      return { verse: null, didRestart };
     }
     const last = lastFollowAlongVerseRef.current;
     const next = last != null && rawFollowAlongVerse < last ? last : rawFollowAlongVerse;
     lastFollowAlongVerseRef.current = next;
-    return next;
+    return { verse: next, didRestart };
   })();
-  const isCurrentAudioChapter = isActiveAudioTrackMatch({
-    translationId: currentTranslation,
-    bookId,
-    chapter,
-    activeAudioTranslationId,
-    activeAudioBookId,
-    activeAudioChapter,
-  });
+  const activeFollowAlongVerse = followAlongPlaybackState.verse;
+  const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
@@ -1950,6 +1976,12 @@ export function BibleReaderScreen() {
       return;
     }
 
+    if (didRestartFollowAlongPlayback) {
+      pendingReaderAutoScrollVerseRef.current = null;
+      scrollReaderToOffset(0, true);
+      return;
+    }
+
     const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
     if (verseOffset == null) {
       pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
@@ -1959,8 +1991,10 @@ export function BibleReaderScreen() {
 
     scrollReaderToMeasuredVerse(readerInlineActiveVerse, true);
   }, [
+    didRestartFollowAlongPlayback,
     isCurrentAudioChapter,
     readerInlineActiveVerse,
+    scrollReaderToOffset,
     scrollReaderToMeasuredVerse,
     scrollReaderToVerseParagraph,
     showPremiumReadMode,

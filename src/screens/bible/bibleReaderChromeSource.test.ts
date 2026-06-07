@@ -794,6 +794,28 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
   );
 });
 
+test('BibleReaderScreen resets follow-along scroll when repeated chapter playback restarts', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /hasAudioPositionRestarted\(\{[\s\S]*currentPosition,[\s\S]*previousPosition:\s*previousFollowAlongPositionRef\.current,[\s\S]*duration,[\s\S]*\}\)/s,
+    'BibleReaderScreen should detect a real end-to-start audio position wrap during chapter repeat'
+  );
+
+  assert.match(
+    source,
+    /if \(didRestart\) \{[\s\S]*lastFollowAlongVerseRef\.current = null;[\s\S]*\}/s,
+    'BibleReaderScreen should clear monotonic follow-along state when repeat playback returns to verse one'
+  );
+
+  assert.match(
+    source,
+    /if \(didRestartFollowAlongPlayback\) \{[\s\S]*scrollReaderToOffset\(0, true\);[\s\S]*return;[\s\S]*\}/s,
+    'BibleReaderScreen should scroll the inline reader back to the top when the repeated chapter restarts'
+  );
+});
+
 test('pressing the reader dock play button starts playback for the displayed chapter', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
