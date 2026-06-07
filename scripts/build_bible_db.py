@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "assets" / "databases" / "bible-bsb-v2.db"
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 SOURCE_DATA = [
     {
         "translation_id": "bsb",
@@ -30,6 +30,12 @@ SOURCE_DATA = [
         "translation_name": "American Standard Version",
         "path": ROOT / "data" / "asv_processed.json",
         "expected_verse_count": 31086,
+    },
+    {
+        "translation_id": "npiulb",
+        "translation_name": "Nepali Unlocked Literal Bible",
+        "path": ROOT / "data" / "npiulb_processed.json",
+        "expected_verse_count": 31102,
     },
 ]
 
@@ -171,30 +177,21 @@ def verify_database() -> None:
         user_version = connection.execute("PRAGMA user_version").fetchone()[0]
         verse_count = connection.execute("SELECT COUNT(*) FROM verses").fetchone()[0]
         fts_count = connection.execute("SELECT COUNT(*) FROM verses_fts").fetchone()[0]
-        bsb_hits = connection.execute(
-            """
-            SELECT COUNT(*)
-            FROM verses_fts
-            JOIN verses ON verses.id = verses_fts.rowid
-            WHERE verses_fts MATCH 'beginning*' AND verses.translation_id = 'bsb'
-            """
-        ).fetchone()[0]
-        web_hits = connection.execute(
-            """
-            SELECT COUNT(*)
-            FROM verses_fts
-            JOIN verses ON verses.id = verses_fts.rowid
-            WHERE verses_fts MATCH 'beginning*' AND verses.translation_id = 'web'
-            """
-        ).fetchone()[0]
-        asv_hits = connection.execute(
-            """
-            SELECT COUNT(*)
-            FROM verses_fts
-            JOIN verses ON verses.id = verses_fts.rowid
-            WHERE verses_fts MATCH 'beginning*' AND verses.translation_id = 'asv'
-            """
-        ).fetchone()[0]
+        counts_by_translation = dict(
+            connection.execute(
+                "SELECT translation_id, COUNT(*) FROM verses GROUP BY translation_id"
+            ).fetchall()
+        )
+        fts_counts_by_translation = dict(
+            connection.execute(
+                """
+                SELECT verses.translation_id, COUNT(*)
+                FROM verses_fts
+                JOIN verses ON verses.id = verses_fts.rowid
+                GROUP BY verses.translation_id
+                """
+            ).fetchall()
+        )
     finally:
         connection.close()
 
@@ -213,8 +210,19 @@ def verify_database() -> None:
         raise SystemExit(
             f"Expected {expected_total_verse_count} FTS rows, found {fts_count}"
         )
-    if bsb_hits < 1 or web_hits < 1 or asv_hits < 1:
-        raise SystemExit("Expected at least one FTS match for 'beginning*' in all translations")
+    for source_config in SOURCE_DATA:
+        translation_id = source_config["translation_id"]
+        expected_count = source_config["expected_verse_count"]
+        actual_count = counts_by_translation.get(translation_id, 0)
+        actual_fts_count = fts_counts_by_translation.get(translation_id, 0)
+        if actual_count != expected_count:
+            raise SystemExit(
+                f"Expected {expected_count} verses for {translation_id}, found {actual_count}"
+            )
+        if actual_fts_count != expected_count:
+            raise SystemExit(
+                f"Expected {expected_count} FTS rows for {translation_id}, found {actual_fts_count}"
+            )
 
     print(
         f"Verified {OUTPUT_PATH}: schema={user_version}, verses={verse_count}, fts_rows={fts_count}"

@@ -12,7 +12,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
-const DEFAULT_MINIMUM_READY_VERSE_COUNT = 90001;
+const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
 const SQLITE_OPEN_OPTIONS = {
   finalizeUnusedStatementsBeforeClosing: false,
 } as const;
