@@ -30,7 +30,7 @@ export function getLocaleSetupSteps(mode: SetupMode): SetupStep[] {
     return ['country', 'contentLanguage'];
   }
 
-  return ['interfaceLanguage', 'translation'];
+  return ['translation'];
 }
 
 function normalizeLanguageLabel(language: string | null | undefined): string {

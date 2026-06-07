@@ -105,9 +105,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   );
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
   const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
+  const [showBibleLanguagePicker, setShowBibleLanguagePicker] = useState(mode !== 'initial');
+  const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
 
   const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
   const selectedLanguage = localeSearchEngine.getLanguageByCode(selectedLanguageCode);
+  const selectedInterfaceLanguage = LANGUAGES[selectedInterfaceLanguageCode];
   const selectedCountryDisplayName = selectedCountry
     ? localeSearchEngine.getCountryDisplayName(selectedCountry.code, selectedInterfaceLanguageCode)
     : '';
@@ -173,6 +176,74 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
     return sections;
   }, [onboardingLanguageOptions]);
+  const recommendedOnboardingLanguageOptions = useMemo(() => {
+    if (mode !== 'initial') {
+      return [];
+    }
+
+    const normalizedDeviceCountryCode = deviceCountryCode?.toUpperCase() ?? null;
+    const scoreOption = (option: InitialOnboardingLanguageOption<BibleTranslation>) => {
+      const translation = option.primaryTranslation;
+      const translationLanguage =
+        localeSearchEngine.searchLanguages(translation.language ?? '', null, 1).global[0] ?? null;
+      const normalizedTranslationLanguage = normalizeTranslationLanguage(
+        translation.language
+      ).toLowerCase();
+      let score = 0;
+
+      if (translationLanguage?.iso6391 === deviceLanguageCode) {
+        score -= 500;
+      }
+
+      if (translationLanguage?.iso6391 === selectedInterfaceLanguageCode) {
+        score -= 300;
+      }
+
+      if (
+        normalizedDeviceCountryCode &&
+        translationLanguage?.countryCodes.includes(normalizedDeviceCountryCode)
+      ) {
+        score -= 250;
+      }
+
+      if (normalizedTranslationLanguage === 'english' && translation.id.toLowerCase() === 'bsb') {
+        score -= 100;
+      }
+
+      if (translation.isDownloaded) {
+        score -= 60;
+      }
+
+      if (translation.hasText) {
+        score -= 40;
+      }
+
+      if (translation.hasAudio) {
+        score -= 20;
+      }
+
+      return score;
+    };
+
+    return [...onboardingLanguageOptions]
+      .sort((left, right) => {
+        const scoreDelta = scoreOption(left) - scoreOption(right);
+        if (scoreDelta !== 0) {
+          return scoreDelta;
+        }
+
+        return left.label.localeCompare(right.label);
+      })
+      .slice(0, 5);
+  }, [
+    deviceCountryCode,
+    deviceLanguageCode,
+    mode,
+    onboardingLanguageOptions,
+    selectedInterfaceLanguageCode,
+  ]);
+  const primaryOnboardingLanguageOption =
+    recommendedOnboardingLanguageOptions[0] ?? onboardingLanguageOptions[0] ?? null;
 
   const countryResults = useMemo(
     () => localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode),
@@ -354,6 +425,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     setSelectedInterfaceLanguageCode(language.code);
     await changeLanguage(language.code);
     setPreferences({ language: language.code });
+    setShowInterfaceLanguagePicker(false);
     goToStep('translation');
   };
 
@@ -622,24 +694,65 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               {t('onboarding.languageTitle')}
             </Text>
 
-            <TextInput
-              value={translationQuery}
-              onChangeText={setTranslationQuery}
-              testID="onboarding-translation-search"
-              accessibilityLabel={t('onboarding.languageSearchPlaceholder')}
-              placeholder={t('onboarding.languageSearchPlaceholder')}
-              placeholderTextColor={colors.secondaryText}
-              style={[
-                styles.searchInput,
-                {
-                  backgroundColor: colors.cardBackground,
-                  borderColor: colors.cardBorder,
-                  color: colors.primaryText,
-                },
-              ]}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {mode === 'initial' ? (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.inlinePreferenceButton,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+                  ]}
+                  testID="onboarding-interface-language-toggle"
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
+                  onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
+                  activeOpacity={0.88}
+                >
+                  <View style={styles.inlinePreferenceCopy}>
+                    <Text style={[styles.inlinePreferenceLabel, { color: colors.secondaryText }]}>
+                      {selectedInterfaceLanguage.appLanguageLabel}
+                    </Text>
+                    <Text style={[styles.inlinePreferenceValue, { color: colors.primaryText }]}>
+                      {selectedInterfaceLanguage.nativeName}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showInterfaceLanguagePicker ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={colors.secondaryText}
+                  />
+                </TouchableOpacity>
+
+                {showInterfaceLanguagePicker ? (
+                  <View
+                    style={styles.languageButtonGrid}
+                    testID="onboarding-interface-language-inline-picker"
+                  >
+                    {SUPPORTED_LANGUAGES.map((language) => renderInterfaceLanguageButton(language))}
+                  </View>
+                ) : null}
+              </>
+            ) : null}
+
+            {mode !== 'initial' || showBibleLanguagePicker ? (
+              <TextInput
+                value={translationQuery}
+                onChangeText={setTranslationQuery}
+                testID="onboarding-translation-search"
+                accessibilityLabel={t('onboarding.languageSearchPlaceholder')}
+                placeholder={t('onboarding.languageSearchPlaceholder')}
+                placeholderTextColor={colors.secondaryText}
+                style={[
+                  styles.searchInput,
+                  {
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.cardBorder,
+                    color: colors.primaryText,
+                  },
+                ]}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            ) : null}
 
             {isHydratingRuntimeCatalog ? (
               <View style={styles.loadingRow}>
@@ -647,14 +760,37 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </View>
             ) : null}
 
-            {onboardingLanguageSections.map((section) => (
-              <View key={section.groupLabel} style={styles.listSection}>
-                <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                  {section.groupLabel}
-                </Text>
-                {section.options.map((option) => renderOnboardingLanguageRow(option))}
-              </View>
-            ))}
+            {mode === 'initial' && !showBibleLanguagePicker && primaryOnboardingLanguageOption ? (
+              <>
+                <View testID="onboarding-primary-recommendation">
+                  {renderOnboardingLanguageRow(primaryOnboardingLanguageOption)}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.secondaryWideButton,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+                  ]}
+                  testID="onboarding-bible-language-toggle"
+                  accessibilityRole="button"
+                  accessibilityLabel={t('translations.languagePreference')}
+                  onPress={() => setShowBibleLanguagePicker(true)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={[styles.secondaryWideButtonText, { color: colors.primaryText }]}>
+                    {t('translations.languagePreference')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              onboardingLanguageSections.map((section) => (
+                <View key={section.groupLabel} style={styles.listSection}>
+                  <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
+                    {section.groupLabel}
+                  </Text>
+                  {section.options.map((option) => renderOnboardingLanguageRow(option))}
+                </View>
+              ))
+            )}
 
             {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0 ? (
               <View
@@ -920,6 +1056,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    marginBottom: 16,
   },
   languageButton: {
     minWidth: '30%',
@@ -937,6 +1074,42 @@ const styles = StyleSheet.create({
   languageButtonEnglish: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  inlinePreferenceButton: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  inlinePreferenceCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  inlinePreferenceLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  inlinePreferenceValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  secondaryWideButton: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryWideButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   loadingRow: {
     paddingTop: 20,

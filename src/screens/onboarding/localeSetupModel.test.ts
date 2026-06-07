@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInitialOnboardingLanguageOptions, getLocaleSetupSteps } from './localeSetupModel';
 
-test('initial onboarding asks for interface language before Bible language', () => {
-  assert.deepEqual(getLocaleSetupSteps('initial'), ['interfaceLanguage', 'translation']);
+test('initial onboarding opens directly to the Bible language recommendation', () => {
+  assert.deepEqual(getLocaleSetupSteps('initial'), ['translation']);
 });
 
 test('settings locale flow stays focused on nation and Bible language', () => {

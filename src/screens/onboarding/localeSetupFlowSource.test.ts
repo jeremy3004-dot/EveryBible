@@ -23,32 +23,44 @@ test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
   );
 });
 
-test('LocaleSetupFlow initial onboarding starts with interface language buttons', () => {
+test('LocaleSetupFlow initial onboarding starts with a one-screen Bible recommendation', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
   const modelSource = readRelativeSource('./localeSetupModel.ts');
 
   assert.match(
     modelSource,
-    /return \['interfaceLanguage', 'translation'\];/,
-    'Initial onboarding should ask for interface language before Bible language'
+    /return \['translation'\];/,
+    'Initial onboarding should open directly to Bible language selection'
   );
 
   assert.equal(
     flowSource.includes('onboarding-translation-search'),
     true,
-    'Initial onboarding should expose a Bible language search field after interface language'
+    'Initial onboarding should still expose a Bible language search field when expanded'
+  );
+
+  assert.match(
+    flowSource,
+    /mode !== 'initial' \|\| showBibleLanguagePicker/,
+    'Initial onboarding should hide the full Bible language search until the user asks for it'
   );
 
   assert.equal(
     flowSource.includes('onboarding-interface-language-search'),
     false,
-    'Initial onboarding should use interface language buttons instead of search'
+    'Initial onboarding should not use a full interface-language search step'
   );
 
   assert.equal(
-    flowSource.includes('renderInterfaceLanguageButton'),
+    flowSource.includes('onboarding-interface-language-toggle'),
     true,
-    'Initial onboarding should render tappable interface language buttons'
+    'Initial onboarding should keep app language available as an inline control'
+  );
+
+  assert.equal(
+    flowSource.includes('onboarding-primary-recommendation'),
+    true,
+    'Initial onboarding should show a primary recommended Bible option'
   );
 });
 

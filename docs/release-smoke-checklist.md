@@ -14,7 +14,7 @@ This release gate runs lint, typecheck, release metadata contracts, and the focu
 
 ## Manual Device Gates
 
-- Fresh install: complete onboarding with interface language, country, and content language only, then confirm the app lands in the main shell as a guest.
+- Fresh install: accept the recommended Bible language from the one-screen onboarding path, then confirm the app lands in the main shell as a guest.
 - From More and Profile as a guest, open the auth flow and confirm the shared auth screen appears in the expected mode.
 - Verify email/password sign-in on a release-like build, then fully quit and relaunch to confirm session restoration.
 - Verify email create-account shows the expected in-flow success behavior when verification is required.
