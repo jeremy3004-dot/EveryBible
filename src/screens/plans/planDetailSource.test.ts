@@ -51,7 +51,7 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
   );
   assert.match(
     source,
-    /dateLabel=\{dateLabel\}/,
+    /dateLabel=\{item\.dateLabel\}/,
     'PlanDetailScreen should pass the scheduled label through to each day row'
   );
   assert.match(
@@ -92,7 +92,7 @@ test('PlanDetailScreen exposes direct session buttons for multi-session days', (
   );
   assert.match(
     source,
-    /sessionActions=\{sessionActions\}/,
+    /sessionActions=\{item\.sessionActions\}/,
     'PlanDetailScreen should pass the per-session actions into each day row'
   );
   assert.match(

@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -359,7 +359,22 @@ interface DayRowProps {
 
 export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
 
-function DayRow({
+interface PlanDayViewModel {
+  dayNumber: number;
+  dateLabel: string | null;
+  entries: ReadingPlanEntry[];
+  launchSessionKey?: PlanSessionKey;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  sessionBadges: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
+  sessionActions: Array<{
+    sessionKey: PlanSessionKey;
+    label: string;
+    state: 'done' | 'next' | 'upcoming' | 'available';
+  }>;
+}
+
+const DayRow = React.memo(function DayRow({
   dayNumber,
   dateLabel,
   entries,
@@ -526,7 +541,7 @@ function DayRow({
       ) : null}
     </View>
   );
-}
+});
 
 const dayRowStyles = StyleSheet.create({
   container: {
@@ -803,6 +818,240 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     : t('readingPlans.title');
   const heroCoverSource = plan ? getReadingPlanCoverSource(plan) : null;
 
+  const dayViewModels = React.useMemo<PlanDayViewModel[]>(() => {
+    return visibleDayNumbers.map((dayNumber) => {
+      const dayEntries = entriesByDay.get(dayNumber) ?? [];
+      const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
+      const isCompleted = progress
+        ? isRecurringPlan(plan)
+          ? dayNumber === currentDay &&
+            Boolean(
+              (currentDaySummary?.dateKey &&
+                currentDaySummary.dateKey in progress.completed_entries) ||
+                currentDaySummary?.isComplete
+            )
+          : String(dayNumber) in progress.completed_entries ||
+            (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
+        : false;
+      const isCurrent = dayNumber === currentDay;
+      const dateLabel =
+        progress && !isRecurringPlan(plan)
+          ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
+          : null;
+      const launchSessionKey = multiSessionPlan
+        ? isCurrent && isEnrolled
+          ? currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey
+          : daySessionGroups[0]?.sessionKey
+        : undefined;
+      const sessionBadges = daySessionGroups.map((group) => {
+        const matchingSummary =
+          isCurrent && isEnrolled
+            ? currentDaySummary?.sessionSummaries.find(
+                (session) => session.sessionKey === group.sessionKey
+              ) ?? null
+            : null;
+        const state =
+          !isCurrent || !isEnrolled
+            ? 'available'
+            : matchingSummary?.isComplete
+              ? 'done'
+              : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
+                ? 'next'
+                : 'upcoming';
+
+        return {
+          label: group.title,
+          state,
+        } as const;
+      });
+      const sessionActions = daySessionGroups.map((group) => {
+        const matchingSummary =
+          isCurrent && isEnrolled
+            ? currentDaySummary?.sessionSummaries.find(
+                (session) => session.sessionKey === group.sessionKey
+              ) ?? null
+            : null;
+        const state =
+          !isCurrent || !isEnrolled
+            ? 'available'
+            : matchingSummary?.isComplete
+              ? 'done'
+              : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
+                ? 'next'
+                : 'upcoming';
+
+        return {
+          sessionKey: group.sessionKey,
+          label: group.title,
+          state,
+        } as const;
+      });
+
+      return {
+        dayNumber,
+        dateLabel,
+        entries: dayEntries,
+        launchSessionKey,
+        isCompleted,
+        isCurrent: isCurrent && isEnrolled,
+        sessionBadges,
+        sessionActions,
+      };
+    });
+  }, [
+    currentDay,
+    currentDaySummary,
+    entries,
+    entriesByDay,
+    isEnrolled,
+    multiSessionPlan,
+    plan,
+    progress,
+    visibleDayNumbers,
+  ]);
+
+  const renderDayRow = useCallback(
+    ({ item }: { item: PlanDayViewModel }) => (
+      <DayRow
+        dayNumber={item.dayNumber}
+        dateLabel={item.dateLabel}
+        entries={item.entries}
+        launchSessionKey={item.launchSessionKey}
+        isCompleted={item.isCompleted}
+        isCurrent={item.isCurrent}
+        sessionBadges={item.sessionBadges}
+        sessionActions={item.sessionActions}
+        onPress={handleOpenChapter}
+      />
+    ),
+    [handleOpenChapter]
+  );
+
+  const keyExtractorDay = useCallback((item: PlanDayViewModel) => String(item.dayNumber), []);
+
+  const renderDaySeparator = useCallback(() => <View style={styles.daySeparator} />, []);
+
+  const listHeader = (
+    <View>
+      {/* ------------------------------------------------------------------ */}
+      {/* Cover image header                                                  */}
+      {/* ------------------------------------------------------------------ */}
+      <View style={styles.coverContainer}>
+        {heroCoverSource ? (
+          <Image
+            source={heroCoverSource}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.coverImage, { backgroundColor: colors.accentSecondary }]}>
+            <Ionicons name="book-outline" size={60} color={colors.secondaryText} />
+          </View>
+        )}
+
+        {/* Gradient overlay at bottom of cover for readability */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.5)']}
+          style={styles.coverGradient}
+        />
+
+        <View style={styles.coverTitleWrap}>
+          <Text style={styles.coverTitle} numberOfLines={3}>
+            {planTitle}
+          </Text>
+        </View>
+
+        {/* Floating back button */}
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={[
+            styles.floatingBack,
+            {
+              top: insets.top + spacing.sm,
+              backgroundColor: 'rgba(0,0,0,0.4)',
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
+          <Ionicons name="arrow-back" size={20} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* CTA row: Start Plan                                                 */}
+      {/* ------------------------------------------------------------------ */}
+      {!isEnrolled ? (
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            onPress={handleStartPlan}
+            disabled={enrolling}
+            style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('readingPlans.startPlan')}
+          >
+            {enrolling ? (
+              <ActivityIndicator size="small" color={colors.cardBackground} />
+            ) : (
+              <Text style={[styles.ctaPrimaryText, { color: colors.cardBackground }]}>
+                {t('readingPlans.startPlan')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Plan description                                                    */}
+      {/* ------------------------------------------------------------------ */}
+      {plan?.description_key ? (
+        <Text style={[styles.description, { color: colors.secondaryText }]}>
+          {t(plan.description_key as Parameters<typeof t>[0], { defaultValue: plan.description_key })}
+        </Text>
+      ) : null}
+
+      {/* Progress card (only if enrolled) */}
+      {plan && isEnrolled ? (
+        <View style={styles.headerProgressCardWrap}>
+          <ProgressCard
+            plan={plan}
+            progress={progress}
+            currentDaySummary={currentDaySummary}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const listFooter = (
+    <View>
+      {/* ------------------------------------------------------------------ */}
+      {/* Related Plans                                                       */}
+      {/* ------------------------------------------------------------------ */}
+      {relatedPlans.length > 0 ? (
+        <View style={styles.relatedSection}>
+          <Text style={[styles.relatedTitle, { color: colors.primaryText }]}>
+            {t('readingPlans.relatedPlans')}
+          </Text>
+          <FlatList
+            data={relatedPlans}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.relatedList}
+            ItemSeparatorComponent={() => <View style={styles.relatedSeparator} />}
+            renderItem={({ item }) => (
+              <RelatedPlanCard plan={item} onPress={handleRelatedPlanPress} />
+            )}
+          />
+        </View>
+      ) : null}
+
+      {/* Bottom breathing room */}
+      <View style={{ height: spacing.xxxl }} />
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -854,211 +1103,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+      <FlashList
+        data={dayViewModels}
+        renderItem={renderDayRow}
+        keyExtractor={keyExtractorDay}
+        ItemSeparatorComponent={renderDaySeparator}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
+        contentContainerStyle={styles.dayListContent}
         showsVerticalScrollIndicator={false}
-      >
-        {/* ------------------------------------------------------------------ */}
-        {/* Cover image header                                                  */}
-        {/* ------------------------------------------------------------------ */}
-        <View style={styles.coverContainer}>
-          {heroCoverSource ? (
-            <Image
-              source={heroCoverSource}
-              style={styles.coverImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.coverImage, { backgroundColor: colors.accentSecondary }]}>
-              <Ionicons name="book-outline" size={60} color={colors.secondaryText} />
-            </View>
-          )}
-
-          {/* Gradient overlay at bottom of cover for readability */}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.5)']}
-            style={styles.coverGradient}
-          />
-
-          <View style={styles.coverTitleWrap}>
-            <Text style={styles.coverTitle} numberOfLines={3}>
-              {planTitle}
-            </Text>
-          </View>
-
-          {/* Floating back button */}
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={[
-              styles.floatingBack,
-              {
-                top: insets.top + spacing.sm,
-                backgroundColor: 'rgba(0,0,0,0.4)',
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={20} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* CTA row: Start Plan                                                 */}
-        {/* ------------------------------------------------------------------ */}
-        {!isEnrolled ? (
-          <View style={styles.ctaRow}>
-            <TouchableOpacity
-              onPress={handleStartPlan}
-              disabled={enrolling}
-              style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary }]}
-              accessibilityRole="button"
-              accessibilityLabel={t('readingPlans.startPlan')}
-            >
-              {enrolling ? (
-                <ActivityIndicator size="small" color={colors.cardBackground} />
-              ) : (
-                <Text style={[styles.ctaPrimaryText, { color: colors.cardBackground }]}>
-                  {t('readingPlans.startPlan')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* ------------------------------------------------------------------ */}
-        {/* Plan description                                                    */}
-        {/* ------------------------------------------------------------------ */}
-        {plan?.description_key ? (
-          <Text style={[styles.description, { color: colors.secondaryText }]}>
-            {t(plan.description_key as Parameters<typeof t>[0], { defaultValue: plan.description_key })}
-          </Text>
-        ) : null}
-
-        {/* ------------------------------------------------------------------ */}
-        {/* Day list                                                            */}
-        {/* ------------------------------------------------------------------ */}
-        <View style={styles.dayListSection}>
-          {/* Progress card (only if enrolled) */}
-          {plan && isEnrolled ? (
-            <ProgressCard
-              plan={plan}
-              progress={progress}
-              currentDaySummary={currentDaySummary}
-            />
-          ) : null}
-
-          {/* Day rows */}
-          {visibleDayNumbers.map((dayNumber) => {
-            const dayEntries = entriesByDay.get(dayNumber) ?? [];
-            const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
-            const isCompleted = progress
-              ? isRecurringPlan(plan)
-                ? dayNumber === currentDay &&
-                  Boolean(
-                    (currentDaySummary?.dateKey &&
-                      currentDaySummary.dateKey in progress.completed_entries) ||
-                      currentDaySummary?.isComplete
-                  )
-                : String(dayNumber) in progress.completed_entries ||
-                  (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
-              : false;
-            const isCurrent = dayNumber === currentDay;
-            const dateLabel =
-              progress && !isRecurringPlan(plan)
-                ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
-                : null;
-            const launchSessionKey = multiSessionPlan
-              ? isCurrent && isEnrolled
-                ? currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey
-                : daySessionGroups[0]?.sessionKey
-              : undefined;
-            const sessionBadges = daySessionGroups.map((group) => {
-              const matchingSummary =
-                isCurrent && isEnrolled
-                  ? currentDaySummary?.sessionSummaries.find(
-                      (session) => session.sessionKey === group.sessionKey
-                    ) ?? null
-                  : null;
-              const state =
-                !isCurrent || !isEnrolled
-                  ? 'available'
-                  : matchingSummary?.isComplete
-                    ? 'done'
-                    : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
-                      ? 'next'
-                      : 'upcoming';
-
-              return {
-                label: group.title,
-                state,
-              } as const;
-            });
-            const sessionActions = daySessionGroups.map((group) => {
-              const matchingSummary =
-                isCurrent && isEnrolled
-                  ? currentDaySummary?.sessionSummaries.find(
-                      (session) => session.sessionKey === group.sessionKey
-                    ) ?? null
-                  : null;
-              const state =
-                !isCurrent || !isEnrolled
-                  ? 'available'
-                  : matchingSummary?.isComplete
-                    ? 'done'
-                    : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
-                      ? 'next'
-                      : 'upcoming';
-
-              return {
-                sessionKey: group.sessionKey,
-                label: group.title,
-                state,
-              } as const;
-            });
-            return (
-              <DayRow
-                key={dayNumber}
-                dayNumber={dayNumber}
-                dateLabel={dateLabel}
-                entries={dayEntries}
-                launchSessionKey={launchSessionKey}
-                isCompleted={isCompleted}
-                isCurrent={isCurrent && isEnrolled}
-                sessionBadges={sessionBadges}
-                sessionActions={sessionActions}
-                onPress={handleOpenChapter}
-              />
-            );
-          })}
-        </View>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* Related Plans                                                       */}
-        {/* ------------------------------------------------------------------ */}
-        {relatedPlans.length > 0 ? (
-          <View style={styles.relatedSection}>
-            <Text style={[styles.relatedTitle, { color: colors.primaryText }]}>
-              {t('readingPlans.relatedPlans')}
-            </Text>
-            <FlatList
-              data={relatedPlans}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.relatedList}
-              ItemSeparatorComponent={() => <View style={styles.relatedSeparator} />}
-              renderItem={({ item }) => (
-                <RelatedPlanCard plan={item} onPress={handleRelatedPlanPress} />
-              )}
-            />
-          </View>
-        ) : null}
-
-        {/* Bottom breathing room */}
-        <View style={{ height: spacing.xxxl }} />
-      </ScrollView>
+        estimatedItemSize={96}
+        extraData={colors}
+      />
     </View>
   );
 }
@@ -1067,11 +1123,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    // No horizontal padding here — cover image is edge-to-edge
+  dayListContent: {
+    // Horizontal padding applies to the virtualized day rows and the
+    // header/footer content. Cover image overrides this with negative
+    // margins so it stays edge-to-edge.
+    paddingHorizontal: layout.screenPadding,
   },
 
   // Loading / error states
@@ -1108,7 +1164,7 @@ const styles = StyleSheet.create({
   // Cover image
   coverContainer: {
     height: COVER_HEIGHT,
-    width: '100%',
+    marginHorizontal: -layout.screenPadding,
     overflow: 'hidden',
     position: 'relative',
     alignItems: 'center',
@@ -1150,7 +1206,6 @@ const styles = StyleSheet.create({
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.lg,
   },
   ctaPrimary: {
@@ -1173,18 +1228,20 @@ const styles = StyleSheet.create({
     ...typography.body,
     marginTop: spacing.sm,
     marginBottom: spacing.lg,
-    paddingHorizontal: layout.screenPadding,
   },
 
   // Day list section
-  dayListSection: {
-    paddingHorizontal: layout.screenPadding,
+  daySeparator: {
+    height: spacing.md,
+  },
+  headerProgressCardWrap: {
     paddingTop: spacing.sm,
-    gap: spacing.md,
+    marginBottom: spacing.md,
   },
 
   // Related plans
   relatedSection: {
+    marginHorizontal: -layout.screenPadding,
     paddingTop: spacing.xxl,
     paddingBottom: spacing.md,
     gap: spacing.md,
