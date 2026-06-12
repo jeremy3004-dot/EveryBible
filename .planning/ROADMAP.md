@@ -609,3 +609,21 @@ Plans:
 - [ ] 33-02-PLAN.md — Add the off-by-default settings toggle, BibleReader feedback entry point, thumbs up/down UI, optional comment field, and submission client
 - [ ] 33-03-PLAN.md — Add failure visibility, regression coverage, manual QA guidance, and operator setup docs for the spreadsheet pipeline
 - [ ] 33-04-PLAN.md — Run release verification, ship a new local iOS build to TestFlight, and push the branch plus PR update to GitHub
+
+### Phase 35: Android Performance Hardening
+
+**Goal:** Fix the six diagnosed causes of slowness/jank on older low-end Android phones — the audio-tick render storm in the Bible reader, the JS-thread scroll-collapse chrome, a non-virtualized 365-day plan list, FieldCard overdraw, a per-frame layout animation, and the unminified Android release build — without changing user-visible behavior or breaking iOS. Diagnosis-driven (see audit findings); leads with scroll + navigation jank.
+**Requirements**: APERF-01, APERF-02, APERF-03, APERF-04, APERF-05, APERF-06
+**Depends on:** Phase 33
+**Plans:** 6 fixes (exact-edit spec in `35-EXECUTION-PLAN.md`)
+**Status:** Code complete + statically verified, merged to `main` 2026-06-12 — `npm run typecheck` clean, `npm run lint` clean, `npm run test:release` 528/528. **On-device QA pending before any release** (see `notes/android-perf-device-qa-plan.md`): P2 release-build smoke test (mandatory, stop-on-failure) + P1 follow-along highlight on device.
+
+> Note: phase numbered 35 (not 34) to avoid a directory collision with the pre-existing, un-roadmapped `34-openbible-audio-r2-pilot-rollout` work.
+
+Plans:
+- [x] P1 (APERF-01) — Kill the audio-position render storm in BibleReaderScreen (leaf position hook + memoized paragraph cell + memoized HighlightedVerseText) — **code-verified**; follow-along highlight needs on-device confirmation
+- [~] P2 (APERF-06) — Enable Android R8/ProGuard + resource shrinking via expo-build-properties (with keep rules) — **config applied; mandatory release smoke test NOT yet run (needs Android device)**
+- [x] P3 (APERF-02) — Drive reader scroll-collapse chrome from the SharedValue on the UI thread; gate tab-bar reconciliation to the collapse flip — **verified**
+- [x] P4 (APERF-04) — Virtualize the PlanDetailScreen day list with FlashList + memoized DayRow — **verified**
+- [x] P5 (APERF-05) — FieldCard: native-driver the glow loop and cut multi-gradient/shadow overdraw (Android-flat fallback) — **verified**
+- [x] P6 (APERF-03) — Animate the reader dock with a translateY transform instead of the layout `bottom` property — **verified**

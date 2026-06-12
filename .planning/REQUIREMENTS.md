@@ -139,6 +139,12 @@
 | GATHER-03 | Phase 22 | Planned |
 | GATHER-04 | Phase 22 | Planned |
 | GATHER-05 | Phase 22 | Planned |
+| APERF-01 | Phase 35 | Planned |
+| APERF-02 | Phase 35 | Planned |
+| APERF-03 | Phase 35 | Planned |
+| APERF-04 | Phase 35 | Planned |
+| APERF-05 | Phase 35 | Planned |
+| APERF-06 | Phase 35 | Planned |
 
 **Coverage:**
 - v1 requirements: 25 total
@@ -146,7 +152,8 @@
 - Unmapped: 0
 - Chapter feedback requirements: 4 total (Phase 33)
 - Gather requirements: 5 total (Phase 22)
+- Android performance requirements: 6 total (Phase 35) — APERF-01 render storm, APERF-02 UI-thread scroll-collapse chrome, APERF-03 transform-not-layout dock animation, APERF-04 virtualized plan list, APERF-05 FieldCard overdraw, APERF-06 Android R8/ProGuard minification
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-27 after adding Phase 33 chapter feedback requirements (FDBK-01 through FDBK-04)*
+*Last updated: 2026-06-11 after adding Phase 35 Android performance requirements (APERF-01 through APERF-06)*

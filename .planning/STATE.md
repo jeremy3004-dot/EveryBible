@@ -215,6 +215,8 @@ Recent decisions affecting current work:
 - Phase 31 added: Push Notification Implementation — complete APNs/FCM setup, token registration, daily reading reminders, group alerts
 - Phase 32 added: Bible Verse Deep Linking — everybible://bible/john/3/16 deep link scheme + share verse functionality
 - Phase 33 added: Chapter Feedback And Review Pipeline — opt-in thumbs up/down plus optional written chapter feedback routed into Supabase and spreadsheet review ops
+- Phase 35 added (2026-06-11): Android Performance Hardening — fix 6 diagnosed older-Android perf issues (audio render storm, JS-thread scroll-collapse chrome, non-virtualized plan list, FieldCard overdraw, layout-bottom animation, unminified release build). Numbered 35 (not 34) to avoid a directory collision with the pre-existing un-roadmapped `34-openbible-audio-r2-pilot-rollout` work. Exact-edit spec in `phases/35-android-performance-hardening/35-EXECUTION-PLAN.md`; audit in `notes/android-perf-audit-findings.md`
+- Phase 35 EXECUTED + STATICALLY VERIFIED + MERGED TO MAIN (2026-06-12): All 6 fixes implemented (Sonnet executor) on `perf/android-hardening`, independently verified, and merged to `main`. Verification: `npm run typecheck` clean, `npm run lint` clean (1 introduced react/prop-types false-positive fixed via scoped disable), `npm run test:release` 528/528. Code-verified: P1, P3, P4, P5, P6. **PENDING on-device QA before any release build/submission:** P2 R8/ProGuard release-build smoke test (mandatory, stop-on-failure — minification can strip reflection classes) + P1 follow-along highlight confirmation on device. Device-QA plan: `notes/android-perf-device-qa-plan.md`
 
 ### Blockers/Concerns
 
