@@ -342,6 +342,56 @@ test('downloadAudioTranslation returns every fully-downloaded book id in order',
   assert.equal(downloads.length, 2);
 });
 
+test('downloadAudioBook coalesces duplicate progress emissions so onProgress only fires on real changes', async () => {
+  const philemon = getBookById('PHM');
+
+  assert.ok(philemon);
+
+  const recordedProgress: number[] = [];
+
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => undefined,
+    fileExists: async () => false,
+    downloadFile: async (_from, _to, options) => {
+      // Emit the same rounded progress (50%) 50 times, then a final 100%.
+      for (let i = 0; i < 50; i++) {
+        options?.onProgress?.({ bytesDownloaded: 500, bytesTotal: 1000 });
+      }
+      options?.onProgress?.({ bytesDownloaded: 1000, bytesTotal: 1000 });
+    },
+  };
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: philemon,
+    fileSystem,
+    resolveRemoteAudio: async (_translationId, bookId, chapter) => ({
+      url: `https://audio.test/${bookId}/${chapter}.mp3`,
+      duration: 1000,
+    }),
+    hooks: {
+      onProgress: ({ progress }) => {
+        recordedProgress.push(progress);
+      },
+    },
+  });
+
+  // Total emissions must be small — nowhere near 51.
+  assert.ok(
+    recordedProgress.length <= 5,
+    `Expected at most 5 progress emissions but got ${recordedProgress.length}: ${JSON.stringify(recordedProgress)}`
+  );
+
+  // No two consecutive emissions should be the same value.
+  for (let i = 1; i < recordedProgress.length; i++) {
+    assert.notEqual(
+      recordedProgress[i],
+      recordedProgress[i - 1],
+      `Consecutive duplicate progress value ${recordedProgress[i]} at index ${i}`
+    );
+  }
+});
+
 test('downloadAudioTranslation reports incremental book completion progress', async () => {
   const { fileSystem } = createFileSystemDouble();
   const selectedBooks = ['2JN', '3JN']
