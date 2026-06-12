@@ -32,7 +32,10 @@ import { resolveRegionalFallbackTranslation } from '../../services/translations/
 import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
 import {
   buildInitialOnboardingLanguageOptions,
+  getInitialBibleLanguageListState,
+  getInterfaceLanguageSelectionResult,
   getLocaleSetupSteps,
+  waitForRuntimeCatalogHydration,
   type InitialOnboardingLanguageOption,
   type SetupMode,
   type SetupStep,
@@ -104,8 +107,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     initialLanguage?.code ?? null
   );
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
+  const [runtimeCatalogLoadFailed, setRuntimeCatalogLoadFailed] = useState(false);
+  const [runtimeCatalogHydrationAttempt, setRuntimeCatalogHydrationAttempt] = useState(0);
   const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
-  const [showBibleLanguagePicker, setShowBibleLanguagePicker] = useState(mode !== 'initial');
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
 
   const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
@@ -120,6 +124,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     () => hasRuntimeCatalogTranslations(translations),
     [translations]
   );
+  const bibleLanguageListState = useMemo(() => getInitialBibleLanguageListState(mode), [mode]);
 
   const visibleTranslations = useMemo(
     () =>
@@ -258,15 +263,24 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   useEffect(() => {
     if (mode !== 'initial' || hasHydratedRuntimeCatalog) {
       setIsHydratingRuntimeCatalog(false);
+      setRuntimeCatalogLoadFailed(false);
       return;
     }
 
     let isMounted = true;
     setIsHydratingRuntimeCatalog(true);
+    setRuntimeCatalogLoadFailed(false);
 
-    void ensureRuntimeCatalogLoaded()
-      .catch((error) => {
-        console.warn('[Onboarding] Failed to hydrate runtime translation catalog:', error);
+    void waitForRuntimeCatalogHydration(() => ensureRuntimeCatalogLoaded())
+      .then((result) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (result !== 'loaded') {
+          console.warn('[Onboarding] Failed to hydrate runtime translation catalog:', result);
+          setRuntimeCatalogLoadFailed(true);
+        }
       })
       .finally(() => {
         if (isMounted) {
@@ -277,7 +291,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     return () => {
       isMounted = false;
     };
-  }, [hasHydratedRuntimeCatalog, mode]);
+  }, [hasHydratedRuntimeCatalog, mode, runtimeCatalogHydrationAttempt]);
 
   const completeSetup = async () => {
     if (!selectedCountry || !selectedLanguage) {
@@ -423,10 +437,16 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
   const handleInterfaceLanguageSelect = async (language: Language) => {
     setSelectedInterfaceLanguageCode(language.code);
-    await changeLanguage(language.code);
-    setPreferences({ language: language.code });
-    setShowInterfaceLanguagePicker(false);
-    goToStep('translation');
+    try {
+      const result = await getInterfaceLanguageSelectionResult(language.code, changeLanguage);
+      if (!result.changeLanguageSucceeded) {
+        console.warn('[Onboarding] Failed to load interface language:', result.changeLanguageError);
+      }
+    } finally {
+      setPreferences({ language: language.code });
+      setShowInterfaceLanguagePicker(false);
+      goToStep('translation');
+    }
   };
 
   const renderInterfaceLanguageButton = (language: Language) => {
@@ -458,7 +478,8 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   };
 
   const renderOnboardingLanguageRow = (
-    option: InitialOnboardingLanguageOption<BibleTranslation>
+    option: InitialOnboardingLanguageOption<BibleTranslation>,
+    isRecommended = false
   ) => {
     const translation = option.primaryTranslation;
     const isInstalling = installingTranslationId === translation.id;
@@ -493,8 +514,8 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         style={[
           styles.optionCard,
           {
-            backgroundColor: colors.cardBackground,
-            borderColor: colors.cardBorder,
+            backgroundColor: isRecommended ? colors.accentGreen + '10' : colors.cardBackground,
+            borderColor: isRecommended ? colors.accentGreen : colors.cardBorder,
           },
         ]}
         onPress={() => void handleTranslationSelect(translation)}
@@ -510,6 +531,21 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             {getTranslationAvailabilitySummary(translation, t)}
           </Text>
           <View style={styles.badgeRow}>
+            {isRecommended ? (
+              <View
+                style={[
+                  styles.badge,
+                  {
+                    backgroundColor: colors.accentGreen + '18',
+                    borderColor: colors.accentGreen + '44',
+                  },
+                ]}
+              >
+                <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
+                  {t('onboarding.recommendedBadge')}
+                </Text>
+              </View>
+            ) : null}
             <View
               style={[
                 styles.badge,
@@ -733,7 +769,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </>
             ) : null}
 
-            {mode !== 'initial' || showBibleLanguagePicker ? (
+            {bibleLanguageListState.showsSearch ? (
               <TextInput
                 value={translationQuery}
                 onChangeText={setTranslationQuery}
@@ -760,37 +796,74 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </View>
             ) : null}
 
-            {mode === 'initial' && !showBibleLanguagePicker && primaryOnboardingLanguageOption ? (
-              <>
-                <View testID="onboarding-primary-recommendation">
-                  {renderOnboardingLanguageRow(primaryOnboardingLanguageOption)}
-                </View>
+            {runtimeCatalogLoadFailed ? (
+              <View
+                style={[
+                  styles.emptyCard,
+                  {
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
+                  {t('common.somethingWentWrong')}
+                </Text>
+                <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
+                  {t('onboarding.noLanguagesFoundBody')}
+                </Text>
                 <TouchableOpacity
                   style={[
                     styles.secondaryWideButton,
                     { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
                   ]}
-                  testID="onboarding-bible-language-toggle"
+                  testID="onboarding-runtime-catalog-retry"
                   accessibilityRole="button"
-                  accessibilityLabel={t('translations.languagePreference')}
-                  onPress={() => setShowBibleLanguagePicker(true)}
+                  accessibilityLabel={t('common.retry')}
+                  onPress={() =>
+                    setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
+                  }
                   activeOpacity={0.88}
                 >
                   <Text style={[styles.secondaryWideButtonText, { color: colors.primaryText }]}>
-                    {t('translations.languagePreference')}
+                    {t('common.retry')}
                   </Text>
                 </TouchableOpacity>
-              </>
-            ) : (
-              onboardingLanguageSections.map((section) => (
-                <View key={section.groupLabel} style={styles.listSection}>
-                  <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                    {section.groupLabel}
-                  </Text>
-                  {section.options.map((option) => renderOnboardingLanguageRow(option))}
-                </View>
-              ))
-            )}
+              </View>
+            ) : null}
+
+            {mode === 'initial' && primaryOnboardingLanguageOption ? (
+              <View testID="onboarding-primary-recommendation">
+                {renderOnboardingLanguageRow(
+                  primaryOnboardingLanguageOption,
+                  bibleLanguageListState.pinsRecommendedOption
+                )}
+              </View>
+            ) : null}
+
+            {bibleLanguageListState.showsFullList
+              ? onboardingLanguageSections.map((section) => {
+                  const sectionOptions =
+                    mode === 'initial' && primaryOnboardingLanguageOption
+                      ? section.options.filter(
+                          (option) => option.key !== primaryOnboardingLanguageOption.key
+                        )
+                      : section.options;
+
+                  if (sectionOptions.length === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <View key={section.groupLabel} style={styles.listSection}>
+                      <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
+                        {section.groupLabel}
+                      </Text>
+                      {sectionOptions.map((option) => renderOnboardingLanguageRow(option))}
+                    </View>
+                  );
+                })
+              : null}
 
             {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0 ? (
               <View

@@ -1,3 +1,5 @@
+import type { LanguageCode } from '../../constants/languages';
+
 export type SetupMode = 'initial' | 'settings';
 
 export type SetupStep = 'interfaceLanguage' | 'translation' | 'country' | 'contentLanguage';
@@ -25,12 +27,85 @@ export interface InitialOnboardingLanguageOption<T extends InitialOnboardingTran
   translations: T[];
 }
 
+export const RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS = 7000;
+
+export type RuntimeCatalogHydrationResult = 'loaded' | 'timeout' | 'failed';
+
+export interface InitialBibleLanguageListState {
+  showsSearch: boolean;
+  showsFullList: boolean;
+  pinsRecommendedOption: boolean;
+}
+
+export interface InterfaceLanguageSelectionResult {
+  languageCode: LanguageCode;
+  shouldClosePicker: true;
+  nextStep: 'translation';
+  changeLanguageSucceeded: boolean;
+  changeLanguageError: unknown | null;
+}
+
 export function getLocaleSetupSteps(mode: SetupMode): SetupStep[] {
   if (mode === 'settings') {
     return ['country', 'contentLanguage'];
   }
 
   return ['translation'];
+}
+
+export function getInitialBibleLanguageListState(mode: SetupMode): InitialBibleLanguageListState {
+  return {
+    showsSearch: true,
+    showsFullList: true,
+    pinsRecommendedOption: mode === 'initial',
+  };
+}
+
+export async function waitForRuntimeCatalogHydration(
+  loadRuntimeCatalog: () => Promise<void>,
+  timeoutMs = RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS
+): Promise<RuntimeCatalogHydrationResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      loadRuntimeCatalog()
+        .then((): RuntimeCatalogHydrationResult => 'loaded')
+        .catch((): RuntimeCatalogHydrationResult => 'failed'),
+      new Promise<RuntimeCatalogHydrationResult>((resolve) => {
+        timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+export async function getInterfaceLanguageSelectionResult(
+  languageCode: LanguageCode,
+  changeLanguageForCode: (languageCode: LanguageCode) => Promise<unknown>
+): Promise<InterfaceLanguageSelectionResult> {
+  try {
+    await changeLanguageForCode(languageCode);
+
+    return {
+      languageCode,
+      shouldClosePicker: true,
+      nextStep: 'translation',
+      changeLanguageSucceeded: true,
+      changeLanguageError: null,
+    };
+  } catch (error) {
+    return {
+      languageCode,
+      shouldClosePicker: true,
+      nextStep: 'translation',
+      changeLanguageSucceeded: false,
+      changeLanguageError: error,
+    };
+  }
 }
 
 function normalizeLanguageLabel(language: string | null | undefined): string {
