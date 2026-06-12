@@ -23,7 +23,7 @@ test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
   );
 });
 
-test('LocaleSetupFlow initial onboarding starts with a one-screen Bible recommendation', () => {
+test('LocaleSetupFlow initial onboarding shows Bible search and the full list immediately', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
   const modelSource = readRelativeSource('./localeSetupModel.ts');
 
@@ -36,13 +36,25 @@ test('LocaleSetupFlow initial onboarding starts with a one-screen Bible recommen
   assert.equal(
     flowSource.includes('onboarding-translation-search'),
     true,
-    'Initial onboarding should still expose a Bible language search field when expanded'
+    'Initial onboarding should expose a Bible language search field immediately'
   );
 
-  assert.match(
-    flowSource,
-    /mode !== 'initial' \|\| showBibleLanguagePicker/,
-    'Initial onboarding should hide the full Bible language search until the user asks for it'
+  assert.equal(
+    flowSource.includes('showBibleLanguagePicker'),
+    false,
+    'Initial onboarding should not gate Bible search or the full list behind a preference toggle'
+  );
+
+  assert.equal(
+    flowSource.includes('onboarding-bible-language-toggle'),
+    false,
+    'Initial onboarding should not require a Bible language preference tap before browsing'
+  );
+
+  assert.equal(
+    flowSource.includes('onboardingLanguageSections.map'),
+    true,
+    'Initial onboarding should render the grouped Bible language sections in the default view'
   );
 
   assert.equal(
@@ -61,6 +73,57 @@ test('LocaleSetupFlow initial onboarding starts with a one-screen Bible recommen
     flowSource.includes('onboarding-primary-recommendation'),
     true,
     'Initial onboarding should show a primary recommended Bible option'
+  );
+});
+
+test('LocaleSetupFlow bounds runtime catalog hydration and exposes retry without hiding bundled Bibles', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+  const modelSource = readRelativeSource('./localeSetupModel.ts');
+
+  assert.equal(
+    modelSource.includes('RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS'),
+    true,
+    'Runtime catalog hydration should have a bounded timeout constant'
+  );
+
+  assert.equal(
+    flowSource.includes('waitForRuntimeCatalogHydration'),
+    true,
+    'LocaleSetupFlow should use the timeout-bounded hydration helper'
+  );
+
+  assert.equal(
+    flowSource.includes('runtimeCatalogLoadFailed'),
+    true,
+    'LocaleSetupFlow should remember catalog load timeout/failure so it can show retry UI'
+  );
+
+  assert.equal(
+    flowSource.includes('onboarding-runtime-catalog-retry'),
+    true,
+    'LocaleSetupFlow should expose a retry affordance when runtime catalog loading fails'
+  );
+
+  assert.match(
+    flowSource,
+    /getVisibleTranslationsForPicker\(translations,\s*\{[\s\S]*isHydratingRuntimeCatalog[\s\S]*hasHydratedRuntimeCatalog/,
+    'LocaleSetupFlow should keep using picker visibility rules that leave bundled translations visible while hydrating'
+  );
+});
+
+test('LocaleSetupFlow closes interface-language picker even when changeLanguage rejects', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  assert.equal(
+    flowSource.includes('getInterfaceLanguageSelectionResult'),
+    true,
+    'Interface language selection should go through the robust model helper'
+  );
+
+  assert.match(
+    flowSource,
+    /finally \{[\s\S]*setShowInterfaceLanguagePicker\(false\)[\s\S]*goToStep\('translation'\)/,
+    'Interface language selection should close the picker and return to translation in finally'
   );
 });
 

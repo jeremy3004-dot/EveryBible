@@ -21,8 +21,62 @@ test('anonymousUsageAnalytics exposes the anonymous tracking API surface', () =>
   assert.match(source, /export async function flushAnonymousUsageEvents\s*\(/);
   assert.match(source, /export function startAnonymousUsageSession\s*\(/);
   assert.match(source, /export function endAnonymousUsageSession\s*\(/);
+  assert.match(source, /export function initAnonymousSessionContext\s*\(/);
+  assert.match(source, /export function clearAnonymousSessionContext\s*\(/);
   assert.match(source, /export function getCurrentAnonymousUsageSessionId\s*\(/);
   assert.match(source, /export function getPendingAnonymousUsageEventCount\s*\(/);
+});
+
+test('initAnonymousSessionContext does NOT emit session_started', () => {
+  // Structural: initAnonymousSessionContext must not call ensureAnonymousSession
+  // (which always emits session_started) — it must inline its own id-only init.
+  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
+
+  // The function body of initAnonymousSessionContext must not delegate to
+  // ensureAnonymousSession(), which unconditionally queues session_started.
+  // Extract the function body roughly and check.
+  const fnMatch = source.match(/export function initAnonymousSessionContext\s*\(\)[^{]*\{([\s\S]*?)^}/m);
+  if (fnMatch) {
+    assert.ok(
+      !fnMatch[1]?.includes('ensureAnonymousSession'),
+      'initAnonymousSessionContext must NOT call ensureAnonymousSession — that emits session_started'
+    );
+  }
+
+  // Must still assign a UUID to currentAnonymousSessionId
+  assert.match(
+    source,
+    /initAnonymousSessionContext[\s\S]{0,300}currentAnonymousSessionId\s*=\s*generateUUID/,
+    'initAnonymousSessionContext must assign a fresh UUID'
+  );
+
+  // Must explicitly document that no session_started event is emitted
+  assert.match(
+    source,
+    /No session_started event|no.*session_started|session_started.*not/i,
+    'initAnonymousSessionContext should comment that it skips the session_started event'
+  );
+});
+
+test('clearAnonymousSessionContext sets currentAnonymousSessionId to null without emitting session_ended', () => {
+  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
+
+  // Must null out the session id
+  assert.match(
+    source,
+    /clearAnonymousSessionContext[\s\S]{0,200}currentAnonymousSessionId\s*=\s*null/,
+    'clearAnonymousSessionContext must set currentAnonymousSessionId to null'
+  );
+
+  // Must NOT call buildQueuedEvent / push session_ended inside clearAnonymousSessionContext.
+  // Check that the function body does not reference session_ended.
+  const clearFnMatch = source.match(/export function clearAnonymousSessionContext\s*\(\)[^{]*\{([\s\S]*?)^}/m);
+  if (clearFnMatch) {
+    assert.ok(
+      !clearFnMatch[1]?.includes('session_ended'),
+      'clearAnonymousSessionContext must NOT emit a session_ended event'
+    );
+  }
 });
 
 test('anonymousUsageAnalytics uses the anonymous edge function for delivery', () => {

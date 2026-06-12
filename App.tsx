@@ -269,19 +269,54 @@ function AppContent() {
 
     const startAnalyticsSessions = () => {
       void import('./src/services/analytics').then(
-        ({ startAnonymousUsageSession, startSession }) => {
-          startAnonymousUsageSession();
-          startSession();
+        ({
+          startAnonymousUsageSession,
+          initAnonymousSessionContext,
+          startSession,
+        }) => {
+          if (isAuthenticated) {
+            // Authenticated path: the session lifecycle event (session_started /
+            // session_ended) is owned by analyticsService so it carries user_id.
+            // We still establish an anonymous session_id context so that
+            // audio_playback_progress, reading_ended, and chapter_completed —
+            // which always flow through trackAnonymousUsageEvent for ALL users —
+            // have a valid session_id. Without this setup those events would
+            // lazily create a new anonymous session and emit their own
+            // session_started, which is worse than just pre-creating the id.
+            initAnonymousSessionContext();
+            startSession();
+          } else {
+            // Unauthenticated path: anonymous analytics owns both the session
+            // context and the session lifecycle event (session_started).
+            startAnonymousUsageSession();
+          }
         }
       );
     };
 
     const endAndFlushAnalyticsSessions = () => {
       void import('./src/services/analytics').then(
-        ({ endAnonymousUsageSession, flushAnonymousUsageEvents, endSession, flushEvents }) => {
-          endAnonymousUsageSession();
+        ({
+          endAnonymousUsageSession,
+          clearAnonymousSessionContext,
+          flushAnonymousUsageEvents,
+          endSession,
+          flushEvents,
+        }) => {
+          if (isAuthenticated) {
+            // Authenticated path: session_ended is emitted by the authenticated
+            // analytics path. We only reset the anonymous session_id context (no
+            // duplicate session_ended event) and flush both queues so audio /
+            // reading events captured during this session are delivered.
+            clearAnonymousSessionContext();
+            endSession();
+          } else {
+            // Unauthenticated path: anonymous analytics owns the session_ended event.
+            endAnonymousUsageSession();
+          }
+          // Always flush both queues — audio/reading events land in the anonymous
+          // queue and authenticated events (if any) land in the authenticated queue.
           void flushAnonymousUsageEvents();
-          endSession();
           void flushEvents();
         }
       );

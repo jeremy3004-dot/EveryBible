@@ -144,6 +144,41 @@ export function startAnonymousUsageSession(): string {
   return ensureAnonymousSession();
 }
 
+/**
+ * Establishes the anonymous session_id context WITHOUT emitting a
+ * session_started event.
+ *
+ * Use this for authenticated users who have their own session lifecycle event
+ * recorded via the authenticated analytics path (analyticsService.startSession).
+ * We still need an anonymous session_id so that audio_playback_progress,
+ * reading_ended, and chapter_completed — which always flow through
+ * trackAnonymousUsageEvent for all users — carry a valid session_id.
+ *
+ * Contrast with startAnonymousUsageSession(), which both sets the id AND
+ * emits session_started. Calling that for authenticated users produces a
+ * duplicate session_started row (one anonymous, one with user_id).
+ */
+export function initAnonymousSessionContext(): string {
+  if (!currentAnonymousSessionId) {
+    currentAnonymousSessionId = generateUUID();
+    // No session_started event — the authenticated analytics path handles that.
+  }
+  return currentAnonymousSessionId;
+}
+
+/**
+ * Clears the anonymous session_id context WITHOUT emitting a session_ended
+ * event.
+ *
+ * Paired with initAnonymousSessionContext() for authenticated users: the
+ * session_ended event is owned by analyticsService.endSession(), so we only
+ * need to reset the module-level session_id so a fresh id is created on the
+ * next foreground transition.
+ */
+export function clearAnonymousSessionContext(): void {
+  currentAnonymousSessionId = null;
+}
+
 export function endAnonymousUsageSession(): void {
   if (!currentAnonymousSessionId) {
     return;

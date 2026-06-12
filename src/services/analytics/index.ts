@@ -24,6 +24,8 @@ export {
   flushAnonymousUsageEvents,
   startAnonymousUsageSession,
   endAnonymousUsageSession,
+  initAnonymousSessionContext,
+  clearAnonymousSessionContext,
   getCurrentAnonymousUsageSessionId,
   getPendingAnonymousUsageEventCount,
   type AnonymousUsageEvent,
