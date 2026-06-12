@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -30,7 +30,7 @@ function sameLines(left: string[] | null, right: string[]): boolean {
   return left.every((line, index) => line === right[index]);
 }
 
-export function HighlightedVerseText({
+function HighlightedVerseTextComponent({
   verseNumber,
   verseText,
   verseTextStyle,
@@ -109,6 +109,8 @@ export function HighlightedVerseText({
     </Pressable>
   );
 }
+
+export const HighlightedVerseText = memo(HighlightedVerseTextComponent);
 
 const styles = StyleSheet.create({
   highlightVerse: {

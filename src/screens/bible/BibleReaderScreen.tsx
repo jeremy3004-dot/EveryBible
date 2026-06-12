@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import type { ReactElement } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import {
   ActivityIndicator,
@@ -230,6 +231,52 @@ function buildReaderParagraphs(
 
   return paragraphs;
 }
+
+interface ReaderParagraphBlockProps {
+  paragraph: ReaderParagraph;
+  index: number;
+  /**
+   * A render signature that changes whenever anything affecting this paragraph's
+   * visual output changes EXCEPT the raw audio position (theme/fontsize/selection
+   * version, etc.), plus the active follow-along verse. This lets the cell skip
+   * re-rendering on the ~250ms position ticks that do not move the highlight.
+   */
+  renderSignature: string;
+  activeVerse: number | null;
+  renderParagraphRef: RefObject<(paragraph: ReaderParagraph, index: number) => ReactElement>;
+}
+
+function readerParagraphBlockPropsAreEqual(
+  prev: ReaderParagraphBlockProps,
+  next: ReaderParagraphBlockProps
+): boolean {
+  if (
+    prev.paragraph !== next.paragraph ||
+    prev.index !== next.index ||
+    prev.renderSignature !== next.renderSignature
+  ) {
+    return false;
+  }
+
+  // Only the paragraph that gains or loses the active verse must re-render.
+  const prevHasActive =
+    prev.activeVerse != null && prev.paragraph.verses.some((v) => v.verse === prev.activeVerse);
+  const nextHasActive =
+    next.activeVerse != null && next.paragraph.verses.some((v) => v.verse === next.activeVerse);
+  return prevHasActive === nextHasActive;
+}
+
+/* eslint-disable react/prop-types */
+const ReaderParagraphBlock = memo(function ReaderParagraphBlock({
+  paragraph,
+  index,
+  renderParagraphRef,
+}: ReaderParagraphBlockProps) {
+  // The render closure is read from a ref so prop identity stays stable across
+  // position ticks; the comparator above gates actual re-renders.
+  return renderParagraphRef.current(paragraph, index);
+}, readerParagraphBlockPropsAreEqual);
+/* eslint-enable react/prop-types */
 
 type ChapterFeedbackAudioState =
   | 'idle'
@@ -630,6 +677,8 @@ export function BibleReaderScreen() {
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
+  const renderParagraphRef =
+    useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(() => null as never);
   const pendingReaderAutoScrollVerseRef = useRef<number | null>(null);
   const paragraphHeightsRef = useRef<Record<string, number>>({});
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
@@ -4623,7 +4672,7 @@ export function BibleReaderScreen() {
       );
     };
 
-    const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number) => (
+    const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
           <View
             key={paragraph.key}
             style={[
@@ -4707,13 +4756,44 @@ export function BibleReaderScreen() {
           </View>
     );
 
+    renderParagraphRef.current = renderParagraph;
+    // Signature of every non-position input that affects paragraph output. When
+    // this changes we let memoized cells re-render; raw position ticks are absent
+    // here, so ticks alone never invalidate cells.
+    const paragraphRenderSignature = [
+      usePremiumTypography ? '1' : '0',
+      verseFontSize,
+      verseLineHeight,
+      verseNumberSize,
+      headingFontSize,
+      colors.biblePrimaryText,
+      colors.bibleAccent,
+      selectedVerseSet.size,
+      annotations.length,
+    ].join('|');
+    const renderParagraphBlock = ({
+      item,
+      index,
+    }: {
+      item: ReaderParagraph;
+      index: number;
+    }): ReactElement => (
+      <ReaderParagraphBlock
+        paragraph={item}
+        index={index}
+        renderSignature={paragraphRenderSignature}
+        activeVerse={readerInlineActiveVerse}
+        renderParagraphRef={renderParagraphRef}
+      />
+    );
+
     if (renderVirtualized) {
       return (
         <Animated.FlatList
           ref={premiumReaderListRef}
           data={paragraphs}
           keyExtractor={(paragraph) => paragraph.key}
-          renderItem={({ item, index }) => renderParagraph(item, index)}
+          renderItem={renderParagraphBlock}
           ListHeaderComponent={renderTranslatorFeedbackReviewTools}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
@@ -4766,7 +4846,16 @@ export function BibleReaderScreen() {
 
     return (
       <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
-        {paragraphs.map((paragraph, pIndex) => renderParagraph(paragraph, pIndex))}
+        {paragraphs.map((paragraph, pIndex) => (
+          <ReaderParagraphBlock
+            key={paragraph.key}
+            paragraph={paragraph}
+            index={pIndex}
+            renderSignature={paragraphRenderSignature}
+            activeVerse={readerInlineActiveVerse}
+            renderParagraphRef={renderParagraphRef}
+          />
+        ))}
       </View>
     );
   };

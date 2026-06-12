@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAudioPlayer } from '../../hooks';
+import { useAudioPlayer, useAudioPosition } from '../../hooks';
 import { getBookById } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
@@ -22,8 +22,6 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     error,
     playbackRate,
     repeatMode,
@@ -42,6 +40,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
     changeBackgroundMusicChoice,
     setShowPlayer,
   } = useAudioPlayer(currentTranslation);
+  const { currentPosition, duration } = useAudioPosition();
 
   const book = getBookById(bookId);
   const currentBook = currentBookId ? getBookById(currentBookId) : null;

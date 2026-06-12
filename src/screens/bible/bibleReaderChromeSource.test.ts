@@ -929,7 +929,7 @@ test('premium read mode virtualizes paragraph rows and throttles JS scroll work'
 
   assert.match(
     source,
-    /<Animated\.FlatList[\s\S]*data=\{paragraphs\}[\s\S]*keyExtractor=\{\(paragraph\) => paragraph\.key\}[\s\S]*renderItem=\{\(\{ item, index \}\) => renderParagraph\(item, index\)\}/s,
+    /<Animated\.FlatList[\s\S]*data=\{paragraphs\}[\s\S]*keyExtractor=\{\(paragraph\) => paragraph\.key\}[\s\S]*renderItem=\{renderParagraphBlock\}/s,
     'BibleReaderScreen should render premium paragraphs through FlatList rows'
   );
 
