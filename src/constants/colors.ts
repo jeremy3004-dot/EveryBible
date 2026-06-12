@@ -9,16 +9,16 @@ export const colors = {
   primaryText: '#f5f2ea',
   secondaryText: '#a09b93',
 
-  // Accent colors
-  accent: '#C0392B',
-  accentGreen: '#C0392B', // Legacy name — actual brand color is Tibetan Maroon
-  accentPrimary: '#C0392B',
+  // Accent colors — brand red matches the app icon (icon crimson #A11D1B)
+  accent: '#A11D1B',
+  accentGreen: '#A11D1B', // Legacy name — actual brand color matches the app icon
+  accentPrimary: '#A11D1B',
   accentSecondary: '#d0c2af',
   accentTertiary: '#868b95',
 
   // Named aliases kept for backward compatibility
-  tibetanMaroon: '#C0392B',
-  tibetanMaroonLight: '#A03025',
+  tibetanMaroon: '#A11D1B',
+  tibetanMaroonLight: '#C8463C',
   saffronGold: '#d0c2af',
   saffronGoldLight: '#8c7558',
   skyBlue: '#868b95',
@@ -43,7 +43,7 @@ export const colors = {
   bibleDivider: '#2a2f37',
   biblePrimaryText: '#f5f2ea',
   bibleSecondaryText: '#a09b93',
-  bibleAccent: '#C0392B',
+  bibleAccent: '#A11D1B',
   bibleControlBackground: '#f5f2ea',
 } as const;
 

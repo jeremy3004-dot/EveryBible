@@ -16,8 +16,13 @@ const swipeableRowMatches = source.match(/SwipeablePlanRow/g) ?? [];
 test('PlansHomeScreen renders the tab control as a single horizontal row', () => {
   assert.match(
     source,
+    /<View style=\{styles\.tabRow\}/,
+    'PlansHomeScreen should render the tabs inside a plain View so flex:1 can bound the control to the screen width'
+  );
+  assert.doesNotMatch(
+    source,
     /<ScrollView\s+horizontal[\s\S]*contentContainerStyle=\{styles\.tabRow\}/s,
-    'PlansHomeScreen should render the tabs inside a horizontal ScrollView so long labels do not wrap into tall capsules'
+    'PlansHomeScreen should not wrap the tab row in a horizontal ScrollView that would let it overflow the screen'
   );
   assert.match(
     source,
@@ -168,8 +173,8 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
   );
   assert.match(
     source,
-    /activePlans\.length === 0 \? \(\s*<TouchableOpacity[\s\S]*<Text style=\{styles\.primaryButtonLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/s,
-    'PlansHomeScreen should only show the add-plan button beneath the Plans heading when there are no active plans yet'
+    /activePlans\.length === 0[\s\S]*<TouchableOpacity[\s\S]*styles\.emptyCtaButton[\s\S]*<Text style=\{styles\.emptyCtaLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/s,
+    'PlansHomeScreen should show the add-plan CTA inside the empty state when there are no active plans yet'
   );
   assert.match(
     source,

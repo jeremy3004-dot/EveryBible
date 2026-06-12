@@ -485,18 +485,11 @@ function MyPlansSection({
           <TouchableOpacity
             onPress={onAddPlan}
             activeOpacity={0.8}
-            style={activePlans.length === 0 ? styles.primaryButton : styles.iconButton}
+            style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel={t('readingPlans.findPlans')}
           >
-            <Ionicons
-              name="add"
-              size={activePlans.length === 0 ? 16 : 22}
-              color={activePlans.length === 0 ? colors.cardBackground : colors.accentPrimary}
-            />
-            {activePlans.length === 0 ? (
-              <Text style={styles.primaryButtonLabel}>{t('readingPlans.addFirstPlan')}</Text>
-            ) : null}
+            <Ionicons name="add" size={22} color={colors.accentPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -505,6 +498,16 @@ function MyPlansSection({
             <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
             <Text style={styles.emptyTitle}>{t('readingPlans.noActivePlans')}</Text>
             <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
+            <TouchableOpacity
+              onPress={onAddPlan}
+              activeOpacity={0.8}
+              style={styles.emptyCtaButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('readingPlans.addFirstPlan')}
+            >
+              <Ionicons name="add" size={18} color={colors.onAccent} />
+              <Text style={styles.emptyCtaLabel}>{t('readingPlans.addFirstPlan')}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           dailyReadingPlans.map(renderPlanCard)
@@ -557,7 +560,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(210, 106, 92, 0.12)',
+      backgroundColor: 'rgba(161, 29, 27, 0.12)',
     },
     statText: {
       ...typography.bodyStrong,
@@ -581,8 +584,8 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     },
     sectionTitle: {
       ...typography.readingHeading,
-      fontSize: 25,
-      lineHeight: 31,
+      fontSize: 20,
+      lineHeight: 26,
       color: colors.primaryText,
     },
     primaryButton: {
@@ -590,7 +593,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
       backgroundColor: colors.accentPrimary,
       minHeight: layout.minTouchTarget,
       paddingHorizontal: spacing.md,
@@ -623,6 +626,25 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       ...typography.body,
       color: colors.secondaryText,
       textAlign: 'center',
+    },
+    emptyCtaButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      alignSelf: 'center',
+      maxWidth: 320,
+      marginTop: spacing.sm,
+      minHeight: 44,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radius.lg,
+      backgroundColor: colors.accentPrimary,
+    },
+    emptyCtaLabel: {
+      ...typography.button,
+      fontSize: 15,
+      lineHeight: 20,
+      color: colors.onAccent,
     },
     card: {
       flexDirection: 'row',
@@ -698,7 +720,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     actionPill: {
       minHeight: 36,
       minWidth: 104,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
@@ -966,7 +988,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       width: 48,
       height: 48,
       borderWidth: 1,
-      borderRadius: 24,
+      borderRadius: radius.lg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1021,7 +1043,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
     },
     durationBadge: {
       backgroundColor: colors.cardBorder,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
       paddingHorizontal: spacing.sm,
       paddingVertical: 3,
       minHeight: 32,
@@ -1033,7 +1055,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     enrollBadge: {
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
       minHeight: 32,
       paddingHorizontal: spacing.sm,
       paddingVertical: 3,
@@ -1265,11 +1287,7 @@ export function PlansHomeScreen() {
 
   const tabStrip = (
     <View style={styles.tabSticky}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabRow}
-      >
+      <View style={styles.tabRow}>
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -1298,7 +1316,7 @@ export function PlansHomeScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 
@@ -1393,7 +1411,6 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tabPill: {
       flex: 1,
-      minWidth: 108,
       paddingHorizontal: spacing.md,
       minHeight: 44,
       borderRadius: 13,
@@ -1402,7 +1419,6 @@ const createMainStyles = (colors: ThemeColors) =>
       backgroundColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0,
     },
     tabPillActive: {
       minHeight: 46,
