@@ -556,16 +556,7 @@ export function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text
-            style={[
-              styles.beginTitle,
-              {
-                color: colors.primaryText,
-                fontSize: homeLayout.greetingFontSize + 8,
-                lineHeight: homeLayout.greetingLineHeight + 10,
-              },
-            ]}
-          >
+          <Text style={[styles.beginTitle, { color: colors.primaryText }]}>
             {t('home.beginToday')}
           </Text>
 
@@ -865,13 +856,13 @@ const styles = StyleSheet.create({
   },
   greetingLine: {
     ...typography.bodyStrong,
-    fontSize: 20,
-    lineHeight: 27,
+    fontSize: 15,
+    lineHeight: 20,
   },
   dateLine: {
     ...typography.body,
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 13,
+    lineHeight: 18,
   },
   notificationButton: {
     width: 58,
@@ -891,8 +882,8 @@ const styles = StyleSheet.create({
   },
   beginTitle: {
     ...typography.readingHeading,
-    fontSize: 44,
-    lineHeight: 52,
+    fontSize: 26,
+    lineHeight: 32,
   },
   progressGrid: {
     flexDirection: 'row',
@@ -916,18 +907,18 @@ const styles = StyleSheet.create({
   },
   smallCardEyebrow: {
     ...typography.bodyStrong,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 12,
+    lineHeight: 16,
   },
   smallCardTitle: {
     ...typography.readingHeading,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 17,
+    lineHeight: 22,
   },
   smallCardMeta: {
     ...typography.body,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 18,
   },
   linearProgressTrack: {
     height: 8,
