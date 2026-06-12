@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -56,30 +56,38 @@ export function FieldCard({
   const gradientColors = fieldGradients[field.color] || [field.color, field.color, field.color];
 
   useEffect(() => {
-    // Animate progress on mount/change
+    // Animate progress on mount/change. progressAnim drives only the JS-side
+    // filledSegments calculation, never an animated style, so the native
+    // driver is safe and avoids bridging a value the layout never reads.
     Animated.spring(progressAnim, {
       toValue: progress,
-      useNativeDriver: false,
+      useNativeDriver: true,
       tension: 40,
       friction: 8,
     }).start();
 
-    // Pulse animation for current field
+    // Pulse animation for current field — animates opacity only, so the
+    // native driver keeps the loop off the JS thread for the lifetime of the
+    // Harvest hub.
     if (isCurrent) {
-      Animated.loop(
+      const glowLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
             duration: 1500,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(glowAnim, {
             toValue: 0,
             duration: 1500,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      glowLoop.start();
+      return () => {
+        glowLoop.stop();
+      };
     }
   }, [glowAnim, isCurrent, progress, progressAnim]);
 
@@ -138,29 +146,41 @@ export function FieldCard({
             },
           ]}
         >
-          {/* Glassmorphism overlay */}
-          <View style={styles.glassOverlay}>
-            <LinearGradient
-              colors={[
-                'rgba(255,255,255,0.08)',
-                'rgba(255,255,255,0.02)',
-                'rgba(0,0,0,0.05)',
-              ]}
-              style={styles.glassGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-          </View>
+          {/* Glassmorphism overlay — iOS keeps the layered gradient; Android
+              uses a single flat translucent fill to cut overdraw. */}
+          {Platform.OS === 'android' ? (
+            <View style={[styles.glassOverlay, styles.glassFlatAndroid]} />
+          ) : (
+            <View style={styles.glassOverlay}>
+              <LinearGradient
+                colors={[
+                  'rgba(255,255,255,0.08)',
+                  'rgba(255,255,255,0.02)',
+                  'rgba(0,0,0,0.05)',
+                ]}
+                style={styles.glassGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+            </View>
+          )}
 
-          {/* Accent glow at top */}
-          <View style={styles.accentGlowContainer}>
-            <LinearGradient
-              colors={[field.color + '40', field.color + '10', 'transparent']}
-              style={styles.accentGlow}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
+          {/* Accent glow at top — iOS keeps the gradient; Android uses a
+              single flat translucent tint to avoid stacked gradient layers. */}
+          {Platform.OS === 'android' ? (
+            <View
+              style={[styles.accentGlowContainer, { backgroundColor: field.color + '14' }]}
             />
-          </View>
+          ) : (
+            <View style={styles.accentGlowContainer}>
+              <LinearGradient
+                colors={[field.color + '40', field.color + '10', 'transparent']}
+                style={styles.accentGlow}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+              />
+            </View>
+          )}
 
           {/* Current indicator - animated glow */}
           {isCurrent && (
@@ -206,9 +226,6 @@ export function FieldCard({
                               ? colors.success
                               : field.color
                             : colors.cardBorder,
-                          shadowColor: isFilled ? field.color : 'transparent',
-                          shadowOpacity: isFilled ? 0.8 : 0,
-                          shadowRadius: isFilled ? 4 : 0,
                         },
                       ]}
                     />
@@ -312,6 +329,9 @@ const styles = StyleSheet.create({
   glassGradient: {
     flex: 1,
   },
+  glassFlatAndroid: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
   accentGlowContainer: {
     position: 'absolute',
     top: 0,
@@ -357,7 +377,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    shadowOffset: { width: 0, height: 0 },
   },
   iconOuterRing: {
     width: 56,
