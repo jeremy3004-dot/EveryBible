@@ -572,13 +572,12 @@ test('BibleReaderScreen hands the premium read bottom controls to the dedicated 
     source.includes('styles.floatingReaderChapterNavOverlay') &&
       source.includes('bottomDockAnimatedStyle') &&
       source.includes('translateY: interpolate(') &&
-      source.includes('[layout.tabBarBaseHeight + spacing.xxl, safeInsets.bottom + spacing.xl]') &&
       source.includes('<ReaderPlaybackDock') &&
-      source.includes('collapseProgress={readerBottomChromeProgress}') &&
+      source.includes('collapseProgress={readerBottomChromeProgressShared}') &&
       source.includes('isCollapsed={isReadBottomChromeCollapsed}') &&
       source.includes('onPlayPause={handlePlayDisplayedChapter}'),
     true,
-    'BibleReaderScreen should pass the scroll-driven collapse state and chapter play action into ReaderPlaybackDock'
+    'BibleReaderScreen should pass the shared collapse progress and chapter play action into ReaderPlaybackDock'
   );
 });
 
@@ -659,13 +658,13 @@ test('ReaderPlaybackDock keeps the play button visible while the side arrows sin
 
   assert.match(
     source,
-    /translateY:\s*interpolate\(collapseProgress,\s*\[0,\s*1\],\s*\[0,\s*34\]/,
+    /translateY:\s*interpolate\(collapseProgress\.value,\s*\[0,\s*1\],\s*\[0,\s*34\]/,
     'ReaderPlaybackDock should push the side arrows farther downward as the reader chrome collapses'
   );
 
   assert.match(
     source,
-    /translateY:\s*interpolate\(collapseProgress,\s*\[0,\s*1\],\s*\[0,\s*12\]/,
+    /translateY:\s*interpolate\(collapseProgress\.value,\s*\[0,\s*1\],\s*\[0,\s*12\]/,
     'ReaderPlaybackDock should only nudge the center play button downward so it stays visible'
   );
 

@@ -750,12 +750,10 @@ export function BibleReaderScreen() {
   const [selectedVerseImageBackgroundIndex, setSelectedVerseImageBackgroundIndex] = useState(() =>
     getHomeVerseBackgroundIndex(new Date(), HOME_VERSE_BACKGROUND_SOURCES.length)
   );
-  const [readerBottomChromeProgress, setReaderBottomChromeProgress] = useState(0);
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
   const chapterLoadRequestIdRef = useRef(0);
   const annotationLoadRequestIdRef = useRef(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
-  const readerBottomChromeProgressRef = useRef(0);
   const readerBottomChromeCollapsedRef = useRef(false);
   const rootTabBarCollapseProgressRef = useRef(0);
   const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
@@ -1704,19 +1702,12 @@ export function BibleReaderScreen() {
         showPremiumReadMode && !shouldRevealReaderDock
           ? getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE)
           : 0;
-      if (
-        Math.abs(nextProgress - readerBottomChromeProgressRef.current) >= 0.02 ||
-        (nextProgress === 0 && readerBottomChromeProgressRef.current !== 0) ||
-        (nextProgress === 1 && readerBottomChromeProgressRef.current !== 1)
-      ) {
-        readerBottomChromeProgressRef.current = nextProgress;
-        setReaderBottomChromeProgress(nextProgress);
-      }
       readerBottomChromeProgressShared.value = nextProgress;
 
       const nextCollapsed =
         showPremiumReadMode && !shouldRevealReaderDock && isReaderChromeCollapsed(offsetY);
-      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
+      const didCollapsedFlip = nextCollapsed !== readerBottomChromeCollapsedRef.current;
+      if (didCollapsedFlip) {
         readerBottomChromeCollapsedRef.current = nextCollapsed;
         setIsReadBottomChromeCollapsed(nextCollapsed);
       }
@@ -1727,15 +1718,20 @@ export function BibleReaderScreen() {
         return;
       }
 
-      syncRootTabBarVisibility(true);
-      syncRootTabBarCollapseProgress(
+      const shouldCollapseRootTabBar =
         showPremiumReadMode &&
-          !shouldRevealReaderDock &&
-          !readerRevealTabBarOnUpScrollRef.current &&
-          offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD
-          ? nextProgress
-          : 0
-      );
+        !shouldRevealReaderDock &&
+        !readerRevealTabBarOnUpScrollRef.current &&
+        offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD &&
+        nextCollapsed;
+      const nextRootTabBarProgress = shouldCollapseRootTabBar ? 1 : 0;
+      if (
+        didCollapsedFlip ||
+        nextRootTabBarProgress !== rootTabBarCollapseProgressRef.current
+      ) {
+        syncRootTabBarVisibility(true);
+        syncRootTabBarCollapseProgress(nextRootTabBarProgress);
+      }
     },
     [
       readerBottomChromeProgressShared,
@@ -1751,13 +1747,11 @@ export function BibleReaderScreen() {
       return;
     }
 
-    readerBottomChromeProgressRef.current = 0;
     readerBottomChromeCollapsedRef.current = false;
     rootTabBarCollapseProgressRef.current = 0;
     readerLastScrollOffsetYRef.current = 0;
     readerRevealTabBarOnUpScrollRef.current = false;
     readerBottomChromeProgressShared.value = 0;
-    setReaderBottomChromeProgress(0);
     setIsReadBottomChromeCollapsed(false);
     const rootTabNavigation = getRootTabNavigation();
     if (rootTabNavigation) {
@@ -4931,7 +4925,7 @@ export function BibleReaderScreen() {
           >
             {/* Locked-in plan reader behavior: read-mode plans reuse the exact shared floating dock above the red plan strip. Do not move the play button into the strip or swap this for a custom plan-only transport without explicit user approval. */}
             <ReaderPlaybackDock
-              collapseProgress={readerBottomChromeProgress}
+              collapseProgress={readerBottomChromeProgressShared}
               isCollapsed={isReadBottomChromeCollapsed}
               progress={isCurrentAudioChapter && duration > 0 ? currentPosition / duration : 0}
               isPlaying={isCurrentAudioChapter && status === 'playing'}

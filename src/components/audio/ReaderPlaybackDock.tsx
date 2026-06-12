@@ -6,12 +6,13 @@ import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedStyle,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius } from '../../design/system';
 
 interface ReaderPlaybackDockProps {
-  collapseProgress: number;
+  collapseProgress: SharedValue<number>;
   isCollapsed: boolean;
   progress: number;
   isPlaying: boolean;
@@ -77,25 +78,25 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   const showPlayButton = hidePlayButton !== true;
 
   const leftTransportAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseProgress, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
+    opacity: interpolate(collapseProgress.value, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
     transform: [
       {
-        scale: interpolate(collapseProgress, [0, 1], [1, 0.82], Extrapolation.CLAMP),
+        scale: interpolate(collapseProgress.value, [0, 1], [1, 0.82], Extrapolation.CLAMP),
       },
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 34], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress.value, [0, 1], [0, 34], Extrapolation.CLAMP),
       },
     ],
   }));
 
   const rightTransportAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseProgress, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
+    opacity: interpolate(collapseProgress.value, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
     transform: [
       {
-        scale: interpolate(collapseProgress, [0, 1], [1, 0.82], Extrapolation.CLAMP),
+        scale: interpolate(collapseProgress.value, [0, 1], [1, 0.82], Extrapolation.CLAMP),
       },
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 34], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress.value, [0, 1], [0, 34], Extrapolation.CLAMP),
       },
     ],
   }));
@@ -103,10 +104,10 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   const centerTransportAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateY: interpolate(collapseProgress, [0, 1], [0, 12], Extrapolation.CLAMP),
+        translateY: interpolate(collapseProgress.value, [0, 1], [0, 12], Extrapolation.CLAMP),
       },
       {
-        scale: interpolate(collapseProgress, [0, 1], [1, 1.02], Extrapolation.CLAMP),
+        scale: interpolate(collapseProgress.value, [0, 1], [1, 1.02], Extrapolation.CLAMP),
       },
     ],
   }));

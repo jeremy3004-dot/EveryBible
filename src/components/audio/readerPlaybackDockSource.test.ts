@@ -28,8 +28,8 @@ test('ReaderPlaybackDock collapses the side chapter arrows away while keeping th
 
   assert.match(
     source,
-    /collapseProgress:\s*number;/,
-    'ReaderPlaybackDock should accept the reader collapse progress from the premium scroll chrome'
+    /collapseProgress:\s*SharedValue<number>;/,
+    'ReaderPlaybackDock should accept the reader collapse progress as a SharedValue so the dock animates on the UI thread'
   );
 
   assert.match(
