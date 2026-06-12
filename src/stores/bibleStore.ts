@@ -423,8 +423,12 @@ export const useBibleStore = create<BibleState>()(
         });
         const transport = await audio.createBackgroundAudioDownloadTransport();
         const jobs = await jobStore.listJobs();
+        // Only reattach jobs that are actively in-flight. Failed and completed
+        // jobs do not need reattachment and must not bleed into UI state as
+        // if a download were running (they would cause "Loading... 0%" to persist
+        // across app restarts even when no download is actually running).
         const latestJobsByTranslation = getLatestPersistedAudioJobByTranslation(
-          jobs.filter((job) => job.status !== 'completed')
+          jobs.filter((job) => job.status === 'downloading' || job.status === 'queued')
         );
 
         await Promise.all(

@@ -297,10 +297,23 @@ const sanitizeTranslationDownloadJob = (value: unknown): TranslationDownloadJob 
     return null;
   }
 
+  const rawState = value.state as TranslationDownloadJob['state'];
+  // A job in an active state (running/queued/reattaching) persisted across an
+  // app kill is stale — the download cannot still be running. Reset to 'failed'
+  // so the UI shows the correct state and lets the user restart the download.
+  const staleActiveStates = new Set<TranslationDownloadJob['state']>([
+    'queued',
+    'running',
+    'reattaching',
+  ]);
+  const state: TranslationDownloadJob['state'] = staleActiveStates.has(rawState)
+    ? 'failed'
+    : rawState;
+
   return {
     id,
     kind: value.kind as TranslationDownloadJob['kind'],
-    state: value.state as TranslationDownloadJob['state'],
+    state,
     progress: Math.max(0, Math.min(100, progress)),
     startedAt,
     updatedAt,
