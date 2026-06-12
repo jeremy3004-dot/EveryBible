@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types -- screen is fully typed via PlanDetailScreenProps; rule false-positives on navigation/route after the FlashList refactor (matches BibleReaderScreen P1 pattern) */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
