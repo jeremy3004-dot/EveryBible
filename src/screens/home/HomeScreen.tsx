@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   ImageBackground,
   StyleSheet,
   ScrollView,
@@ -287,38 +286,6 @@ export function HomeScreen() {
     };
   }, []);
 
-  const handlePlayDailyAudio = () => {
-    if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
-      return;
-    }
-
-    navigation.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: dailyScripture.bookId,
-        chapter: dailyScripture.chapter,
-        autoplayAudio: true,
-        focusVerse: dailyScripture.verse,
-      },
-    });
-  };
-
-  const handleReadDailyScripture = () => {
-    if (!dailyScripture) {
-      navigation.navigate('Bible', { screen: 'BibleBrowser' });
-      return;
-    }
-
-    navigation.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: dailyScripture.bookId,
-        chapter: dailyScripture.chapter,
-        focusVerse: dailyScripture.verse,
-      },
-    });
-  };
-
   const handleContinueReading = () => {
     if (!hasReaderHistory) {
       navigation.navigate('Bible', { screen: 'BibleBrowser' });
@@ -462,31 +429,6 @@ export function HomeScreen() {
     }
   };
 
-  const renderHeroActions = () => (
-    <View style={styles.heroActionRow}>
-      <TouchableOpacity
-        style={[styles.primaryPill, { backgroundColor: colors.accentPrimary }]}
-        onPress={handlePlayDailyAudio}
-        activeOpacity={0.9}
-        accessibilityRole="button"
-      >
-        <Ionicons name="headset-outline" size={22} color={colors.onAccent} />
-        <Text style={[styles.primaryPillText, { color: colors.onAccent }]}>{t('bible.listen')}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.secondaryPill, { borderColor: 'rgba(255, 255, 255, 0.56)' }]}
-        onPress={handleReadDailyScripture}
-        activeOpacity={0.88}
-        accessibilityRole="button"
-      >
-        <Ionicons name="book-outline" size={22} color={colors.primaryText} />
-        <Text style={[styles.secondaryPillText, { color: colors.primaryText }]}>
-          {t('bible.read')}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderVerseOfTheDayCard = (showActions: boolean) => (
     <ImageBackground
       source={verseBackgroundSource}
@@ -560,7 +502,9 @@ export function HomeScreen() {
         >
           {heroReferenceLabel}
         </Text>
-        {showActions ? renderHeroActions() : null}
+        {showActions ? (
+          <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
+        ) : null}
       </View>
     </ImageBackground>
   );
@@ -651,31 +595,6 @@ export function HomeScreen() {
               </View>
             </>
           )}
-
-          <TouchableOpacity
-            style={[styles.sharePromptCard, { borderColor: colors.cardBorder }]}
-            activeOpacity={0.86}
-            onPress={handleShareVerseOfTheDay}
-            accessibilityRole="button"
-            accessibilityLabel={t('groups.share')}
-          >
-            <Image source={verseBackgroundSource} style={styles.sharePromptImage} />
-            <View style={styles.sharePromptCopy}>
-              <Text
-                style={[styles.sharePromptTitle, { color: colors.primaryText }]}
-                numberOfLines={1}
-              >
-                {t('home.sharePrompt')}
-              </Text>
-              <Text
-                style={[styles.sharePromptMeta, { color: colors.secondaryText }]}
-                numberOfLines={1}
-              >
-                {heroReferenceLabel}
-              </Text>
-            </View>
-            {renderVerseShareButton()}
-          </TouchableOpacity>
 
           <View style={styles.progressGrid}>
             <TouchableOpacity
@@ -899,42 +818,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
-  heroActionRow: {
-    marginTop: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    flexWrap: 'wrap',
-  },
-  primaryPill: {
-    minHeight: 48,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  primaryPillText: {
-    ...typography.button,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  secondaryPill: {
-    minHeight: 48,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  secondaryPillText: {
-    ...typography.button,
-    fontSize: 16,
-    lineHeight: 20,
-  },
   verseShareRow: {
     marginTop: 'auto',
     alignItems: 'flex-end',
@@ -1010,37 +893,6 @@ const styles = StyleSheet.create({
     ...typography.readingHeading,
     fontSize: 44,
     lineHeight: 52,
-  },
-  sharePromptCard: {
-    minHeight: 82,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  sharePromptImage: {
-    width: 64,
-    height: 54,
-    borderRadius: radius.md,
-    flexShrink: 0,
-  },
-  sharePromptCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  sharePromptTitle: {
-    ...typography.bodyStrong,
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  sharePromptMeta: {
-    ...typography.body,
-    fontSize: 16,
-    lineHeight: 22,
   },
   progressGrid: {
     flexDirection: 'row',

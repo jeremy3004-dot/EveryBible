@@ -84,14 +84,20 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /styles\.sharePromptCard[\s\S]*onPress=\{handleShareVerseOfTheDay\}[\s\S]*\{renderVerseShareButton\(\)\}/,
-    'The visible share button should sit in the share prompt row'
+    /styles\.verseShareRow[\s\S]*\{renderVerseShareButton\(\)\}/,
+    'The verse card should render the share button inside verseShareRow when showActions is true'
   );
 
-  assert.match(
-    source,
-    /styles\.heroActionRow[\s\S]*t\('bible\.listen'\)[\s\S]*t\('bible\.read'\)/,
-    'The verse hero should expose localized Listen and Read actions'
+  assert.equal(
+    source.includes('sharePromptCard'),
+    false,
+    'HomeScreen should not render the separate share prompt card below the verse card'
+  );
+
+  assert.equal(
+    source.includes('renderHeroActions'),
+    false,
+    'HomeScreen should not define or call renderHeroActions after the Listen/Read buttons were removed'
   );
 
   assert.match(
