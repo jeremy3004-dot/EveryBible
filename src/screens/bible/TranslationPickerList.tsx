@@ -1367,7 +1367,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   translationLanguageChip: {
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -1471,7 +1471,7 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     minWidth: 0,
     flexShrink: 1,

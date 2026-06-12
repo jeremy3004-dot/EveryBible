@@ -330,7 +330,7 @@ const progressCardStyles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignSelf: 'flex-start',
   },
   completeBadgeText: {
@@ -585,7 +585,7 @@ const dayRowStyles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   sessionBadge: {
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
@@ -603,7 +603,7 @@ const dayRowStyles = StyleSheet.create({
   },
   sessionActionButton: {
     minHeight: 36,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -1217,7 +1217,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     minHeight: layout.minTouchTarget,
   },
   ctaPrimaryText: {

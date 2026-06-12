@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   translationButton: {
     minHeight: 42,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   translationLanguageChip: {
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
   },
   audioDownloadChipLabel: {

@@ -6696,7 +6696,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -6806,7 +6806,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   feedbackButton: {
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
@@ -7089,7 +7089,7 @@ const styles = StyleSheet.create({
   audioPortionPreviewButton: {
     alignSelf: 'center',
     minHeight: 36,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
@@ -7111,7 +7111,7 @@ const styles = StyleSheet.create({
   audioPortionActionButton: {
     flex: 1,
     minHeight: layout.minTouchTarget,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -7222,7 +7222,7 @@ const styles = StyleSheet.create({
   feedbackAudioButton: {
     minHeight: layout.minTouchTarget,
     borderWidth: 1,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -7311,7 +7311,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   translatorReviewBadge: {
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
@@ -7460,7 +7460,7 @@ const styles = StyleSheet.create({
   verseImageSheetActionButton: {
     flex: 1,
     minHeight: layout.minTouchTarget,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -7482,7 +7482,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: layout.minTouchTarget,
     borderWidth: 1,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,

@@ -78,7 +78,7 @@ const chipStyles = StyleSheet.create({
   chip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
@@ -202,7 +202,7 @@ const activePlanStyles = StyleSheet.create({
   dayBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
   },
   dayBadgeText: {
     ...typography.micro,
@@ -354,7 +354,7 @@ const browsePlanStyles = StyleSheet.create({
   durationBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignSelf: 'flex-start',
   },
   durationText: {
@@ -374,7 +374,7 @@ const browsePlanStyles = StyleSheet.create({
     minHeight: 32,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },

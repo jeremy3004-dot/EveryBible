@@ -629,7 +629,7 @@ function makeStyles(_colors: ThemeColors) {
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
     },
     submitButtonText: {
       ...typography.label,
@@ -678,7 +678,7 @@ function makeStyles(_colors: ThemeColors) {
       gap: spacing.xs,
       paddingHorizontal: spacing.sm,
       paddingVertical: 3,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
     },
     answeredText: {
       ...typography.micro,
@@ -698,7 +698,7 @@ function makeStyles(_colors: ThemeColors) {
       gap: 5,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs + 2,
-      borderRadius: radius.pill,
+      borderRadius: radius.lg,
     },
     pillText: {
       ...typography.micro,

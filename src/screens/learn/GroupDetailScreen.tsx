@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   prayerCountBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
   },
   prayerCountText: {
     fontSize: 12,

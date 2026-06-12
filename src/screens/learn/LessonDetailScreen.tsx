@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
   actionButton: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
     marginTop: spacing.xs,

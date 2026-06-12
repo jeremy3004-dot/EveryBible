@@ -275,7 +275,7 @@ const progressCardStyles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignSelf: 'flex-start',
   },
   completeBadgeText: {
