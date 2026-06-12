@@ -454,6 +454,9 @@ export async function downloadAudioBook({
     hooks,
   });
 
+  let lastEmittedProgress = -1;
+  let lastEmittedCompletedChapters = -1;
+
   const emitBookProgress = (chapter?: number): void => {
     const totalChapters = chapterTargets.length;
     if (totalChapters === 0) {
@@ -469,12 +472,20 @@ export async function downloadAudioBook({
         (sum, target) => sum + (chapterProgressByNumber.get(target.chapter) ?? 0),
         0
       ) / totalChapters;
+    const progress = clampProgress(aggregateProgress);
+
+    if (progress === lastEmittedProgress && completedChapters === lastEmittedCompletedChapters) {
+      return;
+    }
+
+    lastEmittedProgress = progress;
+    lastEmittedCompletedChapters = completedChapters;
 
     hooks?.onProgress?.({
       translationId,
       bookId: book.id,
       chapter,
-      progress: clampProgress(aggregateProgress),
+      progress,
       completedChapters,
       totalChapters,
     });
