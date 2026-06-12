@@ -1135,8 +1135,14 @@ test('premium read mode keeps a pinned bottom playback dock that can rise when t
 
   assert.match(
     source,
+    /const bottomDockAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*transform:\s*\[[\s\S]*translateY:\s*interpolate\(/s,
+    'BibleReaderScreen should animate the bottom dock with a translateY transform so no layout bottom reflows each frame'
+  );
+
+  assert.doesNotMatch(
+    source,
     /const bottomDockAnimatedStyle = useAnimatedStyle\(\(\) => \(\{[\s\S]*bottom:\s*interpolate\(/s,
-    'BibleReaderScreen should animate the bottom dock between the visible tab bar and the collapsed no-tab state'
+    'BibleReaderScreen should not interpolate the layout bottom property of the dock'
   );
 
   assert.equal(

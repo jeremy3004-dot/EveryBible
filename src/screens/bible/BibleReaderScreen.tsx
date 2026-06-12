@@ -1811,19 +1811,16 @@ export function BibleReaderScreen() {
     ],
   }));
 
+  const readerDockBaseBottom = layout.tabBarBaseHeight + spacing.xxl;
+  const readerDockCollapsedTranslateY =
+    readerDockBaseBottom - (safeInsets.bottom + spacing.xl) + spacing.xs;
   const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
-    bottom: interpolate(
-      readerBottomChromeProgressShared.value,
-      [0, 1],
-      [layout.tabBarBaseHeight + spacing.xxl, safeInsets.bottom + spacing.xl],
-      Extrapolation.CLAMP
-    ),
     transform: [
       {
         translateY: interpolate(
           readerBottomChromeProgressShared.value,
           [0, 1],
-          [0, spacing.xs],
+          [0, readerDockCollapsedTranslateY],
           Extrapolation.CLAMP
         ),
       },
@@ -4921,7 +4918,11 @@ export function BibleReaderScreen() {
 
           <Animated.View
             pointerEvents="box-none"
-            style={[styles.floatingReaderChapterNavOverlay, bottomDockAnimatedStyle]}
+            style={[
+              styles.floatingReaderChapterNavOverlay,
+              { bottom: readerDockBaseBottom },
+              bottomDockAnimatedStyle,
+            ]}
           >
             {/* Locked-in plan reader behavior: read-mode plans reuse the exact shared floating dock above the red plan strip. Do not move the play button into the strip or swap this for a custom plan-only transport without explicit user approval. */}
             <ReaderPlaybackDock
