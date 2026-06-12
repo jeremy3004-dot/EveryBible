@@ -63,7 +63,7 @@ import {
 } from '../../services/annotations/annotationService';
 import { getChapter } from '../../services/bible/bibleService';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
-import { getChapterPresentationMode } from '../../services/bible/presentation';
+import { getChapterPresentationMode, type ChapterPresentationMode } from '../../services/bible/presentation';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
@@ -1365,7 +1365,13 @@ export function BibleReaderScreen() {
     translation: currentTranslationInfo,
     audioAvailable: audioEnabled,
   });
-  const lastStablePresentationModeRef = useRef(rawPresentationMode);
+  // Seed the stable ref to 'text' when the translation has text so the initial
+  // loading state shows a text skeleton instead of the audio-first UI. Without
+  // this, BSB (which has audio) would show the audio player while verses are
+  // fetching on first mount, even though text is expected.
+  const lastStablePresentationModeRef = useRef<ChapterPresentationMode>(
+    currentTranslationInfo?.hasText ? 'text' : rawPresentationMode
+  );
   if (!isLoading) {
     lastStablePresentationModeRef.current = rawPresentationMode;
     lastStableSessionModeRef.current = chapterSessionMode;

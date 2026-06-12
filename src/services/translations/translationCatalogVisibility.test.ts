@@ -12,3 +12,7 @@ test('isHiddenTranslationId blocks retired darby and English-world variants', ()
 test('isHiddenTranslationId keeps BSB visible', () => {
   assert.equal(isHiddenTranslationId('bsb'), false);
 });
+
+test('isHiddenTranslationId hides engberean audio-only BSB duplicate', () => {
+  assert.equal(isHiddenTranslationId('engberean'), true);
+});
