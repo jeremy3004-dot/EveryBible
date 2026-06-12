@@ -84,8 +84,14 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /styles\.verseShareRow/,
-    'The verse share button should sit in a bottom-aligned footer row'
+    /styles\.sharePromptCard[\s\S]*onPress=\{handleShareVerseOfTheDay\}[\s\S]*\{renderVerseShareButton\(\)\}/,
+    'The visible share button should sit in the share prompt row'
+  );
+
+  assert.match(
+    source,
+    /styles\.heroActionRow[\s\S]*t\('bible\.listen'\)[\s\S]*t\('bible\.read'\)/,
+    'The verse hero should expose localized Listen and Read actions'
   );
 
   assert.match(
@@ -101,7 +107,7 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
   );
 
   assert.equal(
-    source.includes("common.share"),
+    source.includes('common.share'),
     false,
     'HomeScreen should not render the broken common.share key on the verse share control'
   );

@@ -61,25 +61,13 @@ test('HomeScreen removes the extra welcome subtitle so the fixed layout can sit 
   );
 });
 
-test('HomeScreen localizes the foundation continuation card instead of hardcoding English copy', () => {
+test('HomeScreen renders the redesigned gather strip with localized labels', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
   assert.match(
     source,
-    /FOUNDATION_TITLE_KEYS\[activeFoundation\.id\]/,
-    'HomeScreen should resolve the active foundation title through the gather locale key map'
-  );
-
-  assert.match(
-    source,
-    /FOUNDATION_DESC_KEYS\[activeFoundation\.id\]/,
-    'HomeScreen should resolve the active foundation description through the gather locale key map'
-  );
-
-  assert.match(
-    source,
-    /t\('gather\.lessonsProgress',\s*{\s*completed:\s*activeFoundationDone,\s*total:\s*activeFoundationTotal/s,
-    'HomeScreen should localize the foundation lesson progress string'
+    /styles\.gatherStrip[\s\S]*t\('tabs\.gather'\)[\s\S]*t\('gather\.foundationLabel'/,
+    'HomeScreen should use localized Gather and foundation labels in the bottom strip'
   );
 
   assert.equal(
@@ -92,5 +80,11 @@ test('HomeScreen localizes the foundation continuation card instead of hardcodin
     source.includes('GET STARTED'),
     false,
     'HomeScreen should not hardcode the foundation CTA eyebrow in English'
+  );
+
+  assert.match(
+    source,
+    /t\('home\.fieldLabel',\s*{\s*number:\s*index \+ 1\s*}\)/,
+    'HomeScreen should localize field labels under the gather path'
   );
 });

@@ -20,28 +20,24 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { bibleTranslations, getTranslatedBookName } from '../../constants';
+import { bibleTranslations, getBookById, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
+import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import {
-  FOUNDATION_DESC_KEYS,
-  FOUNDATION_TITLE_KEYS,
-  gatherFoundations,
-} from '../../data/gatherFoundations';
+import { gatherFoundations } from '../../data/gatherFoundations';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
-import { selectHomeContinuePlans, type HomeContinuePlan } from './homeReadingPlansModel';
+import { selectHomeContinuePlans } from './homeReadingPlansModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { formatDailyScriptureReferenceLabel } from '../../services/bible/presentation';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
-import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import type { ReadingPlan } from '../../services/plans/types';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
@@ -54,102 +50,33 @@ import {
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
-function PlanResumeCover({ plan }: { plan: ReadingPlan }) {
-  const { colors } = useTheme();
-  const source = getReadingPlanCoverSource(plan);
+const HOME_HERO_SCRIPTURE_TEXT =
+  'The Lord is my shepherd;\nI shall not want.\n\nHe makes me lie down in green pastures. He leads me beside still waters.';
+const HOME_HERO_REFERENCE_LABEL = 'PSALM 23:1-2  |  ESV';
 
-  if (!source) {
-    return (
-      <View
-        style={[
-          planResumeStyles.coverFallback,
-          { backgroundColor: colors.accentSecondary },
-        ]}
-      >
-        <Ionicons name="book-outline" size={20} color={colors.secondaryText} />
-      </View>
-    );
+function getFirstName(displayName: string | null | undefined): string | null {
+  const trimmed = displayName?.trim();
+  if (!trimmed) {
+    return null;
   }
 
-  return <Image source={source} style={planResumeStyles.coverImage} resizeMode="cover" />;
+  return trimmed.split(/\s+/)[0] ?? null;
 }
 
-function ContinuePlanCard({
-  item,
-  onPress,
-  showDivider = false,
-}: {
-  item: HomeContinuePlan;
-  onPress: (planId: string) => void;
-  showDivider?: boolean;
-}) {
-  const { colors } = useTheme();
-  const { t } = useTranslation();
-  const title = t(item.plan.title_key as Parameters<typeof t>[0], {
-    defaultValue: item.plan.title_key,
-  });
-  const completedCount = Object.keys(item.progress.completed_entries).length;
-  const fraction = item.plan.duration_days > 0 ? completedCount / item.plan.duration_days : 0;
+function getGreetingKey(
+  date = new Date()
+): 'home.goodMorning' | 'home.goodAfternoon' | 'home.goodEvening' {
+  const hour = date.getHours();
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => onPress(item.plan.id)}
-      style={[
-        planResumeStyles.row,
-        showDivider ? { borderTopColor: colors.cardBorder, borderTopWidth: 1 } : null,
-        {
-          backgroundColor: 'transparent',
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={`${title}. ${t('readingPlans.dayOf', {
-        current: item.progress.current_day,
-        total: item.plan.duration_days,
-      })}. ${t('common.continue')}`}
-    >
-      <View style={planResumeStyles.topRow}>
-        <PlanResumeCover plan={item.plan} />
-        <View style={planResumeStyles.textColumn}>
-          <Text
-            style={[planResumeStyles.title, { color: colors.primaryText }]}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.82}
-          >
-            {title}
-          </Text>
-          <Text style={[planResumeStyles.meta, { color: colors.secondaryText }]} numberOfLines={1}>
-            {t('readingPlans.dayOf', {
-              current: item.progress.current_day,
-              total: item.plan.duration_days,
-            })}
-          </Text>
-        </View>
-        <View style={[planResumeStyles.cta, { backgroundColor: colors.accentPrimary }]}>
-          <Text
-            style={[planResumeStyles.ctaText, { color: colors.onAccent }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-          >
-            {t('common.continue')}
-          </Text>
-        </View>
-      </View>
-      <View style={[planResumeStyles.progressTrack, { backgroundColor: colors.cardBorder }]}>
-        <View
-          style={[
-            planResumeStyles.progressFill,
-            {
-              width: `${Math.max(0, Math.min(1, fraction)) * 100}%`,
-              backgroundColor: colors.accentPrimary,
-            },
-          ]}
-        />
-      </View>
-    </TouchableOpacity>
-  );
+  if (hour < 12) {
+    return 'home.goodMorning';
+  }
+
+  if (hour < 17) {
+    return 'home.goodAfternoon';
+  }
+
+  return 'home.goodEvening';
 }
 
 export function HomeScreen() {
@@ -159,8 +86,9 @@ export function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const bottomTabBarHeight = useBottomTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
-  const [remoteVerseOverride, setRemoteVerseOverride] =
-    useState<MobileVerseOfDayOverride | null>(null);
+  const [remoteVerseOverride, setRemoteVerseOverride] = useState<MobileVerseOfDayOverride | null>(
+    null
+  );
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
@@ -170,8 +98,12 @@ export function HomeScreen() {
   const verseSharePreviewRef = useRef<View | null>(null);
   const verseBackground = getHomeVerseBackground();
   const homeLayout = getHomeScreenLayout(screenWidth, screenHeight, bottomTabBarHeight);
+  const user = useAuthStore((state) => state.user);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const currentBook = useBibleStore((state) => state.currentBook);
+  const currentChapter = useBibleStore((state) => state.currentChapter);
+  const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
   const translations = useBibleStore((state) =>
     Array.isArray(state.translations) ? state.translations : bibleTranslations
   );
@@ -198,19 +130,50 @@ export function HomeScreen() {
     );
     return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
   })();
-  const activeFoundationDone = completedLessons[activeFoundation.id]?.length ?? 0;
-  const activeFoundationTotal = activeFoundation.lessons.length;
-  const activeFoundationTitle = FOUNDATION_TITLE_KEYS[activeFoundation.id]
-    ? t(FOUNDATION_TITLE_KEYS[activeFoundation.id])
-    : activeFoundation.title;
-  const activeFoundationDescription = FOUNDATION_DESC_KEYS[activeFoundation.id]
-    ? t(FOUNDATION_DESC_KEYS[activeFoundation.id])
-    : activeFoundation.description;
-  const foundationCardEyebrow =
-    activeFoundationDone > 0 ? t('gather.foundations') : t('gather.getStarted');
   const continuePlans = useMemo(
     () => selectHomeContinuePlans(readingPlans, progressByPlanId),
     [progressByPlanId, readingPlans]
+  );
+  const featuredPlanProgress = continuePlans[0];
+  const featuredPlan =
+    featuredPlanProgress?.plan ??
+    readingPlans.find((plan) => plan.id === 'proverbs-31-days') ??
+    readingPlans[0] ??
+    null;
+  const featuredPlanTitle = featuredPlan
+    ? t(featuredPlan.title_key as Parameters<typeof t>[0], {
+        defaultValue: featuredPlan.title_key,
+      })
+    : t('readingPlans.title');
+  const featuredPlanDay =
+    featuredPlanProgress?.progress.current_day ?? (featuredPlan?.duration_days ? 1 : 0);
+  const featuredPlanDuration = featuredPlan?.duration_days ?? 0;
+  const featuredPlanCompletedCount = featuredPlanProgress
+    ? Object.keys(featuredPlanProgress.progress.completed_entries).length
+    : 0;
+  const featuredPlanFraction =
+    featuredPlanDuration > 0 ? featuredPlanCompletedCount / featuredPlanDuration : 0;
+  const currentBookName = getTranslatedBookName(currentBook, t);
+  const currentBookInfo = getBookById(currentBook);
+  const currentPassageLabel =
+    hasReaderHistory && currentBookInfo
+      ? `${currentBookName} ${currentChapter}`
+      : t('home.defaultReference');
+  const readingProgressPercent = hasReaderHistory ? 68 : 0;
+  const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
+  const greetingKey = useMemo(() => getGreetingKey(), []);
+  const greetingLabel = t('home.greetingWithName', {
+    greeting: t(greetingKey),
+    name: greetingName,
+  });
+  const todayLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(new Date()),
+    []
   );
 
   const loadVerseOfDay = useCallback(
@@ -340,6 +303,37 @@ export function HomeScreen() {
     });
   };
 
+  const handleReadDailyScripture = () => {
+    if (!dailyScripture) {
+      navigation.navigate('Bible', { screen: 'BibleBrowser' });
+      return;
+    }
+
+    navigation.navigate('Bible', {
+      screen: 'BibleReader',
+      params: {
+        bookId: dailyScripture.bookId,
+        chapter: dailyScripture.chapter,
+        focusVerse: dailyScripture.verse,
+      },
+    });
+  };
+
+  const handleContinueReading = () => {
+    if (!hasReaderHistory) {
+      navigation.navigate('Bible', { screen: 'BibleBrowser' });
+      return;
+    }
+
+    navigation.navigate('Bible', {
+      screen: 'BibleReader',
+      params: {
+        bookId: currentBook,
+        chapter: currentChapter,
+      },
+    });
+  };
+
   const handleContinuePlan = useCallback(
     (planId: string) => {
       navigation.navigate('Plans', {
@@ -382,10 +376,9 @@ export function HomeScreen() {
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
   const verseShareReferenceLabel =
     remoteVerseOverride?.referenceLabel ?? dailyReferenceLabel ?? t('home.defaultReference');
-  const verseShareBodyText =
-    remoteVerseOverride?.verseText?.trim()
-      ? remoteVerseOverride.verseText.trim()
-      : dailyScripture?.kind === 'verse-text'
+  const verseShareBodyText = remoteVerseOverride?.verseText?.trim()
+    ? remoteVerseOverride.verseText.trim()
+    : dailyScripture?.kind === 'verse-text'
       ? dailyScripture.text?.trim() || t('home.defaultVerse')
       : shouldShowDailyAudio
         ? dailyAudioKind === 'section-audio'
@@ -400,6 +393,8 @@ export function HomeScreen() {
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
+  const heroScriptureText = HOME_HERO_SCRIPTURE_TEXT;
+  const heroReferenceLabel = HOME_HERO_REFERENCE_LABEL;
   const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
   const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
   const verseCardImageOpacity = isDark ? 0.34 : 0.48;
@@ -426,11 +421,7 @@ export function HomeScreen() {
       accessibilityLabel={t('groups.share')}
       hitSlop={8}
     >
-      <Ionicons
-        name="share-outline"
-        size={verseShareIconSize}
-        color={colors.primaryText}
-      />
+      <Ionicons name="share-outline" size={verseShareIconSize} color={colors.primaryText} />
     </TouchableOpacity>
   );
 
@@ -471,6 +462,31 @@ export function HomeScreen() {
     }
   };
 
+  const renderHeroActions = () => (
+    <View style={styles.heroActionRow}>
+      <TouchableOpacity
+        style={[styles.primaryPill, { backgroundColor: colors.accentPrimary }]}
+        onPress={handlePlayDailyAudio}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Ionicons name="headset-outline" size={22} color={colors.onAccent} />
+        <Text style={[styles.primaryPillText, { color: colors.onAccent }]}>{t('bible.listen')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.secondaryPill, { borderColor: 'rgba(255, 255, 255, 0.56)' }]}
+        onPress={handleReadDailyScripture}
+        activeOpacity={0.88}
+        accessibilityRole="button"
+      >
+        <Ionicons name="book-outline" size={22} color={colors.primaryText} />
+        <Text style={[styles.secondaryPillText, { color: colors.primaryText }]}>
+          {t('bible.read')}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderVerseOfTheDayCard = (showActions: boolean) => (
     <ImageBackground
       source={verseBackgroundSource}
@@ -493,170 +509,67 @@ export function HomeScreen() {
         end={{ x: 0, y: 1 }}
         style={styles.verseCardOverlay}
       />
-      <View style={[styles.verseCardContent, { padding: homeLayout.cardPadding, gap: homeLayout.bodyGap }]}>
+      <View
+        style={[
+          styles.verseCardContent,
+          { padding: homeLayout.cardPadding, gap: homeLayout.bodyGap },
+        ]}
+      >
+        <View style={styles.heroEyebrowRow}>
+          <Ionicons
+            name="partly-sunny-outline"
+            size={Math.max(20, Math.round(22 * homeLayout.scale))}
+            color={colors.accentTertiary}
+          />
+          <Text
+            style={[styles.heroEyebrow, { color: colors.accentTertiary }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.78}
+          >
+            {t('home.todaysScripture')}
+          </Text>
+        </View>
         <Text
-          style={[styles.cardTitle, { color: colors.secondaryText, marginBottom: 0 }]}
+          style={[
+            styles.verseText,
+            {
+              color: colors.primaryText,
+              fontSize: homeLayout.verseTextFontSize,
+              lineHeight: homeLayout.verseTextLineHeight,
+            },
+          ]}
+          numberOfLines={homeLayout.verseTextLines}
+          adjustsFontSizeToFit
+          minimumFontScale={0.66}
+        >
+          {heroScriptureText}
+        </Text>
+        <Text
+          style={[
+            styles.reference,
+            {
+              color: colors.accentTertiary,
+              fontSize: homeLayout.verseReferenceFontSize,
+              lineHeight: homeLayout.verseReferenceLineHeight,
+            },
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
-          minimumFontScale={0.78}
+          minimumFontScale={0.82}
         >
-          {verseCardTitleLabel}
+          {heroReferenceLabel}
         </Text>
-        {remoteVerseOverride || dailyScripture?.kind === 'verse-text' ? (
-          <>
-            <Text
-              style={[
-                styles.verseText,
-                {
-                  color: colors.primaryText,
-                  fontSize: homeLayout.verseTextFontSize,
-                  lineHeight: homeLayout.verseTextLineHeight,
-                },
-              ]}
-              numberOfLines={homeLayout.verseTextLines}
-              adjustsFontSizeToFit
-              minimumFontScale={0.66}
-            >
-              {`"${verseShareBodyText}"`}
-            </Text>
-            <Text
-              style={[
-                styles.reference,
-                {
-                  color: colors.accentGreen,
-                  fontSize: homeLayout.verseReferenceFontSize,
-                  lineHeight: homeLayout.verseReferenceLineHeight,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.82}
-            >
-              {verseShareReferenceLabel}
-            </Text>
-            {showActions ? (
-              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
-            ) : null}
-          </>
-        ) : shouldShowDailyAudio ? (
-          <>
-            <Text
-              style={[
-                styles.audioFallbackBody,
-                {
-                  color: colors.primaryText,
-                  fontSize: homeLayout.verseBodyFontSize,
-                  lineHeight: homeLayout.verseBodyLineHeight,
-                },
-              ]}
-              numberOfLines={homeLayout.verseBodyLines}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
-              {verseShareBodyText}
-            </Text>
-            <Text
-              style={[
-                styles.reference,
-                {
-                  color: colors.accentGreen,
-                  fontSize: homeLayout.verseReferenceFontSize,
-                  lineHeight: homeLayout.verseReferenceLineHeight,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.82}
-            >
-              {verseShareReferenceLabel}
-            </Text>
-            {showActions ? (
-              <>
-                <TouchableOpacity
-                  style={[
-                    styles.audioAction,
-                    {
-                      backgroundColor: colors.bibleControlBackground,
-                      paddingHorizontal: homeLayout.audioButtonPaddingHorizontal,
-                      paddingVertical: homeLayout.audioButtonPaddingVertical,
-                      gap: homeLayout.audioButtonGap,
-                    },
-                  ]}
-                  onPress={handlePlayDailyAudio}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons
-                    name="play"
-                    size={Math.max(16, Math.round(18 * homeLayout.scale))}
-                    color={colors.bibleBackground}
-                  />
-                  <Text
-                    style={[
-                      styles.audioActionText,
-                      {
-                        color: colors.bibleBackground,
-                        fontSize: Math.max(14, homeLayout.subtitleFontSize + 1),
-                        lineHeight: homeLayout.subtitleLineHeight,
-                      },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.82}
-                  >
-                    {dailyAudioKind === 'section-audio'
-                      ? t('home.playSectionOfTheDay')
-                      : t('home.playVerseOfTheDay')}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
-            {showActions ? (
-              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <Text
-              style={[
-                styles.verseText,
-                {
-                  color: colors.primaryText,
-                  fontSize: homeLayout.verseTextFontSize,
-                  lineHeight: homeLayout.verseTextLineHeight,
-                },
-              ]}
-              numberOfLines={homeLayout.verseTextLines}
-              adjustsFontSizeToFit
-              minimumFontScale={0.66}
-            >
-              {t('home.defaultVerse')}
-            </Text>
-            <Text
-              style={[
-                styles.reference,
-                {
-                  color: colors.accentGreen,
-                  fontSize: homeLayout.verseReferenceFontSize,
-                  lineHeight: homeLayout.verseReferenceLineHeight,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.82}
-            >
-              {verseShareReferenceLabel}
-            </Text>
-            {showActions ? (
-              <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
-            ) : null}
-          </>
-        )}
+        {showActions ? renderHeroActions() : null}
       </View>
     </ImageBackground>
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -675,107 +588,43 @@ export function HomeScreen() {
         contentInsetAdjustmentBehavior="never"
       >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
-          {/* Continue in Foundations card */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.card,
-              styles.foundationCard,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-            ]}
-            onPress={() =>
-              navigation.navigate('Learn', {
-                screen: 'FoundationDetail',
-                params: { foundationId: activeFoundation.id },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              } as any)
-            }
-          >
-            <View
-              style={[
-                styles.foundationCardBody,
-                {
-                  gap: homeLayout.foundationCardGap,
-                  paddingHorizontal: homeLayout.cardPadding,
-                  paddingTop: homeLayout.cardPadding + spacing.md,
-                  paddingBottom: homeLayout.cardPadding + spacing.xs,
-                },
-              ]}
-            >
-              <GatherIconBadge
-                artworkKey={activeFoundation.iconImage}
-                size={homeLayout.foundationIconSize}
-                iconSize={Math.max(30, Math.round(homeLayout.foundationIconSize * 0.58))}
-                style={[
-                  styles.foundationIconWrap,
-                  { width: homeLayout.foundationIconSize, height: homeLayout.foundationIconSize },
-                ]}
-              />
-              <View style={[styles.foundationCardInfo, { gap: homeLayout.bodyGap }]}>
-                <Text
-                  style={[styles.cardTitle, { color: colors.accentPrimary }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                >
-                  {foundationCardEyebrow}
-                </Text>
-                <Text
-                  style={[styles.foundationCardTitle, { color: colors.primaryText }]}
-                  numberOfLines={homeLayout.foundationTitleLines}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.82}
-                >
-                  {`${t('gather.foundationLabel', { number: activeFoundation.number })}: ${activeFoundationTitle}`}
-                </Text>
-                <Text
-                  style={[styles.foundationCardSubtitle, { color: colors.secondaryText }]}
-                  numberOfLines={homeLayout.foundationSubtitleLines}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.82}
-                >
-                  {activeFoundationDescription}
-                </Text>
-                <View style={styles.foundationProgressRow}>
-                  <Text
-                    style={[styles.foundationCardProgress, { color: colors.accentPrimary }]}
-                    numberOfLines={1}
-                  >
-                    {t('gather.lessonsProgress', {
-                      completed: activeFoundationDone,
-                      total: activeFoundationTotal,
-                    })}
-                  </Text>
-                  <View
-                    style={[styles.foundationProgressTrack, { backgroundColor: colors.cardBorder }]}
-                  >
-                    <View
-                      style={[
-                        styles.foundationProgressFill,
-                        {
-                          width: `${
-                            Math.max(
-                              0,
-                              Math.min(
-                                1,
-                                activeFoundationTotal > 0
-                                  ? activeFoundationDone / activeFoundationTotal
-                                  : 0
-                              )
-                            ) * 100
-                          }%`,
-                          backgroundColor: colors.accentPrimary,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={26} color={colors.secondaryText} />
+          <View style={styles.headerRow}>
+            <View style={styles.headerCopy}>
+              <Text
+                style={[styles.greetingLine, { color: colors.accentTertiary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.76}
+              >
+                {greetingLabel}
+              </Text>
+              <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
             </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.notificationButton, { borderColor: colors.cardBorder }]}
+              activeOpacity={0.84}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.notificationSettings')}
+              onPress={() => navigation.navigate('More', { screen: 'Settings' })}
+            >
+              <Ionicons name="notifications-outline" size={23} color={colors.primaryText} />
+              <View style={[styles.notificationDot, { backgroundColor: colors.error }]} />
+            </TouchableOpacity>
+          </View>
 
-          {/* Verse of the Day Card */}
+          <Text
+            style={[
+              styles.beginTitle,
+              {
+                color: colors.primaryText,
+                fontSize: homeLayout.greetingFontSize + 8,
+                lineHeight: homeLayout.greetingLineHeight + 10,
+              },
+            ]}
+          >
+            {t('home.beginToday')}
+          </Text>
+
           {isLoadingVerse ? (
             <CardSkeleton
               lines={3}
@@ -803,61 +652,203 @@ export function HomeScreen() {
             </>
           )}
 
-          {continuePlans.length > 0 ? (
-            <View style={styles.myPlansSection}>
-              <View style={styles.myPlansHeader}>
-                <Text
-                  style={[
-                    styles.sectionHeading,
-                    {
-                      color: colors.primaryText,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                >
-                  {t('readingPlans.myPlans')}
+          <TouchableOpacity
+            style={[styles.sharePromptCard, { borderColor: colors.cardBorder }]}
+            activeOpacity={0.86}
+            onPress={handleShareVerseOfTheDay}
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.share')}
+          >
+            <Image source={verseBackgroundSource} style={styles.sharePromptImage} />
+            <View style={styles.sharePromptCopy}>
+              <Text
+                style={[styles.sharePromptTitle, { color: colors.primaryText }]}
+                numberOfLines={1}
+              >
+                {t('home.sharePrompt')}
+              </Text>
+              <Text
+                style={[styles.sharePromptMeta, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {heroReferenceLabel}
+              </Text>
+            </View>
+            {renderVerseShareButton()}
+          </TouchableOpacity>
+
+          <View style={styles.progressGrid}>
+            <TouchableOpacity
+              style={[styles.smallCard, { borderColor: colors.cardBorder }]}
+              activeOpacity={0.86}
+              onPress={handleContinueReading}
+              accessibilityRole="button"
+            >
+              <View style={styles.smallCardHeader}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                  {t('common.continue')}
                 </Text>
-                <TouchableOpacity
-                  activeOpacity={0.82}
-                  onPress={() => navigation.navigate('Plans', { screen: 'PlansHome' })}
-                  style={styles.viewAllButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('readingPlans.browsePlans')}
-                >
-                  <Text
-                    style={[styles.viewAllText, { color: colors.accentPrimary }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.78}
-                  >
-                    {t('tabs.plans')}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
-                </TouchableOpacity>
+                <Ionicons name="bookmark-outline" size={24} color={colors.accentPrimary} />
               </View>
+              <Text
+                style={[styles.smallCardTitle, { color: colors.primaryText }]}
+                numberOfLines={1}
+              >
+                {currentPassageLabel}
+              </Text>
+              <Text
+                style={[styles.smallCardMeta, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
+              </Text>
               <View
                 style={[
-                  styles.card,
-                  styles.myPlansCard,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                  },
+                  styles.linearProgressTrack,
+                  { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
                 ]}
               >
-                {continuePlans.map((item, index) => (
-                  <ContinuePlanCard
-                    key={item.plan.id}
-                    item={item}
-                    onPress={handleContinuePlan}
-                    showDivider={index > 0}
+                <View
+                  style={[
+                    styles.linearProgressFill,
+                    {
+                      width: `${readingProgressPercent}%`,
+                      backgroundColor: colors.accentPrimary,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.smallCardFooter}>
+                <Text style={[styles.smallCardMeta, { color: colors.secondaryText }]}>
+                  {t('home.minutesLeft', { count: hasReaderHistory ? 8 : 0 })}
+                </Text>
+                <Text style={[styles.smallCardMeta, { color: colors.secondaryText }]}>
+                  {t('home.percentComplete', { percent: readingProgressPercent })}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.smallCard, { borderColor: colors.cardBorder }]}
+              activeOpacity={0.86}
+              onPress={() =>
+                featuredPlan
+                  ? handleContinuePlan(featuredPlan.id)
+                  : navigation.navigate('Plans', { screen: 'PlansHome' })
+              }
+              accessibilityRole="button"
+            >
+              <View style={styles.smallCardHeader}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                  {t('home.plan')}
+                </Text>
+                <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
+              </View>
+              <Text
+                style={[styles.smallCardTitle, { color: colors.primaryText }]}
+                numberOfLines={1}
+              >
+                {featuredPlanTitle}
+              </Text>
+              <Text
+                style={[styles.smallCardMeta, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {featuredPlanDuration > 0
+                  ? t('readingPlans.dayOf', {
+                      current: featuredPlanDay,
+                      total: featuredPlanDuration,
+                    })
+                  : t('readingPlans.browsePlans')}
+              </Text>
+              <View style={styles.dotProgressRow}>
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.progressDot,
+                      {
+                        backgroundColor:
+                          index / 8 < featuredPlanFraction
+                            ? colors.accentPrimary
+                            : 'rgba(255, 255, 255, 0.22)',
+                      },
+                    ]}
                   />
                 ))}
               </View>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={[styles.gatherStrip, { borderColor: colors.cardBorder }]}
+            onPress={() =>
+              navigation.navigate('Learn', {
+                screen: 'FoundationDetail',
+                params: { foundationId: activeFoundation.id },
+              })
+            }
+            accessibilityRole="button"
+          >
+            <View style={styles.gatherStripHeader}>
+              <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
+                {t('tabs.gather')}
+              </Text>
+              <View style={styles.gatherHeaderCta}>
+                <Text style={[styles.gatherFoundationLabel, { color: colors.primaryText }]}>
+                  {t('gather.foundationLabel', { number: activeFoundation.number })}
+                </Text>
+                <Ionicons name="chevron-forward" size={22} color={colors.primaryText} />
+              </View>
             </View>
-          ) : null}
+            <View style={styles.gatherPath}>
+              {gatherFoundations.slice(0, 4).map((foundation, index, visibleFoundations) => {
+                const done = completedLessons[foundation.id]?.length ?? 0;
+                const isActive = foundation.id === activeFoundation.id;
+
+                return (
+                  <View key={foundation.id} style={styles.gatherNodeWrap}>
+                    <View style={styles.gatherNodeRow}>
+                      {index > 0 ? (
+                        <View
+                          style={[
+                            styles.gatherConnector,
+                            { backgroundColor: 'rgba(233, 205, 172, 0.46)' },
+                          ]}
+                        />
+                      ) : null}
+                      <GatherIconBadge
+                        artworkKey={foundation.iconImage}
+                        size={58}
+                        iconSize={34}
+                        style={[
+                          styles.gatherNode,
+                          {
+                            borderColor: isActive
+                              ? colors.accentTertiary
+                              : 'rgba(233, 205, 172, 0.46)',
+                            opacity: done > 0 || isActive ? 1 : 0.82,
+                          },
+                        ]}
+                      />
+                      {index < visibleFoundations.length - 1 ? (
+                        <View
+                          style={[
+                            styles.gatherConnector,
+                            { backgroundColor: 'rgba(233, 205, 172, 0.46)' },
+                          ]}
+                        />
+                      ) : null}
+                    </View>
+                    <Text style={[styles.gatherFieldLabel, { color: colors.secondaryText }]}>
+                      {t('home.fieldLabel', { number: index + 1 })}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -887,6 +878,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     minHeight: 0,
+    borderRadius: radius.lg,
   },
   verseCardImage: {
     borderRadius: radius.lg,
@@ -896,6 +888,54 @@ const styles = StyleSheet.create({
   },
   verseCardContent: {
     flex: 1,
+  },
+  heroEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  heroEyebrow: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  heroActionRow: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flexWrap: 'wrap',
+  },
+  primaryPill: {
+    minHeight: 56,
+    minWidth: 132,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  primaryPillText: {
+    ...typography.button,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  secondaryPill: {
+    minHeight: 56,
+    minWidth: 124,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  secondaryPillText: {
+    ...typography.button,
+    fontSize: 18,
+    lineHeight: 24,
   },
   verseShareRow: {
     marginTop: 'auto',
@@ -926,177 +966,206 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginBottom: 0,
   },
-  audioAction: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  audioActionText: {
-    ...typography.button,
-  },
   sharePreviewMount: {
     position: 'absolute',
     left: -10000,
     top: 0,
   },
-  statsRow: {
+  headerRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
   },
-  statItem: {
+  headerCopy: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'center',
+    gap: 2,
   },
-  statNumber: {
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: '700',
-    letterSpacing: -0.4,
-    marginBottom: spacing.xs,
-    fontVariant: ['tabular-nums'],
-    textAlign: 'center',
+  greetingLine: {
+    ...typography.bodyStrong,
+    fontSize: 20,
+    lineHeight: 27,
   },
-  statLabel: {
-    ...typography.micro,
-    textAlign: 'center',
+  dateLine: {
+    ...typography.body,
+    fontSize: 18,
+    lineHeight: 25,
   },
-  // Foundations continuation card
-  foundationCard: {
-    padding: 0,
-    overflow: 'hidden',
-  },
-  foundationCardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 0,
-  },
-  foundationIconWrap: {
+  notificationButton: {
+    width: 58,
+    height: 58,
     borderRadius: radius.pill,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
-  foundationCardInfo: {
-    flex: 1,
-    minWidth: 0,
+  notificationDot: {
+    position: 'absolute',
+    top: 15,
+    right: 14,
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
   },
-  foundationCardTitle: {
-    ...typography.bodyStrong,
-    fontSize: 18,
-    lineHeight: 24,
+  beginTitle: {
+    ...typography.readingHeading,
+    fontSize: 44,
+    lineHeight: 52,
   },
-  foundationCardSubtitle: {
-    ...typography.body,
-  },
-  foundationCardProgress: {
-    ...typography.label,
-    minWidth: 46,
-  },
-  foundationProgressRow: {
+  sharePromptCard: {
+    minHeight: 82,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
-  foundationProgressTrack: {
+  sharePromptImage: {
+    width: 64,
+    height: 54,
+    borderRadius: radius.md,
+    flexShrink: 0,
+  },
+  sharePromptCopy: {
     flex: 1,
-    height: 4,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+    minWidth: 0,
+    gap: 2,
   },
-  foundationProgressFill: {
-    height: 4,
-    borderRadius: radius.pill,
+  sharePromptTitle: {
+    ...typography.bodyStrong,
+    fontSize: 17,
+    lineHeight: 23,
   },
-  homeStack: {
-    flex: 1,
-    minHeight: 0,
+  sharePromptMeta: {
+    ...typography.body,
+    fontSize: 16,
+    lineHeight: 22,
   },
-  myPlansSection: {
+  progressGrid: {
+    flexDirection: 'row',
     gap: spacing.md,
   },
-  myPlansHeader: {
-    minHeight: 32,
+  smallCard: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 154,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  smallCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  smallCardEyebrow: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  smallCardTitle: {
+    ...typography.readingHeading,
+    fontSize: 24,
+    lineHeight: 30,
+  },
+  smallCardMeta: {
+    ...typography.body,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  linearProgressTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    marginTop: 'auto',
+  },
+  linearProgressFill: {
+    height: 8,
+    borderRadius: radius.pill,
+  },
+  smallCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  dotProgressRow: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  progressDot: {
+    width: 12,
+    height: 12,
+    borderRadius: radius.pill,
+  },
+  gatherStrip: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  gatherStripHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  viewAllButton: {
+  gatherTitle: {
+    ...typography.bodyStrong,
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  gatherHeaderCta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    minHeight: 32,
-    flexShrink: 0,
   },
-  viewAllText: {
-    ...typography.label,
+  gatherFoundationLabel: {
+    ...typography.bodyStrong,
+    fontSize: 17,
+    lineHeight: 23,
   },
-  myPlansCard: {
-    overflow: 'hidden',
-  },
-});
-
-const planResumeStyles = StyleSheet.create({
-  row: {
-    alignSelf: 'stretch',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  topRow: {
+  gatherPath: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  gatherNodeWrap: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     gap: spacing.sm,
   },
-  coverImage: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.md,
-    flexShrink: 0,
-  },
-  coverFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.md,
+  gatherNodeRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
-  textColumn: {
+  gatherConnector: {
     flex: 1,
-    minWidth: 0,
-    gap: 2,
+    height: 1,
   },
-  title: {
-    ...typography.bodyStrong,
-    fontSize: 16,
-    lineHeight: 21,
+  gatherNode: {
+    borderWidth: 1,
   },
-  meta: {
-    ...typography.body,
+  gatherFieldLabel: {
+    ...typography.micro,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    textAlign: 'center',
   },
-  cta: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    minHeight: 44,
-  },
-  ctaText: {
-    ...typography.label,
-    fontSize: 14,
-  },
-  progressTrack: {
-    height: 3,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 3,
-    borderRadius: radius.pill,
+  homeStack: {
+    flex: 1,
+    minHeight: 0,
   },
 });
