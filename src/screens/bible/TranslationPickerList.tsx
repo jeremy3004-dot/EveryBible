@@ -21,7 +21,10 @@ import {
   isAudioBookDownloaded,
   isTranslationAudioDownloaded,
 } from '../../services/audio/audioDownloads';
-import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
+import {
+  getFirstAvailableAudioBook,
+  isRemoteAudioAvailable,
+} from '../../services/audio/audioRemote';
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { BibleTranslation } from '../../types';
 import {
@@ -76,6 +79,8 @@ export function TranslationPickerList({
   const translations = useBibleStore((state) => state.translations);
   const downloadProgress = useBibleStore((state) => state.downloadProgress);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
+  const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
+  const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
   const setPreferredTranslationLanguage = useBibleStore(
     (state) => state.setPreferredTranslationLanguage
   );
@@ -253,6 +258,26 @@ export function TranslationPickerList({
     }
 
     if (selectionState.reason === 'audio-unavailable') {
+      // The translation has audio, just not for the book the reader is currently in
+      // (e.g. a New-Testament-only audio translation selected from an Old Testament
+      // chapter). Jump to the first book it does cover so it "just works" instead of
+      // showing a misleading download error.
+      const targetBook = getFirstAvailableAudioBook(nextTranslation.id);
+      if (
+        config.features.audioEnabled &&
+        targetBook &&
+        targetBook !== currentBook &&
+        isRemoteAudioAvailable(nextTranslation.id, targetBook)
+      ) {
+        setPreferredTranslationLanguage(normalizeTranslationLanguage(nextTranslation.language));
+        setCurrentBook(targetBook);
+        setCurrentChapter(1);
+        setCurrentTranslation(nextTranslation.id);
+        onRequestClose?.();
+        onTranslationActivated?.(nextTranslation);
+        return;
+      }
+
       Alert.alert(t('common.error'), t('bible.audioDownloadFailed'), [{ text: t('common.ok') }]);
       return;
     }

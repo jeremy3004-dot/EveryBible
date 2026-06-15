@@ -1,4 +1,4 @@
-import { newTestamentBooks } from '../../constants/books';
+import { bibleBooks, newTestamentBooks } from '../../constants/books';
 import { getTranslationById } from '../../constants/translations';
 import type {
   AudioProvider,
@@ -319,6 +319,28 @@ function isRemoteAudioBookSupported(
   }
 
   return true;
+}
+
+/**
+ * Returns the first book (in canonical order) that the translation has audio for,
+ * or null if it has no audio at all. Used so that selecting an audio-only
+ * translation (e.g. a New-Testament-only translation such as Ahirani) while
+ * reading an Old Testament chapter can jump the reader to the first chapter that
+ * actually has audio, instead of failing with a misleading download error.
+ */
+export function getFirstAvailableAudioBook(translationId: string): string | null {
+  const metadata = resolveRemoteAudioMetadata(translationId);
+  if (!metadata?.hasAudio || !metadata.audio) {
+    return null;
+  }
+
+  for (const book of bibleBooks) {
+    if (isRemoteAudioBookSupported(metadata, book.id)) {
+      return book.id;
+    }
+  }
+
+  return null;
 }
 
 export function hasConfiguredTranslationAudio(translationId: string): boolean {

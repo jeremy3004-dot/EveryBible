@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   clearRemoteAudioCache,
   fetchRemoteChapterAudio,
+  getFirstAvailableAudioBook,
   getRemoteAudioFileExtension,
   isRemoteAudioAvailable,
   setRemoteAudioMetadataResolver,
@@ -213,4 +214,61 @@ test('runtime provider audio resolves through the injected metadata resolver', a
     duration: 0,
   });
   assert.equal(isRemoteAudioAvailable('esv'), true);
+});
+
+test('getFirstAvailableAudioBook returns the first New Testament book for NT-only audio (so OT readers can still listen)', () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'ahrahirani') {
+      return null;
+    }
+
+    return {
+      id: 'ahrahirani',
+      hasAudio: true,
+      audio: {
+        strategy: 'stream-template',
+        coverage: 'new-testament',
+        books: {
+          MAT: { totalChapters: 28 },
+          MRK: { totalChapters: 16 },
+        },
+        baseUrl: 'audio/ahrahirani/2026.04.05-open-bible-audio-v2',
+        chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
+      },
+    };
+  });
+
+  assert.equal(getFirstAvailableAudioBook('ahrahirani'), 'MAT');
+});
+
+test('getFirstAvailableAudioBook returns Genesis for a full-bible translation with no per-book restriction', () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'fullbible') {
+      return null;
+    }
+
+    return {
+      id: 'fullbible',
+      hasAudio: true,
+      audio: {
+        strategy: 'stream-template',
+        baseUrl: 'audio/fullbible/v1',
+        chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
+      },
+    };
+  });
+
+  assert.equal(getFirstAvailableAudioBook('fullbible'), 'GEN');
+});
+
+test('getFirstAvailableAudioBook returns null when the translation has no audio', () => {
+  setRemoteAudioMetadataResolver((translationId) => {
+    if (translationId !== 'textonly') {
+      return null;
+    }
+
+    return { id: 'textonly', hasAudio: false };
+  });
+
+  assert.equal(getFirstAvailableAudioBook('textonly'), null);
 });
