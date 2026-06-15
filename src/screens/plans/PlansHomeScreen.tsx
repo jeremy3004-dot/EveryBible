@@ -879,16 +879,6 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
             clearButtonMode="while-editing"
           />
         </View>
-        <View
-          style={[
-            styles.filterButton,
-            { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.filter', { defaultValue: 'Filter' })}
-        >
-          <Ionicons name="options-outline" size={22} color={colors.secondaryText} />
-        </View>
       </View>
 
       {dailyRhythmPlans.length > 0 ? (
@@ -964,15 +954,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       minHeight: 48,
       paddingHorizontal: spacing.md,
     },
-    filterButton: {
-      width: 48,
-      height: 48,
-      borderWidth: 1,
-      borderRadius: radius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    searchInput: {
+searchInput: {
       ...typography.body,
       fontWeight: '500',
       flex: 1,
