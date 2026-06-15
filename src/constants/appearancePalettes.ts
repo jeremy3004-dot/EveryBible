@@ -19,9 +19,9 @@ export const APPEARANCE_PALETTES: AppearancePalette[] = [
   {
     id: 'ember',
     swatches: {
-      primary: '#A11D1B',
-      secondary: '#C8463C',
-      tertiary: '#8F5A46',
+      primary: '#C8463C',
+      secondary: '#E05A50',
+      tertiary: '#9BA3B0',
     },
   },
   {

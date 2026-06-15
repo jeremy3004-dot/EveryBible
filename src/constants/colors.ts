@@ -1,24 +1,24 @@
-// Global app palette aligned to the premium Bible reader theme
+// Global app palette — Midnight Crimson theme
 export const colors = {
   // Background colors
-  background: '#101113',
-  cardBackground: '#17191d',
-  cardBorder: '#262a31',
+  background: '#0C0D0F',
+  cardBackground: '#15171b',
+  cardBorder: '#232529',
 
   // Text colors
   primaryText: '#f5f2ea',
   secondaryText: '#a09b93',
 
-  // Accent colors — brand red matches the app icon (icon crimson #A11D1B)
-  accent: '#A11D1B',
-  accentGreen: '#A11D1B', // Legacy name — actual brand color matches the app icon
-  accentPrimary: '#A11D1B',
+  // Accent colors — Midnight Crimson: brighter crimson over near-black canvas
+  accent: '#C8463C',
+  accentGreen: '#C8463C', // Legacy name — actual brand color
+  accentPrimary: '#C8463C',
   accentSecondary: '#d0c2af',
   accentTertiary: '#868b95',
 
   // Named aliases kept for backward compatibility
-  tibetanMaroon: '#A11D1B',
-  tibetanMaroonLight: '#C8463C',
+  tibetanMaroon: '#C8463C',
+  tibetanMaroonLight: '#e05a50',
   saffronGold: '#d0c2af',
   saffronGoldLight: '#8c7558',
   skyBlue: '#868b95',
@@ -37,13 +37,13 @@ export const colors = {
   overlay: 'rgba(0, 0, 0, 0.6)',
 
   // Premium Bible experience palette
-  bibleBackground: '#101113',
-  bibleSurface: '#17191d',
+  bibleBackground: '#0C0D0F',
+  bibleSurface: '#15171b',
   bibleElevatedSurface: '#1d2026',
-  bibleDivider: '#2a2f37',
+  bibleDivider: '#232529',
   biblePrimaryText: '#f5f2ea',
   bibleSecondaryText: '#a09b93',
-  bibleAccent: '#A11D1B',
+  bibleAccent: '#C8463C',
   bibleControlBackground: '#f5f2ea',
 } as const;
 

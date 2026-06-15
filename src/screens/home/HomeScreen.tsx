@@ -735,10 +735,8 @@ export function HomeScreen() {
                         style={[
                           styles.gatherNode,
                           {
-                            borderColor: isActive
-                              ? colors.accentTertiary
-                              : 'rgba(233, 205, 172, 0.46)',
-                            opacity: done > 0 || isActive ? 1 : 0.82,
+                            borderColor: 'transparent',
+                            opacity: done > 0 || isActive ? 1 : 0.6,
                           },
                         ]}
                       />
@@ -751,9 +749,6 @@ export function HomeScreen() {
                         />
                       ) : null}
                     </View>
-                    <Text style={[styles.gatherFieldLabel, { color: colors.secondaryText }]}>
-                      {t('home.fieldLabel', { number: index + 1 })}
-                    </Text>
                   </View>
                 );
               })}

@@ -226,7 +226,7 @@ export const appearancePaletteOptions: AppearancePaletteOption[] = [
     id: 'ember',
     labelKey: 'settings.appearanceEmberTitle',
     descriptionKey: 'settings.appearanceEmberBody',
-    previewColors: ['#A11D1B', '#C8463C', '#8F5A46'],
+    previewColors: ['#C8463C', '#E05A50', '#9BA3B0'],
   },
   {
     id: 'sapphire',
