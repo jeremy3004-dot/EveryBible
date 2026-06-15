@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="squircle">
+      <rect width="1024" height="1024" rx="225" ry="225"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" rx="225" ry="225" fill="#000000"/>
+
+  <g clip-path="url(#squircle)">
+
+    <!-- Row 1: AC, +/-, %, ÷ -->
+    <rect x="50" y="50" width="219" height="172" rx="86" fill="#D4D4D2"/>
+    <text x="159" y="136" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="58" font-weight="500" fill="#1C1C1C">AC</text>
+
+    <rect x="285" y="50" width="219" height="172" rx="86" fill="#D4D4D2"/>
+    <text x="394" y="136" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="72" font-weight="400" fill="#1C1C1C">+/-</text>
+
+    <rect x="520" y="50" width="219" height="172" rx="86" fill="#D4D4D2"/>
+    <text x="629" y="136" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="72" font-weight="400" fill="#1C1C1C">%</text>
+
+    <rect x="755" y="50" width="219" height="172" rx="86" fill="#FF9F0A"/>
+    <text x="864" y="136" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="90" font-weight="300" fill="#FFFFFF">÷</text>
+
+    <!-- Row 2: 7, 8, 9, × -->
+    <rect x="50" y="238" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="159" y="324" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">7</text>
+
+    <rect x="285" y="238" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="394" y="324" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">8</text>
+
+    <rect x="520" y="238" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="629" y="324" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">9</text>
+
+    <rect x="755" y="238" width="219" height="172" rx="86" fill="#FF9F0A"/>
+    <text x="864" y="324" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="90" font-weight="300" fill="#FFFFFF">×</text>
+
+    <!-- Row 3: 4, 5, 6, − -->
+    <rect x="50" y="426" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="159" y="512" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">4</text>
+
+    <rect x="285" y="426" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="394" y="512" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">5</text>
+
+    <rect x="520" y="426" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="629" y="512" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">6</text>
+
+    <rect x="755" y="426" width="219" height="172" rx="86" fill="#FF9F0A"/>
+    <text x="864" y="512" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="90" font-weight="300" fill="#FFFFFF">&#x2212;</text>
+
+    <!-- Row 4: 1, 2, 3, + -->
+    <rect x="50" y="614" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="159" y="700" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">1</text>
+
+    <rect x="285" y="614" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="394" y="700" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">2</text>
+
+    <rect x="520" y="614" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="629" y="700" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">3</text>
+
+    <rect x="755" y="614" width="219" height="172" rx="86" fill="#FF9F0A"/>
+    <text x="864" y="700" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="90" font-weight="300" fill="#FFFFFF">+</text>
+
+    <!-- Row 5: 0 (wide), ·, = -->
+    <rect x="50" y="802" width="454" height="172" rx="86" fill="#333333"/>
+    <text x="159" y="888" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="76" font-weight="400" fill="#FFFFFF">0</text>
+
+    <rect x="520" y="802" width="219" height="172" rx="86" fill="#333333"/>
+    <text x="629" y="896" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="110" font-weight="700" fill="#FFFFFF">&#xB7;</text>
+
+    <rect x="755" y="802" width="219" height="172" rx="86" fill="#FF9F0A"/>
+    <text x="864" y="888" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-size="90" font-weight="300" fill="#FFFFFF">=</text>
+
+  </g>
+</svg>
