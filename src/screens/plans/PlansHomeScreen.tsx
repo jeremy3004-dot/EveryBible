@@ -1287,35 +1287,35 @@ export function PlansHomeScreen() {
 
   const tabStrip = (
     <View style={styles.tabSticky}>
-      <View style={styles.tabRow}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            onPress={() => setActiveTab(tab.key)}
-            style={[
-              styles.tabPill,
-              activeTab === tab.key
-                ? [
-                    styles.tabPillActive,
-                    { backgroundColor: colors.accentPrimary, borderColor: colors.accentPrimary },
-                  ]
-                : { borderColor: colors.cardBorder },
-            ]}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[
-                styles.tabLabel,
-                activeTab === tab.key
-                  ? [styles.tabLabelActive, { color: colors.onAccent }]
-                  : { color: colors.secondaryText },
-              ]}
-              numberOfLines={1}
+      <View style={[styles.tabRow, { borderBottomColor: colors.cardBorder }]}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={styles.tab}
+              activeOpacity={0.8}
             >
-              {t(tab.labelKey as Parameters<typeof t>[0])}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: isActive ? colors.primaryText : colors.tabInactive },
+                  isActive ? styles.tabLabelActive : null,
+                ]}
+                numberOfLines={1}
+              >
+                {t(tab.labelKey as Parameters<typeof t>[0])}
+              </Text>
+              <View
+                style={[
+                  styles.tabUnderline,
+                  { backgroundColor: isActive ? colors.accentPrimary : 'transparent' },
+                ]}
+              />
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -1399,43 +1399,28 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tabRow: {
       flexDirection: 'row',
-      flexGrow: 1,
       marginHorizontal: layout.screenPadding,
-      padding: 3,
-      gap: 0,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      borderRadius: 17,
-      backgroundColor: colors.cardBackground,
-      alignItems: 'center',
+      gap: spacing.xl,
+      borderBottomWidth: 1,
     },
-    tabPill: {
-      flex: 1,
-      paddingHorizontal: spacing.md,
-      minHeight: 44,
-      borderRadius: 13,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      backgroundColor: 'transparent',
+    tab: {
       alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tabPillActive: {
-      minHeight: 46,
-      borderRadius: 14,
     },
     tabLabel: {
       ...typography.label,
-      fontSize: 15,
-      lineHeight: 19,
+      fontSize: 16,
+      lineHeight: 21,
+      paddingBottom: spacing.sm,
     },
     tabLabelActive: {
       ...typography.bodyStrong,
       fontSize: 16,
-      lineHeight: 20,
-      textShadowColor: 'rgba(0, 0, 0, 0.28)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 2,
+      lineHeight: 21,
+    },
+    tabUnderline: {
+      height: 2,
+      alignSelf: 'stretch',
+      borderRadius: radius.pill,
     },
     loadingContainer: {
       minHeight: 240,
