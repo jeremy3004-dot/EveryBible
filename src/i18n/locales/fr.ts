@@ -176,7 +176,7 @@ export const fr = {
       "ZEC": "Zacharie",
       "MAL": "Malachie",
       "MAT": "Matthieu",
-      "MRK": "Marque",
+      "MRK": "Marc",
       "LUK": "Luc",
       "JHN": "Jean",
       "ACT": "Actes",
