@@ -403,22 +403,10 @@ export function TranslationPickerList({
       rows.push({ type: 'preference', id: 'preference' });
     }
 
-    if (sections.myTranslations.length > 0) {
-      rows.push({
-        type: 'section-header',
-        id: 'section-my-translations',
-        label: t('translations.myTranslations'),
-      });
-
-      sections.myTranslations.forEach((translation) => {
-        rows.push({
-          type: 'translation',
-          id: `my-${translation.id}`,
-          translation,
-        });
-      });
-    }
-
+    // Available (not-yet-downloaded) translations are shown first: opening this
+    // picker — especially after changing language — usually means the reader is
+    // looking for a NEW Bible, not the ones they already have. Their downloaded
+    // translations follow underneath.
     if (sections.availableTranslations.length > 0) {
       rows.push({
         type: 'section-header',
@@ -433,6 +421,22 @@ export function TranslationPickerList({
         rows.push({
           type: 'translation',
           id: `available-${translation.id}`,
+          translation,
+        });
+      });
+    }
+
+    if (sections.myTranslations.length > 0) {
+      rows.push({
+        type: 'section-header',
+        id: 'section-my-translations',
+        label: t('translations.myTranslations'),
+      });
+
+      sections.myTranslations.forEach((translation) => {
+        rows.push({
+          type: 'translation',
+          id: `my-${translation.id}`,
           translation,
         });
       });
