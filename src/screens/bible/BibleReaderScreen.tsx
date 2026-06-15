@@ -102,7 +102,9 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useFontSize } from '../../hooks/useFontSize';
+import { useShallow } from 'zustand/react/shallow';
 import { selectionHaptic } from '../../utils/haptics';
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
@@ -969,7 +971,7 @@ export function BibleReaderScreen() {
     (state) => state.setPreferredChapterLaunchMode
   );
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  const translations = useBibleStore((state) => state.translations);
+  const translations = useBibleStore(useShallow((state) => state.translations));
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
   const setAudioReturnTarget = useAudioStore((state) => state.setAudioReturnTarget);
@@ -978,7 +980,9 @@ export function BibleReaderScreen() {
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
   const addChapterToDefaultPlaylist = useLibraryStore((state) => state.addChapterToDefaultPlaylist);
   const listeningHistory = useLibraryStore((state) => state.history);
-  const isFavorite = useLibraryStore((state) => state.isFavorite(bookId, chapter));
+  const isFavorite = useLibraryStore((state) =>
+    state.favorites.some((f) => f.id === `${bookId}:${chapter}`)
+  );
   const activePlanProgress = useReadingPlansStore((state) =>
     activePlanId ? (state.progressByPlanId[activePlanId] ?? null) : null
   );
@@ -1004,8 +1008,6 @@ export function BibleReaderScreen() {
     currentTranslationId: activeAudioTranslationId,
     currentBookId: activeAudioBookId,
     currentChapter: activeAudioChapter,
-    currentPosition,
-    duration,
     playbackRate,
     repeatMode,
     sleepTimerRemaining,
@@ -1025,6 +1027,7 @@ export function BibleReaderScreen() {
     startSleepTimer,
     changeBackgroundMusicChoice,
   } = useAudioPlayer(currentTranslation);
+  const { currentPosition, duration } = useAudioPosition();
 
   const book = getBookById(bookId);
   const audioEnabled = getAudioAvailability({
@@ -1476,12 +1479,16 @@ export function BibleReaderScreen() {
   ) =>
     annotation.verse_start <= range.verse_end &&
     getAnnotationVerseEnd(annotation) >= range.verse_start;
-  const selectedVerseDecorationStyle = {
-    textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted',
-    textDecorationColor: colors.bibleAccent,
-  } as const;
-  const selectedVerseSet = new Set(selectedVerses);
+  const selectedVerseDecorationStyle = useMemo(
+    () =>
+      ({
+        textDecorationLine: 'underline',
+        textDecorationStyle: 'dotted',
+        textDecorationColor: colors.bibleAccent,
+      }) as const,
+    [colors.bibleAccent]
+  );
+  const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
   const selectedVerseAnnotations =
     selectedVerseRanges.length > 0
       ? annotations.filter(

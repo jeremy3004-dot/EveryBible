@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById, getTranslatedBookName } from '../../constants';
 import { useAudioPlayer } from '../../hooks';
+import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -28,14 +29,13 @@ export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     lastPlayedTranslationId,
     lastPlayedBookId,
     lastPlayedChapter,
     togglePlayPause,
     stop,
   } = useAudioPlayer(currentTranslation);
+  const { currentPosition, duration } = useAudioPosition();
 
   const displayTranslationId = currentTranslationId ?? lastPlayedTranslationId;
   const displayBookId = currentBookId ?? lastPlayedBookId;

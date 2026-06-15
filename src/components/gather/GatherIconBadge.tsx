@@ -4,8 +4,23 @@ import type { ComponentProps } from 'react';
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
-import { gatherArtworkXml } from '../../data/gatherArtwork';
 import { getGatherArtworkZoom } from '../../data/gatherArtworkSizing';
+
+// The artwork registry is ~750KB of inlined SVG path strings. With Metro inlineRequires
+// disabled, a static import materializes the entire string table into the JS heap as soon
+// as this module loads (≈ app startup, since HomeScreen imports this badge). Defer it with a
+// synchronous memoized require so the cost is only paid the first time a badge actually
+// renders artwork — and never on devices/screens that only show the Ionicons fallback.
+let cachedGatherArtworkXml: Record<string, string> | null = null;
+function getGatherArtworkXml(): Record<string, string> {
+  if (!cachedGatherArtworkXml) {
+    cachedGatherArtworkXml = require('../../data/gatherArtwork').gatherArtworkXml as Record<
+      string,
+      string
+    >;
+  }
+  return cachedGatherArtworkXml;
+}
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -30,7 +45,7 @@ export function GatherIconBadge({
 }: GatherIconBadgeProps) {
   const { colors } = useTheme();
   const resolvedColor = iconColor ?? colors.accentPrimary;
-  const artworkXml = artworkKey ? gatherArtworkXml[artworkKey] : undefined;
+  const artworkXml = artworkKey ? getGatherArtworkXml()[artworkKey] : undefined;
   const containerBackground = backgroundColor;
   const artworkZoom = getGatherArtworkZoom(artworkKey);
   const artworkSize = artworkKey ? Math.max(iconSize, Math.round(size * 0.9)) : iconSize;

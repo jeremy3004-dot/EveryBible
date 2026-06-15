@@ -10,6 +10,7 @@ import { normalizeVerseFormatting, serializeVerseFormatting } from './verseForma
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
+const searchIndexCache = new Map<string, boolean>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
 const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
@@ -86,6 +87,7 @@ export async function invalidateInstalledBibleDatabaseAtPath(localPath: string):
 
   await closeDatabase(cachedDatabase);
   installedDatabaseCache.delete(cacheKey);
+  searchIndexCache.delete(cacheKey);
 }
 
 async function closeDatabase(database?: SQLite.SQLiteDatabase | null): Promise<void> {
@@ -103,6 +105,7 @@ async function closeBundledDatabase(): Promise<void> {
 
   await closeDatabase(db);
   db = null;
+  searchIndexCache.delete(getSourceCacheKey(bundledBibleDatabaseSource));
 }
 
 async function openBundledDatabase(forceOverwrite = false): Promise<SQLite.SQLiteDatabase> {
@@ -113,7 +116,26 @@ async function openBundledDatabase(forceOverwrite = false): Promise<SQLite.SQLit
   });
   db = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS);
   await db.execAsync('PRAGMA journal_mode = WAL');
+  await db.execAsync('PRAGMA cache_size = -4096');
+  await db.execAsync('PRAGMA temp_store = MEMORY');
+  await ensurePerformanceIndexes(db);
   return db;
+}
+
+// Partial index so the `formatting IS NOT NULL` count in inspectOpenDatabase is an
+// index-only scan instead of a full table scan on every cold start. Created at runtime
+// (idempotent) so it does not require rebuilding the bundled DB asset / bumping the
+// schema-version gate constants.
+const FORMATTED_VERSES_INDEX_SQL =
+  'CREATE INDEX IF NOT EXISTS idx_verses_formatted ON verses(id) WHERE formatting IS NOT NULL';
+
+async function ensurePerformanceIndexes(database: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    await database.execAsync(FORMATTED_VERSES_INDEX_SQL);
+  } catch (error) {
+    // A missing index only costs a slower count; never let it block DB readiness.
+    console.warn('[Bible] Failed to ensure performance indexes:', error);
+  }
 }
 
 async function inspectOpenDatabase(database: SQLite.SQLiteDatabase): Promise<BibleDatabaseStatus> {
@@ -143,12 +165,22 @@ async function inspectOpenDatabase(database: SQLite.SQLiteDatabase): Promise<Bib
   };
 }
 
-async function hasSearchIndexTable(database: SQLite.SQLiteDatabase): Promise<boolean> {
+async function hasSearchIndexTable(
+  database: SQLite.SQLiteDatabase,
+  cacheKey: string
+): Promise<boolean> {
+  const cached = searchIndexCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const result = await database.getFirstAsync<{ present: number }>(
     "SELECT COUNT(*) as present FROM sqlite_master WHERE type = 'table' AND name = 'verses_fts'"
   );
 
-  return (result?.present ?? 0) > 0;
+  const hasIndex = (result?.present ?? 0) > 0;
+  searchIndexCache.set(cacheKey, hasIndex);
+  return hasIndex;
 }
 
 async function ensureBundledDatabaseReady(
@@ -210,6 +242,9 @@ export async function inspectBundledDatabaseStatus(
 
     if (!db && temporaryDb && ready) {
       await temporaryDb.execAsync('PRAGMA journal_mode = WAL');
+      await temporaryDb.execAsync('PRAGMA cache_size = -4096');
+      await temporaryDb.execAsync('PRAGMA temp_store = MEMORY');
+      await ensurePerformanceIndexes(temporaryDb);
       db = temporaryDb;
       temporaryDb = null;
     }
@@ -272,7 +307,6 @@ export async function getChapter(
   const database = await getDatabase(translationId);
   const results = await database.getAllAsync<{
     id: number;
-    translation_id: string;
     book_id: string;
     chapter: number;
     verse: number;
@@ -281,7 +315,7 @@ export async function getChapter(
     formatting: string | null;
   }>(
     `
-      SELECT *
+      SELECT id, book_id, chapter, verse, text, heading, formatting
       FROM verses
       WHERE translation_id = ? AND book_id = ? AND chapter = ?
       ORDER BY verse
@@ -305,6 +339,8 @@ export async function searchVerses(
   query: string,
   limit = 50
 ): Promise<Verse[]> {
+  const source = resolveBibleDatabaseSource(translationId);
+  const cacheKey = getSourceCacheKey(source);
   const database = await getDatabase(translationId);
   const ftsQuery = buildBibleSearchQuery(query.trim());
 
@@ -312,7 +348,7 @@ export async function searchVerses(
     return [];
   }
 
-  if (ftsQuery && !(await hasSearchIndexTable(database))) {
+  if (ftsQuery && !(await hasSearchIndexTable(database, cacheKey))) {
     throw new BibleSearchUnavailableError(translationId);
   }
 

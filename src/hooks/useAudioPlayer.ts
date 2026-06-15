@@ -649,8 +649,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         clearInterval(interpolationTimerRef.current);
         interpolationTimerRef.current = null;
       }
+      // Clean up telemetry timer when hook unmounts
+      stopAudioProgressTelemetryTimer();
     };
-  }, [handleStatusUpdate, handlePlaybackFinished, setError]);
+  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer]);
 
   useEffect(() => {
     if (status === 'playing') {
@@ -697,19 +699,24 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Sleep timer check and remaining time calculation
   useEffect(() => {
-    if (sleepTimerEndTime) {
-      if (status === 'playing') {
-        sleepTimerRef.current = setInterval(() => {
-          const now = Date.now();
-          setSleepTimerNow(now);
+    // Always clear any stale interval from a prior render before potentially
+    // starting a new one, so only one interval is ever active at a time.
+    if (sleepTimerRef.current) {
+      clearInterval(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
 
-          if (now >= sleepTimerEndTime) {
-            // Timer expired - stop playback
-            audioPlayer.pause();
-            clearSleepTimer();
-          }
-        }, 1000);
-      }
+    if (sleepTimerEndTime && status === 'playing') {
+      sleepTimerRef.current = setInterval(() => {
+        const now = Date.now();
+        setSleepTimerNow(now);
+
+        if (now >= sleepTimerEndTime) {
+          // Timer expired - stop playback
+          audioPlayer.pause();
+          clearSleepTimer();
+        }
+      }, 1000);
     }
 
     return () => {
