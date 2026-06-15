@@ -49,9 +49,6 @@ import {
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
-const HOME_HERO_SCRIPTURE_TEXT =
-  'The Lord is my shepherd;\nI shall not want.\n\nHe makes me lie down in green pastures. He leads me beside still waters.';
-const HOME_HERO_REFERENCE_LABEL = 'PSALM 23:1-2  |  ESV';
 
 function getFirstName(displayName: string | null | undefined): string | null {
   const trimmed = displayName?.trim();
@@ -360,14 +357,15 @@ export function HomeScreen() {
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
-  const heroScriptureText = HOME_HERO_SCRIPTURE_TEXT;
-  const heroReferenceLabel = HOME_HERO_REFERENCE_LABEL;
   const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
   const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
-  const verseCardImageOpacity = isDark ? 0.34 : 0.55;
-  const verseCardOverlayColors = isDark
-    ? (['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.72)'] as const)
-    : (['rgba(0, 0, 0, 0.18)', 'rgba(0, 0, 0, 0.70)'] as const);
+  // The verse card is always a photographic hero image, so we keep a dark scrim
+  // with light text in every theme. This avoids low-contrast "light on light"
+  // text in the light/parchment themes while matching the dark card treatment.
+  const verseCardImageOpacity = isDark ? 0.34 : 0.42;
+  const verseCardOverlayColors = ['rgba(12, 11, 9, 0.18)', 'rgba(12, 11, 9, 0.78)'] as const;
+  const verseCardTextColor = '#FDFAF5';
+  const verseCardEyebrowColor = 'rgba(253, 250, 245, 0.88)';
 
   const renderVerseShareButton = () => (
     <TouchableOpacity
@@ -461,10 +459,10 @@ export function HomeScreen() {
           <Ionicons
             name="partly-sunny-outline"
             size={Math.max(20, Math.round(22 * homeLayout.scale))}
-            color="rgba(255,255,255,0.80)"
+            color={verseCardEyebrowColor}
           />
           <Text
-            style={[styles.heroEyebrow, { color: 'rgba(255,255,255,0.80)' }]}
+            style={[styles.heroEyebrow, { color: verseCardEyebrowColor }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.78}
@@ -476,7 +474,7 @@ export function HomeScreen() {
           style={[
             styles.verseText,
             {
-              color: '#FFFFFF',
+              color: verseCardTextColor,
               fontSize: homeLayout.verseTextFontSize,
               lineHeight: homeLayout.verseTextLineHeight,
             },
@@ -485,13 +483,13 @@ export function HomeScreen() {
           adjustsFontSizeToFit
           minimumFontScale={0.66}
         >
-          {heroScriptureText}
+          {verseShareBodyText}
         </Text>
         <Text
           style={[
             styles.reference,
             {
-              color: 'rgba(255,255,255,0.70)',
+              color: verseCardEyebrowColor,
               fontSize: homeLayout.verseReferenceFontSize,
               lineHeight: homeLayout.verseReferenceLineHeight,
             },
@@ -500,7 +498,7 @@ export function HomeScreen() {
           adjustsFontSizeToFit
           minimumFontScale={0.82}
         >
-          {heroReferenceLabel}
+          {verseShareReferenceLabel}
         </Text>
         {showActions ? (
           <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
@@ -535,7 +533,7 @@ export function HomeScreen() {
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
               <Text
-                style={[styles.greetingLine, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}
+                style={[styles.greetingLine, { color: colors.accentTertiary }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.76}
@@ -556,7 +554,9 @@ export function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-
+          <Text style={[styles.beginTitle, { color: colors.primaryText }]}>
+            {t('home.beginToday')}
+          </Text>
 
           {isLoadingVerse ? (
             <CardSkeleton
@@ -587,13 +587,16 @@ export function HomeScreen() {
 
           <View style={styles.progressGrid}>
             <TouchableOpacity
-              style={[styles.smallCard, { borderColor: colors.cardBorder }]}
+              style={[
+                styles.smallCard,
+                { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+              ]}
               activeOpacity={0.86}
               onPress={handleContinueReading}
               accessibilityRole="button"
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
                   {t('common.continue')}
                 </Text>
                 <Ionicons name="bookmark-outline" size={24} color={colors.accentPrimary} />
@@ -613,7 +616,7 @@ export function HomeScreen() {
               <View
                 style={[
                   styles.linearProgressTrack,
-                  { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' },
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.cardBorder },
                 ]}
               >
                 <View
@@ -637,7 +640,10 @@ export function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.smallCard, { borderColor: colors.cardBorder }]}
+              style={[
+                styles.smallCard,
+                { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+              ]}
               activeOpacity={0.86}
               onPress={() =>
                 featuredPlan
@@ -647,7 +653,7 @@ export function HomeScreen() {
               accessibilityRole="button"
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
                   {t('home.plan')}
                 </Text>
                 <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
@@ -679,7 +685,9 @@ export function HomeScreen() {
                         backgroundColor:
                           index / 8 < featuredPlanFraction
                             ? colors.accentPrimary
-                            : 'rgba(255, 255, 255, 0.22)',
+                            : isDark
+                              ? 'rgba(255, 255, 255, 0.22)'
+                              : colors.cardBorder,
                       },
                     ]}
                   />
@@ -690,7 +698,10 @@ export function HomeScreen() {
 
           <TouchableOpacity
             activeOpacity={0.86}
-            style={[styles.gatherStrip, { borderColor: colors.cardBorder }]}
+            style={[
+              styles.gatherStrip,
+              { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+            ]}
             onPress={() =>
               navigation.navigate('Learn', {
                 screen: 'FoundationDetail',
@@ -700,7 +711,7 @@ export function HomeScreen() {
             accessibilityRole="button"
           >
             <View style={styles.gatherStripHeader}>
-              <Text style={[styles.gatherTitle, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
+              <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
                 {t('tabs.gather')}
               </Text>
               <View style={styles.gatherHeaderCta}>
@@ -890,7 +901,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   smallCardHeader: {
     flexDirection: 'row',
@@ -945,7 +955,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   gatherStripHeader: {
     flexDirection: 'row',

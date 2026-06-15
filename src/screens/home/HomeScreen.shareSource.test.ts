@@ -119,18 +119,52 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
   );
 });
 
-test('HomeScreen keeps light-theme verse artwork visible behind the text', () => {
+test('HomeScreen keeps light-theme verse artwork visible behind readable light text', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
+  // The verse card is a photographic hero image. It must keep a dark readability
+  // scrim with light text in every theme so the text never washes out
+  // "light on light" in the light/parchment themes.
   assert.match(
     source,
-    /const verseCardImageOpacity = isDark \? 0\.34 : 0\.48;/,
+    /const verseCardImageOpacity = isDark \? 0\.34 : 0\.42;/,
     'Light theme should keep the verse background image visible instead of fading it into a washed-out card'
   );
 
   assert.match(
     source,
-    /const verseCardOverlayColors = isDark[\s\S]*: \(\['rgba\(255, 255, 255, 0\.04\)', 'rgba\(12, 11, 9, 0\.18\)'\] as const\);/,
-    'Light theme should use only a minimal white veil plus a soft dark readability gradient'
+    /const verseCardOverlayColors = \['rgba\(12, 11, 9, 0\.18\)', 'rgba\(12, 11, 9, 0\.78\)'\] as const;/,
+    'The verse card should use a consistent dark readability gradient in every theme'
+  );
+
+  assert.match(
+    source,
+    /const verseCardTextColor = '#FDFAF5';/,
+    'Verse text should use a fixed light color so it reads over the dark scrim in every theme'
+  );
+});
+
+test('HomeScreen renders the rotating daily verse rather than a hardcoded passage', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  // Regression: the visible card previously rendered a hardcoded Psalm 23 hero
+  // constant, so the verse never changed day to day even though the daily
+  // reference rotates by day-of-year.
+  assert.equal(
+    source.includes('HOME_HERO_SCRIPTURE_TEXT'),
+    false,
+    'HomeScreen should not render a hardcoded verse-of-the-day passage'
+  );
+
+  assert.match(
+    source,
+    /\{verseShareBodyText\}/,
+    'The visible verse card should render the dynamic daily verse text'
+  );
+
+  assert.match(
+    source,
+    /\{verseShareReferenceLabel\}/,
+    'The visible verse card should render the dynamic daily verse reference'
   );
 });
