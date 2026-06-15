@@ -459,26 +459,6 @@ function MyPlansSection({
 
   return (
     <View style={styles.content}>
-      <View style={styles.statsPanel}>
-        <View style={styles.statItem}>
-          <View style={styles.statIcon}>
-            <Ionicons name="layers-outline" size={19} color={colors.accentPrimary} />
-          </View>
-          <Text style={styles.statText}>
-            {activePlans.length} {t('tabs.plans').toLowerCase()}
-          </Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <View style={styles.statIcon}>
-            <Ionicons name="calendar-outline" size={19} color={colors.accentPrimary} />
-          </View>
-          <Text style={styles.statText}>
-            {t('home.today')}: {dailyReadingPlans.length}
-          </Text>
-        </View>
-      </View>
-
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('readingPlans.dailyReadings')}</Text>
