@@ -2,7 +2,7 @@ import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { DailyTrendsPanel } from '@/components/DailyTrendsPanel';
 import { AnalyticsGlobe } from '@/components/AnalyticsGlobe';
 import { RefreshAnalyticsButton } from '@/components/RefreshAnalyticsButton';
-import { getAnalyticsOverview } from '@/lib/admin-data';
+import { ANALYTICS_WINDOW_DAYS, getAnalyticsOverview } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 
 export default async function AnalyticsPage() {
@@ -35,11 +35,11 @@ export default async function AnalyticsPage() {
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">
-          <span>Listening minutes (30d)</span>
+          <span>Listening minutes ({ANALYTICS_WINDOW_DAYS}d)</span>
           <strong>{analytics.listeningTotalMinutes}</strong>
         </article>
         <article className="metric-card">
-          <span>Reading minutes (30d)</span>
+          <span>Reading minutes ({ANALYTICS_WINDOW_DAYS}d)</span>
           <strong>{analytics.readingTotalMinutes}</strong>
         </article>
         <article className="metric-card">
@@ -47,7 +47,7 @@ export default async function AnalyticsPage() {
           <strong>{analytics.totalTrackedSessions}</strong>
         </article>
         <article className="metric-card">
-          <span>Download units (30d)</span>
+          <span>Download units ({ANALYTICS_WINDOW_DAYS}d)</span>
           <strong>{analytics.totalDownloadUnits}</strong>
         </article>
         <article className="metric-card">

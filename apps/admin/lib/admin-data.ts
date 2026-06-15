@@ -1111,13 +1111,18 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
   };
 }
 
+// Rolling window for the shared analytics overview. The dashboard labels derive
+// from this same constant so the copy can never drift from the actual query
+// window (e.g. a label reading "30d" while the query asks for a different span).
+export const ANALYTICS_WINDOW_DAYS = 180;
+
 export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
   const service = createAdminServiceClient();
   const since = new Date();
-  since.setDate(since.getDate() - 30);
+  since.setDate(since.getDate() - ANALYTICS_WINDOW_DAYS);
   const { data, error } = await service.rpc('get_admin_analytics_overview', {
     p_since: since.toISOString(),
-    p_total_days: 30,
+    p_total_days: ANALYTICS_WINDOW_DAYS,
   });
 
   if (error) {
