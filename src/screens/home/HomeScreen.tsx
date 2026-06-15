@@ -556,9 +556,7 @@ export function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.beginTitle, { color: colors.primaryText }]}>
-            {t('home.beginToday')}
-          </Text>
+
 
           {isLoadingVerse ? (
             <CardSkeleton
