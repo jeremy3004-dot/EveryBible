@@ -37,7 +37,11 @@ export const pa = {
     "goodMorning": "ਸ਼ੁਭ ਸਵੇਰ",
     "goodAfternoon": "ਨਮਸਕਾਰ",
     "goodEvening": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "ਦੋਸਤ",
     "welcome": "Every Bible ਵਿੱਚ ਸੁਆਗਤ ਹੈ",
+    "beginToday": "ਅੱਜ ਸ਼ੁਰੂ ਕਰੋ",
+    "todaysScripture": "ਅੱਜ ਦਾ ਧਰਮ-ਗ੍ਰੰਥ",
     "verseOfTheDay": "ਦਿਨ ਦੀ ਆਇਤ",
     "sectionOfTheDay": "ਦਿਨ ਦਾ ਭਾਗ",
     "sectionOfTheDayBody": "ਅੱਜ ਦੀ ਚੋਣ ਇਸ ਅਧਿਆਇ ਲਈ ਆਡੀਓ ਦੇ ਤੌਰ 'ਤੇ ਉਪਲਬਧ ਹੈ, ਭਾਵੇਂ ਕਿ ਲਿਖਤੀ ਟੈਕਸਟ ਅਜੇ ਤੱਕ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤਾ ਗਿਆ ਹੈ।",
@@ -45,6 +49,12 @@ export const pa = {
     "playSectionOfTheDay": "ਦਿਨ ਦਾ ਭਾਗ ਚਲਾਓ",
     "playVerseOfTheDay": "ਦਿਨ ਦੀ ਆਇਤ ਚਲਾਓ",
     "continueReading": "ਪੜ੍ਹਨਾ ਜਾਰੀ ਰੱਖੋ",
+    "sharePrompt": "ਰੋਸ਼ਨੀ ਸਾਂਝੀ ਕਰੋ। ਅੱਜ ਕਿਸੇ ਨੂੰ ਉਤਸ਼ਾਹਿਤ ਕਰੋ।",
+    "plan": "ਯੋਜਨਾ",
+    "minutesLeft": "{{count}} ਮਿੰਟ ਬਾਕੀ",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "ਖੇਤਰ {{number}}",
+    "notificationSettings": "ਸੂਚਨਾ ਸੈਟਿੰਗਾਂ",
     "chaptersRead": "ਅਧਿਆਏ ਪੜ੍ਹੇ",
     "today": "ਅੱਜ",
     "week": "ਹਫ਼ਤਾ",
@@ -266,6 +276,7 @@ export const pa = {
   "settings": {
     "title": "ਸੈਟਿੰਗਾਂ",
     "reading": "ਪੜ੍ਹਨਾ",
+    "hidePlayButtonFromReadingTab": "ਰੀਡਿੰਗ ਟੈਬ ਤੋਂ ਪਲੇ ਬਟਨ ਲੁਕਾਓ",
     "language": "ਇੰਟਰਫੇਸ ਭਾਸ਼ਾ",
     "nationAndLanguage": "ਰਾਸ਼ਟਰ ਅਤੇ ਬਾਈਬਲ ਭਾਸ਼ਾ",
     "fontSize": "ਫੌਂਟ ਦਾ ਆਕਾਰ",
@@ -568,6 +579,8 @@ export const pa = {
   "readingPlans": {
     "title": "ਰੀਡਿੰਗ ਪਲਾਨ",
     "browsePlans": "ਯੋਜਨਾਵਾਂ ਨੂੰ ਬ੍ਰਾਊਜ਼ ਕਰੋ",
+    "dailyRhythms": "ਰੋਜ਼ਾਨਾ ਤਾਲ",
+    "dailyReadings": "ਰੋਜ਼ਾਨਾ ਪਾਠ",
     "myPlans": "ਮੇਰੀਆਂ ਯੋਜਨਾਵਾਂ",
     "startPlan": "ਯੋਜਨਾ ਸ਼ੁਰੂ ਕਰੋ",
     "enrolled": "ਦਰਜ ਕੀਤਾ ਗਿਆ",
@@ -619,6 +632,10 @@ export const pa = {
     "proverbs31": {
       "title": "31 ਦਿਨਾਂ ਵਿੱਚ ਕਹਾਉਤਾਂ",
       "description": "ਬੁੱਧੀ ਦੇ ਇੱਕ ਮਹੀਨੇ ਲਈ ਹਰ ਰੋਜ਼ ਕਹਾਉਤਾਂ ਦਾ ਇੱਕ ਅਧਿਆਇ।"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "ਹਰ ਹਫ਼ਤੇ ਦੁਹਰਾਉਂਦੇ ਹੋਏ, ਹਰ ਹਫ਼ਤੇ ਦੇ ਦਿਨ ਲਈ ਨਿਯੁਕਤ ਸਵੇਰ ਅਤੇ ਸ਼ਾਮ ਦੇ kathismata ਪੜ੍ਹੋ।"
     },
     "chronological": {
       "title": "ਕਾਲਕ੍ਰਮਿਕ ਬਾਈਬਲ",

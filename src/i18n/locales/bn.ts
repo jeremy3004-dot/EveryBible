@@ -37,7 +37,11 @@ export const bn = {
     "goodMorning": "শুভ সকাল",
     "goodAfternoon": "শুভ বিকাল",
     "goodEvening": "শুভ সন্ধ্যা",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "বন্ধু",
     "welcome": "Every Bible এ স্বাগতম",
+    "beginToday": "আজই শুরু করুন",
+    "todaysScripture": "আজকের ধর্মগ্রন্থ",
     "verseOfTheDay": "দিনের আয়াত",
     "sectionOfTheDay": "দিনের বিভাগ",
     "sectionOfTheDayBody": "আজকের নির্বাচন এই অধ্যায়ের জন্য অডিও হিসাবে উপলব্ধ, এমনকি যেখানে লিখিত পাঠ্য এখনও যোগ করা হয়নি।",
@@ -45,6 +49,12 @@ export const bn = {
     "playSectionOfTheDay": "দিনের বিভাগ খেলুন",
     "playVerseOfTheDay": "দিনের শ্লোক খেলুন",
     "continueReading": "পড়া চালিয়ে যান",
+    "sharePrompt": "আলো ভাগ করুন। আজ কাউকে উৎসাহিত করুন।",
+    "plan": "পরিকল্পনা",
+    "minutesLeft": "{{count}} মিনিট বাকি",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "ক্ষেত্র {{number}}",
+    "notificationSettings": "বিজ্ঞপ্তি সেটিংস",
     "chaptersRead": "অধ্যায় পঠিত",
     "today": "আজ",
     "week": "সপ্তাহ",
@@ -266,6 +276,7 @@ export const bn = {
   "settings": {
     "title": "সেটিংস",
     "reading": "পড়া",
+    "hidePlayButtonFromReadingTab": "পড়ার ট্যাব থেকে প্লে বোতাম লুকান",
     "language": "ইন্টারফেস ভাষা",
     "nationAndLanguage": "জাতি ও বাইবেলের ভাষা",
     "fontSize": "ফন্ট সাইজ",
@@ -568,6 +579,8 @@ export const bn = {
   "readingPlans": {
     "title": "পড়ার পরিকল্পনা",
     "browsePlans": "পরিকল্পনা ব্রাউজ করুন",
+    "dailyRhythms": "দৈনিক ছন্দ",
+    "dailyReadings": "দৈনিক পাঠ",
     "myPlans": "আমার পরিকল্পনা",
     "startPlan": "পরিকল্পনা শুরু করুন",
     "enrolled": "নথিভুক্ত",
@@ -619,6 +632,10 @@ export const bn = {
     "proverbs31": {
       "title": "31 দিনের মধ্যে প্রবাদ",
       "description": "জ্ঞানের এক মাসের জন্য প্রতিদিন হিতোপদেশের একটি অধ্যায়।"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "প্রতি সপ্তাহের জন্য নির্ধারিত সকাল ও সন্ধ্যার Kathismata পড়ুন, যা প্রতি সপ্তাহে পুনরাবৃত্তি হয়।"
     },
     "chronological": {
       "title": "কালানুক্রমিক বাইবেল",

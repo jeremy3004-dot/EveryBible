@@ -37,7 +37,11 @@ export const ko = {
     "goodMorning": "좋은 아침이에요",
     "goodAfternoon": "좋은 오후에요",
     "goodEvening": "좋은 저녁이에요",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "친구",
     "welcome": "Every Bible에 오신 것을 환영합니다",
+    "beginToday": "오늘 시작하기",
+    "todaysScripture": "오늘의 성경",
     "verseOfTheDay": "오늘의 말씀",
     "sectionOfTheDay": "오늘의 섹션",
     "sectionOfTheDayBody": "오늘의 선택은 아직 서면 텍스트가 추가되지 않은 경우에도 이 장의 오디오로 제공됩니다.",
@@ -45,6 +49,12 @@ export const ko = {
     "playSectionOfTheDay": "오늘의 플레이 섹션",
     "playVerseOfTheDay": "오늘의 말씀을 재생하세요",
     "continueReading": "계속 읽기",
+    "sharePrompt": "빛을 나누세요. 오늘 누군가를 격려하세요.",
+    "plan": "계획",
+    "minutesLeft": "{{count}}분 남음",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "필드 {{number}}",
+    "notificationSettings": "알림 설정",
     "chaptersRead": "읽은 장",
     "today": "오늘",
     "week": "주",
@@ -266,6 +276,7 @@ export const ko = {
   "settings": {
     "title": "설정",
     "reading": "독서",
+    "hidePlayButtonFromReadingTab": "읽기 탭에서 재생 버튼 숨기기",
     "language": "인터페이스 언어",
     "nationAndLanguage": "국가 및 성경 언어",
     "fontSize": "글꼴 크기",
@@ -568,6 +579,8 @@ export const ko = {
   "readingPlans": {
     "title": "독서 계획",
     "browsePlans": "요금제 찾아보기",
+    "dailyRhythms": "매일의 리듬",
+    "dailyReadings": "일일 독서",
     "myPlans": "내 계획",
     "startPlan": "계획 시작",
     "enrolled": "등록됨",
@@ -619,6 +632,10 @@ export const ko = {
     "proverbs31": {
       "title": "31일간의 잠언",
       "description": "한 달 동안 매일 잠언 한 장씩 지혜를 얻으세요."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "매주 반복되는 평일 아침과 저녁의 지정된 Kathismata를 읽으세요."
     },
     "chronological": {
       "title": "연대순 성경",

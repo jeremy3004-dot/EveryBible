@@ -37,7 +37,11 @@ export const te = {
     "goodMorning": "శుభోదయం",
     "goodAfternoon": "శుభ మధ్యాహ్నం",
     "goodEvening": "శుభ సాయంత్రం",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "స్నేహితుడు",
     "welcome": "Every Bibleకి స్వాగతం",
+    "beginToday": "ఈరోజు ప్రారంభించండి",
+    "todaysScripture": "నేటి లేఖనం",
     "verseOfTheDay": "రోజు పద్యం",
     "sectionOfTheDay": "రోజు విభాగం",
     "sectionOfTheDayBody": "వ్రాతపూర్వక వచనం ఇంకా జోడించబడనప్పటికీ, నేటి ఎంపిక ఈ అధ్యాయం కోసం ఆడియోగా అందుబాటులో ఉంది.",
@@ -45,6 +49,12 @@ export const te = {
     "playSectionOfTheDay": "రోజు విభాగాన్ని ప్లే చేయండి",
     "playVerseOfTheDay": "పద్యాన్ని ప్లే చేయండి",
     "continueReading": "చదవడం కొనసాగించు",
+    "sharePrompt": "వెలుగును పంచుకోండి. ఈరోజు ఎవరినైనా ప్రోత్సహించండి.",
+    "plan": "ప్రణాళిక",
+    "minutesLeft": "{{count}} నిమిషాలు మిగిలి ఉన్నాయి",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "ఫీల్డ్ {{number}}",
+    "notificationSettings": "నోటిఫికేషన్ సెట్టింగ్‌లు",
     "chaptersRead": "అధ్యాయాలు చదవండి",
     "today": "ఈరోజు",
     "week": "వారం",
@@ -266,6 +276,7 @@ export const te = {
   "settings": {
     "title": "సెట్టింగ్‌లు",
     "reading": "చదవడం",
+    "hidePlayButtonFromReadingTab": "రీడింగ్ ట్యాబ్ నుండి ప్లే బటన్‌ను దాచండి",
     "language": "ఇంటర్ఫేస్ భాష",
     "nationAndLanguage": "దేశం & బైబిల్ భాష",
     "fontSize": "ఫాంట్ పరిమాణం",
@@ -568,6 +579,8 @@ export const te = {
   "readingPlans": {
     "title": "పఠన ప్రణాళికలు",
     "browsePlans": "ప్రణాళికలను బ్రౌజ్ చేయండి",
+    "dailyRhythms": "రోజువారీ లయలు",
+    "dailyReadings": "రోజువారీ పాఠాలు",
     "myPlans": "నా ప్రణాళికలు",
     "startPlan": "ప్రణాళికను ప్రారంభించండి",
     "enrolled": "నమోదు చేసుకున్నారు",
@@ -619,6 +632,10 @@ export const te = {
     "proverbs31": {
       "title": "31 రోజుల్లో సామెతలు",
       "description": "జ్ఞానం యొక్క నెల కోసం ప్రతి రోజు సామెతల యొక్క ఒక అధ్యాయం."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "ప్రతి వారం పునరావృతమయ్యే ప్రతి వారం రోజుకు నియమించబడిన ఉదయం మరియు సాయంత్రం Kathismata చదవండి."
     },
     "chronological": {
       "title": "కాలక్రమానుసారం బైబిల్",

@@ -37,7 +37,11 @@ export const tr = {
     "goodMorning": "Günaydın",
     "goodAfternoon": "Tünaydın",
     "goodEvening": "İyi akşamlar",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "arkadaş",
     "welcome": "Every Bible'e hoş geldiniz",
+    "beginToday": "Bugün başla",
+    "todaysScripture": "Bugünün Kutsal Yazısı",
     "verseOfTheDay": "Günün Ayeti",
     "sectionOfTheDay": "Günün Bölümü",
     "sectionOfTheDayBody": "Bugünün seçkisi, yazılı metin henüz eklenmemiş olsa bile, bu bölüm için sesli olarak mevcuttur.",
@@ -45,6 +49,12 @@ export const tr = {
     "playSectionOfTheDay": "Günün Oyun Bölümü",
     "playVerseOfTheDay": "Günün Ayeti oyna",
     "continueReading": "Okumaya Devam Et",
+    "sharePrompt": "Işık paylaş. Bugün birini teşvik et.",
+    "plan": "Plan",
+    "minutesLeft": "{{count}} dk kaldı",
+    "percentComplete": "%{{percent}}",
+    "fieldLabel": "Alan {{number}}",
+    "notificationSettings": "Bildirim ayarları",
     "chaptersRead": "Okunan Bölümler",
     "today": "Bugün",
     "week": "Hafta",
@@ -266,6 +276,7 @@ export const tr = {
   "settings": {
     "title": "Ayarlar",
     "reading": "Okuma",
+    "hidePlayButtonFromReadingTab": "Okuma sekmesinden oynat düğmesini gizle",
     "language": "Arayüz dili",
     "nationAndLanguage": "Ulus ve İncil dili",
     "fontSize": "Yazı Tipi Boyutu",
@@ -568,6 +579,8 @@ export const tr = {
   "readingPlans": {
     "title": "Okuma Planları",
     "browsePlans": "Planlara Göz Atın",
+    "dailyRhythms": "Günlük Ritimler",
+    "dailyReadings": "Günlük Okumalar",
     "myPlans": "Planlarım",
     "startPlan": "Planı Başlat",
     "enrolled": "Kayıtlı",
@@ -619,6 +632,10 @@ export const tr = {
     "proverbs31": {
       "title": "31 Günde Atasözleri",
       "description": "Bir bilgelik ayı boyunca her gün Atasözleri'nden bir bölüm."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Her hafta tekrarlayarak, her hafta içi için belirlenen sabah ve akşam kathismata'larını okuyun."
     },
     "chronological": {
       "title": "Kronolojik İncil",

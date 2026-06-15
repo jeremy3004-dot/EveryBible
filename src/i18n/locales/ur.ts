@@ -37,7 +37,11 @@ export const ur = {
     "goodMorning": "صبح بخیر",
     "goodAfternoon": "گڈ دوپہر",
     "goodEvening": "شب بخیر",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "دوست",
     "welcome": "Every Bible میں خوش آمدید",
+    "beginToday": "آج شروع کریں",
+    "todaysScripture": "آج کا کلام",
     "verseOfTheDay": "دن کی آیت",
     "sectionOfTheDay": "دن کا سیکشن",
     "sectionOfTheDayBody": "آج کا انتخاب اس باب کے لیے آڈیو کے طور پر دستیاب ہے، یہاں تک کہ جہاں تحریری متن ابھی تک شامل نہیں کیا گیا ہے۔",
@@ -45,6 +49,12 @@ export const ur = {
     "playSectionOfTheDay": "دن کا سیکشن کھیلیں",
     "playVerseOfTheDay": "دن کی آیت کھیلیں",
     "continueReading": "پڑھنا جاری رکھیں",
+    "sharePrompt": "روشنی بانٹیں۔ آج کسی کی حوصلہ افزائی کریں۔",
+    "plan": "منصوبہ",
+    "minutesLeft": "{{count}} منٹ باقی",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "فیلڈ {{number}}",
+    "notificationSettings": "اطلاع کی ترتیبات",
     "chaptersRead": "ابواب پڑھیں",
     "today": "آج",
     "week": "ہفتہ",
@@ -266,6 +276,7 @@ export const ur = {
   "settings": {
     "title": "ترتیبات",
     "reading": "پڑھنا",
+    "hidePlayButtonFromReadingTab": "پڑھنے والے ٹیب سے پلے بٹن چھپائیں",
     "language": "انٹرفیس کی زبان",
     "nationAndLanguage": "قوم اور بائبل کی زبان",
     "fontSize": "فونٹ کا سائز",
@@ -568,6 +579,8 @@ export const ur = {
   "readingPlans": {
     "title": "پڑھنے کے منصوبے",
     "browsePlans": "منصوبوں کو براؤز کریں۔",
+    "dailyRhythms": "روزانہ کے معمولات",
+    "dailyReadings": "روزانہ تلاوت",
     "myPlans": "میرے منصوبے",
     "startPlan": "منصوبہ شروع کریں۔",
     "enrolled": "اندراج",
@@ -619,6 +632,10 @@ export const ur = {
     "proverbs31": {
       "title": "31 دنوں میں کہاوتیں۔",
       "description": "حکمت کے مہینے کے لیے ہر روز امثال کا ایک باب۔"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "ہر ہفتے کے دن کے لیے مقرر کردہ صبح اور شام کے Kathismata پڑھیں، ہر ہفتے دہراتے ہوئے۔"
     },
     "chronological": {
       "title": "تاریخی بائبل",

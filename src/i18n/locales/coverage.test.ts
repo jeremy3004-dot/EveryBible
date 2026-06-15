@@ -51,6 +51,13 @@ const ALLOWED_ENGLISH_VALUES = new Set([
   'settings.translatorAccessEnabledBody',
   'settings.translatorAccessSummaryOn',
   'settings.translatorAccessSummaryOff',
+  // Pure template tokens — nothing to translate
+  'home.greetingWithName',
+  'home.percentComplete',
+  // Orthodox liturgical proper noun — intentionally kept as-is in all locales
+  'readingPlans.kathisma.title',
+  // Cross-lingual cognate: "Plan" is the correct spelling in Spanish, French, German, etc.
+  'home.plan',
 ]);
 
 const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, string]> =>

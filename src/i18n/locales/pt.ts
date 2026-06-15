@@ -37,7 +37,11 @@ export const pt = {
     "goodMorning": "Bom dia",
     "goodAfternoon": "Boa tarde",
     "goodEvening": "Boa noite",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "amigo",
     "welcome": "Bem-vindo ao Every Bible",
+    "beginToday": "Comece hoje",
+    "todaysScripture": "Escritura de hoje",
     "verseOfTheDay": "Versículo do dia",
     "sectionOfTheDay": "Seção do dia",
     "sectionOfTheDayBody": "A seleção de hoje está disponível como áudio para este capítulo, mesmo quando o texto escrito ainda não foi adicionado.",
@@ -45,6 +49,12 @@ export const pt = {
     "playSectionOfTheDay": "Seção de jogo do dia",
     "playVerseOfTheDay": "Reproduzir o versículo do dia",
     "continueReading": "Continuar lendo",
+    "sharePrompt": "Compartilhe luz. Encoraje alguém hoje.",
+    "plan": "Plano",
+    "minutesLeft": "{{count}} min restantes",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Campo {{number}}",
+    "notificationSettings": "Configurações de notificação",
     "chaptersRead": "Capítulos lidos",
     "today": "Hoje",
     "week": "Semana",
@@ -266,6 +276,7 @@ export const pt = {
   "settings": {
     "title": "Configurações",
     "reading": "Leitura",
+    "hidePlayButtonFromReadingTab": "Ocultar botão de reprodução da aba de leitura",
     "language": "Idioma da interface",
     "nationAndLanguage": "Nação e linguagem bíblica",
     "fontSize": "Tamanho da fonte",
@@ -568,6 +579,8 @@ export const pt = {
   "readingPlans": {
     "title": "Planos de leitura",
     "browsePlans": "Navegar pelos planos",
+    "dailyRhythms": "Ritmos Diários",
+    "dailyReadings": "Leituras Diárias",
     "myPlans": "Meus planos",
     "startPlan": "Iniciar plano",
     "enrolled": "Inscrito",
@@ -619,6 +632,10 @@ export const pt = {
     "proverbs31": {
       "title": "Provérbios em 31 dias",
       "description": "Um capítulo de Provérbios por dia durante um mês de sabedoria."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Leia os kathismata matinais e vespertinos designados para cada dia da semana, repetindo a cada semana."
     },
     "chronological": {
       "title": "Bíblia cronológica",

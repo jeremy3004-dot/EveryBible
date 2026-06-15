@@ -37,7 +37,11 @@ export const id = {
     "goodMorning": "Selamat pagi",
     "goodAfternoon": "Selamat siang",
     "goodEvening": "Selamat malam",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "teman",
     "welcome": "Selamat datang di Every Bible",
+    "beginToday": "Mulai hari ini",
+    "todaysScripture": "Bacaan Hari Ini",
     "verseOfTheDay": "Ayat Hari Ini",
     "sectionOfTheDay": "Bagian Hari Ini",
     "sectionOfTheDayBody": "Pilihan hari ini tersedia sebagai audio untuk bab ini, meskipun teks tertulis belum ditambahkan.",
@@ -45,6 +49,12 @@ export const id = {
     "playSectionOfTheDay": "Mainkan Bagian Hari Ini",
     "playVerseOfTheDay": "Mainkan Ayat Hari Ini",
     "continueReading": "Lanjutkan Membaca",
+    "sharePrompt": "Bagikan terang. Semangati seseorang hari ini.",
+    "plan": "Rencana",
+    "minutesLeft": "Sisa {{count}} menit",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Bidang {{number}}",
+    "notificationSettings": "Pengaturan notifikasi",
     "chaptersRead": "Bab Baca",
     "today": "Hari ini",
     "week": "Pekan",
@@ -266,6 +276,7 @@ export const id = {
   "settings": {
     "title": "Pengaturan",
     "reading": "Membaca",
+    "hidePlayButtonFromReadingTab": "Sembunyikan tombol putar dari tab bacaan",
     "language": "Bahasa antarmuka",
     "nationAndLanguage": "Bahasa Bangsa & Alkitab",
     "fontSize": "Ukuran Huruf",
@@ -568,6 +579,8 @@ export const id = {
   "readingPlans": {
     "title": "Rencana Bacaan",
     "browsePlans": "Telusuri Paket",
+    "dailyRhythms": "Ritme Harian",
+    "dailyReadings": "Bacaan Harian",
     "myPlans": "Rencanaku",
     "startPlan": "Mulai Rencana",
     "enrolled": "Terdaftar",
@@ -619,6 +632,10 @@ export const id = {
     "proverbs31": {
       "title": "Amsal dalam 31 Hari",
       "description": "Satu pasal Amsal setiap hari selama satu bulan penuh hikmah."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Baca kathismata pagi dan malam yang ditentukan untuk setiap hari kerja, berulang setiap minggu."
     },
     "chronological": {
       "title": "Alkitab Kronologis",

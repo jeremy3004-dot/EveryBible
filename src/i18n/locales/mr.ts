@@ -37,7 +37,11 @@ export const mr = {
     "goodMorning": "शुभ सकाळ",
     "goodAfternoon": "शुभ दुपार",
     "goodEvening": "शुभ संध्याकाळ",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "मित्र",
     "welcome": "Every Bible मध्ये आपले स्वागत आहे",
+    "beginToday": "आजपासून सुरुवात करा",
+    "todaysScripture": "आजचे शास्त्रवचन",
     "verseOfTheDay": "दिवसाचा श्लोक",
     "sectionOfTheDay": "दिवसाचा विभाग",
     "sectionOfTheDayBody": "आजची निवड या प्रकरणासाठी ऑडिओ म्हणून उपलब्ध आहे, जरी लिखित मजकूर अद्याप जोडला गेला नाही.",
@@ -45,6 +49,12 @@ export const mr = {
     "playSectionOfTheDay": "दिवसाचा विभाग खेळा",
     "playVerseOfTheDay": "दिवसाचा श्लोक प्ले करा",
     "continueReading": "वाचन सुरू ठेवा",
+    "sharePrompt": "प्रकाश वाटा. आज कोणालातरी प्रोत्साहन द्या.",
+    "plan": "योजना",
+    "minutesLeft": "{{count}} मिनिटे बाकी",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "फील्ड {{number}}",
+    "notificationSettings": "सूचना सेटिंग्ज",
     "chaptersRead": "अध्याय वाचले",
     "today": "आज",
     "week": "आठवडा",
@@ -266,6 +276,7 @@ export const mr = {
   "settings": {
     "title": "सेटिंग्ज",
     "reading": "वाचन",
+    "hidePlayButtonFromReadingTab": "वाचन टॅबमधून प्ले बटण लपवा",
     "language": "इंटरफेस भाषा",
     "nationAndLanguage": "राष्ट्र आणि बायबल भाषा",
     "fontSize": "फॉन्ट आकार",
@@ -568,6 +579,8 @@ export const mr = {
   "readingPlans": {
     "title": "वाचन योजना",
     "browsePlans": "योजना ब्राउझ करा",
+    "dailyRhythms": "दैनिक ताल",
+    "dailyReadings": "दैनंदिन वाचन",
     "myPlans": "माझ्या योजना",
     "startPlan": "योजना सुरू करा",
     "enrolled": "नावनोंदणी केली",
@@ -619,6 +632,10 @@ export const mr = {
     "proverbs31": {
       "title": "31 दिवसांत नीतिसूत्रे",
       "description": "शहाणपणाच्या महिन्यासाठी दररोज नीतिसूत्रेचा एक अध्याय."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "प्रत्येक आठवड्यात सकाळी आणि संध्याकाळी नियुक्त केलेले Kathismata वाचा, दर आठवड्याला पुनरावृत्ती करा."
     },
     "chronological": {
       "title": "कालक्रमानुसार बायबल",

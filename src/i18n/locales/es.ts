@@ -37,7 +37,11 @@ export const es = {
     "goodMorning": "Buen día",
     "goodAfternoon": "Buenas tardes",
     "goodEvening": "Buenas noches",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "amigo",
     "welcome": "Bienvenido a Every Bible",
+    "beginToday": "Comenzar hoy",
+    "todaysScripture": "Escritura de hoy",
     "verseOfTheDay": "Verso del dia",
     "sectionOfTheDay": "Sección del día",
     "sectionOfTheDayBody": "La selección de hoy está disponible como audio para este capítulo, incluso cuando aún no se ha agregado texto escrito.",
@@ -45,6 +49,12 @@ export const es = {
     "playSectionOfTheDay": "Sección de juego del día",
     "playVerseOfTheDay": "Reproducir versículo del día",
     "continueReading": "Continuar leyendo",
+    "sharePrompt": "Comparte luz. Anima a alguien hoy.",
+    "plan": "Plan",
+    "minutesLeft": "{{count}} min restantes",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Campo {{number}}",
+    "notificationSettings": "Configuración de notificaciones",
     "chaptersRead": "Capítulos leídos",
     "today": "Hoy",
     "week": "Semana",
@@ -266,6 +276,7 @@ export const es = {
   "settings": {
     "title": "Ajustes",
     "reading": "Lectura",
+    "hidePlayButtonFromReadingTab": "Ocultar botón de reproducción de la pestaña de lectura",
     "language": "Idioma de la interfaz",
     "nationAndLanguage": "Nación y lenguaje bíblico",
     "fontSize": "Tamaño de fuente",
@@ -1029,6 +1040,8 @@ export const es = {
   "readingPlans": {
     "title": "Planes de lectura",
     "browsePlans": "Explorar planes",
+    "dailyRhythms": "Ritmos diarios",
+    "dailyReadings": "Lecturas diarias",
     "myPlans": "Mis planes",
     "startPlan": "Iniciar plan",
     "enrolled": "Inscrito",
@@ -1128,6 +1141,10 @@ export const es = {
     "proverbs31": {
       "title": "Proverbios en 31 días",
       "description": "Un capítulo de Proverbios cada día durante un mes de sabiduría."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Lee los kathismata matutinos y vespertinos designados para cada día de la semana, repitiéndose cada semana."
     },
     "chronological": {
       "title": "Biblia cronológica",

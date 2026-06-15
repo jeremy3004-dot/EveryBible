@@ -37,7 +37,11 @@ export const ta = {
     "goodMorning": "காலை வணக்கம்",
     "goodAfternoon": "நல்ல மதியம்",
     "goodEvening": "நல்ல மாலை",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "நண்பரே",
     "welcome": "Every Bible க்கு வரவேற்கிறோம்",
+    "beginToday": "இன்றே தொடங்குங்கள்",
+    "todaysScripture": "இன்றைய திருவசனம்",
     "verseOfTheDay": "அன்றைய வசனம்",
     "sectionOfTheDay": "நாளின் பகுதி",
     "sectionOfTheDayBody": "எழுதப்பட்ட உரை இன்னும் சேர்க்கப்படாத இடத்தில் கூட, இன்றைய தேர்வு இந்த அத்தியாயத்திற்கான ஆடியோவாகக் கிடைக்கிறது.",
@@ -45,6 +49,12 @@ export const ta = {
     "playSectionOfTheDay": "நாள் பகுதியை விளையாடு",
     "playVerseOfTheDay": "நாள் வசனம் விளையாடு",
     "continueReading": "தொடர்ந்து படிக்கவும்",
+    "sharePrompt": "ஒளியைப் பகிருங்கள். இன்றே ஒருவரை ஊக்குவிக்கவும்.",
+    "plan": "திட்டம்",
+    "minutesLeft": "{{count}} நிமிடம் மீதமுள்ளது",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "புலம் {{number}}",
+    "notificationSettings": "அறிவிப்பு அமைப்புகள்",
     "chaptersRead": "அத்தியாயங்கள் படித்தது",
     "today": "இன்று",
     "week": "வாரம்",
@@ -266,6 +276,7 @@ export const ta = {
   "settings": {
     "title": "அமைப்புகள்",
     "reading": "படித்தல்",
+    "hidePlayButtonFromReadingTab": "வாசிப்புத் தாவலில் இருந்து ப்ளே பட்டனை மறை",
     "language": "இடைமுக மொழி",
     "nationAndLanguage": "தேசம் & பைபிள் மொழி",
     "fontSize": "எழுத்துரு அளவு",
@@ -568,6 +579,8 @@ export const ta = {
   "readingPlans": {
     "title": "படிக்கும் திட்டங்கள்",
     "browsePlans": "திட்டங்களை உலாவவும்",
+    "dailyRhythms": "தினசரி தாளங்கள்",
+    "dailyReadings": "தினசரி வாசிப்புகள்",
     "myPlans": "எனது திட்டங்கள்",
     "startPlan": "தொடக்கத் திட்டம்",
     "enrolled": "பதிவுசெய்யப்பட்டது",
@@ -619,6 +632,10 @@ export const ta = {
     "proverbs31": {
       "title": "31 நாட்களில் பழமொழிகள்",
       "description": "ஒரு மாத ஞானத்திற்காக ஒவ்வொரு நாளும் நீதிமொழிகளின் ஒரு அத்தியாயம்."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "ஒவ்வொரு வாரமும் மீண்டும் மீண்டும் வரும் ஒவ்வொரு வாரநாளும் நியமிக்கப்பட்ட காலை மற்றும் மாலை Kathismata-வை வாசிக்கவும்."
     },
     "chronological": {
       "title": "காலவரிசை பைபிள்",

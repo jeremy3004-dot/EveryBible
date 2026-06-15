@@ -37,7 +37,11 @@ export const ja = {
     "goodMorning": "おはよう",
     "goodAfternoon": "こんにちは",
     "goodEvening": "こんばんは",
+    "greetingWithName": "{{greeting}}、{{name}}",
+    "guestName": "友達",
     "welcome": "Every Bibleへようこそ",
+    "beginToday": "今日から始める",
+    "todaysScripture": "今日の聖句",
     "verseOfTheDay": "今日の詩",
     "sectionOfTheDay": "その日のセクション",
     "sectionOfTheDayBody": "今日の選択は、テキストがまだ追加されていない場合でも、この章の音声として利用できます。",
@@ -45,6 +49,12 @@ export const ja = {
     "playSectionOfTheDay": "その日のプレイセクション",
     "playVerseOfTheDay": "今日の詩を再生",
     "continueReading": "続きを読む",
+    "sharePrompt": "光を分かち合いましょう。今日、誰かを励ましましょう。",
+    "plan": "プラン",
+    "minutesLeft": "残り{{count}}分",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "フィールド{{number}}",
+    "notificationSettings": "通知設定",
     "chaptersRead": "読んだ章",
     "today": "今日",
     "week": "週",
@@ -266,6 +276,7 @@ export const ja = {
   "settings": {
     "title": "設定",
     "reading": "読む",
+    "hidePlayButtonFromReadingTab": "読書タブから再生ボタンを非表示にする",
     "language": "インターフェース言語",
     "nationAndLanguage": "国家と聖書の言語",
     "fontSize": "フォントサイズ",
@@ -568,6 +579,8 @@ export const ja = {
   "readingPlans": {
     "title": "読書計画",
     "browsePlans": "プランを参照する",
+    "dailyRhythms": "日々のリズム",
+    "dailyReadings": "毎日の朗読",
     "myPlans": "私の計画",
     "startPlan": "スタートプラン",
     "enrolled": "登録済み",
@@ -619,6 +632,10 @@ export const ja = {
     "proverbs31": {
       "title": "31日間のことわざ",
       "description": "箴言を毎日 1 章ずつ、1 か月間知恵を学びます。"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "毎週繰り返される、各平日の定められた朝と晩のKathismaを読みます。"
     },
     "chronological": {
       "title": "年代別聖書",

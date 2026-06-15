@@ -37,7 +37,11 @@ export const ne = {
     "goodMorning": "शुभ प्रभात",
     "goodAfternoon": "शुभ दिउँसो",
     "goodEvening": "शुभ साँझ",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "साथी",
     "welcome": "Every Bible मा स्वागत छ",
+    "beginToday": "आज सुरु गर्नुहोस्",
+    "todaysScripture": "आजको धर्मशास्त्र",
     "verseOfTheDay": "दिन को पद",
     "sectionOfTheDay": "दिन को खण्ड",
     "sectionOfTheDayBody": "आजको चयन यस अध्यायको लागि अडियोको रूपमा उपलब्ध छ, जहाँ लिखित पाठ अझै थपिएको छैन।",
@@ -45,6 +49,12 @@ export const ne = {
     "playSectionOfTheDay": "दिनको खण्ड प्ले गर्नुहोस्",
     "playVerseOfTheDay": "दिनको पद प्ले गर्नुहोस्",
     "continueReading": "पढाइ जारी राख्नुहोस्",
+    "sharePrompt": "ज्योति बाँड्नुहोस्। आज कसैलाई प्रोत्साहन दिनुहोस्।",
+    "plan": "योजना",
+    "minutesLeft": "{{count}} मिनेट बाँकी",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "क्षेत्र {{number}}",
+    "notificationSettings": "सूचना सेटिङहरू",
     "chaptersRead": "अध्यायहरू पढ्नुहोस्",
     "today": "आज",
     "week": "हप्ता",
@@ -266,6 +276,7 @@ export const ne = {
   "settings": {
     "title": "सेटिङ",
     "reading": "पढ्दै",
+    "hidePlayButtonFromReadingTab": "पठन ट्याबबाट प्ले बटन लुकाउनुहोस्",
     "chapterFeedbackIdentity": "प्रतिक्रिया परिचय",
     "chapterFeedbackIdentityTitle": "यो प्रतिक्रिया कसको नामबाट आउने हो?",
     "chapterFeedbackIdentityBody": "आफ्नो नाम र भूमिका थप्नुहोस् ताकि प्रत्येक अध्याय मूल्याङ्कन Google Sheet मा सही व्यक्तिसँग जोडियोस्।",
@@ -1029,6 +1040,8 @@ export const ne = {
   "readingPlans": {
     "title": "पठन योजनाहरू",
     "browsePlans": "योजनाहरू हेर्नुहोस्",
+    "dailyRhythms": "दैनिक लयहरू",
+    "dailyReadings": "दैनिक पठनहरू",
     "myPlans": "मेरा योजनाहरू",
     "startPlan": "योजना सुरु गर्नुहोस्",
     "enrolled": "भर्ना भयो",
@@ -1209,6 +1222,10 @@ export const ne = {
     "proverbs31": {
       "title": "३१ दिनमा नीतिवचन",
       "description": "एक महिनाको ज्ञानको लागि हरेक दिन नीतिवचनको एउटा अध्याय।"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "प्रत्येक हप्ता दोहोरिने गरी प्रत्येक कार्यदिवसका लागि तोकिएको बिहान र साँझका kathismata पढ्नुहोस्।"
     },
     "chronological": {
       "title": "कालक्रम बाइबल",

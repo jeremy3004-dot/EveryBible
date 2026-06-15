@@ -37,7 +37,11 @@ export const ar = {
     "goodMorning": "صباح الخير",
     "goodAfternoon": "مساء الخير",
     "goodEvening": "مساء الخير",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "صديق",
     "welcome": "مرحبًا بك في Every Bible",
+    "beginToday": "ابدأ اليوم",
+    "todaysScripture": "آية اليوم",
     "verseOfTheDay": "آية اليوم",
     "sectionOfTheDay": "قسم اليوم",
     "sectionOfTheDayBody": "اختيار اليوم متاح كصوت لهذا الفصل، حتى في حالة عدم إضافة نص مكتوب بعد.",
@@ -45,6 +49,12 @@ export const ar = {
     "playSectionOfTheDay": "لعب قسم اليوم",
     "playVerseOfTheDay": "تشغيل آية اليوم",
     "continueReading": "مواصلة القراءة",
+    "sharePrompt": "شارك النور. شجع شخصًا اليوم.",
+    "plan": "خطة",
+    "minutesLeft": "تبقى {{count}} دقيقة",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "حقل {{number}}",
+    "notificationSettings": "إعدادات الإشعارات",
     "chaptersRead": "قراءة الفصول",
     "today": "اليوم",
     "week": "أسبوع",
@@ -266,6 +276,7 @@ export const ar = {
   "settings": {
     "title": "إعدادات",
     "reading": "قراءة",
+    "hidePlayButtonFromReadingTab": "إخفاء زر التشغيل من علامة تبويب القراءة",
     "language": "لغة الواجهة",
     "nationAndLanguage": "الأمة ولغة الكتاب المقدس",
     "fontSize": "حجم الخط",
@@ -568,6 +579,8 @@ export const ar = {
   "readingPlans": {
     "title": "خطط القراءة",
     "browsePlans": "تصفح الخطط",
+    "dailyRhythms": "إيقاعات يومية",
+    "dailyReadings": "قراءات يومية",
     "myPlans": "خططي",
     "startPlan": "ابدأ الخطة",
     "enrolled": "مسجل",
@@ -619,6 +632,10 @@ export const ar = {
     "proverbs31": {
       "title": "الأمثال في 31 يوما",
       "description": "فصل واحد من سفر الأمثال كل يوم لمدة شهر من الحكمة."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "اقرأ الكاثيزماتا المخصصة للصباح والمساء لكل يوم من أيام الأسبوع، وتتكرر كل أسبوع."
     },
     "chronological": {
       "title": "الكتاب المقدس الزمني",

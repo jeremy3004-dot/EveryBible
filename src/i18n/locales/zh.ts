@@ -37,7 +37,11 @@ export const zh = {
     "goodMorning": "早上好",
     "goodAfternoon": "下午好",
     "goodEvening": "晚上好",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "朋友",
     "welcome": "欢迎来到Every Bible",
+    "beginToday": "今天开始",
+    "todaysScripture": "今日经文",
     "verseOfTheDay": "每日诗句",
     "sectionOfTheDay": "当日部分",
     "sectionOfTheDayBody": "即使尚未添加书面文本，今天的选择也可以作为本章的音频提供。",
@@ -45,6 +49,12 @@ export const zh = {
     "playSectionOfTheDay": "当日播放部分",
     "playVerseOfTheDay": "播放每日诗歌",
     "continueReading": "继续阅读",
+    "sharePrompt": "分享光亮。今天鼓励一个人。",
+    "plan": "计划",
+    "minutesLeft": "还剩 {{count}} 分钟",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "字段 {{number}}",
+    "notificationSettings": "通知设置",
     "chaptersRead": "阅读章节",
     "today": "今天",
     "week": "星期",
@@ -266,6 +276,7 @@ export const zh = {
   "settings": {
     "title": "设置",
     "reading": "阅读",
+    "hidePlayButtonFromReadingTab": "在阅读标签页中隐藏播放按钮",
     "language": "界面语言",
     "nationAndLanguage": "民族和圣经语言",
     "fontSize": "字体大小",
@@ -568,6 +579,8 @@ export const zh = {
   "readingPlans": {
     "title": "阅读计划",
     "browsePlans": "浏览计划",
+    "dailyRhythms": "每日节奏",
+    "dailyReadings": "每日读经",
     "myPlans": "我的计划",
     "startPlan": "开始计划",
     "enrolled": "已注册",
@@ -620,6 +633,10 @@ export const zh = {
     "proverbs31": {
       "title": "31天的谚语",
       "description": "每天一章箴言，收获一个月的智慧。"
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "阅读每周平日早晚指定的 Kathismata，每周重复。"
     },
     "chronological": {
       "title": "按时间顺序排列的圣经",

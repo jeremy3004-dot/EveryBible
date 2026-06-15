@@ -37,7 +37,11 @@ export const vi = {
     "goodMorning": "Chào buổi sáng",
     "goodAfternoon": "Chào buổi chiều",
     "goodEvening": "Buổi tối vui vẻ",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "bạn",
     "welcome": "Chào mừng đến với Every Bible",
+    "beginToday": "Bắt đầu hôm nay",
+    "todaysScripture": "Kinh Thánh hôm nay",
     "verseOfTheDay": "Câu thơ trong ngày",
     "sectionOfTheDay": "Phần trong ngày",
     "sectionOfTheDayBody": "Lựa chọn của ngày hôm nay có sẵn dưới dạng âm thanh cho chương này, ngay cả khi văn bản chưa được thêm vào.",
@@ -45,6 +49,12 @@ export const vi = {
     "playSectionOfTheDay": "Phần chơi trong ngày",
     "playVerseOfTheDay": "Chơi bài thơ trong ngày",
     "continueReading": "Tiếp tục đọc",
+    "sharePrompt": "Chia sẻ ánh sáng. Khích lệ ai đó hôm nay.",
+    "plan": "Kế hoạch",
+    "minutesLeft": "{{count}} phút còn lại",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Trường {{number}}",
+    "notificationSettings": "Cài đặt thông báo",
     "chaptersRead": "Chương đã đọc",
     "today": "Hôm nay",
     "week": "Tuần",
@@ -266,6 +276,7 @@ export const vi = {
   "settings": {
     "title": "Cài đặt",
     "reading": "Đọc",
+    "hidePlayButtonFromReadingTab": "Ẩn nút phát khỏi tab đọc",
     "language": "Ngôn ngữ giao diện",
     "nationAndLanguage": "Quốc gia và ngôn ngữ Kinh thánh",
     "fontSize": "Cỡ chữ",
@@ -568,6 +579,8 @@ export const vi = {
   "readingPlans": {
     "title": "kế hoạch đọc",
     "browsePlans": "Duyệt kế hoạch",
+    "dailyRhythms": "Nhịp điệu hàng ngày",
+    "dailyReadings": "Bài Đọc Hàng Ngày",
     "myPlans": "Kế hoạch của tôi",
     "startPlan": "Bắt đầu kế hoạch",
     "enrolled": "Đã đăng ký",
@@ -619,6 +632,10 @@ export const vi = {
     "proverbs31": {
       "title": "Tục ngữ trong 31 ngày",
       "description": "Một chương Châm ngôn mỗi ngày cho một tháng khôn ngoan."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Đọc các kathismata buổi sáng và buổi tối được chỉ định cho mỗi ngày trong tuần, lặp lại hàng tuần."
     },
     "chronological": {
       "title": "Kinh Thánh theo niên đại",

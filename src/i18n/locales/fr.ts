@@ -37,7 +37,11 @@ export const fr = {
     "goodMorning": "Bonjour",
     "goodAfternoon": "Bon après-midi",
     "goodEvening": "Bonne soirée",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "ami",
     "welcome": "Bienvenue chez Every Bible",
+    "beginToday": "Commencer aujourd'hui",
+    "todaysScripture": "Écriture du jour",
     "verseOfTheDay": "Verset du jour",
     "sectionOfTheDay": "Section du jour",
     "sectionOfTheDayBody": "La sélection d’aujourd’hui est disponible sous forme audio pour ce chapitre, même si le texte écrit n’a pas encore été ajouté.",
@@ -45,6 +49,12 @@ export const fr = {
     "playSectionOfTheDay": "Section de lecture du jour",
     "playVerseOfTheDay": "Jouer le verset du jour",
     "continueReading": "Continuer la lecture",
+    "sharePrompt": "Partagez la lumière. Encouragez quelqu'un aujourd'hui.",
+    "plan": "Plan",
+    "minutesLeft": "{{count}} min restantes",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Champ {{number}}",
+    "notificationSettings": "Paramètres de notification",
     "chaptersRead": "Chapitres lus",
     "today": "Aujourd'hui",
     "week": "Semaine",
@@ -266,6 +276,7 @@ export const fr = {
   "settings": {
     "title": "Paramètres",
     "reading": "En lisant",
+    "hidePlayButtonFromReadingTab": "Masquer le bouton de lecture de l'onglet Lecture",
     "language": "Langue de l'interface",
     "nationAndLanguage": "Langue nationale et biblique",
     "fontSize": "Taille de la police",
@@ -568,6 +579,8 @@ export const fr = {
   "readingPlans": {
     "title": "Plans de lecture",
     "browsePlans": "Parcourir les forfaits",
+    "dailyRhythms": "Rythmes quotidiens",
+    "dailyReadings": "Lectures quotidiennes",
     "myPlans": "Mes projets",
     "startPlan": "Plan de démarrage",
     "enrolled": "Inscrit",
@@ -619,6 +632,10 @@ export const fr = {
     "proverbs31": {
       "title": "Proverbes en 31 jours",
       "description": "Un chapitre des Proverbes chaque jour pendant un mois de sagesse."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Lisez les kathismata du matin et du soir désignés pour chaque jour de la semaine, se répétant chaque semaine."
     },
     "chronological": {
       "title": "Bible chronologique",

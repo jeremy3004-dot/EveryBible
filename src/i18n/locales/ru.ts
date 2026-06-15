@@ -37,7 +37,11 @@ export const ru = {
     "goodMorning": "Доброе утро",
     "goodAfternoon": "Добрый день",
     "goodEvening": "Добрый вечер",
+    "greetingWithName": "{{greeting}}, {{name}}",
+    "guestName": "друг",
     "welcome": "Добро пожаловать в Every Bible",
+    "beginToday": "Начать сегодня",
+    "todaysScripture": "Сегодняшнее Писание",
     "verseOfTheDay": "Стих дня",
     "sectionOfTheDay": "Раздел дня",
     "sectionOfTheDayBody": "Сегодняшняя подборка доступна в виде аудио для этой главы, даже если письменный текст еще не добавлен.",
@@ -45,6 +49,12 @@ export const ru = {
     "playSectionOfTheDay": "Игровой раздел дня",
     "playVerseOfTheDay": "Воспроизвести Стих дня",
     "continueReading": "Продолжить чтение",
+    "sharePrompt": "Делитесь светом. Поддержите кого-нибудь сегодня.",
+    "plan": "План",
+    "minutesLeft": "{{count}} мин осталось",
+    "percentComplete": "{{percent}}%",
+    "fieldLabel": "Поле {{number}}",
+    "notificationSettings": "Настройки уведомлений",
     "chaptersRead": "Главы прочитаны",
     "today": "Сегодня",
     "week": "Неделя",
@@ -266,6 +276,7 @@ export const ru = {
   "settings": {
     "title": "Настройки",
     "reading": "Чтение",
+    "hidePlayButtonFromReadingTab": "Скрыть кнопку воспроизведения со вкладки чтения",
     "chapterFeedbackIdentity": "Кто отправляет отзыв",
     "chapterFeedbackIdentityTitle": "От чьего имени должен приходить этот отзыв?",
     "chapterFeedbackIdentityBody": "Добавьте свое имя и роль, чтобы каждая оценка главы была правильно привязана в Google Sheet.",
@@ -568,6 +579,8 @@ export const ru = {
   "readingPlans": {
     "title": "Планы чтения",
     "browsePlans": "Просмотреть планы",
+    "dailyRhythms": "Ежедневные ритмы",
+    "dailyReadings": "Ежедневные чтения",
     "myPlans": "Мои планы",
     "startPlan": "Начать план",
     "enrolled": "Подключено",
@@ -748,6 +761,10 @@ export const ru = {
     "proverbs31": {
       "title": "Притчи за 31 день",
       "description": "По одной главе Притч каждый день в течение месяца мудрости."
+    },
+    "kathisma": {
+      "title": "Kathisma",
+      "description": "Читайте назначенные утренние и вечерние кафизмы для каждого буднего дня, повторяя каждую неделю."
     },
     "chronological": {
       "title": "Хронологическая Библия",
