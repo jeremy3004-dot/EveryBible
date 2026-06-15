@@ -531,27 +531,15 @@ export function HomeScreen() {
       >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
           <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text
-                style={[styles.greetingLine, { color: colors.accentTertiary }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.76}
-              >
-                {greetingLabel}
-              </Text>
-              <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.notificationButton, { borderColor: colors.cardBorder }]}
-              activeOpacity={0.84}
-              accessibilityRole="button"
-              accessibilityLabel={t('home.notificationSettings')}
-              onPress={() => navigation.navigate('More', { screen: 'Settings' })}
+            <Text
+              style={[styles.greetingLine, { color: colors.accentTertiary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.76}
             >
-              <Ionicons name="notifications-outline" size={23} color={colors.primaryText} />
-              <View style={[styles.notificationDot, { backgroundColor: colors.error }]} />
-            </TouchableOpacity>
+              {greetingLabel}
+            </Text>
+            <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
           </View>
 
           {isLoadingVerse ? (
@@ -844,41 +832,17 @@ const styles = StyleSheet.create({
     top: 0,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  headerCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
   greetingLine: {
     ...typography.bodyStrong,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 18,
+    lineHeight: 24,
   },
   dateLine: {
     ...typography.body,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  notificationButton: {
-    width: 58,
-    height: 58,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 15,
-    right: 14,
-    width: 10,
-    height: 10,
-    borderRadius: radius.pill,
+    fontSize: 15,
+    lineHeight: 20,
   },
   beginTitle: {
     ...typography.readingHeading,
