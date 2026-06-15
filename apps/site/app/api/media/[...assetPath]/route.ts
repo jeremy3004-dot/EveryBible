@@ -1,98 +1,23 @@
-import { Readable } from 'node:stream';
-
-import { GetObjectCommand, type GetObjectCommandOutput } from '@aws-sdk/client-s3';
-
-import {
-  getBibleMediaClient,
-  getBibleMediaEnv,
-  resolveBibleMediaObjectKey,
-} from '../../../../lib/bible-media';
+import { resolveBibleMediaObjectKey } from '../../../../lib/bible-media';
 
 export const dynamic = 'force-dynamic';
 
-const RANGE_NOT_SATISFIABLE_HEADERS = {
-  'accept-ranges': 'bytes',
-  'content-range': 'bytes */*',
-};
+// Bible media (text databases + chapter audio) is served directly from the
+// Cloudflare R2 custom domain rather than being streamed through this route.
+// Proxying every byte through the serverless function throttled downloads to
+// ~200 KB/s and timed out larger translation databases (the 13 MB Nepali pack
+// took ~64s and failed on-device). Redirecting lets the client download
+// straight from R2's CDN (~2.5 MB/s) with native HTTP Range support.
+//
+// The path stays backwards compatible: installed apps that still request
+// https://everybible.app/api/media/<key> simply follow the 302 to the fast
+// domain, so no app update is required for the fix to take effect.
+const DEFAULT_MEDIA_CDN_BASE_URL = 'https://media.everybible.app';
 
-function resolveRequestRange(request: Request): string | null | false {
-  const rangeHeader = request.headers.get('range')?.trim();
-
-  if (!rangeHeader) {
-    return null;
-  }
-
-  if (rangeHeader.includes(',')) {
-    return false;
-  }
-
-  const match = /^bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/.exec(rangeHeader);
-
-  if (!match || (!match[1] && !match[2])) {
-    return null;
-  }
-
-  if (match[1] && match[2] && Number(match[1]) > Number(match[2])) {
-    return false;
-  }
-
-  return `bytes=${match[1]}-${match[2]}`;
-}
-
-function getResponseHeaders(result: GetObjectCommandOutput): Headers {
-  const headers = new Headers();
-
-  if (result.ContentType) {
-    headers.set('content-type', result.ContentType);
-  }
-
-  if (typeof result.ContentLength === 'number' && Number.isFinite(result.ContentLength)) {
-    headers.set('content-length', `${result.ContentLength}`);
-  }
-
-  if (result.ETag) {
-    headers.set('etag', result.ETag);
-  }
-
-  if (result.ContentRange) {
-    headers.set('content-range', result.ContentRange);
-  }
-
-  headers.set('accept-ranges', result.AcceptRanges || 'bytes');
-  headers.set('cache-control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
-  return headers;
-}
-
-function resolveBodyStream(body: GetObjectCommandOutput['Body']): ReadableStream | null {
-  if (!body) {
-    return null;
-  }
-
-  if (typeof body.transformToWebStream === 'function') {
-    return body.transformToWebStream();
-  }
-
-  if (body instanceof Readable) {
-    return Readable.toWeb(body) as ReadableStream;
-  }
-
-  return null;
-}
-
-function isMissingObjectError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return error.name === 'NoSuchKey' || error.name === 'NotFound';
-}
-
-function isInvalidRangeError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return error.name === 'InvalidRange' || error.name === 'RequestedRangeNotSatisfiable';
+function getMediaCdnBaseUrl(): string {
+  const configured = process.env.BIBLE_MEDIA_CDN_BASE_URL?.trim();
+  const base = configured && configured.length > 0 ? configured : DEFAULT_MEDIA_CDN_BASE_URL;
+  return base.replace(/\/+$/, '');
 }
 
 interface RouteContext {
@@ -101,7 +26,7 @@ interface RouteContext {
   }>;
 }
 
-async function handleRequest(request: Request, context: RouteContext): Promise<Response> {
+async function handleRequest(_request: Request, context: RouteContext): Promise<Response> {
   const { assetPath = [] } = await context.params;
   const objectKey = resolveBibleMediaObjectKey(assetPath);
 
@@ -109,49 +34,15 @@ async function handleRequest(request: Request, context: RouteContext): Promise<R
     return new Response('Not found', { status: 404 });
   }
 
-  const requestRange = resolveRequestRange(request);
+  const location = `${getMediaCdnBaseUrl()}/${objectKey}`;
 
-  if (requestRange === false) {
-    return new Response(null, {
-      headers: RANGE_NOT_SATISFIABLE_HEADERS,
-      status: 416,
-    });
-  }
-
-  try {
-    const env = getBibleMediaEnv();
-    const client = getBibleMediaClient(env);
-    const result = await client.send(
-      new GetObjectCommand({
-        Bucket: env.bucket,
-        Key: objectKey,
-        Range: requestRange || undefined,
-      })
-    );
-    const bodyStream = request.method === 'HEAD' ? null : resolveBodyStream(result.Body);
-
-    if (request.method !== 'HEAD' && !bodyStream) {
-      return new Response('Not found', { status: 404 });
-    }
-
-    return new Response(bodyStream, {
-      headers: getResponseHeaders(result),
-      status: result.ContentRange ? 206 : 200,
-    });
-  } catch (error) {
-    if (isMissingObjectError(error)) {
-      return new Response('Not found', { status: 404 });
-    }
-
-    if (isInvalidRangeError(error)) {
-      return new Response(null, {
-        headers: RANGE_NOT_SATISFIABLE_HEADERS,
-        status: 416,
-      });
-    }
-
-    throw error;
-  }
+  return new Response(null, {
+    headers: {
+      location,
+      'cache-control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
+    },
+    status: 302,
+  });
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
