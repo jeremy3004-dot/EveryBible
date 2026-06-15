@@ -6226,6 +6226,7 @@ export function BibleReaderScreen() {
           void handleShareSelectedVerses();
         }}
         onShareImage={handleOpenVerseImageShare}
+        onShareAudio={handleOpenChapterAudioShareSheet}
         onHighlight={handleHighlightSelectedVerses}
         onNote={handleNoteSelectedVerses}
         onRemoveHighlight={handleRemoveHighlightSelectedVerses}

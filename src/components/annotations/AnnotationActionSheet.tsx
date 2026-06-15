@@ -34,6 +34,7 @@ interface AnnotationActionSheetProps {
   onCopy: () => void;
   onShare: () => void;
   onShareImage: () => void;
+  onShareAudio: () => void;
   onHighlight: (color: string) => void;
   onNote: (text: string) => void;
   onRemoveHighlight: (color: string) => void;
@@ -91,6 +92,7 @@ function AnnotationActionSheetContent({
   onCopy,
   onShare,
   onShareImage,
+  onShareAudio,
   onHighlight,
   onNote,
   onRemoveHighlight,
@@ -254,6 +256,11 @@ function AnnotationActionSheetContent({
                   icon="image-outline"
                   label={t('bible.shareVerseImage')}
                   onPress={onShareImage}
+                />
+                <ActionPill
+                  icon="headset-outline"
+                  label={t('bible.shareChapterAudio')}
+                  onPress={onShareAudio}
                 />
               </View>
             </View>
