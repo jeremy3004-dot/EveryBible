@@ -1334,6 +1334,8 @@ const styles = StyleSheet.create({
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   settingCopy: {
     marginLeft: 12,
@@ -1345,10 +1347,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
   },
   settingLabel: {
     fontSize: 16,
     marginLeft: 12,
+    flexShrink: 1,
   },
   settingLabelNoMargin: {
     marginLeft: 0,
@@ -1358,6 +1363,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 14,
+    flexShrink: 1,
   },
   appearanceOption: {
     flexDirection: 'row',
