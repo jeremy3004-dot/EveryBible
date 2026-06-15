@@ -364,10 +364,10 @@ export function HomeScreen() {
   const heroReferenceLabel = HOME_HERO_REFERENCE_LABEL;
   const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
   const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
-  const verseCardImageOpacity = isDark ? 0.34 : 0.48;
+  const verseCardImageOpacity = isDark ? 0.34 : 0.55;
   const verseCardOverlayColors = isDark
     ? (['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.72)'] as const)
-    : (['rgba(255, 255, 255, 0.04)', 'rgba(12, 11, 9, 0.18)'] as const);
+    : (['rgba(0, 0, 0, 0.18)', 'rgba(0, 0, 0, 0.70)'] as const);
 
   const renderVerseShareButton = () => (
     <TouchableOpacity
@@ -461,10 +461,10 @@ export function HomeScreen() {
           <Ionicons
             name="partly-sunny-outline"
             size={Math.max(20, Math.round(22 * homeLayout.scale))}
-            color={colors.accentTertiary}
+            color="rgba(255,255,255,0.80)"
           />
           <Text
-            style={[styles.heroEyebrow, { color: colors.accentTertiary }]}
+            style={[styles.heroEyebrow, { color: 'rgba(255,255,255,0.80)' }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.78}
@@ -476,7 +476,7 @@ export function HomeScreen() {
           style={[
             styles.verseText,
             {
-              color: colors.primaryText,
+              color: '#FFFFFF',
               fontSize: homeLayout.verseTextFontSize,
               lineHeight: homeLayout.verseTextLineHeight,
             },
@@ -491,7 +491,7 @@ export function HomeScreen() {
           style={[
             styles.reference,
             {
-              color: colors.accentTertiary,
+              color: 'rgba(255,255,255,0.70)',
               fontSize: homeLayout.verseReferenceFontSize,
               lineHeight: homeLayout.verseReferenceLineHeight,
             },
@@ -535,7 +535,7 @@ export function HomeScreen() {
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
               <Text
-                style={[styles.greetingLine, { color: colors.accentTertiary }]}
+                style={[styles.greetingLine, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.76}
@@ -595,7 +595,7 @@ export function HomeScreen() {
               accessibilityRole="button"
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
                   {t('common.continue')}
                 </Text>
                 <Ionicons name="bookmark-outline" size={24} color={colors.accentPrimary} />
@@ -615,7 +615,7 @@ export function HomeScreen() {
               <View
                 style={[
                   styles.linearProgressTrack,
-                  { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' },
                 ]}
               >
                 <View
@@ -649,7 +649,7 @@ export function HomeScreen() {
               accessibilityRole="button"
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
                   {t('home.plan')}
                 </Text>
                 <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
@@ -702,7 +702,7 @@ export function HomeScreen() {
             accessibilityRole="button"
           >
             <View style={styles.gatherStripHeader}>
-              <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
+              <Text style={[styles.gatherTitle, { color: isDark ? colors.accentTertiary : colors.accentPrimary }]}>
                 {t('tabs.gather')}
               </Text>
               <View style={styles.gatherHeaderCta}>
