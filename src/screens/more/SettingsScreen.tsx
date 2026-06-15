@@ -856,43 +856,47 @@ export function SettingsScreen() {
                 </Text>
               ) : null}
               <View style={styles.translatorKeypad}>
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'delete'].map(
-                  (key) => (
-                    <TouchableOpacity
-                      key={key}
-                      style={[
-                        styles.translatorKey,
-                        {
-                          backgroundColor:
-                            key === 'clear' || key === 'delete'
-                              ? colors.cardBorder
-                              : colors.background,
-                        },
-                      ]}
-                      onPress={() => {
-                        if (key === 'clear') {
-                          setTranslatorAccessPasscode('');
-                          setTranslatorAccessError(null);
-                          return;
-                        }
+                {[['1', '2', '3', '4'], ['5', '6', '7', '8'], ['9', '0', 'clear', 'delete']].map(
+                  (row, rowIndex) => (
+                    <View key={rowIndex} style={styles.translatorKeyRow}>
+                      {row.map((key) => (
+                        <TouchableOpacity
+                          key={key}
+                          style={[
+                            styles.translatorKey,
+                            {
+                              backgroundColor:
+                                key === 'clear' || key === 'delete'
+                                  ? colors.cardBorder
+                                  : colors.background,
+                            },
+                          ]}
+                          onPress={() => {
+                            if (key === 'clear') {
+                              setTranslatorAccessPasscode('');
+                              setTranslatorAccessError(null);
+                              return;
+                            }
 
-                        if (key === 'delete') {
-                          setTranslatorAccessPasscode((current) => current.slice(0, -1));
-                          setTranslatorAccessError(null);
-                          return;
-                        }
+                            if (key === 'delete') {
+                              setTranslatorAccessPasscode((current) => current.slice(0, -1));
+                              setTranslatorAccessError(null);
+                              return;
+                            }
 
-                        handleTranslatorAccessDigit(key);
-                      }}
-                    >
-                      <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
-                        {key === 'clear'
-                          ? t('privacy.clearKey')
-                          : key === 'delete'
-                            ? t('privacy.deleteKey')
-                            : key}
-                      </Text>
-                    </TouchableOpacity>
+                            handleTranslatorAccessDigit(key);
+                          }}
+                        >
+                          <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
+                            {key === 'clear'
+                              ? t('privacy.clearKey')
+                              : key === 'delete'
+                                ? t('privacy.deleteKey')
+                                : key}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   )
                 )}
               </View>
@@ -1478,13 +1482,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   translatorKeypad: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
     marginBottom: 16,
   },
+  translatorKeyRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
   translatorKey: {
-    width: '31.5%',
+    flex: 1,
     minHeight: 44,
     borderRadius: radius.sm,
     alignItems: 'center',
