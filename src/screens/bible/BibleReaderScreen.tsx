@@ -339,6 +339,19 @@ async function loadAudioShareDependencies() {
   };
 }
 
+// expo-sharing relies on a native module that may not be registered in all
+// build configurations (e.g. Expo Go, stale dev client). Wrap the import so
+// any "Requiring unknown module" error at the factory level falls back to the
+// plain Share.share() path instead of crashing the app.
+async function tryLoadSharing(): Promise<typeof import('expo-sharing') | null> {
+  try {
+    const mod = await import('expo-sharing');
+    return typeof mod.isAvailableAsync === 'function' ? mod : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadVideoTrimDependencies() {
   const videoTrimModule = await import('react-native-video-trim');
   const VideoTrimModule = videoTrimModule.default ?? videoTrimModule;
@@ -2708,8 +2721,8 @@ export function BibleReaderScreen() {
         detail: 'share-audio-full',
       });
 
-      const Sharing = await import('expo-sharing');
-      if (await Sharing.isAvailableAsync()) {
+      const Sharing = await tryLoadSharing();
+      if (Sharing && (await Sharing.isAvailableAsync())) {
         setPendingChapterAudioShareAction(null);
         await Sharing.shareAsync(audioShareAsset.uri, {
           dialogTitle: t('groups.share'),
@@ -2984,8 +2997,8 @@ export function BibleReaderScreen() {
         : `file://${trimOutputPath}`;
       handleCloseAudioPortionSheet();
 
-      const Sharing = await import('expo-sharing');
-      if (await Sharing.isAvailableAsync()) {
+      const Sharing = await tryLoadSharing();
+      if (Sharing && (await Sharing.isAvailableAsync())) {
         await Sharing.shareAsync(trimOutputUri, {
           dialogTitle: t('groups.share'),
           mimeType: audioPortionShareDraft.mimeType,
