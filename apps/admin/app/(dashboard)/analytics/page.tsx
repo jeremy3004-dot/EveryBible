@@ -5,6 +5,10 @@ import { RefreshAnalyticsButton } from '@/components/RefreshAnalyticsButton';
 import { ANALYTICS_WINDOW_DAYS, getAnalyticsOverview } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 
+// Analytics data must reflect the live DB on every request — disable static
+// generation and Next.js fetch caching for this route.
+export const dynamic = 'force-dynamic';
+
 export default async function AnalyticsPage() {
   const missingKeys = getAdminRequiredEnvKeys();
   if (missingKeys.length > 0) {
