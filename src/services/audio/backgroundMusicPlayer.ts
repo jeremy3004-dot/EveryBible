@@ -146,7 +146,7 @@ class BackgroundMusicPlayer {
         shouldPlay: true,
         isLooping: false,
         volume: 0,
-        progressUpdateIntervalMillis: 500,
+        progressUpdateIntervalMillis: 1000,
       });
 
       // Fade out old, fade in new simultaneously so the loop boundary is masked.
@@ -193,7 +193,7 @@ class BackgroundMusicPlayer {
       shouldPlay: false,
       isLooping: false,
       volume: 0,
-      progressUpdateIntervalMillis: 500,
+      progressUpdateIntervalMillis: 1000,
     });
 
     if (requestId !== this.loadRequestId) {

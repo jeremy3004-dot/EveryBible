@@ -110,7 +110,7 @@ test('full-text search refuses non-FTS translations instead of falling back to a
 
   assert.match(
     source,
-    /if \(ftsQuery && !\(await hasSearchIndexTable\(database\)\)\) \{[\s\S]*throw new BibleSearchUnavailableError\(translationId\);[\s\S]*\}/,
+    /if \(ftsQuery && !\(await hasSearchIndexTable\(database,\s*cacheKey\)\)\) \{[\s\S]*throw new BibleSearchUnavailableError\(translationId\);[\s\S]*\}/,
     'searchVerses should fail fast when a translation lacks verses_fts instead of trying a CPU-heavy table scan'
   );
 

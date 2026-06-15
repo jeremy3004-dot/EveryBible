@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
+import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { getBookById, getBookIcon } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
@@ -31,8 +32,6 @@ export function AudioFirstChapterCard({
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     error,
     playbackRate,
     repeatMode,
@@ -50,6 +49,7 @@ export function AudioFirstChapterCard({
     startSleepTimer,
     changeBackgroundMusicChoice,
   } = useAudioPlayer(currentTranslation);
+  const { currentPosition, duration } = useAudioPosition();
 
   const book = getBookById(bookId);
   const isCurrentChapter =

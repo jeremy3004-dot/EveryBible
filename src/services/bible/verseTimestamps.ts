@@ -2425,6 +2425,7 @@ const TIMESTAMP_REQUIRES: Record<string, TimestampRequireFn> = {
 };
 
 const REMOTE_TIMESTAMP_FETCH_TIMEOUT_MS = 10000;
+const MAX_VERSE_TIMESTAMP_CACHE_SIZE = 20;
 const verseTimestampCache = new Map<string, VerseTimestamps | null>();
 const TIMING_TEMPLATE_PLACEHOLDERS = new Set([
   '{bookId}',
@@ -2558,7 +2559,11 @@ async function fetchRemoteChapterTimestamps(
 
   const cacheKey = `${translationId.toUpperCase()}/${bookId}_${String(chapter).padStart(3, '0')}`;
   if (verseTimestampCache.has(cacheKey)) {
-    return verseTimestampCache.get(cacheKey) ?? null;
+    const cached = verseTimestampCache.get(cacheKey) ?? null;
+    // Re-insert to move this key to MRU position so the LRU eviction order stays accurate.
+    verseTimestampCache.delete(cacheKey);
+    verseTimestampCache.set(cacheKey, cached);
+    return cached;
   }
 
   const controller = new AbortController();
@@ -2573,15 +2578,24 @@ async function fetchRemoteChapterTimestamps(
     });
 
     if (!response.ok) {
+      if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
+        verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
+      }
       verseTimestampCache.set(cacheKey, null);
       return null;
     }
 
     const payload = (await response.json()) as unknown;
     const parsed = isTimestampRecord(payload) ? parseTimestampJson(payload) : null;
+    if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
+      verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
+    }
     verseTimestampCache.set(cacheKey, parsed);
     return parsed;
   } catch {
+    if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
+      verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
+    }
     verseTimestampCache.set(cacheKey, null);
     return null;
   } finally {

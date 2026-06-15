@@ -105,31 +105,12 @@ const writeRasterOutput = async (outputPath, size, format) => {
   await pipeline.toFile(outputPath);
 };
 
-const createRoundedMask = (size, radius) => Buffer.from(`
-<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#ffffff"/>
-</svg>
-`);
-
-const createRoundedIconBuffer = async (size, radius) =>
-  sharp(sourceIconPath)
-    .resize(size, size, {
-      fit: 'cover',
-      position: 'center',
-    })
-    .composite([{ input: createRoundedMask(size, radius), blend: 'dest-in' }])
-    .png()
-    .toBuffer();
-
 const writeSplashPortraitOutput = async (outputPath) => {
   await ensureDirectory(path.dirname(outputPath));
 
-  const iconSize = 428;
-  const iconRadius = 86;
-  const iconBuffer = await createRoundedIconBuffer(iconSize, iconRadius);
-  const iconLeft = Math.round((splashPortraitSize.width - iconSize) / 2);
-  const iconTop = Math.round((splashPortraitSize.height - iconSize) / 2);
-
+  // Neutral cold-load splash: a solid brand-background image with no logo.
+  // The splash intentionally shows no Bible imagery on launch (supports the
+  // discreet "Calculator" icon mode); the dark fill matches `splashBackground`.
   await sharp({
     create: {
       width: splashPortraitSize.width,
@@ -138,13 +119,6 @@ const writeSplashPortraitOutput = async (outputPath) => {
       background: splashBackground,
     },
   })
-    .composite([
-      {
-        input: iconBuffer,
-        left: iconLeft,
-        top: iconTop,
-      },
-    ])
     .png()
     .toFile(outputPath);
 };
@@ -152,11 +126,9 @@ const writeSplashPortraitOutput = async (outputPath) => {
 const writeAndroidSplashOutput = async (outputPath, size) => {
   await ensureDirectory(path.dirname(outputPath));
 
-  const iconSize = Math.round(size * 0.68);
-  const iconRadius = Math.round(iconSize * 0.2);
-  const iconBuffer = await createRoundedIconBuffer(iconSize, iconRadius);
-  const iconOffset = Math.round((size - iconSize) / 2);
-
+  // Neutral cold-load splash: a fully transparent logo so only the splash
+  // background (#101113) shows on launch — no Bible imagery, see
+  // writeSplashPortraitOutput.
   await sharp({
     create: {
       width: size,
@@ -165,13 +137,6 @@ const writeAndroidSplashOutput = async (outputPath, size) => {
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([
-      {
-        input: iconBuffer,
-        left: iconOffset,
-        top: iconOffset,
-      },
-    ])
     .png()
     .toFile(outputPath);
 };
