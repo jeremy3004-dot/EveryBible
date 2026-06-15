@@ -250,7 +250,16 @@ export function TranslationPickerList({
     });
 
     if (selectionState.isSelectable) {
+      const isCurrentBookOT = !newTestamentBooks.some((b) => b.id === currentBook);
+      const isNTOnlyText = nextTranslation.totalBooks === newTestamentBooks.length;
+
       setPreferredTranslationLanguage(normalizeTranslationLanguage(nextTranslation.language));
+
+      if (isCurrentBookOT && isNTOnlyText) {
+        setCurrentBook('MAT');
+        setCurrentChapter(1);
+      }
+
       setCurrentTranslation(nextTranslation.id);
       onRequestClose?.();
       onTranslationActivated?.(nextTranslation);
