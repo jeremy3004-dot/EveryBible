@@ -4245,14 +4245,29 @@ export function BibleReaderScreen() {
       <View style={styles.listenColumn}>
         <View
           style={[
-            styles.listenArtworkFrame,
+            styles.listenNowPlayingRow,
             {
               backgroundColor: colors.bibleElevatedSurface,
               borderColor: colors.bibleDivider,
             },
           ]}
         >
-          <Image source={getBookIcon(bookId)} style={styles.listenArtwork} resizeMode="cover" />
+          <View
+            style={[
+              styles.listenArtworkThumb,
+              { borderColor: colors.bibleDivider },
+            ]}
+          >
+            <Image source={getBookIcon(bookId)} style={styles.listenArtwork} resizeMode="cover" />
+          </View>
+          <View style={styles.listenNowPlayingInfo}>
+            <Text style={[styles.listenNowPlayingBook, { color: colors.biblePrimaryText }]}>
+              {getTranslatedBookName(bookId, t)}
+            </Text>
+            <Text style={[styles.listenNowPlayingChapter, { color: colors.bibleSecondaryText }]}>
+              {t('bible.chapter')} {chapter}
+            </Text>
+          </View>
         </View>
 
         <View
@@ -6619,13 +6634,32 @@ const styles = StyleSheet.create({
     gap: 20,
     justifyContent: 'flex-start',
   },
-  listenArtworkFrame: {
-    alignSelf: 'stretch',
-    width: '100%',
-    aspectRatio: 1,
+  listenNowPlayingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderRadius: radius.lg,
     borderWidth: 1,
+    padding: 12,
+  },
+  listenArtworkThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    borderWidth: 1,
     overflow: 'hidden',
+    flexShrink: 0,
+  },
+  listenNowPlayingInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  listenNowPlayingBook: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  listenNowPlayingChapter: {
+    fontSize: 13,
   },
   listenArtwork: {
     width: '100%',
