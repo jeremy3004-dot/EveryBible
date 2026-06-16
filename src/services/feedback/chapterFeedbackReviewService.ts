@@ -1,5 +1,5 @@
 import {
-  TRANSLATOR_REVIEW_PASSCODE,
+  normalizeTranslatorReviewPasscode,
   type TranslatorFeedbackChapterSummary,
 } from './translatorFeedbackReviewModel';
 
@@ -34,11 +34,13 @@ export interface ChapterFeedbackReviewInput {
   translationId: string;
   bookId: string;
   chapter: number;
+  passcode: string;
 }
 
 export interface ChapterFeedbackReviewSummaryInput {
   translationId: string;
   bookId?: string;
+  passcode: string;
 }
 
 export interface ChapterFeedbackReviewResponse {
@@ -53,16 +55,26 @@ export interface ChapterFeedbackReviewSummaryResponse {
   error?: string;
 }
 
+export interface TranslatorReviewPasscodeValidationResponse {
+  success: boolean;
+  error?: string;
+}
+
 interface ChapterFeedbackReviewFunctionClient {
   invoke: (
     functionName: string,
     options: {
-      body: (ChapterFeedbackReviewInput | ChapterFeedbackReviewSummaryInput) & {
-        passcode: string;
-      };
+      body:
+        | ChapterFeedbackReviewInput
+        | ChapterFeedbackReviewSummaryInput
+        | { passcode: string; validateOnly: true };
     }
   ) => Promise<{
-    data: ChapterFeedbackReviewResponse | ChapterFeedbackReviewSummaryResponse | null;
+    data:
+      | ChapterFeedbackReviewResponse
+      | ChapterFeedbackReviewSummaryResponse
+      | TranslatorReviewPasscodeValidationResponse
+      | null;
     error: { message?: string } | null;
   }>;
 }
@@ -77,10 +89,61 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClie
   return supabase.functions as ChapterFeedbackReviewFunctionClient;
 }
 
+export async function validateTranslatorReviewPasscode(
+  passcode: string,
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<TranslatorReviewPasscodeValidationResponse> {
+  const normalizedPasscode = normalizeTranslatorReviewPasscode(passcode);
+
+  if (!normalizedPasscode) {
+    return { success: false, error: 'Translator access denied' };
+  }
+
+  const resolvedClient = client ?? (await resolveDefaultClient());
+
+  if (!resolvedClient) {
+    return {
+      success: false,
+      error: 'EveryBible backend is not configured for this build yet.',
+    };
+  }
+
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: {
+        passcode: normalizedPasscode,
+        validateOnly: true,
+      },
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message ?? 'Unable to verify translator access right now.',
+      };
+    }
+
+    return data && 'success' in data
+      ? { success: data.success, error: data.error }
+      : { success: false, error: 'Unable to verify translator access.' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unable to verify translator access.',
+    };
+  }
+}
+
 export async function fetchChapterFeedbackForTranslatorReview(
   input: ChapterFeedbackReviewInput,
   client?: ChapterFeedbackReviewFunctionClient
 ): Promise<ChapterFeedbackReviewResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
+
+  if (!passcode) {
+    return { success: false, feedback: [], error: 'Translator access denied' };
+  }
+
   const resolvedClient = client ?? (await resolveDefaultClient());
 
   if (!resolvedClient) {
@@ -95,7 +158,7 @@ export async function fetchChapterFeedbackForTranslatorReview(
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         ...input,
-        passcode: TRANSLATOR_REVIEW_PASSCODE,
+        passcode,
       },
     });
 
@@ -125,6 +188,12 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
   input: ChapterFeedbackReviewSummaryInput,
   client?: ChapterFeedbackReviewFunctionClient
 ): Promise<ChapterFeedbackReviewSummaryResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
+
+  if (!passcode) {
+    return { success: false, chapters: [], error: 'Translator access denied' };
+  }
+
   const resolvedClient = client ?? (await resolveDefaultClient());
 
   if (!resolvedClient) {
@@ -139,7 +208,7 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         ...input,
-        passcode: TRANSLATOR_REVIEW_PASSCODE,
+        passcode,
       },
     });
 

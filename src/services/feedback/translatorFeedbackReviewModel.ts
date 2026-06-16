@@ -1,5 +1,3 @@
-export const TRANSLATOR_REVIEW_PASSCODE = '342121';
-
 export interface TranslatorFeedbackReviewMarker {
   readAt: string | null;
   listenedAt: string | null;
@@ -26,8 +24,9 @@ export interface TranslatorFeedbackReviewStatus {
 
 export type TranslatorFeedbackAggregateStatus = 'pending' | 'addressed';
 
-export function canEnableTranslatorReviewMode(passcode: string): boolean {
-  return passcode.trim() === TRANSLATOR_REVIEW_PASSCODE;
+export function normalizeTranslatorReviewPasscode(passcode: string): string | null {
+  const trimmed = passcode.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function getTranslatorFeedbackReviewStatus(

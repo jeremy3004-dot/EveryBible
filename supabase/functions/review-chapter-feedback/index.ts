@@ -7,6 +7,7 @@ const corsHeaders = {
 
 interface ReviewRequest {
   passcode?: string;
+  validateOnly?: boolean;
   translationId?: string;
   bookId?: string;
   chapter?: number;
@@ -78,10 +79,14 @@ Deno.serve(async (request) => {
 
   try {
     const body = (await request.json()) as ReviewRequest;
-    const expectedPasscode = Deno.env.get('TRANSLATOR_REVIEW_PASSCODE')?.trim() || '342121';
+    const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
 
     if (body.passcode !== expectedPasscode) {
       return jsonResponse(403, { success: false, error: 'Translator access denied' });
+    }
+
+    if (body.validateOnly === true) {
+      return jsonResponse(200, { success: true });
     }
 
     const translationId = trimRequiredText(body.translationId);

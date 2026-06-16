@@ -59,8 +59,34 @@ test('submit-chapter-feedback accepts audio upload data through service-role sto
   assert.match(source, /audioResponse\.bucket !== 'chapter-feedback-audio'/);
   assert.match(source, /buildStoredAudioPath\(body,\s*userId\)/);
   assert.equal(source.includes('preuploadedAudioPath.startsWith(`${userId}/`)'), true);
-  assert.match(source, /audioResponse\.mimeType !== 'audio\/mp4'/);
+  assert.match(source, /AUDIO_RESPONSE_MIME_TYPE = 'audio\/mp4'/);
+  assert.match(source, /audioResponse\.mimeType !== AUDIO_RESPONSE_MIME_TYPE/);
   assert.match(source, /audio_response_duration_ms/);
+});
+
+test('submit-chapter-feedback bounds anonymous audio before service-role upload', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.match(
+    source,
+    /AUDIO_RESPONSE_MAX_DURATION_MS = 60000/,
+    'Expected the Edge Function to cap audio responses at 60 seconds'
+  );
+  assert.match(
+    source,
+    /AUDIO_RESPONSE_MAX_SIZE_BYTES = 5 \* 1024 \* 1024/,
+    'Expected the Edge Function to cap decoded audio responses at 5 MB'
+  );
+  assert.match(
+    source,
+    /AUDIO_RESPONSE_MAX_BASE64_LENGTH/,
+    'Expected the Edge Function to reject oversized base64 before decoding'
+  );
+  assert.match(
+    source,
+    /decodedSizeBytes == null \|\| decodedSizeBytes > AUDIO_RESPONSE_MAX_SIZE_BYTES/,
+    'Expected invalid or oversized base64 payloads to fail before upload'
+  );
 });
 
 test('submit-chapter-feedback disables the legacy edge JWT gate and only enriches auth when present', () => {

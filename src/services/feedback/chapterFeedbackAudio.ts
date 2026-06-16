@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { isSupabaseConfigured } from '../supabase';
 
 export const CHAPTER_FEEDBACK_AUDIO_BUCKET = 'chapter-feedback-audio';
-export const CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS = 120000;
+export const CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS = 60000;
 export const CHAPTER_FEEDBACK_AUDIO_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 export const CHAPTER_FEEDBACK_AUDIO_MIME_TYPE = 'audio/mp4';
 export const CHAPTER_FEEDBACK_AUDIO_EXTENSION = 'm4a';
@@ -69,7 +69,7 @@ export async function uploadChapterFeedbackAudio(
   }
 
   if (durationMs > CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
-    return { success: false, error: 'Audio responses must be 2 minutes or shorter.' };
+    return { success: false, error: 'Audio responses must be 1 minute or shorter.' };
   }
 
   try {

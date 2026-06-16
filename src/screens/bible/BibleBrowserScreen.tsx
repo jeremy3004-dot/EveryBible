@@ -105,6 +105,7 @@ export function BibleBrowserScreen() {
   const translations = useBibleStore((state) => state.translations);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
   const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
   const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
 
@@ -237,7 +238,7 @@ export function BibleBrowserScreen() {
   ]);
 
   useEffect(() => {
-    if (!translatorReviewEnabled) {
+    if (!translatorReviewEnabled || !translatorReviewPasscode) {
       translatorFeedbackSummaryRequestIdRef.current += 1;
       setTranslatorFeedbackSummaries([]);
       return;
@@ -250,6 +251,7 @@ export function BibleBrowserScreen() {
     void (async () => {
       const result = await fetchChapterFeedbackReviewSummaryForTranslation({
         translationId: currentTranslation,
+        passcode: translatorReviewPasscode,
       });
 
       if (isCancelled || requestId !== translatorFeedbackSummaryRequestIdRef.current) {
@@ -262,7 +264,7 @@ export function BibleBrowserScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [currentTranslation, translatorReviewEnabled]);
+  }, [currentTranslation, translatorReviewEnabled, translatorReviewPasscode]);
 
   const translatorFeedbackSummaryByChapter = useMemo(() => {
     const summariesByChapter = new Map<string, TranslatorFeedbackChapterSummary>();

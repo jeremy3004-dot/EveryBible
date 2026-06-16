@@ -23,6 +23,7 @@ import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores';
 import { useFontSize, useI18n } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
+import { validateTranslatorReviewPasscode } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
@@ -58,6 +59,7 @@ export function SettingsScreen() {
   const [showTranslatorAccessModal, setShowTranslatorAccessModal] = useState(false);
   const [translatorAccessPasscode, setTranslatorAccessPasscode] = useState('');
   const [translatorAccessError, setTranslatorAccessError] = useState<string | null>(null);
+  const [isCheckingTranslatorAccess, setIsCheckingTranslatorAccess] = useState(false);
   const [pendingChapterFeedbackEnabled, setPendingChapterFeedbackEnabled] = useState(false);
   const [chapterFeedbackIdentityName, setChapterFeedbackIdentityName] = useState('');
   const [chapterFeedbackIdentityRole, setChapterFeedbackIdentityRole] = useState('');
@@ -233,17 +235,33 @@ export function SettingsScreen() {
     }
   };
 
-  const handleTranslatorAccessSubmit = () => {
-    const enabled = enableTranslatorReviewMode(translatorAccessPasscode);
-
-    if (!enabled) {
-      setTranslatorAccessError(t('settings.translatorAccessIncorrect'));
+  const handleTranslatorAccessSubmit = async () => {
+    if (isCheckingTranslatorAccess) {
       return;
     }
 
-    setShowTranslatorAccessModal(false);
-    setTranslatorAccessPasscode('');
-    Alert.alert(t('settings.translatorAccessEnabled'), t('settings.translatorAccessEnabledBody'));
+    setIsCheckingTranslatorAccess(true);
+    setTranslatorAccessError(null);
+
+    try {
+      const result = await validateTranslatorReviewPasscode(translatorAccessPasscode);
+
+      if (!result.success) {
+        setTranslatorAccessError(
+          result.error === 'Translator access denied'
+            ? t('settings.translatorAccessIncorrect')
+            : (result.error ?? t('settings.translatorAccessIncorrect'))
+        );
+        return;
+      }
+
+      enableTranslatorReviewMode(translatorAccessPasscode);
+      setShowTranslatorAccessModal(false);
+      setTranslatorAccessPasscode('');
+      Alert.alert(t('settings.translatorAccessEnabled'), t('settings.translatorAccessEnabledBody'));
+    } finally {
+      setIsCheckingTranslatorAccess(false);
+    }
   };
 
   const localeSummary = (() => {
@@ -915,27 +933,33 @@ export function SettingsScreen() {
                     styles.modalButtonPrimary,
                     {
                       backgroundColor:
-                        translatorAccessPasscode.length > 0
+                        translatorAccessPasscode.length > 0 && !isCheckingTranslatorAccess
                           ? colors.accentPrimary
                           : colors.cardBorder,
                     },
                   ]}
-                  onPress={handleTranslatorAccessSubmit}
-                  disabled={translatorAccessPasscode.length === 0}
+                  onPress={() => {
+                    void handleTranslatorAccessSubmit();
+                  }}
+                  disabled={translatorAccessPasscode.length === 0 || isCheckingTranslatorAccess}
                 >
-                  <Text
-                    style={[
-                      styles.modalButtonText,
-                      {
-                        color:
-                          translatorAccessPasscode.length > 0
-                            ? colors.onAccent
-                            : colors.secondaryText,
-                      },
-                    ]}
-                  >
-                    {t('settings.translatorAccessUnlock')}
-                  </Text>
+                  {isCheckingTranslatorAccess ? (
+                    <ActivityIndicator size="small" color={colors.onAccent} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.modalButtonText,
+                        {
+                          color:
+                            translatorAccessPasscode.length > 0
+                              ? colors.onAccent
+                              : colors.secondaryText,
+                        },
+                      ]}
+                    >
+                      {t('settings.translatorAccessUnlock')}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>

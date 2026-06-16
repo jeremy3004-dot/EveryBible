@@ -44,6 +44,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import Svg, { Circle } from 'react-native-svg';
 import {
   getAdjacentBibleChapter,
   getBookById,
@@ -191,6 +192,12 @@ const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
 const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
 const CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS = 3000;
+const FEEDBACK_AUDIO_COUNTDOWN_SIZE = 58;
+const FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH = 4;
+const FEEDBACK_AUDIO_COUNTDOWN_RADIUS =
+  (FEEDBACK_AUDIO_COUNTDOWN_SIZE - FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH) / 2;
+const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE =
+  2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
 const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
 
 function buildReaderParagraphs(
@@ -960,6 +967,7 @@ export function BibleReaderScreen() {
     (state) => state.preferences.hidePlayButtonFromReadingTab
   );
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
   const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
   const markTranslatorFeedbackRead = useTranslatorReviewStore((state) => state.markRead);
   const markTranslatorFeedbackListened = useTranslatorReviewStore((state) => state.markListened);
@@ -1438,7 +1446,7 @@ export function BibleReaderScreen() {
     selectedVerses.length > 0 ? buildBibleSelectionVerseRanges(selectedVerses) : [];
 
   const loadTranslatorFeedback = useCallback(async () => {
-    if (!translatorReviewEnabled) {
+    if (!translatorReviewEnabled || !translatorReviewPasscode) {
       setTranslatorFeedbackItems([]);
       setTranslatorFeedbackError(null);
       return;
@@ -1451,6 +1459,7 @@ export function BibleReaderScreen() {
       translationId: currentTranslation,
       bookId,
       chapter,
+      passcode: translatorReviewPasscode,
     });
 
     setIsLoadingTranslatorFeedback(false);
@@ -1462,7 +1471,7 @@ export function BibleReaderScreen() {
     }
 
     setTranslatorFeedbackItems(result.feedback);
-  }, [bookId, chapter, currentTranslation, t, translatorReviewEnabled]);
+  }, [bookId, chapter, currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
 
   useEffect(() => {
     void loadTranslatorFeedback();
@@ -3380,6 +3389,20 @@ export function BibleReaderScreen() {
     const isRecording = feedbackAudioState === 'recording';
     const isUploadingAudio = feedbackAudioState === 'uploading';
     const previewDurationMs = feedbackAudioDraft?.durationMs ?? feedbackAudioElapsedMs;
+    const countdownElapsedMs = Math.min(
+      isRecording ? feedbackAudioElapsedMs : previewDurationMs,
+      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
+    );
+    const countdownRemainingMs = Math.max(
+      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS - countdownElapsedMs,
+      0
+    );
+    const countdownProgress =
+      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS > 0
+        ? countdownElapsedMs / CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
+        : 0;
+    const countdownStrokeDashoffset =
+      FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
     const statusLabel = isRecording
       ? t('bible.chapterFeedbackAudioRecording', {
           duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
@@ -3402,17 +3425,59 @@ export function BibleReaderScreen() {
         ]}
       >
         <View style={styles.feedbackAudioHeader}>
-          <View style={styles.feedbackAudioStatus}>
-            <Ionicons
-              name={
-                isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
-              }
-              size={18}
-              color={isRecording ? colors.error : colors.biblePrimaryText}
-            />
-            <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
-              {statusLabel}
-            </Text>
+          <View style={styles.feedbackAudioHeaderMain}>
+            <View style={styles.feedbackAudioCountdown}>
+              <Svg
+                width={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
+                height={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
+                viewBox={`0 0 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE} ${FEEDBACK_AUDIO_COUNTDOWN_SIZE}`}
+                style={styles.feedbackAudioCountdownSvg}
+              >
+                <Circle
+                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
+                  stroke={colors.bibleDivider}
+                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
+                  fill="none"
+                />
+                <Circle
+                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
+                  stroke={isRecording ? colors.accentPrimary : colors.bibleAccent}
+                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
+                  strokeLinecap="round"
+                  strokeDasharray={FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE}
+                  strokeDashoffset={countdownStrokeDashoffset}
+                  fill="none"
+                  transform={`rotate(-90 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2} ${
+                    FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2
+                  })`}
+                />
+              </Svg>
+              <Text
+                style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}
+              >
+                {formatFeedbackAudioDuration(countdownRemainingMs)}
+              </Text>
+            </View>
+            <View style={styles.feedbackAudioStatus}>
+              <Ionicons
+                name={
+                  isRecording
+                    ? 'mic'
+                    : feedbackAudioDraft
+                      ? 'musical-notes-outline'
+                      : 'mic-outline'
+                }
+                size={18}
+                color={isRecording ? colors.error : colors.biblePrimaryText}
+              />
+              <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
+                {statusLabel}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.feedbackAudioLimitText, { color: colors.bibleSecondaryText }]}>
             {t('bible.chapterFeedbackAudioLimit')}
@@ -7222,7 +7287,28 @@ const styles = StyleSheet.create({
   feedbackAudioHeader: {
     gap: 4,
   },
+  feedbackAudioHeaderMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  feedbackAudioCountdown: {
+    width: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
+    height: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackAudioCountdownSvg: {
+    position: 'absolute',
+  },
+  feedbackAudioCountdownText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
   feedbackAudioStatus: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,

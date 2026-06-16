@@ -73,6 +73,11 @@ interface PendingAudioUpload {
   sizeBytes: number | null;
 }
 
+const AUDIO_RESPONSE_MAX_DURATION_MS = 60000;
+const AUDIO_RESPONSE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const AUDIO_RESPONSE_MAX_BASE64_LENGTH = Math.ceil((AUDIO_RESPONSE_MAX_SIZE_BYTES * 4) / 3) + 8;
+const AUDIO_RESPONSE_MIME_TYPE = 'audio/mp4';
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
     status,
@@ -116,14 +121,23 @@ const buildStoredAudioPath = (body: ChapterFeedbackRequest, userId: string | nul
   ].join('/');
 };
 
-const base64DecodedSize = (base64Data: string): number => {
-  const normalized = base64Data.replace(/\s/g, '');
-  const paddingBytes = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
-  return Math.floor((normalized.length * 3) / 4) - paddingBytes;
+const base64DecodedSize = (base64Data: string): number | null => {
+  if (
+    base64Data.length > AUDIO_RESPONSE_MAX_BASE64_LENGTH ||
+    /\s/.test(base64Data) ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Data) ||
+    base64Data.length % 4 !== 0
+  ) {
+    return null;
+  }
+
+  const paddingBytes = base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0;
+  const decodedSize = Math.floor((base64Data.length * 3) / 4) - paddingBytes;
+  return decodedSize > 0 ? decodedSize : null;
 };
 
 const decodeBase64 = (base64Data: string): Uint8Array => {
-  const binaryString = atob(base64Data.replace(/\s/g, ''));
+  const binaryString = atob(base64Data);
   const bytes = new Uint8Array(binaryString.length);
 
   for (let index = 0; index < binaryString.length; index += 1) {
@@ -184,23 +198,23 @@ const validateRequest = (
     const preuploadedAudioPath = requireNonEmptyString(audioResponse.path);
     const base64Data = requireNonEmptyString(audioResponse.base64Data);
 
-    if (audioResponse.mimeType !== 'audio/mp4') {
+    if (audioResponse.mimeType !== AUDIO_RESPONSE_MIME_TYPE) {
       return { error: 'audio response must use audio/mp4' };
     }
 
     if (
       !Number.isInteger(audioResponse.durationMs) ||
       (audioResponse.durationMs ?? 0) < 500 ||
-      (audioResponse.durationMs ?? 0) > 120000
+      (audioResponse.durationMs ?? 0) > AUDIO_RESPONSE_MAX_DURATION_MS
     ) {
-      return { error: 'audio response duration must be between 0.5 and 120 seconds' };
+      return { error: 'audio response duration must be between 0.5 and 60 seconds' };
     }
 
     if (
       audioResponse.sizeBytes != null &&
       (!Number.isInteger(audioResponse.sizeBytes) ||
         audioResponse.sizeBytes < 1 ||
-        audioResponse.sizeBytes > 5242880)
+        audioResponse.sizeBytes > AUDIO_RESPONSE_MAX_SIZE_BYTES)
     ) {
       return { error: 'audio response size must be 5 MB or smaller' };
     }
@@ -211,10 +225,13 @@ const validateRequest = (
     }
 
     if (base64Data) {
-      if (
-        audioResponse.sizeBytes != null &&
-        base64DecodedSize(base64Data) !== audioResponse.sizeBytes
-      ) {
+      const decodedSizeBytes = base64DecodedSize(base64Data);
+
+      if (decodedSizeBytes == null || decodedSizeBytes > AUDIO_RESPONSE_MAX_SIZE_BYTES) {
+        return { error: 'audio response size must be 5 MB or smaller' };
+      }
+
+      if (audioResponse.sizeBytes != null && decodedSizeBytes !== audioResponse.sizeBytes) {
         return { error: 'audio response size does not match upload data' };
       }
 

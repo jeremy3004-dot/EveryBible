@@ -87,6 +87,16 @@ test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an 
     /discardFeedbackAudioDraft/,
     'BibleReaderScreen should allow re-recording without losing the text feedback path'
   );
+  assert.match(
+    source,
+    /from 'react-native-svg'/,
+    'BibleReaderScreen should render the audio countdown ring through react-native-svg'
+  );
+  assert.match(
+    source,
+    /FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE[\s\S]*strokeDashoffset=\{countdownStrokeDashoffset\}/,
+    'BibleReaderScreen should drain a circular countdown while recording feedback audio'
+  );
 });
 
 test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen mode and the modal', () => {

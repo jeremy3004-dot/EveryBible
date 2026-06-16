@@ -214,7 +214,7 @@ export const bn = {
     "chapterFeedbackAudioIdle": "Record an audio response instead",
     "chapterFeedbackAudioRecording": "Recording {{duration}}",
     "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 2 min max",
+    "chapterFeedbackAudioLimit": "M4A, 1 min max",
     "chapterFeedbackAudioRecord": "Record audio",
     "chapterFeedbackAudioStop": "Stop",
     "chapterFeedbackAudioPreview": "Preview audio response",

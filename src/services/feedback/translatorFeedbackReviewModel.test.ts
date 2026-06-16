@@ -1,19 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  canEnableTranslatorReviewMode,
   getTranslatorFeedbackBookSummaryStatus,
   getTranslatorFeedbackChapterSummaryStatus,
   getTranslatorFeedbackReviewStatus,
   markTranslatorFeedbackListened,
   markTranslatorFeedbackRead,
+  normalizeTranslatorReviewPasscode,
 } from './translatorFeedbackReviewModel';
 
-test('translator review mode only enables with the configured passcode', () => {
-  assert.equal(canEnableTranslatorReviewMode('342121'), true);
-  assert.equal(canEnableTranslatorReviewMode(' 342121 '), true);
-  assert.equal(canEnableTranslatorReviewMode('342120'), false);
-  assert.equal(canEnableTranslatorReviewMode(''), false);
+test('translator review passcodes are normalized without validating the secret client-side', () => {
+  assert.equal(normalizeTranslatorReviewPasscode(' reviewer-code '), 'reviewer-code');
+  assert.equal(normalizeTranslatorReviewPasscode(''), null);
+  assert.equal(normalizeTranslatorReviewPasscode('   '), null);
 });
 
 test('feedback review status keeps unread items visible until read and listened', () => {

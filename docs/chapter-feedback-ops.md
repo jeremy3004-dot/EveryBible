@@ -40,7 +40,7 @@ The admin backend shows the fixed submission contract:
 
 `participant_id_number` is not user-entered. When the app has an authenticated Supabase session, the Edge Function fills `user_id` and `participant_id_number` from that user UUID. Anonymous submissions are allowed and store those fields as `null`; reviewer name and role are also optional.
 
-Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app accepts M4A audio (`audio/mp4`) with a 2 minute and 5 MB limit. Authenticated submissions upload to a user-scoped path (`{user_id}/...`) before submitting the feedback row. Anonymous submissions send the encoded recording to the Edge Function, which uploads it with the service-role client under an `anonymous/...` path before saving the row. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
+Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app accepts M4A audio (`audio/mp4`) with a 1 minute and 5 MB limit. Authenticated submissions upload to a user-scoped path (`{user_id}/...`) before submitting the feedback row. Anonymous submissions send the encoded recording to the Edge Function, which verifies the encoded payload before uploading it with the service-role client under an `anonymous/...` path and saving the row. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
 
 ## How To Review Feedback
 
@@ -53,7 +53,7 @@ Translator reviewers can also use the hidden mobile review mode for chapter-leve
 3. Enter the translator passcode.
 4. Open a chapter to review that chapter's submitted feedback, including text, sentiment, submitter identity when available, and signed audio playback.
 
-The mobile review mode stores the unlock flag and read/listened markers locally on the device. It does not sync reviewer state across devices. The feedback rows and private audio URLs still come from Supabase through the `review-chapter-feedback` Edge Function.
+The translator passcode is validated by the `review-chapter-feedback` Edge Function using the `TRANSLATOR_REVIEW_PASSCODE` Supabase secret. Do not hardcode the passcode in the mobile app bundle. The mobile review mode stores the unlock flag, the reviewer-entered passcode, and read/listened markers locally on the device. It does not sync reviewer state across devices. The feedback rows and private audio URLs still come from Supabase through the `review-chapter-feedback` Edge Function.
 
 When mobile translator review mode is enabled, the Bible book picker shows feedback badges for
 books and chapters in the active translation. A red exclamation badge means at least one feedback

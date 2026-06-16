@@ -8,6 +8,7 @@ test('BibleReaderScreen renders translator feedback review tools only in transla
   assert.match(source, /translatorReviewEnabled/);
   assert.match(source, /renderTranslatorFeedbackReviewTools/);
   assert.match(source, /fetchChapterFeedbackForTranslatorReview/);
+  assert.match(source, /translatorReviewPasscode/);
   assert.match(source, /getTranslatorFeedbackReviewStatus/);
 });
 
