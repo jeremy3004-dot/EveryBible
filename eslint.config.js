@@ -133,6 +133,9 @@ module.exports = [
       'apps/',
       'packages/',
       'supabase/functions/',
+      'qa-evidence/',
+      'output/',
+      'logs/',
     ],
   },
 ];

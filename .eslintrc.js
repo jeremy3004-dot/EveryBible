@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ['qa-evidence/', 'output/', 'logs/'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2021,
