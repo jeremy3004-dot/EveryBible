@@ -66,7 +66,7 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
         session: 'morning',
         title: 'Morning Kathismata',
         chapterStart: 9,
-        chapterEnd: 16,
+        chapterEnd: 17,
       },
       {
         session: 'morning',
@@ -102,7 +102,7 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
         session: 'evening',
         title: 'Evening Kathismata',
         chapterStart: 38,
-        chapterEnd: 45,
+        chapterEnd: 46,
       },
     ]
   );

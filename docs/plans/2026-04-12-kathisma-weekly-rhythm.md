@@ -27,26 +27,33 @@ The bundled `kathisma-weekly` plan is a recurring weekly rhythm that resolves by
 
 ## Kathisma mapping
 
-- 1 -> Psalms 1-8
-- 2 -> Psalms 9-16
-- 3 -> Psalms 18-24
-- 4 -> Psalms 25-32
-- 5 -> Psalms 33-37
-- 6 -> Psalms 38-45
-- 7 -> Psalms 46-54
-- 8 -> Psalms 55-63
-- 9 -> Psalms 64-69
-- 10 -> Psalms 70-76
-- 11 -> Psalms 77-84
-- 12 -> Psalms 85-90
-- 13 -> Psalms 91-100
-- 14 -> Psalms 101-104
-- 15 -> Psalms 105-108
-- 16 -> Psalms 109-117
-- 17 -> Psalm 118
-- 18 -> Psalms 119-133
-- 19 -> Psalms 134-142
-- 20 -> Psalms 143-150
+The kathismata are defined in Septuagint (Greek) psalm numbering. Our Bible text (BSB)
+uses Hebrew/Masoretic numbering, which runs one number higher from Hebrew Ps 11 through
+Ps 147 (LXX Ps 9 = Hebrew Ps 9+10). The ranges below are the **Hebrew/BSB** chapters that
+correspond to each kathisma, so the readings show the correct psalms in-app.
+
+| Kathisma | LXX (Orthodox) | Hebrew/BSB (used in app) |
+|----------|----------------|--------------------------|
+| 1 | 1-8 | 1-8 |
+| 2 | 9-16 | 9-17 |
+| 3 | 17-23 | 18-24 |
+| 4 | 24-31 | 25-32 |
+| 5 | 32-36 | 33-37 |
+| 6 | 37-45 | 38-46 |
+| 7 | 46-54 | 47-55 |
+| 8 | 55-63 | 56-64 |
+| 9 | 64-69 | 65-70 |
+| 10 | 70-76 | 71-77 |
+| 11 | 77-84 | 78-85 |
+| 12 | 85-90 | 86-91 |
+| 13 | 91-100 | 92-101 |
+| 14 | 101-104 | 102-105 |
+| 15 | 105-108 | 106-109 |
+| 16 | 109-117 | 110-118 |
+| 17 | 118 | 119 |
+| 18 | 119-133 | 120-134 |
+| 19 | 134-142 | 135-143 |
+| 20 | 143-150 | 144-150 |
 
 ## Implementation notes
 
