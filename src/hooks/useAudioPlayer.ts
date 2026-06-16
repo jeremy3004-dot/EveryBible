@@ -305,6 +305,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       const playRequestId = ++playRequestIdRef.current;
 
+      // Any call that replaces an already-active chapter is a transition — mark
+      // it so the background music sync effect keeps music running during the gap.
+      if (currentBookId && currentChapter) {
+        isChapterTransitioningRef.current = true;
+      }
+
       if (currentBookId && currentChapter && duration > 0) {
         useLibraryStore
           .getState()
@@ -557,6 +563,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       totalChapters: currentBook?.chapters ?? null,
     });
     if (repeatTarget && playChapterForTranslationRef.current) {
+      isChapterTransitioningRef.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         repeatTarget.bookId,
@@ -567,6 +574,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
     const nextQueuedEntry = advanceAudioQueue(queue, queueIndex);
     if (nextQueuedEntry && playChapterForTranslationRef.current) {
+      isChapterTransitioningRef.current = true;
       setQueueIndex(nextQueuedEntry.queueIndex);
       await playChapterForTranslationRef.current(
         nextQueuedEntry.entry.translationId,
@@ -581,6 +589,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum, 1)
         : null;
     if (nextSequenceEntry && playChapterForTranslationRef.current) {
+      isChapterTransitioningRef.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         nextSequenceEntry.bookId,
@@ -617,6 +626,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
     const adjacentChapter = getAdjacentBibleChapter(bookId, chapterNum, 1);
     if (adjacentChapter && playChapterForTranslationRef.current) {
+      isChapterTransitioningRef.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         adjacentChapter.bookId,
