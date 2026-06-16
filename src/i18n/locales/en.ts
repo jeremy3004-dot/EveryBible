@@ -128,7 +128,7 @@ export const en = {
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon:
-      'This chapter is not available in text right now. If audio is available, Every Bible will open the listening experience instead.',
+      "This chapter isn't available as text or audio in this translation yet.",
     audioOnlyTitle: 'Audio-first chapter',
     audioOnlyBody:
       '{{translation}} is currently available as audio for this chapter while written text is still being prepared.',
