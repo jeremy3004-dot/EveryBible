@@ -575,6 +575,7 @@ export function TranslationPickerList({
     const isSelected = currentTranslation === translation.id;
     const audioAvailability = getTranslationAudioAvailability(translation);
     const translationAudioBookIds = getTranslationAudioBookIds(translation);
+    const collectionActions = getTranslationAudioCollectionActions(translation);
     const translationAudioBooks =
       translationAudioBookIds.length > 0
         ? bibleBooks.filter((book) => translationAudioBookIds.includes(book.id))
@@ -665,6 +666,59 @@ export function TranslationPickerList({
         {shouldShowAudioChips || isTextChipVisible ? (
           <View style={[styles.audioDownloadSection, { borderTopColor: colors.bibleDivider }]}>
             <View style={styles.audioDownloadButtons}>
+              {shouldShowAudioChips && collectionActions.includes('full-bible') ? (
+                <TouchableOpacity
+                  style={[
+                    styles.audioDownloadChip,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    void downloadAudioForBooks(translation.id, translationAudioBookIds);
+                  }}
+                  activeOpacity={0.85}
+                  disabled={isAudioDownloaded || isTranslationAudioJobActive}
+                >
+                  <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
+                  <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
+                    {t('bible.fullBible')}
+                  </Text>
+                  <Ionicons
+                    name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
+                    size={14}
+                    color={isAudioDownloaded ? colors.success : colors.bibleAccent}
+                  />
+                </TouchableOpacity>
+              ) : null}
+
+              {shouldShowAudioChips && collectionActions.includes('new-testament') ? (
+                <TouchableOpacity
+                  style={[
+                    styles.audioDownloadChip,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                  onPress={() => {
+                    const ntBookIds = newTestamentBooks
+                      .map((b) => b.id)
+                      .filter((id) => translationAudioBookIds.includes(id));
+                    void downloadAudioForBooks(translation.id, ntBookIds);
+                  }}
+                  activeOpacity={0.85}
+                  disabled={isTranslationAudioJobActive}
+                >
+                  <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
+                  <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
+                    {t('bible.newTestament')}
+                  </Text>
+                  <Ionicons name="download-outline" size={14} color={colors.bibleAccent} />
+                </TouchableOpacity>
+              ) : null}
+
               {shouldShowAudioChips ? (
                 <TouchableOpacity
                   style={[
@@ -677,15 +731,10 @@ export function TranslationPickerList({
                   onPress={() => setAudioManagerTranslationId(translation.id)}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="headset-outline" size={14} color={colors.biblePrimaryText} />
+                  <Ionicons name="albums-outline" size={14} color={colors.biblePrimaryText} />
                   <Text style={[styles.audioDownloadChipLabel, { color: colors.biblePrimaryText }]}>
-                    {t('bible.audioDownloads')}
+                    {t('bible.byBook')}
                   </Text>
-                  <Ionicons
-                    name={isAudioDownloaded ? 'checkmark-circle' : 'download-outline'}
-                    size={14}
-                    color={isAudioDownloaded ? colors.success : colors.bibleAccent}
-                  />
                 </TouchableOpacity>
               ) : null}
 
