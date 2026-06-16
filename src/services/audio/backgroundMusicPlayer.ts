@@ -140,6 +140,10 @@ class BackgroundMusicPlayer {
       return;
     }
 
+    // Snapshot the request ID before the async gap so we can detect if
+    // stop() or sync('off') was called while we were awaiting createAsync.
+    const capturedRequestId = this.loadRequestId;
+
     try {
       // Create the next sound instance starting at volume 0
       const { sound: newSound } = await Audio.Sound.createAsync(source, {
@@ -148,6 +152,15 @@ class BackgroundMusicPlayer {
         volume: 0,
         progressUpdateIntervalMillis: 1000,
       });
+
+      // If stop() or sync('off') fired while we were loading, discard the new
+      // sound immediately — do not assign it to this.sound.
+      if (capturedRequestId !== this.loadRequestId) {
+        newSound.setOnPlaybackStatusUpdate(null);
+        newSound.stopAsync().catch(() => {});
+        newSound.unloadAsync().catch(() => {});
+        return;
+      }
 
       // Fade out old, fade in new simultaneously so the loop boundary is masked.
       this.retiringSounds.add(oldSound);
@@ -161,12 +174,14 @@ class BackgroundMusicPlayer {
       newSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
       this.fadeVolume(newSound, 0, this.targetVolume);
     } catch {
-      // If crossfade fails, fall back to simple restart
-      try {
-        await oldSound.setPositionAsync(0);
-        oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
-      } catch {
-        // Ignore
+      // If crossfade fails, fall back to simple restart (only if still valid)
+      if (capturedRequestId === this.loadRequestId) {
+        try {
+          await oldSound.setPositionAsync(0);
+          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
+        } catch {
+          // Ignore
+        }
       }
     }
   }
