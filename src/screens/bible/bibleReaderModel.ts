@@ -42,6 +42,7 @@ export const READER_TAB_BAR_RESTORE_VELOCITY_MIN = 300;
 export const READER_TAB_BAR_RESTORE_DRAG_DELTA = 48;
 export const READER_VERSE_LINE_HEIGHT_MULTIPLIER = 1.56;
 export const FOLLOW_ALONG_VERSE_LINE_HEIGHT = 32;
+export const FOLLOW_ALONG_TIMESTAMP_LEAD_MS = 150;
 export const LISTEN_PLAN_PROGRESS_CARD_TEST_ID = 'bible-reader-listen-plan-progress-card';
 export const LISTEN_COUNTED_NOTICE_TEST_ID = 'bible-reader-listen-counted-notice';
 
@@ -364,7 +365,7 @@ export const getEstimatedFollowAlongVerse = ({
   if (timestamps) {
     const verseNums = (Object.keys(timestamps) as string[]).map(Number).sort((a, b) => a - b);
     if (verseNums.length > 0) {
-      const currentPositionSeconds = currentPosition / 1000;
+      const currentPositionSeconds = (currentPosition + FOLLOW_ALONG_TIMESTAMP_LEAD_MS) / 1000;
       let current = verseNums[0];
       for (const vn of verseNums) {
         if (timestamps[vn] <= currentPositionSeconds) {

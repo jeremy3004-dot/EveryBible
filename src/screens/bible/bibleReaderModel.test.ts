@@ -548,6 +548,25 @@ test('uses exact timestamps instead of word-weight estimation when provided', ()
   );
 });
 
+test('timestamp follow-along nudges the verse highlight just ahead of audio boundaries', () => {
+  const verses = [
+    { id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning God created.' },
+    { id: 2, bookId: 'GEN', chapter: 1, verse: 2, text: 'The earth was formless and empty.' },
+    { id: 3, bookId: 'GEN', chapter: 1, verse: 3, text: 'God said let there be light.' },
+  ];
+  const timestamps = { 1: 0, 2: 5, 3: 12 };
+
+  assert.equal(
+    getEstimatedFollowAlongVerse({
+      verses,
+      currentPosition: 11875,
+      duration: 20000,
+      timestamps,
+    }),
+    3
+  );
+});
+
 test('falls back to word-weight estimation when timestamps are null', () => {
   const verses = [
     { id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'Short' },
