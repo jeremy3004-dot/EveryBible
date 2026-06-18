@@ -64,7 +64,10 @@ import {
 } from '../../services/annotations/annotationService';
 import { getChapter } from '../../services/bible/bibleService';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
-import { getChapterPresentationMode, type ChapterPresentationMode } from '../../services/bible/presentation';
+import {
+  getChapterPresentationMode,
+  type ChapterPresentationMode,
+} from '../../services/bible/presentation';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
@@ -196,8 +199,7 @@ const FEEDBACK_AUDIO_COUNTDOWN_SIZE = 58;
 const FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH = 4;
 const FEEDBACK_AUDIO_COUNTDOWN_RADIUS =
   (FEEDBACK_AUDIO_COUNTDOWN_SIZE - FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH) / 2;
-const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE =
-  2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
+const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE = 2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
 const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
 
 function buildReaderParagraphs(
@@ -703,8 +705,9 @@ export function BibleReaderScreen() {
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
-  const renderParagraphRef =
-    useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(() => null as never);
+  const renderParagraphRef = useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(
+    () => null as never
+  );
   const pendingReaderAutoScrollVerseRef = useRef<number | null>(null);
   const paragraphHeightsRef = useRef<Record<string, number>>({});
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
@@ -973,8 +976,9 @@ export function BibleReaderScreen() {
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
   const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
-  const markTranslatorFeedbackRead = useTranslatorReviewStore((state) => state.markRead);
   const markTranslatorFeedbackListened = useTranslatorReviewStore((state) => state.markListened);
+  const resolveTranslatorFeedback = useTranslatorReviewStore((state) => state.resolveFeedback);
+  const reopenTranslatorFeedback = useTranslatorReviewStore((state) => state.reopenFeedback);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
@@ -1721,7 +1725,12 @@ export function BibleReaderScreen() {
 
       scrollReaderToMeasuredVerse(pendingVerse, animated);
     },
-    [isCurrentAudioChapter, readerInlineActiveVerse, scrollReaderToMeasuredVerse, showPremiumReadMode]
+    [
+      isCurrentAudioChapter,
+      readerInlineActiveVerse,
+      scrollReaderToMeasuredVerse,
+      showPremiumReadMode,
+    ]
   );
   const updateReaderBottomChromeState = useCallback(
     (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
@@ -1764,10 +1773,7 @@ export function BibleReaderScreen() {
         offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD &&
         nextCollapsed;
       const nextRootTabBarProgress = shouldCollapseRootTabBar ? 1 : 0;
-      if (
-        didCollapsedFlip ||
-        nextRootTabBarProgress !== rootTabBarCollapseProgressRef.current
-      ) {
+      if (didCollapsedFlip || nextRootTabBarProgress !== rootTabBarCollapseProgressRef.current) {
         syncRootTabBarVisibility(true);
         syncRootTabBarCollapseProgress(nextRootTabBarProgress);
       }
@@ -1820,8 +1826,7 @@ export function BibleReaderScreen() {
           : false;
       const shouldNotifyJs =
         Math.abs(nextOffsetY - lastReaderScrollJsOffset.value) >=
-          READER_SCROLL_JS_UPDATE_INTERVAL_PX ||
-        isAtBottom !== lastReaderScrollJsAtBottom.value;
+          READER_SCROLL_JS_UPDATE_INTERVAL_PX || isAtBottom !== lastReaderScrollJsAtBottom.value;
       if (!shouldNotifyJs) {
         return;
       }
@@ -3405,8 +3410,7 @@ export function BibleReaderScreen() {
       CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS > 0
         ? countdownElapsedMs / CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
         : 0;
-    const countdownStrokeDashoffset =
-      FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
+    const countdownStrokeDashoffset = FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
     const statusLabel = isRecording
       ? t('bible.chapterFeedbackAudioRecording', {
           duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
@@ -3460,20 +3464,14 @@ export function BibleReaderScreen() {
                   })`}
                 />
               </Svg>
-              <Text
-                style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}
-              >
+              <Text style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}>
                 {formatFeedbackAudioDuration(countdownRemainingMs)}
               </Text>
             </View>
             <View style={styles.feedbackAudioStatus}>
               <Ionicons
                 name={
-                  isRecording
-                    ? 'mic'
-                    : feedbackAudioDraft
-                      ? 'musical-notes-outline'
-                      : 'mic-outline'
+                  isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
                 }
                 size={18}
                 color={isRecording ? colors.error : colors.biblePrimaryText}
@@ -4179,6 +4177,20 @@ export function BibleReaderScreen() {
             translatorFeedbackMarkers
           );
           const isTranslatorFeedbackAudioPlaying = translatorReviewPlayingFeedbackId === item.id;
+          const isFixed = status.resolution === 'fixed';
+          const isReviewed = status.resolution === 'reviewed';
+          const itemAccentColor = status.needsReview
+            ? colors.accentPrimary
+            : isFixed
+              ? colors.success
+              : colors.bibleDivider;
+          const badgeBackgroundColor = status.needsReview
+            ? colors.accentPrimary
+            : isFixed
+              ? colors.success
+              : colors.bibleSurface;
+          const badgeTextColor =
+            status.needsReview || isFixed ? colors.onAccent : colors.biblePrimaryText;
           const participantLabel =
             [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
             item.participantIdNumber ||
@@ -4192,7 +4204,7 @@ export function BibleReaderScreen() {
                 styles.translatorReviewItem,
                 {
                   backgroundColor: colors.bibleElevatedSurface,
-                  borderColor: status.needsReview ? colors.accentPrimary : colors.bibleDivider,
+                  borderColor: itemAccentColor,
                 },
               ]}
             >
@@ -4211,18 +4223,23 @@ export function BibleReaderScreen() {
                       : t('bible.chapterFeedbackThumbsDown')}
                   </Text>
                 </View>
-                {status.needsReview ? (
-                  <View
-                    style={[
-                      styles.translatorReviewBadge,
-                      { backgroundColor: colors.accentPrimary },
-                    ]}
-                  >
-                    <Text style={[styles.translatorReviewBadgeText, { color: colors.onAccent }]}>
-                      {t('bible.translatorReviewUnread')}
-                    </Text>
-                  </View>
-                ) : null}
+                <View
+                  style={[
+                    styles.translatorReviewBadge,
+                    {
+                      backgroundColor: badgeBackgroundColor,
+                      borderColor: itemAccentColor,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.translatorReviewBadgeText, { color: badgeTextColor }]}>
+                    {status.needsReview
+                      ? t('bible.translatorReviewUnread')
+                      : isFixed
+                        ? t('bible.translatorReviewFixed')
+                        : t('bible.translatorReviewReviewed')}
+                  </Text>
+                </View>
               </View>
 
               <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
@@ -4245,27 +4262,66 @@ export function BibleReaderScreen() {
               )}
 
               <View style={styles.translatorReviewActionRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.translatorReviewActionButton,
-                    {
-                      borderColor: colors.bibleDivider,
-                      backgroundColor: status.isRead ? colors.bibleSurface : colors.accentPrimary,
-                    },
-                  ]}
-                  onPress={() => markTranslatorFeedbackRead(item.id)}
-                >
-                  <Text
+                {status.needsReview ? (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.translatorReviewActionButton,
+                        {
+                          borderColor: colors.success,
+                          backgroundColor: colors.success,
+                        },
+                      ]}
+                      onPress={() => resolveTranslatorFeedback(item.id, 'fixed')}
+                    >
+                      <Text
+                        style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
+                      >
+                        {t('bible.translatorReviewMarkFixed')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.translatorReviewActionButton,
+                        {
+                          borderColor: colors.bibleDivider,
+                          backgroundColor: colors.bibleSurface,
+                        },
+                      ]}
+                      onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
+                    >
+                      <Text
+                        style={[
+                          styles.translatorReviewActionLabel,
+                          { color: colors.biblePrimaryText },
+                        ]}
+                      >
+                        {t('bible.translatorReviewNoActionNeeded')}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
                     style={[
-                      styles.translatorReviewActionLabel,
-                      { color: status.isRead ? colors.biblePrimaryText : colors.onAccent },
+                      styles.translatorReviewActionButton,
+                      {
+                        borderColor: itemAccentColor,
+                        backgroundColor: colors.bibleSurface,
+                      },
                     ]}
+                    onPress={() => reopenTranslatorFeedback(item.id)}
                   >
-                    {status.isRead
-                      ? t('bible.translatorReviewRead')
-                      : t('bible.translatorReviewMarkRead')}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.translatorReviewActionLabel,
+                        { color: isReviewed ? colors.biblePrimaryText : itemAccentColor },
+                      ]}
+                    >
+                      {t('bible.translatorReviewReopen')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {item.audioResponse ? (
                   <TouchableOpacity
@@ -4309,9 +4365,7 @@ export function BibleReaderScreen() {
                     >
                       {isTranslatorFeedbackAudioPlaying
                         ? t('bible.translatorReviewPause')
-                        : status.isListened
-                          ? t('bible.translatorReviewListened')
-                          : t('bible.translatorReviewListen')}
+                        : t('bible.translatorReviewListen')}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
@@ -4759,87 +4813,83 @@ export function BibleReaderScreen() {
     };
 
     const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
-          <View
-            key={paragraph.key}
+      <View
+        key={paragraph.key}
+        style={[
+          styles.readerBlock,
+          usePremiumTypography
+            ? [styles.premiumReaderBlock, styles.premiumReaderContentShell]
+            : null,
+        ]}
+        onLayout={(event) => {
+          const y = event.nativeEvent.layout.y;
+          paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
+          const hasFormattedVerse = paragraph.verses.some(
+            (verse) => (verse.formatting?.lines.length ?? 0) > 0
+          );
+          if (usePremiumTypography && !hasFormattedVerse) {
+            updateInlineParagraphVerseOffsets(paragraph.verses, y, event.nativeEvent.layout.height);
+            flushPendingReaderAutoScroll(true);
+            return;
+          }
+
+          for (const v of paragraph.verses) {
+            verseOffsetsRef.current[v.verse] = y;
+          }
+          flushPendingReaderAutoScroll(true);
+        }}
+      >
+        {paragraph.heading ? (
+          <Text
             style={[
-              styles.readerBlock,
-              usePremiumTypography
-                ? [styles.premiumReaderBlock, styles.premiumReaderContentShell]
-                : null,
+              styles.sectionHeading,
+              usePremiumTypography ? styles.premiumSectionHeading : null,
+              {
+                fontSize: headingFontSize,
+                color: colors.biblePrimaryText,
+              },
             ]}
-            onLayout={(event) => {
-              const y = event.nativeEvent.layout.y;
-              paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
-              const hasFormattedVerse = paragraph.verses.some(
-                (verse) => (verse.formatting?.lines.length ?? 0) > 0
-              );
-              if (usePremiumTypography && !hasFormattedVerse) {
-                updateInlineParagraphVerseOffsets(
-                  paragraph.verses,
-                  y,
-                  event.nativeEvent.layout.height
-                );
-                flushPendingReaderAutoScroll(true);
-                return;
-              }
-
-              for (const v of paragraph.verses) {
-                verseOffsetsRef.current[v.verse] = y;
-              }
-              flushPendingReaderAutoScroll(true);
-            }}
           >
-            {paragraph.heading ? (
-              <Text
-                style={[
-                  styles.sectionHeading,
-                  usePremiumTypography ? styles.premiumSectionHeading : null,
-                  {
-                    fontSize: headingFontSize,
-                    color: colors.biblePrimaryText,
-                  },
-                ]}
-              >
-                {paragraph.heading}
-              </Text>
-            ) : null}
-            <View style={styles.readerParagraph}>
-              {usePremiumTypography &&
-              !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
-                <Text style={[textStyle, styles.premiumParagraphText]}>
-                  {paragraph.verses.map((verse, verseIndex) => {
-                    const { isSelected, verseBackgroundColor } = getVersePresentation(verse);
+            {paragraph.heading}
+          </Text>
+        ) : null}
+        <View style={styles.readerParagraph}>
+          {usePremiumTypography &&
+          !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
+            <Text style={[textStyle, styles.premiumParagraphText]}>
+              {paragraph.verses.map((verse, verseIndex) => {
+                const { isSelected, verseBackgroundColor } = getVersePresentation(verse);
 
-                    return (
-                      <Text
-                        key={`${verse.id}-${verseFontSize}-${verseLineHeight}`}
-                        suppressHighlighting
-                        onPress={() => {
-                          setSelectedVerses((current) =>
-                            toggleBibleSelectionVerse(current, verse.verse)
-                          );
-                        }}
-                        style={[
-                          styles.premiumInlineVerse,
-                          isSelected ? selectedVerseDecorationStyle : null,
-                          verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-                        ]}
-                      >
-                        <Text style={[verseNumberStyle, styles.premiumInlineVerseNumber]}>
-                          {verse.verse}
-                        </Text>
-                        {'\u00A0'}
-                        {verse.text}
-                        {verseIndex < paragraph.verses.length - 1 ? ' ' : ''}
-                      </Text>
-                    );
-                  })}
-                </Text>
-              ) : (
-                paragraph.verses.map((verse) => renderStackedVerse(verse))
-              )}
-            </View>
-          </View>
+                return (
+                  <Text
+                    key={`${verse.id}-${verseFontSize}-${verseLineHeight}`}
+                    suppressHighlighting
+                    onPress={() => {
+                      setSelectedVerses((current) =>
+                        toggleBibleSelectionVerse(current, verse.verse)
+                      );
+                    }}
+                    style={[
+                      styles.premiumInlineVerse,
+                      isSelected ? selectedVerseDecorationStyle : null,
+                      verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
+                    ]}
+                  >
+                    <Text style={[verseNumberStyle, styles.premiumInlineVerseNumber]}>
+                      {verse.verse}
+                    </Text>
+                    {'\u00A0'}
+                    {verse.text}
+                    {verseIndex < paragraph.verses.length - 1 ? ' ' : ''}
+                  </Text>
+                );
+              })}
+            </Text>
+          ) : (
+            paragraph.verses.map((verse) => renderStackedVerse(verse))
+          )}
+        </View>
+      </View>
     );
 
     renderParagraphRef.current = renderParagraph;
@@ -7429,6 +7479,7 @@ const styles = StyleSheet.create({
   },
   translatorReviewBadge: {
     borderRadius: radius.lg,
+    borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },

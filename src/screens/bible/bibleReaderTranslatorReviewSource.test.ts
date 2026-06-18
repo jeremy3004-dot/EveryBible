@@ -12,13 +12,13 @@ test('BibleReaderScreen renders translator feedback review tools only in transla
   assert.match(source, /getTranslatorFeedbackReviewStatus/);
 });
 
-test('BibleReaderScreen lets translators mark text read and audio listened', () => {
-  assert.match(source, /markTranslatorFeedbackRead\(item\.id\)/);
+test('BibleReaderScreen lets translators resolve or reopen each feedback item', () => {
+  assert.match(source, /resolveTranslatorFeedback\(item\.id, 'fixed'\)/);
+  assert.match(source, /resolveTranslatorFeedback\(item\.id, 'reviewed'\)/);
+  assert.match(source, /reopenTranslatorFeedback\(item\.id\)/);
   assert.match(source, /playTranslatorFeedbackAudio\(\s*item\.id/);
   assert.match(source, /markTranslatorFeedbackListened\(feedbackId\)/);
 });
-
-
 
 test('BibleReaderScreen lets translators pause the active feedback audio', () => {
   assert.match(source, /translatorReviewPlayingFeedbackId/);

@@ -5,6 +5,10 @@ import {
   markTranslatorFeedbackListened,
   markTranslatorFeedbackRead,
   normalizeTranslatorReviewPasscode,
+  reopenTranslatorFeedback,
+  resolveDevelopmentTranslatorReviewPasscode,
+  resolveTranslatorFeedback,
+  type TranslatorFeedbackResolution,
   type TranslatorFeedbackReviewMarkers,
 } from '../services/feedback/translatorFeedbackReviewModel';
 
@@ -16,13 +20,23 @@ interface TranslatorReviewState {
   disable: () => void;
   markRead: (feedbackId: string) => void;
   markListened: (feedbackId: string) => void;
+  resolveFeedback: (feedbackId: string, resolution: TranslatorFeedbackResolution) => void;
+  reopenFeedback: (feedbackId: string) => void;
 }
+
+const developmentTranslatorReviewPasscode = resolveDevelopmentTranslatorReviewPasscode(
+  {
+    EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE:
+      process.env.EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE,
+  },
+  typeof __DEV__ !== 'undefined' && __DEV__
+);
 
 export const useTranslatorReviewStore = create<TranslatorReviewState>()(
   persist(
     (set) => ({
-      enabled: false,
-      accessPasscode: null,
+      enabled: developmentTranslatorReviewPasscode !== null,
+      accessPasscode: developmentTranslatorReviewPasscode,
       feedbackMarkers: {},
       enableWithPasscode: (passcode) => {
         const accessPasscode = normalizeTranslatorReviewPasscode(passcode);
@@ -50,6 +64,19 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
             feedbackId,
             new Date().toISOString()
           ),
+        })),
+      resolveFeedback: (feedbackId, resolution) =>
+        set((state) => ({
+          feedbackMarkers: resolveTranslatorFeedback(
+            state.feedbackMarkers,
+            feedbackId,
+            resolution,
+            new Date().toISOString()
+          ),
+        })),
+      reopenFeedback: (feedbackId) =>
+        set((state) => ({
+          feedbackMarkers: reopenTranslatorFeedback(state.feedbackMarkers, feedbackId),
         })),
     }),
     {

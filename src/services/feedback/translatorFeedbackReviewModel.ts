@@ -1,9 +1,12 @@
 export interface TranslatorFeedbackReviewMarker {
   readAt: string | null;
   listenedAt: string | null;
+  resolvedAs?: TranslatorFeedbackResolution | null;
+  resolvedAt?: string | null;
 }
 
 export type TranslatorFeedbackReviewMarkers = Record<string, TranslatorFeedbackReviewMarker>;
+export type TranslatorFeedbackResolution = 'fixed' | 'reviewed';
 
 export interface TranslatorFeedbackReviewStateInput {
   id: string;
@@ -19,6 +22,7 @@ export interface TranslatorFeedbackChapterSummary {
 export interface TranslatorFeedbackReviewStatus {
   isRead: boolean;
   isListened: boolean;
+  resolution: TranslatorFeedbackResolution | null;
   needsReview: boolean;
 }
 
@@ -29,6 +33,17 @@ export function normalizeTranslatorReviewPasscode(passcode: string): string | nu
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function resolveDevelopmentTranslatorReviewPasscode(
+  env: Record<string, string | undefined>,
+  isDev: boolean
+): string | null {
+  if (!isDev) {
+    return null;
+  }
+
+  return normalizeTranslatorReviewPasscode(env.EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE ?? '');
+}
+
 export function getTranslatorFeedbackReviewStatus(
   item: TranslatorFeedbackReviewStateInput,
   markers: TranslatorFeedbackReviewMarkers
@@ -36,11 +51,13 @@ export function getTranslatorFeedbackReviewStatus(
   const marker = markers[item.id];
   const isRead = Boolean(marker?.readAt);
   const isListened = !item.hasAudio || Boolean(marker?.listenedAt);
+  const resolution = marker?.resolvedAs ?? null;
 
   return {
     isRead,
     isListened,
-    needsReview: !isRead || !isListened,
+    resolution,
+    needsReview: resolution === null,
   };
 }
 
@@ -86,6 +103,8 @@ export function markTranslatorFeedbackRead(
     [feedbackId]: {
       readAt: markedAt,
       listenedAt: markers[feedbackId]?.listenedAt ?? null,
+      resolvedAs: markers[feedbackId]?.resolvedAs ?? null,
+      resolvedAt: markers[feedbackId]?.resolvedAt ?? null,
     },
   };
 }
@@ -100,6 +119,40 @@ export function markTranslatorFeedbackListened(
     [feedbackId]: {
       readAt: markers[feedbackId]?.readAt ?? null,
       listenedAt: markedAt,
+      resolvedAs: markers[feedbackId]?.resolvedAs ?? null,
+      resolvedAt: markers[feedbackId]?.resolvedAt ?? null,
+    },
+  };
+}
+
+export function resolveTranslatorFeedback(
+  markers: TranslatorFeedbackReviewMarkers,
+  feedbackId: string,
+  resolution: TranslatorFeedbackResolution,
+  resolvedAt: string
+): TranslatorFeedbackReviewMarkers {
+  return {
+    ...markers,
+    [feedbackId]: {
+      readAt: markers[feedbackId]?.readAt ?? resolvedAt,
+      listenedAt: markers[feedbackId]?.listenedAt ?? null,
+      resolvedAs: resolution,
+      resolvedAt,
+    },
+  };
+}
+
+export function reopenTranslatorFeedback(
+  markers: TranslatorFeedbackReviewMarkers,
+  feedbackId: string
+): TranslatorFeedbackReviewMarkers {
+  return {
+    ...markers,
+    [feedbackId]: {
+      readAt: markers[feedbackId]?.readAt ?? null,
+      listenedAt: markers[feedbackId]?.listenedAt ?? null,
+      resolvedAs: null,
+      resolvedAt: null,
     },
   };
 }
