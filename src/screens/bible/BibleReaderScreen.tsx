@@ -267,12 +267,16 @@ function readerParagraphBlockPropsAreEqual(
     return false;
   }
 
-  // Only the paragraph that gains or loses the active verse must re-render.
+  // Only paragraphs touched by the active verse transition must re-render.
   const prevHasActive =
     prev.activeVerse != null && prev.paragraph.verses.some((v) => v.verse === prev.activeVerse);
   const nextHasActive =
     next.activeVerse != null && next.paragraph.verses.some((v) => v.verse === next.activeVerse);
-  return prevHasActive === nextHasActive;
+  if (!prevHasActive && !nextHasActive) {
+    return true;
+  }
+
+  return prev.activeVerse === next.activeVerse;
 }
 
 /* eslint-disable react/prop-types */

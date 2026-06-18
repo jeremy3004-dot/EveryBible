@@ -199,6 +199,19 @@ test('BibleReaderScreen shows a transient listen-mode plan-counted message only 
   );
 });
 
+test('BibleReaderScreen rerenders the active paragraph when audio highlight advances inside it', () => {
+  assert.match(
+    source,
+    /Only paragraphs touched by the active verse transition must re-render\./,
+    'BibleReaderScreen should keep paragraph memoization scoped to active-verse transitions'
+  );
+  assert.match(
+    source,
+    /if \(!prevHasActive && !nextHasActive\) \{[\s\S]*return true;[\s\S]*\}[\s\S]*return prev\.activeVerse === next\.activeVerse;/,
+    'BibleReaderScreen should not treat two different active verses inside the same paragraph as equal'
+  );
+});
+
 test('BibleReaderScreen exposes stable selectors for listen-mode counted feedback surfaces', () => {
   assert.match(
     source,
