@@ -40,7 +40,7 @@ test('SettingsScreen lets translators toggle review mode off and requires passco
   );
   assert.match(
     source,
-    /value=\{translatorReviewEnabled\}[\s\S]*trackColor=\{\{ false: colors\.cardBorder, true: colors\.accentGreen \}\}/,
-    'Translator Access should use the same accent-colored switch track as Chapter Feedback'
+    /value=\{translatorReviewEnabled\}[\s\S]*trackColor=\{settingSwitchTrackColor\}[\s\S]*ios_backgroundColor=\{settingSwitchOffColor\}/,
+    'Translator Access should use the shared higher-contrast settings switch colors'
   );
 });

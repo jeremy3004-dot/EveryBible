@@ -47,6 +47,11 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, appearancePalette, setTheme, setAppearancePalette } = useTheme();
+  const settingSwitchOffColor = colors.secondaryText + '55';
+  const settingSwitchTrackColor = {
+    false: settingSwitchOffColor,
+    true: colors.accentGreen,
+  };
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
@@ -557,7 +562,8 @@ export function SettingsScreen() {
             <Switch
               value={chapterFeedbackEnabled}
               onValueChange={handleChapterFeedbackToggle}
-              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
+              trackColor={settingSwitchTrackColor}
+              ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
             />
           </View>
@@ -588,7 +594,8 @@ export function SettingsScreen() {
             <Switch
               value={translatorReviewEnabled}
               onValueChange={handleTranslatorReviewToggle}
-              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
+              trackColor={settingSwitchTrackColor}
+              ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
             />
           </TouchableOpacity>
@@ -986,7 +993,8 @@ export function SettingsScreen() {
             <Switch
               value={preferences.notificationsEnabled}
               onValueChange={handleNotificationToggle}
-              trackColor={{ false: colors.cardBorder, true: colors.accentGreen }}
+              trackColor={settingSwitchTrackColor}
+              ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
             />
           </View>
