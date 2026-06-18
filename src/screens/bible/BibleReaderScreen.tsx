@@ -4727,11 +4727,12 @@ export function BibleReaderScreen() {
       const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
         getVersePresentation(verse);
       const formattingLines = verse.formatting?.lines.length ? verse.formatting.lines : null;
+      const focusRenderKey = isFocused ? 'focused' : 'idle';
 
       if (formattingLines) {
         return (
           <Pressable
-            key={`${verse.id}-formatted`}
+            key={`${verse.id}-formatted-${focusRenderKey}`}
             onPress={() => {
               setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
             }}
@@ -4771,7 +4772,7 @@ export function BibleReaderScreen() {
       if (highlightAnnotation?.color) {
         return (
           <View
-            key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}`}
+            key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
             style={styles.readerVerse}
           >
             <HighlightedVerseText
@@ -4791,7 +4792,7 @@ export function BibleReaderScreen() {
 
       return (
         <Pressable
-          key={verse.id}
+          key={`${verse.id}-${focusRenderKey}`}
           onPress={() => {
             setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
           }}
@@ -4858,11 +4859,12 @@ export function BibleReaderScreen() {
           !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
             <Text style={[textStyle, styles.premiumParagraphText]}>
               {paragraph.verses.map((verse, verseIndex) => {
-                const { isSelected, verseBackgroundColor } = getVersePresentation(verse);
+                const { isFocused, isSelected, verseBackgroundColor } = getVersePresentation(verse);
+                const focusRenderKey = isFocused ? 'focused' : 'idle';
 
                 return (
                   <Text
-                    key={`${verse.id}-${verseFontSize}-${verseLineHeight}`}
+                    key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
                     suppressHighlighting
                     onPress={() => {
                       setSelectedVerses((current) =>

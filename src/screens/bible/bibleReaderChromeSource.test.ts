@@ -328,7 +328,7 @@ test('premium read mode flows verses inline inside paragraph text instead of res
 
   assert.match(
     source,
-    /<Text\s+key=\{`\$\{verse\.id\}-\$\{verseFontSize\}-\$\{verseLineHeight\}`\}[\s\S]*onPress=\{\(\) => \{/s,
+    /<Text\s+key=\{`\$\{verse\.id\}-\$\{verseFontSize\}-\$\{verseLineHeight\}-\$\{focusRenderKey\}`\}[\s\S]*onPress=\{\(\) => \{/s,
     'BibleReaderScreen premium read mode should keep verse-level taps on inline spans'
   );
 
@@ -812,6 +812,28 @@ test('BibleReaderScreen resets follow-along scroll when repeated chapter playbac
     source,
     /if \(didRestartFollowAlongPlayback\) \{[\s\S]*scrollReaderToOffset\(0, true\);[\s\S]*return;[\s\S]*\}/s,
     'BibleReaderScreen should scroll the inline reader back to the top when the repeated chapter restarts'
+  );
+});
+
+test('BibleReaderScreen remounts active verse text when the audio highlight moves', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const focusRenderKey = isFocused \? 'focused' : 'idle';/,
+    'BibleReaderScreen should derive a focus render key from the active audio verse'
+  );
+
+  assert.match(
+    source,
+    /key=\{`\$\{verse\.id\}-\$\{verseFontSize\}-\$\{verseLineHeight\}-\$\{focusRenderKey\}`\}/,
+    'Premium inline verse spans should remount when they enter or leave active audio focus so Android clears old highlight backgrounds'
+  );
+
+  assert.match(
+    source,
+    /key=\{`\$\{verse\.id\}-\$\{focusRenderKey\}`\}/,
+    'Stacked verse rows should also remount when active audio focus changes'
   );
 });
 
