@@ -86,14 +86,17 @@ test('release metadata stays aligned across tracked config and generated native 
   const infoPlist = readOptionalRootFile('ios/EveryBible/Info.plist');
   const pbxproj = readRootFile('ios/EveryBible.xcodeproj/project.pbxproj');
   const androidGradle = readOptionalRootFile('android/app/build.gradle');
+  const runtimeConfig = readRootFile('src/constants/config.ts');
 
   const appVersion = appConfig.expo.version;
+  const runtimeConfigVersion = runtimeConfig.match(/version:\s*'([^']+)'/)?.[1];
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
   const appDescription = appConfig.expo.description?.trim() ?? '';
   const privacyPolicyUrl = appConfig.expo.extra?.privacyPolicyUrl?.trim() ?? '';
   const termsOfServiceUrl = appConfig.expo.extra?.termsOfServiceUrl?.trim() ?? '';
 
   assert.equal(packageJson.version, appVersion);
+  assert.equal(runtimeConfigVersion, appVersion);
   assert.equal(iosMarketingVersion, appVersion);
   assert.equal(easConfig.cli?.appVersionSource, 'remote');
   assert.equal(easConfig.build?.production?.autoIncrement, true);

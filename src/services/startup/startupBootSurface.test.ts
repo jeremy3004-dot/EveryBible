@@ -60,8 +60,28 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   );
   assert.match(
     appSource,
-    /if \(!isReady \|\| \(!fontsLoaded && !fontError\)\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
-    'App.tsx should render a stable boot shell instead of a blank null surface while startup finishes'
+    /useState\(Platform\.OS === 'android'\)/,
+    'App.tsx should allow Android to paint a usable first screen while startup continues'
+  );
+  assert.match(
+    appSource,
+    /const shouldWaitForFonts =[\s\S]*Platform\.OS !== 'android'[\s\S]*!fontsLoaded[\s\S]*!fontError[\s\S]*!fontLoadTimedOut;/,
+    'App.tsx should not block Android first paint on custom font loading'
+  );
+  assert.match(
+    appSource,
+    /if \(!isReady \|\| shouldWaitForFonts\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
+    'App.tsx should still render a stable boot shell when non-Android startup is waiting'
+  );
+  assert.match(
+    appSource,
+    /const FONT_LOAD_TIMEOUT_MS = \d+;[\s\S]*setFontLoadTimedOut\(true\);/,
+    'App.tsx should proceed with system fonts if custom fonts do not report ready'
+  );
+  assert.match(
+    appSource,
+    /const STARTUP_READY_TIMEOUT_MS = \d+;[\s\S]*Startup readiness timed out; continuing launch with safe defaults\.[\s\S]*setIsReady\(true\);/,
+    'App.tsx should not leave Android stuck on the boot shell if critical startup does not resolve'
   );
 });
 

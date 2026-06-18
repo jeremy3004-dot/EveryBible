@@ -37,6 +37,8 @@ void SplashScreen.preventAutoHideAsync().catch((error) => {
 setupNotificationHandler();
 
 const ANDROID_BACKGROUND_STARTUP_DELAY_MS = 1500;
+const FONT_LOAD_TIMEOUT_MS = 2500;
+const STARTUP_READY_TIMEOUT_MS = 6000;
 
 function scheduleAfterInteractions(task: () => void, delayMs = 0): () => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -58,7 +60,8 @@ function LoadingScreen() {
     'Lora-Regular': require('./assets/fonts/Lora-Regular.ttf'),
     'Lora-Italic': require('./assets/fonts/Lora-Italic.ttf'),
   });
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(Platform.OS === 'android');
+  const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);
   const [shouldRenderNavigator, setShouldRenderNavigator] = useState(false);
   const warmupCancelRef = useRef<(() => void) | null>(null);
   const initializeAuth = useAuthStore((state) => state.initialize);
@@ -106,7 +109,28 @@ function LoadingScreen() {
   );
 
   useEffect(() => {
+    if (fontsLoaded || fontError) {
+      setFontLoadTimedOut(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setFontLoadTimedOut(true);
+    }, FONT_LOAD_TIMEOUT_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [fontError, fontsLoaded]);
+
+  useEffect(() => {
     let isMounted = true;
+    const readyTimeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Startup readiness timed out; continuing launch with safe defaults.');
+        setIsReady(true);
+      }
+    }, STARTUP_READY_TIMEOUT_MS);
 
     async function initialize() {
       try {
@@ -114,6 +138,7 @@ function LoadingScreen() {
       } catch (error) {
         console.error('Failed to initialize:', error);
       } finally {
+        clearTimeout(readyTimeoutId);
         if (isMounted) {
           setIsReady(true);
         }
@@ -124,6 +149,7 @@ function LoadingScreen() {
 
     return () => {
       isMounted = false;
+      clearTimeout(readyTimeoutId);
       if (warmupCancelRef.current) {
         warmupCancelRef.current();
         warmupCancelRef.current = null;
@@ -214,7 +240,10 @@ function LoadingScreen() {
     };
   }, [isPrivacyLocked, isReady, preferences.onboardingCompleted]);
 
-  if (!isReady || (!fontsLoaded && !fontError)) {
+  const shouldWaitForFonts =
+    Platform.OS !== 'android' && !fontsLoaded && !fontError && !fontLoadTimedOut;
+
+  if (!isReady || shouldWaitForFonts) {
     return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
   }
 
