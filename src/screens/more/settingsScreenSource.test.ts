@@ -112,3 +112,23 @@ test('SettingsScreen keeps the locale preferences row labeled as Nation and Bibl
     'The English settings copy should label the locale row as Nation and Bible'
   );
 });
+
+test('SettingsScreen keeps long locale labels truncated inside a bounded row', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.match(
+    source,
+    /t\('settings\.nationAndLanguage'\)[\s\S]*numberOfLines=\{1\}[\s\S]*ellipsizeMode="tail"/,
+    'The locale summary should truncate long language names with an ellipsis'
+  );
+  assert.match(
+    source,
+    /settingRight: \{[\s\S]*maxWidth: '46%'[\s\S]*minWidth: 0/,
+    'The value side of settings rows should stay bounded'
+  );
+  assert.match(
+    source,
+    /settingItem: \{[\s\S]*minHeight: 68/,
+    'Settings rows should keep a stable height instead of expanding for long values'
+  );
+});

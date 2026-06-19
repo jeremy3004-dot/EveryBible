@@ -262,6 +262,18 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     }
 
     const normalizedQuery = normalizeSearchText(trimmedQuery);
+    const exactMatches = languages.filter((language) => {
+      const haystacks = [
+        language.code,
+        language.iso6391 ?? '',
+        language.iso6393 ?? '',
+        language.name,
+        language.nativeName,
+        ...language.aliases,
+      ].map(normalizeSearchText);
+
+      return haystacks.some((haystack) => haystack === normalizedQuery);
+    });
     const prefixMatches = languages.filter((language) => {
       const haystacks = [language.name, language.nativeName, ...language.aliases].map(
         normalizeSearchText
@@ -272,7 +284,10 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     });
 
     const fuzzyMatches = languageFuse.search(trimmedQuery).map((result) => result.item);
-    const allMatches = uniqueByCode([...prefixMatches, ...fuzzyMatches]).slice(0, limit * 2);
+    const allMatches = uniqueByCode([...exactMatches, ...prefixMatches, ...fuzzyMatches]).slice(
+      0,
+      limit * 2
+    );
 
     const recommendedCodes = new Set(recommended.map((language) => language.code));
     const recommendedMatches = allMatches.filter((language) => recommendedCodes.has(language.code));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -80,6 +80,30 @@ export function SettingsScreen() {
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
   const disableTranslatorReviewMode = useTranslatorReviewStore((state) => state.disable);
+
+  useEffect(() => {
+    if (
+      preferences.contentLanguageCode !== 'cpe' ||
+      !(
+        preferences.contentLanguageName?.startsWith('Creoles and pidgins') ||
+        preferences.contentLanguageNativeName?.startsWith('Creoles and pidgins')
+      )
+    ) {
+      return;
+    }
+
+    setPreferences({
+      contentLanguageCode: 'en',
+      contentLanguageName: 'English',
+      contentLanguageNativeName: 'English',
+    });
+    syncPreferences().catch(() => {});
+  }, [
+    preferences.contentLanguageCode,
+    preferences.contentLanguageName,
+    preferences.contentLanguageNativeName,
+    setPreferences,
+  ]);
 
   const openTimePicker = () => {
     const pickerState = getReminderPickerState(preferences.reminderTime, MINUTES);
@@ -513,7 +537,11 @@ export function SettingsScreen() {
               </Text>
             </View>
             <View style={styles.settingRight}>
-              <Text style={[styles.settingValue, { color: colors.secondaryText }]}>
+              <Text
+                style={[styles.settingValue, { color: colors.secondaryText }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {availableLanguages[currentLanguage].nativeName}
               </Text>
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
@@ -534,6 +562,7 @@ export function SettingsScreen() {
               <Text
                 style={[styles.settingValue, { color: colors.secondaryText }]}
                 numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {localeSummary}
               </Text>
@@ -1355,6 +1384,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    minHeight: 68,
     borderBottomWidth: 1,
   },
   lastItem: {
@@ -1379,6 +1409,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    maxWidth: '46%',
     flexShrink: 1,
     minWidth: 0,
   },
@@ -1395,6 +1426,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 14,
+    maxWidth: '100%',
     flexShrink: 1,
   },
   appearanceOption: {

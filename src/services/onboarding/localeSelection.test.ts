@@ -11,6 +11,15 @@ const engine = createLocaleSearchEngine({
   ],
   languages: [
     {
+      code: 'cpe',
+      iso6391: null,
+      iso6393: 'cpe',
+      name: 'Creoles and pidgins, English based',
+      nativeName: 'Creoles and pidgins, English based',
+      aliases: ['Creoles and pidgins, English based'],
+      countryCodes: [],
+    },
+    {
       code: 'en',
       iso6391: 'en',
       iso6393: 'eng',
@@ -91,6 +100,12 @@ test('language search returns recommended matches first for the selected country
   const results = engine.searchLanguages('nepalee', 'NP');
 
   assert.equal(results.recommended[0]?.code, 'ne');
+});
+
+test('language search prioritizes exact English over English-based catalog groups', () => {
+  const results = engine.searchLanguages('English', null);
+
+  assert.equal(results.global[0]?.code, 'en');
 });
 
 test('language search still returns matches outside the selected country', () => {
