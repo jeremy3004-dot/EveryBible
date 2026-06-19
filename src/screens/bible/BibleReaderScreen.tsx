@@ -4909,6 +4909,7 @@ export function BibleReaderScreen() {
       selectedVerseSet.size,
       annotations.length,
     ].join('|');
+    const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
     const renderParagraphBlock = ({
       item,
       index,
@@ -4932,6 +4933,7 @@ export function BibleReaderScreen() {
           data={paragraphs}
           keyExtractor={(paragraph) => paragraph.key}
           renderItem={renderParagraphBlock}
+          extraData={premiumReaderListExtraData}
           ListHeaderComponent={renderTranslatorFeedbackReviewTools}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}

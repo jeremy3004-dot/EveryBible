@@ -837,6 +837,22 @@ test('BibleReaderScreen remounts active verse text when the audio highlight move
   );
 });
 
+test('BibleReaderScreen tells the virtualized reader when the active audio verse changes', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    source,
+    /const premiumReaderListExtraData = `\$\{readerInlineActiveVerse \?\? 'none'\}\|\$\{paragraphRenderSignature\}`;/,
+    'The virtualized reader list should derive a stable invalidation key from the active audio verse'
+  );
+
+  assert.match(
+    source,
+    /<Animated\.FlatList[\s\S]*renderItem=\{renderParagraphBlock\}[\s\S]*extraData=\{premiumReaderListExtraData\}/s,
+    'The virtualized reader list should invalidate visible rows when the active audio verse changes so old highlights clear'
+  );
+});
+
 test('pressing the reader dock play button starts playback for the displayed chapter', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
