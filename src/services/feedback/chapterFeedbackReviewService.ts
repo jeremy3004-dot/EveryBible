@@ -75,8 +75,30 @@ interface ChapterFeedbackReviewFunctionClient {
       | ChapterFeedbackReviewSummaryResponse
       | TranslatorReviewPasscodeValidationResponse
       | null;
-    error: { message?: string } | null;
+    error: { message?: string; context?: { json?: () => Promise<unknown> } } | null;
   }>;
+}
+
+async function readEdgeFunctionErrorMessage(
+  error: { message?: string; context?: { json?: () => Promise<unknown> } },
+  fallback: string
+): Promise<string> {
+  try {
+    const body = await error.context?.json?.();
+
+    if (body && typeof body === 'object' && 'error' in body) {
+      const bodyError = (body as { error?: unknown }).error;
+      if (typeof bodyError === 'string' && bodyError.trim()) {
+        return bodyError;
+      }
+    }
+  } catch {
+    // Fall back to the Supabase wrapper message below.
+  }
+
+  return error.message === 'Edge Function returned a non-2xx status code'
+    ? fallback
+    : (error.message ?? fallback);
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClient | null> {
@@ -91,6 +113,7 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClie
 
 export async function validateTranslatorReviewPasscode(
   passcode: string,
+  translationId?: string,
   client?: ChapterFeedbackReviewFunctionClient
 ): Promise<TranslatorReviewPasscodeValidationResponse> {
   const normalizedPasscode = normalizeTranslatorReviewPasscode(passcode);
@@ -112,6 +135,7 @@ export async function validateTranslatorReviewPasscode(
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         passcode: normalizedPasscode,
+        translationId,
         validateOnly: true,
       },
     });
@@ -119,7 +143,10 @@ export async function validateTranslatorReviewPasscode(
     if (error) {
       return {
         success: false,
-        error: error.message ?? 'Unable to verify translator access right now.',
+        error: await readEdgeFunctionErrorMessage(
+          error,
+          'Unable to verify translator access right now.'
+        ),
       };
     }
 
@@ -166,7 +193,10 @@ export async function fetchChapterFeedbackForTranslatorReview(
       return {
         success: false,
         feedback: [],
-        error: error.message ?? 'Unable to load translator feedback right now.',
+        error: await readEdgeFunctionErrorMessage(
+          error,
+          'Unable to load translator feedback right now.'
+        ),
       };
     }
 
@@ -216,7 +246,10 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
       return {
         success: false,
         chapters: [],
-        error: error.message ?? 'Unable to load translator feedback right now.',
+        error: await readEdgeFunctionErrorMessage(
+          error,
+          'Unable to load translator feedback right now.'
+        ),
       };
     }
 

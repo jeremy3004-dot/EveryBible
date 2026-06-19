@@ -15,7 +15,10 @@ test('SettingsScreen places translator access directly after chapter feedback', 
 test('SettingsScreen unlocks translator review mode through a numeric passcode modal', () => {
   assert.match(source, /showTranslatorAccessModal/);
   assert.match(source, /keyboardType="number-pad"/);
-  assert.match(source, /validateTranslatorReviewPasscode\(translatorAccessPasscode\)/);
+  assert.match(
+    source,
+    /validateTranslatorReviewPasscode\(\s*translatorAccessPasscode,\s*currentTranslation\s*\)/
+  );
   assert.match(source, /enableTranslatorReviewMode\(translatorAccessPasscode\)/);
   assert.match(source, /translatorAccessIncorrect/);
 });

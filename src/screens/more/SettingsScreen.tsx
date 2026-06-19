@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
+import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores';
 import { useFontSize, useI18n } from '../../hooks';
@@ -80,6 +81,7 @@ export function SettingsScreen() {
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
   const disableTranslatorReviewMode = useTranslatorReviewStore((state) => state.disable);
+  const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   useEffect(() => {
     if (
@@ -273,7 +275,10 @@ export function SettingsScreen() {
     setTranslatorAccessError(null);
 
     try {
-      const result = await validateTranslatorReviewPasscode(translatorAccessPasscode);
+      const result = await validateTranslatorReviewPasscode(
+        translatorAccessPasscode,
+        currentTranslation
+      );
 
       if (!result.success) {
         setTranslatorAccessError(
@@ -771,7 +776,7 @@ export function SettingsScreen() {
               <View style={styles.feedbackIdentityFields}>
                 <View style={styles.feedbackIdentityField}>
                   <Text style={[styles.feedbackIdentityLabel, { color: colors.primaryText }]}>
-                    {t('common.name')}
+                    {t('auth.name')}
                   </Text>
                   <TextInput
                     value={chapterFeedbackIdentityName}

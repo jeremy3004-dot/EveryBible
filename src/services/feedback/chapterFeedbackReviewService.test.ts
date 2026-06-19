@@ -46,23 +46,49 @@ test('fetchChapterFeedbackForTranslatorReview calls the review edge function wit
 
 test('validateTranslatorReviewPasscode checks translator access through the review edge function', async () => {
   const calls: Array<{ functionName: string; body: Record<string, unknown> }> = [];
-  const result = await validateTranslatorReviewPasscode(' entered-review-passcode ', {
-    invoke: async (functionName, options) => {
-      calls.push({ functionName, body: { ...options.body } });
-      return {
-        data: {
-          success: true,
-        },
-        error: null,
-      };
+  const result = await validateTranslatorReviewPasscode(
+    ' entered-review-passcode ',
+    'bsb',
+    {
+      invoke: async (functionName, options) => {
+        calls.push({ functionName, body: { ...options.body } });
+        return {
+          data: {
+            success: true,
+          },
+          error: null,
+        };
+      },
     },
-  });
+  );
 
   assert.equal(result.success, true);
   assert.equal(calls[0]?.functionName, 'review-chapter-feedback');
   assert.equal(calls[0]?.body.passcode, 'entered-review-passcode');
   assert.equal(calls[0]?.body.validateOnly, true);
-  assert.equal(calls[0]?.body.translationId, undefined);
+  assert.equal(calls[0]?.body.translationId, 'bsb');
+});
+
+test('validateTranslatorReviewPasscode reads the review edge function error body', async () => {
+  const result = await validateTranslatorReviewPasscode('wrong-passcode', undefined, {
+    invoke: async () => ({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: {
+          json: async () => ({
+            success: false,
+            error: 'Translator access denied',
+          }),
+        },
+      },
+    }),
+  });
+
+  assert.deepEqual(result, {
+    success: false,
+    error: 'Translator access denied',
+  });
 });
 
 test('review-chapter-feedback disables the public edge JWT gate', () => {
