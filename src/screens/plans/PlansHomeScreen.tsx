@@ -462,15 +462,6 @@ function MyPlansSection({
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('readingPlans.dailyReadings')}</Text>
-          <TouchableOpacity
-            onPress={onAddPlan}
-            activeOpacity={0.8}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('readingPlans.findPlans')}
-          >
-            <Ionicons name="add" size={22} color={colors.accentPrimary} />
-          </TouchableOpacity>
         </View>
 
         {activePlans.length === 0 ? (
@@ -581,16 +572,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     primaryButtonLabel: {
       ...typography.label,
       color: colors.cardBackground,
-    },
-    iconButton: {
-      width: layout.minTouchTarget,
-      height: layout.minTouchTarget,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.cardBackground,
     },
     emptyState: {
       alignItems: 'center',

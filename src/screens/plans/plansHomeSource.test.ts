@@ -16,7 +16,7 @@ const swipeableRowMatches = source.match(/SwipeablePlanRow/g) ?? [];
 test('PlansHomeScreen renders the tab control as a single horizontal row', () => {
   assert.match(
     source,
-    /<View style=\{styles\.tabRow\}/,
+    /<View style=\{\[styles\.tabRow,/,
     'PlansHomeScreen should render the tabs inside a plain View so flex:1 can bound the control to the screen width'
   );
   assert.doesNotMatch(
@@ -175,6 +175,11 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
     source,
     /activePlans\.length === 0[\s\S]*<TouchableOpacity[\s\S]*styles\.emptyCtaButton[\s\S]*<Text style=\{styles\.emptyCtaLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/s,
     'PlansHomeScreen should show the add-plan CTA inside the empty state when there are no active plans yet'
+  );
+  assert.equal(
+    source.includes('styles.iconButton'),
+    false,
+    'PlansHomeScreen should not show a redundant circular add-plan button above the empty state CTA'
   );
   assert.match(
     source,
