@@ -18,7 +18,12 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
+import {
+  useBibleStore,
+  useLibraryStore,
+  useProgressStore,
+  useReadingPlansStore,
+} from '../../stores';
 import {
   enrollInPlan,
   getPlansByCategory,
@@ -36,6 +41,7 @@ import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAsset
 import {
   getActivePlanDayNumber,
   getDaySessionEntries,
+  getVisibleCompletedEntryCount,
   getVisiblePlanDayNumbers,
   isRecurringPlan,
   isMultiSessionPlan,
@@ -102,13 +108,7 @@ function PlanCoverImage({
       </View>
     );
   }
-  return (
-    <Image
-      source={source}
-      style={{ width, height, borderRadius }}
-      resizeMode="cover"
-    />
-  );
+  return <Image source={source} style={{ width, height, borderRadius }} resizeMode="cover" />;
 }
 
 const coverImageStyles = StyleSheet.create({
@@ -226,23 +226,31 @@ interface ProgressCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress | null;
   currentDaySummary: CurrentPlanDaySummary | null;
+  today: Date;
 }
 
-function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) {
+function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
   const isRecurringSchedulePlan = isRecurringPlan(plan);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
-  const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
+  const completedCount = progress
+    ? getVisibleCompletedEntryCount(plan, progress.completed_entries, today)
+    : 0;
   const fraction =
-    totalDays > 0 ? (isRecurringSchedulePlan ? currentDay / totalDays : completedCount / totalDays) : 0;
-  const completionBadgeLabel = progress?.is_completed && !isRecurringSchedulePlan
-    ? t('readingPlans.completed')
-    : currentDaySummary?.isComplete
-      ? t('readingPlans.dailyTargetCompleteTitle')
-      : null;
+    totalDays > 0
+      ? isRecurringSchedulePlan
+        ? currentDay / totalDays
+        : completedCount / totalDays
+      : 0;
+  const completionBadgeLabel =
+    progress?.is_completed && !isRecurringSchedulePlan
+      ? t('readingPlans.completed')
+      : currentDaySummary?.isComplete
+        ? t('readingPlans.dailyTargetCompleteTitle')
+        : null;
 
   return (
     <View
@@ -270,8 +278,7 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           </Text>
           {!isRecurringSchedulePlan ? (
             <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-              {completedCount} / {totalDays}{' '}
-              {t('engagement.days', { defaultValue: 'days' })}{' '}
+              {completedCount} / {totalDays} {t('engagement.days', { defaultValue: 'days' })}{' '}
               {t('readingPlans.completed').toLowerCase()}
             </Text>
           ) : null}
@@ -413,10 +420,7 @@ const DayRow = React.memo(function DayRow({
           style={[
             dayRowStyles.badge,
             {
-              backgroundColor:
-                isCompleted
-                  ? colors.accentPrimary
-                  : colors.background,
+              backgroundColor: isCompleted ? colors.accentPrimary : colors.background,
               borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
               borderWidth: isCompleted ? 0 : 1,
             },
@@ -630,7 +634,10 @@ function RelatedPlanCard({ plan, onPress }: RelatedPlanCardProps) {
     <TouchableOpacity
       onPress={() => onPress(plan.id)}
       activeOpacity={0.85}
-      style={[relatedCardStyles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+      style={[
+        relatedCardStyles.card,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
       accessibilityRole="button"
     >
       <PlanCoverImage plan={plan} width={120} height={80} borderRadius={radius.md} />
@@ -721,9 +728,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     if (foundPlan?.category) {
       const relatedResult = await getPlansByCategory(foundPlan.category);
       if (relatedResult.success) {
-        const filtered = (relatedResult.data ?? [])
-          .filter((p) => p.id !== planId)
-          .slice(0, 5);
+        const filtered = (relatedResult.data ?? []).filter((p) => p.id !== planId).slice(0, 5);
         setRelatedPlans(filtered);
       }
     }
@@ -735,7 +740,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [load]);
 
-  const currentDay = plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1;
+  const currentDay = plan
+    ? getActivePlanDayNumber(plan, progress, today)
+    : (progress?.current_day ?? 1);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
@@ -756,48 +763,51 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const isEnrolled = progress !== null;
   const multiSessionPlan = isMultiSessionPlan(plan);
 
-  const handleOpenChapter = useCallback(async (dayNumber: number, sessionKey?: PlanSessionKey) => {
-    if (!rootNavigationRef.isReady()) return;
+  const handleOpenChapter = useCallback(
+    async (dayNumber: number, sessionKey?: PlanSessionKey) => {
+      if (!rootNavigationRef.isReady()) return;
 
-    if (!progress) {
-      const enrollResult = await enrollInPlan(planId);
-      if (!enrollResult.success || !enrollResult.data) {
+      if (!progress) {
+        const enrollResult = await enrollInPlan(planId);
+        if (!enrollResult.success || !enrollResult.data) {
+          return;
+        }
+      }
+
+      const plannedDayEntries = entriesByDay.get(dayNumber) ?? [];
+      const dayEntries =
+        sessionKey && multiSessionPlan
+          ? plannedDayEntries.filter((entry) => entry.session_key === sessionKey)
+          : plannedDayEntries;
+      const fallbackEntry = dayEntries[0] ?? plannedDayEntries[0];
+      if (!fallbackEntry) {
         return;
       }
-    }
 
-    const plannedDayEntries = entriesByDay.get(dayNumber) ?? [];
-    const dayEntries =
-      sessionKey && multiSessionPlan
-        ? plannedDayEntries.filter((entry) => entry.session_key === sessionKey)
-        : plannedDayEntries;
-    const fallbackEntry = dayEntries[0] ?? plannedDayEntries[0];
-    if (!fallbackEntry) {
-      return;
-    }
+      const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
+      const resumeTarget = getPlanDayResume(planId, dayNumber);
+      const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
+        bookId: fallbackEntry.book,
+        chapter: fallbackEntry.chapter_start,
+      };
 
-    const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
-    const resumeTarget = getPlanDayResume(planId, dayNumber);
-    const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
-      bookId: fallbackEntry.book,
-      chapter: fallbackEntry.chapter_start,
-    };
-
-    rootNavigationRef.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: playbackStartEntry.bookId,
-        chapter: playbackStartEntry.chapter,
-        ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
-        preferredMode: preferredChapterLaunchMode,
-        playbackSequenceEntries,
-        planId,
-        planDayNumber: dayNumber,
-        ...(sessionKey ? { planSessionKey: sessionKey } : {}),
-        returnToPlanOnComplete: true,
-      },
-    });
-  }, [entriesByDay, getPlanDayResume, multiSessionPlan, planId, preferredChapterLaunchMode, progress]);
+      rootNavigationRef.navigate('Bible', {
+        screen: 'BibleReader',
+        params: {
+          bookId: playbackStartEntry.bookId,
+          chapter: playbackStartEntry.chapter,
+          ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+          preferredMode: preferredChapterLaunchMode,
+          playbackSequenceEntries,
+          planId,
+          planDayNumber: dayNumber,
+          ...(sessionKey ? { planSessionKey: sessionKey } : {}),
+          returnToPlanOnComplete: true,
+        },
+      });
+    },
+    [entriesByDay, getPlanDayResume, multiSessionPlan, planId, preferredChapterLaunchMode, progress]
+  );
 
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
@@ -829,7 +839,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             Boolean(
               (currentDaySummary?.dateKey &&
                 currentDaySummary.dateKey in progress.completed_entries) ||
-                currentDaySummary?.isComplete
+              currentDaySummary?.isComplete
             )
           : String(dayNumber) in progress.completed_entries ||
             (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
@@ -841,15 +851,15 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           : null;
       const launchSessionKey = multiSessionPlan
         ? isCurrent && isEnrolled
-          ? currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey
+          ? (currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey)
           : daySessionGroups[0]?.sessionKey
         : undefined;
       const sessionBadges = daySessionGroups.map((group) => {
         const matchingSummary =
           isCurrent && isEnrolled
-            ? currentDaySummary?.sessionSummaries.find(
+            ? (currentDaySummary?.sessionSummaries.find(
                 (session) => session.sessionKey === group.sessionKey
-              ) ?? null
+              ) ?? null)
             : null;
         const state =
           !isCurrent || !isEnrolled
@@ -868,9 +878,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       const sessionActions = daySessionGroups.map((group) => {
         const matchingSummary =
           isCurrent && isEnrolled
-            ? currentDaySummary?.sessionSummaries.find(
+            ? (currentDaySummary?.sessionSummaries.find(
                 (session) => session.sessionKey === group.sessionKey
-              ) ?? null
+              ) ?? null)
             : null;
         const state =
           !isCurrent || !isEnrolled
@@ -939,11 +949,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       {/* ------------------------------------------------------------------ */}
       <View style={styles.coverContainer}>
         {heroCoverSource ? (
-          <Image
-            source={heroCoverSource}
-            style={styles.coverImage}
-            resizeMode="cover"
-          />
+          <Image source={heroCoverSource} style={styles.coverImage} resizeMode="cover" />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: colors.accentSecondary }]}>
             <Ionicons name="book-outline" size={60} color={colors.secondaryText} />
@@ -951,10 +957,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         )}
 
         {/* Gradient overlay at bottom of cover for readability */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.5)']}
-          style={styles.coverGradient}
-        />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={styles.coverGradient} />
 
         <View style={styles.coverTitleWrap}>
           <Text style={styles.coverTitle} numberOfLines={3}>
@@ -1007,7 +1010,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       {/* ------------------------------------------------------------------ */}
       {plan?.description_key ? (
         <Text style={[styles.description, { color: colors.secondaryText }]}>
-          {t(plan.description_key as Parameters<typeof t>[0], { defaultValue: plan.description_key })}
+          {t(plan.description_key as Parameters<typeof t>[0], {
+            defaultValue: plan.description_key,
+          })}
         </Text>
       ) : null}
 
@@ -1018,6 +1023,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             plan={plan}
             progress={progress}
             currentDaySummary={currentDaySummary}
+            today={today}
           />
         </View>
       ) : null}

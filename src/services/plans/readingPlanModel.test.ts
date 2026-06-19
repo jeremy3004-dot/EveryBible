@@ -9,6 +9,7 @@ import {
   getPlanSessionOrder,
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
+  getVisibleCompletedEntryCount,
   isCalendarDayOfWeekPlan,
   isCalendarDayOfMonthPlan,
   isRecurringPlan,
@@ -134,10 +135,7 @@ const makePlan = (overrides: Partial<ReadingPlan> = {}): ReadingPlan => ({
 
 test('isCalendarDayOfMonthPlan only enables the special recurring cadence when requested', () => {
   assert.equal(isCalendarDayOfMonthPlan(makePlan()), false);
-  assert.equal(
-    isCalendarDayOfMonthPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })),
-    true
-  );
+  assert.equal(isCalendarDayOfMonthPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })), true);
 });
 
 test('isRecurringPlan treats both monthly and weekly calendar plans as repeating rhythms', () => {
@@ -179,9 +177,30 @@ test('getVisiblePlanDayNumbers collapses calendar-day plans to the current chapt
   const visibleDays = getVisiblePlanDayNumbers(
     plan,
     [
-      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
-      { id: 'day-10', plan_id: 'plan-1', day_number: 10, book: 'PRO', chapter_start: 10, chapter_end: null },
-      { id: 'day-31', plan_id: 'plan-1', day_number: 31, book: 'PRO', chapter_start: 31, chapter_end: null },
+      {
+        id: 'day-1',
+        plan_id: 'plan-1',
+        day_number: 1,
+        book: 'PRO',
+        chapter_start: 1,
+        chapter_end: null,
+      },
+      {
+        id: 'day-10',
+        plan_id: 'plan-1',
+        day_number: 10,
+        book: 'PRO',
+        chapter_start: 10,
+        chapter_end: null,
+      },
+      {
+        id: 'day-31',
+        plan_id: 'plan-1',
+        day_number: 31,
+        book: 'PRO',
+        chapter_start: 31,
+        chapter_end: null,
+      },
     ],
     undefined,
     new Date(2026, 3, 10, 12)
@@ -199,9 +218,30 @@ test('getVisiblePlanDayNumbers collapses weekly recurring plans to the active we
   const visibleDays = getVisiblePlanDayNumbers(
     plan,
     [
-      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PSA', chapter_start: 9, chapter_end: 16 },
-      { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PSA', chapter_start: 25, chapter_end: 32 },
-      { id: 'day-7', plan_id: 'plan-1', day_number: 7, book: 'PSA', chapter_start: 109, chapter_end: 117 },
+      {
+        id: 'day-1',
+        plan_id: 'plan-1',
+        day_number: 1,
+        book: 'PSA',
+        chapter_start: 9,
+        chapter_end: 16,
+      },
+      {
+        id: 'day-2',
+        plan_id: 'plan-1',
+        day_number: 2,
+        book: 'PSA',
+        chapter_start: 25,
+        chapter_end: 32,
+      },
+      {
+        id: 'day-7',
+        plan_id: 'plan-1',
+        day_number: 7,
+        book: 'PSA',
+        chapter_start: 109,
+        chapter_end: 117,
+      },
     ],
     undefined,
     new Date(2026, 3, 13, 12)
@@ -216,9 +256,30 @@ test('getVisiblePlanDayNumbers keeps sequential plans showing every available da
   const visibleDays = getVisiblePlanDayNumbers(
     plan,
     [
-      { id: 'day-1', plan_id: 'plan-1', day_number: 1, book: 'PRO', chapter_start: 1, chapter_end: null },
-      { id: 'day-3', plan_id: 'plan-1', day_number: 3, book: 'PRO', chapter_start: 3, chapter_end: null },
-      { id: 'day-2', plan_id: 'plan-1', day_number: 2, book: 'PRO', chapter_start: 2, chapter_end: null },
+      {
+        id: 'day-1',
+        plan_id: 'plan-1',
+        day_number: 1,
+        book: 'PRO',
+        chapter_start: 1,
+        chapter_end: null,
+      },
+      {
+        id: 'day-3',
+        plan_id: 'plan-1',
+        day_number: 3,
+        book: 'PRO',
+        chapter_start: 3,
+        chapter_end: null,
+      },
+      {
+        id: 'day-2',
+        plan_id: 'plan-1',
+        day_number: 2,
+        book: 'PRO',
+        chapter_start: 2,
+        chapter_end: null,
+      },
     ],
     { current_day: 2 },
     new Date(2026, 3, 10, 12)
@@ -232,17 +293,67 @@ test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => 
   const weeklyRecurringPlan = makePlan({ scheduleMode: 'calendar-day-of-week', duration_days: 7 });
   const sequentialPlan = makePlan({ scheduleMode: 'relative' });
 
-  assert.equal(
-    getPlanCompletionEntryKey(recurringPlan, 5, new Date(2026, 3, 5, 12)),
-    '2026-04-05'
-  );
+  assert.equal(getPlanCompletionEntryKey(recurringPlan, 5, new Date(2026, 3, 5, 12)), '2026-04-05');
   assert.equal(
     getPlanCompletionEntryKey(weeklyRecurringPlan, 2, new Date(2026, 3, 13, 12)),
     '2026-04-13'
   );
+  assert.equal(getPlanCompletionEntryKey(sequentialPlan, 5, new Date(2026, 3, 5, 12)), '5');
+});
+
+test('getVisibleCompletedEntryCount resets monthly recurring completion counts at a new month', () => {
+  const recurringPlan = makePlan({ scheduleMode: 'calendar-day-of-month' });
+
   assert.equal(
-    getPlanCompletionEntryKey(sequentialPlan, 5, new Date(2026, 3, 5, 12)),
-    '5'
+    getVisibleCompletedEntryCount(
+      recurringPlan,
+      {
+        '2026-04-01': '2026-04-01T08:00:00.000Z',
+        '2026-04-30': '2026-04-30T08:00:00.000Z',
+        '2026-05-01': '2026-05-01T08:00:00.000Z',
+      },
+      new Date(2026, 4, 1, 12)
+    ),
+    1
+  );
+});
+
+test('getVisibleCompletedEntryCount resets weekly recurring completion counts at a new week', () => {
+  const weeklyPlan = makePlan({
+    scheduleMode: 'calendar-day-of-week',
+    weekStartsOn: 'sunday',
+  });
+
+  assert.equal(
+    getVisibleCompletedEntryCount(
+      weeklyPlan,
+      {
+        '2026-04-13': '2026-04-13T08:00:00.000Z',
+        '2026-04-18': '2026-04-18T08:00:00.000Z',
+        '2026-04-19': '2026-04-19T08:00:00.000Z',
+      },
+      new Date(2026, 3, 19, 12)
+    ),
+    1
+  );
+});
+
+test('getVisibleCompletedEntryCount can use Monday-start weekly rhythms', () => {
+  const weeklyPlan = makePlan({
+    scheduleMode: 'calendar-day-of-week',
+    weekStartsOn: 'monday',
+  });
+
+  assert.equal(
+    getVisibleCompletedEntryCount(
+      weeklyPlan,
+      {
+        '2026-04-13': '2026-04-13T08:00:00.000Z',
+        '2026-04-19': '2026-04-19T08:00:00.000Z',
+      },
+      new Date(2026, 3, 19, 12)
+    ),
+    2
   );
 });
 
@@ -319,41 +430,44 @@ test('getPlanSessionOrder falls back to entry metadata order for multi-session p
 });
 
 test('getDaySessionEntries groups a day into ordered morning and evening buckets', () => {
-  const sessionGroups = getDaySessionEntries([
-    {
-      id: 'day-1-morning-1',
-      plan_id: 'plan-1',
-      day_number: 1,
-      session_key: 'morning',
-      session_title: 'Morning',
-      session_order: 1,
-      book: 'PSA',
-      chapter_start: 63,
-      chapter_end: null,
-    },
-    {
-      id: 'day-1-evening-1',
-      plan_id: 'plan-1',
-      day_number: 1,
-      session_key: 'evening',
-      session_title: 'Evening',
-      session_order: 2,
-      book: 'LUK',
-      chapter_start: 1,
-      chapter_end: null,
-    },
-    {
-      id: 'day-2-morning-1',
-      plan_id: 'plan-1',
-      day_number: 2,
-      session_key: 'morning',
-      session_title: 'Morning',
-      session_order: 1,
-      book: 'PSA',
-      chapter_start: 5,
-      chapter_end: null,
-    },
-  ], 1);
+  const sessionGroups = getDaySessionEntries(
+    [
+      {
+        id: 'day-1-morning-1',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'morning',
+        session_title: 'Morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 63,
+        chapter_end: null,
+      },
+      {
+        id: 'day-1-evening-1',
+        plan_id: 'plan-1',
+        day_number: 1,
+        session_key: 'evening',
+        session_title: 'Evening',
+        session_order: 2,
+        book: 'LUK',
+        chapter_start: 1,
+        chapter_end: null,
+      },
+      {
+        id: 'day-2-morning-1',
+        plan_id: 'plan-1',
+        day_number: 2,
+        session_key: 'morning',
+        session_title: 'Morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 5,
+        chapter_end: null,
+      },
+    ],
+    1
+  );
 
   assert.deepEqual(
     sessionGroups.map((group) => ({
@@ -394,12 +508,7 @@ test('buildPlanSessionCompletionKey uses the day number for relative plans and d
     '2026-04-10:midday'
   );
   assert.equal(
-    buildPlanSessionCompletionKey(
-      weeklyRecurringPlan,
-      2,
-      'evening',
-      new Date(2026, 3, 13, 12)
-    ),
+    buildPlanSessionCompletionKey(weeklyRecurringPlan, 2, 'evening', new Date(2026, 3, 13, 12)),
     '2026-04-13:evening'
   );
 });

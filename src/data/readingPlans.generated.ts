@@ -85,7 +85,9 @@ type WeeklySessionPlanRecipe = {
 };
 
 const canonicalOrder = bibleBooks.map((book) => book.id);
-const newTestamentOrder = bibleBooks.filter((book) => book.testament === 'NT').map((book) => book.id);
+const newTestamentOrder = bibleBooks
+  .filter((book) => book.testament === 'NT')
+  .map((book) => book.id);
 const epistlesOrder = [
   'ROM',
   '1CO',
@@ -262,7 +264,10 @@ function allocateDaysPerBook(bookOrder: string[], totalDays: number): number[] {
   return baseDays;
 }
 
-function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+function buildSequentialPlan(recipe: BookPlanRecipe): {
+  plan: ReadingPlan;
+  entries: ReadingPlanEntry[];
+} {
   const daysPerBook = allocateDaysPerBook(recipe.book_order, recipe.duration_days);
   const entries: ReadingPlanEntry[] = [];
   let dayNumber = 1;
@@ -305,7 +310,10 @@ function buildSequentialPlan(recipe: BookPlanRecipe): { plan: ReadingPlan; entri
   };
 }
 
-function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+function buildVersePlan(recipe: VersePlanRecipe): {
+  plan: ReadingPlan;
+  entries: ReadingPlanEntry[];
+} {
   return {
     plan: {
       id: recipe.id,
@@ -339,9 +347,10 @@ function buildVersePlan(recipe: VersePlanRecipe): { plan: ReadingPlan; entries: 
   };
 }
 
-function buildTimedChallengePlan(
-  recipe: TimedChallengeRecipe
-): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+function buildTimedChallengePlan(recipe: TimedChallengeRecipe): {
+  plan: ReadingPlan;
+  entries: ReadingPlanEntry[];
+} {
   const chapters: Array<{ book: string; chapter: number }> = [];
 
   recipe.books.forEach((bookId) => {
@@ -412,9 +421,10 @@ function buildTimedChallengePlan(
   };
 }
 
-function buildWeeklySessionPlan(
-  recipe: WeeklySessionPlanRecipe
-): { plan: ReadingPlan; entries: ReadingPlanEntry[] } {
+function buildWeeklySessionPlan(recipe: WeeklySessionPlanRecipe): {
+  plan: ReadingPlan;
+  entries: ReadingPlanEntry[];
+} {
   const entries: ReadingPlanEntry[] = [];
 
   namedWeekdayOrder.forEach((weekday, weekdayIndex) => {
@@ -463,6 +473,7 @@ function buildWeeklySessionPlan(
       cover_key: recipe.cover_key,
       cover_image_key: recipe.cover_key,
       scheduleMode: 'calendar-day-of-week',
+      weekStartsOn: 'sunday',
       format: 'multi-session',
       sessionOrder: recipe.session_order,
     },
@@ -562,13 +573,62 @@ const verseRecipes: VersePlanRecipe[] = [
     sort_order: 8,
     cover_key: 'dunes',
     entries: [
-      { day_number: 1, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 1, verse_end: 12 },
-      { day_number: 2, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 13, verse_end: 20 },
-      { day_number: 3, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 21, verse_end: 32 },
-      { day_number: 4, book: 'MAT', chapter_start: 5, chapter_end: 5, verse_start: 33, verse_end: 48 },
-      { day_number: 5, book: 'MAT', chapter_start: 6, chapter_end: 6, verse_start: 1, verse_end: 18 },
-      { day_number: 6, book: 'MAT', chapter_start: 6, chapter_end: 6, verse_start: 19, verse_end: 34 },
-      { day_number: 7, book: 'MAT', chapter_start: 7, chapter_end: 7, verse_start: 1, verse_end: 29 },
+      {
+        day_number: 1,
+        book: 'MAT',
+        chapter_start: 5,
+        chapter_end: 5,
+        verse_start: 1,
+        verse_end: 12,
+      },
+      {
+        day_number: 2,
+        book: 'MAT',
+        chapter_start: 5,
+        chapter_end: 5,
+        verse_start: 13,
+        verse_end: 20,
+      },
+      {
+        day_number: 3,
+        book: 'MAT',
+        chapter_start: 5,
+        chapter_end: 5,
+        verse_start: 21,
+        verse_end: 32,
+      },
+      {
+        day_number: 4,
+        book: 'MAT',
+        chapter_start: 5,
+        chapter_end: 5,
+        verse_start: 33,
+        verse_end: 48,
+      },
+      {
+        day_number: 5,
+        book: 'MAT',
+        chapter_start: 6,
+        chapter_end: 6,
+        verse_start: 1,
+        verse_end: 18,
+      },
+      {
+        day_number: 6,
+        book: 'MAT',
+        chapter_start: 6,
+        chapter_end: 6,
+        verse_start: 19,
+        verse_end: 34,
+      },
+      {
+        day_number: 7,
+        book: 'MAT',
+        chapter_start: 7,
+        chapter_end: 7,
+        verse_start: 1,
+        verse_end: 29,
+      },
     ],
   },
 ];
@@ -952,19 +1012,16 @@ export const readingPlanEntries = [
 export const readingPlansById = new Map(readingPlans.map((plan) => [plan.id, plan] as const));
 export const readingPlansBySlug = new Map(readingPlans.map((plan) => [plan.slug, plan] as const));
 
-export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<Record<string, ReadingPlanEntry[]>>(
-  (accumulator, entry) => {
-    if (!accumulator[entry.plan_id]) {
-      accumulator[entry.plan_id] = [];
-    }
-    accumulator[entry.plan_id]!.push(entry);
-    return accumulator;
-  },
-  {}
-);
+export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<
+  Record<string, ReadingPlanEntry[]>
+>((accumulator, entry) => {
+  if (!accumulator[entry.plan_id]) {
+    accumulator[entry.plan_id] = [];
+  }
+  accumulator[entry.plan_id]!.push(entry);
+  return accumulator;
+}, {});
 
 export const READING_PLANS = readingPlans;
 export const READING_PLAN_BY_ID = readingPlansById;
-export const READING_PLAN_ENTRIES_BY_PLAN_ID = new Map(
-  Object.entries(readingPlanEntriesByPlanId)
-);
+export const READING_PLAN_ENTRIES_BY_PLAN_ID = new Map(Object.entries(readingPlanEntriesByPlanId));

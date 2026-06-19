@@ -21,6 +21,46 @@ const formatLocalDateKey = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const parseLocalDateKey = (dateKey: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day
+    ? date
+    : null;
+};
+
+const getLocalWeekStart = (
+  date: Date,
+  weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'
+): Date => {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const firstDay = weekStartsOn === 'monday' ? 1 : 0;
+  const daysSinceStart = (start.getDay() - firstDay + 7) % 7;
+  start.setDate(start.getDate() - daysSinceStart);
+  return start;
+};
+
+const isSameLocalMonth = (left: Date, right: Date): boolean =>
+  left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
+
+const isSameLocalWeek = (
+  left: Date,
+  right: Date,
+  weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'
+): boolean => {
+  const leftStart = getLocalWeekStart(left, weekStartsOn);
+  const rightStart = getLocalWeekStart(right, weekStartsOn);
+  return formatLocalDateKey(leftStart) === formatLocalDateKey(rightStart);
+};
+
 // ---------------------------------------------------------------------------
 // Pure model functions for reading plan progress — no Supabase dependency.
 // These are extracted so they can be unit-tested without network or auth.
@@ -72,10 +112,7 @@ export function normalizeRemoteReadingPlanProgress(
 export function buildRemoteReadingPlanProgressPayload(
   progress: UserReadingPlanProgress,
   userId: string
-): Omit<
-  RemoteReadingPlanProgressRow,
-  'id' | 'completed_sessions' | 'current_session'
-> {
+): Omit<RemoteReadingPlanProgressRow, 'id' | 'completed_sessions' | 'current_session'> {
   const normalizedPlanId = progress.plan_id.trim();
   const remoteUuid = UUID_PLAN_ID_PATTERN.test(normalizedPlanId) ? normalizedPlanId : null;
 
@@ -92,21 +129,15 @@ export function buildRemoteReadingPlanProgressPayload(
   };
 }
 
-export function isCalendarDayOfMonthPlan(
-  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
-): boolean {
+export function isCalendarDayOfMonthPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null): boolean {
   return plan?.scheduleMode === 'calendar-day-of-month';
 }
 
-export function isCalendarDayOfWeekPlan(
-  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
-): boolean {
+export function isCalendarDayOfWeekPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null): boolean {
   return plan?.scheduleMode === 'calendar-day-of-week';
 }
 
-export function isRecurringPlan(
-  plan?: Pick<ReadingPlan, 'scheduleMode'> | null
-): boolean {
+export function isRecurringPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null): boolean {
   return RECURRING_PLAN_SCHEDULE_MODES.has(plan?.scheduleMode);
 }
 
@@ -165,6 +196,30 @@ export function getPlanCompletionEntryKey(
   return isRecurringPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
 }
 
+export function getVisibleCompletedEntryCount(
+  plan: Pick<ReadingPlan, 'scheduleMode' | 'weekStartsOn'>,
+  completedEntries: Record<string, string>,
+  today: Date = new Date()
+): number {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return Object.keys(completedEntries).filter((dateKey) => {
+      const completedDate = parseLocalDateKey(dateKey);
+      return completedDate ? isSameLocalMonth(completedDate, today) : false;
+    }).length;
+  }
+
+  if (isCalendarDayOfWeekPlan(plan)) {
+    return Object.keys(completedEntries).filter((dateKey) => {
+      const completedDate = parseLocalDateKey(dateKey);
+      return completedDate
+        ? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')
+        : false;
+    }).length;
+  }
+
+  return Object.keys(completedEntries).length;
+}
+
 function isPlanSessionKey(value: string | null | undefined): value is PlanSessionKey {
   return PLAN_SESSION_ORDER.includes(value as PlanSessionKey);
 }
@@ -183,9 +238,7 @@ function normalizePlanSessionOrder(sessionOrder?: PlanSessionKey[] | null): Plan
   }, []);
 }
 
-export function isMultiSessionPlan(
-  plan?: Pick<ReadingPlan, 'format'> | null
-): boolean {
+export function isMultiSessionPlan(plan?: Pick<ReadingPlan, 'format'> | null): boolean {
   return plan?.format === 'multi-session';
 }
 
@@ -202,10 +255,7 @@ export function getPlanSessionOrder(
     return [];
   }
 
-  const entrySessionMap = new Map<
-    PlanSessionKey,
-    { order: number; firstSeenIndex: number }
-  >();
+  const entrySessionMap = new Map<PlanSessionKey, { order: number; firstSeenIndex: number }>();
 
   entries.forEach((entry, index) => {
     if (!isPlanSessionKey(entry.session_key)) {

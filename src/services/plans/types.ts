@@ -5,12 +5,10 @@ export type ReadingPlanCategory =
   | 'devotional'
   | 'custom';
 
-export type ReadingPlanScheduleMode =
-  | 'relative'
-  | 'calendar-day-of-month'
-  | 'calendar-day-of-week';
+export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month' | 'calendar-day-of-week';
 export type ReadingPlanFormat = 'single-session' | 'multi-session';
 export type PlanSessionKey = 'morning' | 'midday' | 'evening';
+export type ReadingPlanWeekStartsOn = 'sunday' | 'monday';
 
 export type ReadingPlansTabKey = 'myPlans' | 'findPlans' | 'savedPlans' | 'completedPlans';
 export type ReadingPlanCoverKey =
@@ -56,6 +54,7 @@ export interface ReadingPlan {
   completion_count?: number;
   created_at?: string;
   scheduleMode?: ReadingPlanScheduleMode;
+  weekStartsOn?: ReadingPlanWeekStartsOn;
   format?: ReadingPlanFormat;
   sessionOrder?: PlanSessionKey[];
 }
@@ -210,7 +209,11 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
   getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
   clearPlanDayResume: (planId: string, dayNumber: number) => void;
-  markDayComplete: (planId: string, dayNumber: number, totalDays: number) => ReadingPlanProgress | null;
+  markDayComplete: (
+    planId: string,
+    dayNumber: number,
+    totalDays: number
+  ) => ReadingPlanProgress | null;
   markSessionComplete: (
     planId: string,
     dayNumber: number,

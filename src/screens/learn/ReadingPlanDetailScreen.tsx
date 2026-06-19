@@ -31,13 +31,23 @@ import {
 } from '../../services/plans/readingPlanActivity';
 import {
   getActivePlanDayNumber,
+  getVisibleCompletedEntryCount,
   isRecurringPlan,
 } from '../../services/plans/readingPlanModel';
-import type { ReadingPlan, ReadingPlanEntry, UserReadingPlanProgress } from '../../services/plans/types';
+import type {
+  ReadingPlan,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+} from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
+import {
+  useBibleStore,
+  useLibraryStore,
+  useProgressStore,
+  useReadingPlansStore,
+} from '../../stores';
 
 type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 
@@ -173,23 +183,31 @@ interface ProgressCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress | null;
   currentDaySummary: CurrentPlanDaySummary | null;
+  today: Date;
 }
 
-function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) {
+function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
   const isRecurringSchedulePlan = isRecurringPlan(plan);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
-  const completedCount = progress ? Object.keys(progress.completed_entries).length : 0;
+  const completedCount = progress
+    ? getVisibleCompletedEntryCount(plan, progress.completed_entries, today)
+    : 0;
   const fraction =
-    totalDays > 0 ? (isRecurringSchedulePlan ? currentDay / totalDays : completedCount / totalDays) : 0;
-  const completionBadgeLabel = progress?.is_completed && !isRecurringSchedulePlan
-    ? t('readingPlans.completed')
-    : currentDaySummary?.isComplete
-      ? t('readingPlans.dailyTargetCompleteTitle')
-      : null;
+    totalDays > 0
+      ? isRecurringSchedulePlan
+        ? currentDay / totalDays
+        : completedCount / totalDays
+      : 0;
+  const completionBadgeLabel =
+    progress?.is_completed && !isRecurringSchedulePlan
+      ? t('readingPlans.completed')
+      : currentDaySummary?.isComplete
+        ? t('readingPlans.dailyTargetCompleteTitle')
+        : null;
 
   return (
     <View
@@ -217,8 +235,7 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           </Text>
           {!isRecurringSchedulePlan ? (
             <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-              {completedCount} / {totalDays}{' '}
-              {t('engagement.days', { defaultValue: 'days' })}{' '}
+              {completedCount} / {totalDays} {t('engagement.days', { defaultValue: 'days' })}{' '}
               {t('readingPlans.completed').toLowerCase()}
             </Text>
           ) : null}
@@ -234,7 +251,9 @@ function ProgressCard({ plan, progress, currentDaySummary }: ProgressCardProps) 
           {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={12} color={colors.cardBackground} />
-              <Text style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}>
+              <Text
+                style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}
+              >
                 {completionBadgeLabel}
               </Text>
             </View>
@@ -322,8 +341,8 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
             backgroundColor: isCompleted
               ? colors.accentPrimary
               : isCurrent
-              ? colors.cardBackground
-              : colors.cardBackground,
+                ? colors.cardBackground
+                : colors.cardBackground,
             borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
             borderWidth: isCurrent && !isCompleted ? 1 : 0,
           },
@@ -399,15 +418,19 @@ interface MarkCompleteButtonProps {
   textColor: string;
 }
 
-function MarkCompleteButton({ disabled, loading, onPress, label, color, textColor }: MarkCompleteButtonProps) {
+function MarkCompleteButton({
+  disabled,
+  loading,
+  onPress,
+  label,
+  color,
+  textColor,
+}: MarkCompleteButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[
-        markCompleteStyles.button,
-        { backgroundColor: disabled ? `${color}55` : color },
-      ]}
+      style={[markCompleteStyles.button, { backgroundColor: disabled ? `${color}55` : color }]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -475,35 +498,38 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
     [entriesByDay]
   );
 
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setError(null);
+  const load = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setLoading(true);
+      setError(null);
 
-    const [plansResult, entriesResult, progressResult] = await Promise.all([
-      listReadingPlans(),
-      getPlanEntries(planId),
-      getUserPlanProgress(planId),
-    ]);
+      const [plansResult, entriesResult, progressResult] = await Promise.all([
+        listReadingPlans(),
+        getPlanEntries(planId),
+        getUserPlanProgress(planId),
+      ]);
 
-    if (plansResult.success) {
-      const found = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
-      setPlan(found);
-    } else {
-      setError(plansResult.error ?? t('common.error'));
-    }
+      if (plansResult.success) {
+        const found = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
+        setPlan(found);
+      } else {
+        setError(plansResult.error ?? t('common.error'));
+      }
 
-    if (entriesResult.success) {
-      setEntries(entriesResult.data ?? []);
-    } else {
-      setError(entriesResult.error ?? t('common.error'));
-    }
+      if (entriesResult.success) {
+        setEntries(entriesResult.data ?? []);
+      } else {
+        setError(entriesResult.error ?? t('common.error'));
+      }
 
-    if (progressResult.success) {
-      setProgress((progressResult.data ?? [])[0] ?? null);
-    }
+      if (progressResult.success) {
+        setProgress((progressResult.data ?? [])[0] ?? null);
+      }
 
-    if (!quiet) setLoading(false);
-  }, [planId, t]);
+      if (!quiet) setLoading(false);
+    },
+    [planId, t]
+  );
 
   useEffect(() => {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
@@ -532,14 +558,15 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
       today,
     });
   }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
-  const currentDay = currentDaySummary?.dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress?.current_day ?? 1);
+  const currentDay =
+    currentDaySummary?.dayNumber ??
+    (plan ? getActivePlanDayNumber(plan, progress, today) : (progress?.current_day ?? 1));
   const isRecurringSchedulePlan = isRecurringPlan(plan);
   const isCurrentDayCompleted = progress
     ? isRecurringSchedulePlan
       ? Boolean(
-          (currentDaySummary?.dateKey &&
-            currentDaySummary.dateKey in progress.completed_entries) ||
-            currentDaySummary?.isComplete
+          (currentDaySummary?.dateKey && currentDaySummary.dateKey in progress.completed_entries) ||
+          currentDaySummary?.isComplete
         )
       : String(currentDay) in progress.completed_entries || Boolean(currentDaySummary?.isComplete)
     : false;
@@ -612,7 +639,12 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
       switch (item.kind) {
         case 'progress-card':
           return plan ? (
-            <ProgressCard plan={plan} progress={progress} currentDaySummary={currentDaySummary} />
+            <ProgressCard
+              plan={plan}
+              progress={progress}
+              currentDaySummary={currentDaySummary}
+              today={today}
+            />
           ) : null;
         case 'mark-complete':
           return (
@@ -632,7 +664,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
                 Boolean(
                   (currentDaySummary?.dateKey &&
                     currentDaySummary.dateKey in progress.completed_entries) ||
-                    currentDaySummary?.isComplete
+                  currentDaySummary?.isComplete
                 )
               : String(item.dayNumber) in progress.completed_entries ||
                 (item.dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
@@ -673,7 +705,10 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -695,7 +730,10 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

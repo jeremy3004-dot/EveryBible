@@ -37,6 +37,7 @@ import { formatDailyScriptureReferenceLabel } from '../../services/bible/present
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
+import { getVisibleCompletedEntryCount } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
 import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
@@ -48,7 +49,6 @@ import {
 } from '../../services/content/mobileContentService';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
-
 
 function getFirstName(displayName: string | null | undefined): string | null {
   const trimmed = displayName?.trim();
@@ -145,7 +145,10 @@ export function HomeScreen() {
     featuredPlanProgress?.progress.current_day ?? (featuredPlan?.duration_days ? 1 : 0);
   const featuredPlanDuration = featuredPlan?.duration_days ?? 0;
   const featuredPlanCompletedCount = featuredPlanProgress
-    ? Object.keys(featuredPlanProgress.progress.completed_entries).length
+    ? getVisibleCompletedEntryCount(
+        featuredPlanProgress.plan,
+        featuredPlanProgress.progress.completed_entries
+      )
     : 0;
   const featuredPlanFraction =
     featuredPlanDuration > 0 ? featuredPlanCompletedCount / featuredPlanDuration : 0;
@@ -500,9 +503,7 @@ export function HomeScreen() {
         >
           {verseShareReferenceLabel}
         </Text>
-        {showActions ? (
-          <View style={styles.verseShareRow}>{renderVerseShareButton()}</View>
-        ) : null}
+        {showActions ? <View style={styles.verseShareRow}>{renderVerseShareButton()}</View> : null}
       </View>
     </ImageBackground>
   );
