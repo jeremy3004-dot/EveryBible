@@ -1,6 +1,6 @@
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 
-const DEFAULT_BIBLE_ASSET_BASE_URL = 'https://everybible.app/api/media';
+const DEFAULT_BIBLE_ASSET_BASE_URL = 'https://media.everybible.app';
 
 function normalizeBaseUrl(value: string | null | undefined): string | null {
   if (!value) {

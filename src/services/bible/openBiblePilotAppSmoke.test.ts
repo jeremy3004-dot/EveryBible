@@ -93,7 +93,7 @@ test('pilot audio catalog resolves versioned EveryBible media urls for runtime a
   const audio = await fetchRemoteChapterAudio('benbcv', 'JHN', 3);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/benbcv/2026.04.05-open-bible-audio-v1/chapters/JHN/3.mp3',
+    url: 'https://media.everybible.app/audio/benbcv/2026.04.05-open-bible-audio-v1/chapters/JHN/3.mp3',
     duration: 0,
   });
 });
@@ -131,7 +131,7 @@ test('pilot timing catalog resolves versioned EveryBible media urls for follow-a
   globalThis.fetch = (async (input: string | URL | Request) => {
     assert.equal(
       String(input),
-      'https://everybible.app/api/media/timing/npiulb/2026.04.05-open-bible-audio-v1/JHN/3.json'
+      'https://media.everybible.app/timing/npiulb/2026.04.05-open-bible-audio-v1/JHN/3.json'
     );
 
     return new Response(JSON.stringify({ '1': 0, '2': 4.2, '3': 9.8 }), {

@@ -18,7 +18,7 @@ test('berean standard bible audio resolves through the EveryBible media route wh
   const audio = await fetchRemoteChapterAudio('bsb', 'GEN', 1);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/bsb/GEN/1.m4a',
+    url: 'https://media.everybible.app/audio/bsb/GEN/1.m4a',
     duration: 0,
   });
 });
@@ -27,7 +27,7 @@ test('berean standard bible audio resolves numbered-book chapters through the Ev
   const audio = await fetchRemoteChapterAudio('bsb', '1CO', 13);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/bsb/1CO/13.m4a',
+    url: 'https://media.everybible.app/audio/bsb/1CO/13.m4a',
     duration: 0,
   });
 });
@@ -36,7 +36,7 @@ test('berean standard bible audio resolves psalms chapters through the EveryBibl
   const audio = await fetchRemoteChapterAudio('bsb', 'PSA', 150);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/bsb/PSA/150.m4a',
+    url: 'https://media.everybible.app/audio/bsb/PSA/150.m4a',
     duration: 0,
   });
 });
@@ -71,7 +71,7 @@ test('world english bible audio resolves through the EveryBible media route', as
   const audio = await fetchRemoteChapterAudio('web', 'GEN', 1);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/web/GEN/1.mp3',
+    url: 'https://media.everybible.app/audio/web/GEN/1.mp3',
     duration: 0,
   });
 });
@@ -80,7 +80,7 @@ test('world english bible audio supports psalms chapter filenames through the Ev
   const audio = await fetchRemoteChapterAudio('web', 'PSA', 150);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/web/PSA/150.mp3',
+    url: 'https://media.everybible.app/audio/web/PSA/150.mp3',
     duration: 0,
   });
 });
@@ -89,7 +89,7 @@ test('world english bible audio resolves any direct chapter path the R2 catalog 
   const audio = await fetchRemoteChapterAudio('web', 'XXX', 1);
 
   assert.deepEqual(audio, {
-    url: 'https://everybible.app/api/media/audio/web/XXX/1.mp3',
+    url: 'https://media.everybible.app/audio/web/XXX/1.mp3',
     duration: 0,
   });
 });
@@ -128,7 +128,7 @@ test('remote audio availability respects explicit per-book coverage before playb
           MAT: { totalChapters: 28 },
           JHN: { totalChapters: 21 },
         },
-        baseUrl: 'https://everybible.app/api/media/audio/npiulb/2026.04.05-open-bible-audio-v1',
+        baseUrl: 'https://media.everybible.app/audio/npiulb/2026.04.05-open-bible-audio-v1',
         chapterPathTemplate: 'chapters/{bookId}/{chapter}.mp3',
       },
     };
@@ -139,7 +139,7 @@ test('remote audio availability respects explicit per-book coverage before playb
   assert.equal(isRemoteAudioAvailable('npiulb', 'GEN'), false);
   assert.equal(await fetchRemoteChapterAudio('npiulb', 'GEN', 1), null);
   assert.deepEqual(await fetchRemoteChapterAudio('npiulb', 'JHN', 3), {
-    url: 'https://everybible.app/api/media/audio/npiulb/2026.04.05-open-bible-audio-v1/chapters/JHN/3.mp3',
+    url: 'https://media.everybible.app/audio/npiulb/2026.04.05-open-bible-audio-v1/chapters/JHN/3.mp3',
     duration: 0,
   });
 });

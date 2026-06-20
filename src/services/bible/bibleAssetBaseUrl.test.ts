@@ -43,17 +43,17 @@ test('resolveBibleAssetBaseUrl resolves relative base paths against the configur
 test('resolveBibleAssetUrl falls back to the EveryBible media route when no asset base is configured', () => {
   assert.equal(
     resolveBibleAssetUrl('/text/npiulb.sqlite'),
-    'https://everybible.app/api/media/text/npiulb.sqlite'
+    'https://media.everybible.app/text/npiulb.sqlite'
   );
 });
 
 test('getBibleAudioAssetBaseUrl falls back to the EveryBible media route audio prefix', () => {
-  assert.equal(getBibleAudioAssetBaseUrl(), 'https://everybible.app/api/media/audio');
+  assert.equal(getBibleAudioAssetBaseUrl(), 'https://media.everybible.app/audio');
 });
 
 test('getBibleAudioAssetBaseUrl prefers the EveryBible media route even when Supabase is configured', () => {
   assert.equal(
     getBibleAudioAssetBaseUrl(undefined, 'https://ganmududzdzpruvdulkg.supabase.co'),
-    'https://everybible.app/api/media/audio'
+    'https://media.everybible.app/audio'
   );
 });
