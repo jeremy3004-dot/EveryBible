@@ -23,8 +23,9 @@ If bytes changed, they should already live at a new versioned path. Rollback mea
 Today the repo still contains pre-policy BSB behavior:
 
 - no dedicated `translation_audio_versions` control plane yet
-- hardcoded provider/path logic still exists in app code
-- some published BSB objects were uploaded with `cache-control = no-cache`
+- hardcoded provider/path logic still exists in app code for some built-in audio
+- BSB and WEB use unversioned legacy R2 paths until the audio-version control plane lands
+- R2 object metadata must include `cache-control = public, max-age=31536000, immutable`, and the Cloudflare zone must keep a cache rule for `media.everybible.app/audio/*`
 
 Until Phase 14 lands, emergency rollback is:
 

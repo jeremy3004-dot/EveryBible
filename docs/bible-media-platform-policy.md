@@ -69,8 +69,9 @@ Current repo wiring:
 - translation catalogs may now store relative asset paths such as `audio/npiulb` or `text/npiulb/app.sqlite`
 - R2 publishing is handled by `scripts/publish-bible-assets-r2.ts`, which syncs local Bible artifacts into the configured bucket, emits R2-flavored catalog files for staged imports, and regenerates `apps/site/lib/r2-text-pack-manifest.json` from the live `text/` objects in R2
 - the manifest can also be regenerated directly with `npm run manifest:text-packs` when operators need to realign the committed control-plane metadata with the bucket contents
-- the public delivery surface is now `https://everybible.app/api/media/...`, backed by the site app's server-side R2 proxy
-- the site app requires `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in Vercel to serve that proxy in production
+- the preferred public delivery surface is now `https://media.everybible.app/...`, backed by the R2 custom domain
+- `https://everybible.app/api/media/...` remains as a compatibility redirect for older app builds
+- R2 publish tools require `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY`
 
 Recommended path shape:
 
@@ -99,6 +100,7 @@ Requirements:
 - never publish chapter objects with `no-cache`
 - never overwrite bytes at an existing published path
 - keep `Accept-Ranges: bytes` working
+- keep a Cloudflare cache rule active for `media.everybible.app/audio/*` so the R2 custom domain caches all audio extensions, including `.m4a`
 
 ### Manifests
 
@@ -208,7 +210,7 @@ The current production direction is:
 - keep Supabase as the control plane
 - publish all current translation text packs to Cloudflare R2
 - mirror all current public-domain chapter audio to Cloudflare R2
-- serve Bible assets through `https://everybible.app/api/media/...`
+- serve Bible assets through `https://media.everybible.app/...`, with `https://everybible.app/api/media/...` retained as a compatibility redirect
 - treat translation catalog metadata plus R2 objects as the source of truth
 
 ### Future Provider Swaps

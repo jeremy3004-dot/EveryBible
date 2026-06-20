@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATABASE_PATH = ROOT / "assets" / "databases" / "bible-bsb-v2.db"
 MAX_WORKERS = 6
 AWS_DEFAULT_REGION = "auto"
+CHAPTER_AUDIO_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 
 CANONICAL_BOOK_ORDER = [
@@ -259,6 +260,10 @@ def chapter_filename_segment(book_id: str, chapter: int) -> str:
     return f"{chapter:03d}" if book_id == "PSA" else f"{chapter:02d}"
 
 
+def content_type_for_source(source: AudioSource) -> str:
+    return "audio/mp4" if source.destination_key.endswith(".m4a") else "audio/mpeg"
+
+
 def object_exists(bucket: str, endpoint: str, key: str, env: dict[str, str]) -> bool:
     result = subprocess.run(
         [
@@ -307,6 +312,10 @@ def upload_file(source: AudioSource, bucket: str, endpoint: str, env: dict[str, 
                 f"s3://{bucket}/{source.destination_key}",
                 "--endpoint-url",
                 endpoint,
+                "--content-type",
+                content_type_for_source(source),
+                "--cache-control",
+                CHAPTER_AUDIO_CACHE_CONTROL,
             ],
             env=env,
             check=True,
