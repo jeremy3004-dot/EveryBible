@@ -71,6 +71,7 @@ Current repo wiring:
 - the manifest can also be regenerated directly with `npm run manifest:text-packs` when operators need to realign the committed control-plane metadata with the bucket contents
 - the preferred public delivery surface is now `https://media.everybible.app/...`, backed by the R2 custom domain
 - `https://everybible.app/api/media/...` remains as a compatibility redirect for older app builds
+- active BSB/WEB chapter audio is routed through the `everybible-media-audio-cache` Worker so byte-range playback can warm and reuse edge-cached chapter objects
 - R2 publish tools require `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY`
 
 Recommended path shape:
@@ -100,7 +101,7 @@ Requirements:
 - never publish chapter objects with `no-cache`
 - never overwrite bytes at an existing published path
 - keep `Accept-Ranges: bytes` working
-- keep a Cloudflare cache rule active for `media.everybible.app/audio/*` so the R2 custom domain caches all audio extensions, including `.m4a`
+- keep a Cloudflare cache rule or Worker route active for `media.everybible.app/audio/*` so the R2 custom domain caches all audio extensions, including `.m4a`
 
 ### Manifests
 

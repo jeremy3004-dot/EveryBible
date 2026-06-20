@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "everybible-media-audio-cache",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-20",
+  "account_id": "9ebfac5a12f408afc1d80eaa2138ffd3",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "routes": [
+    {
+      "pattern": "media.everybible.app/audio/bsb/*",
+      "zone_name": "everybible.app"
+    },
+    {
+      "pattern": "media.everybible.app/audio/web/*",
+      "zone_name": "everybible.app"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BIBLE_MEDIA_BUCKET",
+      "bucket_name": "everybibleapp"
+    }
+  ]
+}
