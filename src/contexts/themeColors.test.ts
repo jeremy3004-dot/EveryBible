@@ -30,30 +30,40 @@ function extractPaletteKeys(source: string, paletteName: string): string[] {
 // S16 — Theme palette completeness and consistency
 // ---------------------------------------------------------------------------
 
-test('baseDarkColors, baseLightColors, and baseLowLightColors all declare the same set of color keys', () => {
+test('all base theme palettes declare the same set of color keys', () => {
   const source = readThemeSource();
 
   const darkKeys = extractPaletteKeys(source, 'baseDarkColors');
   const lightKeys = extractPaletteKeys(source, 'baseLightColors');
   const lowLightKeys = extractPaletteKeys(source, 'baseLowLightColors');
+  const parchmentKeys = extractPaletteKeys(source, 'baseParchmentColors');
+  const midnightKeys = extractPaletteKeys(source, 'baseMidnightColors');
 
   assert.ok(darkKeys.length > 0, 'baseDarkColors palette should declare color properties');
   assert.ok(lightKeys.length > 0, 'baseLightColors palette should declare color properties');
   assert.ok(lowLightKeys.length > 0, 'baseLowLightColors palette should declare color properties');
+  assert.ok(
+    parchmentKeys.length > 0,
+    'baseParchmentColors palette should declare color properties'
+  );
+  assert.ok(midnightKeys.length > 0, 'baseMidnightColors palette should declare color properties');
 
-  assert.deepEqual(
-    [...darkKeys].sort(),
-    [...lightKeys].sort(),
-    'baseLightColors must define the same keys as baseDarkColors'
-  );
-  assert.deepEqual(
-    [...darkKeys].sort(),
-    [...lowLightKeys].sort(),
-    'baseLowLightColors must define the same keys as baseDarkColors'
-  );
+  const expectedKeys = [...darkKeys].sort();
+  for (const [paletteName, paletteKeys] of [
+    ['baseLightColors', lightKeys],
+    ['baseLowLightColors', lowLightKeys],
+    ['baseParchmentColors', parchmentKeys],
+    ['baseMidnightColors', midnightKeys],
+  ] as const) {
+    assert.deepEqual(
+      [...paletteKeys].sort(),
+      expectedKeys,
+      `${paletteName} must define the same keys as baseDarkColors`
+    );
+  }
 });
 
-test('ThemeContext exports all three palettes and appearance options as named constants', () => {
+test('ThemeContext exports theme palettes and appearance options as named constants', () => {
   const source = readThemeSource();
 
   assert.match(

@@ -4,6 +4,13 @@
 **Status:** Complete
 **Migration Type:** Steel Blue → Tibetan Color Palette
 
+## 2026-06-23 Update: Light Theme
+
+Updated the selectable `Light` theme to match Maranatha's light palette: white
+reading surfaces, soft gray dividers, blue selected controls, teal Bible
+reference links, and a pale blue focused-verse tint. `Parchment` remains the
+warmer paper-like option.
+
 ## Summary
 
 Successfully migrated the entire EveryBible app from the previous steel blue color scheme to a Tibetan-inspired color palette featuring maroon, saffron gold, and sky blue. All colors maintain proper contrast ratios and work seamlessly in both dark and light modes.

@@ -387,10 +387,10 @@ const readerThemePreviewOptions: Array<{
 }> = [
   {
     mode: 'light',
-    label: 'Ivory',
-    background: ['#FFF8EF', '#F3E6D1'],
-    paper: '#FFFDF8',
-    line: '#4B4338',
+    label: 'Light',
+    background: ['#F7F9FB', '#EEF2F6'],
+    paper: '#FFFFFF',
+    line: '#202428',
   },
   {
     mode: 'parchment',

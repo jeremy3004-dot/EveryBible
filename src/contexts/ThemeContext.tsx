@@ -71,6 +71,14 @@ const defaultPaletteColors = {
   bibleAccent: defaultPaletteSwatches.primary,
 } as const;
 
+const maranathaLightAccentTokens = {
+  accentPrimary: '#2F78D4',
+  accentSecondary: '#1F8A78',
+  accentGreen: '#1F8A78',
+  accentTertiary: '#DEEAFB',
+  bibleAccent: '#1F8A78',
+} as const;
+
 const baseDarkColors: ThemeColors = {
   background: '#101113',
   cardBackground: '#17191D',
@@ -94,25 +102,25 @@ const baseDarkColors: ThemeColors = {
 };
 
 const baseLightColors: ThemeColors = {
-  background: '#FBF6EC',
-  cardBackground: '#FFFDFC',
-  cardBorder: '#E7DCC9',
-  primaryText: '#1C1713',
-  secondaryText: '#6B6258',
+  background: '#F4F6F8',
+  cardBackground: '#FFFFFF',
+  cardBorder: '#DDE3EA',
+  primaryText: '#202428',
+  secondaryText: '#646D76',
   ...defaultPaletteColors,
-  error: '#C8453D',
-  success: '#2D7A56',
-  warning: '#A97834',
-  overlay: 'rgba(0, 0, 0, 0.34)',
-  tabActive: '#1C1713',
-  tabInactive: '#7B7166',
-  bibleBackground: '#FBF6EC',
-  bibleSurface: '#FFFDFC',
-  bibleElevatedSurface: '#F4EBDD',
-  bibleDivider: '#E1D6C4',
-  biblePrimaryText: '#1C1713',
-  bibleSecondaryText: '#6B6258',
-  bibleControlBackground: '#1C1713',
+  error: '#C43F3A',
+  success: '#247756',
+  warning: '#9A6A24',
+  overlay: 'rgba(32, 36, 40, 0.32)',
+  tabActive: '#202428',
+  tabInactive: '#717982',
+  bibleBackground: '#FFFFFF',
+  bibleSurface: '#FFFFFF',
+  bibleElevatedSurface: '#EAF2FF',
+  bibleDivider: '#E2E6EA',
+  biblePrimaryText: '#202428',
+  bibleSecondaryText: '#646D76',
+  bibleControlBackground: '#202428',
 };
 
 const baseLowLightColors: ThemeColors = {
@@ -194,7 +202,7 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
   };
 
   if (mode === 'light') {
-    return { ...baseLightColors, ...accentTokens };
+    return { ...baseLightColors, ...maranathaLightAccentTokens, onAccent: '#FFFFFF' };
   }
 
   if (mode === 'low-light') {
