@@ -75,7 +75,7 @@ const maranathaLightAccentTokens = {
   accentPrimary: '#2F78D4',
   accentSecondary: '#1F8A78',
   accentGreen: '#1F8A78',
-  accentTertiary: '#DEEAFB',
+  accentTertiary: '#376CAD',
   bibleAccent: '#1F8A78',
 } as const;
 

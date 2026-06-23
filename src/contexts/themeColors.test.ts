@@ -26,6 +26,36 @@ function extractPaletteKeys(source: string, paletteName: string): string[] {
   return [...match[1].matchAll(/^\s{2}(\w+):/gm)].map((m) => m[1]);
 }
 
+function extractColorToken(source: string, objectName: string, tokenName: string): string | null {
+  const objectMatcher = new RegExp(`const ${objectName}(?::[^=]+)?\\s*=\\s*\\{([^}]+)\\}`, 's');
+  const objectMatch = source.match(objectMatcher);
+  if (!objectMatch) {
+    return null;
+  }
+
+  const tokenMatcher = new RegExp(`${tokenName}:\\s*['"](#(?:[A-Fa-f0-9]{6}))['"]`);
+  return objectMatch[1].match(tokenMatcher)?.[1] ?? null;
+}
+
+function colorContrastRatio(foreground: string, background: string): number {
+  const luminance = (hex: string) => {
+    const [red, green, blue] = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)].map(
+      ([channel]) => parseInt(channel, 16) / 255
+    );
+    const [r, g, b] = [red, green, blue].map((channel) =>
+      channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
+    );
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+
+  const foregroundLum = luminance(foreground);
+  const backgroundLum = luminance(background);
+  return (
+    (Math.max(foregroundLum, backgroundLum) + 0.05) /
+    (Math.min(foregroundLum, backgroundLum) + 0.05)
+  );
+}
+
 // ---------------------------------------------------------------------------
 // S16 — Theme palette completeness and consistency
 // ---------------------------------------------------------------------------
@@ -92,6 +122,26 @@ test('ThemeContext supports the low-light theme mode', () => {
     source,
     /baseLowLightColors/,
     'ThemeContext should reference the baseLowLightColors palette'
+  );
+});
+
+test('Light theme tertiary accent stays readable on light surfaces', () => {
+  const source = readThemeSource();
+
+  const tertiaryAccent = extractColorToken(source, 'maranathaLightAccentTokens', 'accentTertiary');
+  const pageBackground = extractColorToken(source, 'baseLightColors', 'background');
+  const cardBackground = extractColorToken(source, 'baseLightColors', 'cardBackground');
+
+  assert.ok(tertiaryAccent, 'Light theme should define a tertiary accent');
+  assert.ok(pageBackground, 'Light theme should define a page background');
+  assert.ok(cardBackground, 'Light theme should define a card background');
+  assert.ok(
+    colorContrastRatio(tertiaryAccent, pageBackground) >= 4.5,
+    'Light tertiary accent must be readable on the page background'
+  );
+  assert.ok(
+    colorContrastRatio(tertiaryAccent, cardBackground) >= 4.5,
+    'Light tertiary accent must be readable on card backgrounds'
   );
 });
 
