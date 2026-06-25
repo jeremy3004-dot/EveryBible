@@ -222,7 +222,7 @@ export default async function Home() {
             <p className="scripture__label">Verse of the Day</p>
 
             <blockquote className="scripture__quote">
-              &ldquo;{verseOfDay.verse}&rdquo;
+              {verseOfDay.verse}
             </blockquote>
 
             <p className="scripture__ref">{verseOfDay.reference}</p>
