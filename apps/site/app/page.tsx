@@ -24,25 +24,6 @@ function ArrowRight() {
   );
 }
 
-function AppleLogo() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M15.398 2.737c.43-.521 1.156-.884 1.781-.95.078.742-.207 1.5-.617 2.031-.43.57-1.137.971-1.851.914-.098-.713.234-1.471.687-1.995ZM17.18 12.447c.02 2.215 1.942 2.951 1.963 2.961-.016.051-.307 1.033-1.01 2.043-.609.873-1.242 1.742-2.238 1.762-.977.02-1.291-.568-2.412-.568-1.123 0-1.473.549-2.394.588-.957.039-1.687-.938-2.301-1.807-1.252-1.771-2.207-5.008-.922-7.197.639-1.084 1.785-1.771 3.031-1.791.947-.02 1.842.617 2.412.617.568 0 1.633-.764 2.752-.652.469.02 1.781.189 2.625 1.396-.07.043-1.566.902-1.506 2.648Z" />
-    </svg>
-  );
-}
-
-function GooglePlayLogo() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4.5 3.8 13.93 13.2 4.7 22.4a1.2 1.2 0 0 1-.2-.67V4.42c0-.23.08-.45.22-.62Z" fill="#34A853" />
-      <path d="M18.03 10.94 15.13 9.3 11.7 12.73l3.52 3.5 2.8-1.58c1.33-.76 1.33-2.95.01-3.7Z" fill="#FBBC04" />
-      <path d="M15.22 16.23 11.7 12.73 13.93 10.5l1.2.68 2.9 1.66-2.8 1.58Z" fill="#EA4335" />
-      <path d="M4.7 3.6 15.13 9.3 11.7 12.73 4.5 5.54V4.42c0-.3.07-.58.2-.82Z" fill="#4285F4" />
-    </svg>
-  );
-}
-
 function DownloadIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -52,9 +33,22 @@ function DownloadIcon() {
 }
 
 /* ── Store Badge ─────────────────────────────────────────────── */
+const STORE_BADGE_CONFIG = {
+  'app-store': {
+    src: '/everybible/badge-app-store.svg',
+    alt: 'Download on the App Store',
+    width: 135,
+    height: 40,
+  },
+  'google-play': {
+    src: '/everybible/badge-google-play.png',
+    alt: 'Get it on Google Play',
+    width: 152,
+    height: 58,
+  },
+} as const;
+
 function StoreBadge({
-  eyebrow,
-  label,
   href,
   platform,
 }: {
@@ -63,15 +57,16 @@ function StoreBadge({
   href: string;
   platform: 'google-play' | 'app-store';
 }) {
+  const badge = STORE_BADGE_CONFIG[platform];
   return (
-    <a className="store-badge" href={href} aria-label={label}>
-      <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
-        {platform === 'app-store' ? <AppleLogo /> : <GooglePlayLogo />}
-      </span>
-      <span className="store-badge__text">
-        <span className="store-badge__eyebrow">{eyebrow}</span>
-        <span className="store-badge__label">{label}</span>
-      </span>
+    <a className="store-badge" href={href} aria-label={badge.alt}>
+      <Image
+        src={badge.src}
+        alt={badge.alt}
+        width={badge.width}
+        height={badge.height}
+        unoptimized={platform === 'app-store'}
+      />
     </a>
   );
 }

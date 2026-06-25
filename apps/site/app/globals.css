@@ -368,49 +368,17 @@ img { display: block; max-width: 100%; }
 .store-badge {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+  border-radius: 8px;
+  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
 }
 
 .store-badge:hover {
-  border-color: rgba(0, 153, 229, 0.36);
-  box-shadow: var(--shadow-md);
+  opacity: 0.85;
   transform: translateY(-1px);
 }
 
-.store-badge svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.store-badge__text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.store-badge__eyebrow {
-  color: var(--muted-foreground);
-  font-size: 0.6875rem;
-  font-weight: 400;
-  line-height: 1;
-}
-
-.store-badge__label {
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1;
+.store-badge img {
+  display: block;
 }
 
 .hero__link,
