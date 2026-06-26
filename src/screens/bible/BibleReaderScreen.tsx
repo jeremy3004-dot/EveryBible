@@ -4121,10 +4121,12 @@ export function BibleReaderScreen() {
               {t('bible.translatorReviewTitle')}
             </Text>
             <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-              {t('bible.translatorReviewSummary', {
-                count: translatorFeedbackItems.length,
-                pending: translatorFeedbackNeedingReviewCount,
-              })}
+              {translatorFeedbackItems.length > 0 && translatorFeedbackNeedingReviewCount === 0
+                ? t('bible.translatorReviewSummaryComplete')
+                : t('bible.translatorReviewSummary', {
+                    count: translatorFeedbackItems.length,
+                    pending: translatorFeedbackNeedingReviewCount,
+                  })}
             </Text>
           </View>
           <TouchableOpacity
@@ -4177,20 +4179,24 @@ export function BibleReaderScreen() {
             translatorFeedbackMarkers
           );
           const isTranslatorFeedbackAudioPlaying = translatorReviewPlayingFeedbackId === item.id;
+          const isAccurateReview = item.sentiment === 'up';
           const isFixed = status.resolution === 'fixed';
           const isReviewed = status.resolution === 'reviewed';
+          const isConfirmedAccurate = isAccurateReview && !status.needsReview;
           const itemAccentColor = status.needsReview
             ? colors.accentPrimary
-            : isFixed
+            : isFixed || isConfirmedAccurate
               ? colors.success
               : colors.bibleDivider;
           const badgeBackgroundColor = status.needsReview
             ? colors.accentPrimary
-            : isFixed
+            : isFixed || isConfirmedAccurate
               ? colors.success
               : colors.bibleSurface;
           const badgeTextColor =
-            status.needsReview || isFixed ? colors.onAccent : colors.biblePrimaryText;
+            status.needsReview || isFixed || isConfirmedAccurate
+              ? colors.onAccent
+              : colors.biblePrimaryText;
           const participantLabel =
             [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
             item.participantIdNumber ||
@@ -4211,14 +4217,16 @@ export function BibleReaderScreen() {
               <View style={styles.translatorReviewItemHeader}>
                 <View style={styles.translatorReviewSentimentRow}>
                   <Ionicons
-                    name={item.sentiment === 'up' ? 'thumbs-up-outline' : 'thumbs-down-outline'}
-                    size={16}
-                    color={item.sentiment === 'up' ? colors.accentGreen : colors.accentPrimary}
+                    name={
+                      item.sentiment === 'up' ? 'checkmark-circle-outline' : 'close-circle-outline'
+                    }
+                    size={17}
+                    color={item.sentiment === 'up' ? colors.success : colors.accentPrimary}
                   />
                   <Text
                     style={[styles.translatorReviewItemTitle, { color: colors.biblePrimaryText }]}
                   >
-                    {item.sentiment === 'up'
+                    {isAccurateReview
                       ? t('bible.chapterFeedbackThumbsUp')
                       : t('bible.chapterFeedbackThumbsDown')}
                   </Text>
@@ -4235,9 +4243,11 @@ export function BibleReaderScreen() {
                   <Text style={[styles.translatorReviewBadgeText, { color: badgeTextColor }]}>
                     {status.needsReview
                       ? t('bible.translatorReviewUnread')
-                      : isFixed
-                        ? t('bible.translatorReviewFixed')
-                        : t('bible.translatorReviewReviewed')}
+                      : isAccurateReview
+                        ? t('bible.translatorReviewConfirmedAccurate')
+                        : isFixed
+                          ? t('bible.translatorReviewFixed')
+                          : t('bible.translatorReviewReviewed')}
                   </Text>
                 </View>
               </View>
@@ -4263,7 +4273,7 @@ export function BibleReaderScreen() {
 
               <View style={styles.translatorReviewActionRow}>
                 {status.needsReview ? (
-                  <>
+                  isAccurateReview ? (
                     <TouchableOpacity
                       style={[
                         styles.translatorReviewActionButton,
@@ -4272,35 +4282,54 @@ export function BibleReaderScreen() {
                           backgroundColor: colors.success,
                         },
                       ]}
-                      onPress={() => resolveTranslatorFeedback(item.id, 'fixed')}
+                      onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
                     >
                       <Text
                         style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
                       >
-                        {t('bible.translatorReviewMarkFixed')}
+                        {t('bible.translatorReviewConfirmAccurate')}
                       </Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.translatorReviewActionButton,
-                        {
-                          borderColor: colors.bibleDivider,
-                          backgroundColor: colors.bibleSurface,
-                        },
-                      ]}
-                      onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
-                    >
-                      <Text
+                  ) : (
+                    <>
+                      <TouchableOpacity
                         style={[
-                          styles.translatorReviewActionLabel,
-                          { color: colors.biblePrimaryText },
+                          styles.translatorReviewActionButton,
+                          {
+                            borderColor: colors.success,
+                            backgroundColor: colors.success,
+                          },
                         ]}
+                        onPress={() => resolveTranslatorFeedback(item.id, 'fixed')}
                       >
-                        {t('bible.translatorReviewNoActionNeeded')}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
+                        <Text
+                          style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
+                        >
+                          {t('bible.translatorReviewMarkFixed')}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.translatorReviewActionButton,
+                          {
+                            borderColor: colors.bibleDivider,
+                            backgroundColor: colors.bibleSurface,
+                          },
+                        ]}
+                        onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
+                      >
+                        <Text
+                          style={[
+                            styles.translatorReviewActionLabel,
+                            { color: colors.biblePrimaryText },
+                          ]}
+                        >
+                          {t('bible.translatorReviewNoActionNeeded')}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )
                 ) : (
                   <TouchableOpacity
                     style={[
@@ -4535,11 +4564,9 @@ export function BibleReaderScreen() {
                 disabled={isSubmittingFeedback}
               >
                 <Ionicons
-                  name="thumbs-up-outline"
+                  name="checkmark-circle-outline"
                   size={22}
-                  color={
-                    feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
-                  }
+                  color={feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText}
                 />
               </TouchableOpacity>
 
@@ -4565,11 +4592,9 @@ export function BibleReaderScreen() {
                 disabled={isSubmittingFeedback}
               >
                 <Ionicons
-                  name="thumbs-down-outline"
+                  name="close-circle-outline"
                   size={22}
-                  color={
-                    feedbackSentiment === 'down' ? colors.cardBackground : colors.biblePrimaryText
-                  }
+                  color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
                 />
               </TouchableOpacity>
             </View>
@@ -5656,7 +5681,7 @@ export function BibleReaderScreen() {
                 ? [
                     {
                       key: 'chapter-feedback',
-                      icon: 'thumbs-up-outline',
+                      icon: 'checkmark-circle-outline',
                       label: t('bible.chapterFeedback'),
                       onPress: handleOpenChapterFeedback,
                     },
@@ -5800,20 +5825,16 @@ export function BibleReaderScreen() {
                   disabled={isSubmittingFeedback}
                 >
                   <Ionicons
-                    name="thumbs-up-outline"
+                    name="checkmark-circle-outline"
                     size={18}
-                    color={
-                      feedbackSentiment === 'up' ? colors.cardBackground : colors.biblePrimaryText
-                    }
+                    color={feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText}
                   />
                   <Text
                     style={[
                       styles.feedbackSentimentLabel,
                       {
                         color:
-                          feedbackSentiment === 'up'
-                            ? colors.cardBackground
-                            : colors.biblePrimaryText,
+                          feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText,
                       },
                     ]}
                   >
@@ -5842,20 +5863,16 @@ export function BibleReaderScreen() {
                   disabled={isSubmittingFeedback}
                 >
                   <Ionicons
-                    name="thumbs-down-outline"
+                    name="close-circle-outline"
                     size={18}
-                    color={
-                      feedbackSentiment === 'down' ? colors.cardBackground : colors.biblePrimaryText
-                    }
+                    color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
                   />
                   <Text
                     style={[
                       styles.feedbackSentimentLabel,
                       {
                         color:
-                          feedbackSentiment === 'down'
-                            ? colors.cardBackground
-                            : colors.biblePrimaryText,
+                          feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText,
                       },
                     ]}
                   >

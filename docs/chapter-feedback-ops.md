@@ -71,19 +71,20 @@ The admin page is organized for review by:
 - translation
 - book
 - chapter
-- sentiment
+- accuracy review result
 - response type, including audio-only submissions
-- Scripture Council fix status
+- resolution status
 
 The coverage table summarizes the recent feedback volume by language, including how many books,
 chapters, and audio responses are represented. Click a language in that table to jump into the
 filtered review list.
 
-The feedback-by-translation table highlights open Scripture Council fixes for thumbs-down feedback.
+The feedback-by-translation table highlights open needs-work fixes for `Needs work` feedback.
 When a translator has applied the requested fix, an admin can mark the feedback fixed from `/feedback`.
 That writes `scripture_council_fixed_at`, `scripture_council_fixed_by`, and an optional
 `scripture_council_fixed_note` on the original feedback row so the backend shows when the fix was
-completed and who recorded it.
+completed and who recorded it. `Accurate` feedback shows as confirmed accurate in the admin review
+table because it does not need the fix workflow.
 
 ```sql
 select
@@ -138,7 +139,7 @@ order by created_at desc;
    - `participant_id_number` matches the authenticated Supabase user UUID
    - the admin backend `/feedback` row plays the audio in the browser
 7. Deny microphone permission and confirm typed feedback can still be submitted.
-8. From `/feedback`, filter to `Open council fixes`, mark a thumbs-down feedback item fixed, and confirm:
+8. From `/feedback`, filter to `Open needs-work fixes`, mark a `Needs work` feedback item fixed, and confirm:
    - the row shows `Fixed` with a timestamp
-   - the feedback-by-translation table moves that item out of open council fixes
+   - the feedback-by-translation table moves that item out of open needs-work fixes
    - `scripture_council_fixed_at` and `scripture_council_fixed_by` are saved in Supabase

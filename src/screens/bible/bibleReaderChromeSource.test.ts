@@ -878,8 +878,8 @@ test('chapter feedback renders inline on the listen page while keeping the overf
 
   assert.match(
     source,
-    /styles\.listenFeedbackCard[\s\S]*thumbs-up-outline[\s\S]*thumbs-down-outline/s,
-    'BibleReaderScreen should render the thumbs feedback composer directly on the listen page'
+    /styles\.listenFeedbackCard[\s\S]*checkmark-circle-outline[\s\S]*close-circle-outline/s,
+    'BibleReaderScreen should render the accuracy review composer directly on the listen page'
   );
 
   assert.match(

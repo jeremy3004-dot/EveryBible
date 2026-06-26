@@ -13,11 +13,21 @@ test('BibleReaderScreen renders translator feedback review tools only in transla
 });
 
 test('BibleReaderScreen lets translators resolve or reopen each feedback item', () => {
+  assert.match(source, /translatorReviewSummaryComplete/);
+  assert.match(source, /isAccurateReview \? \(/);
+  assert.match(source, /translatorReviewConfirmAccurate/);
+  assert.match(source, /translatorReviewConfirmedAccurate/);
   assert.match(source, /resolveTranslatorFeedback\(item\.id, 'fixed'\)/);
   assert.match(source, /resolveTranslatorFeedback\(item\.id, 'reviewed'\)/);
   assert.match(source, /reopenTranslatorFeedback\(item\.id\)/);
   assert.match(source, /playTranslatorFeedbackAudio\(\s*item\.id/);
   assert.match(source, /markTranslatorFeedbackListened\(feedbackId\)/);
+});
+
+test('BibleReaderScreen presents accuracy reviews with check and x icons', () => {
+  assert.match(source, /checkmark-circle-outline/);
+  assert.match(source, /close-circle-outline/);
+  assert.doesNotMatch(source, /thumbs-up-outline|thumbs-down-outline/);
 });
 
 test('BibleReaderScreen lets translators pause the active feedback audio', () => {

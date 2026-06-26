@@ -54,7 +54,7 @@ test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps t
   );
 });
 
-test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an optional multiline comment', () => {
+test('BibleReaderScreen renders a lightweight accuracy review modal with choices and an optional multiline comment', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
@@ -64,13 +64,13 @@ test('BibleReaderScreen renders a lightweight feedback modal with thumbs and an 
   );
   assert.match(
     source,
-    /feedbackSentiment === 'up'|setFeedbackSentiment\('up'\)/,
-    'BibleReaderScreen should expose a thumbs-up action for chapter feedback'
+    /checkmark-circle-outline[\s\S]*setFeedbackSentiment\('up'\)/,
+    'BibleReaderScreen should expose an Accurate action for chapter feedback'
   );
   assert.match(
     source,
-    /feedbackSentiment === 'down'|setFeedbackSentiment\('down'\)/,
-    'BibleReaderScreen should expose a thumbs-down action for chapter feedback'
+    /close-circle-outline[\s\S]*setFeedbackSentiment\('down'\)/,
+    'BibleReaderScreen should expose a Needs work action for chapter feedback'
   );
   assert.match(
     source,

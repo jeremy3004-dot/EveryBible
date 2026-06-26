@@ -131,9 +131,9 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             aria-label="Chapter"
           />
           <select name="sentiment" defaultValue={filters.sentiment ?? ''} aria-label="Sentiment">
-            <option value="">All ratings</option>
+            <option value="">All accuracy reviews</option>
             <option value="down">Needs work</option>
-            <option value="up">Helpful</option>
+            <option value="up">Accurate</option>
           </select>
           <select
             name="responseType"
@@ -144,10 +144,14 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             <option value="audio">Audio only</option>
             <option value="text">Text only</option>
           </select>
-          <select name="fixStatus" defaultValue={filters.fixStatus ?? ''} aria-label="Fix status">
-            <option value="">All fix states</option>
-            <option value="open">Open council fixes</option>
-            <option value="fixed">Fixed by translator</option>
+          <select
+            name="fixStatus"
+            defaultValue={filters.fixStatus ?? ''}
+            aria-label="Review status"
+          >
+            <option value="">All resolution states</option>
+            <option value="open">Open needs-work fixes</option>
+            <option value="fixed">Fixed needs-work items</option>
           </select>
           <button type="submit" className="button">
             Filter
@@ -164,7 +168,9 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             <p className="eyebrow">Coverage</p>
             <h3>Feedback by language</h3>
           </div>
-          <span className="table-note">{reviewModel.totalAvailable} recent submissions sampled</span>
+          <span className="table-note">
+            {reviewModel.totalAvailable} recent submissions sampled
+          </span>
         </div>
 
         <div className="table-wrap">
@@ -210,7 +216,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             <p className="eyebrow">Coverage</p>
             <h3>Feedback by translation</h3>
           </div>
-          <span className="table-note">Open council fixes stay visible until marked fixed</span>
+          <span className="table-note">Needs-work items stay visible until marked fixed</span>
         </div>
 
         <div className="table-wrap">
@@ -220,8 +226,8 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                 <th>Translation</th>
                 <th>Language</th>
                 <th>Submissions</th>
-                <th>Open council fixes</th>
-                <th>Fixed</th>
+                <th>Open needs-work fixes</th>
+                <th>Fixed needs-work</th>
                 <th>Latest</th>
               </tr>
             </thead>
@@ -257,11 +263,11 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
               <tr>
                 <th>Submitted</th>
                 <th>Reference</th>
-                <th>Sentiment</th>
+                <th>Review</th>
                 <th>Reviewer</th>
                 <th>Comment</th>
                 <th>Audio</th>
-                <th>Council fix</th>
+                <th>Resolution</th>
                 <th>Source</th>
               </tr>
             </thead>
@@ -282,7 +288,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                   </td>
                   <td>
                     <StatusPill tone={item.sentiment === 'up' ? 'success' : 'warning'}>
-                      {item.sentiment === 'up' ? 'Helpful' : 'Needs work'}
+                      {item.sentiment === 'up' ? 'Accurate' : 'Needs work'}
                     </StatusPill>
                   </td>
                   <td>
@@ -339,7 +345,7 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                         </button>
                       </form>
                     ) : (
-                      <span className="table-note">No fix needed</span>
+                      <StatusPill tone="success">Confirmed accurate</StatusPill>
                     )}
                   </td>
                   <td>
