@@ -48,6 +48,24 @@ export function parseDateTimeInput(value: FormDataEntryValue | null): string | n
   return normalized ? new Date(normalized).toISOString() : null;
 }
 
+/**
+ * Masks a sensitive token (e.g. a push token) for display in support tooling.
+ * Keeps only a short suffix so staff can correlate a device without exposing
+ * the full credential in the admin UI.
+ */
+export function maskToken(value: string | null | undefined): string {
+  if (!value) {
+    return 'None';
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length <= 6) {
+    return '••••';
+  }
+
+  return `••••${trimmed.slice(-6)}`;
+}
+
 export function slugifyFilename(value: string): string {
   return value
     .toLowerCase()

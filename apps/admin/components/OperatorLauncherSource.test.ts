@@ -50,7 +50,7 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
   assert.doesNotMatch(componentSource, /operator-launcher__mark/);
   assert.match(routeSource, /OPENAI_API_KEY/);
   assert.match(chatSource, /chat\/completions/);
-  assert.match(chatSource, /gpt-5\.4-mini/);
+  assert.match(chatSource, /gpt-4o-mini/);
   assert.doesNotMatch(rootLayoutSource, /<OperatorLauncher \/>/);
   assert.match(dashboardLayoutSource, /<OperatorLauncher \/>/);
 });

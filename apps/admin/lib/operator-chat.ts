@@ -24,7 +24,7 @@ export interface OperatorChatContext {
   recentAdminActions: Awaited<ReturnType<typeof getRecentAuditLogs>>;
 }
 
-const DEFAULT_OPERATOR_CHAT_MODEL = 'gpt-5.4-mini';
+const DEFAULT_OPERATOR_CHAT_MODEL = 'gpt-4o-mini';
 const MAX_CHAT_MESSAGES = 12;
 const MAX_MESSAGE_LENGTH = 4000;
 

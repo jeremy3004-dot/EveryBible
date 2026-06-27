@@ -18,7 +18,7 @@ export default async function HealthPage() {
     <div className="page-stack">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Phase 6</p>
+          <p className="eyebrow">Operations</p>
           <h2>Content health and readiness checks</h2>
           <p className="page-copy">
             Focus the first health layer on operational readiness: stale upstream syncs, missing

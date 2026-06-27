@@ -1,8 +1,10 @@
+import Link from 'next/link';
+
 import { StatusPill } from '@/components/StatusPill';
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { listContentImages, listVerseOfDayEntries } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
-import { formatDateTime, getError, getNotice } from '@/lib/format';
+import { formatDateTime, getError, getNotice, toDatetimeLocalValue } from '@/lib/format';
 
 import { archiveVerseOfDayAction, saveVerseOfDayAction } from '../../actions';
 
@@ -19,14 +21,17 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
   const resolvedSearchParams = await searchParams;
   const notice = getNotice(resolvedSearchParams);
   const error = getError(resolvedSearchParams);
+  const editId =
+    typeof resolvedSearchParams.editId === 'string' ? resolvedSearchParams.editId : null;
   const [entries, images] = await Promise.all([listVerseOfDayEntries(), listContentImages()]);
   const verseImages = images.filter((image) => image.kind === 'verse_of_day');
+  const editingEntry = editId ? entries.find((entry) => entry.id === editId) ?? null : null;
 
   return (
     <div className="page-stack">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Phase 5</p>
+          <p className="eyebrow">Content</p>
           <h2>Verse of the Day operations</h2>
           <p className="page-copy">
             Draft, schedule, publish, and archive daily Scripture entries while preserving a
@@ -42,33 +47,72 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
         <article className="card">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Create or update</p>
-              <h3>New verse-of-the-day entry</h3>
+              <p className="eyebrow">{editingEntry ? 'Editing' : 'Create'}</p>
+              <h3>{editingEntry ? `Edit ${editingEntry.referenceLabel}` : 'New verse-of-the-day entry'}</h3>
             </div>
+            {editingEntry ? (
+              <Link href="/content/verse-of-day" className="button">
+                Cancel edit
+              </Link>
+            ) : null}
           </div>
 
-          <form action={saveVerseOfDayAction} className="stack-form">
+          <form
+            key={editingEntry?.id ?? 'new'}
+            action={saveVerseOfDayAction}
+            className="stack-form"
+          >
+            {editingEntry ? <input type="hidden" name="id" value={editingEntry.id} /> : null}
             <label>
               Internal title
-              <input name="title" type="text" placeholder="Hope for anxious hearts" />
+              <input
+                name="title"
+                type="text"
+                placeholder="Hope for anxious hearts"
+                defaultValue={editingEntry?.title ?? ''}
+              />
             </label>
 
             <div className="form-grid">
               <label>
                 Translation
-                <input name="translationId" type="text" placeholder="BSB" defaultValue="BSB" required />
+                <input
+                  name="translationId"
+                  type="text"
+                  placeholder="BSB"
+                  defaultValue={editingEntry?.translationId ?? 'BSB'}
+                  required
+                />
               </label>
               <label>
                 Book
-                <input name="bookId" type="text" placeholder="PSA" required />
+                <input
+                  name="bookId"
+                  type="text"
+                  placeholder="PSA"
+                  defaultValue={editingEntry?.bookId ?? ''}
+                  required
+                />
               </label>
               <label>
                 Chapter
-                <input name="chapter" type="number" min="1" required />
+                <input
+                  name="chapter"
+                  type="number"
+                  min="1"
+                  defaultValue={editingEntry?.chapter ?? ''}
+                  required
+                />
               </label>
               <label>
                 Verse
-                <input name="verse" type="number" min="1" required />
+                <input
+                  name="verse"
+                  type="number"
+                  min="1"
+                  defaultValue={editingEntry?.verse ?? ''}
+                  required
+                />
               </label>
             </div>
 
@@ -78,13 +122,14 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
                 name="reflection"
                 rows={4}
                 placeholder="Optional pastoral context shown in admin and available for future mobile use."
+                defaultValue={editingEntry?.reflection ?? ''}
               />
             </label>
 
             <div className="form-grid">
               <label>
                 State
-                <select name="state" defaultValue="draft">
+                <select name="state" defaultValue={editingEntry?.state ?? 'draft'}>
                   <option value="draft">draft</option>
                   <option value="scheduled">scheduled</option>
                   <option value="live">live</option>
@@ -93,7 +138,7 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
               </label>
               <label>
                 Image
-                <select name="imageId" defaultValue="">
+                <select name="imageId" defaultValue={editingEntry?.imageId ?? ''}>
                   <option value="">No image</option>
                   {verseImages.map((image) => (
                     <option key={image.id} value={image.id}>
@@ -104,16 +149,24 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
               </label>
               <label>
                 Starts at
-                <input name="startsAt" type="datetime-local" />
+                <input
+                  name="startsAt"
+                  type="datetime-local"
+                  defaultValue={toDatetimeLocalValue(editingEntry?.startsAt)}
+                />
               </label>
               <label>
                 Ends at
-                <input name="endsAt" type="datetime-local" />
+                <input
+                  name="endsAt"
+                  type="datetime-local"
+                  defaultValue={toDatetimeLocalValue(editingEntry?.endsAt)}
+                />
               </label>
             </div>
 
             <button type="submit" className="button button--primary">
-              Save entry
+              {editingEntry ? 'Update entry' : 'Save entry'}
             </button>
           </form>
         </article>
@@ -151,7 +204,7 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
                 <th>Starts at</th>
                 <th>Updated</th>
                 <th>Preview</th>
-                <th>Archive</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -178,12 +231,19 @@ export default async function VerseOfDayPage({ searchParams }: VerseOfDayPagePro
                   <td>{formatDateTime(entry.updatedAt)}</td>
                   <td className="table-preview">{entry.verseText}</td>
                   <td>
-                    <form action={archiveVerseOfDayAction}>
-                      <input type="hidden" name="id" value={entry.id} />
-                      <button type="submit" className="button">
-                        Archive
-                      </button>
-                    </form>
+                    <div className="stack-inline">
+                      <Link href={`/content/verse-of-day?editId=${entry.id}`} className="button">
+                        Edit
+                      </Link>
+                      {entry.state !== 'archived' ? (
+                        <form action={archiveVerseOfDayAction}>
+                          <input type="hidden" name="id" value={entry.id} />
+                          <button type="submit" className="button">
+                            Archive
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}

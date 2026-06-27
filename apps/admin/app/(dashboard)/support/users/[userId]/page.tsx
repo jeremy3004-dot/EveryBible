@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { getSupportUserDetail } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, maskToken } from '@/lib/format';
 
 interface SupportUserDetailPageProps {
   params: Promise<{ userId: string }>;
@@ -159,7 +159,9 @@ export default async function SupportUserDetailPage({
                   <td>{device.app_version ?? 'Unknown'}</td>
                   <td>{formatDateTime(device.created_at)}</td>
                   <td>{device.is_active ? 'active' : 'inactive'}</td>
-                  <td className="table-preview">{device.push_token}</td>
+                  <td className="table-preview">
+                    <code>{maskToken(device.push_token)}</code>
+                  </td>
                 </tr>
               ))}
             </tbody>

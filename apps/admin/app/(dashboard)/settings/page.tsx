@@ -22,7 +22,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Phase 9" title="Hardening, auditability, and role-expansion prep">
+      <PageHeader eyebrow="Admin" title="Hardening, auditability, and role-expansion prep">
         The first admin release ships with a single `super_admin` role, but the data model, server
         actions, and audit trail are now structured so more granular roles can be introduced later
         without rewriting the platform.

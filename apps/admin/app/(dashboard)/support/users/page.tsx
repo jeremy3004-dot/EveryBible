@@ -32,7 +32,7 @@ export default async function SupportUsersPage({ searchParams }: SupportUsersPag
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Phase 7" title="User and support visibility">
+      <PageHeader eyebrow="Operations" title="User and support visibility">
         Give internal staff enough account, device, engagement, and sync context to answer support
         questions safely without exposing write-heavy tooling too early.
       </PageHeader>

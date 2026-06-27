@@ -6,7 +6,7 @@ import { OperatorLauncher } from '@/components/OperatorLauncher';
 import { StatusPill } from '@/components/StatusPill';
 import { requireAdminIdentity } from '@/lib/admin-auth';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
-import { adminNavigation } from '@/lib/admin-navigation';
+import { getAdminNavigationSections } from '@/lib/admin-navigation';
 
 import { signOutAction } from '../(auth)/login/actions';
 
@@ -19,6 +19,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   const adminIdentity = await requireAdminIdentity();
+  const navigationSections = getAdminNavigationSections();
 
   return (
     <div className="dashboard-shell">
@@ -32,11 +33,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </div>
 
         <nav className="dashboard-sidebar__nav" aria-label="Admin navigation">
-          {adminNavigation.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link">
-              <span>{item.label}</span>
-              <small>{item.description}</small>
-            </Link>
+          {navigationSections.map((section) => (
+            <div key={section.group} className="nav-group">
+              <p className="nav-group__label">{section.group}</p>
+              <div className="nav-group__items">
+                {section.items.map((item) => (
+                  <Link key={item.href} href={item.href} className="nav-link">
+                    <span>{item.label}</span>
+                    <small>{item.description}</small>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

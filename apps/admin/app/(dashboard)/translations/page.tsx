@@ -32,7 +32,7 @@ export default async function TranslationsPage({ searchParams }: TranslationsPag
     <div className="page-stack">
       <section className="page-header page-header--inline">
         <div>
-          <p className="eyebrow">Phase 4</p>
+          <p className="eyebrow">Delivery</p>
           <h2>Upstream translation sync and EveryBible distribution operations</h2>
           <p className="page-copy">
             Review the imported translation catalog, inspect freshness, and safely trigger manual

@@ -177,7 +177,7 @@ export default async function TranslationDetailPage({
         <div className="card__header">
           <div>
             <p className="eyebrow">Recent sync runs</p>
-            <h3>Operational history</h3>
+            <h3>Catalog-wide sync history</h3>
           </div>
         </div>
 

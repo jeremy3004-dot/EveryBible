@@ -340,7 +340,27 @@ textarea {
 
 .dashboard-sidebar__nav {
   display: grid;
-  gap: 0.7rem;
+  gap: 1.1rem;
+}
+
+.nav-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.nav-group__label {
+  margin: 0;
+  padding: 0 0.15rem;
+  color: var(--text-dim);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nav-group__items {
+  display: grid;
+  gap: 0.45rem;
 }
 
 .nav-link {

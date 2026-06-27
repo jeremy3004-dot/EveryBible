@@ -4,7 +4,7 @@ import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { StatusPill } from '@/components/StatusPill';
 import { listContentImages } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
-import { formatDateTime, getError, getNotice } from '@/lib/format';
+import { formatDateTime, getError, getNotice, toDatetimeLocalValue } from '@/lib/format';
 
 import { updateContentImageAction, uploadContentImageAction } from '../../actions';
 
@@ -27,7 +27,7 @@ export default async function ContentImagesPage({ searchParams }: ContentImagesP
     <div className="page-stack">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Phase 5</p>
+          <p className="eyebrow">Content</p>
           <h2>Content image operations</h2>
           <p className="page-copy">
             Upload, schedule, and retire EveryBible-owned imagery without mixing those workflows
@@ -144,6 +144,10 @@ export default async function ContentImagesPage({ searchParams }: ContentImagesP
                       <input name="altText" type="text" defaultValue={image.alt_text} />
                     </label>
                     <label>
+                      Caption
+                      <textarea name="caption" rows={2} defaultValue={image.caption ?? ''} />
+                    </label>
+                    <label>
                       State
                       <select name="state" defaultValue={image.state}>
                         <option value="draft">draft</option>
@@ -154,7 +158,19 @@ export default async function ContentImagesPage({ searchParams }: ContentImagesP
                     </label>
                     <label>
                       Starts at
-                      <input name="startsAt" type="datetime-local" />
+                      <input
+                        name="startsAt"
+                        type="datetime-local"
+                        defaultValue={toDatetimeLocalValue(image.starts_at)}
+                      />
+                    </label>
+                    <label>
+                      Ends at
+                      <input
+                        name="endsAt"
+                        type="datetime-local"
+                        defaultValue={toDatetimeLocalValue(image.ends_at)}
+                      />
                     </label>
                     <button type="submit" className="button">
                       Save

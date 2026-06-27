@@ -55,6 +55,8 @@ interface SyncRunRow {
 
 interface ContentImageRow {
   alt_text: string;
+  caption: string | null;
+  ends_at: string | null;
   id: string;
   kind: 'hero' | 'verse_of_day' | 'promo' | 'feature' | 'social';
   public_url: string;
@@ -186,8 +188,12 @@ export interface TranslationDetail extends TranslationListItem {
 }
 
 export interface VerseOfDayListItem {
+  bookId: string | null;
+  chapter: number | null;
   createdAt: string;
+  endsAt: string | null;
   id: string;
+  imageId: string | null;
   referenceLabel: string;
   reflection: string | null;
   startsAt: string | null;
@@ -195,6 +201,7 @@ export interface VerseOfDayListItem {
   title: string | null;
   translationId: string;
   updatedAt: string;
+  verse: number | null;
   verseText: string;
 }
 
@@ -837,7 +844,7 @@ export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
   const { data, error } = await service
     .from('verse_of_day_entries')
     .select(
-      'id, title, translation_id, reference_label, verse_text, reflection, state, starts_at, created_at, updated_at, image_id'
+      'id, title, translation_id, book_id, chapter, verse, reference_label, verse_text, reflection, state, starts_at, ends_at, created_at, updated_at, image_id'
     )
     .order('updated_at', { ascending: false });
 
@@ -846,8 +853,12 @@ export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
   }
 
   return (data ?? []).map((row) => ({
+    bookId: (row.book_id as string | null) ?? null,
+    chapter: (row.chapter as number | null) ?? null,
     createdAt: row.created_at as string,
+    endsAt: (row.ends_at as string | null) ?? null,
     id: row.id as string,
+    imageId: (row.image_id as string | null) ?? null,
     referenceLabel: row.reference_label as string,
     reflection: row.reflection as string | null,
     startsAt: row.starts_at as string | null,
@@ -855,6 +866,7 @@ export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
     title: row.title as string | null,
     translationId: row.translation_id as string,
     updatedAt: row.updated_at as string,
+    verse: (row.verse as number | null) ?? null,
     verseText: row.verse_text as string,
   }));
 }
@@ -863,7 +875,9 @@ export async function listContentImages(): Promise<ContentImageRow[]> {
   const service = createAdminServiceClient();
   const { data, error } = await service
     .from('content_images')
-    .select('id, title, kind, state, alt_text, public_url, starts_at, updated_at')
+    .select(
+      'id, title, kind, state, alt_text, caption, public_url, starts_at, ends_at, updated_at'
+    )
     .order('updated_at', { ascending: false });
 
   if (error) {

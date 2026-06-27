@@ -195,7 +195,7 @@ export function OperatorLauncher() {
       if (response.status === 401) {
         setAvailability({
           available: false,
-          model: 'gpt-5.4-mini',
+          model: 'gpt-4o-mini',
           reason: 'unauthorized',
         });
         return;
@@ -210,14 +210,14 @@ export function OperatorLauncher() {
       if (payload && typeof payload === 'object' && 'available' in payload) {
         setAvailability({
           available: Boolean(payload.available),
-          model: typeof payload.model === 'string' ? payload.model : 'gpt-5.4-mini',
+          model: typeof payload.model === 'string' ? payload.model : 'gpt-4o-mini',
           reason: 'reason' in payload ? payload.reason ?? null : null,
         });
       }
     } catch {
       setAvailability({
         available: false,
-        model: 'gpt-5.4-mini',
+        model: 'gpt-4o-mini',
         reason: 'status_check_failed',
       });
     }

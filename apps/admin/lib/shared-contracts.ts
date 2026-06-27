@@ -14,10 +14,33 @@ export const adminServerEnvKeys = [
 
 export type AdminRole = 'super_admin';
 
+export type AdminNavigationGroup =
+  | 'Overview'
+  | 'Content'
+  | 'Delivery'
+  | 'Insights'
+  | 'Operations'
+  | 'Admin';
+
+export const adminNavigationGroupOrder: readonly AdminNavigationGroup[] = [
+  'Overview',
+  'Content',
+  'Delivery',
+  'Insights',
+  'Operations',
+  'Admin',
+] as const;
+
 export interface AdminNavigationItem {
   label: string;
   href: string;
   description: string;
+  group: AdminNavigationGroup;
+}
+
+export interface AdminNavigationSection {
+  group: AdminNavigationGroup;
+  items: AdminNavigationItem[];
 }
 
 export function getMissingEnvKeys(keys: readonly string[], env: EnvMap): string[] {

@@ -32,6 +32,20 @@ function normalizeAuditMetadata(
   return normalized;
 }
 
+export interface AuditLogResult {
+  error: string | null;
+  ok: boolean;
+}
+
+/**
+ * Records an admin mutation in `admin_audit_logs`.
+ *
+ * A failed audit write is intentionally non-fatal: the data mutation it wraps
+ * has already committed, so throwing here would surface a misleading error to
+ * the operator and could trigger a duplicate retry. Instead of swallowing the
+ * failure, we escalate it with full context and return a structured result so
+ * callers (and log monitors) can detect an unrecorded action.
+ */
 export async function writeAdminAuditLog({
   action,
   actorEmail,
@@ -40,7 +54,7 @@ export async function writeAdminAuditLog({
   entityType,
   metadata,
   summary,
-}: AuditLogInput): Promise<void> {
+}: AuditLogInput): Promise<AuditLogResult> {
   const service = createAdminServiceClient();
   const { error } = await service.from('admin_audit_logs').insert({
     action,
@@ -53,6 +67,16 @@ export async function writeAdminAuditLog({
   });
 
   if (error) {
-    console.error('Failed to write admin audit log', error);
+    console.error('[admin-audit] FAILED to record admin action — mutation is now untracked', {
+      action,
+      actorEmail,
+      actorUserId,
+      entityId: entityId ?? null,
+      entityType,
+      error: error.message,
+    });
+    return { error: error.message, ok: false };
   }
+
+  return { error: null, ok: true };
 }
