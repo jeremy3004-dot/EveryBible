@@ -502,8 +502,8 @@ export function SettingsScreen() {
                       : mode === 'low-light'
                         ? t('settings.themeLowLight')
                         : mode === 'parchment'
-                          ? 'Parchment'
-                          : 'Midnight';
+                          ? t('settings.themeParchment')
+                          : t('settings.themeMidnight');
                 return (
                   <TouchableOpacity
                     key={mode}

@@ -320,6 +320,8 @@ export const en = {
     themeDark: 'Dark',
     themeLight: 'Light',
     themeLowLight: 'Low-light',
+    themeParchment: 'Parchment',
+    themeMidnight: 'Midnight',
     appearance: 'Appearance',
     appearanceBody: 'Choose the accent palette used across the app.',
     appearanceEmberTitle: 'Ember',

@@ -303,6 +303,8 @@ export const ne = {
     "themeDark": "गाढा",
     "themeLight": "उज्यालो",
     "themeLowLight": "मधुरो",
+    "themeParchment": "चर्मपत्र",
+    "themeMidnight": "मध्यरात",
     "appearance": "दिखावट",
     "appearanceBody": "पूरै एपमा लागू हुने रंग-पालेट छान्नुहोस्।",
     "appearanceEmberTitle": "अंगार",
