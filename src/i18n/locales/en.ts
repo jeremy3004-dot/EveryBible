@@ -797,6 +797,10 @@ export const en = {
       title: 'Hearing God’s Voice',
       description: 'Listen for God through the prophets, the psalms, Jesus, and the early church.',
     },
+    categoryChronological: 'Chronological',
+    categoryBookStudy: 'Book Study',
+    categoryTopical: 'Topical',
+    categoryDevotional: 'Devotional',
     timedChallenges: 'Reading Challenges',
     bibleIn30Days: {
       title: 'Full Bible in 30 Days',

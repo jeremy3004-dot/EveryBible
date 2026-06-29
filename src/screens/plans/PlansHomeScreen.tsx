@@ -881,10 +881,19 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
         const plans = plansByCategory[category];
         if (!plans || plans.length === 0) return null;
 
-        const label = category
-          .split('-')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
+        const categoryKeyMap: Record<string, Parameters<typeof t>[0]> = {
+          chronological: 'readingPlans.categoryChronological',
+          'book-study': 'readingPlans.categoryBookStudy',
+          topical: 'readingPlans.categoryTopical',
+          devotional: 'readingPlans.categoryDevotional',
+        };
+        const categoryKey = categoryKeyMap[category];
+        const label = categoryKey
+          ? t(categoryKey)
+          : category
+              .split('-')
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' ');
 
         return (
           <View key={category} style={styles.categorySection}>
