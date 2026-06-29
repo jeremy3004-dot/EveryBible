@@ -96,12 +96,21 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     { entries: CountrySearchEntry[]; fuse: Fuse<CountrySearchEntry> }
   >();
 
-  const languageFuse = new Fuse(languages, {
-    includeScore: true,
-    ignoreLocation: true,
-    threshold: 0.35,
-    keys: ['name', 'nativeName', 'aliases', 'iso6391', 'iso6393', 'code'],
-  });
+  // Lazy-init: building a Fuse index over 487 languages is expensive on Hermes
+  // (no JIT). Defer to the first call to searchLanguages so it doesn't block
+  // module evaluation or initial render.
+  let _languageFuse: Fuse<LocaleLanguage> | null = null;
+  const getLanguageFuse = (): Fuse<LocaleLanguage> => {
+    if (!_languageFuse) {
+      _languageFuse = new Fuse(languages, {
+        includeScore: true,
+        ignoreLocation: true,
+        threshold: 0.35,
+        keys: ['name', 'nativeName', 'aliases', 'iso6391', 'iso6393', 'code'],
+      });
+    }
+    return _languageFuse;
+  };
 
   const getCountryByCode = (countryCode: string | null | undefined): LocaleCountry | null => {
     if (!countryCode) {
@@ -283,7 +292,7 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
       );
     });
 
-    const fuzzyMatches = languageFuse.search(trimmedQuery).map((result) => result.item);
+    const fuzzyMatches = getLanguageFuse().search(trimmedQuery).map((result) => result.item);
     const allMatches = uniqueByCode([...exactMatches, ...prefixMatches, ...fuzzyMatches]).slice(
       0,
       limit * 2
@@ -297,6 +306,21 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
       recommended: recommendedMatches.slice(0, limit),
       global: globalMatches.slice(0, limit),
     };
+  };
+
+  const getLanguageByName = (name: string | null | undefined): LocaleLanguage | null => {
+    if (!name) {
+      return null;
+    }
+
+    const normalized = name.trim().toLowerCase();
+    return (
+      languages.find(
+        (language) =>
+          language.name.toLowerCase() === normalized ||
+          language.nativeName.toLowerCase() === normalized
+      ) ?? null
+    );
   };
 
   const mapLanguageToAppLanguage = (language: LocaleLanguage | null): LanguageCode | null => {
@@ -314,6 +338,7 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     getCountryByCode,
     getCountryDisplayName,
     getLanguageByCode,
+    getLanguageByName,
     searchCountries,
     getRecommendedLanguages,
     searchLanguages,
@@ -321,7 +346,30 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
   };
 }
 
-const defaultLocaleSearchEngine = createLocaleSearchEngine(localeCatalog);
+// Lazy-init the search engine so the two localeCompare sorts (249 countries +
+// 487 languages) and the Fuse index build are deferred off the module-eval
+// critical path. On Hermes (no JIT) these operations are slow and were
+// blocking the splash screen for several seconds before first render.
+let _resolvedEngine: ReturnType<typeof createLocaleSearchEngine> | null = null;
+function resolveLocaleSearchEngine(): ReturnType<typeof createLocaleSearchEngine> {
+  if (!_resolvedEngine) {
+    console.log('[EB-T] locale:engine-init-start', Date.now());
+    _resolvedEngine = createLocaleSearchEngine(localeCatalog);
+    console.log('[EB-T] locale:engine-init-done', Date.now());
+  }
+  return _resolvedEngine;
+}
 
-export const localeSearchEngine = defaultLocaleSearchEngine;
+export const localeSearchEngine: ReturnType<typeof createLocaleSearchEngine> = {
+  get countries() { return resolveLocaleSearchEngine().countries; },
+  get languages() { return resolveLocaleSearchEngine().languages; },
+  getCountryByCode: (...args) => resolveLocaleSearchEngine().getCountryByCode(...args),
+  getCountryDisplayName: (...args) => resolveLocaleSearchEngine().getCountryDisplayName(...args),
+  getLanguageByCode: (...args) => resolveLocaleSearchEngine().getLanguageByCode(...args),
+  getLanguageByName: (...args) => resolveLocaleSearchEngine().getLanguageByName(...args),
+  searchCountries: (...args) => resolveLocaleSearchEngine().searchCountries(...args),
+  getRecommendedLanguages: (...args) => resolveLocaleSearchEngine().getRecommendedLanguages(...args),
+  searchLanguages: (...args) => resolveLocaleSearchEngine().searchLanguages(...args),
+  mapLanguageToAppLanguage: (...args) => resolveLocaleSearchEngine().mapLanguageToAppLanguage(...args),
+};
 export const supportedLocaleCatalog = localeCatalog;

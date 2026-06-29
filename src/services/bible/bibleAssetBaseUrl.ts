@@ -29,6 +29,11 @@ function normalizeRelativeAssetPath(value: string): string | null {
   return trimmed.replace(/^\.\//, '');
 }
 
+// Fast protocol check — avoids the slow WHATWG URL polyfill on Hermes (no JIT).
+// Stored URLs have already been validated at write time, so a regex is sufficient
+// here. Non-absolute strings fall through to the relative-path normalizer.
+const ABSOLUTE_HTTP_RE = /^https?:\/\//i;
+
 export function sanitizeBibleAssetReference(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
@@ -39,17 +44,11 @@ export function sanitizeBibleAssetReference(value: unknown): string | null {
     return null;
   }
 
-  try {
-    const parsed = new URL(trimmed);
-
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.toString();
-    }
-
-    return null;
-  } catch {
-    return normalizeRelativeAssetPath(trimmed);
+  if (ABSOLUTE_HTTP_RE.test(trimmed)) {
+    return trimmed;
   }
+
+  return normalizeRelativeAssetPath(trimmed);
 }
 
 export function getBibleAssetBaseUrl(): string | null {

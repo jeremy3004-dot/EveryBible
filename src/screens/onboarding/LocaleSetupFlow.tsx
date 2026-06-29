@@ -189,8 +189,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     const normalizedDeviceCountryCode = deviceCountryCode?.toUpperCase() ?? null;
     const scoreOption = (option: InitialOnboardingLanguageOption<BibleTranslation>) => {
       const translation = option.primaryTranslation;
-      const translationLanguage =
-        localeSearchEngine.searchLanguages(translation.language ?? '', null, 1).global[0] ?? null;
+      const translationLanguage = localeSearchEngine.getLanguageByName(translation.language);
       const normalizedTranslationLanguage = normalizeTranslationLanguage(
         translation.language
       ).toLowerCase();
@@ -251,15 +250,20 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     recommendedOnboardingLanguageOptions[0] ?? onboardingLanguageOptions[0] ?? null;
 
   const countryResults = useMemo(
-    () => localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode),
-    [countryQuery, selectedInterfaceLanguageCode]
+    () =>
+      step === 'country'
+        ? localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode)
+        : [],
+    [countryQuery, selectedInterfaceLanguageCode, step]
   );
 
   const languageResults = useMemo(
-    () => localeSearchEngine.searchLanguages(languageQuery, selectedCountryCode, 30),
-    [languageQuery, selectedCountryCode]
+    () =>
+      step === 'contentLanguage'
+        ? localeSearchEngine.searchLanguages(languageQuery, selectedCountryCode, 30)
+        : { recommended: [], global: [] },
+    [languageQuery, selectedCountryCode, step]
   );
-
   useEffect(() => {
     if (mode !== 'initial' || hasHydratedRuntimeCatalog) {
       setIsHydratingRuntimeCatalog(false);
@@ -315,9 +319,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   };
 
   const resolveTranslationLanguage = (translation: BibleTranslation): LocaleLanguage | null => {
-    return (
-      localeSearchEngine.searchLanguages(translation.language ?? '', null, 1).global[0] ?? null
-    );
+    return localeSearchEngine.getLanguageByName(translation.language);
   };
 
   const completeInitialSetup = async (translation: BibleTranslation) => {

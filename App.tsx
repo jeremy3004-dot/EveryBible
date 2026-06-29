@@ -27,6 +27,8 @@ import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 
+console.log('[EB-T] App:module-start', Date.now());
+
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch((error) => {
   console.error('Failed to keep splash screen visible:', error);
@@ -55,6 +57,7 @@ function scheduleAfterInteractions(task: () => void, delayMs = 0): () => void {
 }
 
 function LoadingScreen() {
+  console.log('[EB-T] LoadingScreen:render', Date.now());
   const { colors } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     'Lora-Regular': require('./assets/fonts/Lora-Regular.ttf'),
@@ -266,6 +269,7 @@ function LoadingScreen() {
 }
 
 export default function App() {
+  console.log('[EB-T] App:first-render', Date.now());
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
       <QueryClientProvider client={queryClient}>

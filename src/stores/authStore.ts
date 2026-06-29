@@ -45,6 +45,7 @@ const mapSupabaseUser = (supabaseUser: {
   lastActive: Date.now(),
 });
 
+console.log('[EB-T] auth:pre-create', Date.now());
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -206,15 +207,18 @@ export const useAuthStore = create<AuthState>()(
         preferencesUpdatedAt: state.preferencesUpdatedAt,
       }),
       merge: (persistedState, currentState) => {
+        console.log('[EB-T] auth:merge-start', Date.now());
         const sanitized = sanitizePersistedAuthState(persistedState);
 
-        return {
+        const merged = {
           ...currentState,
           user: sanitized.user,
           isAuthenticated: sanitized.isAuthenticated,
           preferences: sanitized.preferences,
           preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
         };
+        console.log('[EB-T] auth:merge-done', Date.now());
+        return merged;
       },
     }
   )

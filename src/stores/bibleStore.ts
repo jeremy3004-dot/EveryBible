@@ -243,6 +243,7 @@ function getLatestPersistedAudioJobByTranslation(
   return jobsByTranslation;
 }
 
+console.log('[EB-T] bible:pre-create', Date.now());
 export const useBibleStore = create<BibleState>()(
   persist(
     (set, get) => ({
@@ -948,10 +949,12 @@ export const useBibleStore = create<BibleState>()(
         preferredTranslationLanguage: state.preferredTranslationLanguage,
         translations: state.translations,
       }),
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...sanitizePersistedBibleState(persistedState),
-      }),
+      merge: (persistedState, currentState) => {
+        console.log('[EB-T] bible:merge-start', Date.now());
+        const result = { ...currentState, ...sanitizePersistedBibleState(persistedState) };
+        console.log('[EB-T] bible:merge-done', Date.now());
+        return result;
+      },
     }
   )
 );
@@ -968,5 +971,7 @@ setBibleDatabaseSourceResolver((translationId) => {
   return buildInstalledBibleDatabaseSource(translation.id, translation.textPackLocalPath);
 });
 
+console.log('[EB-T] bible:post-create', Date.now());
 syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);
 syncVerseTimestampMetadata(useBibleStore.getState().translations);
+console.log('[EB-T] bible:module-done', Date.now());
