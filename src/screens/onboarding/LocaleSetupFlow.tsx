@@ -135,8 +135,20 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     [hasHydratedRuntimeCatalog, isHydratingRuntimeCatalog, translations]
   );
 
-  const eligibleOnboardingTranslations = useMemo(() => {
-    return visibleTranslations.filter((translation) => {
+  // Compute audio availability + selection state ONCE per translation, keyed by
+  // id. Previously this ran inside the eligibility filter AND again inside every
+  // row render (on every keystroke), so a large catalog recomputed it hundreds
+  // of times per render. Memoized on visibleTranslations only.
+  const translationDisplayDataById = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        availability: ReturnType<typeof getAudioAvailability>;
+        selectionState: ReturnType<typeof getTranslationSelectionState>;
+      }
+    >();
+
+    for (const translation of visibleTranslations) {
       const availability = getAudioAvailability({
         featureEnabled: config.features.audioEnabled,
         translationHasAudio: translation.hasAudio,
@@ -152,10 +164,21 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         source: translation.source,
         textPackLocalPath: translation.textPackLocalPath,
       });
+      map.set(translation.id, { availability, selectionState });
+    }
 
-      return selectionState.isSelectable || selectionState.reason === 'download-required';
-    });
+    return map;
   }, [visibleTranslations]);
+
+  const eligibleOnboardingTranslations = useMemo(() => {
+    return visibleTranslations.filter((translation) => {
+      const selectionState = translationDisplayDataById.get(translation.id)?.selectionState;
+      return (
+        selectionState?.isSelectable === true ||
+        selectionState?.reason === 'download-required'
+      );
+    });
+  }, [translationDisplayDataById, visibleTranslations]);
   const onboardingLanguageOptions = useMemo(() => {
     const matchingTranslations = filterTranslationsBySearchQuery(
       eligibleOnboardingTranslations,
@@ -229,9 +252,16 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       return score;
     };
 
+    // Precompute each option's score once rather than recomputing it twice per
+    // comparison inside sort().
+    const scoreByKey = new Map<string, number>();
+    for (const option of onboardingLanguageOptions) {
+      scoreByKey.set(option.key, scoreOption(option));
+    }
+
     return [...onboardingLanguageOptions]
       .sort((left, right) => {
-        const scoreDelta = scoreOption(left) - scoreOption(right);
+        const scoreDelta = (scoreByKey.get(left.key) ?? 0) - (scoreByKey.get(right.key) ?? 0);
         if (scoreDelta !== 0) {
           return scoreDelta;
         }
@@ -487,21 +517,19 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     const isInstalling = installingTranslationId === translation.id;
     const progress =
       downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
-    const availability = getAudioAvailability({
-      featureEnabled: config.features.audioEnabled,
-      translationHasAudio: translation.hasAudio,
-      remoteAudioAvailable: isRemoteAudioAvailable(translation.id),
-      downloadedAudioBooks: translation.downloadedAudioBooks,
-    });
-    const selectionState = getTranslationSelectionState({
-      isDownloaded: translation.isDownloaded,
-      hasText: translation.hasText,
-      hasAudio: translation.hasAudio,
-      canPlayAudio: availability.canPlayAudio,
-      hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
-      source: translation.source,
-      textPackLocalPath: translation.textPackLocalPath,
-    });
+    // Read precomputed availability/selection state (computed once per
+    // translation in translationDisplayDataById) instead of recomputing per row.
+    const selectionState =
+      translationDisplayDataById.get(translation.id)?.selectionState ??
+      getTranslationSelectionState({
+        isDownloaded: translation.isDownloaded,
+        hasText: translation.hasText,
+        hasAudio: translation.hasAudio,
+        canPlayAudio: false,
+        hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+        source: translation.source,
+        textPackLocalPath: translation.textPackLocalPath,
+      });
     const statusLabel =
       selectionState.reason === 'download-required'
         ? t('translations.download')

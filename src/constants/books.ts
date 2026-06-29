@@ -137,8 +137,13 @@ export const bibleBooks: BibleBook[] = [
   { id: 'REV', name: 'Revelation', abbreviation: 'Rev', testament: 'NT', chapters: 22, order: 66 },
 ];
 
-export const getBookById = (id: string): BibleBook | undefined =>
-  bibleBooks.find((book) => book.id === id);
+// O(1) id lookup. Backs getBookById, which is called in hot paths such as
+// progress-store hydration (potentially 1,000+ times for a heavy reader). A
+// linear find() over 66 books in those loops added up to tens of thousands of
+// string comparisons on the Hermes interpreter at boot.
+const bookByIdMap = new Map<string, BibleBook>(bibleBooks.map((book) => [book.id, book]));
+
+export const getBookById = (id: string): BibleBook | undefined => bookByIdMap.get(id);
 
 /**
  * Returns the localized name for a Bible book using the i18n translation function.

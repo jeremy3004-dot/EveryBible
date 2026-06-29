@@ -92,6 +92,15 @@ const validDownloadJobStates = new Set<TranslationDownloadJob['state']>([
   'cancelled',
 ]);
 
+// A job in one of these states persisted across an app kill is stale — the
+// download cannot still be running, so it is reset to 'failed' on rehydrate.
+// Hoisted to module scope so it isn't reallocated per persisted download job.
+const staleActiveDownloadJobStates = new Set<TranslationDownloadJob['state']>([
+  'queued',
+  'running',
+  'reattaching',
+]);
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -298,15 +307,7 @@ const sanitizeTranslationDownloadJob = (value: unknown): TranslationDownloadJob 
   }
 
   const rawState = value.state as TranslationDownloadJob['state'];
-  // A job in an active state (running/queued/reattaching) persisted across an
-  // app kill is stale — the download cannot still be running. Reset to 'failed'
-  // so the UI shows the correct state and lets the user restart the download.
-  const staleActiveStates = new Set<TranslationDownloadJob['state']>([
-    'queued',
-    'running',
-    'reattaching',
-  ]);
-  const state: TranslationDownloadJob['state'] = staleActiveStates.has(rawState)
+  const state: TranslationDownloadJob['state'] = staleActiveDownloadJobStates.has(rawState)
     ? 'failed'
     : rawState;
 

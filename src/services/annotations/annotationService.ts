@@ -17,6 +17,11 @@ export interface SyncAnnotationsResult {
 
 const isActiveAnnotation = (annotation: UserAnnotation) => annotation.deleted_at == null;
 
+// ISO 8601 timestamps sort correctly with plain string comparison; avoids the
+// slow ICU localeCompare on Hermes for this frequently-called sort.
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 const sortByChapterVerse = (annotations: UserAnnotation[]) =>
   [...annotations].sort((a, b) => {
     const chapterDelta = a.chapter - b.chapter;
@@ -29,12 +34,12 @@ const sortByChapterVerse = (annotations: UserAnnotation[]) =>
 
 const sortByUpdatedAt = (annotations: UserAnnotation[]) =>
   [...annotations].sort((a, b) => {
-    const updatedAtDelta = b.updated_at.localeCompare(a.updated_at);
+    const updatedAtDelta = compareStrings(b.updated_at, a.updated_at);
     if (updatedAtDelta !== 0) {
       return updatedAtDelta;
     }
 
-    return b.created_at.localeCompare(a.created_at);
+    return compareStrings(b.created_at, a.created_at);
   });
 
 // ---------------------------------------------------------------------------

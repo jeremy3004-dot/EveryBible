@@ -68,17 +68,19 @@ export function resolveBibleAssetBaseUrl(
     return null;
   }
 
-  try {
-    return new URL(reference).toString().replace(/\/+$/, '');
-  } catch {
-    const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
-
-    if (!normalizedAssetBaseUrl) {
-      return null;
-    }
-
-    return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+  // Fast path: already an absolute http(s) URL — skip the slow WHATWG URL
+  // polyfill (pure JS on Hermes). This runs per audio chapter / verse timestamp.
+  if (ABSOLUTE_HTTP_RE.test(reference)) {
+    return reference.replace(/\/+$/, '');
   }
+
+  const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
+
+  if (!normalizedAssetBaseUrl) {
+    return null;
+  }
+
+  return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '').replace(/\/+$/, '')}`;
 }
 
 export function resolveBibleAssetUrl(
@@ -91,17 +93,18 @@ export function resolveBibleAssetUrl(
     return null;
   }
 
-  try {
-    return new URL(reference).toString();
-  } catch {
-    const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
-
-    if (!normalizedAssetBaseUrl) {
-      return null;
-    }
-
-    return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '')}`;
+  // Fast path: already absolute http(s) — skip the WHATWG URL polyfill.
+  if (ABSOLUTE_HTTP_RE.test(reference)) {
+    return reference;
   }
+
+  const normalizedAssetBaseUrl = normalizeBaseUrl(assetBaseUrl);
+
+  if (!normalizedAssetBaseUrl) {
+    return null;
+  }
+
+  return `${normalizedAssetBaseUrl}/${reference.replace(/^\/+/, '')}`;
 }
 
 export function getBibleAudioAssetBaseUrl(

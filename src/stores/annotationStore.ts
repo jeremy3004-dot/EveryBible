@@ -29,14 +29,20 @@ const makeCompositeKey = ({
 }: Pick<UserAnnotation, 'book' | 'chapter' | 'verse_start' | 'type'>) =>
   `${book}|${chapter}|${verse_start}|${type}`;
 
+// ISO 8601 timestamps sort correctly with plain string comparison. Avoids the
+// ICU-backed localeCompare (slow on Hermes, no JIT) on this hot path — runs on
+// every annotation store update, which re-renders the Bible reader.
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 const sortAnnotations = (annotations: UserAnnotation[]) =>
   [...annotations].sort((a, b) => {
-    const updatedAtDelta = b.updated_at.localeCompare(a.updated_at);
+    const updatedAtDelta = compareStrings(b.updated_at, a.updated_at);
     if (updatedAtDelta !== 0) {
       return updatedAtDelta;
     }
 
-    return b.created_at.localeCompare(a.created_at);
+    return compareStrings(b.created_at, a.created_at);
   });
 
 const hydrateLocalAnnotation = (

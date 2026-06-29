@@ -37,7 +37,6 @@ interface CountrySearchEntry {
   searchNames: string[];
 }
 
-const localeCatalog = require('../../data/localeCatalog.json') as LocaleCatalog;
 
 const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
   en: ['en'],
@@ -308,19 +307,36 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     };
   };
 
+  // Lazily built O(1) name index. Maps name, nativeName, and every alias
+  // (normalized) to its language so free-text dataset values like
+  // "Chinese Simplified" resolve via aliases — which the old name/nativeName-only
+  // scan missed. Built on first use, not at module-eval.
+  let _languageByName: Map<string, LocaleLanguage> | null = null;
+  const getLanguageNameIndex = (): Map<string, LocaleLanguage> => {
+    if (!_languageByName) {
+      const index = new Map<string, LocaleLanguage>();
+      languages.forEach((language) => {
+        const keys = [language.name, language.nativeName, ...language.aliases];
+        keys.forEach((key) => {
+          const normalized = key.trim().toLowerCase();
+          // First writer wins so the primary (sorted) language keeps priority
+          // over an alias collision from a later entry.
+          if (normalized && !index.has(normalized)) {
+            index.set(normalized, language);
+          }
+        });
+      });
+      _languageByName = index;
+    }
+    return _languageByName;
+  };
+
   const getLanguageByName = (name: string | null | undefined): LocaleLanguage | null => {
     if (!name) {
       return null;
     }
 
-    const normalized = name.trim().toLowerCase();
-    return (
-      languages.find(
-        (language) =>
-          language.name.toLowerCase() === normalized ||
-          language.nativeName.toLowerCase() === normalized
-      ) ?? null
-    );
+    return getLanguageNameIndex().get(name.trim().toLowerCase()) ?? null;
   };
 
   const mapLanguageToAppLanguage = (language: LocaleLanguage | null): LanguageCode | null => {
@@ -354,6 +370,10 @@ let _resolvedEngine: ReturnType<typeof createLocaleSearchEngine> | null = null;
 function resolveLocaleSearchEngine(): ReturnType<typeof createLocaleSearchEngine> {
   if (!_resolvedEngine) {
     console.log('[EB-T] locale:engine-init-start', Date.now());
+    // Deferred require: parsing the 129 KB locale catalog JSON is multi-ms on
+    // Hermes. Keeping it out of module-eval means it never blocks first paint —
+    // it only runs the first time the locale picker actually needs the engine.
+    const localeCatalog = require('../../data/localeCatalog.json') as LocaleCatalog;
     _resolvedEngine = createLocaleSearchEngine(localeCatalog);
     console.log('[EB-T] locale:engine-init-done', Date.now());
   }
@@ -372,4 +392,3 @@ export const localeSearchEngine: ReturnType<typeof createLocaleSearchEngine> = {
   searchLanguages: (...args) => resolveLocaleSearchEngine().searchLanguages(...args),
   mapLanguageToAppLanguage: (...args) => resolveLocaleSearchEngine().mapLanguageToAppLanguage(...args),
 };
-export const supportedLocaleCatalog = localeCatalog;

@@ -181,7 +181,9 @@ test('Supabase client validates URL by requiring https protocol', () => {
 
   assert.match(
     clientSource,
-    /url\.protocol === ['"]https:['"]|protocol.*https/,
+    // Accept either the WHATWG URL protocol check or a direct https:// scheme
+    // test — both enforce the https: protocol for the Supabase URL.
+    /url\.protocol === ['"]https:['"]|protocol.*https|\/\^https:\\\/\\\//,
     'client.ts must enforce the https: protocol when validating the Supabase URL'
   );
 });
