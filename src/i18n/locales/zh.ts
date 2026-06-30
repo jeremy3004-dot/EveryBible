@@ -296,6 +296,8 @@ export const zh = {
     "themeDark": "黑暗的",
     "themeLight": "光",
     "themeLowLight": "低光",
+    "themeParchment": "羊皮纸",
+    "themeMidnight": "午夜",
     "appearance": "外貌",
     "appearanceBody": "选择整个应用程序中使用的强调调色板。",
     "appearanceEmberTitle": "余烬",
@@ -759,6 +761,10 @@ export const zh = {
       "title": "聆听神的声音",
       "description": "通过先知、诗篇、耶稣和早期教会聆听上帝的声音。"
     },
+    "categoryChronological": "按时间顺序",
+    "categoryBookStudy": "书卷研读",
+    "categoryTopical": "主题",
+    "categoryDevotional": "灵修",
     "timedChallenges": "阅读挑战",
     "bibleIn30Days": {
       "title": "30 天读完完整圣经",

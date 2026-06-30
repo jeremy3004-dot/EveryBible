@@ -296,6 +296,8 @@ export const ur = {
     "themeDark": "اندھیرا",
     "themeLight": "روشنی",
     "themeLowLight": "کم روشنی",
+    "themeParchment": "پارچمنٹ",
+    "themeMidnight": "آدھی رات",
     "appearance": "ظاہری شکل",
     "appearanceBody": "پوری ایپ میں استعمال ہونے والے لہجے کا پیلیٹ منتخب کریں۔",
     "appearanceEmberTitle": "انگارا",
@@ -743,6 +745,10 @@ export const ur = {
       "title": "خدا کی آواز سننا",
       "description": "خدا کے لیے نبیوں، زبور، یسوع اور ابتدائی کلیسیا کے ذریعے سنیں۔"
     },
+    "categoryChronological": "زمانی ترتیب",
+    "categoryBookStudy": "کتابی مطالعہ",
+    "categoryTopical": "موضوعاتی",
+    "categoryDevotional": "عبادتی",
     "timedChallenges": "پڑھنے کے چیلنجز",
     "bibleIn30Days": {
       "title": "30 دنوں میں مکمل بائبل",

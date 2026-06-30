@@ -69,7 +69,7 @@ test('PlanDetailScreen only renders the active day for recurring rhythm plans', 
   );
   assert.match(
     source,
-    /const currentDay = plan \? getActivePlanDayNumber\(plan, progress, today\) : progress\?\.current_day \?\? 1;/,
+    /const currentDay = plan\s*\?\s*getActivePlanDayNumber\(plan, progress, today\)\s*:\s*\(progress\?\.current_day \?\? 1\);/,
     'PlanDetailScreen should resolve the active day from today even before enrollment'
   );
   assert.match(
@@ -143,6 +143,11 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
     source,
     /todayTargetProgress/,
     'PlanDetailScreen should show the current plan-day target progress to the user'
+  );
+  assert.match(
+    source,
+    /<ProgressCard[\s\S]*plan=\{plan\}[\s\S]*progress=\{progress\}[\s\S]*currentDaySummary=\{currentDaySummary\}[\s\S]*today=\{today\}[\s\S]*\/>/,
+    'PlanDetailScreen should pass the stable today value into the progress card'
   );
   assert.match(
     source,

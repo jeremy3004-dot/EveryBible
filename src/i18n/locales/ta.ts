@@ -296,6 +296,8 @@ export const ta = {
     "themeDark": "இருள்",
     "themeLight": "ஒளி",
     "themeLowLight": "குறைந்த வெளிச்சம்",
+    "themeParchment": "பார்ச்மென்ட்",
+    "themeMidnight": "நள்ளிரவு",
     "appearance": "தோற்றம்",
     "appearanceBody": "ஆப்ஸ் முழுவதும் பயன்படுத்தப்படும் உச்சரிப்புத் தட்டுகளைத் தேர்வுசெய்யவும்.",
     "appearanceEmberTitle": "எரிமலை",
@@ -743,6 +745,10 @@ export const ta = {
       "title": "கடவுளின் குரலைக் கேட்பது",
       "description": "தீர்க்கதரிசிகள், சங்கீதங்கள், இயேசு மற்றும் ஆரம்பகால தேவாலயம் மூலம் கடவுளைக் கேளுங்கள்."
     },
+    "categoryChronological": "காலவரிசை",
+    "categoryBookStudy": "புத்தக ஆய்வு",
+    "categoryTopical": "தலைப்புவாரி",
+    "categoryDevotional": "தியானம்",
     "timedChallenges": "வாசிப்பு சவால்கள்",
     "bibleIn30Days": {
       "title": "30 நாட்களில் முழு பைபிள்",

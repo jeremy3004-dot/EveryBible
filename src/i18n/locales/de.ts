@@ -296,6 +296,8 @@ export const de = {
     "themeDark": "Dunkel",
     "themeLight": "Licht",
     "themeLowLight": "Wenig Licht",
+    "themeParchment": "Pergament",
+    "themeMidnight": "Mitternacht",
     "appearance": "Aussehen",
     "appearanceBody": "Wählen Sie die Akzentpalette aus, die in der gesamten App verwendet wird.",
     "appearanceEmberTitle": "Glut",
@@ -743,6 +745,10 @@ export const de = {
       "title": "Gottes Stimme hören",
       "description": "Hören Sie auf Gott durch die Propheten, die Psalmen, Jesus und die frühe Kirche."
     },
+    "categoryChronological": "Chronologisch",
+    "categoryBookStudy": "Buchstudium",
+    "categoryTopical": "Thematisch",
+    "categoryDevotional": "Andacht",
     "timedChallenges": "Leseherausforderungen",
     "bibleIn30Days": {
       "title": "Vollständige Bibel in 30 Tagen",

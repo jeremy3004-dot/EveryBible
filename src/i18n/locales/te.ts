@@ -296,6 +296,8 @@ export const te = {
     "themeDark": "చీకటి",
     "themeLight": "కాంతి",
     "themeLowLight": "తక్కువ-కాంతి",
+    "themeParchment": "పార్చ్‌మెంట్",
+    "themeMidnight": "అర్ధరాత్రి",
     "appearance": "స్వరూపం",
     "appearanceBody": "యాప్‌లో ఉపయోగించే యాస ప్యాలెట్‌ని ఎంచుకోండి.",
     "appearanceEmberTitle": "ఎంబర్",
@@ -743,6 +745,10 @@ export const te = {
       "title": "దేవుని స్వరం వినడం",
       "description": "ప్రవక్తలు, కీర్తనలు, యేసు మరియు ప్రారంభ చర్చి ద్వారా దేవుని కోసం వినండి."
     },
+    "categoryChronological": "కాలక్రమానుసారం",
+    "categoryBookStudy": "పుస్తక అధ్యయనం",
+    "categoryTopical": "అంశాల వారీగా",
+    "categoryDevotional": "భక్తి",
     "timedChallenges": "చదవడం సవాళ్లు",
     "bibleIn30Days": {
       "title": "30 రోజుల్లో పూర్తి బైబిల్",

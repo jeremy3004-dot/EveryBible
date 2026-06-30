@@ -296,6 +296,8 @@ export const vi = {
     "themeDark": "Tối tăm",
     "themeLight": "Ánh sáng",
     "themeLowLight": "Ánh sáng yếu",
+    "themeParchment": "Giấy da",
+    "themeMidnight": "Nửa đêm",
     "appearance": "Vẻ bề ngoài",
     "appearanceBody": "Chọn bảng màu nhấn được sử dụng trên ứng dụng.",
     "appearanceEmberTitle": "than hồng",
@@ -743,6 +745,10 @@ export const vi = {
       "title": "Nghe Tiếng Chúa",
       "description": "Hãy lắng nghe Chúa qua các tiên tri, thánh vịnh, Chúa Giêsu và hội thánh đầu tiên."
     },
+    "categoryChronological": "Theo trình tự thời gian",
+    "categoryBookStudy": "Học theo sách",
+    "categoryTopical": "Theo chủ đề",
+    "categoryDevotional": "Tĩnh nguyện",
     "timedChallenges": "Thử thách đọc",
     "bibleIn30Days": {
       "title": "Kinh Thánh đầy đủ trong 30 ngày",

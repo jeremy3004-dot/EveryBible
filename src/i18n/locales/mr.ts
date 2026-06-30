@@ -296,6 +296,8 @@ export const mr = {
     "themeDark": "गडद",
     "themeLight": "प्रकाश",
     "themeLowLight": "कमी-प्रकाश",
+    "themeParchment": "चर्मपत्र",
+    "themeMidnight": "मध्यरात्र",
     "appearance": "देखावा",
     "appearanceBody": "संपूर्ण ॲपवर वापरलेले उच्चारण पॅलेट निवडा.",
     "appearanceEmberTitle": "अंगारा",
@@ -743,6 +745,10 @@ export const mr = {
       "title": "देवाचा आवाज ऐकणे",
       "description": "संदेष्टे, स्तोत्रे, येशू आणि सुरुवातीच्या चर्चद्वारे देवासाठी ऐका."
     },
+    "categoryChronological": "कालक्रमानुसार",
+    "categoryBookStudy": "पुस्तक अभ्यास",
+    "categoryTopical": "विषयानुसार",
+    "categoryDevotional": "भक्तीपर",
     "timedChallenges": "वाचन आव्हाने",
     "bibleIn30Days": {
       "title": "३० दिवसांत पूर्ण बायबल",

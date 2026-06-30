@@ -296,6 +296,8 @@ export const ko = {
     "themeDark": "어두운",
     "themeLight": "빛",
     "themeLowLight": "저조도",
+    "themeParchment": "양피지",
+    "themeMidnight": "자정",
     "appearance": "모습",
     "appearanceBody": "앱 전체에서 사용되는 악센트 팔레트를 선택하세요.",
     "appearanceEmberTitle": "타다 남은 것",
@@ -743,6 +745,10 @@ export const ko = {
       "title": "하나님의 음성 듣기",
       "description": "선지자, 시편, 예수님, 초대교회를 통해 하나님의 말씀을 들어보십시오."
     },
+    "categoryChronological": "연대순",
+    "categoryBookStudy": "성경책 연구",
+    "categoryTopical": "주제별",
+    "categoryDevotional": "묵상",
     "timedChallenges": "읽기 과제",
     "bibleIn30Days": {
       "title": "30일 안에 성경 전체 읽기",

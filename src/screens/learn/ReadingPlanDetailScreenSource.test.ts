@@ -23,8 +23,8 @@ test('ReadingPlanDetailScreen uses recurring-aware day progress and launches the
   );
   assert.match(
     source,
-    /<ProgressCard plan=\{plan\} progress=\{progress\} currentDaySummary=\{currentDaySummary\} \/>/,
-    'ReadingPlanDetailScreen should pass the computed day summary into the progress card'
+    /<ProgressCard[\s\S]*plan=\{plan\}[\s\S]*progress=\{progress\}[\s\S]*currentDaySummary=\{currentDaySummary\}[\s\S]*today=\{today\}[\s\S]*\/>/,
+    'ReadingPlanDetailScreen should pass the computed day summary and stable today value into the progress card'
   );
   assert.match(
     source,

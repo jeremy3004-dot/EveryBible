@@ -296,6 +296,8 @@ export const pt = {
     "themeDark": "Escuro",
     "themeLight": "Luz",
     "themeLowLight": "Pouca luz",
+    "themeParchment": "Pergaminho",
+    "themeMidnight": "Meia-noite",
     "appearance": "Aparência",
     "appearanceBody": "Escolha a paleta de destaque usada no aplicativo.",
     "appearanceEmberTitle": "Brasa",
@@ -743,6 +745,10 @@ export const pt = {
       "title": "Ouvindo a voz de Deus",
       "description": "Ouça a Deus através dos profetas, dos salmos, de Jesus e da igreja primitiva."
     },
+    "categoryChronological": "Cronológico",
+    "categoryBookStudy": "Estudo de livro",
+    "categoryTopical": "Temático",
+    "categoryDevotional": "Devocional",
     "timedChallenges": "Desafios de leitura",
     "bibleIn30Days": {
       "title": "Bíblia completa em 30 dias",

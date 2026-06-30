@@ -12,7 +12,7 @@ test('playChapter stops the active sound before resolving the next chapter sourc
 
   assert.match(
     useAudioPlayerSource,
-    /await audioPlayer\.stop\(\);[\s\S]*const audioData = await getChapterAudioUrl/,
+    /await audioPlayer\.stop\(\);[\s\S]*let audioData = await getChapterAudioUrl/,
     'useAudioPlayer should stop the current sound before loading the next chapter source'
   );
 

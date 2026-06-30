@@ -61,7 +61,7 @@ test('HomeScreen removes the extra welcome subtitle so the fixed layout can sit 
   );
 });
 
-test('HomeScreen renders the redesigned gather strip with localized labels', () => {
+test('HomeScreen renders the redesigned gather strip with localized header labels and icon path', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
   assert.match(
@@ -84,7 +84,7 @@ test('HomeScreen renders the redesigned gather strip with localized labels', () 
 
   assert.match(
     source,
-    /t\('home\.fieldLabel',\s*{\s*number:\s*index \+ 1\s*}\)/,
-    'HomeScreen should localize field labels under the gather path'
+    /gatherFoundations\.slice\(0,\s*4\)\.map[\s\S]*artworkKey=\{foundation\.iconImage\}/,
+    'HomeScreen should render the compact Gather path from foundation artwork instead of hardcoded labels'
   );
 });

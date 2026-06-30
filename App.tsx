@@ -269,7 +269,6 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  console.log('[EB-T] App:first-render', Date.now());
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
       <QueryClientProvider client={queryClient}>

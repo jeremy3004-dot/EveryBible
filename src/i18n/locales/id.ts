@@ -296,6 +296,8 @@ export const id = {
     "themeDark": "Gelap",
     "themeLight": "Lampu",
     "themeLowLight": "Cahaya redup",
+    "themeParchment": "Perkamen",
+    "themeMidnight": "Tengah malam",
     "appearance": "Penampilan",
     "appearanceBody": "Pilih palet aksen yang digunakan di seluruh aplikasi.",
     "appearanceEmberTitle": "Bara",
@@ -743,6 +745,10 @@ export const id = {
       "title": "Mendengar Suara Tuhan",
       "description": "Dengarkan Tuhan melalui para nabi, mazmur, Yesus, dan gereja mula-mula."
     },
+    "categoryChronological": "Kronologis",
+    "categoryBookStudy": "Studi Kitab",
+    "categoryTopical": "Tematik",
+    "categoryDevotional": "Renungan",
     "timedChallenges": "Tantangan Membaca",
     "bibleIn30Days": {
       "title": "Alkitab Lengkap dalam 30 Hari",

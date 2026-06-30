@@ -7,31 +7,27 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('BibleReaderScreen restores a live session before gating chapter actions as signed out', () => {
+test('BibleReaderScreen keeps reader actions local-first instead of restoring an auth session', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
-
-  assert.match(
-    source,
-    /const hasStoredAuthSession = isAuthenticated \|\| hasLiveAuthSession;/,
-    'BibleReaderScreen should combine persisted auth and hydrated session state before treating chapter actions as signed out'
+  const authSelectors = Array.from(
+    source.matchAll(/useAuthStore\(\s*\(state\) => state\.([^)]+?)\s*\)/gs),
+    (match) => match[1].replace(/\s+/g, '')
   );
 
-  assert.match(
-    source,
-    /const \[hasRestoredAuthSession, setHasRestoredAuthSession\] = useState\(hasStoredAuthSession\);/,
-    'BibleReaderScreen should track whether a live session was restored after the screen mounted'
+  assert.ok(
+    authSelectors.length > 0,
+    'BibleReaderScreen should still read saved reader preferences from authStore'
+  );
+  assert.equal(
+    authSelectors.every((selector) => selector.startsWith('preferences.')),
+    true,
+    `BibleReaderScreen should only read preferences from authStore, got: ${authSelectors.join(', ')}`
   );
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /void getCurrentSession\(\)\.then\(\(\{ session \}\) => \{/,
-    'BibleReaderScreen should fall back to the live auth service when the local auth store has not hydrated yet'
-  );
-
-  assert.match(
-    source,
-    /const hasReaderAuthSession = hasStoredAuthSession \|\| hasRestoredAuthSession;/,
-    'BibleReaderScreen should reuse one resolved auth signal across chapter actions'
+    /\bgetCurrentSession\b|\bisAuthenticated\b|\bhas(?:Stored|Live|Restored|Reader)AuthSession\b/,
+    'BibleReaderScreen should not restore or gate reader actions on a live auth session'
   );
 });
 

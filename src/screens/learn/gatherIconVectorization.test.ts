@@ -37,9 +37,9 @@ test('detail screens pass artwork keys into the shared badge', () => {
   const lessonDetail = readRelativeSource('./LessonDetailScreen.tsx');
 
   assert.equal(
-    home.includes('artworkKey={activeFoundation.iconImage}'),
+    home.includes('artworkKey={foundation.iconImage}'),
     true,
-    'HomeScreen should pass the active foundation artwork key into GatherIconBadge'
+    'HomeScreen should pass each visible foundation artwork key into GatherIconBadge'
   );
 
   assert.equal(

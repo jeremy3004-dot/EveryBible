@@ -85,6 +85,19 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   );
 });
 
+test('App render path does not call impure timing helpers', () => {
+  const appSource = readRelativeSource('../../../App.tsx');
+  const appStart = appSource.indexOf('export default function App()');
+  const appContentStart = appSource.indexOf('function AppContent()', appStart);
+  const appRenderSource = appSource.slice(appStart, appContentStart);
+
+  assert.equal(
+    /Date\.now\(/.test(appRenderSource),
+    false,
+    'App component render body should stay pure; keep timing logs in effects or module scope'
+  );
+});
+
 test('deferred runtime effects own sync and privacy hooks after boot', () => {
   const source = readRelativeSource('./AppRuntimeEffects.tsx');
 

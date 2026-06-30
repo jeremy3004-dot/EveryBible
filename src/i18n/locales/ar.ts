@@ -296,6 +296,8 @@ export const ar = {
     "themeDark": "مظلم",
     "themeLight": "ضوء",
     "themeLowLight": "الإضاءة المنخفضة",
+    "themeParchment": "رَق",
+    "themeMidnight": "منتصف الليل",
     "appearance": "مظهر",
     "appearanceBody": "اختر لوحة التمييز المستخدمة عبر التطبيق.",
     "appearanceEmberTitle": "جمرة",
@@ -734,6 +736,10 @@ export const ar = {
       "title": "سماع صوت الله",
       "description": "استمع لله من خلال الأنبياء والمزامير ويسوع والكنيسة الأولى."
     },
+    "categoryChronological": "زمني",
+    "categoryBookStudy": "دراسة كتاب",
+    "categoryTopical": "موضوعي",
+    "categoryDevotional": "تعبدي",
     "timedChallenges": "تحديات القراءة",
     "bibleIn30Days": {
       "title": "الكتاب المقدس الكامل في 30 يوما",

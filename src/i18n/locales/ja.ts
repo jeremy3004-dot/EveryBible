@@ -296,6 +296,8 @@ export const ja = {
     "themeDark": "暗い",
     "themeLight": "ライト",
     "themeLowLight": "低照度",
+    "themeParchment": "羊皮紙",
+    "themeMidnight": "真夜中",
     "appearance": "外観",
     "appearanceBody": "アプリ全体で使用されるアクセント パレットを選択します。",
     "appearanceEmberTitle": "残り火",
@@ -743,6 +745,10 @@ export const ja = {
       "title": "神の声を聞く",
       "description": "預言者、詩篇、イエス、初代教会を通して神の声に耳を傾けてください。"
     },
+    "categoryChronological": "年代順",
+    "categoryBookStudy": "書巻研究",
+    "categoryTopical": "テーマ別",
+    "categoryDevotional": "デボーション",
     "timedChallenges": "読書の課題",
     "bibleIn30Days": {
       "title": "30日で聖書全文を読む",

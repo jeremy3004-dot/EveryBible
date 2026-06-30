@@ -296,6 +296,8 @@ export const fr = {
     "themeDark": "Sombre",
     "themeLight": "Lumière",
     "themeLowLight": "Faible luminosité",
+    "themeParchment": "Parchemin",
+    "themeMidnight": "Minuit",
     "appearance": "Apparence",
     "appearanceBody": "Choisissez la palette d'accents utilisée dans l'application.",
     "appearanceEmberTitle": "Braise",
@@ -743,6 +745,10 @@ export const fr = {
       "title": "Entendre la voix de Dieu",
       "description": "Écoutez Dieu à travers les prophètes, les psaumes, Jésus et l’Église primitive."
     },
+    "categoryChronological": "Chronologique",
+    "categoryBookStudy": "Étude de livre",
+    "categoryTopical": "Thématique",
+    "categoryDevotional": "Dévotionnel",
     "timedChallenges": "Défis de lecture",
     "bibleIn30Days": {
       "title": "Bible complète en 30 jours",

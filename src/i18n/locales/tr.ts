@@ -296,6 +296,8 @@ export const tr = {
     "themeDark": "Karanlık",
     "themeLight": "Işık",
     "themeLowLight": "Düşük ışık",
+    "themeParchment": "Parşömen",
+    "themeMidnight": "Gece yarısı",
     "appearance": "Dış görünüş",
     "appearanceBody": "Uygulama genelinde kullanılan vurgu paletini seçin.",
     "appearanceEmberTitle": "Kor",
@@ -743,6 +745,10 @@ export const tr = {
       "title": "Tanrının Sesini Duymak",
       "description": "Tanrı'yı ​​peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin."
     },
+    "categoryChronological": "Kronolojik",
+    "categoryBookStudy": "Kitap çalışması",
+    "categoryTopical": "Konusal",
+    "categoryDevotional": "Adanmışlık",
     "timedChallenges": "Okuma Zorlukları",
     "bibleIn30Days": {
       "title": "30 Günde Tam İncil",

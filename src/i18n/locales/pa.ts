@@ -296,6 +296,8 @@ export const pa = {
     "themeDark": "ਹਨੇਰਾ",
     "themeLight": "ਰੋਸ਼ਨੀ",
     "themeLowLight": "ਘੱਟ ਰੋਸ਼ਨੀ",
+    "themeParchment": "ਚਰਮਪੱਤਰ",
+    "themeMidnight": "ਅੱਧੀ ਰਾਤ",
     "appearance": "ਦਿੱਖ",
     "appearanceBody": "ਐਪ ਵਿੱਚ ਵਰਤੀ ਗਈ ਲਹਿਜ਼ਾ ਪੈਲੇਟ ਚੁਣੋ।",
     "appearanceEmberTitle": "ਅੰਬਰ",
@@ -743,6 +745,10 @@ export const pa = {
       "title": "ਰੱਬ ਦੀ ਅਵਾਜ਼ ਸੁਣਨਾ",
       "description": "ਨਬੀਆਂ, ਜ਼ਬੂਰਾਂ, ਯਿਸੂ ਅਤੇ ਮੁਢਲੇ ਚਰਚ ਦੁਆਰਾ ਪਰਮੇਸ਼ੁਰ ਲਈ ਸੁਣੋ।"
     },
+    "categoryChronological": "ਕਾਲਕ੍ਰਮ ਅਨੁਸਾਰ",
+    "categoryBookStudy": "ਪੁਸਤਕ ਅਧਿਐਨ",
+    "categoryTopical": "ਵਿਸ਼ਾਵਾਰ",
+    "categoryDevotional": "ਭਗਤੀਮਈ",
     "timedChallenges": "ਪੜ੍ਹਨ ਦੀਆਂ ਚੁਣੌਤੀਆਂ",
     "bibleIn30Days": {
       "title": "30 ਦਿਨਾਂ ਵਿੱਚ ਪੂਰੀ ਬਾਈਬਲ",

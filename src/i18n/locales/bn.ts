@@ -296,6 +296,8 @@ export const bn = {
     "themeDark": "অন্ধকার",
     "themeLight": "আলো",
     "themeLowLight": "কম আলো",
+    "themeParchment": "পার্চমেন্ট",
+    "themeMidnight": "মধ্যরাত",
     "appearance": "চেহারা",
     "appearanceBody": "অ্যাপ জুড়ে ব্যবহৃত অ্যাকসেন্ট প্যালেট চয়ন করুন।",
     "appearanceEmberTitle": "অঙ্গার",
@@ -743,6 +745,10 @@ export const bn = {
       "title": "ঈশ্বরের কণ্ঠস্বর শ্রবণ",
       "description": "ভাববাদী, গীতসংহিতা, যীশু এবং প্রাথমিক গির্জার মাধ্যমে ঈশ্বরের জন্য শুনুন।"
     },
+    "categoryChronological": "কালানুক্রমিক",
+    "categoryBookStudy": "বই অধ্যয়ন",
+    "categoryTopical": "বিষয়ভিত্তিক",
+    "categoryDevotional": "ভক্তিমূলক",
     "timedChallenges": "পড়ার চ্যালেঞ্জ",
     "bibleIn30Days": {
       "title": "30 দিনের মধ্যে সম্পূর্ণ বাইবেল",

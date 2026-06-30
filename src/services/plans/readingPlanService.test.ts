@@ -17,15 +17,23 @@ function createMemoryStorage(): StateStorage {
 }
 
 test('reading plan service serves bundled plans and local plan entries', async () => {
+  const bundledMod = await import('../../data/readingPlans.generated');
   const storeMod = await import('../../stores/readingPlansStore');
   const serviceMod = await import('./readingPlanService');
 
-  const service = serviceMod.createReadingPlanService(storeMod.createReadingPlansStore(createMemoryStorage()));
+  const service = serviceMod.createReadingPlanService(
+    storeMod.createReadingPlansStore(createMemoryStorage())
+  );
 
   const plansResult = await service.listReadingPlans();
   assert.equal(plansResult.success, true);
-  assert.equal(plansResult.data?.length, 22);
+  assert.equal(bundledMod.readingPlans.length, 23);
+  assert.equal(plansResult.data?.length, bundledMod.readingPlans.length);
   assert.equal(plansResult.data?.[0]?.slug, 'bible-in-1-year');
+  assert.equal(
+    plansResult.data?.some((plan) => plan.slug === 'kathisma-weekly'),
+    true
+  );
 
   const entriesResult = await service.getPlanEntries('sermon-on-the-mount-7-days');
   assert.equal(entriesResult.success, true);
@@ -54,6 +62,7 @@ test('reading plan service serves bundled plans and local plan entries', async (
     devotionalPlansResult.data?.map((plan) => plan.slug),
     [
       'proverbs-31-days',
+      'kathisma-weekly',
       'prayer-intimacy-with-god',
       'identity-in-christ',
       'holiness-and-sanctification',
@@ -80,7 +89,9 @@ test('reading plan service marks local progress complete without auth', async ()
   const storeMod = await import('../../stores/readingPlansStore');
   const serviceMod = await import('./readingPlanService');
 
-  const service = serviceMod.createReadingPlanService(storeMod.createReadingPlansStore(createMemoryStorage()));
+  const service = serviceMod.createReadingPlanService(
+    storeMod.createReadingPlansStore(createMemoryStorage())
+  );
 
   const enrolledResult = await service.enrollInPlan('sermon-on-the-mount-7-days');
   assert.equal(enrolledResult.success, true);

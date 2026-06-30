@@ -171,13 +171,13 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
   assert.match(
     traySource,
     /selectionControlsRow/,
-    'The color row and action buttons should share one horizontal tray row'
+    'The color row and action buttons should use the shared tray controls container'
   );
 
   assert.match(
     traySource,
     /actionButtonRail/,
-    'The four primary actions should appear beside the highlight colors in the same row'
+    'The primary actions should render together in the shared action rail'
   );
 
   assert.match(
@@ -200,20 +200,32 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     traySource,
+    /actionButton:[\s\S]*flex:\s*1,[\s\S]*minWidth:\s*0,[\s\S]*minHeight:\s*62/,
+    'The action pills should flex across the rail without a fixed width so the tray avoids clipping'
+  );
+
+  assert.match(
+    traySource,
+    /selectionControlsRow:[\s\S]*flexDirection:\s*'column'[\s\S]*gap:\s*10/,
+    'The highlight row and action rail should stack vertically so the bottom tray does not clip controls'
+  );
+
+  assert.match(
+    traySource,
+    /highlightRow:[\s\S]*justifyContent:\s*'space-around'/,
+    'The highlight colors should distribute across their row instead of clustering left'
+  );
+
+  assert.match(
+    traySource,
+    /actionButtonRail:[\s\S]*alignItems:\s*'stretch'[\s\S]*justifyContent:\s*'space-between'[\s\S]*gap:\s*8/,
+    'The action buttons should distribute across the rail with consistent spacing'
+  );
+
+  assert.doesNotMatch(
+    traySource,
     /width:\s*52/,
-    'The action pills should be wider so the controls fill the available bottom-tray space'
-  );
-
-  assert.match(
-    traySource,
-    /highlightRow:[\s\S]*justifyContent:\s*'space-between'[\s\S]*flex:\s*1/,
-    'The highlight colors should distribute across their share of the tray instead of clustering left'
-  );
-
-  assert.match(
-    traySource,
-    /actionButtonRail:[\s\S]*justifyContent:\s*'space-between'[\s\S]*flex:\s*1\.8/,
-    'The action buttons should distribute across the remaining tray width'
+    'The action pills should not use the old fixed width that could clip the bottom tray'
   );
 
   assert.match(
