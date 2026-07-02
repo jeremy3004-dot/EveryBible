@@ -5,6 +5,7 @@ export {
   signInWithGoogle,
   signOut,
   resetPassword,
+  updatePassword,
   getCurrentSession,
   type AuthResult,
 } from './authService';

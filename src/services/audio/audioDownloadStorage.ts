@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { downloadAndValidateAudioFile } from './audioDownloadService';
 import type {
   AudioDownloadJobRecord,
   AudioDownloadJobStore,
@@ -24,8 +25,20 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
     const info = await FileSystem.getInfoAsync(fileUri);
     return info.exists;
   },
+  getFileSize: async (fileUri) => {
+    const info = await FileSystem.getInfoAsync(fileUri);
+    return info.exists ? info.size : null;
+  },
   downloadFile: async (from, to) => {
-      await FileSystem.downloadAsync(from, to);
+    await downloadAndValidateAudioFile({
+      sourceUrl: from,
+      runDownload: () => FileSystem.downloadAsync(from, to),
+      getFileSize: async () => {
+        const info = await FileSystem.getInfoAsync(to);
+        return info.exists ? info.size : 0;
+      },
+      deleteFile: () => FileSystem.deleteAsync(to, { idempotent: true }),
+    });
   },
   readTextFile: async (fileUri) => {
     try {

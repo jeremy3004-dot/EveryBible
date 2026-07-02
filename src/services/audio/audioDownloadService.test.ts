@@ -9,6 +9,7 @@ import {
   downloadAudioTranslation,
   failAudioDownloadJob,
   reattachAudioDownloadJob,
+  requestAudioDownloadCancellation,
   startAudioDownloadJob,
   getChapterAudioFileUri,
   getDownloadedChapterAudioUri,
@@ -157,6 +158,87 @@ test('audio download job lifecycle exposes start, reattach, and failure hooks', 
   ]);
 });
 
+test('audio download progress events carry the real job id so a caller can target the exact running job for cancellation', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const book = getBookById('GEN')!;
+  const progressEvents: Array<{ jobId?: string }> = [];
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book,
+    resolveRemoteAudio: async () => ({ url: 'https://example.com/audio.mp3', duration: 42 }),
+    fileSystem,
+    hooks: {
+      onProgress: (progress) => {
+        progressEvents.push(progress);
+      },
+    },
+  });
+
+  assert.ok(progressEvents.length > 0, 'expected at least one progress event');
+  assert.ok(
+    progressEvents.every((event) => event.jobId === 'audio-download:bsb:book:GEN'),
+    'every book progress event should carry the real job id, not be left undefined'
+  );
+});
+
+test('audio download collection events carry the real translation job id', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const books = [getBookById('OBA')!];
+  const collectionEvents: Array<{ jobId?: string }> = [];
+
+  await downloadAudioTranslation({
+    translationId: 'bsb',
+    books,
+    resolveRemoteAudio: async () => ({ url: 'https://example.com/audio.mp3', duration: 42 }),
+    fileSystem,
+    hooks: {
+      onBookComplete: (progress) => {
+        collectionEvents.push(progress);
+      },
+    },
+  });
+
+  assert.ok(collectionEvents.length > 0, 'expected at least one collection progress event');
+  assert.ok(
+    collectionEvents.every((event) => event.jobId === 'audio-download:bsb:translation:all'),
+    'every collection progress event should carry the real translation job id'
+  );
+});
+
+test('requestAudioDownloadCancellation stops runWithConcurrency from scheduling further chapter downloads', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const book = getBookById('GEN')!;
+  let downloadCount = 0;
+
+  const transport = {
+    downloadFile: async (_from: string, _to: string) => {
+      downloadCount += 1;
+      if (downloadCount === 1) {
+        requestAudioDownloadCancellation(
+          createAudioDownloadJobId({ translationId: 'bsb', scope: 'book', bookId: book.id })
+        );
+      }
+    },
+  };
+
+  await assert.rejects(
+    downloadAudioBook({
+      translationId: 'bsb',
+      book,
+      resolveRemoteAudio: async () => ({ url: 'https://example.com/audio.mp3', duration: 42 }),
+      fileSystem,
+      transport,
+    }),
+    /download was cancelled/i
+  );
+
+  assert.ok(
+    downloadCount < book.chapters,
+    `expected cancellation to stop scheduling new chapter downloads (downloaded ${downloadCount} of ${book.chapters})`
+  );
+});
+
 test('getDownloadedChapterAudioUri returns a local file when it has been downloaded', async () => {
   const { fileSystem, files } = createFileSystemDouble();
   const fileUri = getChapterAudioFileUri('bsb', 'JHN', 3);
@@ -239,6 +321,48 @@ test('downloadAudioBook downloads each chapter once and creates the book directo
   assert.deepEqual(downloads[0], {
     from: 'https://audio.test/PHM/1.mp3',
     to: getChapterAudioFileUri('bsb', 'PHM', 1),
+  });
+});
+
+test('downloadAudioBook deletes and re-downloads an existing file that is below the byte-size floor', async () => {
+  const philemon = getBookById('PHM');
+  assert.ok(philemon);
+
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  const fileSizes = new Map<string, number>([[fileUri, 12]]);
+  const deletedFiles: string[] = [];
+  const downloads: Array<{ from: string; to: string }> = [];
+
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => undefined,
+    fileExists: async (uri) => fileSizes.has(uri),
+    getFileSize: async (uri) => fileSizes.get(uri) ?? null,
+    deleteFile: async (uri) => {
+      deletedFiles.push(uri);
+      fileSizes.delete(uri);
+    },
+    downloadFile: async (from, to) => {
+      downloads.push({ from, to });
+      fileSizes.set(to, 5000);
+    },
+  };
+
+  const result = await downloadAudioBook({
+    translationId: 'bsb',
+    book: philemon,
+    fileSystem,
+    resolveRemoteAudio: async (_translationId, bookId, chapter) => ({
+      url: `https://audio.test/${bookId}/${chapter}.mp3`,
+      duration: 1000,
+    }),
+  });
+
+  assert.equal(result.bookId, 'PHM');
+  assert.deepEqual(deletedFiles, [fileUri]);
+  assert.equal(downloads.length, 1);
+  assert.deepEqual(downloads[0], {
+    from: 'https://audio.test/PHM/1.mp3',
+    to: fileUri,
   });
 });
 

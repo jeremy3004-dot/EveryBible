@@ -60,8 +60,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     error,
     showPlayer,
     queue,
@@ -105,8 +103,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       currentTranslationId: state.currentTranslationId,
       currentBookId: state.currentBookId,
       currentChapter: state.currentChapter,
-      currentPosition: state.currentPosition,
-      duration: state.duration,
       error: state.error,
       showPlayer: state.showPlayer,
       queue: state.queue,
@@ -311,10 +307,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         isChapterTransitioningRef.current = true;
       }
 
-      if (currentBookId && currentChapter && duration > 0) {
+      const { currentPosition: positionBeforeSwitch, duration: durationBeforeSwitch } =
+        useAudioStore.getState();
+      if (currentBookId && currentChapter && durationBeforeSwitch > 0) {
         useLibraryStore
           .getState()
-          .recordHistory(currentBookId, currentChapter, currentPosition / duration);
+          .recordHistory(currentBookId, currentChapter, positionBeforeSwitch / durationBeforeSwitch);
       }
 
       await audioPlayer.stop();
@@ -419,8 +417,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     [
       currentBookId,
       currentChapter,
-      currentPosition,
-      duration,
       playbackRate,
       setStatus,
       setCurrentTrack,
@@ -755,26 +751,26 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
     stopAudioProgressTelemetryTimer();
     setStatus('paused');
+    const { currentPosition: positionAtPause, duration: durationAtPause } =
+      useAudioStore.getState();
     syncCurrentNowPlaying(
       {
         isPlaying: false,
-        positionMs: currentPosition,
-        durationMs: duration,
+        positionMs: positionAtPause,
+        durationMs: durationAtPause,
       },
       true
     );
     await audioPlayer.pause();
     emitAudioPlaybackProgress('pause', true);
-    if (currentBookId && currentChapter && duration > 0) {
+    if (currentBookId && currentChapter && durationAtPause > 0) {
       useLibraryStore
         .getState()
-        .recordHistory(currentBookId, currentChapter, currentPosition / duration);
+        .recordHistory(currentBookId, currentChapter, positionAtPause / durationAtPause);
     }
   }, [
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     emitAudioPlaybackProgress,
     setStatus,
     stopAudioProgressTelemetryTimer,
@@ -815,10 +811,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
     emitAudioPlaybackProgress('stop', true);
     stopAudioProgressTelemetryTimer();
-    if (currentBookId && currentChapter && duration > 0) {
+    const { currentPosition: positionAtStop, duration: durationAtStop } = useAudioStore.getState();
+    if (currentBookId && currentChapter && durationAtStop > 0) {
       useLibraryStore
         .getState()
-        .recordHistory(currentBookId, currentChapter, currentPosition / duration);
+        .recordHistory(currentBookId, currentChapter, positionAtStop / durationAtStop);
     }
     void clearBibleNowPlaying();
     clearAudioReturnTarget();
@@ -829,8 +826,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     clearAudioReturnTarget,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     emitAudioPlaybackProgress,
     resetPlayback,
     stopAudioProgressTelemetryTimer,
@@ -838,6 +833,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Toggle play/pause
   const togglePlayPause = useCallback(async () => {
+    const { currentPosition, duration } = useAudioStore.getState();
     if (status === 'playing') {
       await pause();
     } else if (
@@ -870,8 +866,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     lastPosition,
     lastPlayedTranslationId,
     lastPlayedBookId,
@@ -896,6 +890,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   const skipBy = useCallback(
     async (deltaMs: number) => {
+      const { currentPosition, duration } = useAudioStore.getState();
       if (!currentBookId || !currentChapter || duration <= 0) {
         return;
       }
@@ -904,7 +899,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       await audioPlayer.seekTo(nextPosition);
       setPosition(nextPosition);
     },
-    [currentBookId, currentChapter, currentPosition, duration, setPosition]
+    [currentBookId, currentChapter, setPosition]
   );
 
   const skipBackward = useCallback(async () => {
@@ -1150,8 +1145,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentTranslationId,
     currentBookId,
     currentChapter,
-    currentPosition,
-    duration,
     error,
     showPlayer,
     queue,

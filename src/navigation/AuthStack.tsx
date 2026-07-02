@@ -15,6 +15,10 @@ export function AuthStack() {
         name="AuthScreen"
         getComponent={() => require('../screens/auth/AuthScreen').AuthScreen}
       />
+      <Stack.Screen
+        name="ResetPassword"
+        getComponent={() => require('../screens/auth/ResetPasswordScreen').ResetPasswordScreen}
+      />
     </Stack.Navigator>
   );
 }

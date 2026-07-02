@@ -12,7 +12,8 @@ import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
-import { layout, spacing, typography } from '../design/system';
+import { spacing, typography } from '../design/system';
+import { useTabBarHeight } from '../hooks';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -78,8 +79,7 @@ function getBibleTabResumeState() {
 export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const tabBarBottomPadding = spacing.lg;
-  const tabBarHeight = layout.tabBarBaseHeight + tabBarBottomPadding;
+  const { bottomPadding: tabBarBottomPadding, height: tabBarHeight } = useTabBarHeight();
   const defaultTabBarStyle = {
     backgroundColor: colors.background,
     borderTopColor: colors.cardBorder,

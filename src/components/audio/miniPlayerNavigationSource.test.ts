@@ -24,8 +24,14 @@ test('mini player does not read navigation state with a screen-only hook', () =>
 
   assert.match(
     miniPlayerSource,
-    /const tabBarHeight = layout\.tabBarBaseHeight;/,
-    'MiniPlayer should anchor itself with the shared tab bar height token instead of a screen hook'
+    /const \{ height: tabBarHeight \} = useTabBarHeight\(\);/,
+    'MiniPlayer should anchor itself with the shared, safe-area-aware useTabBarHeight hook instead of a screen hook or a fixed token'
+  );
+
+  assert.match(
+    miniPlayerSource,
+    /import \{ useAudioPlayer, useTabBarHeight \} from '\.\.\/\.\.\/hooks';/,
+    'MiniPlayer should import useTabBarHeight from the shared hooks barrel, not react-navigation'
   );
 });
 

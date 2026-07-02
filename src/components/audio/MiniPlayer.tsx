@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getBookById, getTranslatedBookName } from '../../constants';
-import { useAudioPlayer } from '../../hooks';
+import { useAudioPlayer, useTabBarHeight } from '../../hooks';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -17,7 +17,7 @@ interface MiniPlayerProps {
 export function MiniPlayer({ currentRouteName }: MiniPlayerProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const tabBarHeight = layout.tabBarBaseHeight;
+  const { height: tabBarHeight } = useTabBarHeight();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setCurrentTrack = useAudioStore((state) => state.setCurrentTrack);

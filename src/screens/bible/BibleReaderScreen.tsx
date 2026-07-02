@@ -55,6 +55,7 @@ import {
 import { config } from '../../constants/config';
 import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
@@ -791,12 +792,11 @@ export function BibleReaderScreen() {
   const readerRevealTabBarOnUpScrollRef = useRef(false);
   const readerBottomChromeProgressShared = useSharedValue(0);
   const rootTabBarVisibleRef = useRef<boolean | null>(null);
-  const rootTabBarBottomPadding = spacing.lg;
-  const rootTabBarHeight = layout.tabBarBaseHeight + rootTabBarBottomPadding;
+  const { bottomPadding: rootTabBarBottomPadding, height: rootTabBarHeight } = useTabBarHeight();
   const shouldForceHideRootTabBar =
     Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
   const premiumReaderBaseBottomPadding =
-    safeInsets.bottom + rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
+    rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
   const getRootTabNavigation = useCallback((): RootTabNavigationHandle => {
     // Runtime contract: navigation.getParent('RootTab') ?? navigation.getParent()?.getParent()
     const getParentById = navigation.getParent as unknown as (

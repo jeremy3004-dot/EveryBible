@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -114,6 +115,16 @@ function AnnotationActionSheetContent({
     setNoteText(existingNote ?? '');
     onClose();
   };
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleHighlightColor = async (color: string, isActive: boolean) => {
     if (!canAnnotate || isSaving) {

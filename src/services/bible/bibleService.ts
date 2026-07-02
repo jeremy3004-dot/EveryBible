@@ -1,4 +1,5 @@
 import * as bibleDb from './bibleDatabase';
+import { DEFAULT_MINIMUM_READY_VERSE_COUNT } from './bibleDatabase';
 import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
 import { shouldLoadDailyScriptureText } from './dailyScripture';
@@ -7,7 +8,10 @@ import { POPULAR_VERSE_REFERENCES } from './popularVerseReferences';
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
-const MIN_READY_VERSE_COUNT = 60000;
+// Kept in sync with bibleDatabase.ts's own readiness gate — this used to be a separately
+// hardcoded 60000, which meant this startup path could declare the bundled DB "ready" at a
+// verse count bibleDatabase.ts itself would reject.
+const MIN_READY_VERSE_COUNT = DEFAULT_MINIMUM_READY_VERSE_COUNT;
 
 export async function isBibleDataReady(): Promise<boolean> {
   if (isInitialized) {

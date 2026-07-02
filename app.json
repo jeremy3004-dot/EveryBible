@@ -39,6 +39,7 @@
         "backgroundColor": "#5E1212"
       },
       "package": "com.everybible.app",
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -466,6 +467,20 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       setStep(previousStep);
     }
   };
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step === steps[0]) {
+        return false;
+      }
+
+      goToPreviousStep();
+      return true;
+    });
+
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, steps]);
 
   const handleInterfaceLanguageSelect = async (language: Language) => {
     setSelectedInterfaceLanguageCode(language.code);

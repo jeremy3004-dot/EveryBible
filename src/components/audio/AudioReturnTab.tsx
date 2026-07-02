@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { getCompactTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { radius, shadows, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -16,7 +16,7 @@ interface AudioReturnTabProps {
 export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const safeInsets = useSafeAreaInsets();
+  const { height: tabBarHeight } = useTabBarHeight();
   const status = useAudioStore((state) => state.status);
   const currentTranslationId = useAudioStore((state) => state.currentTranslationId);
   const currentBookId = useAudioStore((state) => state.currentBookId);
@@ -54,7 +54,7 @@ export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
       style={[
         styles.shell,
         {
-          bottom: safeInsets.bottom + layout.tabBarBaseHeight + spacing.xxl,
+          bottom: tabBarHeight + spacing.xxl,
         },
       ]}
     >

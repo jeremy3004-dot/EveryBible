@@ -155,6 +155,40 @@ test('LocaleSetupFlow falls back to bundled Hindi or Nepali for India and Nepal 
   );
 });
 
+test('LocaleSetupFlow intercepts the Android hardware back button to step backward instead of exiting onboarding', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  assert.match(
+    flowSource,
+    /import \{[\s\S]*BackHandler[\s\S]*\} from 'react-native';/,
+    'LocaleSetupFlow should import BackHandler from react-native'
+  );
+
+  assert.match(
+    flowSource,
+    /BackHandler\.addEventListener\('hardwareBackPress',/,
+    'LocaleSetupFlow should register a hardwareBackPress handler'
+  );
+
+  assert.match(
+    flowSource,
+    /goToPreviousStep\(\);\s*return true;/,
+    'The hardware back handler should step backward through onboarding instead of exiting it'
+  );
+
+  assert.match(
+    flowSource,
+    /return \(\) => subscription\.remove\(\);/,
+    'The hardware back handler should clean up with .remove(), not the removed removeEventListener API'
+  );
+
+  assert.equal(
+    flowSource.includes('BackHandler.removeEventListener'),
+    false,
+    'LocaleSetupFlow should not use the deprecated/removed BackHandler.removeEventListener API'
+  );
+});
+
 test('App boot no longer routes onboarding completion through accessMode', () => {
   const appSource = readRelativeSource('../../../App.tsx');
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
@@ -173,8 +207,8 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
 
   assert.match(
     appSource,
-    /if \(!preferences\.onboardingCompleted\) \{\s*return <LocaleSetupFlow mode="initial" onComplete=\{\(\) => undefined\} \/>;\s*\}/,
-    'App.tsx should still gate first run behind LocaleSetupFlow before rendering the main shell'
+    /if \(!preferences\.onboardingCompleted\) \{\s*const \{ LocaleSetupFlow \} =\s*require\('\.\/src\/screens\/onboarding\/LocaleSetupFlow'\)[\s\S]*?;\s*return <LocaleSetupFlow mode="initial" onComplete=\{\(\) => undefined\} \/>;\s*\}/,
+    'App.tsx should still gate first run behind a lazily-required LocaleSetupFlow before rendering the main shell'
   );
 
   assert.match(

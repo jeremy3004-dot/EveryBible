@@ -119,6 +119,23 @@ export function AuthScreen() {
     dismiss();
   };
 
+  // result.error is always raw, untranslated English from the auth service layer.
+  // Never surface it directly — map by code instead so every locale shows translated text.
+  const getAuthFailureMessage = (result: AuthResult, fallbackMessage: string): string => {
+    switch (result.code) {
+      case 'in_progress':
+        return t('auth.signInAlreadyInProgress');
+      case 'provider_unavailable':
+        return t('auth.providerUnavailable');
+      case 'service_unavailable':
+        return t('auth.serviceUnavailable');
+      case 'configuration':
+        return t('auth.backendNotConfigured');
+      default:
+        return fallbackMessage;
+    }
+  };
+
   const showAuthFailure = (result: AuthResult, fallbackMessage: string) => {
     if (isSilentAuthError(result.code)) {
       return;
@@ -126,7 +143,7 @@ export function AuthScreen() {
 
     Alert.alert(
       mode === 'signUp' ? t('auth.signUpFailed') : t('auth.signInFailed'),
-      result.error || fallbackMessage
+      getAuthFailureMessage(result, fallbackMessage)
     );
   };
 
@@ -236,7 +253,7 @@ export function AuthScreen() {
       if (result.success) {
         Alert.alert(t('auth.checkYourEmail'), t('auth.resetLinkSent'));
       } else {
-        Alert.alert(t('common.error'), result.error || t('auth.resetEmailError'));
+        Alert.alert(t('common.error'), getAuthFailureMessage(result, t('auth.resetEmailError')));
       }
     } catch {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));

@@ -266,6 +266,30 @@ export const resetPassword = async (
   }
 };
 
+// Update the current user's password — used at the end of the password-reset deep link flow,
+// after handleAuthDeepLinkUrl has already established a recovery session via setSession.
+export const updatePassword = async (newPassword: string): Promise<AuthResult> => {
+  if (!isSupabaseConfigured()) {
+    return configurationAuthError();
+  }
+
+  try {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      return mapSupabaseAuthError(error);
+    }
+
+    if (data.user) {
+      return { success: true, user: mapSupabaseUser(data.user) };
+    }
+
+    return unknownAuthError('Failed to update password');
+  } catch (e) {
+    return unknownAuthError(e);
+  }
+};
+
 // Get current session
 export const getCurrentSession = async () => {
   if (!isSupabaseConfigured()) {

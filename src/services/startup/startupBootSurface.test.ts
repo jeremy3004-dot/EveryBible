@@ -1,10 +1,61 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
+}
+
+function resolveModuleFile(fromFile: string, importPath: string): string | null {
+  const candidateBase = resolve(dirname(fromFile), importPath);
+  const candidates = [
+    candidateBase,
+    `${candidateBase}.ts`,
+    `${candidateBase}.tsx`,
+    join(candidateBase, 'index.ts'),
+    join(candidateBase, 'index.tsx'),
+  ];
+  return candidates.find((candidate) => existsSync(candidate) && !candidate.endsWith('/')) ?? null;
+}
+
+// Walks the transitive graph of static (top-level) relative imports reachable from
+// entryFile, ignoring type-only imports (which are erased at compile time and carry
+// no runtime/boot cost). Used to assert that heavy runtime modules never re-enter the
+// App.tsx boot surface indirectly through a screen that is imported eagerly.
+function collectStaticImportClosure(entryFile: string): Set<string> {
+  const visited = new Set<string>();
+  const queue: string[] = [entryFile];
+  const importRegex = /^import\s+(type\s+)?[\s\S]*?\s+from\s+'(\.[^']+)';?\s*$/gm;
+
+  while (queue.length > 0) {
+    const currentFile = queue.shift();
+    if (!currentFile || visited.has(currentFile)) {
+      continue;
+    }
+    visited.add(currentFile);
+
+    let source: string;
+    try {
+      source = readFileSync(currentFile, 'utf8');
+    } catch {
+      continue;
+    }
+
+    for (const match of source.matchAll(importRegex)) {
+      const isTypeOnly = Boolean(match[1]);
+      if (isTypeOnly) {
+        continue;
+      }
+      const resolved = resolveModuleFile(currentFile, match[2]);
+      if (resolved && !visited.has(resolved)) {
+        queue.push(resolved);
+      }
+    }
+  }
+
+  return visited;
 }
 
 test('App boot path avoids heavy barrel imports and defers the root navigator', () => {
@@ -82,6 +133,91 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     appSource,
     /const STARTUP_READY_TIMEOUT_MS = \d+;[\s\S]*Startup readiness timed out; continuing launch with safe defaults\.[\s\S]*setIsReady\(true\);/,
     'App.tsx should not leave Android stuck on the boot shell if critical startup does not resolve'
+  );
+});
+
+test('App.tsx installs global error handlers at module scope before render', () => {
+  const appSource = readRelativeSource('../../../App.tsx');
+
+  assert.match(
+    appSource,
+    /import \{ installGlobalErrorHandlers \} from '\.\/src\/services\/diagnostics\/globalErrorHandler';/,
+    'App.tsx should statically import installGlobalErrorHandlers so it is available before any component renders'
+  );
+
+  const setupNotificationCallIndex = appSource.indexOf('setupNotificationHandler();');
+  const installHandlersCallIndex = appSource.indexOf('installGlobalErrorHandlers();');
+  const firstComponentIndex = appSource.indexOf('function LoadingScreen()');
+
+  assert.ok(
+    setupNotificationCallIndex !== -1 && installHandlersCallIndex !== -1,
+    'both setup calls should be present at module scope'
+  );
+  assert.ok(
+    installHandlersCallIndex > setupNotificationCallIndex && installHandlersCallIndex < firstComponentIndex,
+    'installGlobalErrorHandlers() should run at module scope, before any component is defined, so early boot crashes are captured'
+  );
+});
+
+test('App.tsx enforces the LTR layout stopgap at module scope before render', () => {
+  const appSource = readRelativeSource('../../../App.tsx');
+
+  assert.match(
+    appSource,
+    /import \{ enforceLtrLayoutPolicy \} from '\.\/src\/services\/startup\/rtlPolicy';/,
+    'App.tsx should statically import enforceLtrLayoutPolicy so it applies before any component renders'
+  );
+
+  const installHandlersCallIndex = appSource.indexOf('installGlobalErrorHandlers();');
+  const enforceLtrCallIndex = appSource.indexOf('enforceLtrLayoutPolicy();');
+  const firstComponentIndex = appSource.indexOf('function LoadingScreen()');
+
+  assert.ok(
+    installHandlersCallIndex !== -1 && enforceLtrCallIndex !== -1,
+    'both setup calls should be present at module scope'
+  );
+  assert.ok(
+    enforceLtrCallIndex > installHandlersCallIndex && enforceLtrCallIndex < firstComponentIndex,
+    'enforceLtrLayoutPolicy() should run at module scope, before any component is defined, since native RTL layout is applied at launch'
+  );
+});
+
+test('App.tsx static import closure never reaches heavy runtime modules', () => {
+  const appPath = fileURLToPath(new URL('../../../App.tsx', import.meta.url).href);
+  const closure = collectStaticImportClosure(appPath);
+
+  // These are the modules the eager RootNavigator require() and the eager
+  // LocaleSetupFlow require() both exist specifically to keep off the static
+  // boot path (bibleStore hydration, Supabase client, sync, translations
+  // bootstrap). If any file in App.tsx's *static* (non-deferred) import
+  // closure resolves to one of these, something started statically importing
+  // a screen/module that pulls them in again.
+  const bannedModules = [
+    'src/stores/bibleStore.ts',
+    'src/services/supabase/index.ts',
+    'src/services/supabase/client.ts',
+    'src/services/sync/index.ts',
+    'src/services/sync/syncService.ts',
+    'src/services/translations/index.ts',
+    'src/services/translations/runtimeTranslationBootstrap.ts',
+    'src/screens/onboarding/LocaleSetupFlow.tsx',
+  ];
+
+  const closurePaths = [...closure];
+  bannedModules.forEach((suffix) => {
+    const hit = closurePaths.find((file) => file.replace(/\\/g, '/').endsWith(suffix));
+    assert.equal(
+      hit,
+      undefined,
+      `App.tsx's static import closure should not reach ${suffix} (found via ${hit}); it must stay behind a deferred require()/import()`
+    );
+  });
+
+  // Sanity check the walker itself is actually traversing multiple files, not
+  // silently no-op'ing because resolution failed.
+  assert.ok(
+    closure.size > 5,
+    'static import closure walker should resolve more than App.tsx itself — check resolveModuleFile if this fails'
   );
 });
 

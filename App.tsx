@@ -22,10 +22,11 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import i18n, { changeLanguage } from './src/i18n';
-import { LocaleSetupFlow } from './src/screens/onboarding/LocaleSetupFlow';
 import { createStartupCoordinator } from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
+import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
+import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 
 console.log('[EB-T] App:module-start', Date.now());
 
@@ -37,6 +38,14 @@ void SplashScreen.preventAutoHideAsync().catch((error) => {
 // Must be called at module scope BEFORE any component renders so that
 // foreground notifications display a banner instead of being silently dropped.
 setupNotificationHandler();
+
+// Must also run before render: captures crashes/rejections from the earliest
+// possible point in boot, not just ones that happen once React is mounted.
+installGlobalErrorHandlers();
+
+// Must run before render too — native RTL layout is applied at launch based
+// on device locale, before any screen has a chance to opt out.
+enforceLtrLayoutPolicy();
 
 const ANDROID_BACKGROUND_STARTUP_DELAY_MS = 1500;
 const FONT_LOAD_TIMEOUT_MS = 2500;
@@ -251,6 +260,8 @@ function LoadingScreen() {
   }
 
   if (!preferences.onboardingCompleted) {
+    const { LocaleSetupFlow } =
+      require('./src/screens/onboarding/LocaleSetupFlow') as typeof import('./src/screens/onboarding/LocaleSetupFlow');
     return <LocaleSetupFlow mode="initial" onComplete={() => undefined} />;
   }
 

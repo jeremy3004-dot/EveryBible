@@ -166,3 +166,55 @@ test('useAudioPlayer retries the remote chapter stream when a downloaded local a
     'useAudioPlayer should prune the broken local file after a successful remote fallback'
   );
 });
+
+test('useAudioPlayer does not subscribe to the live position/duration ticks, so transport-control consumers do not re-render at interpolation frequency', () => {
+  const source = readRelativeSource('./useAudioPlayer.ts');
+
+  assert.doesNotMatch(
+    source,
+    /currentPosition: state\.currentPosition,/,
+    'useAudioPlayer\'s own useShallow selector should not subscribe to currentPosition — audioStore.setPosition fires every ~250ms during playback, and every screen calling useAudioPlayer would re-render at that rate. Components that need live position should use the dedicated useAudioPosition() leaf hook instead.'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /duration: state\.duration,/,
+    'useAudioPlayer\'s own useShallow selector should not subscribe to duration for the same reason as currentPosition'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /return \{[\s\S]*currentPosition,\s*\n\s*duration,/,
+    'useAudioPlayer should not return currentPosition/duration from its own return object — callers that need live position should use useAudioPosition() instead'
+  );
+
+  assert.match(
+    source,
+    /const \{ currentPosition: positionBeforeSwitch, duration: durationBeforeSwitch \} =\s*useAudioStore\.getState\(\);/,
+    'playChapterForTranslation should read the outgoing position/duration snapshot from the store directly instead of a stale closure value'
+  );
+
+  assert.match(
+    source,
+    /const \{ currentPosition: positionAtPause, duration: durationAtPause \} =\s*useAudioStore\.getState\(\);/,
+    'pause should read the position/duration snapshot from the store directly instead of a stale closure value'
+  );
+
+  assert.match(
+    source,
+    /const \{ currentPosition: positionAtStop, duration: durationAtStop \} = useAudioStore\.getState\(\);/,
+    'stop should read the position/duration snapshot from the store directly instead of a stale closure value'
+  );
+
+  assert.match(
+    source,
+    /const togglePlayPause = useCallback\(async \(\) => \{\s*\n\s*const \{ currentPosition, duration \} = useAudioStore\.getState\(\);/,
+    'togglePlayPause should read the resume-eligibility snapshot from the store directly instead of a stale closure value'
+  );
+
+  assert.match(
+    source,
+    /const skipBy = useCallback\(\s*\n\s*async \(deltaMs: number\) => \{\s*\n\s*const \{ currentPosition, duration \} = useAudioStore\.getState\(\);/,
+    'skipBy should read the seek-math snapshot from the store directly instead of a stale closure value'
+  );
+});

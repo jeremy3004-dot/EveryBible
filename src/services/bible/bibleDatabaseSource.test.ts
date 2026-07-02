@@ -120,3 +120,89 @@ test('full-text search refuses non-FTS translations instead of falling back to a
     'searchVerses should not run a LIKE fallback against verses.text when no full-text index exists'
   );
 });
+
+test('openBundledDatabase verifies integrity with PRAGMA quick_check after import and closes a failed handle instead of leaving it as the singleton', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /async function verifyDatabaseIntegrity\(database: SQLite\.SQLiteDatabase\): Promise<boolean> \{[\s\S]*PRAGMA quick_check[\s\S]*\}/,
+    'bibleDatabase.ts should expose a helper that runs PRAGMA quick_check against a freshly opened database'
+  );
+
+  assert.match(
+    source,
+    /if \(!\(await verifyDatabaseIntegrity\(database\)\)\) \{[\s\S]*await closeDatabase\(database\);[\s\S]*throw new Error\([\s\S]*\}/,
+    'openBundledDatabase should close a database handle that fails PRAGMA quick_check instead of assigning it to the shared singleton'
+  );
+});
+
+test('openBundledDatabase deletes stale -wal/-shm sidecars before a forced re-import', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /async function deleteStaleJournalSiblings\(\): Promise<void> \{[\s\S]*\['-wal', '-shm'\]\.map\(/,
+    'bibleDatabase.ts should delete -wal and -shm sidecar files before a forced re-import so stale WAL frames cannot replay onto the fresh copy'
+  );
+
+  assert.match(
+    source,
+    /if \(forceOverwrite\) \{[\s\S]{0,80}await deleteStaleJournalSiblings\(\);[\s\S]{0,80}\}[\s\S]*await importDatabaseFromAssetAsync/,
+    'openBundledDatabase should delete stale journal siblings before importDatabaseFromAssetAsync runs with forceOverwrite'
+  );
+});
+
+test('ensureBundledDatabaseReady nulls the shared singleton before throwing when recovery still is not ready', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /if \(!isBundledBibleDatabaseReady\(recoveredStatus, minimumReadyVerseCount\)\) \{[\s\S]{0,400}await closeBundledDatabase\(\);[\s\S]{0,120}throw new Error\(/,
+    'ensureBundledDatabaseReady should close and null the shared bundled database singleton before throwing so a broken handle is never left behind for the next caller to reuse'
+  );
+});
+
+test('bundled database init is gated behind a single shared in-flight promise across initDatabase/getDatabase/inspectBundledDatabaseStatus', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /let bundledInitPromise: Promise<SQLite\.SQLiteDatabase> \| null = null;/,
+    'bibleDatabase.ts should track a single shared in-flight bundled database init promise'
+  );
+
+  assert.match(
+    source,
+    /function acquireBundledDatabaseSingleFlight\([\s\S]*if \(!bundledInitPromise\) \{[\s\S]*bundledInitPromise = ensureBundledDatabaseReady\(minimumReadyVerseCount\)\.finally\(\(\) => \{[\s\S]*bundledInitPromise = null;[\s\S]*\}\);[\s\S]*\}[\s\S]*return bundledInitPromise;/,
+    'acquireBundledDatabaseSingleFlight should memoize concurrent calls onto the same ensureBundledDatabaseReady promise and clear it once settled'
+  );
+
+  assert.match(
+    source,
+    /const database = await acquireBundledDatabaseSingleFlight\(minimumReadyVerseCount\);/,
+    'initDatabase should route its cold-start path through the shared single-flight gate instead of calling ensureBundledDatabaseReady directly'
+  );
+
+  assert.match(
+    source,
+    /export async function inspectBundledDatabaseStatus\([\s\S]{0,200}if \(bundledInitPromise\) \{[\s\S]*await bundledInitPromise;/,
+    'inspectBundledDatabaseStatus should await any in-flight bundled database init before probing, so it does not race a concurrent import/recovery cycle'
+  );
+});
+
+test('getDatabase refuses to silently create an empty SQLite file for a missing installed translation pack', () => {
+  const source = readRelativeSource('./bibleDatabase.ts');
+
+  assert.match(
+    source,
+    /export class MissingInstalledDatabaseError extends Error/,
+    'bibleDatabase.ts should expose a dedicated error for installed translation packs whose file is missing on disk'
+  );
+
+  assert.match(
+    source,
+    /const localPath = `\$\{source\.directory\}\/\$\{source\.databaseName\}`;[\s\S]*const fileInfo = await FileSystem\.getInfoAsync\(localPath\);[\s\S]*if \(!fileInfo\.exists \|\| fileInfo\.size === 0\) \{[\s\S]*throw new MissingInstalledDatabaseError\(source\.translationId, localPath\);[\s\S]*\}/,
+    'getDatabase should check the installed pack file exists and is non-empty before opening it, instead of letting SQLite.openDatabaseAsync silently create a 0-byte file'
+  );
+});

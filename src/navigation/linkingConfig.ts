@@ -28,6 +28,15 @@ export const linkingConfig: LinkingOptions<RootTabParamList> = {
           BibleReader: 'bible/:bookSlug/:chapter/:verse?',
         },
       },
+      More: {
+        screens: {
+          Auth: {
+            screens: {
+              ResetPassword: 'reset-password',
+            },
+          },
+        },
+      },
     },
   },
   getStateFromPath(path, options) {

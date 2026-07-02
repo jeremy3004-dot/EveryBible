@@ -72,8 +72,8 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
 
   assert.match(
     source,
-    /const tabBarBottomPadding = spacing\.lg;/,
-    'TabNavigator should use a visible bottom gutter to pull the icons away from the home indicator'
+    /const \{\s*bottomPadding:\s*tabBarBottomPadding,\s*height:\s*tabBarHeight\s*\} = useTabBarHeight\(\);/,
+    'TabNavigator should derive its bottom gutter from the shared useTabBarHeight hook so it grows with the device safe area instead of a fixed gutter'
   );
 
   assert.equal(
@@ -110,14 +110,20 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
 
   assert.match(
     source,
-    /const tabBarHeight = layout\.tabBarBaseHeight \+ tabBarBottomPadding;/,
-    'TabNavigator should size the bar from the base token plus a small internal lift'
+    /import \{ useTabBarHeight \} from '\.\.\/hooks';/,
+    'TabNavigator should source its bar height from the shared useTabBarHeight hook'
   );
 
   assert.equal(
     source.includes('layout.tabBarBaseHeight + insets.bottom'),
     false,
-    'TabNavigator should not stack the bottom inset onto the tab bar height itself'
+    'TabNavigator should not stack the bottom inset onto the tab bar height itself — useTabBarHeight already accounts for it once'
+  );
+
+  assert.equal(
+    source.includes('useSafeAreaInsets'),
+    false,
+    'TabNavigator should not call useSafeAreaInsets directly — it should go through the shared useTabBarHeight hook'
   );
 });
 

@@ -112,6 +112,55 @@ test('sanitizePersistedBibleState falls back when a retired translation is selec
   assert.equal(sanitized.currentTranslation, 'bsb');
 });
 
+test('sanitizePersistedBibleState hydrates a bundled translation identically from the old fat persisted shape and the new slim delta shape', () => {
+  const oldFatShape = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'bsb',
+        name: 'Berean Standard Bible',
+        abbreviation: 'BSB',
+        language: 'English',
+        description: 'Public-domain Berean text with direct CC0 chapter audio',
+        copyright: 'Public Domain text; CC0 1.0 audio',
+        isDownloaded: true,
+        downloadedBooks: ['GEN', 'EXO'],
+        downloadedAudioBooks: ['GEN'],
+        totalBooks: 66,
+        sizeInMB: 4.7,
+        hasText: true,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'bundled',
+        installState: 'seeded',
+        textPackLocalPath: null,
+        catalog: { version: '2026.03.26', updatedAt: '2026-03-26T00:00:00.000Z' },
+      },
+    ],
+  }).translations.find((translation) => translation.id === 'bsb');
+
+  const newSlimShape = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'bsb',
+        isDownloaded: true,
+        downloadedBooks: ['GEN', 'EXO'],
+        downloadedAudioBooks: ['GEN'],
+        installState: 'seeded',
+        textPackLocalPath: null,
+      },
+    ],
+  }).translations.find((translation) => translation.id === 'bsb');
+
+  assert.ok(oldFatShape);
+  assert.ok(newSlimShape);
+  assert.deepEqual(
+    newSlimShape,
+    oldFatShape,
+    'Dropping catalog-static fields from a persisted bundled translation must not change the hydrated result, since those fields already fall back to the live bibleTranslations constant'
+  );
+  assert.deepEqual(newSlimShape.downloadedBooks, ['GEN', 'EXO']);
+});
+
 test('sanitizePersistedBibleState preserves valid runtime translations alongside seeded ones but falls back current selection until installed', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'niv',

@@ -96,3 +96,31 @@ test('AudioReturnTab looks like a slim right-edge tab instead of a full mini-pla
     'AudioReturnTab should leave the screen-edge side unlined while outlining the inward and exposed edges'
   );
 });
+
+test('AudioReturnTab docks above the real tab bar height instead of a fixed base height', () => {
+  const source = readRelativeSource('./AudioReturnTab.tsx');
+
+  assert.match(
+    source,
+    /import \{ useTabBarHeight \} from '\.\.\/\.\.\/hooks';/,
+    'AudioReturnTab should source its docking height from the shared useTabBarHeight hook so it stays above the tab bar on every device'
+  );
+
+  assert.match(
+    source,
+    /const \{ height: tabBarHeight \} = useTabBarHeight\(\);/,
+    'AudioReturnTab should destructure the derived tab bar height from the shared hook'
+  );
+
+  assert.match(
+    source,
+    /bottom:\s*tabBarHeight \+ spacing\.xxl,/,
+    'AudioReturnTab should dock above the real (safe-area-aware) tab bar height instead of the raw device inset plus a fixed base height'
+  );
+
+  assert.equal(
+    source.includes('safeInsets.bottom + layout.tabBarBaseHeight'),
+    false,
+    'AudioReturnTab should not recompute the tab bar height locally — it should reuse the shared hook so both stay in sync'
+  );
+});

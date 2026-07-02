@@ -65,10 +65,14 @@ async function deleteFileSystemPath(localPath: string): Promise<void> {
   await FileSystem.deleteAsync(localPath, { idempotent: true });
 }
 
-async function fileSystemPathExists(localPath: string): Promise<boolean> {
+// A pack file can exist but be a 0-byte SQLite stub left behind when getDatabase's
+// installed-source open path was interrupted or ran against a missing download; treat
+// that as "missing" so reconcileTranslationPacks re-triggers a real download instead of
+// permanently trusting an unusable database file.
+async function fileSystemPathIsUsableDatabase(localPath: string): Promise<boolean> {
   const FileSystem = await import('expo-file-system/legacy');
   const fileInfo = await FileSystem.getInfoAsync(localPath);
-  return fileInfo.exists;
+  return fileInfo.exists && fileInfo.size > 0;
 }
 
 function trackBibleStoreEvent(eventName: string, properties: Record<string, unknown>): void {
@@ -173,6 +177,7 @@ function mapAudioDownloadJob(job: AudioDownloadJobRecord): TranslationDownloadJo
 function mapAudioDownloadProgress(job: AudioDownloadJobRecord): TranslationDownloadProgress {
   return {
     translationId: job.translationId,
+    jobId: job.id,
     bookId: job.bookId,
     progress: job.status === 'completed' ? 100 : 0,
     status:
@@ -241,6 +246,55 @@ function getLatestPersistedAudioJobByTranslation(
   });
 
   return jobsByTranslation;
+}
+
+// Bundled translations' catalog-static fields (name, description, catalog, etc.) always come
+// from the live `bibleTranslations` constant on read — see hydrateSeededTranslation in
+// persistedStateSanitizers.ts, which only reads those fields from persisted data for runtime
+// translations — and nothing in this store ever mutates them at runtime. Persisting them anyway
+// meant every set() call (including routine chapter navigation) re-serialized the full static
+// payload for every bundled translation to MMKV. Runtime (downloaded-language) translations still
+// persist in full: their catalog has no separate offline cache, so trimming them risks losing
+// offline access to a downloaded translation if the live catalog re-fetch fails on boot.
+type PersistedBundledTranslationDelta = Pick<
+  BibleTranslation,
+  | 'id'
+  | 'isDownloaded'
+  | 'downloadedBooks'
+  | 'downloadedAudioBooks'
+  | 'installState'
+  | 'activeTextPackVersion'
+  | 'pendingTextPackVersion'
+  | 'pendingTextPackLocalPath'
+  | 'textPackLocalPath'
+  | 'rollbackTextPackVersion'
+  | 'rollbackTextPackLocalPath'
+  | 'lastInstallError'
+  | 'activeDownloadJob'
+>;
+
+function toPersistedTranslation(
+  translation: BibleTranslation
+): BibleTranslation | PersistedBundledTranslationDelta {
+  if (translation.source === 'runtime') {
+    return translation;
+  }
+
+  return {
+    id: translation.id,
+    isDownloaded: translation.isDownloaded,
+    downloadedBooks: translation.downloadedBooks,
+    downloadedAudioBooks: translation.downloadedAudioBooks,
+    installState: translation.installState,
+    activeTextPackVersion: translation.activeTextPackVersion,
+    pendingTextPackVersion: translation.pendingTextPackVersion,
+    pendingTextPackLocalPath: translation.pendingTextPackLocalPath,
+    textPackLocalPath: translation.textPackLocalPath,
+    rollbackTextPackVersion: translation.rollbackTextPackVersion,
+    rollbackTextPackLocalPath: translation.rollbackTextPackLocalPath,
+    lastInstallError: translation.lastInstallError,
+    activeDownloadJob: translation.activeDownloadJob,
+  };
 }
 
 console.log('[EB-T] bible:pre-create', Date.now());
@@ -394,7 +448,7 @@ export const useBibleStore = create<BibleState>()(
         await Promise.all(
           runtimeTranslations.map(async (translation) => {
             try {
-              if (!(await fileSystemPathExists(translation.textPackLocalPath ?? ''))) {
+              if (!(await fileSystemPathIsUsableDatabase(translation.textPackLocalPath ?? ''))) {
                 missingTranslationIds.add(translation.id);
               }
             } catch {
@@ -658,6 +712,7 @@ export const useBibleStore = create<BibleState>()(
           bookId: activeBookId,
           progress,
           translationId: activeTranslationId,
+          jobId,
         }: AudioDownloadBookProgress) => {
           set((state) => ({
             translations: state.translations.map((item) =>
@@ -670,6 +725,7 @@ export const useBibleStore = create<BibleState>()(
               bookId: activeBookId,
               progress: clampPercent(progress),
               status: 'downloading',
+              jobId,
             },
           }));
         };
@@ -747,6 +803,7 @@ export const useBibleStore = create<BibleState>()(
           completedBooks,
           totalBooks,
           translationId: completedTranslationId,
+          jobId,
         }: AudioDownloadCollectionProgress) => {
           const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
           set((state) => ({
@@ -762,6 +819,7 @@ export const useBibleStore = create<BibleState>()(
               translationId: completedTranslationId,
               progress: collectionProgress,
               status: 'downloading',
+              jobId,
             },
           }));
         };
@@ -820,13 +878,15 @@ export const useBibleStore = create<BibleState>()(
 
       cancelDownload: () => {
         const progress = get().downloadProgress;
-        if (progress) {
-          // Attempt to cancel the background download transport
+        if (progress?.jobId) {
+          const jobId = progress.jobId;
+          // Stop the in-JS scheduling loop (runWithConcurrency) immediately, and also ask the
+          // native background transport to stop any in-flight task for the same real job id.
           loadAudioDownloadModules()
-            .then((transport) => {
-              if (transport.createBackgroundAudioDownloadTransport && progress.translationId) {
-                const jobId = `${progress.translationId}:${progress.bookId ?? 'all'}`;
-                transport
+            .then((audio) => {
+              audio.requestAudioDownloadCancellation(jobId);
+              if (audio.createBackgroundAudioDownloadTransport) {
+                audio
                   .createBackgroundAudioDownloadTransport()
                   .then((activeTransport) => activeTransport.cancelJob?.(jobId))
                   .catch(() => {});
@@ -947,7 +1007,7 @@ export const useBibleStore = create<BibleState>()(
         preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,
         preferredTranslationLanguage: state.preferredTranslationLanguage,
-        translations: state.translations,
+        translations: state.translations.map(toPersistedTranslation),
       }),
       merge: (persistedState, currentState) => {
         console.log('[EB-T] bible:merge-start', Date.now());

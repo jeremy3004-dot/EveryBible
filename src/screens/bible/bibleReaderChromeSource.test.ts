@@ -634,6 +634,26 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
 
   assert.equal(
     source.includes(
+      'const rootTabBarBottomPadding = spacing.lg;\n  const rootTabBarHeight = layout.tabBarBaseHeight + rootTabBarBottomPadding;'
+    ),
+    false,
+    'BibleReaderScreen should not locally recompute the root tab bar footprint with a fixed gutter — it duplicates (and can drift from) the real tab bar and ignores the Android 3-button nav inset'
+  );
+
+  assert.match(
+    source,
+    /const \{\s*bottomPadding:\s*rootTabBarBottomPadding,\s*height:\s*rootTabBarHeight\s*\} = useTabBarHeight\(\);/,
+    'BibleReaderScreen should source its local root-tab-bar overlay footprint from the shared useTabBarHeight hook so it always matches the real tab bar'
+  );
+
+  assert.equal(
+    source.includes('safeInsets.bottom + rootTabBarHeight'),
+    false,
+    'BibleReaderScreen should not add the raw safe-area inset on top of rootTabBarHeight — the shared hook already folds it in once'
+  );
+
+  assert.equal(
+    source.includes(
       'premiumReaderViewportHeight - premiumReaderContentHeight + premiumReaderVisibleBottomPadding'
     ),
     false,

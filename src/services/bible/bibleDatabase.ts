@@ -13,7 +13,7 @@ const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
 const searchIndexCache = new Map<string, boolean>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
-const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
+export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
 const SQLITE_OPEN_OPTIONS = {
   finalizeUnusedStatementsBeforeClosing: false,
 } as const;
@@ -25,6 +25,18 @@ export class BibleSearchUnavailableError extends Error {
     super(`Full-text search is not available for translation "${translationId}".`);
     this.name = 'BibleSearchUnavailableError';
     this.translationId = translationId;
+  }
+}
+
+export class MissingInstalledDatabaseError extends Error {
+  readonly translationId: string;
+  readonly localPath: string;
+
+  constructor(translationId: string, localPath: string) {
+    super(`Installed database file is missing for translation "${translationId}": ${localPath}`);
+    this.name = 'MissingInstalledDatabaseError';
+    this.translationId = translationId;
+    this.localPath = localPath;
   }
 }
 
@@ -108,18 +120,63 @@ async function closeBundledDatabase(): Promise<void> {
   searchIndexCache.delete(getSourceCacheKey(bundledBibleDatabaseSource));
 }
 
+// A forced re-import replaces the .db file, but SQLite may still have -wal/-shm sidecars from the
+// prior (possibly corrupt or interrupted) database on disk. Leaving them means the fresh copy can
+// get WAL frames replayed onto it on next open, silently reintroducing the state we're recovering
+// from — so they must be cleared before the forced copy, not just the .db file itself.
+async function deleteStaleJournalSiblings(): Promise<void> {
+  try {
+    const FileSystem = await import('expo-file-system/legacy');
+    const directory = SQLite.defaultDatabaseDirectory.replace(/\/*$/, '');
+    await Promise.all(
+      ['-wal', '-shm'].map((suffix) =>
+        FileSystem.deleteAsync(`${directory}/${DATABASE_NAME}${suffix}`, { idempotent: true })
+      )
+    );
+  } catch (error) {
+    console.warn('[Bible] Failed to delete stale bundled database journal files:', error);
+  }
+}
+
+async function verifyDatabaseIntegrity(database: SQLite.SQLiteDatabase): Promise<boolean> {
+  try {
+    const result = await database.getFirstAsync<{ quick_check: string }>('PRAGMA quick_check');
+    return result?.quick_check === 'ok';
+  } catch (error) {
+    console.warn('[Bible] PRAGMA quick_check failed:', error);
+    return false;
+  }
+}
+
 async function openBundledDatabase(forceOverwrite = false): Promise<SQLite.SQLiteDatabase> {
   await closeBundledDatabase();
+
+  if (forceOverwrite) {
+    await deleteStaleJournalSiblings();
+  }
+
   await importDatabaseFromAssetAsync(DATABASE_NAME, {
     assetId: DATABASE_ASSET_ID,
     forceOverwrite,
   });
-  db = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS);
-  await db.execAsync('PRAGMA journal_mode = WAL');
-  await db.execAsync('PRAGMA cache_size = -4096');
-  await db.execAsync('PRAGMA temp_store = MEMORY');
-  await ensurePerformanceIndexes(db);
-  return db;
+  const database = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS);
+  await database.execAsync('PRAGMA journal_mode = WAL');
+  await database.execAsync('PRAGMA cache_size = -4096');
+  await database.execAsync('PRAGMA temp_store = MEMORY');
+
+  // Only after a fresh import, since this is the one place corruption from a bad copy or an
+  // interrupted prior write would first surface. A failed check must not leave the poisoned
+  // handle behind as the shared singleton.
+  if (!(await verifyDatabaseIntegrity(database))) {
+    await closeDatabase(database);
+    throw new Error(
+      '[Bible] Bundled database failed integrity check (PRAGMA quick_check) after import'
+    );
+  }
+
+  await ensurePerformanceIndexes(database);
+  db = database;
+  return database;
 }
 
 // Partial index so the `formatting IS NOT NULL` count in inspectOpenDatabase is an
@@ -201,12 +258,31 @@ async function ensureBundledDatabaseReady(
   const recoveredStatus = await inspectOpenDatabase(recoveredDatabase);
 
   if (!isBundledBibleDatabaseReady(recoveredStatus, minimumReadyVerseCount)) {
+    // A not-ready database must not linger as the shared singleton — the next caller should
+    // retry from a clean slate instead of reusing a handle we just declared broken.
+    await closeBundledDatabase();
     throw new Error(
       `[Bible] Bundled database is not ready after recovery (${recoveredStatus.verseCount} verses)`
     );
   }
 
   return recoveredDatabase;
+}
+
+// Shared by initDatabase/getDatabase/inspectBundledDatabaseStatus so concurrent cold-start
+// callers (e.g. isBibleDataReady() and initBibleData() firing close together) don't race each
+// other into duplicate imports/recovery cycles against the same underlying .db file.
+let bundledInitPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+function acquireBundledDatabaseSingleFlight(
+  minimumReadyVerseCount: number
+): Promise<SQLite.SQLiteDatabase> {
+  if (!bundledInitPromise) {
+    bundledInitPromise = ensureBundledDatabaseReady(minimumReadyVerseCount).finally(() => {
+      bundledInitPromise = null;
+    });
+  }
+  return bundledInitPromise;
 }
 
 export async function initDatabase(
@@ -226,13 +302,22 @@ export async function initDatabase(
     }
   }
 
-  const database = await ensureBundledDatabaseReady(minimumReadyVerseCount);
+  const database = await acquireBundledDatabaseSingleFlight(minimumReadyVerseCount);
   return inspectOpenDatabase(database);
 }
 
 export async function inspectBundledDatabaseStatus(
   minimumReadyVerseCount = DEFAULT_MINIMUM_READY_VERSE_COUNT
 ): Promise<BibleDatabaseStatus> {
+  if (bundledInitPromise) {
+    try {
+      await bundledInitPromise;
+    } catch {
+      // initDatabase/getDatabase's own recovery path already logged the failure; fall through
+      // to probe whatever state the bundled database is actually in now.
+    }
+  }
+
   let temporaryDb: SQLite.SQLiteDatabase | null = null;
 
   try {
@@ -287,6 +372,13 @@ export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite
   const cachedDatabase = installedDatabaseCache.get(cacheKey);
   if (cachedDatabase) {
     return cachedDatabase;
+  }
+
+  const localPath = `${source.directory}/${source.databaseName}`;
+  const FileSystem = await import('expo-file-system/legacy');
+  const fileInfo = await FileSystem.getInfoAsync(localPath);
+  if (!fileInfo.exists || fileInfo.size === 0) {
+    throw new MissingInstalledDatabaseError(source.translationId, localPath);
   }
 
   const database = await SQLite.openDatabaseAsync(

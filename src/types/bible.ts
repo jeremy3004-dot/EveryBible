@@ -184,6 +184,7 @@ export interface BibleTranslation {
 
 export interface TranslationDownloadProgress {
   translationId: string;
+  jobId?: string;
   bookId?: string;
   progress: number; // 0-100
   status: 'idle' | 'downloading' | 'verifying' | 'installing' | 'completed' | 'error';

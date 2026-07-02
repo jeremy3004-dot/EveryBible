@@ -96,6 +96,7 @@ export type AuthStackParamList = {
         initialMode?: AuthScreenMode;
       }
     | undefined;
+  ResetPassword: undefined;
 };
 
 // Root Tab Navigator
@@ -153,6 +154,11 @@ export type TranslationBrowserScreenProps = NativeStackScreenProps<
   'TranslationBrowser'
 >;
 export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About'>;
+
+export type ResetPasswordScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'ResetPassword'
+>;
 
 // Tab screen props
 export type HomeTabProps = BottomTabScreenProps<RootTabParamList, 'Home'>;
