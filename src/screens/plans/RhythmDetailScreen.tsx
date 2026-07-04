@@ -26,6 +26,7 @@ import type {
   ReadingPlanRhythmSessionSegment,
   UserReadingPlanProgress,
 } from '../../services/plans/types';
+import { lightHaptic } from '../../utils';
 
 interface RhythmSegmentViewModel {
   segment: ReadingPlanRhythmSessionSegment;
@@ -48,10 +49,11 @@ function StatusPill({
   const backgroundColor =
     variant === 'accent' ? colors.accentPrimary : variant === 'success' ? colors.success : colors.background;
   const textColor =
-    variant === 'accent' || variant === 'success' ? colors.cardBackground : colors.secondaryText;
+    variant === 'accent' || variant === 'success' ? colors.onAccent : colors.secondaryText;
+  const borderColor = variant === 'neutral' ? colors.cardBorder : 'transparent';
 
   return (
-    <View style={[styles.pill, { backgroundColor, borderColor: colors.cardBorder }]}>
+    <View style={[styles.pill, { backgroundColor, borderColor }]}>
       <Text style={[styles.pillLabel, { color: textColor }]} numberOfLines={1}>
         {label}
       </Text>
@@ -299,6 +301,8 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       return;
     }
 
+    lightHaptic();
+
     rootNavigationRef.navigate('Bible', {
       screen: 'BibleReader',
       params: {
@@ -338,10 +342,11 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           </Text>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             accessibilityRole="button"
             style={[styles.errorButton, { backgroundColor: colors.accentPrimary }]}
           >
-            <Text style={[styles.errorButtonLabel, { color: colors.cardBackground }]}>
+            <Text style={[styles.errorButtonLabel, { color: colors.onAccent }]}>
               {t('common.back')}
             </Text>
           </TouchableOpacity>
@@ -356,6 +361,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             style={[styles.backButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
@@ -383,7 +389,9 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           </View>
           <TouchableOpacity
             onPress={handleEdit}
+            activeOpacity={0.85}
             accessibilityRole="button"
+            accessibilityLabel={t('readingPlans.editRhythm')}
             style={[styles.editButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
           >
             <Ionicons name="create-outline" size={18} color={colors.primaryText} />
@@ -436,7 +444,9 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           <TouchableOpacity
             onPress={handleContinue}
             disabled={!hasActiveSegments}
+            activeOpacity={0.85}
             accessibilityRole="button"
+            accessibilityState={{ disabled: !hasActiveSegments }}
             style={[
               styles.continueButton,
               {
@@ -444,7 +454,12 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
               },
             ]}
           >
-            <Text style={[styles.continueLabel, { color: colors.cardBackground }]}>
+            <Text
+              style={[
+                styles.continueLabel,
+                { color: hasActiveSegments ? colors.onAccent : colors.secondaryText },
+              ]}
+            >
               {t('readingPlans.continueRhythm')}
             </Text>
           </TouchableOpacity>
@@ -517,8 +532,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
@@ -548,8 +563,8 @@ const styles = StyleSheet.create({
     ...typography.micro,
   },
   editButton: {
-    width: 40,
-    height: 40,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
@@ -572,6 +587,7 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     ...typography.sectionTitle,
+    fontVariant: ['tabular-nums'],
   },
   summaryLabel: {
     ...typography.micro,

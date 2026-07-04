@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getCompactTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius, shadows, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 import { useTabBarHeight } from '../../hooks';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { useAudioStore } from '../../stores/audioStore';
@@ -61,6 +62,7 @@ export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={referenceLabel}
+        hitSlop={8}
         onPress={() => {
           if (!rootNavigationRef.isReady()) {
             return;
@@ -86,11 +88,12 @@ export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
             },
           });
         }}
-        style={[
+        style={({ pressed }) => [
           styles.tab,
           {
             backgroundColor: colors.accentPrimary,
-            borderColor: 'rgba(255, 255, 255, 0.78)',
+            borderColor: hexWithAlpha(colors.onAccent, 0.78),
+            transform: [{ rotate: '-90deg' }, { scale: pressed ? 0.96 : 1 }],
           },
         ]}
       >

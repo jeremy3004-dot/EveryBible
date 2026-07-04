@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { lightHaptic, successHaptic } from '../../utils';
 import type { PlansStackParamList } from '../../navigation/types';
 import {
   listReadingPlans,
@@ -77,11 +78,12 @@ function SwipeablePlanRow({ onDelete, children }: SwipeablePlanRowProps) {
               onDelete();
             }}
             style={[swipeableStyles.deleteButton, { backgroundColor: colors.error }]}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.delete')}
           >
-            <Ionicons name="trash-outline" size={18} color={colors.cardBackground} />
-            <Text style={[swipeableStyles.deleteText, { color: colors.cardBackground }]}>
+            <Ionicons name="trash-outline" size={18} color={colors.onAccent} />
+            <Text style={[swipeableStyles.deleteText, { color: colors.onAccent }]}>
               {t('common.delete')}
             </Text>
           </TouchableOpacity>
@@ -129,7 +131,7 @@ function CoverImage({
         justifyContent: 'center',
       }}
     >
-      <Ionicons name="book-outline" size={Math.floor(height * 0.4)} color={colors.cardBackground} />
+      <Ionicons name="book-outline" size={Math.floor(height * 0.4)} color={colors.onAccent} />
     </View>
   );
 }
@@ -416,7 +418,7 @@ function MyPlansSection({
               {sessionStatus ? (
                 <View style={styles.sessionRow}>
                   <View style={styles.sessionDot}>
-                    <Ionicons name="checkmark" size={12} color={colors.cardBackground} />
+                    <Ionicons name="checkmark" size={12} color={colors.onAccent} />
                   </View>
                   <Text style={styles.sessionSummary} numberOfLines={1}>
                     {sessionStatus}
@@ -441,7 +443,7 @@ function MyPlansSection({
                     style={[
                       styles.actionPillText,
                       {
-                        color: isRecurringPlan(plan) ? colors.accentPrimary : colors.cardBackground,
+                        color: isRecurringPlan(plan) ? colors.accentPrimary : colors.onAccent,
                       },
                     ]}
                     numberOfLines={1}
@@ -471,7 +473,7 @@ function MyPlansSection({
             <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
             <TouchableOpacity
               onPress={onAddPlan}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               style={styles.emptyCtaButton}
               accessibilityRole="button"
               accessibilityLabel={t('readingPlans.addFirstPlan')}
@@ -506,42 +508,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       paddingTop: spacing.md,
       paddingBottom: spacing.md,
       gap: spacing.xl,
-    },
-    statsPanel: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      borderRadius: radius.lg,
-      backgroundColor: colors.cardBackground,
-      minHeight: 68,
-      paddingHorizontal: spacing.lg,
-      overflow: 'hidden',
-    },
-    statItem: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-    },
-    statIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: radius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(161, 29, 27, 0.12)',
-    },
-    statText: {
-      ...typography.bodyStrong,
-      color: colors.secondaryText,
-    },
-    statDivider: {
-      width: 1,
-      height: 38,
-      backgroundColor: colors.cardBorder,
-      marginHorizontal: spacing.md,
     },
     sectionBlock: {
       gap: spacing.md,
@@ -620,7 +586,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       paddingVertical: spacing.lg,
     },
     coverFrame: {
-      borderRadius: radius.lg,
+      borderRadius: radius.md,
       overflow: 'hidden',
       backgroundColor: colors.cardBorder,
     },
@@ -647,6 +613,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       ...typography.body,
       lineHeight: 20,
       color: colors.secondaryText,
+      fontVariant: ['tabular-nums'],
     },
     sessionRow: {
       flexDirection: 'row',
@@ -677,6 +644,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     percentText: {
       ...typography.bodyStrong,
       color: colors.secondaryText,
+      fontVariant: ['tabular-nums'],
     },
     actionPill: {
       minHeight: 36,
@@ -799,7 +767,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
       <TouchableOpacity
         style={[styles.planCard, { width: cardWidth }]}
         onPress={() => onPlanPress(plan.id)}
-        activeOpacity={0.7}
+        activeOpacity={0.85}
       >
         <CoverImage plan={plan} width={coverWidth} height={coverHeight} colors={colors} />
         <View style={styles.planCardBody}>
@@ -826,7 +794,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
               <Text
                 style={[
                   styles.enrollBadgeText,
-                  { color: isEnrolled ? colors.cardBackground : colors.accentPrimary },
+                  { color: isEnrolled ? colors.onAccent : colors.accentPrimary },
                 ]}
               >
                 {actionLabel}
@@ -940,11 +908,11 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: spacing.sm,
       borderWidth: 1,
-      borderRadius: 18,
+      borderRadius: radius.lg,
       minHeight: 48,
       paddingHorizontal: spacing.md,
     },
-searchInput: {
+    searchInput: {
       ...typography.body,
       fontWeight: '500',
       flex: 1,
@@ -997,7 +965,7 @@ searchInput: {
       backgroundColor: colors.cardBorder,
       borderRadius: radius.lg,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
+      paddingVertical: spacing.xs,
       minHeight: 32,
       justifyContent: 'center',
       flexShrink: 0,
@@ -1010,7 +978,7 @@ searchInput: {
       borderRadius: radius.lg,
       minHeight: 32,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
+      paddingVertical: spacing.xs,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -1216,6 +1184,7 @@ export function PlansHomeScreen() {
 
   const handlePlanPress = useCallback(
     (planId: string) => {
+      lightHaptic();
       navigation.navigate('PlanDetail', { planId });
     },
     [navigation]
@@ -1226,12 +1195,15 @@ export function PlansHomeScreen() {
       const result = await unenrollFromPlan(planId);
       if (!result.success && result.error) {
         Alert.alert(t('common.error'), result.error);
+        return;
       }
+      successHaptic();
     },
     [t]
   );
 
   const handleAddPlan = useCallback(() => {
+    lightHaptic();
     setActiveTab('find-plans');
   }, []);
 
@@ -1247,7 +1219,9 @@ export function PlansHomeScreen() {
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
               style={styles.tab}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
             >
               <Text
                 style={[
@@ -1357,6 +1331,8 @@ const createMainStyles = (colors: ThemeColors) =>
     },
     tab: {
       alignItems: 'center',
+      justifyContent: 'flex-end',
+      minHeight: layout.minTouchTarget,
     },
     tabLabel: {
       ...typography.label,

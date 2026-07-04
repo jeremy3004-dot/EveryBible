@@ -41,7 +41,7 @@ import {
   type SetupMode,
   type SetupStep,
 } from './localeSetupModel';
-import { radius } from '../../design/system';
+import { radius, spacing } from '../../design/system';
 import type { BibleTranslation } from '../../types';
 import {
   filterTranslationsBySearchQuery,
@@ -58,6 +58,7 @@ interface LocaleSetupFlowProps {
   mode?: SetupMode;
   onClose?: () => void;
   onComplete?: () => void;
+  titleKey?: string;
 }
 
 const getFlagEmoji = (countryCode: string): string => {
@@ -68,7 +69,12 @@ const getFlagEmoji = (countryCode: string): string => {
   return String.fromCodePoint(...countryCode.split('').map((char) => 127397 + char.charCodeAt(0)));
 };
 
-export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: LocaleSetupFlowProps) {
+export function LocaleSetupFlow({
+  mode = 'initial',
+  onClose,
+  onComplete,
+  titleKey,
+}: LocaleSetupFlowProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const preferences = useAuthStore((state) => state.preferences);
@@ -510,7 +516,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           },
         ]}
         onPress={() => void handleInterfaceLanguageSelect(language)}
-        activeOpacity={0.88}
+        activeOpacity={0.85}
       >
         <Text style={[styles.languageButtonNative, { color: colors.primaryText }]}>
           {language.nativeName}
@@ -565,7 +571,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         ]}
         onPress={() => void handleTranslationSelect(translation)}
         disabled={isInstalling}
-        activeOpacity={0.9}
+        activeOpacity={0.85}
       >
         <View style={styles.optionCopy}>
           <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{option.label}</Text>
@@ -640,7 +646,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           setLanguageQuery('');
           setSelectedLanguageCode(null);
         }}
-        activeOpacity={0.9}
+        activeOpacity={0.85}
       >
         <View style={styles.optionCopy}>
           <View style={styles.countryTitleRow}>
@@ -670,7 +676,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           },
         ]}
         onPress={() => setSelectedLanguageCode(language.code)}
-        activeOpacity={0.9}
+        activeOpacity={0.85}
       >
         <View style={styles.optionCopy}>
           <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
@@ -737,7 +743,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
         <View style={styles.headerCopy}>
           <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
-            {t('onboarding.title')}
+            {t(titleKey ?? 'onboarding.title')}
           </Text>
           {stepSubtitle ? (
             <Text style={[styles.headerStep, { color: colors.secondaryText }]}>{stepSubtitle}</Text>
@@ -755,7 +761,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         )}
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 'interfaceLanguage' ? (
           <>
             <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
@@ -786,7 +796,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                   accessibilityRole="button"
                   accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
                   onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
-                  activeOpacity={0.88}
+                  activeOpacity={0.85}
                 >
                   <View style={styles.inlinePreferenceCopy}>
                     <Text style={[styles.inlinePreferenceLabel, { color: colors.secondaryText }]}>
@@ -868,7 +878,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
                   onPress={() =>
                     setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
                   }
-                  activeOpacity={0.88}
+                  activeOpacity={0.85}
                 >
                   <Text style={[styles.secondaryWideButtonText, { color: colors.primaryText }]}>
                     {t('common.retry')}
@@ -1126,7 +1136,7 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     width: 56,
-    minHeight: 24,
+    minHeight: 44,
     justifyContent: 'center',
   },
   headerCopy: {
@@ -1169,6 +1179,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+    marginBottom: spacing.lg,
   },
   languageButtonGrid: {
     flexDirection: 'row',

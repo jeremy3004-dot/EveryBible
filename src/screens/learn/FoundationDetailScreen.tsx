@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { lightHaptic, successHaptic } from '../../utils';
 import {
   gatherFoundations,
   FOUNDATION_TITLE_KEYS,
@@ -94,8 +95,10 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const handleToggleComplete = () => {
     if (!selectedLesson) return;
     if (isLessonComplete(foundationId, selectedLesson.id)) {
+      lightHaptic();
       unmarkLessonComplete(foundationId, selectedLesson.id);
     } else {
+      successHaptic();
       markLessonComplete(foundationId, selectedLesson.id);
     }
   };
@@ -214,7 +217,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             onPress={handleShareInvitation}
             activeOpacity={0.85}
           >
-            <Text style={styles.gatherButtonText}>{t('gather.gatherWithOthers')}</Text>
+            <Text style={[styles.gatherButtonText, { color: colors.onAccent }]}>
+              {t('gather.gatherWithOthers')}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -259,7 +264,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                 <Text
                   style={[
                     styles.numberBadgeText,
-                    { color: complete ? '#FFFFFF' : colors.secondaryText },
+                    { color: complete ? colors.onAccent : colors.secondaryText },
                   ]}
                 >
                   {lesson.number}
@@ -356,7 +361,7 @@ const styles = StyleSheet.create({
   headerBackButton: {
     width: 32,
     height: 32,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -394,6 +399,7 @@ const styles = StyleSheet.create({
     ...typography.label,
     textAlign: 'center',
     marginTop: spacing.sm,
+    fontVariant: ['tabular-nums'],
   },
   foundationLabel: {
     ...typography.micro,
@@ -441,7 +447,6 @@ const styles = StyleSheet.create({
   },
   gatherButtonText: {
     ...typography.button,
-    color: '#FFFFFF',
   },
   // Lesson rows
   lessonRow: {
@@ -461,6 +466,7 @@ const styles = StyleSheet.create({
   },
   numberBadgeText: {
     ...typography.label,
+    fontVariant: ['tabular-nums'],
   },
   lessonContent: {
     flex: 1,

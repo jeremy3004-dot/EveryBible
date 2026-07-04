@@ -1,4 +1,5 @@
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,9 +26,6 @@ import {
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
-const { width } = Dimensions.get('window');
-const ITEM_SIZE = getChapterGridItemSize(width);
-
 function trackBookHubEvent(
   event: Parameters<
     typeof import('../../services/analytics/bibleExperienceAnalytics').trackBibleExperienceEvent
@@ -50,9 +48,40 @@ export function ChapterSelectorScreen() {
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
 
+  const { width } = useWindowDimensions();
+  const itemSize = useMemo(() => getChapterGridItemSize(width), [width]);
+
   const book = getBookById(bookId);
   if (!book) {
-    return null;
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.bibleBackground }]}
+        edges={['top']}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={[
+                styles.backButton,
+                {
+                  backgroundColor: colors.bibleSurface,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.biblePrimaryText} />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.errorText, { color: colors.bibleSecondaryText }]}>
+            {t('bible.failedToLoad')}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const chapterRows = buildChapterGridRows(book.chapters);
@@ -108,12 +137,14 @@ export function ChapterSelectorScreen() {
             style={[
               styles.chapterButton,
               {
+                width: itemSize,
+                height: itemSize,
                 backgroundColor: isContinueChapter ? colors.bibleAccent : colors.bibleSurface,
                 borderColor: isContinueChapter ? colors.bibleAccent : colors.bibleDivider,
               },
             ]}
             onPress={() => navigateToChapter(chapter)}
-            activeOpacity={0.88}
+            activeOpacity={0.85}
           >
             <Text
               style={[
@@ -140,7 +171,7 @@ export function ChapterSelectorScreen() {
         data={chapterRows}
         renderItem={renderChapterRow}
         keyExtractor={(_, index) => `row-${index}`}
-        estimatedItemSize={ITEM_SIZE + CHAPTER_GRID_ROW_GAP}
+        estimatedItemSize={itemSize + CHAPTER_GRID_ROW_GAP}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         extraData={{
@@ -159,6 +190,9 @@ export function ChapterSelectorScreen() {
                   },
                 ]}
                 onPress={() => navigation.goBack()}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
               >
                 <Ionicons name="chevron-back" size={22} color={colors.biblePrimaryText} />
               </TouchableOpacity>
@@ -259,8 +293,12 @@ const styles = StyleSheet.create({
   title: {
     ...typography.screenTitle,
     fontSize: 36,
-    lineHeight: 40,
+    lineHeight: 46,
     marginTop: spacing.sm,
+  },
+  errorText: {
+    ...typography.body,
+    marginTop: spacing.md,
   },
   sectionHeader: {
     gap: 0,
@@ -269,8 +307,6 @@ const styles = StyleSheet.create({
     ...typography.sectionTitle,
   },
   chapterButton: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
     borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
@@ -280,6 +316,7 @@ const styles = StyleSheet.create({
     ...typography.cardTitle,
     fontSize: 20,
     lineHeight: 24,
+    fontVariant: ['tabular-nums'],
   },
   row: {
     flexDirection: 'row',

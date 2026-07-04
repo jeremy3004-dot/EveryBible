@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { hexWithAlpha, lightHaptic, successHaptic, errorHaptic } from '../../utils';
 import {
   enrollInPlan,
   getPlanEntries,
@@ -40,7 +41,7 @@ import type {
   UserReadingPlanProgress,
 } from '../../services/plans/types';
 import type { PlansStackParamList } from '../../navigation/types';
-import { getBookById } from '../../constants';
+import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
   useBibleStore,
@@ -55,9 +56,11 @@ type NavProp = NativeStackNavigationProp<PlansStackParamList>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatChapterRef(entry: ReadingPlanEntry): string {
-  const book = getBookById(entry.book);
-  const bookName = book?.name ?? entry.book;
+function formatChapterRef(
+  entry: ReadingPlanEntry,
+  resolveBookName: (bookId: string) => string
+): string {
+  const bookName = resolveBookName(entry.book);
   if (entry.chapter_end && entry.chapter_end !== entry.chapter_start) {
     return `${bookName} ${entry.chapter_start}–${entry.chapter_end}`;
   }
@@ -108,8 +111,6 @@ function ProgressRing({
           width: size,
           height: size,
           borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: trackColor,
         },
       ]}
     >
@@ -169,6 +170,7 @@ const progressRingStyles = StyleSheet.create({
   },
   pctText: {
     ...typography.cardTitle,
+    fontVariant: ['tabular-nums'],
   },
   progressRing: {
     position: 'absolute',
@@ -250,10 +252,8 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
           ) : null}
           {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.cardBackground} />
-              <Text
-                style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}
-              >
+              <Ionicons name="checkmark-circle" size={12} color={colors.onAccent} />
+              <Text style={[progressCardStyles.completeBadgeText, { color: colors.onAccent }]}>
                 {completionBadgeLabel}
               </Text>
             </View>
@@ -277,6 +277,7 @@ const progressCardStyles = StyleSheet.create({
   },
   pct: {
     ...typography.cardTitle,
+    fontVariant: ['tabular-nums'],
   },
   stats: {
     flex: 1,
@@ -284,16 +285,18 @@ const progressCardStyles = StyleSheet.create({
   },
   dayLabel: {
     ...typography.bodyStrong,
+    fontVariant: ['tabular-nums'],
   },
   subLabel: {
     ...typography.body,
+    fontVariant: ['tabular-nums'],
   },
   completeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
     borderRadius: radius.lg,
     alignSelf: 'flex-start',
   },
@@ -316,8 +319,13 @@ interface DayRowProps {
 
 function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
-  const refs = entries.map(formatChapterRef).join(', ');
+  const resolveBookName = React.useCallback(
+    (bookId: string) => getTranslatedBookName(bookId, t),
+    [t]
+  );
+  const refs = entries.map((entry) => formatChapterRef(entry, resolveBookName)).join(', ');
   const firstEntry = entries[0];
 
   return (
@@ -332,7 +340,11 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
         },
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Day ${dayNumber}: ${refs}`}
+      accessibilityLabel={t('readingPlans.dayRowA11y', {
+        day: dayNumber,
+        refs,
+        defaultValue: `Day ${dayNumber}: ${refs}`,
+      })}
     >
       <View
         style={[
@@ -349,7 +361,7 @@ function DayRow({ dayNumber, entries, isCompleted, isCurrent, onPress }: DayRowP
         ]}
       >
         {isCompleted ? (
-          <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
+          <Ionicons name="checkmark" size={14} color={colors.onAccent} />
         ) : (
           <Text
             style={[
@@ -395,6 +407,7 @@ const dayRowStyles = StyleSheet.create({
   },
   badgeText: {
     ...typography.label,
+    fontVariant: ['tabular-nums'],
   },
   content: {
     flex: 1,
@@ -430,7 +443,11 @@ function MarkCompleteButton({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[markCompleteStyles.button, { backgroundColor: disabled ? `${color}55` : color }]}
+      activeOpacity={0.85}
+      style={[
+        markCompleteStyles.button,
+        { backgroundColor: disabled ? hexWithAlpha(color, 0.33) : color },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -577,13 +594,19 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
     const result = await markDayComplete(planId, currentDay);
     if (result.success && result.data) {
       setProgress(result.data);
+      successHaptic();
+    } else {
+      errorHaptic();
+      setError(result.error ?? t('common.error'));
     }
     setMarkingComplete(false);
-  }, [planId, currentDay]);
+  }, [planId, currentDay, t]);
 
   const handleOpenChapter = useCallback(
     async (entry: ReadingPlanEntry, dayNumber: number) => {
       if (!rootNavigationRef.isReady()) return;
+
+      lightHaptic();
 
       let nextProgress = progress;
       if (!nextProgress) {
@@ -654,7 +677,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
               onPress={handleMarkComplete}
               label={t('readingPlans.markComplete')}
               color={colors.accentPrimary}
-              textColor={colors.cardBackground}
+              textColor={colors.onAccent}
             />
           );
         case 'day-row': {
@@ -694,6 +717,7 @@ export function ReadingPlanDetailScreen({ planId, navigation }: ReadingPlanDetai
       currentDaySummary,
       isRecurringSchedulePlan,
       handleOpenChapter,
+      today,
     ]
   );
 

@@ -14,6 +14,7 @@ import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { spacing, typography } from '../design/system';
 import { useTabBarHeight } from '../hooks';
+import { lightHaptic } from '../utils';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -84,8 +85,12 @@ export function TabNavigator() {
     backgroundColor: colors.background,
     borderTopColor: colors.cardBorder,
     borderTopWidth: 1,
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingTop: 0,
-    paddingBottom: tabBarBottomPadding + spacing.sm,
+    paddingBottom: tabBarBottomPadding + spacing.xs,
     height: tabBarHeight,
   } as const;
   const readerTabBarStyle = {
@@ -102,7 +107,7 @@ export function TabNavigator() {
     right: 0,
     bottom: 0,
     paddingTop: 0,
-    paddingBottom: tabBarBottomPadding + spacing.sm,
+    paddingBottom: tabBarBottomPadding + spacing.xs,
     height: tabBarHeight,
     transform: [{ translateY: tabBarHeight * collapseProgress }],
     opacity: 1 - collapseProgress,
@@ -180,13 +185,19 @@ export function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: t('tabs.home') }} />
+      <Tab.Screen
+        name="Home"
+        component={HomeStack}
+        options={{ tabBarLabel: t('tabs.home') }}
+        listeners={{ tabPress: () => lightHaptic() }}
+      />
       <Tab.Screen
         name="Bible"
         component={BibleStack}
         options={{ tabBarLabel: t('tabs.bible') }}
         listeners={({ navigation, route }) => ({
           tabPress: (event) => {
+            lightHaptic();
             const bibleRouteState = route as {
               state?: NestedTabRouteState;
               params?: NestedTabRouteParams;
@@ -225,13 +236,19 @@ export function TabNavigator() {
           },
         })}
       />
-      <Tab.Screen name="Learn" component={LearnStack} options={{ tabBarLabel: t('tabs.gather') }} />
+      <Tab.Screen
+        name="Learn"
+        component={LearnStack}
+        options={{ tabBarLabel: t('tabs.gather') }}
+        listeners={{ tabPress: () => lightHaptic() }}
+      />
       <Tab.Screen
         name="Plans"
         component={PlansStack}
         options={{ tabBarLabel: t('tabs.plans') }}
         listeners={({ navigation }) => ({
           tabPress: (event) => {
+            lightHaptic();
             event.preventDefault();
             navigation.navigate('Plans', {
               screen: 'PlansHome',
@@ -239,7 +256,12 @@ export function TabNavigator() {
           },
         })}
       />
-      <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: t('tabs.more') }} />
+      <Tab.Screen
+        name="More"
+        component={MoreStack}
+        options={{ tabBarLabel: t('tabs.more') }}
+        listeners={{ tabPress: () => lightHaptic() }}
+      />
     </Tab.Navigator>
   );
 }

@@ -43,6 +43,7 @@ import { CardSkeleton } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { radius, spacing, typography } from '../../design/system';
+import { lightHaptic } from '../../utils';
 import {
   getLiveVerseOfDayOverride,
   type MobileVerseOfDayOverride,
@@ -158,7 +159,6 @@ export function HomeScreen() {
     hasReaderHistory && currentBookInfo
       ? `${currentBookName} ${currentChapter}`
       : t('home.defaultReference');
-  const readingProgressPercent = hasReaderHistory ? 68 : 0;
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
   const greetingKey = useMemo(() => getGreetingKey(), []);
   const greetingLabel = t('home.greetingWithName', {
@@ -287,6 +287,7 @@ export function HomeScreen() {
   }, []);
 
   const handleContinueReading = () => {
+    lightHaptic();
     if (!hasReaderHistory) {
       navigation.navigate('Bible', { screen: 'BibleBrowser' });
       return;
@@ -383,13 +384,13 @@ export function HomeScreen() {
         },
       ]}
       onPress={handleShareVerseOfTheDay}
-      activeOpacity={0.88}
+      activeOpacity={0.85}
       disabled={isSharingVerse}
       accessibilityRole="button"
       accessibilityLabel={t('groups.share')}
       hitSlop={8}
     >
-      <Ionicons name="share-outline" size={verseShareIconSize} color={colors.primaryText} />
+      <Ionicons name="share-outline" size={verseShareIconSize} color={colors.onAccent} />
     </TouchableOpacity>
   );
 
@@ -398,6 +399,7 @@ export function HomeScreen() {
       return;
     }
 
+    lightHaptic();
     setIsSharingVerse(true);
 
     try {
@@ -576,7 +578,7 @@ export function HomeScreen() {
                 styles.smallCard,
                 { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
               ]}
-              activeOpacity={0.86}
+              activeOpacity={0.85}
               onPress={handleContinueReading}
               accessibilityRole="button"
             >
@@ -593,35 +595,11 @@ export function HomeScreen() {
                 {currentPassageLabel}
               </Text>
               <Text
-                style={[styles.smallCardMeta, { color: colors.secondaryText }]}
+                style={[styles.smallCardMeta, styles.smallCardMetaBottom, { color: colors.secondaryText }]}
                 numberOfLines={1}
               >
                 {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
               </Text>
-              <View
-                style={[
-                  styles.linearProgressTrack,
-                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.cardBorder },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.linearProgressFill,
-                    {
-                      width: `${readingProgressPercent}%`,
-                      backgroundColor: colors.accentPrimary,
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.smallCardFooter}>
-                <Text style={[styles.smallCardMeta, { color: colors.secondaryText }]}>
-                  {t('home.minutesLeft', { count: hasReaderHistory ? 8 : 0 })}
-                </Text>
-                <Text style={[styles.smallCardMeta, { color: colors.secondaryText }]}>
-                  {t('home.percentComplete', { percent: readingProgressPercent })}
-                </Text>
-              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -629,7 +607,7 @@ export function HomeScreen() {
                 styles.smallCard,
                 { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
               ]}
-              activeOpacity={0.86}
+              activeOpacity={0.85}
               onPress={() =>
                 featuredPlan
                   ? handleContinuePlan(featuredPlan.id)
@@ -670,9 +648,7 @@ export function HomeScreen() {
                         backgroundColor:
                           index / 8 < featuredPlanFraction
                             ? colors.accentPrimary
-                            : isDark
-                              ? 'rgba(255, 255, 255, 0.22)'
-                              : colors.cardBorder,
+                            : colors.cardBorder,
                       },
                     ]}
                   />
@@ -682,7 +658,7 @@ export function HomeScreen() {
           </View>
 
           <TouchableOpacity
-            activeOpacity={0.86}
+            activeOpacity={0.85}
             style={[
               styles.gatherStrip,
               { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
@@ -718,7 +694,7 @@ export function HomeScreen() {
                         <View
                           style={[
                             styles.gatherConnector,
-                            { backgroundColor: 'rgba(233, 205, 172, 0.46)' },
+                            { backgroundColor: colors.cardBorder },
                           ]}
                         />
                       ) : null}
@@ -738,7 +714,7 @@ export function HomeScreen() {
                         <View
                           style={[
                             styles.gatherConnector,
-                            { backgroundColor: 'rgba(233, 205, 172, 0.46)' },
+                            { backgroundColor: colors.cardBorder },
                           ]}
                         />
                       ) : null}
@@ -833,7 +809,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   headerRow: {
-    gap: 3,
+    gap: spacing.xs,
   },
   greetingLine: {
     ...typography.bodyStrong,
@@ -883,22 +859,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontSize: 13,
     lineHeight: 18,
+    fontVariant: ['tabular-nums'],
   },
-  linearProgressTrack: {
-    height: 8,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+  smallCardMetaBottom: {
     marginTop: 'auto',
-  },
-  linearProgressFill: {
-    height: 8,
-    borderRadius: radius.pill,
-  },
-  smallCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
   },
   dotProgressRow: {
     marginTop: 'auto',

@@ -15,8 +15,6 @@ import {
 import { radius, layout, spacing, typography } from '../../design/system';
 
 const ABOUT_WEBSITE_LABEL = 'everybible.app';
-const ABOUT_RESOURCES_LABEL = 'Resources';
-const ABOUT_MADE_WITH_LOVE = 'Made with love';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
 
 export function AboutScreen() {
@@ -32,7 +30,13 @@ export function AboutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('about.title')}</Text>
@@ -56,11 +60,12 @@ export function AboutScreen() {
           </Text>
         </View>
         {/* Links */}
-        <Text style={styles.sectionTitle}>{t('about.resources', { defaultValue: ABOUT_RESOURCES_LABEL })}</Text>
+        <Text style={styles.sectionTitle}>{t('about.resources')}</Text>
         <View style={styles.linksCard}>
           <TouchableOpacity
             style={styles.linkItem}
             onPress={() => handleLink(EVERYBIBLE_SITE_URL)}
+            accessibilityRole="link"
           >
             <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>
@@ -72,6 +77,7 @@ export function AboutScreen() {
           <TouchableOpacity
             style={styles.linkItem}
             onPress={() => handleLink(EVERYBIBLE_SUPPORT_EMAIL_URL)}
+            accessibilityRole="link"
           >
             <Ionicons name="mail-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>
@@ -83,6 +89,7 @@ export function AboutScreen() {
           <TouchableOpacity
             style={styles.linkItem}
             onPress={() => handleLink(EVERYBIBLE_PRIVACY_URL)}
+            accessibilityRole="link"
           >
             <Ionicons name="shield-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.privacyPolicy')}</Text>
@@ -92,6 +99,7 @@ export function AboutScreen() {
           <TouchableOpacity
             style={[styles.linkItem, styles.linkItemLast]}
             onPress={() => handleLink(EVERYBIBLE_TERMS_URL)}
+            accessibilityRole="link"
           >
             <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>
@@ -99,9 +107,7 @@ export function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.copyright}>
-          {t('about.madeWithLove', { defaultValue: ABOUT_MADE_WITH_LOVE })}
-        </Text>
+        <Text style={styles.copyright}>{t('about.madeWithLove')}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,7 +123,8 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: layout.screenPadding,
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.cardBorder,
     },

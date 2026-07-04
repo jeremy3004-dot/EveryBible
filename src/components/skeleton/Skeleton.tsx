@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, Animated, ViewStyle } from 'react-native';
+import { StyleSheet, Animated, Easing, ViewStyle } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface SkeletonProps {
   width?: number | `${number}%`;
   height?: number;
   borderRadius?: number;
+  color?: string;
   style?: ViewStyle;
 }
 
-export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style }: SkeletonProps) {
+export function Skeleton({
+  width = '100%',
+  height = 20,
+  borderRadius = 8,
+  color,
+  style,
+}: SkeletonProps) {
   const { colors } = useTheme();
   const animatedValue = useMemo(() => new Animated.Value(0), []);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -19,12 +26,14 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style 
       Animated.sequence([
         Animated.timing(animatedValue, {
           toValue: 1,
-          duration: 1000,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 1000,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
@@ -57,7 +66,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style 
           height,
           borderRadius,
           opacity,
-          backgroundColor: colors.cardBorder,
+          backgroundColor: color ?? colors.cardBorder,
         },
         style,
       ]}

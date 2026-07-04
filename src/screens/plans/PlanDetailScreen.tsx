@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  I18nManager,
   Image,
   StyleSheet,
   Text,
@@ -55,6 +56,7 @@ import type {
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
+import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
 // Helpers (duplicated from ReadingPlanDetailScreen to avoid cross-screen dep)
@@ -212,6 +214,7 @@ const progressRingStyles = StyleSheet.create({
   },
   pctText: {
     ...typography.cardTitle,
+    fontVariant: ['tabular-nums'],
   },
   progressRing: {
     position: 'absolute',
@@ -293,9 +296,9 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
           ) : null}
           {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.cardBackground} />
+              <Ionicons name="checkmark-circle" size={12} color={colors.onAccent} />
               <Text
-                style={[progressCardStyles.completeBadgeText, { color: colors.cardBackground }]}
+                style={[progressCardStyles.completeBadgeText, { color: colors.onAccent }]}
               >
                 {completionBadgeLabel}
               </Text>
@@ -320,6 +323,7 @@ const progressCardStyles = StyleSheet.create({
   },
   pct: {
     ...typography.cardTitle,
+    fontVariant: ['tabular-nums'],
   },
   stats: {
     flex: 1,
@@ -327,6 +331,7 @@ const progressCardStyles = StyleSheet.create({
   },
   dayLabel: {
     ...typography.bodyStrong,
+    fontVariant: ['tabular-nums'],
   },
   subLabel: {
     ...typography.micro,
@@ -336,7 +341,7 @@ const progressCardStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: spacing.xs,
     borderRadius: radius.lg,
     alignSelf: 'flex-start',
   },
@@ -412,7 +417,7 @@ const DayRow = React.memo(function DayRow({
         testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
         onPress={() => onPress(dayNumber, launchSessionKey)}
         activeOpacity={0.85}
-        style={dayRowStyles.row}
+        style={[dayRowStyles.row, hasSessionActions ? dayRowStyles.rowWithActions : null]}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
       >
@@ -427,7 +432,7 @@ const DayRow = React.memo(function DayRow({
           ]}
         >
           {isCompleted ? (
-            <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
+            <Ionicons name="checkmark" size={14} color={colors.onAccent} />
           ) : (
             <Text
               style={[
@@ -457,7 +462,7 @@ const DayRow = React.memo(function DayRow({
                     ? {
                         backgroundColor: colors.accentPrimary,
                         borderColor: colors.accentPrimary,
-                        textColor: colors.cardBackground,
+                        textColor: colors.onAccent,
                       }
                     : badge.state === 'next'
                       ? {
@@ -507,13 +512,13 @@ const DayRow = React.memo(function DayRow({
                 ? {
                     backgroundColor: colors.accentPrimary,
                     borderColor: colors.accentPrimary,
-                    textColor: colors.cardBackground,
+                    textColor: colors.onAccent,
                   }
                 : action.state === 'next'
                   ? {
                       backgroundColor: colors.accentPrimary,
                       borderColor: colors.accentPrimary,
-                      textColor: colors.cardBackground,
+                      textColor: colors.onAccent,
                     }
                   : {
                       backgroundColor: colors.background,
@@ -562,6 +567,9 @@ const dayRowStyles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  rowWithActions: {
+    paddingBottom: spacing.sm,
+  },
   badge: {
     width: 36,
     height: 36,
@@ -601,12 +609,11 @@ const dayRowStyles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    marginTop: -spacing.xs,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
   sessionActionButton: {
-    minHeight: 36,
+    minHeight: layout.minTouchTarget,
     borderRadius: radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
@@ -722,6 +729,15 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
     if (entriesResult.success) {
       setEntries(entriesResult.data ?? []);
+    } else {
+      // Only surface an error when we have no entries to show; keep any
+      // previously loaded rows visible on a transient refresh failure.
+      setEntries((prev) => {
+        if (prev.length === 0) {
+          setError(entriesResult.error ?? t('common.error'));
+        }
+        return prev;
+      });
     }
 
     // Fetch related plans once we know the category
@@ -766,6 +782,8 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const handleOpenChapter = useCallback(
     async (dayNumber: number, sessionKey?: PlanSessionKey) => {
       if (!rootNavigationRef.isReady()) return;
+
+      lightHaptic();
 
       if (!progress) {
         const enrollResult = await enrollInPlan(planId);
@@ -814,6 +832,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       setEnrolling(true);
       await enrollInPlan(planId);
       setEnrolling(false);
+      successHaptic();
     }
   }, [planId, progress]);
 
@@ -956,8 +975,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           </View>
         )}
 
-        {/* Gradient overlay at bottom of cover for readability */}
-        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={styles.coverGradient} />
+        {/* The cover is always a photographic hero image, so we keep a fixed dark
+            readability scrim with light title text in every theme (matching the
+            HomeScreen verse card treatment) rather than themed surface tokens. */}
+        <LinearGradient colors={['transparent', colors.overlay]} style={styles.coverGradient} />
 
         <View style={styles.coverTitleWrap}>
           <Text style={styles.coverTitle} numberOfLines={3}>
@@ -968,17 +989,22 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         {/* Floating back button */}
         <TouchableOpacity
           onPress={() => navigation.goBack()}
+          activeOpacity={0.85}
           style={[
             styles.floatingBack,
             {
               top: insets.top + spacing.sm,
-              backgroundColor: 'rgba(0,0,0,0.4)',
+              backgroundColor: colors.overlay,
             },
           ]}
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Ionicons name="arrow-back" size={20} color="#ffffff" />
+          <Ionicons
+            name={I18nManager.isRTL ? 'arrow-forward' : 'arrow-back'}
+            size={20}
+            color="#ffffff"
+          />
         </TouchableOpacity>
       </View>
 
@@ -990,14 +1016,15 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           <TouchableOpacity
             onPress={handleStartPlan}
             disabled={enrolling}
+            activeOpacity={0.85}
             style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary }]}
             accessibilityRole="button"
             accessibilityLabel={t('readingPlans.startPlan')}
           >
             {enrolling ? (
-              <ActivityIndicator size="small" color={colors.cardBackground} />
+              <ActivityIndicator size="small" color={colors.onAccent} />
             ) : (
-              <Text style={[styles.ctaPrimaryText, { color: colors.cardBackground }]}>
+              <Text style={[styles.ctaPrimaryText, { color: colors.onAccent }]}>
                 {t('readingPlans.startPlan')}
               </Text>
             )}
@@ -1055,7 +1082,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       ) : null}
 
       {/* Bottom breathing room */}
-      <View style={{ height: spacing.xxxl }} />
+      <View style={styles.footerSpacer} />
     </View>
   );
 
@@ -1065,6 +1092,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         <View style={[styles.loadingHeader, { paddingTop: insets.top }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             style={styles.backButton}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
@@ -1085,6 +1113,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         <View style={[styles.loadingHeader, { paddingTop: insets.top }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             style={styles.backButton}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
@@ -1096,6 +1125,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity
             onPress={load}
+            activeOpacity={0.85}
             style={[styles.retryButton, { borderColor: colors.accentPrimary }]}
             accessibilityRole="button"
           >
@@ -1202,7 +1232,7 @@ const styles = StyleSheet.create({
   },
   floatingBack: {
     position: 'absolute',
-    left: spacing.lg,
+    start: spacing.lg,
     width: layout.minTouchTarget,
     height: layout.minTouchTarget,
     borderRadius: layout.minTouchTarget / 2,
@@ -1262,6 +1292,9 @@ const styles = StyleSheet.create({
   },
   relatedSeparator: {
     width: spacing.sm,
+  },
+  footerSpacer: {
+    height: spacing.xxxl,
   },
 
   // Back button (loading/error states only)

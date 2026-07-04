@@ -23,3 +23,7 @@ export {
   errorHaptic,
   selectionHaptic,
 } from './haptics';
+
+export { hexWithAlpha } from './color';
+
+export { formatPlaybackTime } from './time';

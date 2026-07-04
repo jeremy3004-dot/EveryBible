@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -17,6 +18,7 @@ import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getBookById } from '../../constants';
 import { fetchAnnotations } from '../../services/annotations';
+import { hexWithAlpha } from '../../utils';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { MoreStackParamList } from '../../navigation/types';
 
@@ -34,11 +36,15 @@ export function AnnotationsScreen() {
   const [filter, setFilter] = useState<FilterType>('note');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const loadAnnotations = useCallback(async () => {
     const result = await fetchAnnotations();
     if (result.success && result.data) {
       setAnnotations(result.data.filter((a) => !a.deleted_at));
+      setLoadError(false);
+    } else {
+      setLoadError(true);
     }
     setLoading(false);
   }, []);
@@ -142,7 +148,12 @@ export function AnnotationsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
@@ -169,12 +180,12 @@ export function AnnotationsScreen() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               name={fb.icon as any}
               size={14}
-              color={filter === fb.key ? colors.cardBackground : colors.secondaryText}
+              color={filter === fb.key ? colors.onAccent : colors.secondaryText}
             />
             <Text
               style={[
                 styles.filterLabel,
-                { color: filter === fb.key ? colors.cardBackground : colors.secondaryText },
+                { color: filter === fb.key ? colors.onAccent : colors.secondaryText },
               ]}
             >
               {fb.label}
@@ -193,14 +204,43 @@ export function AnnotationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
             <View style={styles.emptyState}>
-              <Ionicons name={emptyStateIcons[filter]} size={48} color={colors.secondaryText + '60'} />
+              <ActivityIndicator size="large" color={colors.accentPrimary} />
+            </View>
+          ) : loadError ? (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={48}
+                color={hexWithAlpha(colors.secondaryText, 0.6)}
+              />
+              <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+                {t('common.somethingWentWrong')}
+              </Text>
+              <TouchableOpacity
+                style={[styles.retryButton, { borderColor: colors.cardBorder }]}
+                onPress={loadAnnotations}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.retryText, { color: colors.accentPrimary }]}>
+                  {t('common.retry')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name={emptyStateIcons[filter]}
+                size={48}
+                color={hexWithAlpha(colors.secondaryText, 0.38)}
+              />
               <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                 {getEmptyMessage()}
               </Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>
@@ -290,5 +330,17 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
+  },
+  retryText: {
+    ...typography.bodyStrong,
   },
 });

@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { layout, typography } from '../../design/system';
 import type { BookCompanionCardModel, BookCompanionSectionModel } from '../../screens/bible/bookCompanionModel';
 import { CompanionCard } from './CompanionCard';
 
@@ -32,6 +33,9 @@ export function CompanionSection({ section, onPressItem }: CompanionSectionProps
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={232}
+          style={styles.carouselScroller}
           contentContainerStyle={styles.carousel}
         >
           {section.items.map((item) => (
@@ -51,8 +55,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
+    ...typography.sectionTitle,
   },
   description: {
     fontSize: 14,
@@ -61,8 +64,11 @@ const styles = StyleSheet.create({
   stack: {
     gap: 12,
   },
+  carouselScroller: {
+    marginHorizontal: -layout.screenPadding,
+  },
   carousel: {
     gap: 12,
-    paddingRight: 20,
+    paddingHorizontal: layout.screenPadding,
   },
 });

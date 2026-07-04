@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -26,6 +27,7 @@ export function LessonBottomSheet({
 }: LessonBottomSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
   const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
 
@@ -56,33 +58,35 @@ export function LessonBottomSheet({
     onClose();
   };
 
-  const handleDownload = () => {
-    // Deferred — no-op for now
-    onClose();
-  };
-
   const handleToggle = () => {
     onToggleComplete();
-    onClose();
-  };
-
-  const handleManageBookmarks = () => {
-    // Deferred — no-op for now
     onClose();
   };
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       {/* Backdrop overlay */}
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity
+        style={[styles.overlay, { backgroundColor: colors.overlay }]}
+        activeOpacity={1}
+        onPress={onClose}
+      >
         {/* Inner sheet — prevent backdrop close from bubbling through the sheet */}
         <TouchableOpacity
-          style={[styles.sheet, { backgroundColor: colors.cardBackground }]}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.cardBackground,
+              paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md,
+            },
+          ]}
           activeOpacity={1}
           onPress={() => {
             // Intentionally empty — absorb tap to avoid closing on sheet tap
           }}
         >
+          {/* Grab handle */}
+          <View style={[styles.grabHandle, { backgroundColor: colors.cardBorder }]} />
           {/* Header row: icon + lesson title + reference */}
           <View style={styles.headerRow}>
             <View
@@ -125,12 +129,15 @@ export function LessonBottomSheet({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionRow} onPress={handleDownload} activeOpacity={0.7}>
+          <View style={[styles.actionRow, styles.actionRowDisabled]}>
             <Ionicons name="download-outline" size={24} color={colors.secondaryText} />
             <Text style={[styles.actionText, { color: colors.primaryText }]}>
               {t('gather.download')}
             </Text>
-          </TouchableOpacity>
+            <Text style={[styles.comingSoonLabel, { color: colors.secondaryText }]}>
+              {t('common.comingSoon')}
+            </Text>
+          </View>
 
           <TouchableOpacity style={styles.actionRow} onPress={handleToggle} activeOpacity={0.7}>
             <Ionicons
@@ -143,16 +150,15 @@ export function LessonBottomSheet({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionRow}
-            onPress={handleManageBookmarks}
-            activeOpacity={0.7}
-          >
+          <View style={[styles.actionRow, styles.actionRowDisabled]}>
             <Ionicons name="bookmark-outline" size={24} color={colors.secondaryText} />
             <Text style={[styles.actionText, { color: colors.primaryText }]}>
               {t('gather.manageBookmarks')}
             </Text>
-          </TouchableOpacity>
+            <Text style={[styles.comingSoonLabel, { color: colors.secondaryText }]}>
+              {t('common.comingSoon')}
+            </Text>
+          </View>
 
           {/* Close button */}
           <TouchableOpacity style={[styles.closeButton]} onPress={onClose} activeOpacity={0.7}>
@@ -169,15 +175,20 @@ export function LessonBottomSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxxl,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingTop: spacing.md,
     paddingHorizontal: layout.screenPadding,
+  },
+  grabHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: radius.pill,
+    marginBottom: spacing.md,
   },
   // Header
   headerRow: {
@@ -215,8 +226,15 @@ const styles = StyleSheet.create({
     height: 48,
     gap: spacing.md,
   },
+  actionRowDisabled: {
+    opacity: 0.4,
+  },
   actionText: {
     ...typography.body,
+  },
+  comingSoonLabel: {
+    ...typography.micro,
+    marginLeft: 'auto',
   },
   // Close button
   closeButton: {

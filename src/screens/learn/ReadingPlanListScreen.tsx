@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -17,6 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { warningHaptic } from '../../utils';
 import {
   enrollInPlan,
   getUserPlanProgress,
@@ -111,15 +113,36 @@ function SwipeablePlanRow({ onDelete, children }: SwipeablePlanRowProps) {
         <View style={swipeableStyles.actions}>
           <TouchableOpacity
             onPress={() => {
-              swipeableMethods.close();
-              onDelete();
+              warningHaptic();
+              Alert.alert(
+                t('readingPlans.removePlanConfirmTitle', { defaultValue: 'Remove plan?' }),
+                t('readingPlans.removePlanConfirmBody', {
+                  defaultValue: 'Your progress on this plan will be removed.',
+                }),
+                [
+                  {
+                    text: t('common.cancel'),
+                    style: 'cancel',
+                    onPress: () => swipeableMethods.close(),
+                  },
+                  {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: () => {
+                      swipeableMethods.close();
+                      onDelete();
+                    },
+                  },
+                ]
+              );
             }}
             style={[swipeableStyles.deleteButton, { backgroundColor: colors.error }]}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.delete')}
           >
-            <Ionicons name="trash-outline" size={18} color={colors.cardBackground} />
-            <Text style={[swipeableStyles.deleteText, { color: colors.cardBackground }]}>
+            <Ionicons name="trash-outline" size={18} color={colors.onAccent} />
+            <Text style={[swipeableStyles.deleteText, { color: colors.onAccent }]}>
               {t('common.delete')}
             </Text>
           </TouchableOpacity>
@@ -164,7 +187,7 @@ function ActivePlanCard({ plan, progress, onPress }: ActivePlanCardProps) {
           {title}
         </Text>
         <View style={[activePlanStyles.dayBadge, { backgroundColor: colors.accentPrimary }]}>
-          <Text style={[activePlanStyles.dayBadgeText, { color: colors.cardBackground }]}>
+          <Text style={[activePlanStyles.dayBadgeText, { color: colors.onAccent }]}>
             {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
           </Text>
         </View>
@@ -201,14 +224,16 @@ const activePlanStyles = StyleSheet.create({
   },
   dayBadge: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
     borderRadius: radius.lg,
   },
   dayBadgeText: {
     ...typography.micro,
+    fontVariant: ['tabular-nums'],
   },
   percent: {
     ...typography.micro,
+    fontVariant: ['tabular-nums'],
   },
 });
 
@@ -279,7 +304,7 @@ function BrowsePlanCard({
             {title}
           </Text>
           <View style={[browsePlanStyles.planPill, { backgroundColor: colors.accentPrimary }]}>
-            <Text style={[browsePlanStyles.planPillText, { color: colors.cardBackground }]}>
+            <Text style={[browsePlanStyles.planPillText, { color: colors.onAccent }]}>
               {plan.duration_days}{' '}
               {t('engagement.days', { defaultValue: 'days' })}
             </Text>
@@ -319,9 +344,9 @@ function BrowsePlanCard({
             accessibilityLabel={t('readingPlans.startPlan')}
           >
             {enrolling ? (
-              <ActivityIndicator size="small" color={colors.cardBackground} />
+              <ActivityIndicator size="small" color={colors.onAccent} />
             ) : (
-              <Text style={[browsePlanStyles.planPillText, { color: colors.cardBackground }]}>
+              <Text style={[browsePlanStyles.planPillText, { color: colors.onAccent }]}>
                 {t('readingPlans.startPlan')}
               </Text>
             )}
@@ -373,7 +398,7 @@ const browsePlanStyles = StyleSheet.create({
   planPill: {
     minHeight: 32,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
     borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',

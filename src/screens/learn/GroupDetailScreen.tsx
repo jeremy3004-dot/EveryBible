@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   Alert,
   Share,
 } from 'react-native';
@@ -15,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
-import { radius } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
+import { warningHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -171,6 +173,7 @@ export function GroupDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
+          <ActivityIndicator size="large" color={colors.accentPrimary} style={styles.loadingIndicator} />
           <Text style={[styles.errorText, { color: colors.secondaryText }]}>{t('groups.loadingGroup')}</Text>
         </View>
       </SafeAreaView>
@@ -216,6 +219,7 @@ export function GroupDetailScreen() {
       return;
     }
 
+    warningHaptic();
     Alert.alert(
       t('groups.leaveGroup'),
       group.isLeader
@@ -244,11 +248,20 @@ export function GroupDetailScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{group.name}</Text>
-        <TouchableOpacity style={styles.moreButton} onPress={handleShareCode}>
+        <TouchableOpacity
+          style={styles.moreButton}
+          onPress={handleShareCode}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('groups.share')}
+        >
           <Ionicons name="share-outline" size={24} color={colors.primaryText} />
         </TouchableOpacity>
       </View>
@@ -300,8 +313,8 @@ export function GroupDetailScreen() {
                 style={[styles.startButton, { backgroundColor: colors.accentGreen }]}
                 onPress={handleStartSession}
               >
-                <Ionicons name="play" size={20} color={colors.cardBackground} />
-                <Text style={[styles.startButtonText, { color: colors.cardBackground }]}>
+                <Ionicons name="play" size={20} color={colors.onAccent} />
+                <Text style={[styles.startButtonText, { color: colors.onAccent }]}>
                   {isLocalGroup ? t('groups.startGroupSession') : t('groups.saveSyncedSession')}
                 </Text>
               </TouchableOpacity>
@@ -381,7 +394,7 @@ export function GroupDetailScreen() {
               <View style={styles.prayerCardLeft}>
                 <Ionicons name="hand-left-outline" size={20} color={colors.accentGreen} />
                 <Text style={[styles.prayerCardTitle, { color: colors.primaryText }]}>
-                  Prayer Wall
+                  {t('prayer.title')}
                 </Text>
               </View>
               <View style={styles.prayerCardRight}>
@@ -404,7 +417,7 @@ export function GroupDetailScreen() {
               </Text>
             ) : (
               <Text style={[styles.prayerPreviewText, { color: colors.secondaryText }]}>
-                No prayer requests yet. Be the first to share.
+                {t('prayer.beFirst')}
               </Text>
             )}
           </TouchableOpacity>
@@ -439,7 +452,7 @@ export function GroupDetailScreen() {
             onPress={handleLeaveGroup}
           >
             <Ionicons name="exit-outline" size={20} color={colors.error} />
-            <Text style={[styles.leaveButtonText, { color: colors.error }]}>Leave Group</Text>
+            <Text style={[styles.leaveButtonText, { color: colors.error }]}>{t('groups.leaveGroup')}</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
@@ -455,108 +468,119 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
   backButton: {
-    padding: 4,
+    padding: spacing.xs,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.cardTitle,
+    flex: 1,
+    textAlign: 'center',
   },
   moreButton: {
-    padding: 4,
+    padding: spacing.xs,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: layout.screenPadding,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingIndicator: {
+    marginBottom: spacing.md,
+  },
   errorText: {
+    ...typography.body,
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   errorLink: {
+    ...typography.body,
     fontSize: 16,
-    fontWeight: '500',
   },
   codeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 20,
+    padding: spacing.lg,
+    marginBottom: layout.cardPadding,
   },
   codeCardLeft: {},
   codeLabel: {
-    fontSize: 12,
-    marginBottom: 4,
+    ...typography.micro,
+    marginBottom: spacing.xs,
   },
   codeValue: {
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: 2,
+    fontVariant: ['tabular-nums'],
   },
   codeCardRight: {
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   shareText: {
-    fontSize: 12,
-    fontWeight: '500',
+    ...typography.micro,
   },
   currentCard: {
     borderRadius: radius.lg,
-    padding: 20,
-    marginBottom: 24,
+    padding: layout.cardPadding,
+    marginBottom: spacing.xl,
   },
   currentCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   fieldBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radius.md,
   },
   fieldBadgeText: {
-    fontSize: 12,
+    ...typography.micro,
     fontWeight: '600',
   },
   progressText: {
-    fontSize: 12,
+    ...typography.micro,
   },
   currentTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
+    ...typography.cardTitle,
+    marginBottom: spacing.xs,
   },
   currentLesson: {
-    fontSize: 14,
-    marginBottom: 16,
+    ...typography.body,
+    marginBottom: spacing.lg,
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.lg,
-    paddingVertical: 14,
-    gap: 8,
+    minHeight: layout.minTouchTarget,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   startButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.button,
   },
   readOnlyCard: {
     borderRadius: radius.lg,
@@ -694,13 +718,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   prayerCountBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radius.lg,
   },
   prayerCountText: {
-    fontSize: 12,
+    ...typography.micro,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   prayerPreviewText: {
     fontSize: 14,

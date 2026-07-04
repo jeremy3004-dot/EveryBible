@@ -97,6 +97,8 @@ export function MoreScreen() {
         <TouchableOpacity
           style={[styles.profileCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
           onPress={() => navigation.navigate('Profile')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
         >
           <View style={[styles.avatar, { backgroundColor: colors.cardBorder }]}>
             {user?.photoURL ? (
@@ -118,7 +120,12 @@ export function MoreScreen() {
 
         {/* Auth Buttons */}
         {!isAuthenticated ? (
-          <TouchableOpacity style={[styles.signInButton, { backgroundColor: colors.accentGreen }]} onPress={handleSignIn}>
+          <TouchableOpacity
+            style={[styles.signInButton, { backgroundColor: colors.accentGreen }]}
+            onPress={handleSignIn}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
             <Text style={[styles.signInText, { color: colors.onAccent }]}>
               {t('more.syncYourProgress')}
             </Text>
@@ -127,6 +134,8 @@ export function MoreScreen() {
           <TouchableOpacity
             style={[styles.signOutButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
             onPress={handleSignOut}
+            activeOpacity={0.7}
+            accessibilityRole="button"
           >
             <Ionicons name="log-out-outline" size={20} color={colors.error} />
             <Text style={[styles.signOutText, { color: colors.error }]}>{t('more.signOut')}</Text>
@@ -144,6 +153,9 @@ export function MoreScreen() {
                 index === menuItems.length - 1 && styles.menuItemLast,
               ]}
               onPress={() => handleMenuPress(item)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={item.title ?? (item.titleKey ? t(item.titleKey) : undefined)}
             >
               <Ionicons name={item.icon} size={24} color={colors.secondaryText} />
               <Text style={[styles.menuItemText, { color: colors.primaryText }]}>
@@ -239,7 +251,9 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.lg,
+    minHeight: 60,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
   menuItemLast: {

@@ -1,13 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +17,7 @@ import {
 } from '../../services/plans/rhythmPresets';
 import type { RhythmSlot } from '../../services/plans/types';
 import { useReadingPlansStore } from '../../stores';
+import { mediumHaptic, successHaptic } from '../../utils';
 
 type SlotFilter = 'all' | 'anytime' | RhythmSlot;
 
@@ -42,7 +35,10 @@ function FilterChip({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.88}
+      activeOpacity={0.85}
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
       style={[
         styles.filterChip,
         {
@@ -51,7 +47,7 @@ function FilterChip({
         },
       ]}
     >
-      <Text style={[styles.filterChipLabel, { color: active ? colors.cardBackground : colors.primaryText }]}>
+      <Text style={[styles.filterChipLabel, { color: active ? colors.onAccent : colors.primaryText }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -77,7 +73,7 @@ function MetaPill({
         },
       ]}
     >
-      <Text style={[styles.metaPillLabel, { color: accent ? colors.cardBackground : colors.secondaryText }]}>
+      <Text style={[styles.metaPillLabel, { color: accent ? colors.onAccent : colors.secondaryText }]}>
         {label}
       </Text>
     </View>
@@ -96,14 +92,12 @@ function PresetCard({
   preset,
   colors,
   t,
-  saving,
   actionLabel,
   onPress,
 }: {
   preset: RhythmPreset;
   colors: ThemeColors;
   t: ReturnType<typeof useTranslation>['t'];
-  saving: boolean;
   actionLabel: string;
   onPress: () => void;
 }) {
@@ -115,7 +109,8 @@ function PresetCard({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.92}
+      activeOpacity={0.85}
+      accessibilityRole="button"
       style={[styles.presetCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
     >
       <View style={styles.presetHeader}>
@@ -166,22 +161,9 @@ function PresetCard({
         <Text style={[styles.includesValue, { color: colors.primaryText }]}>{itemPreview}</Text>
       </View>
 
-      <View
-        style={[
-          styles.inlineAction,
-          {
-            backgroundColor: saving ? colors.cardBorder : colors.accentPrimary,
-          },
-        ]}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color={colors.cardBackground} />
-        ) : (
-          <>
-            <Ionicons name="add-outline" size={18} color={colors.cardBackground} />
-            <Text style={[styles.inlineActionLabel, { color: colors.cardBackground }]}>{actionLabel}</Text>
-          </>
-        )}
+      <View style={[styles.inlineAction, { backgroundColor: colors.accentPrimary }]}>
+        <Ionicons name="add-outline" size={18} color={colors.onAccent} />
+        <Text style={[styles.inlineActionLabel, { color: colors.onAccent }]}>{actionLabel}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -196,7 +178,6 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
   const [slotFilter, setSlotFilter] = useState<SlotFilter>('all');
   const [traditionFilter, setTraditionFilter] = useState<string>('All traditions');
-  const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
 
   const rhythmsById = useReadingPlansStore((state) => state.rhythmsById);
   const createRhythm = useReadingPlansStore((state) => state.createRhythm);
@@ -225,8 +206,6 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
   const handleApplyPreset = useCallback(
     (preset: RhythmPreset) => {
-      setSavingPresetId(preset.id);
-
       const result = currentRhythm
         ? updateRhythm(currentRhythm.id, {
             title: preset.title,
@@ -239,8 +218,6 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             items: buildPresetRhythmItems(preset),
           });
 
-      setSavingPresetId(null);
-
       if (!result.success || !result.rhythm) {
         Alert.alert(
           t('common.error', { defaultValue: 'Error' }),
@@ -249,6 +226,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         return;
       }
 
+      successHaptic();
       navigation.replace('RhythmDetail', { rhythmId: result.rhythm.id });
     },
     [createRhythm, currentRhythm, navigation, t, updateRhythm]
@@ -268,6 +246,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           text: t('common.delete', { defaultValue: 'Delete' }),
           style: 'destructive',
           onPress: () => {
+            mediumHaptic();
             deleteRhythm(currentRhythm.id);
             navigation.popToTop();
           },
@@ -286,10 +265,11 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           <Text style={[styles.errorBody, { color: colors.secondaryText }]}>Rhythm not found.</Text>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             accessibilityRole="button"
             style={[styles.errorButton, { backgroundColor: colors.accentPrimary }]}
           >
-            <Text style={[styles.errorButtonLabel, { color: colors.cardBackground }]}>
+            <Text style={[styles.errorButtonLabel, { color: colors.onAccent }]}>
               {t('common.back')}
             </Text>
           </TouchableOpacity>
@@ -307,6 +287,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             style={[styles.backButton, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}
@@ -439,7 +420,6 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
                 preset={preset}
                 colors={colors}
                 t={t}
-                saving={savingPresetId === preset.id}
                 actionLabel={isEditing ? 'Replace rhythm' : 'Add rhythm'}
                 onPress={() => handleApplyPreset(preset)}
               />
@@ -450,6 +430,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         {isEditing ? (
           <TouchableOpacity
             onPress={handleDeleteRhythm}
+            activeOpacity={0.85}
             accessibilityRole="button"
             style={[
               styles.destructiveButton,
@@ -482,8 +463,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',

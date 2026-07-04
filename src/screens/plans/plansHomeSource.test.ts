@@ -183,7 +183,7 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
   );
   assert.match(
     source,
-    /const handleAddPlan = useCallback\(\(\) => {\s*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
+    /const handleAddPlan = useCallback\(\(\) => {[\s\S]*setActiveTab\('find-plans'\);\s*}, \[\]\);/s,
     'PlansHomeScreen should route the plans CTA straight into the Find Plans tab'
   );
 });

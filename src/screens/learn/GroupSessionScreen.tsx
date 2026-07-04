@@ -7,14 +7,15 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
-import { radius } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
+import { successHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -43,6 +44,7 @@ export function GroupSessionScreen() {
   const { groupId } = route.params;
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const PHASES = [
     { id: 'look-back' as SessionPhase, title: t('groups.session.lookBack'), duration: t('groups.session.duration5min'), icon: 'arrow-back-circle-outline' as keyof typeof Ionicons.glyphMap },
@@ -208,6 +210,7 @@ export function GroupSessionScreen() {
       if (nextLesson && currentCourse) {
         updateLocalGroupLesson(groupId, currentCourse.id, nextLesson.id);
       }
+      successHaptic();
       navigation.goBack();
       return;
     }
@@ -235,6 +238,7 @@ export function GroupSessionScreen() {
           current_lesson_id: nextLesson.id,
         });
       }
+      successHaptic();
       navigation.goBack();
     } catch (error) {
       const message =
@@ -252,6 +256,9 @@ export function GroupSessionScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="close" size={24} color={colors.primaryText} />
         </TouchableOpacity>
@@ -275,6 +282,10 @@ export function GroupSessionScreen() {
                 isActive && { backgroundColor: colors.accentGreen + '20' },
               ]}
               onPress={() => setCurrentPhase(phase.id)}
+              activeOpacity={0.85}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={phase.title}
             >
               <View
                 style={[
@@ -285,13 +296,13 @@ export function GroupSessionScreen() {
                 ]}
               >
                 {isCompleted ? (
-                  <Ionicons name="checkmark" size={14} color={colors.cardBackground} />
+                  <Ionicons name="checkmark" size={14} color={colors.onAccent} />
                 ) : (
                   <Text
                     style={[
                       styles.phaseNumber,
                       { color: colors.secondaryText },
-                      isActive && { color: colors.cardBackground },
+                      isActive && { color: colors.onAccent },
                     ]}
                   >
                     {index + 1}
@@ -533,7 +544,11 @@ export function GroupSessionScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.background, borderTopColor: colors.cardBorder },
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.cardBorder,
+            paddingBottom: Math.max(insets.bottom, spacing.lg),
+          },
         ]}
       >
         <View style={styles.footerButtons}>
@@ -552,8 +567,8 @@ export function GroupSessionScreen() {
               style={[styles.footerButtonPrimary, { backgroundColor: colors.accentGreen }]}
               onPress={handleNextPhase}
             >
-              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>{t('common.next')}</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.cardBackground} />
+              <Text style={[styles.footerButtonPrimaryText, { color: colors.onAccent }]}>{t('common.next')}</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.onAccent} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -567,8 +582,8 @@ export function GroupSessionScreen() {
               }}
               disabled={isSavingSynced}
             >
-              <Ionicons name="checkmark" size={20} color={colors.cardBackground} />
-              <Text style={[styles.footerButtonPrimaryText, { color: colors.cardBackground }]}>
+              <Ionicons name="checkmark" size={20} color={colors.onAccent} />
+              <Text style={[styles.footerButtonPrimaryText, { color: colors.onAccent }]}>
                 {isSavingSynced
                   ? t('groups.session.saving')
                   : isSyncedGroup
@@ -591,25 +606,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
   backButton: {
-    padding: 4,
+    padding: spacing.xs,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
   },
   headerCenter: {
     alignItems: 'center',
   },
   headerTitle: {
+    ...typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '600',
   },
   headerSubtitle: {
-    fontSize: 12,
+    ...typography.micro,
   },
   headerRight: {
-    width: 32,
+    width: layout.minTouchTarget,
   },
   errorContainer: {
     flex: 1,
@@ -617,27 +635,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    ...typography.body,
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   errorLink: {
+    ...typography.body,
     fontSize: 16,
-    fontWeight: '500',
   },
   phaseTabs: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   phaseTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
+    minHeight: layout.minTouchTarget,
     borderRadius: radius.md,
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   phaseIndicator: {
     width: 22,
@@ -647,19 +667,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phaseNumber: {
-    fontSize: 12,
+    ...typography.micro,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   phaseTitle: {
-    fontSize: 13,
+    ...typography.label,
     fontWeight: '500',
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 100,
+    padding: layout.screenPadding,
+    paddingBottom: 140,
   },
   lessonInfo: {
     marginBottom: 20,
@@ -730,7 +751,8 @@ const styles = StyleSheet.create({
   questionBullet: {
     fontSize: 14,
     fontWeight: '600',
-    width: 24,
+    minWidth: 24,
+    fontVariant: ['tabular-nums'],
   },
   questionText: {
     flex: 1,
@@ -815,8 +837,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
   },
   footerButtons: {
     flexDirection: 'row',

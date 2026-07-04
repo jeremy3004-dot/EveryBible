@@ -104,6 +104,11 @@ export function GatherIconBadge({
       .replace(/stroke="#(?:000000|000)"/g, `stroke="${resolvedColor}"`);
   }, [artworkBitmapUri, artworkXml, artworkZoom, resolvedColor]);
 
+  // Pre-multiply the bitmap dimensions by the zoom factor instead of applying a
+  // transform scale — a scaled transform is clipped by the container's overflow:'hidden'
+  // once zoom exceeds ~1.1, hard-cropping the artwork edges.
+  const artworkBitmapSize = Math.round(artworkSize * artworkZoom);
+
   return (
     <View
       style={[
@@ -120,14 +125,15 @@ export function GatherIconBadge({
           : null,
         style,
       ]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     >
       {artworkBitmapUri ? (
         <Image
           source={{ uri: artworkBitmapUri }}
           style={{
-            width: artworkSize,
-            height: artworkSize,
-            transform: [{ scale: artworkZoom }],
+            width: artworkBitmapSize,
+            height: artworkBitmapSize,
             tintColor: resolvedColor,
           }}
           resizeMode="contain"

@@ -50,7 +50,7 @@ export function GatherScreen() {
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('foundations')}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'foundations' }}
         >
@@ -72,7 +72,7 @@ export function GatherScreen() {
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('wisdom')}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'wisdom' }}
         >
@@ -220,7 +220,7 @@ export function GatherScreen() {
                       />
                       <Text
                         style={[styles.wisdomTitle, { color: colors.primaryText }]}
-                        numberOfLines={2}
+                        numberOfLines={3}
                       >
                         {WISDOM_TITLE_KEYS[wisdom.id] ? t(WISDOM_TITLE_KEYS[wisdom.id]) : wisdom.title}
                       </Text>
@@ -274,22 +274,6 @@ const styles = StyleSheet.create({
   wisdomContent: {
     paddingBottom: spacing.xxxl,
   },
-  // Info banner
-  infoBanner: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: layout.denseCardPadding,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  infoBannerContent: {
-    flex: 1,
-  },
-  infoBannerText: {
-    ...typography.body,
-    lineHeight: 21,
-  },
   // Foundation cards
   getStartedLabel: {
     ...typography.micro,
@@ -318,6 +302,7 @@ const styles = StyleSheet.create({
   },
   foundationProgress: {
     ...typography.label,
+    fontVariant: ['tabular-nums'],
   },
   // Wisdom
   categoryHeaderRow: {
@@ -350,8 +335,10 @@ const styles = StyleSheet.create({
   wisdomTitle: {
     ...typography.label,
     textAlign: 'center',
+    minHeight: 54,
   },
   wisdomProgress: {
     ...typography.micro,
+    fontVariant: ['tabular-nums'],
   },
 });

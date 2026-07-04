@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
-import { radius } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import {
@@ -40,6 +47,7 @@ export function GroupListScreen() {
   const syncRequestKey = syncFeatureEnabled && backendConfigured && isSignedIn
     ? user?.uid ?? 'signed-in'
     : null;
+  const [reloadKey, setReloadKey] = useState(0);
   const [remoteSyncState, setRemoteSyncState] = useState<{
     key: string | null;
     groups: SyncedGroup[];
@@ -49,13 +57,19 @@ export function GroupListScreen() {
     groups: [],
     error: null,
   });
-  const syncedGroups = syncRequestKey !== null && remoteSyncState.key === syncRequestKey
+  // Fold the retry counter into the request identity so a retry (which bumps
+  // reloadKey, not syncRequestKey) changes the token, making the derived loading
+  // state re-show the spinner instead of the stale error card — no setState in
+  // the effect required.
+  const syncRequestToken =
+    syncRequestKey === null ? null : `${syncRequestKey}:${reloadKey}`;
+  const syncedGroups = syncRequestToken !== null && remoteSyncState.key === syncRequestToken
     ? remoteSyncState.groups
     : [];
-  const syncLoadError = syncRequestKey !== null && remoteSyncState.key === syncRequestKey
+  const syncLoadError = syncRequestToken !== null && remoteSyncState.key === syncRequestToken
     ? remoteSyncState.error
     : null;
-  const isLoadingSynced = syncRequestKey !== null && remoteSyncState.key !== syncRequestKey;
+  const isLoadingSynced = syncRequestToken !== null && remoteSyncState.key !== syncRequestToken;
   const repositorySnapshot = buildGroupRepositorySnapshot({
     localGroups: groups,
     syncFeatureEnabled,
@@ -67,7 +81,7 @@ export function GroupListScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!syncRequestKey) {
+    if (!syncRequestToken) {
       return () => {
         cancelled = true;
       };
@@ -80,7 +94,7 @@ export function GroupListScreen() {
         }
 
         setRemoteSyncState({
-          key: syncRequestKey,
+          key: syncRequestToken,
           groups: nextGroups,
           error: null,
         });
@@ -91,7 +105,7 @@ export function GroupListScreen() {
         }
 
         setRemoteSyncState({
-          key: syncRequestKey,
+          key: syncRequestToken,
           groups: [],
           error: error instanceof Error ? error.message : 'Unable to refresh synced groups.',
         });
@@ -100,7 +114,11 @@ export function GroupListScreen() {
     return () => {
       cancelled = true;
     };
-  }, [syncRequestKey]);
+  }, [syncRequestToken]);
+
+  const handleRetrySync = useCallback(() => {
+    setReloadKey((value) => value + 1);
+  }, []);
 
   const statusIconName =
     groupRollout.syncStatusKey === 'harvest.groupSyncReady'
@@ -116,7 +134,13 @@ export function GroupListScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
@@ -170,9 +194,9 @@ export function GroupListScreen() {
             <TouchableOpacity
               style={[styles.authPromptButton, { backgroundColor: colors.accentPrimary }]}
               onPress={() => openAuthFlow('signIn')}
-              activeOpacity={0.9}
+              activeOpacity={0.85}
             >
-              <Text style={[styles.authPromptButtonText, { color: colors.background }]}>
+              <Text style={[styles.authPromptButtonText, { color: colors.onAccent }]}>
                 {t('auth.signIn')}
               </Text>
             </TouchableOpacity>
@@ -228,7 +252,7 @@ export function GroupListScreen() {
                 { backgroundColor: colors.background, borderColor: colors.cardBorder },
               ]}
             >
-              <Ionicons name="cloud-offline-outline" size={30} color={colors.secondaryText} />
+              <Ionicons name="people-outline" size={30} color={colors.secondaryText} />
               <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                 {t('harvest.noLocalGroups')}
               </Text>
@@ -263,6 +287,17 @@ export function GroupListScreen() {
                 <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                   {t('harvest.groupSyncLoadError')}
                 </Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { borderColor: colors.cardBorder }]}
+                  onPress={handleRetrySync}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.retry')}
+                >
+                  <Text style={[styles.retryButtonText, { color: colors.accentPrimary }]}>
+                    {t('common.retry')}
+                  </Text>
+                </TouchableOpacity>
               </View>
             ) : isLoadingSynced && repositorySnapshot.syncedGroups.length === 0 ? (
               <View
@@ -271,7 +306,7 @@ export function GroupListScreen() {
                   { backgroundColor: colors.background, borderColor: colors.cardBorder },
                 ]}
               >
-                <Ionicons name="sync-outline" size={30} color={colors.accentPrimary} />
+                <ActivityIndicator size="large" color={colors.accentPrimary} />
                 <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                   {t('harvest.loadingSyncedGroups')}
                 </Text>
@@ -337,37 +372,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
   backButton: {
-    padding: 4,
+    padding: spacing.xs,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.cardTitle,
   },
   headerRight: {
-    width: 32,
+    width: layout.minTouchTarget,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
-    gap: 16,
+    padding: layout.screenPadding,
+    gap: spacing.lg,
   },
   heroCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 20,
-    gap: 16,
+    padding: layout.cardPadding,
+    gap: spacing.lg,
   },
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
   heroIcon: {
     width: 52,
@@ -380,70 +417,64 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    ...typography.eyebrow,
+    marginBottom: spacing.xs,
   },
   heroTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...typography.sectionTitle,
   },
   heroBody: {
-    fontSize: 14,
+    ...typography.body,
     lineHeight: 22,
   },
   statusCard: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
     alignItems: 'center',
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 14,
+    padding: spacing.md,
   },
   statusText: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body,
     lineHeight: 20,
-    fontWeight: '500',
   },
   authPromptButton: {
-    marginTop: 16,
+    marginTop: spacing.lg,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    minHeight: layout.minTouchTarget,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   authPromptButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.button,
   },
   localCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 18,
-    gap: 14,
+    padding: layout.denseCardPadding,
+    gap: spacing.md,
   },
   localTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...typography.cardTitle,
   },
   localBody: {
-    fontSize: 14,
+    ...typography.body,
     lineHeight: 21,
   },
   localList: {
-    gap: 12,
+    gap: spacing.md,
   },
   groupRow: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 14,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   groupIcon: {
     width: 38,
@@ -457,33 +488,45 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   groupName: {
+    ...typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '600',
   },
   groupMeta: {
-    fontSize: 13,
+    ...typography.label,
+    fontWeight: '400',
+    fontVariant: ['tabular-nums'],
   },
   localOnlyBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
   },
   localOnlyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    ...typography.eyebrow,
     letterSpacing: 0.4,
   },
   emptyState: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 20,
-    gap: 8,
+    padding: layout.cardPadding,
+    gap: spacing.sm,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 14,
+    ...typography.body,
     textAlign: 'center',
     lineHeight: 21,
+  },
+  retryButton: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    ...typography.label,
   },
 });

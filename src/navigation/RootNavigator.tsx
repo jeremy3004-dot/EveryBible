@@ -30,7 +30,7 @@ export function RootNavigator() {
           card: colors.cardBackground,
           text: colors.primaryText,
           border: colors.cardBorder,
-          notification: colors.accentGreen,
+          notification: colors.accentPrimary,
         },
         fonts: navigationTypography,
       }}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +36,7 @@ export function ResetPasswordScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const setSession = useAuthStore((state) => state.setSession);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -117,7 +118,12 @@ export function ResetPasswordScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <TouchableOpacity style={styles.closeButton} onPress={dismiss}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={dismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+            >
               <Ionicons name="close" size={28} color={colors.primaryText} />
             </TouchableOpacity>
           </View>
@@ -145,11 +151,16 @@ export function ResetPasswordScreen() {
                     placeholderTextColor={colors.secondaryText}
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
+                    returnKeyType="next"
+                    onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                   <TouchableOpacity
                     style={styles.eyeButton}
                     onPress={() => setShowPassword((current) => !current)}
                     disabled={isLoading}
+                    hitSlop={8}
+                    accessibilityRole="button"
                   >
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -164,6 +175,7 @@ export function ResetPasswordScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
                 <TextInput
+                  ref={confirmPasswordInputRef}
                   style={[styles.input, errors.confirmPassword && styles.inputError]}
                   value={confirmPassword}
                   onChangeText={(text) => {
@@ -174,6 +186,8 @@ export function ResetPasswordScreen() {
                   placeholderTextColor={colors.secondaryText}
                   secureTextEntry={!showPassword}
                   editable={!isLoading}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
                 />
                 {errors.confirmPassword ? (
                   <Text style={styles.errorText}>{errors.confirmPassword}</Text>
@@ -184,9 +198,10 @@ export function ResetPasswordScreen() {
                 style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                 onPress={handleSubmit}
                 disabled={isLoading}
+                activeOpacity={0.85}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={colors.primaryText} />
+                  <ActivityIndicator color={colors.bibleBackground} />
                 ) : (
                   <Text style={styles.primaryButtonText}>{t('auth.resetPasswordSubmit')}</Text>
                 )}

@@ -86,8 +86,8 @@ test('AudioReturnTab looks like a slim right-edge tab instead of a full mini-pla
 
   assert.match(
     source,
-    /borderColor:\s*'rgba\(255,\s*255,\s*255,\s*0\.78\)'/,
-    'AudioReturnTab should use a subtle white accent line to define the tab edge'
+    /borderColor:\s*hexWithAlpha\(colors\.onAccent,\s*0\.78\)/,
+    'AudioReturnTab should use a subtle on-accent line (themed, not a hardcoded white) to define the tab edge'
   );
 
   assert.match(

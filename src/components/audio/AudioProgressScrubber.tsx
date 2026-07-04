@@ -1,6 +1,15 @@
 import { useState } from 'react';
-import type { GestureResponderEvent, LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native';
+import type {
+  AccessibilityActionEvent,
+  GestureResponderEvent,
+  LayoutChangeEvent,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import { PanResponder, StyleSheet, View } from 'react-native';
+import { formatPlaybackTime } from '../../utils';
+
+const SEEK_STEP_MS = 10000;
 
 interface AudioProgressScrubberProps {
   position: number;
@@ -63,6 +72,22 @@ export function AudioProgressScrubber({
     setTrackWidth(event.nativeEvent.layout.width);
   };
 
+  const seekBy = (deltaMs: number) => {
+    if (duration <= 0) {
+      return;
+    }
+
+    onSeek(clampProgressPosition(clampProgressPosition(position, duration) + deltaMs, duration));
+  };
+
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    if (event.nativeEvent.actionName === 'increment') {
+      seekBy(SEEK_STEP_MS);
+    } else if (event.nativeEvent.actionName === 'decrement') {
+      seekBy(-SEEK_STEP_MS);
+    }
+  };
+
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
@@ -74,7 +99,21 @@ export function AudioProgressScrubber({
   });
 
   return (
-    <View style={[styles.container, containerStyle]} onLayout={handleLayout} {...panResponder.panHandlers}>
+    <View
+      style={[styles.container, containerStyle]}
+      onLayout={handleLayout}
+      hitSlop={{ top: 12, bottom: 12 }}
+      accessibilityRole="adjustable"
+      accessibilityValue={{
+        min: 0,
+        max: Math.max(0, Math.floor(duration / 1000)),
+        now: Math.floor(displayedPosition / 1000),
+        text: `${formatPlaybackTime(displayedPosition)} / ${formatPlaybackTime(duration)}`,
+      }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={handleAccessibilityAction}
+      {...panResponder.panHandlers}
+    >
       <View style={[styles.track, { backgroundColor: trackColor }, trackStyle]}>
         <View
           style={[
@@ -87,6 +126,20 @@ export function AudioProgressScrubber({
           ]}
         />
       </View>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.thumb,
+          {
+            left: `${progress}%`,
+            width: isScrubbing ? 16 : 12,
+            height: isScrubbing ? 16 : 12,
+            marginLeft: isScrubbing ? -8 : -6,
+            marginTop: isScrubbing ? -8 : -6,
+            backgroundColor: fillColor,
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -94,6 +147,7 @@ export function AudioProgressScrubber({
 const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
+    minHeight: 32,
   },
   track: {
     height: 6,
@@ -102,6 +156,11 @@ const styles = StyleSheet.create({
   },
   fill: {
     height: '100%',
+    borderRadius: 999,
+  },
+  thumb: {
+    position: 'absolute',
+    top: '50%',
     borderRadius: 999,
   },
 });

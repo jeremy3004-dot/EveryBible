@@ -5,6 +5,7 @@ import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { getBookById, getBookIcon } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
+import { formatPlaybackTime } from '../../utils';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
 import { PlaybackControls } from './PlaybackControls';
 import type { AudioPlaybackSequenceEntry } from '../../types';
@@ -74,12 +75,6 @@ export function AudioFirstChapterCard({
     nextSequenceEntry ?? (book && chapter < book.chapters ? { bookId, chapter: chapter + 1 } : null);
   const displayPosition = isCurrentChapter ? currentPosition : 0;
   const displayDuration = isCurrentChapter ? duration : 0;
-  const formatTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
 
   const handlePlayPause = () => {
     if (!isCurrentChapter) {
@@ -160,10 +155,10 @@ export function AudioFirstChapterCard({
 
         <View style={styles.timeRow}>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-            {formatTime(displayPosition)}
+            {formatPlaybackTime(displayPosition)}
           </Text>
           <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-            -{formatTime(remainingDuration)}
+            -{formatPlaybackTime(remainingDuration)}
           </Text>
         </View>
 
@@ -241,6 +236,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   errorText: {
     fontSize: 13,

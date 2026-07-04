@@ -111,6 +111,7 @@ import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useShallow } from 'zustand/react/shallow';
 import { selectionHaptic } from '../../utils/haptics';
+import { hexWithAlpha } from '../../utils/color';
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import { PlaybackControls } from '../../components/audio/PlaybackControls';
@@ -156,6 +157,7 @@ import {
   shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
+  shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
 import {
   getChapterFeedbackResultVariant,
@@ -381,42 +383,42 @@ async function loadVideoTrimDependencies() {
 
 const readerThemePreviewOptions: Array<{
   mode: ThemeMode;
-  label: string;
+  labelKey: string;
   background: readonly [string, string];
   paper: string;
   line: string;
 }> = [
   {
     mode: 'light',
-    label: 'Light',
+    labelKey: 'settings.themeLight',
     background: ['#F7F9FB', '#EEF2F6'],
     paper: '#FFFFFF',
     line: '#202428',
   },
   {
     mode: 'parchment',
-    label: 'Parchment',
+    labelKey: 'settings.themeParchment',
     background: ['#F4E9D2', '#E6D2AB'],
     paper: '#FFF4DD',
     line: '#3F2F20',
   },
   {
     mode: 'low-light',
-    label: 'Sepia',
+    labelKey: 'settings.themeLowLight',
     background: ['#2B231D', '#19120E'],
     paper: '#332820',
     line: '#EEDCC2',
   },
   {
     mode: 'dark',
-    label: 'Ink',
+    labelKey: 'settings.themeDark',
     background: ['#17191D', '#0B0C0E'],
     paper: '#111111',
     line: '#F5F2EA',
   },
   {
     mode: 'midnight',
-    label: 'Midnight',
+    labelKey: 'settings.themeMidnight',
     background: ['#172033', '#070A11'],
     paper: '#0B1020',
     line: '#ECF3FF',
@@ -2285,10 +2287,14 @@ export function BibleReaderScreen() {
 
   async function loadChapter() {
     const requestId = ++chapterLoadRequestIdRef.current;
-    // Only show loading skeleton on the very first load (no verses yet).
-    // For chapter-to-chapter transitions, keep the old content visible to
-    // avoid a layout flash / button jump.
-    if (verses.length === 0) {
+    // HARD RULE (do not change): chapter-to-chapter transitions must NEVER show a
+    // loading skeleton. Only show the skeleton on the very first load (no verses yet).
+    // For chapter-to-chapter transitions, keep the old content visible to avoid a
+    // layout flash / button jump. This guard is what keeps `showPremiumReadMode`
+    // (which includes `!isLoading`, defined ~line 1589) from flashing the skeleton
+    // mid-chapter. See bibleReaderModel.test.ts:
+    // "isLoading stays false on chapter change with existing verses".
+    if (shouldShowChapterLoadSkeleton(verses.length)) {
       setIsLoading(true);
     }
     setError(null);
@@ -4748,6 +4754,11 @@ export function BibleReaderScreen() {
       }
     };
 
+    const handleToggleVerseSelection = (verse: Verse) => {
+      selectionHaptic();
+      setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
+    };
+
     const renderStackedVerse = (verse: Verse) => {
       const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
         getVersePresentation(verse);
@@ -4758,9 +4769,7 @@ export function BibleReaderScreen() {
         return (
           <Pressable
             key={`${verse.id}-formatted-${focusRenderKey}`}
-            onPress={() => {
-              setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
-            }}
+            onPress={() => handleToggleVerseSelection(verse)}
             style={[
               styles.readerVerse,
               styles.structuredVerse,
@@ -4807,9 +4816,7 @@ export function BibleReaderScreen() {
               verseNumberStyle={verseNumberStyle}
               selectedStyle={isSelected ? selectedVerseDecorationStyle : null}
               highlightColor={highlightAnnotation.color}
-              onPress={() => {
-                setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
-              }}
+              onPress={() => handleToggleVerseSelection(verse)}
             />
           </View>
         );
@@ -4818,9 +4825,7 @@ export function BibleReaderScreen() {
       return (
         <Pressable
           key={`${verse.id}-${focusRenderKey}`}
-          onPress={() => {
-            setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
-          }}
+          onPress={() => handleToggleVerseSelection(verse)}
           style={styles.readerVerse}
         >
           <Text
@@ -4891,11 +4896,7 @@ export function BibleReaderScreen() {
                   <Text
                     key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
                     suppressHighlighting
-                    onPress={() => {
-                      setSelectedVerses((current) =>
-                        toggleBibleSelectionVerse(current, verse.verse)
-                      );
-                    }}
+                    onPress={() => handleToggleVerseSelection(verse)}
                     style={[
                       styles.premiumInlineVerse,
                       isSelected ? selectedVerseDecorationStyle : null,
@@ -5045,6 +5046,7 @@ export function BibleReaderScreen() {
           <TouchableOpacity
             style={[styles.feedbackButton, { backgroundColor: colors.bibleControlBackground }]}
             onPress={loadChapter}
+            activeOpacity={0.85}
           >
             <Text style={[styles.feedbackButtonText, { color: colors.bibleBackground }]}>
               {t('common.retry')}
@@ -5137,6 +5139,7 @@ export function BibleReaderScreen() {
             style={[styles.floatingReaderPlanExitButton]}
             activeOpacity={0.85}
             onPress={handleExitPlanSession}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             accessibilityHint={t('bible.returnToPlanHint')}
@@ -5281,6 +5284,7 @@ export function BibleReaderScreen() {
             setShowTranslationSheet(false);
             setShowChapterActionsSheet(true);
           }}
+          accessibilityRole="button"
         >
           <View style={styles.floatingReaderMenuButtonContent}>
             <Ionicons name="ellipsis-horizontal" size={20} color={colors.biblePrimaryText} />
@@ -5530,9 +5534,9 @@ export function BibleReaderScreen() {
                         },
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel={option.label}
+                      accessibilityLabel={t(option.labelKey)}
                       onPress={() => handleReaderThemeChange(option.mode)}
-                      activeOpacity={0.86}
+                      activeOpacity={0.85}
                     >
                       <LinearGradient
                         colors={option.background}
@@ -5540,7 +5544,15 @@ export function BibleReaderScreen() {
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}
                       />
-                      <View style={[styles.readerThemePaper, { backgroundColor: option.paper }]}>
+                      <View
+                        style={[
+                          styles.readerThemePaper,
+                          {
+                            backgroundColor: option.paper,
+                            borderColor: hexWithAlpha(option.line, 0.14),
+                          },
+                        ]}
+                      >
                         <View style={styles.readerThemeLineStack}>
                           <View
                             style={[styles.readerThemeLine, { backgroundColor: option.line }]}
@@ -5659,7 +5671,10 @@ export function BibleReaderScreen() {
         onRequestClose={() => setShowChapterActionsSheet(false)}
       >
         <TouchableOpacity
-          style={[styles.modalBackdropFill, { backgroundColor: colors.overlay }]}
+          style={[
+            styles.modalBackdropFill,
+            { backgroundColor: colors.overlay, paddingTop: safeInsets.top + spacing.xxl },
+          ]}
           activeOpacity={1}
           onPress={() => setShowChapterActionsSheet(false)}
         >
@@ -5750,6 +5765,9 @@ export function BibleReaderScreen() {
                 key={action.key}
                 style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
                 onPress={action.onPress}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
               >
                 <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
                 <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
@@ -6648,8 +6666,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   floatingReaderPlanExitButton: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -6693,7 +6711,7 @@ const styles = StyleSheet.create({
     ...typography.label,
     fontSize: 12,
     lineHeight: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.6,
     flexShrink: 1,
   },
@@ -6749,8 +6767,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
+    paddingHorizontal: 12,
+    paddingTop: spacing.lg,
   },
   immersiveContent: {
     flexGrow: 1,
@@ -6834,6 +6852,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     minWidth: 42,
+    fontVariant: ['tabular-nums'],
   },
   listenFeedbackCard: {
     borderWidth: 1,
@@ -6853,7 +6872,7 @@ const styles = StyleSheet.create({
   },
   listenFeedbackTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   listenFeedbackBody: {
     fontSize: 13,
@@ -6943,6 +6962,7 @@ const styles = StyleSheet.create({
   },
   inlineVerseNumber: {
     fontWeight: '600',
+    opacity: 0.75,
   },
   premiumVerseNumber: {
     ...typography.readingVerseNumber,
@@ -6976,6 +6996,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     paddingHorizontal: 18,
     paddingVertical: 12,
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   feedbackButtonText: {
     fontSize: 14,
@@ -6991,7 +7014,6 @@ const styles = StyleSheet.create({
   modalBackdropFill: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 96,
     paddingHorizontal: 16,
   },
   actionSheet: {
@@ -7002,7 +7024,7 @@ const styles = StyleSheet.create({
   },
   actionSheetTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     marginBottom: 4,
   },
   actionRow: {
@@ -7041,7 +7063,7 @@ const styles = StyleSheet.create({
   },
   chapterAudioShareLoadingTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
   chapterAudioShareLoadingBody: {
@@ -7310,7 +7332,7 @@ const styles = StyleSheet.create({
   },
   feedbackModalTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   feedbackModalReference: {
     ...typography.label,
@@ -7379,7 +7401,7 @@ const styles = StyleSheet.create({
   feedbackAudioCountdownText: {
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   feedbackAudioStatus: {
@@ -7560,7 +7582,7 @@ const styles = StyleSheet.create({
   },
   verseImageSheetTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   verseImageSheetReference: {
     ...typography.label,
@@ -7723,7 +7745,7 @@ const styles = StyleSheet.create({
   },
   audioOptionLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
@@ -7867,8 +7889,8 @@ const styles = StyleSheet.create({
   },
   fontSheet: {
     borderTopWidth: 1,
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: 16,
     gap: 16,
   },
@@ -7880,7 +7902,7 @@ const styles = StyleSheet.create({
   },
   fontSheetTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
   readerFontStepperRow: {
@@ -7928,6 +7950,7 @@ const styles = StyleSheet.create({
   readerThemePaper: {
     minHeight: 60,
     borderRadius: radius.md,
+    borderWidth: 1,
     padding: 10,
     justifyContent: 'center',
     shadowColor: '#000',
@@ -8000,7 +8023,7 @@ const styles = StyleSheet.create({
   },
   readerAllSettingsLabel: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   fontOptionRow: {
     flexDirection: 'row',

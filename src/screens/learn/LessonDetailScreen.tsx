@@ -30,6 +30,7 @@ import {
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import { getChapterAudioUrl } from '../../services/audio/audioService';
 import { getTranslatedBookName } from '../../constants';
+import { formatPlaybackTime, lightHaptic, successHaptic } from '../../utils';
 import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -39,13 +40,6 @@ import { useGatherStore } from '../../stores/gatherStore';
 // ---------------------------------------------------------------------------
 
 const LESSON_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
-
-function formatTime(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -524,11 +518,15 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
         {/* Mark as Completed button */}
         <TouchableOpacity
-          onPress={() =>
-            isComplete
-              ? unmarkLessonComplete(parentId, lessonId)
-              : markLessonComplete(parentId, lessonId)
-          }
+          onPress={() => {
+            if (isComplete) {
+              lightHaptic();
+              unmarkLessonComplete(parentId, lessonId);
+            } else {
+              successHaptic();
+              markLessonComplete(parentId, lessonId);
+            }
+          }}
           style={[
             styles.completeButton,
             {
@@ -537,15 +535,19 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               borderWidth: isComplete ? 1.5 : 0,
             },
           ]}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
+          accessibilityRole="button"
         >
           <Ionicons
             name={isComplete ? 'checkmark-circle' : 'checkmark-circle-outline'}
             size={22}
-            color={isComplete ? colors.accentGreen : '#fff'}
+            color={isComplete ? colors.accentGreen : colors.onAccent}
           />
           <Text
-            style={[styles.completeButtonText, { color: isComplete ? colors.accentGreen : '#fff' }]}
+            style={[
+              styles.completeButtonText,
+              { color: isComplete ? colors.accentGreen : colors.onAccent },
+            ]}
           >
             {isComplete ? t('gather.completed') : t('gather.markComplete')}
           </Text>
@@ -583,7 +585,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 <Text
                   style={[
                     styles.tabPillLabel,
-                    { color: isActive ? '#FFFFFF' : colors.secondaryText },
+                    { color: isActive ? colors.onAccent : colors.secondaryText },
                   ]}
                 >
                   {section.label}
@@ -596,7 +598,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         {/* Progress bar with time labels */}
         <View style={styles.progressSection}>
           <Text style={[styles.timeText, { color: colors.secondaryText }]}>
-            {formatTime(audioPosition)}
+            {formatPlaybackTime(audioPosition)}
           </Text>
           <View style={styles.progressTrackWrapper}>
             <View style={[styles.progressTrack, { backgroundColor: colors.cardBorder }]}>
@@ -622,7 +624,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             />
           </View>
           <Text style={[styles.timeText, { color: colors.secondaryText }]}>
-            {formatTime(audioDuration)}
+            {formatPlaybackTime(audioDuration)}
           </Text>
         </View>
 
@@ -655,7 +657,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               <Ionicons
                 name={isAudioPlaying ? 'pause' : 'play'}
                 size={30}
-                color="#FFFFFF"
+                color={colors.onAccent}
                 style={isAudioPlaying ? undefined : { marginLeft: 3 }}
               />
             </TouchableOpacity>
@@ -685,11 +687,11 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       <Modal
         visible={showSettings}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           activeOpacity={1}
           onPress={() => setShowSettings(false)}
         />
@@ -704,6 +706,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         >
           <View style={[styles.sheetHandle, { backgroundColor: colors.secondaryText + '55' }]} />
           <View style={styles.sheetHeader}>
+            {/* i18n: DEFERRED — net-new key gather.playbackAndText */}
             <Text style={[styles.sheetTitle, { color: colors.primaryText }]}>Playback & Text</Text>
             <TouchableOpacity
               style={[styles.sheetIconCloseButton, { backgroundColor: colors.background }]}
@@ -719,7 +722,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             <View style={styles.editorSectionHeader}>
               <Ionicons name="flash" size={18} color={colors.accentPrimary} />
               <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                Playback Speed
+                {t('audio.playbackSpeed')}
               </Text>
               <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {speedPercent}%
@@ -745,7 +748,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                     <Text
                       style={[
                         styles.speedChipText,
-                        { color: isActive ? colors.background : colors.primaryText },
+                        { color: isActive ? colors.onAccent : colors.primaryText },
                       ]}
                     >
                       {rate}x
@@ -760,7 +763,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             <View style={styles.editorSectionHeader}>
               <Text style={[styles.fontSectionIcon, { color: colors.primaryText }]}>Tt</Text>
               <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                Font Size
+                {t('settings.fontSize')}
               </Text>
               <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {fontPercent}%
@@ -1213,8 +1216,9 @@ const styles = StyleSheet.create({
   },
   timeText: {
     ...typography.micro,
-    minWidth: 36,
+    minWidth: 40,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
 
   // Controls row
@@ -1242,23 +1246,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ellipsisText: {
-    fontSize: 18,
-    letterSpacing: 2,
-    lineHeight: 22,
-  },
 
   // Settings bottom sheet
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   bottomSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    gap: 16,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.lg,
   },
   sheetHandle: {
     width: 44,
@@ -1273,7 +1271,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   sheetIconCloseButton: {
     width: 32,
@@ -1297,7 +1295,8 @@ const styles = StyleSheet.create({
   editorSectionValue: {
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '800',
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   fontSectionIcon: {
     fontSize: 18,
@@ -1322,7 +1321,7 @@ const styles = StyleSheet.create({
   },
   speedChipText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   fontStepperRow: {
     flexDirection: 'row',

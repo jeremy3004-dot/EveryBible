@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -70,8 +70,9 @@ export function AuthScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { t } = useTranslation();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const passwordInputRef = useRef<TextInput>(null);
   const setSession = useAuthStore((state) => state.setSession);
 
   const [mode, setMode] = useState<AuthScreenMode>(route.params?.initialMode ?? 'signIn');
@@ -271,7 +272,12 @@ export function AuthScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <TouchableOpacity style={styles.closeButton} onPress={dismiss}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={dismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+            >
               <Ionicons name="close" size={28} color={colors.primaryText} />
             </TouchableOpacity>
           </View>
@@ -305,8 +311,12 @@ export function AuthScreen() {
                       ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
                       : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
                   }
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                  cornerRadius={12}
+                  buttonStyle={
+                    isDark
+                      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                      : AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+                  }
+                  cornerRadius={radius.lg}
                   style={styles.appleButton}
                   onPress={handleAppleAuth}
                 />
@@ -316,8 +326,10 @@ export function AuthScreen() {
                 style={styles.googleButton}
                 onPress={handleGoogleAuth}
                 disabled={isLoading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
               >
-                <Ionicons name="logo-google" size={20} color={colors.accentPrimary} />
+                <Ionicons name="logo-google" size={20} color={colors.primaryText} />
                 <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
               </TouchableOpacity>
             </View>
@@ -344,6 +356,9 @@ export function AuthScreen() {
                   autoComplete="email"
                   keyboardType="email-address"
                   editable={!isLoading}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordInputRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
                 {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
               </View>
@@ -352,6 +367,7 @@ export function AuthScreen() {
                 <Text style={styles.label}>{t('auth.password')}</Text>
                 <View style={styles.passwordContainer}>
                   <TextInput
+                    ref={passwordInputRef}
                     style={[
                       styles.input,
                       styles.passwordInput,
@@ -368,11 +384,15 @@ export function AuthScreen() {
                     placeholderTextColor={colors.secondaryText}
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
+                    returnKeyType={mode === 'signUp' ? 'next' : 'go'}
+                    onSubmitEditing={handleEmailSubmit}
                   />
                   <TouchableOpacity
                     style={styles.eyeButton}
                     onPress={() => setShowPassword((current) => !current)}
                     disabled={isLoading}
+                    hitSlop={8}
+                    accessibilityRole="button"
                   >
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -385,7 +405,12 @@ export function AuthScreen() {
               </View>
 
               {mode === 'signIn' ? (
-                <TouchableOpacity onPress={handleForgotPassword} disabled={isLoading}>
+                <TouchableOpacity
+                  onPress={handleForgotPassword}
+                  disabled={isLoading}
+                  hitSlop={8}
+                  style={styles.forgotPasswordButton}
+                >
                   <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
                 </TouchableOpacity>
               ) : null}
@@ -394,9 +419,10 @@ export function AuthScreen() {
                 style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                 onPress={handleEmailSubmit}
                 disabled={isLoading}
+                activeOpacity={0.85}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={colors.primaryText} />
+                  <ActivityIndicator color={colors.bibleBackground} />
                 ) : (
                   <Text style={styles.primaryButtonText}>{copy.primaryLabel}</Text>
                 )}
@@ -408,6 +434,8 @@ export function AuthScreen() {
               <TouchableOpacity
                 onPress={() => handleModeChange(mode === 'signIn' ? 'signUp' : 'signIn')}
                 disabled={isLoading}
+                hitSlop={8}
+                style={styles.footerLinkButton}
               >
                 <Text style={styles.footerLink}>{copy.switchAction}</Text>
               </TouchableOpacity>
@@ -492,11 +520,11 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.md,
     },
     appleButton: {
-      height: 50,
+      height: 52,
     },
     googleButton: {
       height: 52,
-      borderRadius: radius.md,
+      borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       backgroundColor: colors.cardBackground,
@@ -567,6 +595,10 @@ const createStyles = (colors: ThemeColors) =>
       ...typography.micro,
       color: colors.error,
     },
+    forgotPasswordButton: {
+      alignSelf: 'flex-end',
+      paddingVertical: spacing.sm,
+    },
     forgotPassword: {
       ...typography.bodyStrong,
       color: colors.accentPrimary,
@@ -596,6 +628,9 @@ const createStyles = (colors: ThemeColors) =>
     footerText: {
       ...typography.body,
       color: colors.secondaryText,
+    },
+    footerLinkButton: {
+      paddingVertical: spacing.xs,
     },
     footerLink: {
       ...typography.bodyStrong,

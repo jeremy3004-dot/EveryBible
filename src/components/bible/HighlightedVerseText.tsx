@@ -8,6 +8,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { radius } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 import { getCompactHighlightVerticalInset } from './highlightMetrics';
 
 interface HighlightedVerseTextProps {
@@ -20,7 +21,8 @@ interface HighlightedVerseTextProps {
   onPress: () => void;
 }
 
-const HIGHLIGHT_ALPHA = '4D';
+// 0.3 → 0x4D suffix, the measured highlight opacity for the reading canvas.
+const HIGHLIGHT_ALPHA = 0.3;
 
 function sameLines(left: string[] | null, right: string[]): boolean {
   if (!left || left.length !== right.length) {
@@ -48,7 +50,10 @@ function HighlightedVerseTextComponent({
   );
 
   return (
-    <Pressable onPress={onPress} style={styles.highlightVerse}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.highlightVerse, pressed && styles.highlightVersePressed]}
+    >
       <Text
         accessible={false}
         importantForAccessibility="no-hide-descendants"
@@ -73,7 +78,7 @@ function HighlightedVerseTextComponent({
               style={[
                 styles.highlightBackground,
                 {
-                  backgroundColor: `${highlightColor}${HIGHLIGHT_ALPHA}`,
+                  backgroundColor: hexWithAlpha(highlightColor, HIGHLIGHT_ALPHA),
                   top: highlightVerticalInset,
                   bottom: highlightVerticalInset,
                 },
@@ -93,7 +98,7 @@ function HighlightedVerseTextComponent({
             style={[
               styles.highlightBackground,
               {
-                backgroundColor: `${highlightColor}33`,
+                backgroundColor: hexWithAlpha(highlightColor, HIGHLIGHT_ALPHA),
                 top: highlightVerticalInset,
                 bottom: highlightVerticalInset,
               },
@@ -115,6 +120,9 @@ export const HighlightedVerseText = memo(HighlightedVerseTextComponent);
 const styles = StyleSheet.create({
   highlightVerse: {
     alignSelf: 'stretch',
+  },
+  highlightVersePressed: {
+    opacity: 0.7,
   },
   measurementText: {
     position: 'absolute',

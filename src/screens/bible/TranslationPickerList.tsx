@@ -26,6 +26,7 @@ import {
   isRemoteAudioAvailable,
 } from '../../services/audio/audioRemote';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 import type { BibleTranslation } from '../../types';
 import {
   ensureRuntimeCatalogLoaded,
@@ -484,7 +485,12 @@ export function TranslationPickerList({
             returnKeyType="search"
           />
           {searchQuery.length > 0 ? (
-            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+            >
               <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
             </TouchableOpacity>
           ) : null}
@@ -616,7 +622,7 @@ export function TranslationPickerList({
         style={[
           styles.translationCard,
           {
-            backgroundColor: isSelected ? 'rgba(200, 70, 60, 0.06)' : 'transparent',
+            backgroundColor: isSelected ? hexWithAlpha(colors.bibleAccent, 0.06) : 'transparent',
             borderColor: colors.bibleDivider,
             borderLeftWidth: isSelected ? 3 : 1,
             borderLeftColor: isSelected ? colors.bibleAccent : colors.bibleDivider,
@@ -835,6 +841,8 @@ export function TranslationPickerList({
                     },
                   ]}
                   activeOpacity={0.85}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                  accessibilityRole="button"
                   accessibilityLabel={t('translations.delete')}
                   onPress={() => {
                     Alert.alert(
@@ -981,6 +989,8 @@ export function TranslationPickerList({
                   setAudioManagerTranslationId(null);
                   setActiveAudioDownloadKey(null);
                 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
               </TouchableOpacity>
@@ -1293,19 +1303,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  translationLanguageScroller: {
-    flexGrow: 0,
-    flexShrink: 0,
-    height: 28,
-    marginBottom: 0,
-    paddingBottom: 0,
-  },
-  translationLanguageFilters: {
-    paddingHorizontal: layout.screenPadding,
-    gap: spacing.sm,
-    paddingBottom: 0,
-    alignItems: 'center',
-  },
   catalogHydrationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1316,22 +1313,6 @@ const styles = StyleSheet.create({
   catalogHydrationText: {
     fontSize: 13,
     fontWeight: '500',
-  },
-  translationLanguageChip: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    minHeight: 28,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  translationLanguageChipText: {
-    ...typography.label,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 14,
   },
   translationList: {
     flex: 1,
@@ -1428,8 +1409,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   removeDownloadChip: {
-    width: 30,
-    height: 30,
+    width: 36,
+    height: 36,
     paddingHorizontal: 0,
     paddingVertical: 0,
     justifyContent: 'center',
@@ -1496,8 +1477,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   audioBookAction: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',

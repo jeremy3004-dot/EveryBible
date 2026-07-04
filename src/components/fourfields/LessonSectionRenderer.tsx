@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
-import { radius } from '../../design/system';
+import { radius, spacing, typography } from '../../design/system';
 import { LessonSection } from '../../types/course';
 
 interface LessonSectionRendererProps {
@@ -24,11 +24,11 @@ export function LessonSectionRenderer({
   const { colors } = useTheme();
   const { t } = useTranslation();
 
-  // Tibetan-inspired accent colors for different section types
+  // Theme accent colors for different section types (resolved from the active palette).
   const sectionColors = {
-    discussion: colors.accentSecondary, // Saffron Gold - community/discussion
-    activity: colors.accentTertiary,    // Sky Blue - practice/clarity
-    prayer: colors.accentPrimary,       // Tibetan Maroon - spiritual/prayer
+    discussion: colors.accentSecondary, // community / discussion
+    activity: colors.accentTertiary, // practice / clarity
+    prayer: colors.accentPrimary, // spiritual / prayer
   };
 
   switch (section.type) {
@@ -101,6 +101,8 @@ function ScriptureSection({
   colors,
   readInContextLabel,
 }: ScriptureSectionProps) {
+  const isTappable = Boolean(onPress && reference);
+
   return (
     <TouchableOpacity
       style={[styles.scriptureContainer, {
@@ -109,7 +111,9 @@ function ScriptureSection({
       }]}
       onPress={() => reference && onPress?.(reference)}
       activeOpacity={0.7}
-      disabled={!onPress || !reference}
+      disabled={!isTappable}
+      accessibilityRole={isTappable ? 'button' : undefined}
+      accessibilityHint={isTappable ? readInContextLabel : undefined}
     >
       <View style={styles.scriptureHeader}>
         <Ionicons name="book-outline" size={16} color={colors.accentPrimary} />
@@ -163,7 +167,7 @@ function DiscussionSection({
     <View style={[styles.discussionContainer, { backgroundColor: sectionColors.discussion + '15' }]}>
       <View style={styles.iconLabel}>
         <Ionicons name="chatbubbles-outline" size={18} color={sectionColors.discussion} />
-        <Text style={[styles.iconLabelText, { color: colors.secondaryText }]}>{label}</Text>
+        <Text style={[styles.iconLabelText, { color: sectionColors.discussion }]}>{label}</Text>
       </View>
       <Text style={[styles.discussionText, { color: colors.primaryText }]}>{content}</Text>
     </View>
@@ -185,7 +189,7 @@ function ActivitySection({
     <View style={[styles.activityContainer, { backgroundColor: sectionColors.activity + '15' }]}>
       <View style={styles.iconLabel}>
         <Ionicons name="hand-right-outline" size={18} color={sectionColors.activity} />
-        <Text style={[styles.iconLabelText, { color: colors.secondaryText }]}>{label}</Text>
+        <Text style={[styles.iconLabelText, { color: sectionColors.activity }]}>{label}</Text>
       </View>
       <Text style={[styles.activityText, { color: colors.primaryText }]}>{content}</Text>
     </View>
@@ -207,7 +211,7 @@ function PrayerSection({
     <View style={[styles.prayerContainer, { backgroundColor: sectionColors.prayer + '15' }]}>
       <View style={styles.iconLabel}>
         <Ionicons name="heart-outline" size={18} color={sectionColors.prayer} />
-        <Text style={[styles.iconLabelText, { color: colors.secondaryText }]}>{label}</Text>
+        <Text style={[styles.iconLabelText, { color: sectionColors.prayer }]}>{label}</Text>
       </View>
       <Text style={[styles.prayerText, { color: colors.primaryText }]}>{content}</Text>
     </View>
@@ -216,7 +220,7 @@ function PrayerSection({
 
 const styles = StyleSheet.create({
   textContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   text: {
     fontSize: 16,
@@ -224,15 +228,15 @@ const styles = StyleSheet.create({
   },
   scriptureContainer: {
     borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderLeftWidth: 3,
   },
   scriptureHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   reference: {
     fontSize: 14,
@@ -246,31 +250,31 @@ const styles = StyleSheet.create({
   readInContext: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 4,
+    marginTop: spacing.md,
+    gap: spacing.xs,
   },
   readInContextText: {
     fontSize: 14,
   },
   bulletsContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   bulletsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   bulletItem: {
     flexDirection: 'row',
-    marginBottom: 8,
-    paddingLeft: 8,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
   },
   bullet: {
     width: 6,
     height: 6,
-    borderRadius: 3,
-    marginTop: 8,
-    marginRight: 12,
+    borderRadius: radius.xs + 1,
+    marginTop: spacing.sm,
+    marginRight: spacing.md,
   },
   bulletText: {
     flex: 1,
@@ -279,20 +283,18 @@ const styles = StyleSheet.create({
   },
   discussionContainer: {
     borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   iconLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   iconLabelText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.label,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   discussionText: {
     fontSize: 16,
@@ -300,8 +302,8 @@ const styles = StyleSheet.create({
   },
   activityContainer: {
     borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   activityText: {
     fontSize: 16,
@@ -309,8 +311,8 @@ const styles = StyleSheet.create({
   },
   prayerContainer: {
     borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   prayerText: {
     fontSize: 16,
