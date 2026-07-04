@@ -1,6 +1,7 @@
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Skeleton } from './Skeleton';
 import { useTheme } from '../../contexts/ThemeContext';
+import { layout, radius } from '../../design/system';
 
 interface CardSkeletonProps {
   showImage?: boolean;
@@ -20,7 +21,9 @@ export function CardSkeleton({ showImage = false, lines = 3, style }: CardSkelet
         style,
       ]}
     >
-      {showImage && <Skeleton width="100%" height={120} borderRadius={12} style={styles.image} />}
+      {showImage && (
+        <Skeleton width="100%" height={120} borderRadius={radius.md} style={styles.image} />
+      )}
       <View style={styles.content}>
         <Skeleton width="60%" height={22} style={styles.title} />
         {Array.from({ length: lines }, (_, i) => (
@@ -62,7 +65,7 @@ export function StatCardSkeleton({ count = 4 }: StatCardSkeletonProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   content: {
-    padding: 16,
+    padding: layout.cardPadding,
   },
   title: {
     marginBottom: 12,

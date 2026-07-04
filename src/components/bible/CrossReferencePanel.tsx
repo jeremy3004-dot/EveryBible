@@ -50,7 +50,7 @@ export function CrossReferencePanel({
         {t('bible.relatedVerses')}
       </Text>
 
-      {refs.map((ref, index) => {
+      {refs.map((ref) => {
         const book = getBookById(ref.toBook);
         const label = book
           ? `${book.name} ${ref.toChapter}:${ref.toVerse}`
@@ -58,7 +58,7 @@ export function CrossReferencePanel({
 
         return (
           <TouchableOpacity
-            key={index}
+            key={`${ref.toBook}-${ref.toChapter}-${ref.toVerse}`}
             style={[
               styles.row,
               {
@@ -69,6 +69,7 @@ export function CrossReferencePanel({
             onPress={() => onPressReference?.(ref.toBook, ref.toChapter, ref.toVerse)}
             activeOpacity={0.75}
             disabled={!onPressReference}
+            accessibilityRole="button"
           >
             <Text style={[styles.referenceLabel, { color: colors.biblePrimaryText }]}>
               {label}
@@ -99,6 +100,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 44,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -106,5 +108,6 @@ const styles = StyleSheet.create({
   referenceLabel: {
     fontSize: 15,
     fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
 });

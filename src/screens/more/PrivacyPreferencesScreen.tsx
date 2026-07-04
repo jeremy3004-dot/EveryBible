@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -15,7 +15,7 @@ import {
 
 const standardIconImage = require('../../../assets/icon.png');
 const discreetIconImage = require('../../../assets/icon-discreet.png');
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ import { getPrivacySettingsSavePlan } from '../../services/privacy/privacyPrefer
 import type { PrivacyAppIconMode } from '../../types';
 import type { MoreStackParamList } from '../../navigation/types';
 import { radius, layout, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'PrivacyPreferences'>;
 
@@ -33,7 +34,9 @@ export function PrivacyPreferencesScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
+  const pinConfirmationInputRef = useRef<TextInput>(null);
   const currentMode = usePrivacyStore((state) => state.mode);
   const hasExistingPin = usePrivacyStore((state) => state.hasPin);
   const saveConfiguration = usePrivacyStore((state) => state.saveConfiguration);
@@ -101,7 +104,13 @@ export function PrivacyPreferencesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('onboarding.privacyTitle')}</Text>
@@ -109,6 +118,8 @@ export function PrivacyPreferencesScreen() {
           style={styles.headerButton}
           onPress={() => void handleSave()}
           disabled={isSaving}
+          hitSlop={8}
+          accessibilityRole="button"
         >
           {isSaving ? (
             <ActivityIndicator size="small" color={colors.accentPrimary} />
@@ -120,6 +131,7 @@ export function PrivacyPreferencesScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + 72}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -172,9 +184,14 @@ export function PrivacyPreferencesScreen() {
                 style={styles.input}
                 keyboardType="number-pad"
                 secureTextEntry
+                maxLength={6}
+                returnKeyType="next"
+                onSubmitEditing={() => pinConfirmationInputRef.current?.focus()}
+                blurOnSubmit={false}
               />
 
               <TextInput
+                ref={pinConfirmationInputRef}
                 value={pinConfirmation}
                 onChangeText={(value) => {
                   setPinConfirmation(value);
@@ -185,6 +202,9 @@ export function PrivacyPreferencesScreen() {
                 style={styles.input}
                 keyboardType="number-pad"
                 secureTextEntry
+                maxLength={6}
+                returnKeyType="done"
+                onSubmitEditing={() => void handleSave()}
               />
 
               <Text style={styles.pinLegend}>{t('onboarding.pinLegend')}</Text>
@@ -223,10 +243,11 @@ function PrivacyModeOption({
         styles.optionCard,
         isSelected && {
           borderColor: colors.accentPrimary,
+          backgroundColor: hexWithAlpha(colors.accentPrimary, 0.08),
         },
       ]}
       onPress={onPress}
-      activeOpacity={0.92}
+      activeOpacity={0.85}
     >
       <Image source={iconSource} style={styles.optionIconImage} resizeMode="cover" />
       <View style={styles.optionCopy}>
@@ -256,6 +277,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     headerButton: {
       width: 40,
+      minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -352,11 +374,11 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     input: {
-      backgroundColor: colors.cardBackground,
+      backgroundColor: colors.background,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       borderRadius: radius.sm,
-      paddingHorizontal: 14,
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       color: colors.primaryText,
       ...typography.body,

@@ -36,8 +36,8 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
   );
 
   assert.ok(
-    source.includes("defaultValue: ABOUT_RESOURCES_LABEL"),
-    'AboutScreen should provide fallback copy for the resources heading'
+    source.includes("t('about.resources')"),
+    'AboutScreen should render the localized resources heading key'
   );
 
   assert.ok(
@@ -61,8 +61,8 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
   );
 
   assert.ok(
-    source.includes("defaultValue: ABOUT_MADE_WITH_LOVE"),
-    'AboutScreen should provide fallback copy for the footer line'
+    source.includes("t('about.madeWithLove')"),
+    'AboutScreen should render the localized footer line key'
   );
 
   assert.ok(

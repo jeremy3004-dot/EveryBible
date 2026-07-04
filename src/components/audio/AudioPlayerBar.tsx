@@ -4,6 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer, useAudioPosition } from '../../hooks';
 import { getBookById } from '../../constants';
 import { useBibleStore } from '../../stores';
+import { formatPlaybackTime } from '../../utils';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
 import { PlaybackControls } from './PlaybackControls';
 
@@ -50,12 +51,6 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
     currentChapter === chapter;
   const displayPosition = isCurrentChapter ? currentPosition : 0;
   const displayDuration = isCurrentChapter ? duration : 0;
-  const formatTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
 
   const handlePlayDisplayedChapter = () => {
     if (!isCurrentChapter) {
@@ -122,7 +117,12 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.closeButton} onPress={() => setShowPlayer(false)}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => setShowPlayer(false)}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
           <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
         </TouchableOpacity>
       </View>
@@ -140,10 +140,10 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
 
       <View style={styles.timeRow}>
         <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(displayPosition)}
+          {formatPlaybackTime(displayPosition)}
         </Text>
         <Text style={[styles.timeText, { color: colors.bibleSecondaryText }]}>
-          {formatTime(displayDuration)}
+          {formatPlaybackTime(displayDuration)}
         </Text>
       </View>
 
@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 11,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   errorText: {
     fontSize: 12,

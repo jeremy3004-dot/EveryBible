@@ -586,6 +586,20 @@ export const resolveSwipeChapterNavigation = ({
   return null;
 };
 
+/**
+ * HARD RULE: chapter-to-chapter transitions must NEVER show a loading skeleton.
+ *
+ * The reader only shows the load skeleton on the very first load (when there are
+ * no verses on screen yet). On a chapter change, verses from the previous chapter
+ * are still mounted (`currentVerseCount > 0`), so this returns false and the old
+ * content stays visible until the new chapter resolves. This mirrors the guard in
+ * `loadChapter()` in BibleReaderScreen.tsx; `showPremiumReadMode` includes
+ * `!isLoading`, so keeping isLoading false here is what prevents a mid-chapter
+ * skeleton flash.
+ */
+export const shouldShowChapterLoadSkeleton = (currentVerseCount: number): boolean =>
+  currentVerseCount === 0;
+
 function countWords(text: string): number {
   const trimmed = text.trim();
   if (trimmed.length === 0) return 0;

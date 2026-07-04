@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius, shadows, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 
 const HIGHLIGHT_COLORS = [
   { id: 'red', hex: '#D95B57' },
@@ -78,7 +79,7 @@ function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps)
         style={[styles.actionLabel, { color: colors.biblePrimaryText }]}
         numberOfLines={1}
         adjustsFontSizeToFit
-        minimumFontScale={0.8}
+        minimumFontScale={0.9}
       >
         {label}
       </Text>
@@ -179,7 +180,12 @@ function AnnotationActionSheetContent({
         ]}
       >
         <View style={styles.handle}>
-          <View style={[styles.handleBar, { backgroundColor: colors.bibleSecondaryText + '55' }]} />
+          <View
+            style={[
+              styles.handleBar,
+              { backgroundColor: hexWithAlpha(colors.bibleSecondaryText, 0.333) },
+            ]}
+          />
         </View>
 
         <View style={styles.titleRow}>
@@ -336,12 +342,7 @@ function AnnotationActionSheetContent({
                 hitSlop={10}
                 accessibilityRole="button"
               >
-                <Text
-                  style={[
-                    styles.noteActionText,
-                    { color: colors.bibleSurface },
-                  ]}
-                >
+                <Text style={[styles.noteActionText, { color: colors.onAccent }]}>
                   {t('common.done')}
                 </Text>
               </Pressable>
@@ -370,8 +371,8 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
     borderWidth: 1,
     borderBottomWidth: 0,
     paddingHorizontal: spacing.lg,
@@ -441,7 +442,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 62,
     borderWidth: 1,
-    borderRadius: 15,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -451,8 +452,6 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.micro,
     textAlign: 'center',
-    fontSize: 10,
-    lineHeight: 12,
   },
   actionButtonRail: {
     flexDirection: 'row',

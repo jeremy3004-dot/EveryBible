@@ -22,7 +22,8 @@ export function CompanionCard({ item, onPress }: CompanionCardProps) {
         },
       ]}
       onPress={() => onPress(item)}
-      activeOpacity={0.88}
+      activeOpacity={0.85}
+      accessibilityRole="button"
     >
       <View
         style={[
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   },
   artwork: {
     height: 112,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -88,8 +89,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 22,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   summary: {
     fontSize: 14,

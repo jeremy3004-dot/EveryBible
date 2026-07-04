@@ -501,6 +501,7 @@ export function BibleBrowserScreen() {
                 ]}
                 onPress={() => navigation.goBack()}
                 activeOpacity={0.85}
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={18} color={colors.biblePrimaryText} />
               </TouchableOpacity>
@@ -555,7 +556,12 @@ export function BibleBrowserScreen() {
             onSubmitEditing={handleSearchSubmit}
           />
           {searchQuery.length > 0 ? (
-            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+            >
               <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
             </TouchableOpacity>
           ) : null}
@@ -563,7 +569,10 @@ export function BibleBrowserScreen() {
       </View>
 
       {searchIntent.kind === 'full-text' ? (
-        isSearching ? (
+        // Only take over the whole surface with a spinner when there are no
+        // results yet. Once results exist, keep them rendered and show a small
+        // inline indicator so each keystroke does not flash a blank screen.
+        isSearching && searchResults.length === 0 ? (
           <View style={styles.searchLoadingState}>
             <ActivityIndicator color={colors.bibleAccent} />
           </View>
@@ -579,14 +588,21 @@ export function BibleBrowserScreen() {
             </Text>
           </View>
         ) : (
-          <FlashList
-            data={searchResults}
-            renderItem={renderSearchResult}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.searchResultsContent}
-            showsVerticalScrollIndicator={false}
-            estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
-          />
+          <View style={styles.searchResultsWrapper}>
+            {isSearching ? (
+              <View style={styles.inlineSearchIndicator} pointerEvents="none">
+                <ActivityIndicator size="small" color={colors.bibleAccent} />
+              </View>
+            ) : null}
+            <FlashList
+              data={searchResults}
+              renderItem={renderSearchResult}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={styles.searchResultsContent}
+              showsVerticalScrollIndicator={false}
+              estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
+            />
+          </View>
         )
       ) : searchIntent.kind === 'reference' ? (
         <TouchableOpacity
@@ -651,7 +667,11 @@ export function BibleBrowserScreen() {
                 <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
                   {t('bible.selectTranslation')}
                 </Text>
-                <TouchableOpacity onPress={() => setShowTranslationModal(false)}>
+                <TouchableOpacity
+                  onPress={() => setShowTranslationModal(false)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
                 </TouchableOpacity>
               </View>
@@ -684,7 +704,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: layout.screenPadding,
-    paddingTop: 18,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
     gap: spacing.md,
   },
@@ -722,8 +742,8 @@ const styles = StyleSheet.create({
     ...typography.label,
   },
   modalDismissButton: {
-    width: 40,
-    height: 40,
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
@@ -731,7 +751,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: layout.screenPadding,
-    paddingBottom: 28,
+    paddingBottom: spacing.xl,
     paddingTop: spacing.sm,
   },
   searchInputShell: {
@@ -759,16 +779,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  searchResultsWrapper: {
+    flex: 1,
+  },
+  inlineSearchIndicator: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: layout.screenPadding,
+    zIndex: 1,
+  },
   searchResultsContent: {
     paddingHorizontal: layout.screenPadding,
-    paddingBottom: 28,
+    paddingBottom: spacing.xl,
     paddingTop: spacing.sm,
     gap: spacing.md,
   },
   searchResultCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: 18,
+    padding: spacing.lg,
     gap: spacing.sm,
   },
   searchResultHeader: {
@@ -793,7 +822,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: 18,
+    padding: spacing.lg,
   },
   searchFeedbackText: {
     ...typography.bodyStrong,
@@ -803,7 +832,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: 18,
+    padding: spacing.lg,
     gap: spacing.sm,
   },
   referenceMetaText: {
@@ -831,7 +860,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   bookName: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '500',
   },
   chapterGrid: {
@@ -865,6 +894,7 @@ const styles = StyleSheet.create({
   chapterNumber: {
     fontSize: 15,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   dividerRow: {
     flexDirection: 'row',
@@ -911,24 +941,6 @@ const styles = StyleSheet.create({
   },
   translationPickerLoadingText: {
     ...typography.label,
-  },
-  translationLanguageScroller: {
-    marginBottom: spacing.sm,
-  },
-  translationLanguageFilters: {
-    paddingHorizontal: layout.screenPadding,
-    gap: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  translationLanguageChip: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  translationLanguageChipText: {
-    ...typography.label,
-    fontWeight: '600',
   },
   translationList: {
     paddingHorizontal: layout.screenPadding,

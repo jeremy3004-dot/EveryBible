@@ -11,6 +11,7 @@ export function LocalePreferencesScreen() {
   return (
     <LocaleSetupFlow
       mode="settings"
+      titleKey="settings.nationAndLanguage"
       onClose={() => navigation.goBack()}
       onComplete={() => navigation.goBack()}
     />

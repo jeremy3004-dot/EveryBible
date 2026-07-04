@@ -26,6 +26,7 @@ import {
   shouldReplayActiveAudioForTranslationChange,
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
+  shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
 
 test('uses the plan completion action on the final plan chapter even while listening', () => {
@@ -54,6 +55,15 @@ test('keeps the final plan completion action enabled after the day is already co
       iconName: 'checkmark',
     }
   );
+});
+
+test('isLoading stays false on chapter change with existing verses (no mid-chapter skeleton)', () => {
+  // First load: no verses on screen yet -> skeleton is allowed.
+  assert.equal(shouldShowChapterLoadSkeleton(0), true);
+  // Chapter-to-chapter transition: previous chapter's verses are still mounted,
+  // so the skeleton must NOT show and isLoading stays false. HARD RULE guard.
+  assert.equal(shouldShowChapterLoadSkeleton(1), false);
+  assert.equal(shouldShowChapterLoadSkeleton(31), false);
 });
 
 test('clamps reader chrome animation progress for premium scroll collapse', () => {

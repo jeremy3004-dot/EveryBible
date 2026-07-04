@@ -22,6 +22,7 @@ import {
 } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -105,7 +106,7 @@ export function ReadingActivityScreen() {
         dotColor: colors.accentPrimary,
         selected: isSelected,
         selectedColor: colors.accentPrimary,
-        selectedTextColor: colors.background,
+        selectedTextColor: colors.onAccent,
       };
       return acc;
     },
@@ -123,7 +124,13 @@ export function ReadingActivityScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('profile.readingActivity')}</Text>
@@ -192,10 +199,11 @@ export function ReadingActivityScreen() {
               textMonthFontWeight: '700',
               textDayHeaderFontWeight: '600',
               selectedDayBackgroundColor: colors.accentPrimary,
-              selectedDayTextColor: colors.background,
+              selectedDayTextColor: colors.onAccent,
               todayTextColor: colors.accentPrimary,
               arrowColor: colors.primaryText,
               dotColor: colors.accentPrimary,
+              textDisabledColor: hexWithAlpha(colors.secondaryText, 0.33),
             }}
           />
         </View>
@@ -311,6 +319,7 @@ const createStyles = (colors: ThemeColors) =>
     engagementChipValue: {
       ...typography.label,
       color: colors.primaryText,
+      fontVariant: ['tabular-nums'],
     },
     engagementChipLabel: {
       ...typography.micro,
@@ -343,6 +352,7 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 22,
       lineHeight: 26,
       color: colors.primaryText,
+      fontVariant: ['tabular-nums'],
     },
     statLabel: {
       ...typography.micro,

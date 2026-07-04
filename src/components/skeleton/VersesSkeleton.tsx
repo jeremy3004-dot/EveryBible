@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Skeleton } from './Skeleton';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface VersesSkeletonProps {
   count?: number;
 }
 
 export function VersesSkeleton({ count = 8 }: VersesSkeletonProps) {
+  const { colors } = useTheme();
   // Pre-calculate widths to avoid impure function calls during render
   const verseWidths = useMemo(
     () =>
@@ -23,12 +25,31 @@ export function VersesSkeleton({ count = 8 }: VersesSkeletonProps) {
       {verseWidths.map((widths, index) => (
         <View key={index} style={styles.verse}>
           <View style={styles.verseNumber}>
-            <Skeleton width={24} height={24} borderRadius={12} />
+            <Skeleton width={14} height={12} borderRadius={3} color={colors.bibleDivider} />
           </View>
           <View style={styles.verseContent}>
-            <Skeleton width={widths.line1} height={18} style={styles.line} />
-            {index % 2 === 0 && <Skeleton width={widths.line2} height={18} style={styles.line} />}
-            {index % 3 === 0 && <Skeleton width={widths.line3} height={18} style={styles.line} />}
+            <Skeleton
+              width={widths.line1}
+              height={16}
+              color={colors.bibleDivider}
+              style={styles.line}
+            />
+            {index % 2 === 0 && (
+              <Skeleton
+                width={widths.line2}
+                height={16}
+                color={colors.bibleDivider}
+                style={styles.line}
+              />
+            )}
+            {index % 3 === 0 && (
+              <Skeleton
+                width={widths.line3}
+                height={16}
+                color={colors.bibleDivider}
+                style={styles.line}
+              />
+            )}
           </View>
         </View>
       ))}
@@ -38,7 +59,7 @@ export function VersesSkeleton({ count = 8 }: VersesSkeletonProps) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 24,
   },
   verse: {
     flexDirection: 'row',
@@ -52,6 +73,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   line: {
-    marginBottom: 6,
+    marginBottom: 12,
   },
 });

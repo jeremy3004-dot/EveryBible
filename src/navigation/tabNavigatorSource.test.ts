@@ -40,7 +40,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*paddingBottom:\s*tabBarBottomPadding \+ spacing\.sm,[\s\S]*height:\s*tabBarHeight,[\s\S]*transform:\s*\[\{\s*translateY:\s*tabBarHeight \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
+    /position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*paddingBottom:\s*tabBarBottomPadding \+ spacing\.xs,[\s\S]*height:\s*tabBarHeight,[\s\S]*transform:\s*\[\{\s*translateY:\s*tabBarHeight \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
     'TabNavigator should move the entire bar downward as one overlay piece so the background slab and icon row stay locked together without reserving a dead layout strip'
   );
 

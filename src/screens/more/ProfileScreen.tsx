@@ -148,7 +148,13 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('more.profile')}</Text>
@@ -478,6 +484,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     signInButtonText: {
       ...typography.button,
-      color: colors.primaryText,
+      color: colors.onAccent,
     },
   });

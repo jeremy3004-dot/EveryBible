@@ -17,8 +17,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { lightHaptic, successHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
@@ -35,6 +35,10 @@ interface LocalInteractions {
   encouraged: Set<string>;
 }
 
+// TODO(i18n): relative-time strings ('just now', '{{count}}m ago', etc.) are still
+// English. Extracting them needs new plural-aware keys (prayer.justNow / minutesAgo /
+// hoursAgo / daysAgo) added across all 26 locales, so it is deferred to the copy pass.
+// Do NOT switch to Intl.RelativeTimeFormat here — this runs per-render on a hot path.
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
   const minutes = Math.floor(diff / 60_000);
@@ -59,6 +63,7 @@ export function PrayerWallScreen() {
 
   const [requests, setRequests] = useState<PrayerRequestWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [submitText, setSubmitText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,6 +79,11 @@ export function PrayerWallScreen() {
     const result = await prayerService.listPrayerRequests(groupId);
     if (result.success && result.data) {
       setRequests(result.data);
+      setLoadError(false);
+    } else {
+      // Distinguish a genuine load failure (offline / server error) from an
+      // empty group so we never render "no prayers yet" over a fetch failure.
+      setLoadError(true);
     }
   }, [groupId]);
 
@@ -109,6 +119,7 @@ export function PrayerWallScreen() {
       setRequests((prev) => [newRequest, ...prev]);
       setSubmitText('');
       inputRef.current?.blur();
+      successHaptic();
     } else {
       Alert.alert(t('common.error'), result.error ?? t('common.retry'));
     }
@@ -125,32 +136,42 @@ export function PrayerWallScreen() {
 
       const key = type === 'prayed' ? 'prayed' : 'encouraged';
       const alreadyInteracted = localInteractions[key].has(requestId);
+      const delta = alreadyInteracted ? -1 : 1;
+
+      const applyLocalDelta = (direction: 1 | -1) => {
+        setLocalInteractions((prev) => {
+          const updated = new Set(prev[key]);
+          const shouldHave = direction === 1 ? !alreadyInteracted : alreadyInteracted;
+          if (shouldHave) {
+            updated.add(requestId);
+          } else {
+            updated.delete(requestId);
+          }
+          return { ...prev, [key]: updated };
+        });
+
+        setRequests((prev) =>
+          prev.map((r) => {
+            if (r.id !== requestId) return r;
+            const applied = delta * direction;
+            return type === 'prayed'
+              ? { ...r, prayed_count: Math.max(0, r.prayed_count + applied) }
+              : { ...r, encouraged_count: Math.max(0, r.encouraged_count + applied) };
+          })
+        );
+      };
 
       // Optimistic update
-      setLocalInteractions((prev) => {
-        const updated = new Set(prev[key]);
-        if (alreadyInteracted) {
-          updated.delete(requestId);
-        } else {
-          updated.add(requestId);
-        }
-        return { ...prev, [key]: updated };
-      });
+      applyLocalDelta(1);
+      lightHaptic();
 
-      setRequests((prev) =>
-        prev.map((r) => {
-          if (r.id !== requestId) return r;
-          const delta = alreadyInteracted ? -1 : 1;
-          return type === 'prayed'
-            ? { ...r, prayed_count: Math.max(0, r.prayed_count + delta) }
-            : { ...r, encouraged_count: Math.max(0, r.encouraged_count + delta) };
-        })
-      );
+      const result = alreadyInteracted
+        ? await prayerService.removeInteraction(requestId, type)
+        : await prayerService.addInteraction(requestId, type);
 
-      if (alreadyInteracted) {
-        await prayerService.removeInteraction(requestId, type);
-      } else {
-        await prayerService.addInteraction(requestId, type);
+      // Roll back the optimistic change if the write failed so counts don't drift.
+      if (!result?.success) {
+        applyLocalDelta(-1);
       }
     },
     [currentUserId, localInteractions]
@@ -160,19 +181,17 @@ export function PrayerWallScreen() {
     (request: PrayerRequestWithCounts) => {
       if (request.user_id !== currentUserId) return;
 
-      const options = [
-        t('common.edit'),
-        t('prayer.markAnswered'),
-        t('common.delete'),
-        t('common.cancel'),
-      ];
-
-      const destructiveIndex = 2;
-      const cancelIndex = 3;
-
       if (Platform.OS === 'ios') {
+        // Edit relies on Alert.prompt, which only exists on iOS. Keep it here only.
+        const options = [
+          t('common.edit'),
+          t('prayer.markAnswered'),
+          t('common.delete'),
+          t('common.cancel'),
+        ];
+
         ActionSheetIOS.showActionSheetWithOptions(
-          { options, destructiveButtonIndex: destructiveIndex, cancelButtonIndex: cancelIndex },
+          { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
           (buttonIndex) => {
             if (buttonIndex === 0) handleEdit(request);
             else if (buttonIndex === 1) handleMarkAnswered(request.id);
@@ -180,11 +199,12 @@ export function PrayerWallScreen() {
           }
         );
       } else {
+        // Android has no Alert.prompt, so Edit is omitted rather than shipped as a
+        // no-op option.
         Alert.alert(
-          t('common.edit'),
+          t('prayer.title'),
           undefined,
           [
-            { text: t('common.edit'), onPress: () => handleEdit(request) },
             { text: t('prayer.markAnswered'), onPress: () => handleMarkAnswered(request.id) },
             {
               text: t('common.delete'),
@@ -261,13 +281,17 @@ export function PrayerWallScreen() {
     [t]
   );
 
-  const styles = makeStyles(colors);
-
   const renderItem = useCallback(
     ({ item }: { item: PrayerRequestWithCounts }) => {
       const isOwner = item.user_id === currentUserId;
       const hasPrayed = localInteractions.prayed.has(item.id);
       const hasEncouraged = localInteractions.encouraged.has(item.id);
+      const displayName = isOwner
+        ? user?.displayName ?? t('prayer.you')
+        : t('prayer.groupMember');
+      // Derive the avatar initial from the displayed name, never from the raw
+      // user_id (a UUID whose first char is a meaningless hex digit).
+      const avatarInitial = (displayName.trim().charAt(0) || '?').toUpperCase();
 
       return (
         <TouchableOpacity
@@ -282,12 +306,12 @@ export function PrayerWallScreen() {
           <View style={styles.cardHeader}>
             <View style={[styles.avatar, { backgroundColor: colors.accentPrimary + '25' }]}>
               <Text style={[styles.avatarInitial, { color: colors.accentPrimary }]}>
-                {(item.user_id.charAt(0) ?? '?').toUpperCase()}
+                {avatarInitial}
               </Text>
             </View>
             <View style={styles.cardMeta}>
               <Text style={[styles.displayName, { color: colors.primaryText }]}>
-                {isOwner ? (user?.displayName ?? t('prayer.you')) : t('prayer.groupMember')}
+                {displayName}
               </Text>
               <Text style={[styles.timestamp, { color: colors.secondaryText }]}>
                 {formatRelativeTime(item.created_at)}
@@ -329,6 +353,7 @@ export function PrayerWallScreen() {
               <Text
                 style={[
                   styles.pillText,
+                  styles.pillTextTabular,
                   { color: hasPrayed ? colors.accentPrimary : colors.secondaryText },
                 ]}
               >
@@ -357,6 +382,7 @@ export function PrayerWallScreen() {
               <Text
                 style={[
                   styles.pillText,
+                  styles.pillTextTabular,
                   { color: hasEncouraged ? colors.accentPrimary : colors.secondaryText },
                 ]}
               >
@@ -373,7 +399,6 @@ export function PrayerWallScreen() {
       handleInteraction,
       handleLongPress,
       localInteractions,
-      styles,
       t,
       user?.displayName,
     ]
@@ -393,7 +418,7 @@ export function PrayerWallScreen() {
           style={[styles.signInPromptButton, { backgroundColor: colors.accentPrimary }]}
           onPress={() => openAuthFlow('signIn')}
         >
-          <Text style={[styles.signInPromptButtonText, { color: colors.background }]}>
+          <Text style={[styles.signInPromptButtonText, { color: colors.onAccent }]}>
             {t('auth.signIn')}
           </Text>
         </TouchableOpacity>
@@ -446,7 +471,7 @@ export function PrayerWallScreen() {
             style={[styles.signInInlineButton, { backgroundColor: colors.accentPrimary }]}
             onPress={() => openAuthFlow('signIn')}
           >
-            <Text style={[styles.signInInlineButtonText, { color: colors.background }]}>
+            <Text style={[styles.signInInlineButtonText, { color: colors.onAccent }]}>
               {t('auth.signIn')}
             </Text>
           </TouchableOpacity>
@@ -470,7 +495,7 @@ export function PrayerWallScreen() {
           accessibilityLabel={t('prayer.requestPlaceholder')}
         />
         <View style={styles.submitRow}>
-          <Text style={[styles.charCount, { color: colors.secondaryText }]}>
+          <Text style={[styles.charCount, styles.charCountTabular, { color: colors.secondaryText }]}>
             {submitText.length}/{MAX_CHARS}
           </Text>
           <TouchableOpacity
@@ -493,7 +518,7 @@ export function PrayerWallScreen() {
               size={16}
               color={
                 isSignedIn && submitText.trim().length > 0
-                  ? colors.cardBackground
+                  ? colors.onAccent
                   : colors.secondaryText
               }
             />
@@ -503,7 +528,7 @@ export function PrayerWallScreen() {
                 {
                   color:
                     isSignedIn && submitText.trim().length > 0
-                      ? colors.cardBackground
+                      ? colors.onAccent
                       : colors.secondaryText,
                 },
               ]}
@@ -520,6 +545,29 @@ export function PrayerWallScreen() {
           <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
             {t('common.loading')}
           </Text>
+        </View>
+      ) : loadError && requests.length === 0 ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.secondaryText} />
+          <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
+            {t('common.somethingWentWrong')}
+          </Text>
+          <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
+            {t('common.tryAgain')}
+          </Text>
+          <TouchableOpacity
+            style={[styles.errorRetryButton, { backgroundColor: colors.accentPrimary }]}
+            onPress={() => {
+              setIsLoading(true);
+              loadRequests().finally(() => setIsLoading(false));
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.retry')}
+          >
+            <Text style={[styles.errorRetryButtonText, { color: colors.onAccent }]}>
+              {t('common.retry')}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -545,8 +593,7 @@ export function PrayerWallScreen() {
   );
 }
 
-function makeStyles(_colors: ThemeColors) {
-  return StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
       flex: 1,
     },
@@ -730,5 +777,26 @@ function makeStyles(_colors: ThemeColors) {
     signInPromptButtonText: {
       ...typography.button,
     },
-  });
-}
+    charCountTabular: {
+      fontVariant: ['tabular-nums'],
+    },
+    pillTextTabular: {
+      fontVariant: ['tabular-nums'],
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: layout.screenPadding,
+    },
+    errorRetryButton: {
+      marginTop: spacing.lg,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+    },
+    errorRetryButtonText: {
+      ...typography.button,
+    },
+});

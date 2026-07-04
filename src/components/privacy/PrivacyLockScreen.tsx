@@ -1,5 +1,12 @@
-import { useCallback, useState } from 'react';
-import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePrivacyStore } from '../../stores/privacyStore';
 import { validatePrivacyPin } from '../../services/privacy';
@@ -79,14 +86,16 @@ const palette = {
 
 // ---------- component ----------
 
-const { width: screenWidth } = Dimensions.get('window');
-const buttonSpacing = 12;
-const horizontalPad = 20;
-const availableWidth = screenWidth - horizontalPad * 2;
-const buttonSize = (availableWidth - buttonSpacing * 3) / 4;
+const BUTTON_SPACING = 12;
+const HORIZONTAL_PAD = 20;
 
 export function PrivacyLockScreen() {
   const unlock = usePrivacyStore((state) => state.unlock);
+  const { width: screenWidth } = useWindowDimensions();
+  const buttonSize = useMemo(() => {
+    const availableWidth = screenWidth - HORIZONTAL_PAD * 2;
+    return (availableWidth - BUTTON_SPACING * 3) / 4;
+  }, [screenWidth]);
   const [calc, setCalc] = useState<CalcState>(initialCalcState);
   const [activeOp, setActiveOp] = useState<string | null>(null);
 
@@ -294,7 +303,9 @@ export function PrivacyLockScreen() {
                     styles.button,
                     {
                       backgroundColor: bgColor,
-                      width: isWideZero ? buttonSize * 2 + buttonSpacing : buttonSize,
+                      height: buttonSize,
+                      borderRadius: buttonSize / 2,
+                      width: isWideZero ? buttonSize * 2 + BUTTON_SPACING : buttonSize,
                     },
                   ]}
                   activeOpacity={0.7}
@@ -324,7 +335,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     justifyContent: 'flex-end',
-    paddingHorizontal: horizontalPad,
+    paddingHorizontal: HORIZONTAL_PAD,
     paddingBottom: Platform.OS === 'ios' ? 12 : 24,
   },
   displayArea: {
@@ -340,15 +351,13 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   keypad: {
-    gap: buttonSpacing,
+    gap: BUTTON_SPACING,
   },
   keypadRow: {
     flexDirection: 'row',
-    gap: buttonSpacing,
+    gap: BUTTON_SPACING,
   },
   button: {
-    height: buttonSize,
-    borderRadius: buttonSize / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },

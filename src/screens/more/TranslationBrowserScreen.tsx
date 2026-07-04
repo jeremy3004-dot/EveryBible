@@ -54,19 +54,20 @@ export function TranslationBrowserScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.bibleBackground }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <View style={[styles.header, { borderBottomColor: colors.bibleDivider }]}>
+      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.biblePrimaryText} />
+          <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.biblePrimaryText }]}>
+        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
           {t('translations.title')}
         </Text>
         <View style={styles.headerSpacer} />
@@ -74,7 +75,7 @@ export function TranslationBrowserScreen() {
 
       {isLoading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={colors.bibleAccent} />
+          <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
       ) : (
         <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />

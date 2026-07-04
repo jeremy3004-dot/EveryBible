@@ -11,6 +11,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius } from '../../design/system';
+import { hexWithAlpha } from '../../utils';
+
+const PRESSED_SCALE = 0.96;
 
 interface ReaderPlaybackDockProps {
   collapseProgress: SharedValue<number>;
@@ -125,11 +128,12 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
         pointerEvents={isCollapsed ? 'none' : 'auto'}
       >
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.sideTransportButton,
             {
               backgroundColor: colors.bibleSurface,
               borderColor: colors.bibleDivider,
+              transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
             },
           ]}
           onPress={onPreviousChapter}
@@ -148,11 +152,12 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
       {showPlayButton ? (
         <Animated.View style={[styles.playButtonWrap, centerTransportAnimatedStyle]}>
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.playButton,
               {
                 backgroundColor: colors.bibleControlBackground,
                 borderColor: colors.bibleElevatedSurface,
+                transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
               },
             ]}
             onPress={() => {
@@ -174,7 +179,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
                 cx={RING_SIZE / 2}
                 cy={RING_SIZE / 2}
                 r={RING_RADIUS}
-                stroke={colors.bibleDivider + 'AA'}
+                stroke={hexWithAlpha(colors.bibleDivider, 0.667)}
                 strokeWidth={RING_STROKE_WIDTH}
                 fill="none"
               />
@@ -196,7 +201,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
               name={playButtonIconName}
               size={30}
               color={colors.bibleBackground}
-              style={styles.playIcon}
+              style={playButtonIconName === 'play' ? styles.playIcon : undefined}
             />
           </Pressable>
         </Animated.View>
@@ -207,11 +212,12 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
         pointerEvents={isCollapsed ? 'none' : 'auto'}
       >
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.sideTransportButton,
             {
               backgroundColor: nextButtonColor ?? colors.bibleSurface,
               borderColor: colors.bibleDivider,
+              transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
             },
           ]}
           onPress={onNextChapter}

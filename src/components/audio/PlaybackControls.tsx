@@ -1,4 +1,12 @@
-import { View, TouchableOpacity, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import {
+  ActivityIndicator,
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +20,8 @@ import type {
 } from '../../types';
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../../types';
 import { BACKGROUND_MUSIC_OPTIONS } from '../../services/audio';
+import { mediumHaptic } from '../../utils';
+import { radius } from '../../design/system';
 
 interface PlaybackControlsProps {
   variant?: 'default' | 'chapter-only' | 'utilities-only';
@@ -158,6 +168,7 @@ export function PlaybackControls({
               ]}
               onPress={onPreviousChapter}
               disabled={!hasPreviousChapter || isLoading}
+              hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
             >
               <Ionicons
                 name="play-skip-back"
@@ -175,6 +186,7 @@ export function PlaybackControls({
               ]}
               onPress={onSkipBackward}
               disabled={isLoading}
+              hitSlop={4}
             >
               <Ionicons name="play-back" size={16} color={colors.biblePrimaryText} />
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
@@ -187,20 +199,21 @@ export function PlaybackControls({
               isChapterOnlyTransport ? styles.chapterOnlyPlayButton : null,
               { backgroundColor: colors.bibleControlBackground },
             ]}
-            onPress={onPlayPause}
+            onPress={() => {
+              mediumHaptic();
+              onPlayPause();
+            }}
             disabled={isLoading}
+            accessibilityRole="button"
           >
             {isLoading ? (
-              <Ionicons
-                name="hourglass"
-                size={isChapterOnlyTransport ? 32 : 26}
-                color={colors.bibleBackground}
-              />
+              <ActivityIndicator size="small" color={colors.bibleBackground} />
             ) : (
               <Ionicons
                 name={isPlaying ? 'pause' : 'play'}
                 size={isChapterOnlyTransport ? 34 : 26}
                 color={colors.bibleBackground}
+                style={!isPlaying ? styles.playIconOffset : undefined}
               />
             )}
           </TouchableOpacity>
@@ -213,6 +226,7 @@ export function PlaybackControls({
               ]}
               onPress={onSkipForward}
               disabled={isLoading}
+              hitSlop={4}
             >
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
               <Ionicons name="play-forward" size={16} color={colors.biblePrimaryText} />
@@ -228,6 +242,7 @@ export function PlaybackControls({
               ]}
               onPress={onNextChapter}
               disabled={!hasNextChapter || isLoading}
+              hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
             >
               <Ionicons
                 name="play-skip-forward"
@@ -250,6 +265,8 @@ export function PlaybackControls({
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
               onPress={() => setShowTimerModal(true)}
+              hitSlop={{ top: 4, bottom: 4 }}
+              accessibilityRole="button"
             >
               <Ionicons
                 name={sleepTimerRemaining ? 'timer' : 'timer-outline'}
@@ -270,6 +287,7 @@ export function PlaybackControls({
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
               onPress={() => setShowBackgroundMusicModal(true)}
+              hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
               accessibilityLabel={`Background music: ${selectedBackgroundMusic.label}`}
               accessibilityHint="Opens the bundled background music picker"
@@ -288,6 +306,7 @@ export function PlaybackControls({
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
               onPress={() => onCycleRepeatMode()}
+              hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
               accessibilityLabel={repeatAccessibilityLabel}
               accessibilityHint="Cycles repeat off, repeat chapter, and repeat book"
@@ -301,6 +320,8 @@ export function PlaybackControls({
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
               onPress={() => setShowSpeedModal(true)}
+              hitSlop={{ top: 4, bottom: 4 }}
+              accessibilityRole="button"
             >
               <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
                 {playbackRate}x
@@ -316,6 +337,7 @@ export function PlaybackControls({
                   { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
                 ]}
                 onPress={onShowText}
+                hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel={showTextLabel ?? 'Show text'}
                 accessibilityHint={t('audio.showTextHint')}
@@ -332,6 +354,7 @@ export function PlaybackControls({
                   { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
                 ]}
                 onPress={onShareAudio}
+                hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('bible.shareChapterAudio')}
                 accessibilityHint="Opens the audio sharing options for this chapter"
@@ -351,7 +374,7 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowBackgroundMusicModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowBackgroundMusicModal(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowBackgroundMusicModal(false)}>
           <View
             style={[
               styles.modalContent,
@@ -421,7 +444,7 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowSpeedModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowSpeedModal(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowSpeedModal(false)}>
           <View
             style={[
               styles.modalContent,
@@ -470,7 +493,7 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowTimerModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowTimerModal(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowTimerModal(false)}>
           <View
             style={[
               styles.modalContent,
@@ -667,6 +690,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 2,
   },
+  playIconOffset: {
+    marginLeft: 2,
+  },
   chapterOnlyPlayButton: {
     width: 72,
     height: 72,
@@ -675,7 +701,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -683,7 +708,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 320,
-    borderRadius: 22,
+    borderRadius: radius.xl,
     padding: 18,
     borderWidth: 1,
   },

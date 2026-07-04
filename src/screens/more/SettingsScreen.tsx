@@ -40,6 +40,7 @@ import {
   requestNotificationPermissions,
 } from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
+import { hexWithAlpha, lightHaptic, selectionHaptic } from '../../utils';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
@@ -115,6 +116,7 @@ export function SettingsScreen() {
   };
 
   const handleThemeChange = (mode: ThemeMode) => {
+    selectionHaptic();
     setTheme(mode);
     syncPreferences().catch(() => {});
   };
@@ -122,11 +124,13 @@ export function SettingsScreen() {
   const handleAppearancePaletteChange = (
     palette: (typeof appearancePaletteOptions)[number]['id']
   ) => {
+    selectionHaptic();
     setAppearancePalette(palette);
     syncPreferences().catch(() => {});
   };
 
   const handleNotificationToggle = async () => {
+    lightHaptic();
     if (!preferences.notificationsEnabled) {
       // Request permission when enabling
       const granted = await requestNotificationPermissions();
@@ -324,9 +328,11 @@ export function SettingsScreen() {
     if (!time) return t('common.notSet');
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
+    const minute = parseInt(minutes, 10);
+    return new Date(0, 0, 0, hour, minute).toLocaleTimeString(currentLanguage, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   };
 
   const handleClearCache = () => {
@@ -406,7 +412,13 @@ export function SettingsScreen() {
       edges={['top']}
     >
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
@@ -445,12 +457,13 @@ export function SettingsScreen() {
                 ]}
                 onPress={decrease}
                 disabled={!canDecrease}
+                activeOpacity={0.85}
               >
                 <Text
                   style={[
                     styles.fontSizeText,
                     { color: colors.primaryText },
-                    !canDecrease && { color: colors.cardBorder },
+                    !canDecrease && { color: hexWithAlpha(colors.secondaryText, 0.4) },
                   ]}
                 >
                   A-
@@ -470,12 +483,13 @@ export function SettingsScreen() {
                 ]}
                 onPress={increase}
                 disabled={!canIncrease}
+                activeOpacity={0.85}
               >
                 <Text
                   style={[
                     styles.fontSizeText,
                     { color: colors.primaryText },
-                    !canIncrease && { color: colors.cardBorder },
+                    !canIncrease && { color: hexWithAlpha(colors.secondaryText, 0.4) },
                   ]}
                 >
                   A+
@@ -599,12 +613,14 @@ export function SettingsScreen() {
               trackColor={settingSwitchTrackColor}
               ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
+              accessibilityLabel={t('settings.chapterFeedback')}
             />
           </View>
 
           <TouchableOpacity
             style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
             onPress={() => handleTranslatorReviewToggle(!translatorReviewEnabled)}
+            accessible={false}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="keypad-outline" size={24} color={colors.secondaryText} />
@@ -631,6 +647,7 @@ export function SettingsScreen() {
               trackColor={settingSwitchTrackColor}
               ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
+              accessibilityLabel={t('settings.translatorAccess')}
             />
           </TouchableOpacity>
 
@@ -1030,6 +1047,7 @@ export function SettingsScreen() {
               trackColor={settingSwitchTrackColor}
               ios_backgroundColor={settingSwitchOffColor}
               thumbColor={colors.cardBackground}
+              accessibilityLabel={t('settings.dailyReminder')}
             />
           </View>
 
@@ -1091,7 +1109,7 @@ export function SettingsScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
+          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="cloud-download-outline" size={24} color={colors.secondaryText} />
               <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
@@ -1104,7 +1122,7 @@ export function SettingsScreen() {
               </Text>
               <Ionicons name="checkmark-circle" size={20} color={colors.success} />
             </View>
-          </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}

@@ -27,28 +27,30 @@ interface State {
 }
 
 function ErrorFallback({ onRetry }: { onRetry: () => void }) {
-  const { t } = useTranslation();
+  // ErrorBoundary is mounted inside ThemeProvider + I18nextProvider (see App.tsx),
+  // but the provider itself may be part of the crash, so resolve colors defensively
+  // (falls back to the dark palette) instead of re-throwing from the fallback UI.
   const colors = useSafeThemeColors();
+  const { t } = useTranslation();
+  const title = t('common.somethingWentWrong');
+  const message = t('common.unexpectedError');
+  const retryLabel = t('common.tryAgain');
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
         </View>
-        <Text style={[styles.title, { color: colors.primaryText }]}>
-          {t('common.somethingWentWrong')}
-        </Text>
-        <Text style={[styles.message, { color: colors.secondaryText }]}>
-          {t('common.unexpectedError')}
-        </Text>
+        <Text style={[styles.title, { color: colors.primaryText }]}>{title}</Text>
+        <Text style={[styles.message, { color: colors.secondaryText }]}>{message}</Text>
         <TouchableOpacity
-          style={[styles.retryButton, { backgroundColor: colors.accentGreen }]}
+          style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
           onPress={onRetry}
+          activeOpacity={0.85}
         >
-          <Ionicons name="refresh" size={20} color={colors.primaryText} />
-          <Text style={[styles.retryText, { color: colors.primaryText }]}>
-            {t('common.tryAgain')}
-          </Text>
+          <Ionicons name="refresh" size={20} color={colors.onAccent} />
+          <Text style={[styles.retryText, { color: colors.onAccent }]}>{retryLabel}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -115,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 28,
-    borderRadius: radius.sm,
+    borderRadius: radius.lg,
     gap: spacing.sm,
   },
   retryText: {
