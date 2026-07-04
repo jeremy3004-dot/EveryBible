@@ -84,6 +84,7 @@ export type MoreStackParamList = {
   Annotations: undefined;
   TranslationBrowser: undefined;
   About: undefined;
+  Diagnostics: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
 };
 

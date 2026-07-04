@@ -92,6 +92,36 @@ test('mergeReadingSnapshot keeps the newer local reading position when it is ahe
     chapter: 4,
   });
   assert.equal(merged.positionSource, 'local');
+  // L13: streak follows the side that owns the most recent lastReadDate rather
+  // than ratcheting up via Math.max. Local's lastReadDate (2026-03-09) is newer
+  // than remote's (2026-03-08), so local's streak of 2 wins — a stale higher
+  // remote counter no longer resurrects a legitimately-lower local streak.
+  assert.equal(merged.progress.streakDays, 2);
+});
+
+test('mergeReadingSnapshot adopts the remote streak when the remote lastReadDate is newer', () => {
+  const local: LocalReadingSnapshot = {
+    chaptersRead: { JHN_3: 500 },
+    streakDays: 2,
+    lastReadDate: '2026-03-08',
+    currentBook: 'JHN',
+    currentChapter: 3,
+  };
+
+  const remote: RemoteUserProgress = {
+    id: 'progress-1',
+    user_id: 'user-1',
+    chapters_read: { JHN_4: 900 },
+    streak_days: 5,
+    last_read_date: '2026-03-09',
+    current_book: 'JHN',
+    current_chapter: 4,
+    synced_at: '2026-03-09T05:00:00.000Z',
+  };
+
+  const merged = mergeReadingSnapshot(local, remote);
+
+  assert.equal(merged.progress.lastReadDate, '2026-03-09');
   assert.equal(merged.progress.streakDays, 5);
 });
 

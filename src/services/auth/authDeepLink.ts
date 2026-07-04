@@ -2,15 +2,36 @@ import { supabase, isSupabaseConfigured } from '../supabase';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { parseAuthRecoveryTokens } from './authRecoveryLink';
 
+// When a reset-password link is opened before the NavigationContainer is ready
+// (cold start, or a not-yet-onboarded install), navigating would be a silent
+// no-op. We remember the pending intent and flush it once navigation is ready.
+let hasPendingResetPasswordNavigation = false;
+
+function performResetPasswordNavigation(): void {
+  rootNavigationRef.navigate('More', {
+    screen: 'Auth',
+    params: {
+      screen: 'ResetPassword',
+    },
+  });
+}
+
 function navigateToResetPassword(): void {
   if (rootNavigationRef.isReady()) {
-    rootNavigationRef.navigate('More', {
-      screen: 'Auth',
-      params: {
-        screen: 'ResetPassword',
-      },
-    });
+    performResetPasswordNavigation();
+    return;
   }
+  hasPendingResetPasswordNavigation = true;
+}
+
+// Called from the NavigationContainer onReady handler so a reset link that
+// arrived during boot is honored the moment navigation becomes usable.
+export function flushPendingResetPasswordNavigation(): void {
+  if (!hasPendingResetPasswordNavigation || !rootNavigationRef.isReady()) {
+    return;
+  }
+  hasPendingResetPasswordNavigation = false;
+  performResetPasswordNavigation();
 }
 
 // Entry point for both cold-start (Linking.getInitialURL) and warm (Linking 'url' event)

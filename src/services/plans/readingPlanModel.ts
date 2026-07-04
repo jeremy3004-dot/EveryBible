@@ -418,22 +418,11 @@ export function mergePlanProgress(
   };
 }
 
-function isRecentUnsyncedLocalProgress(
-  progress: UserReadingPlanProgress,
-  fetchedAt: string,
-  graceMs: number
-): boolean {
-  if (progress.user_id) {
-    return false;
-  }
-
-  const localTimestamp = Date.parse(progress.synced_at || progress.started_at || '');
-  const fetchedTimestamp = Date.parse(fetchedAt);
-  if (Number.isNaN(localTimestamp) || Number.isNaN(fetchedTimestamp)) {
-    return false;
-  }
-
-  return fetchedTimestamp - localTimestamp <= graceMs;
+export interface ReconcileFetchedPlanProgressResult {
+  /** The reconciled progress rows to commit to the store. */
+  progress: UserReadingPlanProgress[];
+  /** Local-only rows that have no remote counterpart and still need pushing. */
+  localOnlyProgress: UserReadingPlanProgress[];
 }
 
 /**
@@ -441,36 +430,49 @@ function isRecentUnsyncedLocalProgress(
  *
  * Rules:
  * - matching plan rows are merged so local completion work is not lost
- * - recent unsynced local-only rows survive temporarily when the remote read is stale
- * - older local-only rows are dropped so the signed-in server snapshot can still clear stale state
+ * - local-only rows are NEVER dropped: they are kept in the reconciled result and
+ *   surfaced via `localOnlyProgress` so the caller can push them to the server
+ *   (offline-first data-loss guarantee — see H3)
+ * - rows the user has unenrolled locally (tombstones) are excluded from the result
+ *   so a stale remote row cannot silently re-enroll them (see M12)
+ *
+ * The `graceMs` parameter is retained for signature compatibility but is no longer
+ * used to drop legitimately-old, never-pushed local progress.
  */
 export function reconcileFetchedPlanProgress(
   localProgressList: UserReadingPlanProgress[],
   remoteProgressList: UserReadingPlanProgress[],
   fetchedAt: string,
-  graceMs: number = UNSYNCED_LOCAL_PROGRESS_GRACE_MS
-): UserReadingPlanProgress[] {
+  tombstonedPlanIds: readonly string[] = [],
+  _graceMs: number = UNSYNCED_LOCAL_PROGRESS_GRACE_MS
+): ReconcileFetchedPlanProgressResult {
+  const tombstoned = new Set(tombstonedPlanIds);
   const localByPlanId = new Map(localProgressList.map((progress) => [progress.plan_id, progress]));
   const remoteByPlanId = new Map(
     remoteProgressList.map((progress) => [progress.plan_id, progress])
   );
 
-  const reconciledProgress = remoteProgressList.map((remoteProgress) => {
-    const localProgress = localByPlanId.get(remoteProgress.plan_id);
-    return localProgress
-      ? mergePlanProgress(localProgress, remoteProgress, fetchedAt)
-      : remoteProgress;
-  });
+  const reconciledProgress = remoteProgressList
+    .filter((remoteProgress) => !tombstoned.has(remoteProgress.plan_id))
+    .map((remoteProgress) => {
+      const localProgress = localByPlanId.get(remoteProgress.plan_id);
+      return localProgress
+        ? mergePlanProgress(localProgress, remoteProgress, fetchedAt)
+        : remoteProgress;
+    });
 
-  const recentUnsyncedLocalProgress = localProgressList.filter(
+  // Never drop local-only progress: keep every local row that lacks a remote
+  // counterpart (unless the user tombstoned it) and report it for push.
+  const localOnlyProgress = localProgressList.filter(
     (localProgress) =>
-      !remoteByPlanId.has(localProgress.plan_id) &&
-      isRecentUnsyncedLocalProgress(localProgress, fetchedAt, graceMs)
+      !remoteByPlanId.has(localProgress.plan_id) && !tombstoned.has(localProgress.plan_id)
   );
 
-  return [...reconciledProgress, ...recentUnsyncedLocalProgress].sort((left, right) =>
+  const progress = [...reconciledProgress, ...localOnlyProgress].sort((left, right) =>
     right.started_at.localeCompare(left.started_at)
   );
+
+  return { progress, localOnlyProgress };
 }
 
 /**

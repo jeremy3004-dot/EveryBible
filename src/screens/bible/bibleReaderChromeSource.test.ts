@@ -1233,14 +1233,14 @@ test('BibleReaderScreen exposes fonts and settings from the overflow menu', () =
 
   assert.match(
     source,
-    /key: 'font-size'[\s\S]*label: 'Fonts & Settings'/,
-    'BibleReaderScreen should label the reader appearance action as Fonts & Settings'
+    /key: 'font-size'[\s\S]*onPress: handleOpenFontSizeOptions/,
+    'BibleReaderScreen should expose the reader appearance action from the overflow menu'
   );
 
   assert.match(
     source,
-    /Fonts & Settings[\s\S]*readerFontStepperRow[\s\S]*handleOpenAllSettings/s,
-    'BibleReaderScreen should render the reader appearance sheet with font controls and all settings'
+    /t\('bible\.fontsAndSettings'\)[\s\S]*readerFontStepperRow[\s\S]*handleOpenAllSettings/s,
+    'BibleReaderScreen should render the reader appearance sheet titled from the fontsAndSettings i18n key, with font controls and all settings'
   );
 });
 

@@ -24,9 +24,29 @@ import {
   type RhythmPreset,
 } from '../../services/plans/rhythmPresets';
 import type { RhythmSlot } from '../../services/plans/types';
+import { RHYTHM_MUTATION_ERROR_CODES } from '../../stores/readingPlansStore';
 import { useReadingPlansStore } from '../../stores';
 
 type SlotFilter = 'all' | 'anytime' | RhythmSlot;
+
+const ALL_TRADITIONS = 'All traditions';
+
+/** Maps a stable rhythm-mutation error code (H9) to a translated message. */
+function resolveRhythmErrorMessage(
+  code: string | undefined,
+  t: ReturnType<typeof useTranslation>['t']
+): string {
+  switch (code) {
+    case RHYTHM_MUTATION_ERROR_CODES.emptyItems:
+      return t('plans.rhythmComposer.errorEmptyItems');
+    case RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm:
+      return t('plans.rhythmComposer.errorPlanInAnotherRhythm');
+    case RHYTHM_MUTATION_ERROR_CODES.notFound:
+      return t('plans.rhythmComposer.errorRhythmNotFound');
+    default:
+      return t('common.unexpectedError', { defaultValue: 'Something went wrong' });
+  }
+}
 
 function FilterChip({
   label,
@@ -86,7 +106,7 @@ function MetaPill({
 
 function getSlotLabel(slot: RhythmSlot | null, t: ReturnType<typeof useTranslation>['t']): string {
   if (!slot) {
-    return 'Any time';
+    return t('plans.rhythmComposer.anyTime');
   }
 
   return t(RHYTHM_SLOT_META[slot].shortLabelKey);
@@ -157,12 +177,16 @@ function PresetCard({
       </View>
 
       <View style={styles.sourceBlock}>
-        <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>Historic roots</Text>
+        <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>
+          {t('plans.rhythmComposer.historicRoots')}
+        </Text>
         <Text style={[styles.sourceValue, { color: colors.primaryText }]}>{preset.historicRoots}</Text>
       </View>
 
       <View style={styles.sourceBlock}>
-        <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>Includes</Text>
+        <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>
+          {t('plans.rhythmComposer.includes')}
+        </Text>
         <Text style={[styles.includesValue, { color: colors.primaryText }]}>{itemPreview}</Text>
       </View>
 
@@ -195,7 +219,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
   const isEditing = Boolean(rhythmId);
 
   const [slotFilter, setSlotFilter] = useState<SlotFilter>('all');
-  const [traditionFilter, setTraditionFilter] = useState<string>('All traditions');
+  const [traditionFilter, setTraditionFilter] = useState<string>(ALL_TRADITIONS);
   const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
 
   const rhythmsById = useReadingPlansStore((state) => state.rhythmsById);
@@ -214,7 +238,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
               ? preset.slot === null
               : preset.slot === slotFilter;
         const matchesTradition =
-          traditionFilter === 'All traditions' ? true : preset.tradition === traditionFilter;
+          traditionFilter === ALL_TRADITIONS ? true : preset.tradition === traditionFilter;
 
         return matchesSlot && matchesTradition;
       }),
@@ -244,7 +268,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
       if (!result.success || !result.rhythm) {
         Alert.alert(
           t('common.error', { defaultValue: 'Error' }),
-          result.error ?? t('common.unexpectedError', { defaultValue: 'Something went wrong' })
+          resolveRhythmErrorMessage(result.error, t)
         );
         return;
       }
@@ -283,7 +307,9 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           <Text style={[styles.errorTitle, { color: colors.primaryText }]}>
             {t('readingPlans.rhythms')}
           </Text>
-          <Text style={[styles.errorBody, { color: colors.secondaryText }]}>Rhythm not found.</Text>
+          <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
+            {t('plans.rhythmComposer.rhythmNotFound')}
+          </Text>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             accessibilityRole="button"
@@ -318,25 +344,31 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
               {isEditing ? t('readingPlans.editRhythm') : t('readingPlans.createRhythm')}
             </Text>
             <Text style={[styles.screenSubtitle, { color: colors.secondaryText }]}>
-              Curated rhythm library, twenty historic starting points you can add in one tap.
+              {t('plans.rhythmComposer.subtitle')}
             </Text>
           </View>
         </View>
 
         <View style={[styles.heroCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.heroEyebrow, { color: colors.accentPrimary }]}>Historic rhythms</Text>
+          <Text style={[styles.heroEyebrow, { color: colors.accentPrimary }]}>
+            {t('plans.rhythmComposer.heroEyebrow')}
+          </Text>
           <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-            Start from a real tradition, not a blank form
+            {t('plans.rhythmComposer.heroTitle')}
           </Text>
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-            Catholic, Anglican, Orthodox, Benedictine, Lutheran, Puritan, and Taize-inspired
-            rhythms, already shaped into repeatable passages for morning, midday, evening, or
-            any time.
+            {t('plans.rhythmComposer.heroBody')}
           </Text>
           <View style={styles.heroMetaRow}>
-            <MetaPill label={`${RHYTHM_PRESET_LIBRARY.length} presets`} colors={colors} accent />
-            <MetaPill label="Prayer and Scripture" colors={colors} />
-            <MetaPill label="Tap to add" colors={colors} />
+            <MetaPill
+              label={t('plans.rhythmComposer.presetCount', {
+                count: RHYTHM_PRESET_LIBRARY.length,
+              })}
+              colors={colors}
+              accent
+            />
+            <MetaPill label={t('plans.rhythmComposer.prayerAndScripture')} colors={colors} />
+            <MetaPill label={t('plans.rhythmComposer.tapToAdd')} colors={colors} />
           </View>
         </View>
 
@@ -347,11 +379,12 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
               { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>Replace current rhythm</Text>
+            <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+              {t('plans.rhythmComposer.replaceCurrentTitle')}
+            </Text>
             <Text style={[styles.currentRhythmTitle, { color: colors.primaryText }]}>{currentRhythm.title}</Text>
             <Text style={[styles.currentRhythmBody, { color: colors.secondaryText }]}>
-              Pick a preset below to replace this rhythm completely. This keeps the flow simple and
-              makes every rhythm start from a clear tradition.
+              {t('plans.rhythmComposer.replaceCurrentBody')}
             </Text>
             <View style={styles.heroMetaRow}>
               <MetaPill label={getSlotLabel(currentRhythmSlot ?? null, t)} colors={colors} />
@@ -367,10 +400,12 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         ) : null}
 
         <View style={styles.filterSection}>
-          <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>Time of day</Text>
+          <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+            {t('plans.rhythmComposer.timeOfDay')}
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             <FilterChip
-              label="All"
+              label={t('plans.rhythmComposer.filterAll')}
               active={slotFilter === 'all'}
               colors={colors}
               onPress={() => setSlotFilter('all')}
@@ -382,7 +417,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
               onPress={() => setSlotFilter('morning')}
             />
             <FilterChip
-              label="Midday"
+              label={t('plans.rhythmComposer.midday')}
               active={slotFilter === 'afternoon'}
               colors={colors}
               onPress={() => setSlotFilter('afternoon')}
@@ -394,7 +429,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
               onPress={() => setSlotFilter('evening')}
             />
             <FilterChip
-              label="Any time"
+              label={t('plans.rhythmComposer.anyTime')}
               active={slotFilter === 'anytime'}
               colors={colors}
               onPress={() => setSlotFilter('anytime')}
@@ -403,13 +438,15 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         </View>
 
         <View style={styles.filterSection}>
-          <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>Tradition</Text>
+          <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+            {t('plans.rhythmComposer.tradition')}
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             <FilterChip
-              label="All traditions"
-              active={traditionFilter === 'All traditions'}
+              label={t('plans.rhythmComposer.allTraditions')}
+              active={traditionFilter === ALL_TRADITIONS}
               colors={colors}
-              onPress={() => setTraditionFilter('All traditions')}
+              onPress={() => setTraditionFilter(ALL_TRADITIONS)}
             />
             {RHYTHM_PRESET_TRADITIONS.map((tradition) => (
               <FilterChip
@@ -426,9 +463,11 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         {filteredPresets.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
             <Ionicons name="search-outline" size={24} color={colors.accentPrimary} />
-            <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>No rhythms match those filters.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
+              {t('plans.rhythmComposer.emptyTitle')}
+            </Text>
             <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-              Try a broader tradition or a different time of day.
+              {t('plans.rhythmComposer.emptyBody')}
             </Text>
           </View>
         ) : (
@@ -440,7 +479,11 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
                 colors={colors}
                 t={t}
                 saving={savingPresetId === preset.id}
-                actionLabel={isEditing ? 'Replace rhythm' : 'Add rhythm'}
+                actionLabel={
+                  isEditing
+                    ? t('plans.rhythmComposer.replaceRhythm')
+                    : t('plans.rhythmComposer.addRhythm')
+                }
                 onPress={() => handleApplyPreset(preset)}
               />
             ))}

@@ -16,8 +16,8 @@ test('RhythmComposerScreen is driven by the preset library instead of the old bu
   );
   assert.match(
     source,
-    /Historic rhythms/,
-    'RhythmComposerScreen should frame the experience around historic starter rhythms'
+    /plans\.rhythmComposer\.heroEyebrow/,
+    'RhythmComposerScreen should frame the experience around historic starter rhythms (i18n key)'
   );
   assert.doesNotMatch(
     source,
@@ -70,7 +70,7 @@ test('RhythmComposerScreen still lets users delete an existing rhythm', () => {
   );
   assert.match(
     source,
-    /Replace current rhythm/,
-    'RhythmComposerScreen should explain that edit mode now replaces a rhythm from the preset catalog'
+    /plans\.rhythmComposer\.replaceCurrentTitle/,
+    'RhythmComposerScreen should explain that edit mode now replaces a rhythm from the preset catalog (i18n key)'
   );
 });

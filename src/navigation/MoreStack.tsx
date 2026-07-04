@@ -57,6 +57,10 @@ export function MoreStack() {
         getComponent={() => require('../screens/more/AboutScreen').AboutScreen}
       />
       <Stack.Screen
+        name="Diagnostics"
+        getComponent={() => require('../screens/more/DiagnosticsScreen').DiagnosticsScreen}
+      />
+      <Stack.Screen
         name="Auth"
         getComponent={() => require('./AuthStack').AuthStack}
         options={{ presentation: 'modal' }}

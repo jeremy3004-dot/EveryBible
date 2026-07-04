@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import {
   LANGUAGES,
   SUPPORTED_LANGUAGES,
@@ -24,13 +25,16 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { changeLanguage } from '../../i18n';
-import { syncPreferences } from '../../services/sync';
 import {
   ensureRuntimeCatalogLoaded,
   hasRuntimeCatalogTranslations,
 } from '../../services/translations';
 import { resolveRegionalFallbackTranslation } from '../../services/translations/regionalTranslationFallback';
-import { localeSearchEngine, type LocaleLanguage } from '../../services/onboarding/localeSelection';
+import {
+  localeSearchEngine,
+  prewarmLocaleSearchEngine,
+  type LocaleLanguage,
+} from '../../services/onboarding/localeSelection';
 import {
   buildInitialOnboardingLanguageOptions,
   getInitialBibleLanguageListState,
@@ -60,6 +64,37 @@ interface LocaleSetupFlowProps {
   onComplete?: () => void;
 }
 
+// Load syncPreferences lazily inside completion handlers rather than as a
+// static top-of-file import. services/sync transitively evaluates
+// supabase/client.ts (@supabase/supabase-js), which is heavy on Hermes; a
+// static import would pull it into the onboarding screen's module eval at first
+// mount. Deferring the require to the completion path keeps supabase-js off the
+// first-run critical path. Fire-and-forget: sync failures must never block
+// finishing onboarding.
+const syncPreferencesAfterOnboarding = (): void => {
+  void import('../../services/sync')
+    .then(({ syncPreferences }) => syncPreferences())
+    .catch(() => {});
+};
+
+// Debounce a rapidly-changing value (search query text) so downstream result
+// memos and the row lists only recompute ~150ms after the user stops typing,
+// rather than on every keystroke. The TextInput keeps binding the raw value so
+// typing still feels immediate; only the expensive filtering/search follows the
+// debounced value.
+const SEARCH_DEBOUNCE_MS = 150;
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => clearTimeout(handle);
+  }, [value, delayMs]);
+
+  return debouncedValue;
+}
+
 const getFlagEmoji = (countryCode: string): string => {
   if (!/^[A-Z]{2}$/.test(countryCode)) {
     return '';
@@ -67,6 +102,203 @@ const getFlagEmoji = (countryCode: string): string => {
 
   return String.fromCodePoint(...countryCode.split('').map((char) => 127397 + char.charCodeAt(0)));
 };
+
+// Row components are extracted and memoized (keyed by stable id) so a keystroke
+// that only changes one row's selection — or leaves the visible set unchanged —
+// doesn't re-render every row in the non-virtualized ScrollView. Props are kept
+// primitive/stable (precomputed labels + a stable onSelect callback) so
+// React.memo's shallow compare actually skips unchanged rows.
+interface CountryRowProps {
+  countryCode: string;
+  countryName: string;
+  isSelected: boolean;
+  colors: ThemeColors;
+  onSelect: (countryCode: string) => void;
+}
+
+const CountryRow = memo(function CountryRow({
+  countryCode,
+  countryName,
+  isSelected,
+  colors,
+  onSelect,
+}: CountryRowProps) {
+  const flag = getFlagEmoji(countryCode);
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.optionCard,
+        {
+          backgroundColor: colors.cardBackground,
+          borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
+        },
+      ]}
+      onPress={() => onSelect(countryCode)}
+      activeOpacity={0.9}
+    >
+      <View style={styles.optionCopy}>
+        <View style={styles.countryTitleRow}>
+          {flag ? <Text style={styles.flagEmoji}>{flag}</Text> : null}
+          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{countryName}</Text>
+        </View>
+        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{countryCode}</Text>
+      </View>
+      {isSelected ? (
+        <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
+      ) : null}
+    </TouchableOpacity>
+  );
+});
+
+interface LanguageRowProps {
+  language: LocaleLanguage;
+  isRecommended: boolean;
+  isSelected: boolean;
+  recommendedBadgeLabel: string;
+  colors: ThemeColors;
+  onSelect: (languageCode: string) => void;
+}
+
+const LanguageRow = memo(function LanguageRow({
+  language,
+  isRecommended,
+  isSelected,
+  recommendedBadgeLabel,
+  colors,
+  onSelect,
+}: LanguageRowProps) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.optionCard,
+        {
+          backgroundColor: colors.cardBackground,
+          borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
+        },
+      ]}
+      onPress={() => onSelect(language.code)}
+      activeOpacity={0.9}
+    >
+      <View style={styles.optionCopy}>
+        <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
+          {language.nativeName}
+        </Text>
+        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{language.name}</Text>
+        <View style={styles.badgeRow}>
+          {isRecommended ? (
+            <View
+              style={[
+                styles.badge,
+                {
+                  backgroundColor: colors.accentGreen + '18',
+                  borderColor: colors.accentGreen + '44',
+                },
+              ]}
+            >
+              <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
+                {recommendedBadgeLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+      {isSelected ? (
+        <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
+      ) : null}
+    </TouchableOpacity>
+  );
+});
+
+interface OnboardingLanguageRowProps {
+  translation: BibleTranslation;
+  optionLabel: string;
+  translationLabel: string;
+  availabilitySummary: string;
+  statusLabel: string;
+  recommendedBadgeLabel: string;
+  downloadingLabel: string;
+  isRecommended: boolean;
+  isInstalling: boolean;
+  progress: number | null;
+  colors: ThemeColors;
+  onPress: (translation: BibleTranslation) => void;
+}
+
+const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
+  translation,
+  optionLabel,
+  translationLabel,
+  availabilitySummary,
+  statusLabel,
+  recommendedBadgeLabel,
+  downloadingLabel,
+  isRecommended,
+  isInstalling,
+  progress,
+  colors,
+  onPress,
+}: OnboardingLanguageRowProps) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.optionCard,
+        {
+          backgroundColor: isRecommended ? colors.accentGreen + '10' : colors.cardBackground,
+          borderColor: isRecommended ? colors.accentGreen : colors.cardBorder,
+        },
+      ]}
+      onPress={() => onPress(translation)}
+      disabled={isInstalling}
+      activeOpacity={0.9}
+    >
+      <View style={styles.optionCopy}>
+        <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{optionLabel}</Text>
+        <Text style={[styles.optionMeta, { color: colors.secondaryText }]} numberOfLines={1}>
+          {translationLabel}
+        </Text>
+        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
+          {availabilitySummary}
+        </Text>
+        <View style={styles.badgeRow}>
+          {isRecommended ? (
+            <View
+              style={[
+                styles.badge,
+                {
+                  backgroundColor: colors.accentGreen + '18',
+                  borderColor: colors.accentGreen + '44',
+                },
+              ]}
+            >
+              <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
+                {recommendedBadgeLabel}
+              </Text>
+            </View>
+          ) : null}
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: colors.accentGreen + '18',
+                borderColor: colors.accentGreen + '44',
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
+              {isInstalling && progress != null ? `${downloadingLabel} ${progress}%` : statusLabel}
+            </Text>
+          </View>
+        </View>
+      </View>
+      {isInstalling ? (
+        <ActivityIndicator color={colors.accentGreen} />
+      ) : (
+        <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
+      )}
+    </TouchableOpacity>
+  );
+});
 
 export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: LocaleSetupFlowProps) {
   const { colors } = useTheme();
@@ -112,6 +344,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [runtimeCatalogHydrationAttempt, setRuntimeCatalogHydrationAttempt] = useState(0);
   const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
+
+  // Debounced mirrors of the raw search inputs. The result memos below consume
+  // these so keystrokes don't trigger a filter/search + full list re-render on
+  // every character.
+  const debouncedTranslationQuery = useDebouncedValue(translationQuery, SEARCH_DEBOUNCE_MS);
+  const debouncedCountryQuery = useDebouncedValue(countryQuery, SEARCH_DEBOUNCE_MS);
+  const debouncedLanguageQuery = useDebouncedValue(languageQuery, SEARCH_DEBOUNCE_MS);
 
   const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
   const selectedLanguage = localeSearchEngine.getLanguageByCode(selectedLanguageCode);
@@ -183,11 +422,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const onboardingLanguageOptions = useMemo(() => {
     const matchingTranslations = filterTranslationsBySearchQuery(
       eligibleOnboardingTranslations,
-      translationQuery
+      debouncedTranslationQuery
     );
 
     return buildInitialOnboardingLanguageOptions(matchingTranslations);
-  }, [eligibleOnboardingTranslations, translationQuery]);
+  }, [eligibleOnboardingTranslations, debouncedTranslationQuery]);
   const onboardingLanguageSections = useMemo(() => {
     const sections: Array<{
       groupLabel: string;
@@ -267,7 +506,17 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           return scoreDelta;
         }
 
-        return left.label.localeCompare(right.label);
+        // Plain code-point compare for the tiebreak instead of ICU
+        // localeCompare: this sort runs on every keystroke, and localeCompare
+        // is a slow ICU call on Hermes (no JIT). The tiebreak only needs a
+        // stable deterministic order, not linguistic collation.
+        if (left.label < right.label) {
+          return -1;
+        }
+        if (left.label > right.label) {
+          return 1;
+        }
+        return 0;
       })
       .slice(0, 5);
   }, [
@@ -283,18 +532,31 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const countryResults = useMemo(
     () =>
       step === 'country'
-        ? localeSearchEngine.searchCountries(countryQuery, selectedInterfaceLanguageCode)
+        ? localeSearchEngine.searchCountries(debouncedCountryQuery, selectedInterfaceLanguageCode)
         : [],
-    [countryQuery, selectedInterfaceLanguageCode, step]
+    [debouncedCountryQuery, selectedInterfaceLanguageCode, step]
   );
 
   const languageResults = useMemo(
     () =>
       step === 'contentLanguage'
-        ? localeSearchEngine.searchLanguages(languageQuery, selectedCountryCode, 30)
+        ? localeSearchEngine.searchLanguages(debouncedLanguageQuery, selectedCountryCode, 30)
         : { recommended: [], global: [] },
-    [languageQuery, selectedCountryCode, step]
+    [debouncedLanguageQuery, selectedCountryCode, step]
   );
+  // Pre-warm the locale search engine off the interaction/render critical path.
+  // The engine's first use (129 KB catalog require + ICU sorts + Fuse build) is
+  // otherwise paid synchronously on the first country-step render or first
+  // keystroke. Running it after interactions on mount moves that cost earlier
+  // and off the hot path. Idempotent — safe if the engine was already resolved.
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      prewarmLocaleSearchEngine();
+    });
+
+    return () => task.cancel();
+  }, []);
+
   useEffect(() => {
     if (mode !== 'initial' || hasHydratedRuntimeCatalog) {
       setIsHydratingRuntimeCatalog(false);
@@ -345,7 +607,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       onboardingCompleted: true,
     });
 
-    syncPreferences().catch(() => {});
+    syncPreferencesAfterOnboarding();
     onComplete?.();
   };
 
@@ -374,11 +636,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       onboardingCompleted: true,
     });
 
-    syncPreferences().catch(() => {});
+    syncPreferencesAfterOnboarding();
     onComplete?.();
   };
 
-  const handleTranslationSelect = async (translation: BibleTranslation) => {
+  const handleTranslationSelectImpl = async (translation: BibleTranslation) => {
     const availability = getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
       translationHasAudio: translation.hasAudio,
@@ -447,6 +709,26 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       [{ text: t('common.ok') }]
     );
   };
+
+  // Keep a stable onPress identity for the memoized onboarding rows while always
+  // invoking the latest handler implementation (which closes over changing
+  // render state). Without this, a fresh handler each render would defeat
+  // React.memo's shallow prop compare.
+  const handleTranslationSelectRef = useRef(handleTranslationSelectImpl);
+  handleTranslationSelectRef.current = handleTranslationSelectImpl;
+  const handleTranslationSelect = useCallback((translation: BibleTranslation) => {
+    void handleTranslationSelectRef.current(translation);
+  }, []);
+
+  const handleCountrySelect = useCallback((countryCode: string) => {
+    setSelectedCountryCode(countryCode);
+    setLanguageQuery('');
+    setSelectedLanguageCode(null);
+  }, []);
+
+  const handleLanguageSelect = useCallback((languageCode: string) => {
+    setSelectedLanguageCode(languageCode);
+  }, []);
 
   const goToStep = (targetStep: SetupStep) => {
     if (steps.includes(targetStep)) {
@@ -554,105 +836,40 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       : translation.name;
 
     return (
-      <TouchableOpacity
+      <OnboardingLanguageRow
         key={option.key}
-        style={[
-          styles.optionCard,
-          {
-            backgroundColor: isRecommended ? colors.accentGreen + '10' : colors.cardBackground,
-            borderColor: isRecommended ? colors.accentGreen : colors.cardBorder,
-          },
-        ]}
-        onPress={() => void handleTranslationSelect(translation)}
-        disabled={isInstalling}
-        activeOpacity={0.9}
-      >
-        <View style={styles.optionCopy}>
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{option.label}</Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]} numberOfLines={1}>
-            {translationLabel}
-          </Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
-            {getTranslationAvailabilitySummary(translation, t)}
-          </Text>
-          <View style={styles.badgeRow}>
-            {isRecommended ? (
-              <View
-                style={[
-                  styles.badge,
-                  {
-                    backgroundColor: colors.accentGreen + '18',
-                    borderColor: colors.accentGreen + '44',
-                  },
-                ]}
-              >
-                <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                  {t('onboarding.recommendedBadge')}
-                </Text>
-              </View>
-            ) : null}
-            <View
-              style={[
-                styles.badge,
-                {
-                  backgroundColor: colors.accentGreen + '18',
-                  borderColor: colors.accentGreen + '44',
-                },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                {isInstalling && progress != null
-                  ? `${t('translations.downloading')} ${progress}%`
-                  : statusLabel}
-              </Text>
-            </View>
-          </View>
-        </View>
-        {isInstalling ? (
-          <ActivityIndicator color={colors.accentGreen} />
-        ) : (
-          <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
-        )}
-      </TouchableOpacity>
+        translation={translation}
+        optionLabel={option.label}
+        translationLabel={translationLabel}
+        availabilitySummary={getTranslationAvailabilitySummary(translation, t)}
+        statusLabel={statusLabel}
+        recommendedBadgeLabel={t('onboarding.recommendedBadge')}
+        downloadingLabel={t('translations.downloading')}
+        isRecommended={isRecommended}
+        isInstalling={isInstalling}
+        progress={progress}
+        colors={colors}
+        onPress={handleTranslationSelect}
+      />
     );
   };
 
   const renderCountryRow = (countryCode: string) => {
     const isSelected = selectedCountryCode === countryCode;
-    const flag = getFlagEmoji(countryCode);
     const countryName = localeSearchEngine.getCountryDisplayName(
       countryCode,
       selectedInterfaceLanguageCode
     );
 
     return (
-      <TouchableOpacity
+      <CountryRow
         key={countryCode}
-        style={[
-          styles.optionCard,
-          {
-            backgroundColor: colors.cardBackground,
-            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-          },
-        ]}
-        onPress={() => {
-          setSelectedCountryCode(countryCode);
-          setLanguageQuery('');
-          setSelectedLanguageCode(null);
-        }}
-        activeOpacity={0.9}
-      >
-        <View style={styles.optionCopy}>
-          <View style={styles.countryTitleRow}>
-            {flag ? <Text style={styles.flagEmoji}>{flag}</Text> : null}
-            <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{countryName}</Text>
-          </View>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{countryCode}</Text>
-        </View>
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-        ) : null}
-      </TouchableOpacity>
+        countryCode={countryCode}
+        countryName={countryName}
+        isSelected={isSelected}
+        colors={colors}
+        onSelect={handleCountrySelect}
+      />
     );
   };
 
@@ -660,45 +877,15 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     const isSelected = selectedLanguageCode === language.code;
 
     return (
-      <TouchableOpacity
+      <LanguageRow
         key={`${isRecommended ? 'recommended' : 'global'}-${language.code}`}
-        style={[
-          styles.optionCard,
-          {
-            backgroundColor: colors.cardBackground,
-            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-          },
-        ]}
-        onPress={() => setSelectedLanguageCode(language.code)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.optionCopy}>
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
-            {language.nativeName}
-          </Text>
-          <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{language.name}</Text>
-          <View style={styles.badgeRow}>
-            {isRecommended ? (
-              <View
-                style={[
-                  styles.badge,
-                  {
-                    backgroundColor: colors.accentGreen + '18',
-                    borderColor: colors.accentGreen + '44',
-                  },
-                ]}
-              >
-                <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                  {t('onboarding.recommendedBadge')}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-        ) : null}
-      </TouchableOpacity>
+        language={language}
+        isRecommended={isRecommended}
+        isSelected={isSelected}
+        recommendedBadgeLabel={t('onboarding.recommendedBadge')}
+        colors={colors}
+        onSelect={handleLanguageSelect}
+      />
     );
   };
 

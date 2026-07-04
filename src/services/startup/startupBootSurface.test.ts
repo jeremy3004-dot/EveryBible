@@ -269,6 +269,7 @@ test('navigation stacks lazy-load screens instead of importing them at module lo
     '../../navigation/HomeStack.tsx',
     '../../navigation/BibleStack.tsx',
     '../../navigation/LearnStack.tsx',
+    '../../navigation/PlansStack.tsx',
     '../../navigation/MoreStack.tsx',
     '../../navigation/AuthStack.tsx',
   ];

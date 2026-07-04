@@ -64,6 +64,74 @@ async function deleteDatabaseArtifactsIfExists(path: string): Promise<void> {
   }
 }
 
+const HEX_LOOKUP = Array.from({ length: 256 }, (_, byte) =>
+  byte.toString(16).padStart(2, '0')
+);
+
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = '';
+  for (let index = 0; index < bytes.length; index += 1) {
+    hex += HEX_LOOKUP[bytes[index]];
+  }
+  return hex;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  // atob is provided by the RN/Hermes runtime (and the web). If it is somehow unavailable the
+  // caller catches and skips verification rather than blocking the download.
+  if (typeof atob !== 'function') {
+    throw new Error('Base64 decoding is not available in this runtime.');
+  }
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+// Verify the downloaded text-pack file against the catalog's declared SHA-256 so a stale,
+// truncated, or wrong artifact at the CDN URL is rejected before it is activated as "installed".
+// Uses Web Crypto's subtle.digest (already relied on by authService) rather than pulling in a new
+// crypto dependency. If the runtime cannot hash (no subtle.digest / no base64 decoder), verification
+// is skipped rather than failing the download — see M6 limitation note.
+async function verifyTextPackSha256({
+  fileUri,
+  expectedSha256,
+}: {
+  fileUri: string;
+  expectedSha256: string;
+}): Promise<void> {
+  const webCrypto = (globalThis as { crypto?: Crypto }).crypto;
+  if (!webCrypto?.subtle || typeof webCrypto.subtle.digest !== 'function') {
+    return;
+  }
+
+  let bytes: Uint8Array;
+  try {
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    bytes = base64ToBytes(base64);
+  } catch {
+    // Unable to read the file for hashing (very large file / unsupported encoding). Skip rather
+    // than block; the verse-count check below still guards obviously-broken packs.
+    return;
+  }
+
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+  const digest = await webCrypto.subtle.digest('SHA-256', buffer);
+  const actual = bytesToHex(new Uint8Array(digest));
+
+  if (actual.toLowerCase() !== expectedSha256.toLowerCase()) {
+    throw new Error('Downloaded translation failed integrity verification (checksum mismatch).');
+  }
+}
+
 async function verifyInstalledTranslationDatabase({
   directory,
   databaseName,
@@ -365,11 +433,15 @@ export async function downloadCloudTranslation(
 export async function downloadCatalogTextPack(params: {
   downloadUrl: string;
   expectedVerseCount?: number;
+  expectedSha256?: string;
   onProgress?: CloudDownloadProgressCallback;
   translationId: string;
 }): Promise<string> {
   const finalDbPath = getTranslationDbPath(params.translationId);
   const stagingDbPath = getStagingTranslationDbPath(params.translationId);
+  // Prefer the catalog's real verse count when the caller provides one; only fall back to the
+  // permissive "≥1 verse" threshold when no expected count is known (M6). Combined with the
+  // SHA-256 check below, this stops a stale/partial pack from silently activating.
   const expectedVerseCount = Math.max(1, params.expectedVerseCount ?? 1);
 
   try {
@@ -391,6 +463,13 @@ export async function downloadCatalogTextPack(params: {
     });
 
     await FileSystem.downloadAsync(resolvedDownloadUrl, stagingDbPath);
+
+    if (params.expectedSha256) {
+      await verifyTextPackSha256({
+        fileUri: stagingDbPath,
+        expectedSha256: params.expectedSha256,
+      });
+    }
 
     params.onProgress?.({
       phase: 'indexing',

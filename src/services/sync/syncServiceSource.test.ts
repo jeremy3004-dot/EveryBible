@@ -43,11 +43,23 @@ test('syncPreferences does not upsert a manual chapter feedback ID number into u
   );
 });
 
-test('syncPreferences does not write an appearance palette into user_preferences', () => {
+test('syncPreferences writes appearance_palette into user_preferences (M8)', () => {
+  // The column exists in the remote schema
+  // (20260409091500_add_appearance_palette_to_user_preferences.sql) and is read
+  // back by mapRemotePreferences, so the local→cloud upsert must include it or
+  // the palette silently resets to the DB default when a remote row wins LWW.
   assert.equal(
-    source.includes('appearance_palette'),
-    false,
-    'syncPreferences should not write an appearance palette because user_preferences has no palette column'
+    source.includes('appearance_palette: mergedPreferences.preferences.appearancePalette'),
+    true,
+    'syncPreferences should upsert appearance_palette so the palette reaches the cloud'
+  );
+});
+
+test('syncPreferences writes hide_play_button_from_reading_tab into user_preferences (M8)', () => {
+  assert.equal(
+    source.includes('hide_play_button_from_reading_tab'),
+    true,
+    'syncPreferences should upsert hide_play_button_from_reading_tab so the preference reaches the cloud'
   );
 });
 

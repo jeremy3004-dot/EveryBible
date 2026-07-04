@@ -1076,6 +1076,21 @@ export function SettingsScreen() {
             { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
           ]}
         >
+          <TouchableOpacity
+            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
+            onPress={() => navigation.navigate('Diagnostics')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="bug-outline" size={24} color={colors.secondaryText} />
+              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
+                {t('settings.diagnostics.title')}
+              </Text>
+            </View>
+            <View style={styles.settingRight}>
+              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="cloud-download-outline" size={24} color={colors.secondaryText} />

@@ -175,8 +175,3 @@ export async function getDailyScripture(
     audioAvailable,
   });
 }
-
-export async function getLoadingProgress(): Promise<{ loaded: number; total: number }> {
-  const count = await bibleDb.getVerseCount();
-  return { loaded: count, total: 62184 };
-}

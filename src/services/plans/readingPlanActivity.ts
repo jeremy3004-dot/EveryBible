@@ -523,8 +523,26 @@ export function getScheduledPlanDayDateKey(startedAt: string, dayNumber: number)
   return formatLocalDateKey(getScheduledPlanDayDate(startedAt, dayNumber));
 }
 
+/**
+ * Resolves the active in-app i18n language for date formatting.
+ *
+ * L22: we avoid a top-level `import i18n` here because it pulls the react-native
+ * dependency graph into this otherwise-pure module (which breaks node-based unit
+ * tests). Instead we read the language lazily and fall back to `undefined`
+ * (device locale) if i18n is unavailable.
+ */
+function getActiveDateLocale(): string | undefined {
+  try {
+    const i18n = require('../../i18n').default as { language?: string };
+    return i18n?.language || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function formatScheduledPlanDayLabel(startedAt: string, dayNumber: number): string {
-  return getScheduledPlanDayDate(startedAt, dayNumber).toLocaleDateString('en-US', {
+  // L22: format day labels in the in-app language, not a pinned en-US locale.
+  return getScheduledPlanDayDate(startedAt, dayNumber).toLocaleDateString(getActiveDateLocale(), {
     month: 'short',
     day: 'numeric',
   });

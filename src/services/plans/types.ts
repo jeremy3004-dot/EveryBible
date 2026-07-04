@@ -187,6 +187,12 @@ export interface ReadingPlansPersistedState {
   groupPlansByGroupId: Record<string, GroupReadingPlan[]>;
   rhythmsById: Record<RhythmId, ReadingPlanRhythm>;
   rhythmOrder: RhythmId[];
+  /**
+   * Plans the user has unenrolled from locally whose remote delete has not yet
+   * been confirmed. Used to prevent zombie re-enrollment on the next full fetch
+   * and to retry the remote delete during sync (see M12).
+   */
+  pendingUnenrollPlanIds: string[];
 }
 
 export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
@@ -237,5 +243,14 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   getProgress: (planId: string) => ReadingPlanProgress | null;
   assignGroupPlan: (groupId: string, planId: string, assignedBy?: string) => GroupReadingPlan;
   getGroupPlans: (groupId: string) => GroupReadingPlan[];
+  /** Records a pending unenroll tombstone so an unconfirmed remote delete can be retried (M12). */
+  addPendingUnenroll: (planId: string) => void;
+  /** Clears a tombstone once the remote delete is confirmed (or the plan is re-enrolled) (M12). */
+  clearPendingUnenroll: (planId: string) => void;
   resetAll: () => void;
+  /**
+   * Clears all per-user plan progress, rhythms, and tombstones back to the initial
+   * empty state. Called on sign-out to prevent cross-account data leakage (H2).
+   */
+  resetForSignOut: () => void;
 }

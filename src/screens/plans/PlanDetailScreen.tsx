@@ -57,7 +57,7 @@ import { getBookById } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 // ---------------------------------------------------------------------------
-// Helpers (duplicated from ReadingPlanDetailScreen to avoid cross-screen dep)
+// Helpers (self-contained to avoid cross-screen dep)
 // ---------------------------------------------------------------------------
 
 function formatChapterRef(entry: ReadingPlanEntry): string {

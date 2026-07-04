@@ -594,19 +594,27 @@ test('reconcileFetchedPlanProgress preserves a recent unsynced local enrollment 
     synced_at: '2026-04-08T10:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:03:00.000Z');
+  const { progress, localOnlyProgress } = reconcileFetchedPlanProgress(
+    [local],
+    [remote],
+    '2026-04-09T10:03:00.000Z'
+  );
 
   assert.deepEqual(
-    reconciled.map((progress) => progress.plan_id),
+    progress.map((entry) => entry.plan_id),
     ['plan-local-only', 'plan-remote']
   );
   assert.equal(
-    reconciled.find((progress) => progress.plan_id === 'plan-local-only')?.user_id,
+    progress.find((entry) => entry.plan_id === 'plan-local-only')?.user_id,
     undefined
+  );
+  assert.deepEqual(
+    localOnlyProgress.map((entry) => entry.plan_id),
+    ['plan-local-only']
   );
 });
 
-test('reconcileFetchedPlanProgress drops stale local-only progress after the grace window', () => {
+test('reconcileFetchedPlanProgress NEVER drops legitimately-old local-only progress (H3)', () => {
   const local = makeProgress({
     user_id: undefined,
     plan_id: 'plan-local-only',
@@ -621,11 +629,47 @@ test('reconcileFetchedPlanProgress drops stale local-only progress after the gra
     synced_at: '2026-04-08T10:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:10:01.000Z');
+  // Well past the former 5-minute grace window — the local row must still survive
+  // and be reported for push instead of being silently dropped.
+  const { progress, localOnlyProgress } = reconcileFetchedPlanProgress(
+    [local],
+    [remote],
+    '2026-04-09T10:10:01.000Z'
+  );
 
   assert.deepEqual(
-    reconciled.map((progress) => progress.plan_id),
-    ['plan-remote']
+    progress.map((entry) => entry.plan_id),
+    ['plan-local-only', 'plan-remote']
+  );
+  assert.deepEqual(
+    localOnlyProgress.map((entry) => entry.plan_id),
+    ['plan-local-only']
+  );
+});
+
+test('reconcileFetchedPlanProgress excludes tombstoned plans from the result (M12)', () => {
+  const localKept = makeProgress({
+    user_id: undefined,
+    plan_id: 'plan-local-only',
+    started_at: '2026-04-09T10:00:00.000Z',
+  });
+  const remoteTombstoned = makeProgress({
+    id: 'prog-remote',
+    user_id: 'user-1',
+    plan_id: 'plan-unenrolled',
+    started_at: '2026-04-08T10:00:00.000Z',
+  });
+
+  const { progress } = reconcileFetchedPlanProgress(
+    [localKept],
+    [remoteTombstoned],
+    '2026-04-09T10:03:00.000Z',
+    ['plan-unenrolled']
+  );
+
+  assert.deepEqual(
+    progress.map((entry) => entry.plan_id),
+    ['plan-local-only']
   );
 });
 
@@ -645,12 +689,12 @@ test('reconcileFetchedPlanProgress merges matching local and remote plan rows', 
     synced_at: '2026-04-09T09:00:00.000Z',
   });
 
-  const reconciled = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:00:00.000Z');
+  const { progress } = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:00:00.000Z');
 
-  assert.equal(reconciled.length, 1);
-  assert.deepEqual(Object.keys(reconciled[0].completed_entries), ['1', '2']);
-  assert.equal(reconciled[0].current_day, 3);
-  assert.equal(reconciled[0].user_id, 'user-1');
+  assert.equal(progress.length, 1);
+  assert.deepEqual(Object.keys(progress[0].completed_entries), ['1', '2']);
+  assert.equal(progress[0].current_day, 3);
+  assert.equal(progress[0].user_id, 'user-1');
 });
 
 // ---------------------------------------------------------------------------

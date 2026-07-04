@@ -446,9 +446,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     (snapshot: TrackPlayerProgressSnapshot) => {
       const currentPosition = useAudioStore.getState().currentPosition;
       const currentDuration = useAudioStore.getState().duration;
-      // Keep the visible position monotonic so stop-like snapshots from
-      // background-music teardown cannot pull the Bible progress bar backward.
-      const nextPosition = Math.max(currentPosition, snapshot.positionMillis);
+      // The monotonic clamp exists to suppress stop-like snapshots (position
+      // collapsing toward 0) that a background-music teardown can surface —
+      // those must never drag the Bible progress bar backward. But a genuine
+      // playing progress event from the Bible sound is the authoritative
+      // position and must be allowed to correct interpolation overshoot
+      // downward. Treat a non-zero, still-playing snapshot as authoritative;
+      // otherwise keep the position monotonic.
+      const isAuthoritativeProgress = snapshot.isPlaying && snapshot.positionMillis > 0;
+      const nextPosition = isAuthoritativeProgress
+        ? snapshot.positionMillis
+        : Math.max(currentPosition, snapshot.positionMillis);
       const nextDuration =
         snapshot.durationMillis > 0
           ? Math.max(currentDuration, snapshot.durationMillis)
@@ -480,7 +488,16 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         if (!interpolationTimerRef.current) {
           interpolationTimerRef.current = setInterval(() => {
             const playbackRate = useAudioStore.getState().playbackRate ?? 1.0;
-            const elapsed = Date.now() - lastPollTimeRef.current;
+            // Bound the elapsed used for interpolation to one interval. Without
+            // this cap, a delayed or stalled native poll lets the interpolated
+            // value race arbitrarily far past the true position, and the
+            // monotonic clamp would then keep that overshoot forever. Capping to
+            // one interval keeps interpolation at most ~one tick ahead of the
+            // last real poll, so the next real snapshot can correct it.
+            const elapsed = Math.min(
+              Date.now() - lastPollTimeRef.current,
+              AUDIO_POSITION_INTERPOLATION_INTERVAL_MS
+            );
             const interpolated = lastPollPositionRef.current + elapsed * playbackRate;
             const currentPosition = useAudioStore.getState().currentPosition;
             const currentDuration = useAudioStore.getState().duration;
@@ -780,11 +797,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Resume playback
   const resume = useCallback(async () => {
     const store = useAudioStore.getState();
-    const resumePosition = Math.max(store.currentPosition, store.lastPosition);
+    // Live resume: the loaded player already holds the true offset, and
+    // currentPosition reflects any scrubs made while paused. Using
+    // max(currentPosition, lastPosition) here leaks the 5s persistence
+    // hysteresis on lastPosition and undoes small backward scrubs. Only fall
+    // back to the max-with-lastPosition logic on cold restore, where the
+    // player is unloaded and lastPosition is the last durable anchor.
+    const isLoaded = audioPlayer.isLoaded();
+    const resumePosition = isLoaded
+      ? store.currentPosition
+      : Math.max(store.currentPosition, store.lastPosition);
 
     // Reset poll anchor so interpolation starts fresh from the resumed position.
     // If the native player lost its offset during an interruption, re-seek first.
-    if (audioPlayer.isLoaded() && resumePosition > 0) {
+    if (isLoaded && resumePosition > 0) {
       await audioPlayer.seekTo(resumePosition);
     }
 

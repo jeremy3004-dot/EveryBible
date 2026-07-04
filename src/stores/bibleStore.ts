@@ -120,7 +120,9 @@ interface BibleState {
   setPreferredTranslationLanguage: (language: string | null) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
   reconcileTranslationPacks: () => Promise<void>;
+  recoverMissingInstalledPack: (translationId: string) => Promise<void>;
   reattachAudioDownloads: () => Promise<void>;
+  resetForSignOut: () => void;
   stageTranslationPack: (
     translationId: string,
     candidate: { version: string; localPath: string }
@@ -297,7 +299,9 @@ function toPersistedTranslation(
   };
 }
 
-console.log('[EB-T] bible:pre-create', Date.now());
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('[EB-T] bible:pre-create', Date.now());
+}
 export const useBibleStore = create<BibleState>()(
   persist(
     (set, get) => ({
@@ -470,6 +474,40 @@ export const useBibleStore = create<BibleState>()(
         );
       },
 
+      // Self-heal a corrupt or vanished installed text pack detected mid-session (e.g. a
+      // MissingInstalledDatabaseError thrown from getChapter after OS storage cleanup). Unlike
+      // reconcileTranslationPacks — which only runs at startup and only checks size > 0 — this
+      // can be dispatched from the reader's catch block to reset the translation's install state
+      // and fall back to a readable translation immediately, so the reader isn't stuck on a
+      // generic error until the next launch.
+      recoverMissingInstalledPack: async (translationId) => {
+        const translation = get().translations.find((item) => item.id === translationId);
+        if (!translation || translation.source !== 'runtime') {
+          return;
+        }
+
+        const localPath = translation.textPackLocalPath;
+        if (localPath) {
+          try {
+            await invalidateInstalledBibleDatabaseAtPath(localPath);
+          } catch (error) {
+            console.warn('[Bible] Failed to invalidate missing installed pack:', translationId, error);
+          }
+        }
+
+        set((state) =>
+          reconcileMissingRuntimeTranslationPacks(
+            state.translations,
+            state.currentTranslation,
+            new Set([translationId])
+          )
+        );
+
+        const nextTranslations = get().translations;
+        syncRemoteAudioMetadataResolverWithTranslations(nextTranslations);
+        syncVerseTimestampMetadata(nextTranslations);
+      },
+
       reattachAudioDownloads: async () => {
         const audio = await loadAudioDownloadModules();
         const jobStore = await audio.createAudioDownloadJobStore({
@@ -509,6 +547,29 @@ export const useBibleStore = create<BibleState>()(
           ),
           downloadProgress: activeJobs[0] ? mapAudioDownloadProgress(activeJobs[0]) : null,
         }));
+
+        // reattachJob only revives native tasks that survived the process restart; it does not
+        // re-run the JS chapter orchestration loop, so chapters that never started stay
+        // undownloaded, no progress events flow, and completeAudioDownloadJob is never called —
+        // the UI sticks at "Loading… 0%". Re-invoke the matching download action per in-flight
+        // job; the valid-file skip inside downloadAudioBook makes this idempotent (already-saved
+        // chapters are skipped) so it resumes progress and completion instead of restarting.
+        const availableBookIds = new Set(bibleBooks.map((book) => book.id));
+        activeJobs.forEach((job) => {
+          if (job.scope === 'translation') {
+            void get()
+              .downloadAudioForTranslation(job.translationId)
+              .catch((error) => {
+                console.warn('[Bible] Failed to resume audio translation download:', job.id, error);
+              });
+          } else if (job.bookId && availableBookIds.has(job.bookId)) {
+            void get()
+              .downloadAudioForBook(job.translationId, job.bookId)
+              .catch((error) => {
+                console.warn('[Bible] Failed to resume audio book download:', job.id, error);
+              });
+          }
+        });
       },
 
       stageTranslationPack: (translationId, candidate) => {
@@ -635,6 +696,7 @@ export const useBibleStore = create<BibleState>()(
           const localPath = await downloadCatalogTextPack({
             translationId,
             downloadUrl: textPack.downloadUrl,
+            expectedSha256: textPack.sha256,
             onProgress: handleProgress,
           });
 
@@ -730,22 +792,40 @@ export const useBibleStore = create<BibleState>()(
           }));
         };
 
-        await audio.downloadAudioBook({
-          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-          translationId,
-          book,
-          fileSystem: audio.expoAudioFileSystemAdapter,
-          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
-          jobStore,
-          transport,
-          hooks: {
-            onStart: handleAudioJobUpdate,
-            onReattach: handleAudioJobUpdate,
-            onFailure: (job) => handleAudioJobUpdate(job),
-            onComplete: handleAudioJobUpdate,
-            onProgress: handleAudioBookProgress,
-          },
-        });
+        try {
+          await audio.downloadAudioBook({
+            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+            translationId,
+            book,
+            fileSystem: audio.expoAudioFileSystemAdapter,
+            resolveRemoteAudio: audio.fetchRemoteChapterAudio,
+            jobStore,
+            transport,
+            hooks: {
+              onStart: handleAudioJobUpdate,
+              onReattach: handleAudioJobUpdate,
+              onFailure: (job) => handleAudioJobUpdate(job),
+              onComplete: handleAudioJobUpdate,
+              onProgress: handleAudioBookProgress,
+            },
+          });
+        } catch (error) {
+          // A user cancellation is not an error — clear the in-flight job/progress and return so no
+          // error alert surfaces. Genuine failures propagate to the caller. (M2)
+          if (audio.isAudioDownloadCancellation(error)) {
+            set((state) => ({
+              translations: state.translations.map((item) =>
+                item.id === translationId ? { ...item, activeDownloadJob: null } : item
+              ),
+              downloadProgress:
+                get().downloadProgress?.translationId === translationId
+                  ? null
+                  : get().downloadProgress,
+            }));
+            return;
+          }
+          throw error;
+        }
 
         set((state) => ({
           translations: state.translations.map((item) =>
@@ -824,22 +904,41 @@ export const useBibleStore = create<BibleState>()(
           }));
         };
 
-        const result = await audio.downloadAudioTranslation({
-          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-          translationId,
-          books: selectedBooks,
-          fileSystem: audio.expoAudioFileSystemAdapter,
-          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
-          jobStore,
-          transport,
-          hooks: {
-            onStart: handleAudioJobUpdate,
-            onReattach: handleAudioJobUpdate,
-            onFailure: (job) => handleAudioJobUpdate(job),
-            onComplete: handleAudioJobUpdate,
-            onBookComplete: handleAudioBookComplete,
-          },
-        });
+        let result: { downloadedBookIds: string[] };
+        try {
+          result = await audio.downloadAudioTranslation({
+            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+            translationId,
+            books: selectedBooks,
+            fileSystem: audio.expoAudioFileSystemAdapter,
+            resolveRemoteAudio: audio.fetchRemoteChapterAudio,
+            jobStore,
+            transport,
+            hooks: {
+              onStart: handleAudioJobUpdate,
+              onReattach: handleAudioJobUpdate,
+              onFailure: (job) => handleAudioJobUpdate(job),
+              onComplete: handleAudioJobUpdate,
+              onBookComplete: handleAudioBookComplete,
+            },
+          });
+        } catch (error) {
+          // User cancellation is terminal-but-not-a-failure — clear the in-flight job/progress and
+          // return without throwing so the picker shows no error alert. (M2)
+          if (audio.isAudioDownloadCancellation(error)) {
+            set((state) => ({
+              translations: state.translations.map((item) =>
+                item.id === translationId ? { ...item, activeDownloadJob: null } : item
+              ),
+              downloadProgress:
+                get().downloadProgress?.translationId === translationId
+                  ? null
+                  : get().downloadProgress,
+            }));
+            return;
+          }
+          throw error;
+        }
 
         set((state) => ({
           translations: state.translations.map((item) =>
@@ -878,23 +977,46 @@ export const useBibleStore = create<BibleState>()(
 
       cancelDownload: () => {
         const progress = get().downloadProgress;
+        const cancelledTranslationId = progress?.translationId;
         if (progress?.jobId) {
           const jobId = progress.jobId;
-          // Stop the in-JS scheduling loop (runWithConcurrency) immediately, and also ask the
-          // native background transport to stop any in-flight task for the same real job id.
+          // Stop the in-JS scheduling loop (runWithConcurrency) immediately, ask the native
+          // background transport to stop any in-flight task for the same real job id, AND remove
+          // the persisted registry record so the cancelled job can't resurrect as a phantom
+          // "Loading… 0%" on the next launch's reattach. (M1/M2)
           loadAudioDownloadModules()
-            .then((audio) => {
+            .then(async (audio) => {
               audio.requestAudioDownloadCancellation(jobId);
-              if (audio.createBackgroundAudioDownloadTransport) {
-                audio
-                  .createBackgroundAudioDownloadTransport()
-                  .then((activeTransport) => activeTransport.cancelJob?.(jobId))
-                  .catch(() => {});
+
+              try {
+                const activeTransport = await audio.createBackgroundAudioDownloadTransport();
+                await activeTransport.cancelJob?.(jobId);
+              } catch {
+                // Native transport may be unavailable in some Expo/dev contexts.
+              }
+
+              try {
+                const jobStore = await audio.createAudioDownloadJobStore({
+                  fileSystem: audio.expoAudioFileSystemAdapter,
+                  rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+                });
+                await jobStore.removeJob(jobId);
+              } catch {
+                // Best-effort registry cleanup.
               }
             })
             .catch(() => {});
         }
-        set({ downloadProgress: null });
+        set((state) => ({
+          downloadProgress: null,
+          translations: cancelledTranslationId
+            ? state.translations.map((translation) =>
+                translation.id === cancelledTranslationId
+                  ? { ...translation, activeDownloadJob: null }
+                  : translation
+              )
+            : state.translations,
+        }));
       },
 
       deleteTranslation: async (translationId) => {
@@ -985,6 +1107,24 @@ export const useBibleStore = create<BibleState>()(
         syncVerseTimestampMetadata(nextTranslationsSnapshot);
       },
 
+      // Clear per-user reading state on sign-out so a second account signing in on the same device
+      // does not inherit the previous user's reading position or in-progress download UI (H2). Keeps
+      // translation availability (bundled + installed packs and current translation) intact — that is
+      // device-level, not user-level, and re-downloading installed Bibles on every account switch
+      // would be hostile in the offline-first, metered-data markets this app targets.
+      resetForSignOut: () => {
+        set({
+          currentBook: 'GEN',
+          currentChapter: 1,
+          hasReaderHistory: false,
+          preferredChapterLaunchMode: 'listen',
+          verses: [],
+          isLoading: false,
+          error: null,
+          downloadProgress: null,
+        });
+      },
+
       isBookDownloaded: (translationId, bookId) => {
         const translation = get().translations.find((t) => t.id === translationId);
         if (!translation) return false;
@@ -1010,9 +1150,13 @@ export const useBibleStore = create<BibleState>()(
         translations: state.translations.map(toPersistedTranslation),
       }),
       merge: (persistedState, currentState) => {
-        console.log('[EB-T] bible:merge-start', Date.now());
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[EB-T] bible:merge-start', Date.now());
+        }
         const result = { ...currentState, ...sanitizePersistedBibleState(persistedState) };
-        console.log('[EB-T] bible:merge-done', Date.now());
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[EB-T] bible:merge-done', Date.now());
+        }
         return result;
       },
     }
@@ -1031,7 +1175,11 @@ setBibleDatabaseSourceResolver((translationId) => {
   return buildInstalledBibleDatabaseSource(translation.id, translation.textPackLocalPath);
 });
 
-console.log('[EB-T] bible:post-create', Date.now());
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('[EB-T] bible:post-create', Date.now());
+}
 syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);
 syncVerseTimestampMetadata(useBibleStore.getState().translations);
-console.log('[EB-T] bible:module-done', Date.now());
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('[EB-T] bible:module-done', Date.now());
+}

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -25,6 +26,7 @@ import * as prayerService from '../../services/prayer/prayerService';
 import type { PrayerRequestWithCounts } from '../../services/prayer/prayerService';
 
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'PrayerWall'>;
+type NavigationProp = NativeStackNavigationProp<LearnStackParamList, 'PrayerWall'>;
 
 // Tracks which request IDs the current user has interacted with this session.
 // The backend enforces uniqueness; this mirrors it locally for instant UI feedback.
@@ -47,7 +49,7 @@ function formatRelativeTime(isoString: string): string {
 const MAX_CHARS = 500;
 
 export function PrayerWallScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { groupId, groupName } = route.params;
   const { t } = useTranslation();

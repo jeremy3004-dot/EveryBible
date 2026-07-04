@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle } from 'react-native-svg';
 import Animated, {
   Extrapolation,
@@ -55,6 +56,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   onPlayPause,
 }: ReaderPlaybackDockProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [optimisticTransportState, setOptimisticTransportState] = useState<
     'playing' | 'paused' | null
   >(null);
@@ -133,7 +135,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           onPress={onPreviousChapter}
           disabled={isCollapsed || !hasPreviousChapter}
           accessibilityRole="button"
-          accessibilityLabel="Previous chapter"
+          accessibilityLabel={t('audio.previousChapter')}
         >
           <Ionicons
             name="chevron-back"
@@ -215,7 +217,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           onPress={onNextChapter}
           disabled={isCollapsed || !hasNextChapter}
           accessibilityRole="button"
-          accessibilityLabel={nextAccessibilityLabel ?? 'Next chapter'}
+          accessibilityLabel={nextAccessibilityLabel ?? t('audio.nextChapter')}
           accessibilityHint={nextAccessibilityHint}
         >
           <Ionicons

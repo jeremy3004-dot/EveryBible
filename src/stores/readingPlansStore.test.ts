@@ -210,7 +210,7 @@ test('reading plan rhythms enforce one-rhythm-per-plan and preserve ordering', a
   });
 
   assert.equal(secondRhythm.success, false);
-  assert.equal(secondRhythm.error, 'Plan already belongs to another rhythm');
+  assert.equal(secondRhythm.error, mod.RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm);
   assert.deepEqual(
     store
       .getState()
@@ -228,7 +228,7 @@ test('reading plan rhythms enforce one-rhythm-per-plan and preserve ordering', a
     .getState()
     .updateRhythm(firstRhythm.rhythm?.id ?? '', { items: [makePlanItem('item-c4', 'plan-c')] });
   assert.equal(movedPlanRhythm.success, false);
-  assert.equal(movedPlanRhythm.error, 'Plan already belongs to another rhythm');
+  assert.equal(movedPlanRhythm.error, mod.RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm);
   assert.deepEqual(
     store
       .getState()

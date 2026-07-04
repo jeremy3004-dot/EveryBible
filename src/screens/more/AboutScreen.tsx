@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import type { MoreStackParamList } from '../../navigation/types';
 import {
   config,
   EVERYBIBLE_PRIVACY_URL,
@@ -19,8 +21,10 @@ const ABOUT_RESOURCES_LABEL = 'Resources';
 const ABOUT_MADE_WITH_LOVE = 'Made with love';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
 
+type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'About'>;
+
 export function AboutScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);

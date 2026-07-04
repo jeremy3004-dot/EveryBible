@@ -30,6 +30,40 @@ export interface AuthResult {
   code?: AuthErrorCode;
 }
 
+// A nonce pair for OIDC replay hardening: the raw value is sent to the identity
+// provider (Supabase) and the SHA-256 hash is embedded in the token request to
+// the OAuth provider (Apple). expo-crypto is not a dependency here, so we use the
+// WebCrypto primitives the runtime already exposes (same source bibleDataModel.ts
+// relies on for signed-manifest verification). Returns null when WebCrypto is
+// unavailable so sign-in still proceeds without the extra hardening.
+const generateNoncePair = async (): Promise<{ raw: string; hashed: string } | null> => {
+  const webCrypto = globalThis.crypto as
+    | (Crypto & { subtle?: SubtleCrypto })
+    | undefined;
+
+  if (
+    !webCrypto ||
+    typeof webCrypto.getRandomValues !== 'function' ||
+    !webCrypto.subtle ||
+    typeof webCrypto.subtle.digest !== 'function'
+  ) {
+    return null;
+  }
+
+  const randomBytes = webCrypto.getRandomValues(new Uint8Array(32));
+  const raw = Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+  const digest = await webCrypto.subtle.digest(
+    'SHA-256',
+    new globalThis.TextEncoder().encode(raw)
+  );
+  const hashed = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+
+  return { raw, hashed };
+};
+
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
   id: string;
@@ -118,11 +152,16 @@ export const signInWithApple = async (): Promise<AuthResult> => {
   }
 
   try {
+    // Replay-hardening: hand Apple the SHA-256 of a random nonce and give Supabase
+    // the raw value so it can verify the token was minted for this exact request.
+    const nonce = await generateNoncePair();
+
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
+      ...(nonce ? { nonce: nonce.hashed } : {}),
     });
 
     if (!credential.identityToken) {
@@ -132,6 +171,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: credential.identityToken,
+      ...(nonce ? { nonce: nonce.raw } : {}),
     });
 
     if (error) {
@@ -180,6 +220,14 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
     }
 
     const response = await GoogleSignin.signIn();
+
+    // google-signin v16 RESOLVES with { type: 'cancelled', data: null } when the
+    // user backs out — it no longer throws statusCodes.SIGN_IN_CANCELLED. Map it to
+    // the silent 'cancelled' path so isSilentAuthError suppresses the alert.
+    if (response.type === 'cancelled') {
+      return mapGoogleAuthError({ code: 'SIGN_IN_CANCELLED' });
+    }
+
     const idToken = response.data?.idToken;
 
     if (!idToken) {
@@ -285,6 +333,34 @@ export const updatePassword = async (newPassword: string): Promise<AuthResult> =
     }
 
     return unknownAuthError('Failed to update password');
+  } catch (e) {
+    return unknownAuthError(e);
+  }
+};
+
+// Update arbitrary fields on the current user's auth profile (email, password, or
+// user_metadata via `data`). Wraps supabase.auth.updateUser so callers (e.g. the
+// avatar update in ProfileScreen) go through mapSupabaseAuthError instead of
+// surfacing raw, untranslated Supabase errors.
+export const updateUserProfile = async (
+  attributes: Parameters<typeof supabase.auth.updateUser>[0]
+): Promise<AuthResult> => {
+  if (!isSupabaseConfigured()) {
+    return configurationAuthError();
+  }
+
+  try {
+    const { data, error } = await supabase.auth.updateUser(attributes);
+
+    if (error) {
+      return mapSupabaseAuthError(error);
+    }
+
+    if (data.user) {
+      return { success: true, user: mapSupabaseUser(data.user) };
+    }
+
+    return unknownAuthError('Failed to update profile');
   } catch (e) {
     return unknownAuthError(e);
   }

@@ -11,6 +11,7 @@ import {
   getPlanCompletionEntryKey,
   getDaySessionEntries,
   isRecurringPlan,
+  mergePlanProgress,
   normalizeRemoteReadingPlanProgress,
   type RemoteReadingPlanProgressRow,
   reconcileFetchedPlanProgress,
@@ -114,23 +115,6 @@ function buildLocalSavedPlan(planId: string): UserSavedPlan {
     plan_id: planId,
     saved_at: new Date().toISOString(),
   };
-}
-
-async function withTimeoutFallback<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((resolve) => {
-        timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
 }
 
 async function requireSignedInUser(
@@ -276,6 +260,36 @@ export async function getPlanEntries(
   return { success: true, data: readingPlanEntriesByPlanId[planId] ?? [] };
 }
 
+async function pushProgressToRemote(progress: UserReadingPlanProgress): Promise<void> {
+  try {
+    const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+    const { user } = await requireSignedInUser('sync reading plan progress');
+
+    if (!isSupabaseConfigured() || !user) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('user_reading_plan_progress')
+      .upsert(buildRemoteReadingPlanProgressPayload(progress, user.id), {
+        onConflict: 'user_id,plan_slug',
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      return;
+    }
+
+    const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
+    if (syncedProgress) {
+      readingPlansStore.getState().upsertProgress(syncedProgress);
+    }
+  } catch {
+    // Offline-first: swallow — the row stays local and is retried by the next sync.
+  }
+}
+
 export async function enrollInPlan(
   planId: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress>> {
@@ -284,39 +298,12 @@ export async function enrollInPlan(
     return { success: false, error: 'Plan not found' };
   }
 
+  // L20: land the local mutation and return synchronously so navigation is never
+  // blocked on the (un-timed) network round-trip; push in the background.
   const localProgress = readingPlansStore.getState().enrollPlan(planId);
+  void pushProgressToRemote(localProgress);
 
-  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-  const { user } = await requireSignedInUser('enroll in a reading plan');
-
-  if (!isSupabaseConfigured() || !user) {
-    return { success: true, data: localProgress };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('user_reading_plan_progress')
-      .upsert(
-        buildRemoteReadingPlanProgressPayload(localProgress, user.id),
-        { onConflict: 'user_id,plan_slug' }
-      )
-      .select('*')
-      .single();
-
-    if (error) {
-      return { success: true, data: localProgress };
-    }
-
-    const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
-    if (!syncedProgress) {
-      return { success: true, data: localProgress };
-    }
-
-    readingPlansStore.getState().upsertProgress(syncedProgress);
-    return { success: true, data: syncedProgress };
-  } catch {
-    return { success: true, data: localProgress };
-  }
+  return { success: true, data: localProgress };
 }
 
 export async function markDayComplete(
@@ -338,37 +325,11 @@ export async function markDayComplete(
     return { success: false, error: 'Not enrolled in this plan' };
   }
 
-  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-  const { user } = await requireSignedInUser('mark a reading day complete');
+  // L20: return after the local mutation; push in the background so a slow/flaky
+  // network can never freeze the tap or block navigation.
+  void pushProgressToRemote(localUpdated);
 
-  if (!isSupabaseConfigured() || !user) {
-    return { success: true, data: localUpdated };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('user_reading_plan_progress')
-      .upsert(
-        buildRemoteReadingPlanProgressPayload(localUpdated, user.id),
-        { onConflict: 'user_id,plan_slug' }
-      )
-      .select('*')
-      .single();
-
-    if (error) {
-      return { success: true, data: localUpdated };
-    }
-
-    const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
-    if (!syncedProgress) {
-      return { success: true, data: localUpdated };
-    }
-
-    readingPlansStore.getState().upsertProgress(syncedProgress);
-    return { success: true, data: syncedProgress };
-  } catch {
-    return { success: true, data: localUpdated };
-  }
+  return { success: true, data: localUpdated };
 }
 
 export async function markPlanSessionComplete(
@@ -404,6 +365,35 @@ export async function markPlanSessionComplete(
   return { success: true, data: localUpdated };
 }
 
+/**
+ * Commits a reconciled full-fetch result to the live store without dropping any
+ * concurrent local mutation.
+ *
+ * L19: `replaceProgress` wholesale-replaces against a stale snapshot, so a
+ * completion made *during* the fetch is lost. Instead we re-read the live store
+ * at commit time and merge per-plan (remote/reconciled row merged with whatever
+ * the live store now holds), then drop any tombstoned plans.
+ *
+ * H3: local-only rows are upserted (never dropped) and returned for a follow-up push.
+ */
+function commitReconciledProgress(
+  reconciled: UserReadingPlanProgress[],
+  fetchedAt: string
+): void {
+  const store = readingPlansStore.getState();
+  const tombstoned = new Set(store.pendingUnenrollPlanIds);
+
+  reconciled.forEach((progress) => {
+    if (tombstoned.has(progress.plan_id)) {
+      return;
+    }
+
+    const live = store.getProgress(progress.plan_id);
+    const merged = live ? mergePlanProgress(live, progress, fetchedAt) : progress;
+    store.upsertProgress(merged);
+  });
+}
+
 export async function getUserPlanProgress(
   planId?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
@@ -412,67 +402,104 @@ export async function getUserPlanProgress(
     UserReadingPlanProgress[]
   >;
 
-  return withTimeoutFallback(
-    (async () => {
-      const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-      const { user } = await requireSignedInUser('fetch reading plan progress');
+  // L19: track whether the timeout fallback already returned. If it has, the
+  // in-flight fetch must NOT commit its (now stale) snapshot to the store.
+  let fallbackWon = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      if (!isSupabaseConfigured() || !user) {
+  const remoteFetch = (async (): Promise<PlanServiceResult<UserReadingPlanProgress[]>> => {
+    const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+    const { user } = await requireSignedInUser('fetch reading plan progress');
+
+    if (!isSupabaseConfigured() || !user) {
+      return localFallback;
+    }
+
+    try {
+      let query = supabase.from('user_reading_plan_progress').select('*').eq('user_id', user.id);
+
+      if (planId) {
+        query = query.eq('plan_slug', planId);
+      }
+
+      const { data, error } = await query.order('started_at', { ascending: false });
+
+      if (error) {
         return localFallback;
       }
 
-      try {
-        let query = supabase.from('user_reading_plan_progress').select('*').eq('user_id', user.id);
+      const remoteProgress = normalizeRemoteProgressRows(
+        ((data ?? []) as RemoteReadingPlanProgressRow[]).filter((progress) =>
+          shouldSyncPlanProgressRemotely(progress.plan_slug ?? progress.plan_id ?? undefined)
+        )
+      );
 
-        if (planId) {
-          query = query.eq('plan_slug', planId);
-        }
-
-        const { data, error } = await query.order('started_at', { ascending: false });
-
-        if (error) {
-          return localFallback;
-        }
-
-        const remoteProgress = normalizeRemoteProgressRows(
-          ((data ?? []) as RemoteReadingPlanProgressRow[]).filter((progress) =>
-            shouldSyncPlanProgressRemotely(progress.plan_slug ?? progress.plan_id ?? undefined)
-          )
-        );
-        const fetchedAt = new Date().toISOString();
-        const reconciledProgress =
-          remoteProgress.length === 0
-            ? localProgress
-            : reconcileFetchedPlanProgress(localProgress, remoteProgress, fetchedAt);
-        if (planId) {
-          reconciledProgress.forEach((progress) => {
-            readingPlansStore.getState().upsertProgress(progress);
-          });
-        } else {
-          readingPlansStore.getState().replaceProgress(reconciledProgress);
-        }
-
-        return { success: true, data: reconciledProgress };
-      } catch {
+      // L19: if the fallback already won, do not clobber the live store.
+      if (fallbackWon) {
         return localFallback;
       }
-    })(),
-    PLAN_REMOTE_PROGRESS_TIMEOUT_MS,
-    localFallback
-  );
+
+      const fetchedAt = new Date().toISOString();
+      const tombstonedPlanIds = readingPlansStore.getState().pendingUnenrollPlanIds;
+
+      if (remoteProgress.length === 0) {
+        return { success: true, data: localProgress };
+      }
+
+      // H3: reconcile without dropping local-only rows.
+      const { progress: reconciledProgress, localOnlyProgress } = reconcileFetchedPlanProgress(
+        localProgress,
+        remoteProgress,
+        fetchedAt,
+        tombstonedPlanIds
+      );
+
+      // L19: commit via a live-store re-read + per-plan merge (never wholesale replace).
+      commitReconciledProgress(reconciledProgress, fetchedAt);
+
+      // H3: push local-only rows that lack a remote counterpart so they are durably synced.
+      localOnlyProgress.forEach((progress) => {
+        void pushProgressToRemote(progress);
+      });
+
+      return { success: true, data: reconciledProgress };
+    } catch {
+      return localFallback;
+    }
+  })();
+
+  return Promise.race([
+    remoteFetch,
+    new Promise<PlanServiceResult<UserReadingPlanProgress[]>>((resolve) => {
+      timeoutId = setTimeout(() => {
+        fallbackWon = true;
+        resolve(localFallback);
+      }, PLAN_REMOTE_PROGRESS_TIMEOUT_MS);
+    }),
+  ]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
 }
 
-export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {
-  readingPlansStore.getState().unenrollPlan(planId);
-
-  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-  const { user } = await requireSignedInUser('unenroll from a reading plan');
-
-  if (!isSupabaseConfigured() || !user) {
-    return { success: true };
-  }
-
+/**
+ * Attempts the remote delete for an unenrolled plan and clears its tombstone on
+ * confirmed success. Returns false when the delete could not be confirmed (offline,
+ * RLS, network) so the tombstone survives and syncReadingPlans can retry (M12).
+ */
+async function deleteRemotePlanProgress(planId: string): Promise<boolean> {
   try {
+    const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
+    const { user } = await requireSignedInUser('unenroll from a reading plan');
+
+    // No backend/user means there is nothing to delete server-side; the local
+    // tombstone is enough and can be cleared.
+    if (!isSupabaseConfigured() || !user) {
+      readingPlansStore.getState().clearPendingUnenroll(planId);
+      return true;
+    }
+
     const { error } = await supabase
       .from('user_reading_plan_progress')
       .delete()
@@ -480,13 +507,26 @@ export async function unenrollFromPlan(planId: string): Promise<PlanServiceResul
       .eq('plan_slug', planId);
 
     if (error) {
-      return { success: true };
+      return false;
     }
 
-    return { success: true };
+    readingPlansStore.getState().clearPendingUnenroll(planId);
+    return true;
   } catch {
-    return { success: true };
+    return false;
   }
+}
+
+export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {
+  // Records a pending-unenroll tombstone (see readingPlansStore.unenrollPlan) so a
+  // stale remote row cannot re-enroll the user before the remote delete confirms.
+  readingPlansStore.getState().unenrollPlan(planId);
+
+  // M12: do NOT swallow the delete failure as success — an unconfirmed delete
+  // leaves the tombstone in place for syncReadingPlans to retry.
+  const deleted = await deleteRemotePlanProgress(planId);
+
+  return { success: deleted };
 }
 
 export async function assignPlanToGroup(
@@ -550,15 +590,37 @@ export async function getGroupPlans(
   }
 }
 
+/**
+ * Retries the remote delete for every plan the user unenrolled while the delete
+ * could not be confirmed. Clears each tombstone on success (M12).
+ */
+async function retryPendingUnenrolls(): Promise<void> {
+  const pending = readingPlansStore.getState().pendingUnenrollPlanIds;
+  if (pending.length === 0) {
+    return;
+  }
+
+  await Promise.all(pending.map((planId) => deleteRemotePlanProgress(planId)));
+}
+
 export async function syncPlanProgress(
   localProgress: UserReadingPlanProgress[]
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
-  localProgress.forEach((progress) => {
-    readingPlansStore.getState().upsertProgress(progress);
-  });
+  // M12: retry any unconfirmed remote unenroll deletes before pushing progress,
+  // so a tombstoned plan is never resurrected by a subsequent fetch.
+  await retryPendingUnenrolls();
 
-  const remoteSyncableProgress = localProgress.filter((progress) =>
-    shouldSyncPlanProgressRemotely(progress.plan_id)
+  const tombstoned = new Set(readingPlansStore.getState().pendingUnenrollPlanIds);
+
+  localProgress
+    .filter((progress) => !tombstoned.has(progress.plan_id))
+    .forEach((progress) => {
+      readingPlansStore.getState().upsertProgress(progress);
+    });
+
+  const remoteSyncableProgress = localProgress.filter(
+    (progress) =>
+      shouldSyncPlanProgressRemotely(progress.plan_id) && !tombstoned.has(progress.plan_id)
   );
 
   if (remoteSyncableProgress.length === 0) {

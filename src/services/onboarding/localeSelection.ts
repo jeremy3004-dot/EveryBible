@@ -369,15 +369,28 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
 let _resolvedEngine: ReturnType<typeof createLocaleSearchEngine> | null = null;
 function resolveLocaleSearchEngine(): ReturnType<typeof createLocaleSearchEngine> {
   if (!_resolvedEngine) {
-    console.log('[EB-T] locale:engine-init-start', Date.now());
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[EB-T] locale:engine-init-start', Date.now());
+    }
     // Deferred require: parsing the 129 KB locale catalog JSON is multi-ms on
     // Hermes. Keeping it out of module-eval means it never blocks first paint —
     // it only runs the first time the locale picker actually needs the engine.
     const localeCatalog = require('../../data/localeCatalog.json') as LocaleCatalog;
     _resolvedEngine = createLocaleSearchEngine(localeCatalog);
-    console.log('[EB-T] locale:engine-init-done', Date.now());
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[EB-T] locale:engine-init-done', Date.now());
+    }
   }
   return _resolvedEngine;
+}
+
+// Idempotent pre-warm hook for the locale picker. Callers can invoke this off
+// the render/keystroke critical path (e.g. via InteractionManager) so the first
+// country-step render / first keystroke doesn't synchronously pay the 129 KB
+// require + ICU sorts + Fuse build. Safe to call repeatedly — the engine is
+// resolved once and cached.
+export function prewarmLocaleSearchEngine(): void {
+  resolveLocaleSearchEngine();
 }
 
 export const localeSearchEngine: ReturnType<typeof createLocaleSearchEngine> = {

@@ -6,6 +6,7 @@ export {
   signOut,
   resetPassword,
   updatePassword,
+  updateUserProfile,
   getCurrentSession,
   type AuthResult,
 } from './authService';

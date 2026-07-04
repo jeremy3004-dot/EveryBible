@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import { FieldType, Group, GroupProgress } from '../types/course';
-import { fourFieldsCourses } from '../data/fourFieldsCourses';
 
 interface FourFieldsState {
   // Progress tracking
@@ -18,24 +17,6 @@ interface FourFieldsState {
   activeGroupId: string | null;
   groupProgress: Record<string, GroupProgress>;
 
-  // Actions - Progress
-  markLessonComplete: (courseId: string, lessonId: string) => void;
-  markPracticeComplete: (lessonId: string) => void;
-  markTaughtComplete: (lessonId: string) => void;
-  setCurrentLesson: (courseId: string, lessonId: string) => void;
-  setCurrentField: (field: FieldType) => void;
-
-  // Computed getters - Progress
-  isLessonComplete: (courseId: string, lessonId: string) => boolean;
-  isPracticeComplete: (lessonId: string) => boolean;
-  isTaughtComplete: (lessonId: string) => boolean;
-  getFieldProgress: (field: FieldType) => number;
-  getCourseProgress: (courseId: string) => number;
-  isFieldUnlocked: (field: FieldType) => boolean;
-  getCompletedLessonsCount: () => number;
-  getTotalLessonsCount: () => number;
-  getNextLesson: () => { courseId: string; lessonId: string } | null;
-
   // Actions - Groups
   createGroup: (name: string, creatorId: string, creatorName: string) => Group;
   joinGroup: (joinCode: string, userId: string, userName: string) => boolean;
@@ -50,7 +31,24 @@ interface FourFieldsState {
   getGroupByCode: (joinCode: string) => Group | undefined;
   getActiveGroup: () => Group | null;
   getGroupProgress: (groupId: string) => GroupProgress | undefined;
+
+  // Auth-boundary reset (H2 contract) — clears per-user Four Fields progress
+  // and group state back to initial. Called by authStore on sign-out and on
+  // sign-in as a different account.
+  resetForSignOut: () => void;
 }
+
+const INITIAL_FOUR_FIELDS_STATE = {
+  completedLessons: {} as Record<string, string[]>,
+  practiceCompleted: {} as Record<string, boolean>,
+  taughtCompleted: {} as Record<string, boolean>,
+  currentField: 'entry' as FieldType,
+  currentCourseId: null as string | null,
+  currentLessonId: null as string | null,
+  groups: [] as Group[],
+  activeGroupId: null as string | null,
+  groupProgress: {} as Record<string, GroupProgress>,
+};
 
 // Generate a 6-character alphanumeric join code
 const generateJoinCode = (): string => {
@@ -100,131 +98,11 @@ export const useFourFieldsStore = create<FourFieldsState>()(
   persist(
     (set, get) => ({
       // Initial state
-      completedLessons: {},
-      practiceCompleted: {},
-      taughtCompleted: {},
-      currentField: 'entry',
-      currentCourseId: null,
-      currentLessonId: null,
-      groups: [],
-      activeGroupId: null,
-      groupProgress: {},
+      ...INITIAL_FOUR_FIELDS_STATE,
 
-      // Progress Actions
-      markLessonComplete: (courseId, lessonId) => {
-        set((state) => {
-          const courseProgress = state.completedLessons[courseId] || [];
-          if (courseProgress.includes(lessonId)) {
-            return state; // Already completed
-          }
-          return {
-            completedLessons: {
-              ...state.completedLessons,
-              [courseId]: [...courseProgress, lessonId],
-            },
-          };
-        });
-      },
-
-      markPracticeComplete: (lessonId) => {
-        set((state) => ({
-          practiceCompleted: {
-            ...state.practiceCompleted,
-            [lessonId]: true,
-          },
-        }));
-      },
-
-      markTaughtComplete: (lessonId) => {
-        set((state) => ({
-          taughtCompleted: {
-            ...state.taughtCompleted,
-            [lessonId]: true,
-          },
-        }));
-      },
-
-      setCurrentLesson: (courseId, lessonId) => {
-        set({ currentCourseId: courseId, currentLessonId: lessonId });
-      },
-
-      setCurrentField: (field) => {
-        set({ currentField: field });
-      },
-
-      // Progress Getters
-      isLessonComplete: (courseId, lessonId) => {
-        const { completedLessons } = get();
-        return completedLessons[courseId]?.includes(lessonId) || false;
-      },
-
-      isPracticeComplete: (lessonId) => {
-        return get().practiceCompleted[lessonId] || false;
-      },
-
-      isTaughtComplete: (lessonId) => {
-        return get().taughtCompleted[lessonId] || false;
-      },
-
-      getFieldProgress: (field) => {
-        const { completedLessons } = get();
-        const fieldCourses = fourFieldsCourses.filter((c) => c.field === field);
-        const totalLessons = fieldCourses.reduce((sum, c) => sum + c.lessons.length, 0);
-        if (totalLessons === 0) return 0;
-
-        const completedCount = fieldCourses.reduce((sum, course) => {
-          const completed = completedLessons[course.id] || [];
-          return sum + completed.length;
-        }, 0);
-
-        return Math.round((completedCount / totalLessons) * 100);
-      },
-
-      getCourseProgress: (courseId) => {
-        const { completedLessons } = get();
-        const course = fourFieldsCourses.find((c) => c.id === courseId);
-        if (!course) return 0;
-
-        const completed = completedLessons[courseId] || [];
-        return Math.round((completed.length / course.lessons.length) * 100);
-      },
-
-      isFieldUnlocked: (_field) => {
-        // All fields are now unlocked - users can explore freely
-        return true;
-      },
-
-      getCompletedLessonsCount: () => {
-        const { completedLessons } = get();
-        return Object.values(completedLessons).reduce(
-          (sum, lessons) => sum + lessons.length,
-          0
-        );
-      },
-
-      getTotalLessonsCount: () => {
-        return fourFieldsCourses.reduce((sum, course) => sum + course.lessons.length, 0);
-      },
-
-      getNextLesson: () => {
-        const { completedLessons, isFieldUnlocked } = get();
-        const fields: FieldType[] = ['entry', 'gospel', 'discipleship', 'church', 'multiplication'];
-
-        for (const field of fields) {
-          if (!isFieldUnlocked(field)) continue;
-
-          const fieldCourses = fourFieldsCourses.filter((c) => c.field === field);
-          for (const course of fieldCourses) {
-            const completed = completedLessons[course.id] || [];
-            for (const lesson of course.lessons) {
-              if (!completed.includes(lesson.id)) {
-                return { courseId: course.id, lessonId: lesson.id };
-              }
-            }
-          }
-        }
-
-        return null; // All lessons complete
+      // Auth-boundary reset (H2 contract)
+      resetForSignOut: () => {
+        set({ ...INITIAL_FOUR_FIELDS_STATE });
       },
 
       // Group Actions

@@ -69,9 +69,14 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
       downloadFile: async (from, to, options) => {
         const jobId = options?.jobId;
         const taskId = options?.taskId ?? jobId;
+        const signal = options?.signal;
 
         if (!taskId) {
           await expoAudioFileSystemAdapter.downloadFile(from, to, options);
+          return;
+        }
+
+        if (signal?.aborted) {
           return;
         }
 
@@ -90,14 +95,44 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
               options?.onProgress?.({ bytesDownloaded, bytesTotal });
             });
 
+            let settled = false;
+            const settle = (run: () => void) => {
+              if (settled) {
+                return;
+              }
+              settled = true;
+              if (signal) {
+                signal.removeEventListener('abort', onAbort);
+              }
+              run();
+            };
+
+            // The native background downloader's stop() fires no terminal .done()/.error()
+            // callback, so without this the promise would hang forever after a cancel — the
+            // worker never returns, the persisted job stays "downloading", and next launch
+            // resurrects a phantom "Loading… 0%". Racing the AbortSignal settles the promise
+            // (and stops the native task) the moment cancelDownload aborts. (M2)
+            const onAbort = () => {
+              settle(() => {
+                void task.stop?.();
+                resolve();
+              });
+            };
+
             task
               .done(() => {
-                backgroundDownloader.completeHandler(taskId);
-                resolve();
+                settle(() => {
+                  backgroundDownloader.completeHandler(taskId);
+                  resolve();
+                });
               })
               .error(({ error }) => {
-                reject(new Error(error));
+                settle(() => reject(new Error(error)));
               });
+
+            if (signal) {
+              signal.addEventListener('abort', onAbort);
+            }
 
             task.start();
           });

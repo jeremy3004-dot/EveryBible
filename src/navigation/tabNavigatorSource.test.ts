@@ -34,7 +34,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /const getCollapsingTabBarStyle = \(collapseProgress: number, useReaderTheme = false\) => \(\{/,
+    /const getCollapsingTabBarStyle = useCallback\(\s*\(collapseProgress: number, useReaderTheme = false\) => \(\{/,
     'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
   );
 
@@ -46,7 +46,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress, useReaderTheme\)[\s\S]*:\s*defaultTabBarStyle/s,
+    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress, isBibleReader\)[\s\S]*:\s*isBibleReader[\s\S]*\?\s*readerTabBarStyle[\s\S]*:\s*defaultTabBarStyle/s,
     'TabNavigator should choose between the normal and collapsing tab-bar styles from the reader progress signal'
   );
 });
@@ -142,7 +142,7 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
 
   assert.match(
     source,
-    /const readerTabBarStyle = \{[\s\S]*backgroundColor: colors\.bibleBackground,[\s\S]*borderTopColor: colors\.bibleDivider,/s,
+    /const readerTabBarStyle = useMemo\(\s*\(\) =>\s*\(\{[\s\S]*backgroundColor: colors\.bibleBackground,[\s\S]*borderTopColor: colors\.bibleDivider,/s,
     'TabNavigator should provide a reader-themed tab bar style for the Bible reader'
   );
 
@@ -160,7 +160,7 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
 
   assert.match(
     source,
-    /getCollapsingTabBarStyle\(tabBarCollapseProgress, useReaderTheme\)/,
+    /getCollapsingTabBarStyle\(tabBarCollapseProgress, isBibleReader\)/,
     'TabNavigator should keep the reader theme while the reader-driven tab bar collapses'
   );
 });
@@ -199,7 +199,7 @@ test('TabNavigator hides BibleReader only when it is launched as a plan session'
 
   assert.match(
     source,
-    /getFocusedRouteNameFromRoute\(route as never\)/,
+    /getFocusedRouteNameFromRoute\(route as FocusedRouteArg\)/,
     'TabNavigator should continue resolving the focused nested route name via React Navigation before applying tab-bar visibility rules'
   );
 

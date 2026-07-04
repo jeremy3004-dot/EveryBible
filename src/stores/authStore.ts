@@ -16,6 +16,10 @@ interface AuthState {
   isInitialized: boolean;
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
+  // uid of the account whose per-user data currently lives in the local stores.
+  // Used to detect an account switch on sign-in so account B never inherits
+  // account A's local reading data (H2).
+  lastSyncedUserId: string | null;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -25,9 +29,38 @@ interface AuthState {
   applySyncedPreferences: (preferences: UserPreferences, updatedAt: string | null) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  // Reconcile the auth boundary before the first post-sign-in sync: if the newly
+  // authenticated uid differs from the last-synced uid, reset all per-user
+  // stores so the previous account's local data is never merged into this one.
+  reconcileUserBoundary: (userId: string) => void;
 }
 
 let authSubscription: Subscription | null = null;
+
+// Minimal structural view of a store that exposes resetForSignOut. Used so this
+// module does not depend on the full (and still-evolving) types of the sibling
+// stores; the method is optional-chained at the call site.
+interface ResettableStore {
+  getState: () => { resetForSignOut?: () => void };
+}
+
+// Reset every per-user store back to its initial state at an auth boundary
+// (sign-out, or sign-in as a different account). Optional-chained so it is safe
+// regardless of module load order across the sibling stores. `require` avoids a
+// static import cycle (sync/services import authStore).
+const resetPerUserStores = (): void => {
+  const stores: ResettableStore[] = [
+    require('./progressStore').useProgressStore,
+    require('./bibleStore').useBibleStore,
+    // Exported as `readingPlansStore` (not the use-prefixed name).
+    require('./readingPlansStore').readingPlansStore,
+    require('./fourFieldsStore').useFourFieldsStore,
+  ];
+
+  for (const store of stores) {
+    store.getState().resetForSignOut?.();
+  }
+};
 
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
@@ -45,7 +78,9 @@ const mapSupabaseUser = (supabaseUser: {
   lastActive: Date.now(),
 });
 
-console.log('[EB-T] auth:pre-create', Date.now());
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('[EB-T] auth:pre-create', Date.now());
+}
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -56,21 +91,40 @@ export const useAuthStore = create<AuthState>()(
       isInitialized: false,
       preferences: defaultAuthPreferences,
       preferencesUpdatedAt: null,
+      lastSyncedUserId: null,
 
-      setUser: (user) =>
+      setUser: (user) => {
         set((state) =>
           resolveUserStateUpdate({
             session: state.session,
             user,
           })
-        ),
+        );
+        // Reconcile the auth boundary synchronously at the identity change so a
+        // switched account never briefly sees the previous account's local data
+        // before the deferred sync effect runs (H2). reconcileUserBoundary is a
+        // no-op unless the incoming non-null uid differs from lastSyncedUserId,
+        // so first sign-in, token refresh, and returning-same-user launches do
+        // not wipe.
+        if (user?.uid) {
+          get().reconcileUserBoundary(user.uid);
+        }
+      },
 
-      setSession: (session) =>
+      setSession: (session) => {
+        const user = session?.user ? mapSupabaseUser(session.user) : null;
         set({
           session,
-          user: session?.user ? mapSupabaseUser(session.user) : null,
+          user,
           isAuthenticated: session !== null,
-        }),
+        });
+        // Same synchronous auth-boundary reconcile as setUser: a session swap
+        // to a different account resets per-user stores immediately; same-uid
+        // token refreshes and returning-same-user launches are a no-op (H2).
+        if (user?.uid) {
+          get().reconcileUserBoundary(user.uid);
+        }
+      },
 
       setLoading: (isLoading) => set({ isLoading }),
 
@@ -96,6 +150,8 @@ export const useAuthStore = create<AuthState>()(
             state.preferences.chapterFeedbackRole !== preferences.chapterFeedbackRole ||
             state.preferences.onboardingCompleted !== preferences.onboardingCompleted ||
             state.preferences.chapterFeedbackEnabled !== preferences.chapterFeedbackEnabled ||
+            state.preferences.hidePlayButtonFromReadingTab !==
+              preferences.hidePlayButtonFromReadingTab ||
             state.preferences.notificationsEnabled !== preferences.notificationsEnabled ||
             state.preferences.reminderTime !== preferences.reminderTime;
 
@@ -110,13 +166,45 @@ export const useAuthStore = create<AuthState>()(
         }),
 
       signOut: async () => {
+        const previousUserId = get().user?.uid ?? null;
+
+        // Deactivate the push token BEFORE tearing down the session, while it
+        // still exists so the RLS-protected user_devices update is allowed (M9).
+        if (previousUserId) {
+          try {
+            const { deactivatePushToken } = await import('../services/notifications');
+            await deactivatePushToken(previousUserId);
+          } catch {
+            // Best-effort: never block sign-out on token cleanup.
+          }
+        }
+
         await authSignOut();
+
+        // Clear all per-user local stores so the next account on this device
+        // never inherits or merges this account's reading data (H2).
+        resetPerUserStores();
+
         set({
           user: null,
           session: null,
           isAuthenticated: false,
           preferencesUpdatedAt: null,
+          lastSyncedUserId: null,
         });
+      },
+
+      reconcileUserBoundary: (userId) => {
+        const { lastSyncedUserId } = get();
+        if (lastSyncedUserId && lastSyncedUserId !== userId) {
+          // Account switched on this device without a sign-out in between:
+          // wipe the previous account's per-user local data before the first
+          // sync so it is never merged into the new account (H2).
+          resetPerUserStores();
+        }
+        if (lastSyncedUserId !== userId) {
+          set({ lastSyncedUserId: userId });
+        }
       },
 
       initialize: async () => {
@@ -205,10 +293,19 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         preferences: state.preferences,
         preferencesUpdatedAt: state.preferencesUpdatedAt,
+        lastSyncedUserId: state.lastSyncedUserId,
       }),
       merge: (persistedState, currentState) => {
-        console.log('[EB-T] auth:merge-start', Date.now());
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[EB-T] auth:merge-start', Date.now());
+        }
         const sanitized = sanitizePersistedAuthState(persistedState);
+        const persistedLastSyncedUserId =
+          persistedState &&
+          typeof persistedState === 'object' &&
+          typeof (persistedState as { lastSyncedUserId?: unknown }).lastSyncedUserId === 'string'
+            ? (persistedState as { lastSyncedUserId: string }).lastSyncedUserId
+            : null;
 
         const merged = {
           ...currentState,
@@ -216,8 +313,11 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: sanitized.isAuthenticated,
           preferences: sanitized.preferences,
           preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
+          lastSyncedUserId: persistedLastSyncedUserId,
         };
-        console.log('[EB-T] auth:merge-done', Date.now());
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[EB-T] auth:merge-done', Date.now());
+        }
         return merged;
       },
     }

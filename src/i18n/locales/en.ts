@@ -109,6 +109,12 @@ export const en = {
   },
   bible: {
     title: 'Bible',
+    fontsAndSettings: 'Fonts & Settings',
+    allSettings: 'All Settings',
+    backToPlayer: 'Back to player',
+    packMissingRecovering:
+      "This translation's files went missing. Restoring them now — please try again in a moment.",
+    relatedVerses: 'Related Verses',
     oldTestament: 'Old Testament',
     newTestament: 'New Testament',
     fullBible: 'Full Bible',
@@ -282,6 +288,10 @@ export const en = {
     repeatOff: 'Repeat off',
     showText: 'Text',
     showTextHint: 'Opens the Bible text for the currently playing chapter',
+    musicAndSounds: 'Music and sounds',
+    chooseBackgroundLayer: 'Choose a bundled background layer for offline scripture listening.',
+    previousChapter: 'Previous chapter',
+    nextChapter: 'Next chapter',
   },
   privacy: {
     lockTitle: 'Enter your secure code',
@@ -375,6 +385,20 @@ export const en = {
     deleteAccountError: 'Failed to delete account. Please try again.',
     notSignedIn: 'You must be signed in to delete your account.',
     delete: 'Delete',
+    diagnostics: {
+      title: 'Diagnostics',
+      description:
+        'Recent errors and crashes recorded on this device. Share these with support to help us fix problems.',
+      emptyTitle: 'No issues recorded',
+      emptyBody: 'Errors and crashes will appear here if they happen.',
+      badgeFatal: 'Crash',
+      badgeError: 'Error',
+      clear: 'Clear',
+      clearTitle: 'Clear diagnostics',
+      clearConfirm: 'Remove all recorded error and crash logs from this device?',
+      exportHeader: 'EveryBible diagnostics report',
+      exportError: 'Could not share the diagnostics report.',
+    },
   },
   notifications: {
     channelDailyReminder: 'Daily Reading Reminder',
@@ -1050,6 +1074,7 @@ export const en = {
     deleteConfirmTitle: 'Delete Translation',
     deleteConfirmMessage: 'Remove the downloaded data for {{name}}? You can re-download it any time.',
     delete: 'Delete',
+    cancelDownload: 'Cancel download',
   },
   gather: {
     title: 'Gather',
@@ -1515,6 +1540,46 @@ export const en = {
     groupDiscipleshipCore: 'Discipleship',
     groupChurchCore: 'The Church',
     groupMissionHarvestCore: 'Mission / Harvest',
+  },
+  learn: {
+    playbackAndText: 'Playback & Text',
+    playbackSpeed: 'Playback Speed',
+    fontSizeLabel: 'Font Size',
+    noPassageText: 'No passage text available',
+    listenToStoryAgain: 'Listen to Story Again',
+    shareApp: 'Share App',
+  },
+  plans: {
+    rhythmComposer: {
+      subtitle:
+        'Curated rhythm library, twenty historic starting points you can add in one tap.',
+      heroEyebrow: 'Historic rhythms',
+      heroTitle: 'Start from a real tradition, not a blank form',
+      heroBody:
+        'Catholic, Anglican, Orthodox, Benedictine, Lutheran, Puritan, and Taize-inspired rhythms, already shaped into repeatable passages for morning, midday, evening, or any time.',
+      presetCount: '{{count}} presets',
+      prayerAndScripture: 'Prayer and Scripture',
+      tapToAdd: 'Tap to add',
+      replaceCurrentTitle: 'Replace current rhythm',
+      replaceCurrentBody:
+        'Pick a preset below to replace this rhythm completely. This keeps the flow simple and makes every rhythm start from a clear tradition.',
+      timeOfDay: 'Time of day',
+      filterAll: 'All',
+      midday: 'Midday',
+      anyTime: 'Any time',
+      tradition: 'Tradition',
+      allTraditions: 'All traditions',
+      historicRoots: 'Historic roots',
+      includes: 'Includes',
+      emptyTitle: 'No rhythms match those filters.',
+      emptyBody: 'Try a broader tradition or a different time of day.',
+      rhythmNotFound: 'Rhythm not found.',
+      addRhythm: 'Add rhythm',
+      replaceRhythm: 'Replace rhythm',
+      errorEmptyItems: 'Select at least one item to build this rhythm.',
+      errorPlanInAnotherRhythm: 'This plan already belongs to another rhythm.',
+      errorRhythmNotFound: 'That rhythm could not be found.',
+    },
   },
 } as const;
 

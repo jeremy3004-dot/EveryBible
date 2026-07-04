@@ -73,8 +73,12 @@ export const useAnnotationStore = create<AnnotationStoreState>()(
         set((state) => {
           const index = state.annotations.findIndex(
             (existing) =>
-              existing.id === annotation.id ||
-              makeCompositeKey(existing) === makeCompositeKey(annotation)
+              // Soft-deleted rows must not be matched by the upsert dedup, otherwise creating a new
+              // annotation on the same verse would revive a previously deleted one (deleted_at is
+              // cleared by hydrateLocalAnnotation). Composite-key semantics are unchanged. (L31)
+              existing.deleted_at == null &&
+              (existing.id === annotation.id ||
+                makeCompositeKey(existing) === makeCompositeKey(annotation))
           );
           const existing = index >= 0 ? state.annotations[index] : undefined;
           const nextAnnotation = hydrateLocalAnnotation(annotation, existing);

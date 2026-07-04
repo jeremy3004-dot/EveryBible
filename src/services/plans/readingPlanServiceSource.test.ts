@@ -50,16 +50,29 @@ test('reading plan service exports plans-screen helper queries', () => {
   );
 });
 
-test('signed-in reading plan fetch reconciles local and remote plan progress before replacing store state', () => {
+test('signed-in reading plan fetch reconciles local and remote plan progress without clobbering concurrent local edits', () => {
   assert.match(
     source,
     /reconcileFetchedPlanProgress/,
-    'full progress fetches should reconcile remote plan rows with recent local enrollments before replacing store state'
+    'full progress fetches should reconcile remote plan rows with recent local enrollments before committing store state'
   );
+  // L19: the commit path must re-read the live store and merge per-plan instead of
+  // wholesale-replacing a stale snapshot, so a completion made during the fetch survives.
   assert.match(
     source,
-    /if \(planId\) \{[\s\S]*reconciledProgress\.forEach\(\(progress\) => \{[\s\S]*upsertProgress\(progress\);[\s\S]*\}\)[\s\S]*\} else \{[\s\S]*replaceProgress\(reconciledProgress\)/,
-    'plan-specific progress refreshes should also upsert the reconciled rows so fresh local session completion is not overwritten by stale remote state'
+    /const live = store\.getProgress\(progress\.plan_id\);[\s\S]*mergePlanProgress\(live, progress[\s\S]*store\.upsertProgress\(merged\)/,
+    'commit should merge each reconciled row with the live store row (per-plan merge)'
+  );
+  assert.doesNotMatch(
+    source,
+    /\.replaceProgress\(/,
+    'full fetch must not wholesale-replace store progress against a stale snapshot (L19)'
+  );
+  // L19: an in-flight commit must be skipped once the timeout fallback has already won.
+  assert.match(
+    source,
+    /if \(fallbackWon\) \{[\s\S]*return localFallback;/,
+    'the in-flight fetch should skip committing when the timeout fallback already returned'
   );
 });
 

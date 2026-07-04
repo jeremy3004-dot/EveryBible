@@ -33,6 +33,7 @@ import { getTranslatedBookName } from '../../constants';
 import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
+import { useFontSize } from '../../hooks/useFontSize';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +57,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  // Seed the lesson font multiplier from the user's global Settings font-size so
+  // the preference applies here instead of always starting at 1.0 (L23).
+  const { scale: globalFontScale } = useFontSize();
 
   const translatedFellowshipQuestions = [
     t('gather.fellowshipQ1'),
@@ -113,7 +117,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const [audioDuration, setAudioDuration] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1.0);
+  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(globalFontScale);
+  // Tracks whether the user has manually stepped the lesson font size this
+  // session; until then we keep it mirrored to the global Settings preference.
+  const hasManualFontOverride = useRef(false);
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -210,6 +217,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       setHeaderTitle(lessonTitle);
     }
   }, [lesson, lessonTitle]);
+
+  // Mirror the global Settings font-size preference until the user manually
+  // adjusts the lesson-local stepper (L23).
+  useEffect(() => {
+    if (hasManualFontOverride.current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFontSizeMultiplier(globalFontScale);
+  }, [globalFontScale]);
 
   // -------------------------------------------------------------------------
   // Audio controls
@@ -371,6 +386,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   }, []);
 
   const adjustFontSize = useCallback((delta: number) => {
+    hasManualFontOverride.current = true;
     setFontSizeMultiplier((prev) =>
       Math.min(1.3, Math.max(0.7, Math.round((prev + delta) * 100) / 100))
     );
@@ -704,7 +720,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         >
           <View style={[styles.sheetHandle, { backgroundColor: colors.secondaryText + '55' }]} />
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.primaryText }]}>Playback & Text</Text>
+            <Text style={[styles.sheetTitle, { color: colors.primaryText }]}>
+              {t('learn.playbackAndText')}
+            </Text>
             <TouchableOpacity
               style={[styles.sheetIconCloseButton, { backgroundColor: colors.background }]}
               onPress={() => setShowSettings(false)}
@@ -719,7 +737,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             <View style={styles.editorSectionHeader}>
               <Ionicons name="flash" size={18} color={colors.accentPrimary} />
               <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                Playback Speed
+                {t('learn.playbackSpeed')}
               </Text>
               <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {speedPercent}%
@@ -760,7 +778,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             <View style={styles.editorSectionHeader}>
               <Text style={[styles.fontSectionIcon, { color: colors.primaryText }]}>Tt</Text>
               <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                Font Size
+                {t('learn.fontSizeLabel')}
               </Text>
               <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
                 {fontPercent}%
@@ -865,6 +883,7 @@ interface StorySectionProps {
 }
 
 function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: StorySectionProps) {
+  const { t } = useTranslation();
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -877,7 +896,7 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
     return (
       <View style={styles.centerContainer}>
         <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-          No passage text available
+          {t('learn.noPassageText')}
         </Text>
       </View>
     );
@@ -946,6 +965,7 @@ function ApplicationSection({
   onListenAgain,
   onShareApp,
 }: ApplicationSectionProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.sectionContainer}>
       {questions.map((q, idx) => {
@@ -959,7 +979,7 @@ function ApplicationSection({
               activeOpacity={0.7}
             >
               <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-                Listen to Story Again
+                {t('learn.listenToStoryAgain')}
               </Text>
             </TouchableOpacity>
           );
@@ -971,7 +991,7 @@ function ApplicationSection({
               activeOpacity={0.7}
             >
               <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-                Share App
+                {t('learn.shareApp')}
               </Text>
             </TouchableOpacity>
           );

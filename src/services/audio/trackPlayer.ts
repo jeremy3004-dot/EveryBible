@@ -24,7 +24,12 @@
  *     (useAudioPlayer) because expo-av's isLooping has no crossfade support.
  */
 
-import { Audio, type AVPlaybackStatus } from 'expo-av';
+import {
+  Audio,
+  InterruptionModeAndroid,
+  InterruptionModeIOS,
+  type AVPlaybackStatus,
+} from 'expo-av';
 import type { PlaybackRate } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -238,6 +243,11 @@ async function setupPlayer(_options?: SetupOptions): Promise<void> {
     allowsRecordingIOS: false,
     staysActiveInBackground: true,
     playsInSilentModeIOS: true,
+    // Take the audio session for narration instead of mixing over Music /
+    // podcasts. expo-av defaults to MixWithOthers, which layers the Bible
+    // audio on top of whatever is already playing.
+    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   });

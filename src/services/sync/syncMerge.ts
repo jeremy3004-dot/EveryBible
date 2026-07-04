@@ -134,10 +134,23 @@ export const mergeReadingSnapshot = (
     remoteData,
     chaptersRead
   );
+
+  const remoteStreak = remoteData?.streak_days ?? 0;
+  const remoteLastReadDate = remoteData?.last_read_date ?? null;
+  const lastReadDate = getLatestDateString(localState.lastReadDate, remoteLastReadDate);
+  // Keep the streak consistent with whichever side owns the most recent
+  // lastReadDate rather than ratcheting with Math.max. A Math.max ratchet would
+  // resurrect a stale higher streak from an old remote row even after a
+  // legitimate reset (see L13). Ties keep the local value.
+  const streakDays =
+    lastReadDate === remoteLastReadDate && lastReadDate !== localState.lastReadDate
+      ? remoteStreak
+      : localState.streakDays;
+
   const progress = {
     chaptersRead,
-    streakDays: Math.max(localState.streakDays, remoteData?.streak_days ?? 0),
-    lastReadDate: getLatestDateString(localState.lastReadDate, remoteData?.last_read_date ?? null),
+    streakDays,
+    lastReadDate,
   };
 
   return {

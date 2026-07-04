@@ -14,6 +14,34 @@ export interface SyncResult {
   merged?: boolean;
 }
 
+// Per-sync-cycle memo for ensureCloudProfile so a single syncAll pass upserts
+// the profile once instead of up to 4× (progress + reading plans + preferences,
+// each of which independently ensured the profile). Reset at the start/end of
+// each syncAll cycle.
+let ensureCloudProfileCycle: Promise<SyncResult> | null = null;
+
+// One bounded retry with jitter for transient network errors. Non-network
+// failures (RLS, validation, PGRST codes) are returned immediately so we do not
+// mask genuine errors behind a retry.
+const isTransientSyncError = (error?: string): boolean => {
+  if (!error) return false;
+  return /network|timeout|timed out|fetch failed|connection|ECONN|ENOTFOUND|502|503|504/i.test(
+    error
+  );
+};
+
+const withTransientRetry = async (run: () => Promise<SyncResult>): Promise<SyncResult> => {
+  const first = await run();
+  if (first.success || !isTransientSyncError(first.error)) {
+    return first;
+  }
+
+  // Jittered backoff: 250–750ms.
+  const delayMs = 250 + Math.floor(Math.random() * 500);
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  return run();
+};
+
 const getLocalReadingSnapshot = async (): Promise<LocalReadingSnapshot> => {
   const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
     import('../../stores/progressStore'),
@@ -109,6 +137,26 @@ const applyMergedReadingState = async (
 };
 
 const ensureCloudProfile = async (): Promise<SyncResult> => {
+  // Within a syncAll cycle, reuse the in-flight/completed profile upsert so the
+  // three sub-syncs don't each hit the network. A failed ensure is not cached so
+  // a later sub-sync can retry it.
+  if (ensureCloudProfileCycle) {
+    const cached = await ensureCloudProfileCycle;
+    if (cached.success) {
+      return cached;
+    }
+  }
+
+  const pending = ensureCloudProfileImpl();
+  ensureCloudProfileCycle = pending;
+  const result = await pending;
+  if (!result.success && ensureCloudProfileCycle === pending) {
+    ensureCloudProfileCycle = null;
+  }
+  return result;
+};
+
+const ensureCloudProfileImpl = async (): Promise<SyncResult> => {
   const {
     data: { user },
     error: userError,
@@ -252,6 +300,7 @@ export const syncPreferences = async (): Promise<SyncResult> => {
         user_id: userId,
         font_size: mergedPreferences.preferences.fontSize,
         theme: mergedPreferences.preferences.theme,
+        appearance_palette: mergedPreferences.preferences.appearancePalette,
         language: mergedPreferences.preferences.language,
         country_code: mergedPreferences.preferences.countryCode,
         country_name: mergedPreferences.preferences.countryName,
@@ -262,6 +311,8 @@ export const syncPreferences = async (): Promise<SyncResult> => {
         chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
         onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
         chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
+        hide_play_button_from_reading_tab:
+          mergedPreferences.preferences.hidePlayButtonFromReadingTab,
         notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
         reminder_time: mergedPreferences.preferences.reminderTime,
         synced_at: syncedAt,
@@ -291,25 +342,27 @@ export const syncPreferences = async (): Promise<SyncResult> => {
 };
 
 export const syncAll = async (): Promise<SyncResult> => {
-  const progressResult = await syncProgress();
-  if (!progressResult.success) {
-    return progressResult;
-  }
+  // Fresh profile-ensure memo for this cycle so ensureCloudProfile runs once.
+  ensureCloudProfileCycle = null;
 
-  const readingPlansResult = await syncReadingPlans();
-  if (!readingPlansResult.success) {
-    return readingPlansResult;
-  }
+  try {
+    // Run each sub-sync independently so one transient failure doesn't skip the
+    // rest until the next external trigger (L18). Each gets one bounded retry.
+    const results = await Promise.all([
+      withTransientRetry(syncProgress),
+      withTransientRetry(syncReadingPlans),
+      withTransientRetry(syncPreferences),
+    ]);
 
-  const preferencesResult = await syncPreferences();
-  if (!preferencesResult.success) {
-    return preferencesResult;
+    const firstFailure = results.find((result) => !result.success);
+    return {
+      success: !firstFailure,
+      error: firstFailure?.error,
+      merged: results.some((result) => result.merged),
+    };
+  } finally {
+    ensureCloudProfileCycle = null;
   }
-
-  return {
-    success: true,
-    merged: Boolean(progressResult.merged || readingPlansResult.merged || preferencesResult.merged),
-  };
 };
 
 export const pullFromCloud = async (): Promise<SyncResult> => {

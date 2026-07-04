@@ -128,8 +128,14 @@ test('useAudioPlayer resumes interruptions from the saved chapter position inste
 
   assert.match(
     source,
-    /const resumePosition = Math\.max\(store\.currentPosition, store\.lastPosition\);[\s\S]*await audioPlayer\.seekTo\(resumePosition\);[\s\S]*await audioPlayer\.resume\(\);/s,
-    'useAudioPlayer should re-seek to the stored offset before resuming audio so interruption recoveries do not restart at verse 1'
+    /const isLoaded = audioPlayer\.isLoaded\(\);[\s\S]*const resumePosition = isLoaded[\s\S]*\? store\.currentPosition[\s\S]*: Math\.max\(store\.currentPosition, store\.lastPosition\);/s,
+    'useAudioPlayer resume should trust the live loaded offset (currentPosition) and only fall back to max-with-lastPosition on a cold restore so it neither leaks the persistence hysteresis nor restarts at verse 1'
+  );
+
+  assert.match(
+    source,
+    /if \(isLoaded && resumePosition > 0\) \{[\s\S]*await audioPlayer\.seekTo\(resumePosition\);[\s\S]*\}[\s\S]*await audioPlayer\.resume\(\);/s,
+    'useAudioPlayer should re-seek the loaded player to the resume offset before resuming audio so interruption recoveries do not restart at verse 1'
   );
 
   assert.match(

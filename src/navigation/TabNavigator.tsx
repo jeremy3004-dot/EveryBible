@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -30,6 +30,10 @@ type NestedTabRouteParams = {
   params?: Record<string, unknown>;
 };
 
+// The exact route shape getFocusedRouteNameFromRoute accepts, derived from the
+// function itself rather than casting through `never`.
+type FocusedRouteArg = Parameters<typeof getFocusedRouteNameFromRoute>[0];
+
 const resolveActiveNestedRoute = (route: {
   state?: NestedTabRouteState;
   params?: NestedTabRouteParams;
@@ -58,7 +62,9 @@ const resolveActiveNestedRoute = (route: {
 
   return {
     nestedRouteName:
-      getFocusedRouteNameFromRoute(route as never) ?? currentRoute.name ?? fallbackNestedRouteName,
+      getFocusedRouteNameFromRoute(route as FocusedRouteArg) ??
+      currentRoute.name ??
+      fallbackNestedRouteName,
     nestedRouteParams: currentRoute.params ?? fallbackNestedRouteParams,
   };
 };
@@ -80,73 +86,74 @@ export function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { bottomPadding: tabBarBottomPadding, height: tabBarHeight } = useTabBarHeight();
-  const defaultTabBarStyle = {
-    backgroundColor: colors.background,
-    borderTopColor: colors.cardBorder,
-    borderTopWidth: 1,
-    paddingTop: 0,
-    paddingBottom: tabBarBottomPadding + spacing.sm,
-    height: tabBarHeight,
-  } as const;
-  const readerTabBarStyle = {
-    ...defaultTabBarStyle,
-    backgroundColor: colors.bibleBackground,
-    borderTopColor: colors.bibleDivider,
-  } as const;
-  const getCollapsingTabBarStyle = (collapseProgress: number, useReaderTheme = false) => ({
-    backgroundColor: useReaderTheme ? colors.bibleBackground : colors.background,
-    borderTopColor: useReaderTheme ? colors.bibleDivider : colors.cardBorder,
-    borderTopWidth: 1,
-    position: 'absolute' as const,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 0,
-    paddingBottom: tabBarBottomPadding + spacing.sm,
-    height: tabBarHeight,
-    transform: [{ translateY: tabBarHeight * collapseProgress }],
-    opacity: 1 - collapseProgress,
-  });
+
+  // These style objects are static per theme/inset change, so build them once
+  // instead of on every screenOptions invocation (fires on each nav event, and
+  // repeatedly during reader scroll-collapse ticks).
+  const defaultTabBarStyle = useMemo(
+    () =>
+      ({
+        backgroundColor: colors.background,
+        borderTopColor: colors.cardBorder,
+        borderTopWidth: 1,
+        paddingTop: 0,
+        paddingBottom: tabBarBottomPadding + spacing.sm,
+        height: tabBarHeight,
+      }) as const,
+    [colors.background, colors.cardBorder, tabBarBottomPadding, tabBarHeight]
+  );
+  const readerTabBarStyle = useMemo(
+    () =>
+      ({
+        ...defaultTabBarStyle,
+        backgroundColor: colors.bibleBackground,
+        borderTopColor: colors.bibleDivider,
+      }) as const,
+    [defaultTabBarStyle, colors.bibleBackground, colors.bibleDivider]
+  );
+  const getCollapsingTabBarStyle = useCallback(
+    (collapseProgress: number, useReaderTheme = false) => ({
+      backgroundColor: useReaderTheme ? colors.bibleBackground : colors.background,
+      borderTopColor: useReaderTheme ? colors.bibleDivider : colors.cardBorder,
+      borderTopWidth: 1,
+      position: 'absolute' as const,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingTop: 0,
+      paddingBottom: tabBarBottomPadding + spacing.sm,
+      height: tabBarHeight,
+      transform: [{ translateY: tabBarHeight * collapseProgress }],
+      opacity: 1 - collapseProgress,
+    }),
+    [
+      colors.bibleBackground,
+      colors.background,
+      colors.bibleDivider,
+      colors.cardBorder,
+      tabBarBottomPadding,
+      tabBarHeight,
+    ]
+  );
 
   return (
     <Tab.Navigator
       id="RootTab"
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        freezeOnBlur: true,
-        tabBarActiveTintColor: (() => {
-          const nestedRouteState = route as {
-            state?: NestedTabRouteState;
-            params?: NestedTabRouteParams;
-          };
-          const { nestedRouteName } = resolveActiveNestedRoute(nestedRouteState);
+      screenOptions={({ route }) => {
+        // Resolve the active nested route once per invocation rather than three
+        // times across the tint/style callbacks below.
+        const nestedRouteState = route as {
+          state?: NestedTabRouteState;
+          params?: NestedTabRouteParams;
+        };
+        const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(nestedRouteState);
+        const isBibleReader = route.name === 'Bible' && nestedRouteName === 'BibleReader';
 
-          return route.name === 'Bible' && nestedRouteName === 'BibleReader'
-            ? colors.biblePrimaryText
-            : colors.tabActive;
-        })(),
-        tabBarInactiveTintColor: (() => {
-          const nestedRouteState = route as {
-            state?: NestedTabRouteState;
-            params?: NestedTabRouteParams;
-          };
-          const { nestedRouteName } = resolveActiveNestedRoute(nestedRouteState);
-
-          return route.name === 'Bible' && nestedRouteName === 'BibleReader'
-            ? colors.bibleSecondaryText
-            : colors.tabInactive;
-        })(),
-        tabBarStyle: (() => {
+        const tabBarStyle = (() => {
           if (route.name === 'Home') {
             return defaultTabBarStyle;
           }
 
-          const nestedRouteState = route as {
-            state?: NestedTabRouteState;
-            params?: NestedTabRouteParams;
-          };
-          const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(nestedRouteState);
-          const useReaderTheme = route.name === 'Bible' && nestedRouteName === 'BibleReader';
           const shouldHideNestedBibleScreen =
             (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
             shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
@@ -159,26 +166,36 @@ export function TabNavigator() {
             : routeCollapseProgress;
 
           return tabBarCollapseProgress > 0
-            ? getCollapsingTabBarStyle(tabBarCollapseProgress, useReaderTheme)
-            : useReaderTheme
+            ? getCollapsingTabBarStyle(tabBarCollapseProgress, isBibleReader)
+            : isBibleReader
               ? readerTabBarStyle
               : defaultTabBarStyle;
-        })(),
-        tabBarLabelStyle: typography.tabLabel,
-        tabBarItemStyle: {
-          paddingBottom: spacing.xs,
-        },
-        tabBarIcon: ({ focused, color, size }) => {
-          const tab = rootTabManifest.find((entry) => entry.name === route.name);
-          const iconName = focused ? tab?.focusedIcon : tab?.unfocusedIcon;
+        })();
 
-          if (!iconName) {
-            return null;
-          }
+        return {
+          headerShown: false,
+          freezeOnBlur: true,
+          tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.tabActive,
+          tabBarInactiveTintColor: isBibleReader
+            ? colors.bibleSecondaryText
+            : colors.tabInactive,
+          tabBarStyle,
+          tabBarLabelStyle: typography.tabLabel,
+          tabBarItemStyle: {
+            paddingBottom: spacing.xs,
+          },
+          tabBarIcon: ({ focused, color, size }) => {
+            const tab = rootTabManifest.find((entry) => entry.name === route.name);
+            const iconName = focused ? tab?.focusedIcon : tab?.unfocusedIcon;
 
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
+            if (!iconName) {
+              return null;
+            }
+
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+        };
+      }}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: t('tabs.home') }} />
       <Tab.Screen

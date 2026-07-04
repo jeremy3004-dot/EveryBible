@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getTopCrossReferences } from '../../services/bible/crossReferenceService';
 import { getBookById } from '../../constants/books';
@@ -36,6 +37,7 @@ export function CrossReferencePanel({
   limit = 5,
 }: CrossReferencePanelProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const refs = getTopCrossReferences(bookId, chapter, verse, limit);
 
   if (refs.length === 0) {
@@ -44,7 +46,9 @@ export function CrossReferencePanel({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.heading, { color: colors.bibleSecondaryText }]}>Related Verses</Text>
+      <Text style={[styles.heading, { color: colors.bibleSecondaryText }]}>
+        {t('bible.relatedVerses')}
+      </Text>
 
       {refs.map((ref, index) => {
         const book = getBookById(ref.toBook);

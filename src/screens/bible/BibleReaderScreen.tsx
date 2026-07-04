@@ -64,6 +64,7 @@ import {
   upsertAnnotation,
 } from '../../services/annotations/annotationService';
 import { getChapter } from '../../services/bible/bibleService';
+import { MissingInstalledDatabaseError } from '../../services/bible/bibleDatabase';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import {
   getChapterPresentationMode,
@@ -435,6 +436,7 @@ interface AudioRangeSelectorProps {
   selectedWaveColor: string;
   playedWaveColor: string;
   handleColor: string;
+  handleGripColor: string;
   onStartChange: (nextStartMs: number) => void;
   onEndChange: (nextEndMs: number) => void;
 }
@@ -451,6 +453,7 @@ function AudioRangeSelector({
   selectedWaveColor,
   playedWaveColor,
   handleColor,
+  handleGripColor,
   onStartChange,
   onEndChange,
 }: AudioRangeSelectorProps) {
@@ -585,7 +588,7 @@ function AudioRangeSelector({
         ]}
         {...startHandleResponder.panHandlers}
       >
-        <View style={styles.audioPortionHandleGrip} />
+        <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
       </View>
 
       <View
@@ -599,7 +602,7 @@ function AudioRangeSelector({
         ]}
         {...endHandleResponder.panHandlers}
       >
-        <View style={styles.audioPortionHandleGrip} />
+        <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
       </View>
     </View>
   );
@@ -2305,7 +2308,18 @@ export function BibleReaderScreen() {
       if (requestId !== chapterLoadRequestIdRef.current) {
         return;
       }
-      setError(t('bible.failedToLoad'));
+      const isMissingInstalledPack =
+        err instanceof MissingInstalledDatabaseError ||
+        (err instanceof Error && err.name === 'MissingInstalledDatabaseError');
+      if (isMissingInstalledPack) {
+        // Installed pack vanished mid-session (e.g. OS storage cleanup). Trigger the
+        // store self-heal to reset pack state and re-download, and surface a recoverable
+        // message instead of the generic load failure.
+        void useBibleStore.getState().recoverMissingInstalledPack(currentTranslation);
+        setError(t('bible.packMissingRecovering'));
+      } else {
+        setError(t('bible.failedToLoad'));
+      }
       console.error('Error loading chapter:', err);
     } finally {
       if (requestId === chapterLoadRequestIdRef.current) {
@@ -2341,6 +2355,9 @@ export function BibleReaderScreen() {
         markChapterRead(bookId, chapter);
       }
 
+      // L20: both service calls apply the completion to the local plan store
+      // synchronously and push to Supabase in the background, so this await resolves
+      // immediately without gating navigation on an un-timed network round-trip.
       const completionResult =
         activePlanIsMultiSession && activePlanSessionKey
           ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
@@ -5460,7 +5477,7 @@ export function BibleReaderScreen() {
                 ]}
               />
               <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
-                Fonts & Settings
+                {t('bible.fontsAndSettings')}
               </Text>
               <View style={styles.readerFontStepperRow}>
                 <TouchableOpacity
@@ -5644,7 +5661,7 @@ export function BibleReaderScreen() {
                 activeOpacity={0.82}
               >
                 <Text style={[styles.readerAllSettingsLabel, { color: colors.biblePrimaryText }]}>
-                  All Settings
+                  {t('bible.allSettings')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -6127,6 +6144,7 @@ export function BibleReaderScreen() {
               selectedWaveColor={colors.bibleSecondaryText}
               playedWaveColor={colors.bibleAccent}
               handleColor={colors.bibleAccent}
+              handleGripColor={colors.bibleSurface}
               onStartChange={handleAudioPortionStartSeek}
               onEndChange={handleAudioPortionEndSeek}
             />
@@ -6289,7 +6307,7 @@ export function BibleReaderScreen() {
             >
               <Ionicons name="chevron-back" size={20} color={colors.biblePrimaryText} />
               <Text style={[styles.followAlongCloseLabel, { color: colors.biblePrimaryText }]}>
-                Back to player
+                {t('bible.backToPlayer')}
               </Text>
             </TouchableOpacity>
 
@@ -7250,7 +7268,6 @@ const styles = StyleSheet.create({
     width: 2,
     height: 22,
     borderRadius: radius.pill,
-    backgroundColor: '#FFFFFF',
     opacity: 0.88,
   },
   audioPortionPreviewButton: {

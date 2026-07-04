@@ -207,13 +207,37 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
 
   assert.match(
     appSource,
-    /if \(!preferences\.onboardingCompleted\) \{\s*const \{ LocaleSetupFlow \} =\s*require\('\.\/src\/screens\/onboarding\/LocaleSetupFlow'\)[\s\S]*?;\s*return <LocaleSetupFlow mode="initial" onComplete=\{\(\) => undefined\} \/>;\s*\}/,
-    'App.tsx should still gate first run behind a lazily-required LocaleSetupFlow before rendering the main shell'
+    /if \(!preferences\.onboardingCompleted\) \{[\s\S]*?<OnboardingHost \/>[\s\S]*?\}/,
+    'App.tsx should still gate first run behind onboarding before rendering the main shell'
+  );
+
+  assert.match(
+    appSource,
+    /function OnboardingHost\(\) \{[\s\S]*?import\('\.\/src\/screens\/onboarding\/LocaleSetupFlow'\)[\s\S]*?return LocaleSetupFlow \? <LocaleSetupFlow mode="initial" onComplete=\{\(\) => undefined\} \/> : null;/,
+    'App.tsx should lazily load LocaleSetupFlow via a dynamic import (not a static top-level import) and render it in initial mode'
+  );
+
+  assert.equal(
+    appSource.includes("import { LocaleSetupFlow } from"),
+    false,
+    'App.tsx should not statically import LocaleSetupFlow onto the boot render path'
   );
 
   assert.match(
     flowSource,
     /onboardingCompleted: true/,
     'LocaleSetupFlow should still mark onboarding completed before leaving first run'
+  );
+
+  assert.match(
+    flowSource,
+    /const syncPreferencesAfterOnboarding = \(\): void => \{[\s\S]*?import\('\.\.\/\.\.\/services\/sync'\)[\s\S]*?\.then\(\(\{ syncPreferences \}\) => syncPreferences\(\)\)/,
+    'LocaleSetupFlow should sync preferences after onboarding via a deferred dynamic import instead of a static syncPreferences call'
+  );
+
+  assert.equal(
+    flowSource.includes("accessMode"),
+    false,
+    'LocaleSetupFlow completion should not route onboarding handoff through accessMode'
   );
 });

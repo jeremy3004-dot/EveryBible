@@ -88,6 +88,7 @@ export function TranslationPickerList({
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);
   const downloadAudioForTranslation = useBibleStore((state) => state.downloadAudioForTranslation);
+  const cancelDownload = useBibleStore((state) => state.cancelDownload);
   const deleteTranslation = useBibleStore((state) => state.deleteTranslation);
 
   const [pickerMode, setPickerMode] = useState<'translations' | 'languages'>('translations');
@@ -616,7 +617,7 @@ export function TranslationPickerList({
         style={[
           styles.translationCard,
           {
-            backgroundColor: isSelected ? 'rgba(200, 70, 60, 0.06)' : 'transparent',
+            backgroundColor: isSelected ? colors.bibleElevatedSurface : 'transparent',
             borderColor: colors.bibleDivider,
             borderLeftWidth: isSelected ? 3 : 1,
             borderLeftColor: isSelected ? colors.bibleAccent : colors.bibleDivider,
@@ -755,6 +756,16 @@ export function TranslationPickerList({
                   <Text style={[styles.audioDownloadChipProgress, { color: colors.bibleAccent }]}>
                     {activeDownloadProgress}%
                   </Text>
+                  {isBookAudioJobActive || isTranslationAudioJobActive ? (
+                    <TouchableOpacity
+                      style={styles.cancelDownloadButton}
+                      accessibilityLabel={t('translations.cancelDownload')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => cancelDownload()}
+                    >
+                      <Ionicons name="close-circle" size={16} color={colors.bibleSecondaryText} />
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -1445,6 +1456,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flexShrink: 0,
     fontVariant: ['tabular-nums'],
+  },
+  cancelDownloadButton: {
+    marginLeft: 2,
+    flexShrink: 0,
   },
   audioModalSubtitle: {
     fontSize: 13,

@@ -73,6 +73,7 @@ export interface AudioFileSystemAdapter {
       translationId?: string;
       bookId?: string;
       chapter?: number;
+      signal?: AbortSignal;
       onProgress?: (progress: { bytesDownloaded: number; bytesTotal: number }) => void;
     }
   ) => Promise<void>;
@@ -440,6 +441,14 @@ async function isValidDownloadedAudioFile(
 
 const AUDIO_DOWNLOAD_TIMEOUT_MS = 60_000;
 
+// Per-chapter download tuning. The timeout is an INACTIVITY timeout (reset on every progress tick)
+// rather than a fixed wall-clock budget, so a large chapter on a slow-but-progressing connection no
+// longer hits a false failure — only a genuinely stalled transfer trips it. (L6) Each chapter is
+// retried a few times with exponential backoff before the failure bubbles up and fails the job. (L7)
+const AUDIO_DOWNLOAD_INACTIVITY_TIMEOUT_MS = 60_000;
+const AUDIO_DOWNLOAD_MAX_ATTEMPTS = 3;
+const AUDIO_DOWNLOAD_RETRY_BASE_DELAY_MS = 1_000;
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -454,6 +463,97 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
       }
     );
   });
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new AudioDownloadCancelledError());
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new AudioDownloadCancelledError());
+    };
+
+    signal?.addEventListener('abort', onAbort);
+  });
+}
+
+// Runs a single chapter download with an inactivity timeout (reset whenever bytes arrive) and a
+// small retry-with-backoff loop. onActivity is called by the caller's progress handler; passing a
+// reset function down keeps the timer logic here without leaking timer state into the worker.
+async function downloadChapterWithInactivityTimeoutAndRetry(
+  run: (onActivity: () => void) => Promise<void>,
+  signal: AbortSignal | undefined,
+  { inactivityTimeoutMs = AUDIO_DOWNLOAD_INACTIVITY_TIMEOUT_MS } = {}
+): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= AUDIO_DOWNLOAD_MAX_ATTEMPTS; attempt += 1) {
+    if (signal?.aborted) {
+      throw new AudioDownloadCancelledError();
+    }
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timedOut = false;
+
+    const clearInactivityTimer = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const armTimer = () => {
+          clearInactivityTimer();
+          timer = setTimeout(() => {
+            timedOut = true;
+            reject(new Error('Chapter download stalled (no progress).'));
+          }, inactivityTimeoutMs);
+        };
+
+        armTimer();
+
+        run(armTimer).then(
+          () => {
+            clearInactivityTimer();
+            resolve();
+          },
+          (error) => {
+            clearInactivityTimer();
+            reject(error);
+          }
+        );
+      });
+
+      return;
+    } catch (error) {
+      clearInactivityTimer();
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Never retry (or swallow) a cancellation.
+      if (lastError instanceof AudioDownloadCancelledError || signal?.aborted) {
+        throw new AudioDownloadCancelledError();
+      }
+
+      if (attempt < AUDIO_DOWNLOAD_MAX_ATTEMPTS) {
+        await delay(AUDIO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), signal);
+      }
+
+      void timedOut;
+    }
+  }
+
+  throw lastError ?? new Error('Chapter download failed.');
 }
 
 // Validates a completed download before it is trusted: rejects HTTP error statuses
@@ -538,11 +638,15 @@ async function runWithConcurrency<T>(
   }
 }
 
-class AudioDownloadCancelledError extends Error {
+export class AudioDownloadCancelledError extends Error {
   constructor() {
     super('Audio download was cancelled.');
     this.name = 'AudioDownloadCancelledError';
   }
+}
+
+export function isAudioDownloadCancellation(error: unknown): boolean {
+  return error instanceof AudioDownloadCancelledError;
 }
 
 function clampProgress(progress: number): number {
@@ -647,19 +751,25 @@ export async function downloadAudioBook({
           throw new Error(`Audio is not available for ${target.bookId} ${target.chapter}`);
         }
 
-        await activeTransport.downloadFile(remoteAudio.url, fileUri, {
-          jobId: job.id,
-          taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
-          translationId,
-          bookId: target.bookId,
-          chapter: target.chapter,
-          onProgress: ({ bytesDownloaded, bytesTotal }) => {
-            const chapterProgress =
-              bytesTotal > 0 ? clampProgress((bytesDownloaded / bytesTotal) * 100) : 0;
-            chapterProgressByNumber.set(target.chapter, chapterProgress);
-            emitBookProgress(target.chapter);
-          },
-        });
+        await downloadChapterWithInactivityTimeoutAndRetry(
+          (onActivity) =>
+            activeTransport.downloadFile(remoteAudio.url, fileUri, {
+              jobId: job.id,
+              taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
+              translationId,
+              bookId: target.bookId,
+              chapter: target.chapter,
+              signal,
+              onProgress: ({ bytesDownloaded, bytesTotal }) => {
+                onActivity();
+                const chapterProgress =
+                  bytesTotal > 0 ? clampProgress((bytesDownloaded / bytesTotal) * 100) : 0;
+                chapterProgressByNumber.set(target.chapter, chapterProgress);
+                emitBookProgress(target.chapter);
+              },
+            }),
+          signal
+        );
 
         chapterProgressByNumber.set(target.chapter, 100);
         emitBookProgress(target.chapter);
@@ -672,6 +782,15 @@ export async function downloadAudioBook({
     }
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
+
+    // A cancellation is a first-class terminal state, not a failure. Remove the persisted job so
+    // it can't resurrect as a phantom "Loading… 0%" on the next launch, and skip failAudioDownloadJob
+    // (which would fire onFailure → an error alert in the UI). (M2)
+    if (failure instanceof AudioDownloadCancelledError) {
+      await activeJobStore.removeJob(job.id);
+      throw failure;
+    }
+
     await failAudioDownloadJob({
       jobId: job.id,
       jobStore: activeJobStore,
@@ -754,6 +873,15 @@ export async function downloadAudioTranslation({
       }
     } catch (error) {
       const failure = error instanceof Error ? error : new Error(String(error));
+
+      // Cancellation is terminal-but-not-a-failure: drop the persisted job and re-throw without
+      // firing onFailure, so cancelling a full-Bible audio download doesn't surface an error alert
+      // or leave a phantom job behind. (M2)
+      if (failure instanceof AudioDownloadCancelledError) {
+        await activeJobStore.removeJob(translationJob.id);
+        throw failure;
+      }
+
       await failAudioDownloadJob({
         jobId: translationJob.id,
         jobStore: activeJobStore,

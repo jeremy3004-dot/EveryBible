@@ -15,7 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../../services/supabase';
+import { updateUserProfile } from '../../services/auth';
 import { uploadAvatar } from '../../services/storage/storageService';
 import {
   getEngagementSummary,
@@ -111,17 +111,22 @@ export function ProfileScreen() {
 
       const publicUrl = uploadResult.data;
 
-      // Persist the new URL to Supabase auth user metadata so it survives re-login
-      const { data: updateData } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl },
-      });
+      // Persist the new URL through the auth service so the update goes through
+      // the shared error-mapping layer instead of a raw Supabase call (L17).
+      const updateResult = await updateUserProfile({ data: { avatar_url: publicUrl } });
 
-      if (updateData?.user) {
-        setUser({
+      if (!updateResult.success) {
+        setAvatarUri(user?.photoURL ?? null);
+        Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
+        return;
+      }
+
+      setUser(
+        updateResult.user ?? {
           ...user!,
           photoURL: publicUrl,
-        });
-      }
+        }
+      );
 
       setAvatarUri(publicUrl);
     } catch {

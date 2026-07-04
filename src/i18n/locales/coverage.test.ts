@@ -66,6 +66,10 @@ const ALLOWED_ENGLISH_VALUES = new Set([
   'readingPlans.kathisma.title',
   // Cross-lingual cognate: "Plan" is the correct spelling in Spanish, French, German, etc.
   'home.plan',
+  // Cross-lingual cognate: "Tradition" is the correct spelling in German and French.
+  'plans.rhythmComposer.tradition',
+  // Cross-lingual cognate: "Error" is the correct spelling in Spanish.
+  'settings.diagnostics.badgeError',
 ]);
 
 const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, string]> =>

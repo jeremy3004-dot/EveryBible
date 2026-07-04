@@ -270,9 +270,8 @@ All stores use zustand with AsyncStorage persistence:
 - Actions: trackProgress, syncProgress
 
 **fourFieldsStore.ts**
-- Four Fields course progress
-- Lesson completion state
-- Actions: markLessonComplete, resetProgress
+- Four Fields group state (groups, group progress/notes)
+- Actions: createGroup, joinGroup, leaveGroup, updateGroupLesson, markGroupLessonComplete, addGroupNote, resetForSignOut
 
 ### When to Use Zustand vs React State
 - **Zustand:** Global state, needs persistence, shared across screens
@@ -294,15 +293,14 @@ RootNavigator (NavigationContainer)
     │   ├── BibleReaderScreen
     │   ├── ChapterSelectorScreen
     │   └── BookSelectorScreen
-    ├── LearnStack (Stack Navigator - "Harvest" tab)
-    │   ├── CourseListScreen
-    │   ├── CourseDetailScreen
-    │   ├── FourFieldsJourneyScreen
-    │   ├── FieldOverviewScreen
-    │   ├── FourFieldsLessonViewScreen
-    │   ├── GroupListScreen
-    │   ├── GroupDetailScreen
-    │   └── GroupSessionScreen
+    ├── LearnStack (Stack Navigator - "Harvest"/"Gather" tab)
+    │   ├── GatherHome (GatherScreen)
+    │   ├── FoundationDetail (FoundationDetailScreen)
+    │   ├── LessonDetail (LessonDetailScreen)
+    │   ├── PrayerWall (PrayerWallScreen)
+    │   ├── GroupList (GroupListScreen)
+    │   ├── GroupDetail (GroupDetailScreen)
+    │   └── GroupSession (GroupSessionScreen)
     └── MoreStack (Stack Navigator)
         ├── MoreScreen
         ├── SettingsScreen

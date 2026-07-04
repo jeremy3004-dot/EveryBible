@@ -360,10 +360,10 @@ export function PlaybackControls({
             ]}
           >
             <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-              Music and sounds
+              {t('audio.musicAndSounds')}
             </Text>
             <Text style={[styles.modalSubtitle, { color: colors.bibleSecondaryText }]}>
-              Choose a bundled background layer for offline scripture listening.
+              {t('audio.chooseBackgroundLayer')}
             </Text>
             {BACKGROUND_MUSIC_OPTIONS.map((option) => {
               const isSelected = option.id === backgroundMusicChoice;

@@ -25,6 +25,13 @@ export const linkingConfig: LinkingOptions<RootTabParamList> = {
     screens: {
       Bible: {
         screens: {
+          // INBOUND-ONLY template. The path params (bookSlug/chapter/verse) do NOT
+          // match BibleReader's actual param shape (bookId/chapter/focusVerse), so
+          // this template must never be used to build outbound URLs — the custom
+          // getStateFromPath below owns inbound parsing (slug→bookId via
+          // buildBibleNavState). There is no getPathFromState; if a share-URL
+          // feature is added, provide one that maps bookId→slug rather than relying
+          // on this template (which would emit `bible/undefined/...`).
           BibleReader: 'bible/:bookSlug/:chapter/:verse?',
         },
       },

@@ -7,48 +7,48 @@ import { dirname, resolve } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
-const detailSource = readFileSync(resolve(__dirname, '../learn/ReadingPlanDetailScreen.tsx'), 'utf8');
+const detailSource = readFileSync(resolve(__dirname, '../plans/PlanDetailScreen.tsx'), 'utf8');
 
-test('ReadingPlanDetailScreen launches plan chapters with explicit plan-session params', () => {
+test('PlanDetailScreen launches plan chapters with explicit plan-session params', () => {
   assert.match(
     detailSource,
     /const preferredChapterLaunchMode = useBibleStore\(\(state\) => state\.preferredChapterLaunchMode\);/,
-    'ReadingPlanDetailScreen should read the persisted listen-or-read preference before launching the reader'
+    'PlanDetailScreen should read the persisted listen-or-read preference before launching the reader'
   );
   assert.match(
     detailSource,
     /screen:\s*'BibleReader'/,
-    'ReadingPlanDetailScreen should launch into the Bible reader for explicit plan sessions'
+    'PlanDetailScreen should launch into the Bible reader for explicit plan sessions'
   );
   assert.match(
     detailSource,
     /playbackSequenceEntries,/,
-    'ReadingPlanDetailScreen should pass the full day playback sequence into the reader'
+    'PlanDetailScreen should pass the full day playback sequence into the reader'
   );
   assert.match(
     detailSource,
-    /planId:\s*planId,/,
-    'ReadingPlanDetailScreen should pass the active plan id into the reader session'
+    /planId,/,
+    'PlanDetailScreen should pass the active plan id into the reader session'
   );
   assert.match(
     detailSource,
     /planDayNumber:\s*dayNumber,/,
-    'ReadingPlanDetailScreen should anchor the reader session to the tapped day number, not just the store current day'
+    'PlanDetailScreen should anchor the reader session to the tapped day number, not just the store current day'
   );
   assert.match(
     detailSource,
     /\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),/,
-    'ReadingPlanDetailScreen should request autoplay when the persisted launch preference is listen'
+    'PlanDetailScreen should request autoplay when the persisted launch preference is listen'
   );
   assert.match(
     detailSource,
     /preferredMode:\s*preferredChapterLaunchMode,/,
-    'ReadingPlanDetailScreen should forward the persisted listen-or-read preference into BibleReader'
+    'PlanDetailScreen should forward the persisted listen-or-read preference into BibleReader'
   );
   assert.match(
     detailSource,
     /returnToPlanOnComplete:\s*true,/,
-    'ReadingPlanDetailScreen should request a clean return to the plan flow after completion'
+    'PlanDetailScreen should request a clean return to the plan flow after completion'
   );
 });
 

@@ -14,6 +14,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
 import { useFonts } from 'expo-font';
 import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
 import { useAuthStore } from './src/stores/authStore';
@@ -27,6 +28,7 @@ import { queryClient } from './src/services/queryClient';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
+import { rootNavigationRef } from './src/navigation/rootNavigation';
 
 console.log('[EB-T] App:module-start', Date.now());
 
@@ -186,7 +188,16 @@ function LoadingScreen() {
 
     warmupCancelRef.current = startupCoordinator.startDeferredWarmups();
 
+    // Pre-warm the ~750KB gatherArtwork SVG string table during idle time so its
+    // eval lands here rather than as a one-time hitch on the first Home render.
+    const cancelArtworkPrewarm = scheduleAfterInteractions(() => {
+      void import('./src/data/gatherArtwork').catch((error) => {
+        console.error('Failed to pre-warm gather artwork:', error);
+      });
+    });
+
     return () => {
+      cancelArtworkPrewarm();
       if (warmupCancelRef.current) {
         warmupCancelRef.current();
         warmupCancelRef.current = null;
@@ -260,9 +271,11 @@ function LoadingScreen() {
   }
 
   if (!preferences.onboardingCompleted) {
-    const { LocaleSetupFlow } =
-      require('./src/screens/onboarding/LocaleSetupFlow') as typeof import('./src/screens/onboarding/LocaleSetupFlow');
-    return <LocaleSetupFlow mode="initial" onComplete={() => undefined} />;
+    return (
+      <View style={[styles.bootShell, { backgroundColor: colors.background }]}>
+        <OnboardingHost />
+      </View>
+    );
   }
 
   if (isPrivacyLocked) {
@@ -277,6 +290,34 @@ function LoadingScreen() {
     require('./src/navigation/RootNavigator') as typeof import('./src/navigation/RootNavigator');
 
   return <RootNavigator />;
+}
+
+type LocaleSetupFlowComponent = typeof import('./src/screens/onboarding/LocaleSetupFlow')['LocaleSetupFlow'];
+
+// Async-load the onboarding flow so its heavy import graph (bibleStore hydration,
+// @supabase/supabase-js, translations service) evaluates off the render pass
+// instead of synchronously blocking the JS thread on a brand-new install.
+function OnboardingHost() {
+  const [LocaleSetupFlow, setLocaleSetupFlow] = useState<LocaleSetupFlowComponent | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    void import('./src/screens/onboarding/LocaleSetupFlow')
+      .then(({ LocaleSetupFlow: Component }) => {
+        if (!isCancelled) {
+          setLocaleSetupFlow(() => Component);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load onboarding flow:', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  return LocaleSetupFlow ? <LocaleSetupFlow mode="initial" onComplete={() => undefined} /> : null;
 }
 
 export default function App() {
@@ -301,8 +342,6 @@ function AppContent() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
-  const prevAuthRef = useRef(isAuthenticated);
-  const prevUserUidRef = useRef(user?.uid ?? null);
   const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
@@ -317,7 +356,9 @@ function AppContent() {
           initAnonymousSessionContext,
           startSession,
         }) => {
-          if (isAuthenticated) {
+          // Read auth live at call time so a mid-session sign-in/out is attributed
+          // correctly without tearing down the AppState listener on every auth change.
+          if (useAuthStore.getState().isAuthenticated) {
             // Authenticated path: the session lifecycle event (session_started /
             // session_ended) is owned by analyticsService so it carries user_id.
             // We still establish an anonymous session_id context so that
@@ -346,7 +387,7 @@ function AppContent() {
           endSession,
           flushEvents,
         }) => {
-          if (isAuthenticated) {
+          if (useAuthStore.getState().isAuthenticated) {
             // Authenticated path: session_ended is emitted by the authenticated
             // analytics path. We only reset the anonymous session_id context (no
             // duplicate session_ended event) and flush both queues so audio /
@@ -405,6 +446,67 @@ function AppContent() {
     };
   }, []);
 
+  // Password-reset deep links must be handled regardless of onboarding state — a
+  // reset link tapped on a never-onboarded install still needs to establish the
+  // recovery session and (once navigation is ready) route to ResetPassword. The
+  // onboarding-gated AppRuntimeEffects listener only covers onboarded installs.
+  // authDeepLink is loaded via dynamic import() so the Supabase client (and all of
+  // @supabase/supabase-js) it pulls in stays off the static boot graph.
+  useEffect(() => {
+    let isMounted = true;
+    let readinessInterval: ReturnType<typeof setInterval> | null = null;
+
+    // Only poll for navigation readiness after a reset link is actually seen, so we
+    // don't run a perpetual timer on installs that never receive one. The flush is a
+    // no-op unless a reset navigation was queued while navigation was not yet ready.
+    const scheduleResetFlush = () => {
+      if (readinessInterval) {
+        return;
+      }
+      readinessInterval = setInterval(() => {
+        if (!rootNavigationRef.isReady()) {
+          return;
+        }
+        void import('./src/services/auth/authDeepLink').then(
+          ({ flushPendingResetPasswordNavigation }) => flushPendingResetPasswordNavigation()
+        );
+        if (readinessInterval) {
+          clearInterval(readinessInterval);
+          readinessInterval = null;
+        }
+      }, 250);
+    };
+
+    const handleUrl = (url: string) => {
+      void import('./src/services/auth/authDeepLink').then(({ handleAuthDeepLinkUrl }) => {
+        void handleAuthDeepLinkUrl(url);
+        if (isMounted) {
+          scheduleResetFlush();
+        }
+      });
+    };
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (isMounted && url) {
+          handleUrl(url);
+        }
+      })
+      .catch(() => {});
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+      if (readinessInterval) {
+        clearInterval(readinessInterval);
+      }
+    };
+  }, []);
+
   // Register push token after authentication. Re-runs whenever the user changes.
   useEffect(() => {
     if (isAuthenticated && user?.uid) {
@@ -414,20 +516,9 @@ function AppContent() {
     }
   }, [isAuthenticated, user?.uid]);
 
-  // Deactivate push token when the user signs out (auth state transitions from
-  // authenticated to unauthenticated).
-  useEffect(() => {
-    const wasAuthenticated = prevAuthRef.current;
-    const prevUid = prevUserUidRef.current;
-    prevAuthRef.current = isAuthenticated;
-    prevUserUidRef.current = user?.uid ?? null;
-
-    if (wasAuthenticated && !isAuthenticated && prevUid) {
-      void import('./src/services/notifications').then(({ deactivatePushToken }) =>
-        deactivatePushToken(prevUid)
-      );
-    }
-  }, [isAuthenticated, user?.uid]);
+  // Push-token deactivation on sign-out is owned by authStore.signOut (it runs
+  // before the supabase sign-out, while the session is still valid), so there is
+  // no dedicated deactivation effect here.
 
   // Listen for notification taps — used for future navigate-to-screen support.
   useEffect(() => {

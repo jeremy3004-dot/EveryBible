@@ -34,7 +34,30 @@ interface ProgressState {
     streakDays: number;
     lastReadDate: string | null;
   }) => void;
+  // Clears per-user in-memory + persisted state back to initial. Called at the
+  // auth boundary (sign-out, and sign-in as a different user) so one account's
+  // reading history never leaks into or corrupts another's.
+  resetForSignOut: () => void;
 }
+
+const initialProgressState: Pick<
+  ProgressState,
+  'chaptersRead' | 'streakDays' | 'lastReadDate'
+> = {
+  chaptersRead: {},
+  streakDays: 0,
+  lastReadDate: null,
+};
+
+// Local-calendar day key (YYYY-MM-DD). Mirrors formatLocalDateKey in
+// readingPlanModel.ts so streak day boundaries follow the device's timezone
+// rather than UTC (a Kathmandu reader at 05:00 local must not log yesterday).
+const formatLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getStartOfDay = (date: Date): number => {
   const d = new Date(date);
@@ -67,9 +90,7 @@ const getStartOfYear = (date: Date): number => {
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
-      chaptersRead: {},
-      streakDays: 0,
-      lastReadDate: null,
+      ...initialProgressState,
 
       getTodayCount: () => {
         const { chaptersRead } = get();
@@ -116,18 +137,28 @@ export const useProgressStore = create<ProgressState>()(
       },
 
       updateStreak: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const today = formatLocalDateKey(now);
         const { lastReadDate, streakDays } = get();
 
         if (lastReadDate === today) {
           return; // Already read today
         }
 
-        const yesterday = new Date();
+        const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStr = formatLocalDateKey(yesterday);
 
-        if (lastReadDate === yesterdayStr) {
+        // One-time upgrade tolerance: lastReadDate values written before this
+        // fix used the UTC date, which can be off by one day from the local
+        // date depending on timezone. Accept a two-day-old lastReadDate as
+        // "continuing" so legitimate daily readers do not lose their streak on
+        // the first read after upgrading.
+        const twoDaysAgo = new Date(now);
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        const twoDaysAgoStr = formatLocalDateKey(twoDaysAgo);
+
+        if (lastReadDate === yesterdayStr || lastReadDate === twoDaysAgoStr) {
           // Continuing streak
           set({ streakDays: streakDays + 1, lastReadDate: today });
         } else {
@@ -153,6 +184,10 @@ export const useProgressStore = create<ProgressState>()(
           streakDays: progress.streakDays,
           lastReadDate: progress.lastReadDate,
         });
+      },
+
+      resetForSignOut: () => {
+        set({ ...initialProgressState });
       },
     }),
     {

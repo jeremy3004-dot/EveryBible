@@ -24,6 +24,19 @@ import type {
 
 export type ReadingPlansStoreApi = StoreApi<ReadingPlansStoreState>;
 
+/**
+ * Stable, translation-safe error codes returned by rhythm mutations.
+ * Screens map these to i18n keys via `t()` (see H9) — never surface them raw.
+ */
+export const RHYTHM_MUTATION_ERROR_CODES = {
+  emptyItems: 'RHYTHM_EMPTY_ITEMS',
+  planInAnotherRhythm: 'RHYTHM_PLAN_IN_ANOTHER',
+  notFound: 'RHYTHM_NOT_FOUND',
+} as const;
+
+export type RhythmMutationErrorCode =
+  (typeof RHYTHM_MUTATION_ERROR_CODES)[keyof typeof RHYTHM_MUTATION_ERROR_CODES];
+
 let rhythmSequence = 0;
 let rhythmItemSequence = 0;
 
@@ -36,6 +49,7 @@ const createEmptyState = (): ReadingPlansPersistedState => ({
   groupPlansByGroupId: {},
   rhythmsById: {},
   rhythmOrder: [],
+  pendingUnenrollPlanIds: [],
 });
 
 const buildPlanDayResumeKey = (planId: string, dayNumber: number): string => `${planId}:${dayNumber}`;
@@ -293,7 +307,7 @@ const validateRhythmItems = (
     const planId = item.planId;
     const ownerRhythmId = findRhythmIdForPlan(rhythmsById, planId, excludeRhythmId);
     if (ownerRhythmId) {
-      return 'Plan already belongs to another rhythm';
+      return RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm;
     }
   }
 
@@ -442,7 +456,11 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
         createRhythm: (input: ReadingPlanRhythmInput = {}) => {
           const items = normalizeRhythmItems(input);
           if (items.length === 0) {
-            return buildRhythmMutationResult(false, undefined, 'Select at least one item');
+            return buildRhythmMutationResult(
+              false,
+              undefined,
+              RHYTHM_MUTATION_ERROR_CODES.emptyItems
+            );
           }
 
           const state = get();
@@ -479,7 +497,11 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
         updateRhythm: (rhythmId, input = {}) => {
           const existingRhythm = get().rhythmsById[rhythmId];
           if (!existingRhythm) {
-            return buildRhythmMutationResult(false, undefined, 'Rhythm not found');
+            return buildRhythmMutationResult(
+              false,
+              undefined,
+              RHYTHM_MUTATION_ERROR_CODES.notFound
+            );
           }
 
           const nextItems =
@@ -491,7 +513,11 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
               : existingRhythm.items;
 
           if (nextItems.length === 0) {
-            return buildRhythmMutationResult(false, undefined, 'Select at least one item');
+            return buildRhythmMutationResult(
+              false,
+              undefined,
+              RHYTHM_MUTATION_ERROR_CODES.emptyItems
+            );
           }
 
           const state = get();
@@ -633,6 +659,8 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           set((state) => ({
             ...state,
             ...applyProgressUpdate(state, progress),
+            // Re-enrolling clears any pending unenroll tombstone (M12).
+            pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.filter((id) => id !== planId),
           }));
           return progress;
         },
@@ -810,6 +838,26 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             ...removePlanFromCollections(state, planId),
             ...removePlanDayResumeEntries(state, planId),
             ...removePlanFromRhythms(state, planId),
+            // Record a tombstone so a stale remote row cannot re-enroll the user
+            // and the remote delete can be retried on the next sync (M12).
+            pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.includes(planId)
+              ? state.pendingUnenrollPlanIds
+              : [...state.pendingUnenrollPlanIds, planId],
+          }));
+        },
+
+        addPendingUnenroll: (planId) => {
+          set((state) =>
+            state.pendingUnenrollPlanIds.includes(planId)
+              ? state
+              : { ...state, pendingUnenrollPlanIds: [...state.pendingUnenrollPlanIds, planId] }
+          );
+        },
+
+        clearPendingUnenroll: (planId) => {
+          set((state) => ({
+            ...state,
+            pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.filter((id) => id !== planId),
           }));
         },
 
@@ -839,6 +887,8 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
         getGroupPlans: (groupId) => get().groupPlansByGroupId[groupId] ?? [],
 
         resetAll: () => set(createEmptyState()),
+
+        resetForSignOut: () => set(createEmptyState()),
       }),
       {
         name: 'reading-plans-storage',
@@ -852,6 +902,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           groupPlansByGroupId: state.groupPlansByGroupId,
           rhythmsById: state.rhythmsById,
           rhythmOrder: state.rhythmOrder,
+          pendingUnenrollPlanIds: state.pendingUnenrollPlanIds,
         }),
         merge: (persistedState, currentState) => {
           const mergedState = {

@@ -101,6 +101,11 @@ export const hi = {
   "bible": {
     "title": "बाइबिल",
     "oldTestament": "पुराना नियम",
+    "fontsAndSettings": "फ़ॉन्ट और सेटिंग्स",
+    "allSettings": "सभी सेटिंग्स",
+    "backToPlayer": "प्लेयर पर वापस जाएं",
+    "packMissingRecovering": "इस अनुवाद की फ़ाइलें गायब हो गईं। उन्हें अभी पुनर्स्थापित किया जा रहा है — कृपया कुछ ही क्षण में फिर से प्रयास करें।",
+    "relatedVerses": "संबंधित पद",
     "newTestament": "नया करार",
     "fullBible": "पूरी बाइबिल",
     "byBook": "पुस्तक अनुसार",
@@ -265,7 +270,11 @@ export const hi = {
     "repeatBook": "पुस्तक दोहराएं",
     "repeatOff": "दोहराना बंद",
     "showText": "पाठ",
-    "showTextHint": "अभी चल रहे अध्याय का बाइबल पाठ खोलता है"
+    "showTextHint": "अभी चल रहे अध्याय का बाइबल पाठ खोलता है",
+    "musicAndSounds": "संगीत और ध्वनियाँ",
+    "chooseBackgroundLayer": "ऑफ़लाइन शास्त्र सुनने के लिए एक अंतर्निहित पृष्ठभूमि परत चुनें।",
+    "previousChapter": "पिछला अध्याय",
+    "nextChapter": "अगला अध्याय",
   },
   "privacy": {
     "lockTitle": "अपना सुरक्षित कोड दर्ज करें",
@@ -354,6 +363,19 @@ export const hi = {
     "accountDeletedMessage": "आपका खाता और सारा डेटा हटा दिया गया है.",
     "deleteAccountError": "खाता हटाने में विफल. कृपया पुन: प्रयास करें।",
     "notSignedIn": "अपना खाता हटाने के लिए आपको साइन इन करना होगा।",
+    "diagnostics": {
+      "title": "डायग्नोस्टिक्स",
+      "description": "इस डिवाइस पर दर्ज हाल की त्रुटियाँ और क्रैश। समस्याओं को ठीक करने में हमारी मदद के लिए इन्हें सहायता के साथ साझा करें।",
+      "emptyTitle": "कोई समस्या दर्ज नहीं की गई",
+      "emptyBody": "त्रुटियाँ और क्रैश होने पर यहाँ दिखाई देंगे।",
+      "badgeFatal": "क्रैश",
+      "badgeError": "त्रुटि",
+      "clear": "साफ़ करें",
+      "clearTitle": "डायग्नोस्टिक्स साफ़ करें",
+      "clearConfirm": "इस डिवाइस से सभी दर्ज त्रुटि और क्रैश लॉग हटा दें?",
+      "exportHeader": "EveryBible डायग्नोस्टिक्स रिपोर्ट",
+      "exportError": "डायग्नोस्टिक्स रिपोर्ट साझा नहीं की जा सकी।",
+    },
     "delete": "मिटाना"
   },
   "notifications": {
@@ -1004,6 +1026,7 @@ export const hi = {
     "downloadPrompt": "ऑफलाइन पढ़ने के लिए {{name}} (~{{size}} MB) डाउनलोड करें?",
     "deleteConfirmTitle": "अनुवाद हटाएं",
     "deleteConfirmMessage": "{{name}} का डाउनलोड किया गया डेटा हटाएं? आप इसे कभी भी दोबारा डाउनलोड कर सकते हैं।",
+    "cancelDownload": "डाउनलोड रद्द करें",
     "delete": "हटाएं"
   },
   "gather": {
@@ -1451,5 +1474,42 @@ export const hi = {
     "groupDiscipleshipCore": "शिष्यता",
     "groupChurchCore": "कलीसिया",
     "groupMissionHarvestCore": "मिशन / फसल"
+  },
+  "learn": {
+    "playbackAndText": "प्लेबैक और टेक्स्ट",
+    "playbackSpeed": "प्लेबैक गति",
+    "fontSizeLabel": "फ़ॉन्ट आकार",
+    "noPassageText": "कोई अंश पाठ उपलब्ध नहीं",
+    "listenToStoryAgain": "कहानी फिर से सुनें",
+    "shareApp": "ऐप साझा करें",
+  },
+  "plans": {
+    "rhythmComposer": {
+      "subtitle": "क्यूरेटेड लय पुस्तकालय, बीस ऐतिहासिक आरंभिक बिंदु जिन्हें आप एक टैप में जोड़ सकते हैं।",
+      "heroEyebrow": "ऐतिहासिक लय",
+      "heroTitle": "खाली फ़ॉर्म से नहीं, एक वास्तविक परंपरा से शुरुआत करें",
+      "heroBody": "कैथोलिक, एंग्लिकन, ऑर्थोडॉक्स, बेनेडिक्टिन, लूथरन, प्यूरिटन और टेज़े-प्रेरित लय, पहले से ही सुबह, दोपहर, शाम या किसी भी समय के लिए दोहराने योग्य अंशों में ढाली गई हैं।",
+      "presetCount": "{{count}} प्रीसेट",
+      "prayerAndScripture": "प्रार्थना और शास्त्र",
+      "tapToAdd": "जोड़ने के लिए टैप करें",
+      "replaceCurrentTitle": "वर्तमान लय बदलें",
+      "replaceCurrentBody": "इस लय को पूरी तरह बदलने के लिए नीचे एक प्रीसेट चुनें। यह प्रवाह को सरल रखता है और हर लय को एक स्पष्ट परंपरा से आरंभ करता है।",
+      "timeOfDay": "दिन का समय",
+      "filterAll": "सभी",
+      "midday": "दोपहर",
+      "anyTime": "किसी भी समय",
+      "tradition": "परंपरा",
+      "allTraditions": "सभी परंपराएँ",
+      "historicRoots": "ऐतिहासिक जड़ें",
+      "includes": "शामिल है",
+      "emptyTitle": "उन फ़िल्टरों से कोई लय मेल नहीं खाती।",
+      "emptyBody": "एक व्यापक परंपरा या दिन का कोई अलग समय आज़माएं।",
+      "rhythmNotFound": "लय नहीं मिली।",
+      "addRhythm": "लय जोड़ें",
+      "replaceRhythm": "लय बदलें",
+      "errorEmptyItems": "इस लय को बनाने के लिए कम से कम एक आइटम चुनें।",
+      "errorPlanInAnotherRhythm": "यह योजना पहले से ही किसी अन्य लय से संबंधित है।",
+      "errorRhythmNotFound": "वह लय नहीं मिल सकी।",
+    }
   }
 } as const;

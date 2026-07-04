@@ -38,8 +38,8 @@ test('useAudioPlayer keeps playback position monotonic across status snapshots',
 
   assert.match(
     source,
-    /const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*const nextPosition = Math\.max\(currentPosition, snapshot\.positionMillis\);[\s\S]*setPosition\(nextPosition\);/s,
-    'useAudioPlayer should refuse to move the visible playback position backwards when a stop-like status snapshot arrives'
+    /const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*const isAuthoritativeProgress = snapshot\.isPlaying && snapshot\.positionMillis > 0;[\s\S]*const nextPosition = isAuthoritativeProgress[\s\S]*\? snapshot\.positionMillis[\s\S]*: Math\.max\(currentPosition, snapshot\.positionMillis\);[\s\S]*setPosition\(nextPosition\);/s,
+    'useAudioPlayer should let an authoritative still-playing progress snapshot correct interpolation overshoot downward while still refusing to move backward on stop-like snapshots that collapse toward zero'
   );
 
   assert.equal(
