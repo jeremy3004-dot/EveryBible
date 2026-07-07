@@ -217,7 +217,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
   const [slotFilter, setSlotFilter] = useState<SlotFilter>('all');
   const [traditionFilter, setTraditionFilter] = useState<string>(ALL_TRADITIONS);
-  const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
+  const [savingPresetId] = useState<string | null>(null);
 
   const rhythmsById = useReadingPlansStore((state) => state.rhythmsById);
   const createRhythm = useReadingPlansStore((state) => state.createRhythm);
