@@ -93,3 +93,14 @@ coverage/
 .cache/
 tmp/
 .gstack/
+
+# Local cleanup artifacts
+qa-evidence/
+output/
+logs/
+.playwright-mcp/
+.playwright-cli/
+.openclaw-logs/
+.asc/
+*.mp4
+.easignore.*-backup-*
