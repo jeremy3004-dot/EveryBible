@@ -50,6 +50,7 @@ import {
 } from './bibleSearchModel';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getBookIcon } from '../../constants/bookIcons';
+import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
@@ -574,7 +575,7 @@ export function BibleBrowserScreen() {
         // inline indicator so each keystroke does not flash a blank screen.
         isSearching && searchResults.length === 0 ? (
           <View style={styles.searchLoadingState}>
-            <ActivityIndicator color={colors.bibleAccent} />
+            <VersesSkeleton count={6} />
           </View>
         ) : searchError ? (
           <View
@@ -589,11 +590,6 @@ export function BibleBrowserScreen() {
           </View>
         ) : (
           <View style={styles.searchResultsWrapper}>
-            {isSearching ? (
-              <View style={styles.inlineSearchIndicator} pointerEvents="none">
-                <ActivityIndicator size="small" color={colors.bibleAccent} />
-              </View>
-            ) : null}
             <FlashList
               data={searchResults}
               renderItem={renderSearchResult}
@@ -776,8 +772,6 @@ const styles = StyleSheet.create({
   },
   searchLoadingState: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   searchResultsWrapper: {
     flex: 1,
