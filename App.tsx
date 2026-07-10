@@ -365,7 +365,12 @@ function AppContent() {
           startAnonymousUsageSession,
           initAnonymousSessionContext,
           startSession,
+          primeGeoContext,
         }) => {
+          // Resolve geo ONCE per foreground (fire-and-forget, timed out) so the
+          // flush — which fires on app-background when the network may be gone —
+          // attaches cached location instead of losing the race to server IP.
+          void primeGeoContext();
           // Read auth live at call time so a mid-session sign-in/out is attributed
           // correctly without tearing down the AppState listener on every auth change.
           if (useAuthStore.getState().isAuthenticated) {

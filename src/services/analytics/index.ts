@@ -19,6 +19,8 @@ export {
   type BibleExperienceEventName,
 } from './bibleExperienceAnalytics';
 
+export { primeGeoContext } from './geoContext';
+
 export {
   trackAnonymousUsageEvent,
   flushAnonymousUsageEvents,
