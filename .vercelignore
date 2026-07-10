@@ -1,0 +1,17 @@
+# Vercel builds only apps/admin (and apps/site). Exclude the React Native
+# app's native projects and bulk assets/data — irrelevant to Next.js builds
+# and otherwise bloat every upload/clone with hundreds of MB to 1GB+.
+node_modules
+ios
+android
+data
+assets
+credentials
+store-assets
+store-metadata
+legal
+logs
+state
+patches
+docs
+memory
