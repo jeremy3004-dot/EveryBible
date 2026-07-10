@@ -257,6 +257,9 @@ export interface ChapterFeedbackListItem {
   id: string;
   interfaceLanguage: string;
   participantLabel: string;
+  // Resolved from the reviewer's profile (display name → email local-part), so
+  // the UI shows a human name instead of a raw UUID. Null when unresolvable.
+  reviewerDisplayName: string | null;
   scriptureCouncilFix: {
     fixedAt: string;
     fixedBy: string | null;
@@ -278,6 +281,9 @@ export interface ChapterFeedbackFilters {
   responseType?: ChapterFeedbackResponseType;
   sentiment?: ChapterFeedbackSentiment;
   translationId?: string;
+  // Default true — excludes QA/smoke-test submissions ("Test church" reviewers
+  // and @example.com accounts) so production feedback isn't polluted by them.
+  hideTestData?: boolean;
 }
 
 export interface ChapterFeedbackFilterOption {
@@ -608,7 +614,8 @@ function byCountThenLabel(a: ChapterFeedbackFilterOption, b: ChapterFeedbackFilt
 
 function mapChapterFeedbackRows(
   rows: ChapterFeedbackRow[],
-  signedAudioUrls: Array<string | null>
+  signedAudioUrls: Array<string | null>,
+  reviewerProfiles: Map<string, { name: string | null; email: string | null }> = new Map()
 ): ChapterFeedbackListItem[] {
   return rows.map((row, index) => ({
     appLabel: [row.app_platform, row.app_version].filter(Boolean).join(' ') || 'Unknown app',
@@ -633,6 +640,12 @@ function mapChapterFeedbackRows(
     participantLabel:
       [row.participant_name, row.participant_role].filter(Boolean).join(' / ') ||
       'Unknown reviewer',
+    reviewerDisplayName: (() => {
+      const profile = row.user_id ? reviewerProfiles.get(row.user_id) : undefined;
+      if (profile?.name && profile.name.trim().length > 0) return profile.name.trim();
+      if (profile?.email) return profile.email.split('@')[0] ?? null;
+      return null;
+    })(),
     scriptureCouncilFix: row.scripture_council_fixed_at
       ? {
           fixedAt: row.scripture_council_fixed_at,
@@ -726,10 +739,45 @@ export async function listChapterFeedback(
     throw new Error(`Unable to load chapter feedback: ${error.message}`);
   }
 
-  const rows = (data ?? []) as unknown as ChapterFeedbackRow[];
+  const allRows = (data ?? []) as unknown as ChapterFeedbackRow[];
+
+  // Resolve reviewer identities (name + email) from profiles so the UI can show
+  // a human name instead of a raw UUID, and so we can exclude test accounts.
+  const reviewerIds = Array.from(
+    new Set(allRows.map((row) => row.user_id).filter((id): id is string => Boolean(id)))
+  );
+  const reviewerProfiles = new Map<string, { name: string | null; email: string | null }>();
+  if (reviewerIds.length > 0) {
+    const { data: profileRows } = await service
+      .from('profiles')
+      .select('id, display_name, email')
+      .in('id', reviewerIds);
+    for (const profile of profileRows ?? []) {
+      reviewerProfiles.set(profile.id as string, {
+        name: (profile.display_name as string | null) ?? null,
+        email: (profile.email as string | null) ?? null,
+      });
+    }
+  }
+
+  const hideTestData = filters.hideTestData !== false;
+  const rows = hideTestData
+    ? allRows.filter((row) => {
+        const email = (row.user_id ? reviewerProfiles.get(row.user_id)?.email : '') ?? '';
+        const roleName = `${row.participant_name ?? ''} ${row.participant_role ?? ''}`
+          .trim()
+          .toLowerCase();
+        const looksLikeTest =
+          email.toLowerCase().endsWith('@example.com') ||
+          roleName.includes('test church') ||
+          roleName === 'test';
+        return !looksLikeTest;
+      })
+    : allRows;
+
   const signedAudioUrls = await signChapterFeedbackAudioRows(rows);
 
-  return mapChapterFeedbackRows(rows, signedAudioUrls);
+  return mapChapterFeedbackRows(rows, signedAudioUrls, reviewerProfiles);
 }
 
 export async function getChapterFeedbackReviewModel(

@@ -35,6 +35,9 @@ function buildFilters(searchParams: Record<string, string | string[] | undefined
     responseType: responseType === 'audio' || responseType === 'text' ? responseType : undefined,
     sentiment: sentiment === 'up' || sentiment === 'down' ? sentiment : undefined,
     translationId: firstParam(searchParams.translationId) || undefined,
+    // Hide QA/smoke-test submissions unless the operator explicitly opts in via
+    // ?showTestData=1.
+    hideTestData: firstParam(searchParams.showTestData) !== '1',
   };
 
   return filters;
@@ -153,6 +156,15 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             <option value="open">Open needs-work fixes</option>
             <option value="fixed">Fixed needs-work items</option>
           </select>
+          <label className="filter-form__check">
+            <input
+              type="checkbox"
+              name="showTestData"
+              value="1"
+              defaultChecked={firstParam(resolvedSearchParams.showTestData) === '1'}
+            />
+            Show test data
+          </label>
           <button type="submit" className="button">
             Filter
           </button>
@@ -293,7 +305,15 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                   </td>
                   <td>
                     {item.participantLabel}
-                    <p className="table-note">{item.userId ?? 'No user id'}</p>
+                    {item.reviewerDisplayName && item.reviewerDisplayName !== item.participantLabel ? (
+                      <p className="table-note" title={item.userId ?? undefined}>
+                        {item.reviewerDisplayName}
+                      </p>
+                    ) : (
+                      <p className="table-note" title={item.userId ?? undefined}>
+                        {item.reviewerDisplayName ?? (item.userId ? 'Account on file' : 'No user id')}
+                      </p>
+                    )}
                   </td>
                   <td>{item.comment ?? <span className="table-note">No comment</span>}</td>
                   <td>
@@ -331,7 +351,10 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                         ) : null}
                       </div>
                     ) : item.sentiment === 'down' ? (
-                      <form action={markChapterFeedbackScriptureCouncilFixedAction}>
+                      <form
+                        action={markChapterFeedbackScriptureCouncilFixedAction}
+                        className="feedback-resolve-form"
+                      >
                         <input type="hidden" name="feedbackId" value={item.id} />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         <input
