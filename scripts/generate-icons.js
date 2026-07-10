@@ -28,7 +28,7 @@ const iosSplashDir = path.join(
   'SplashScreenBrand.imageset'
 );
 const androidResDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'res');
-const splashBackground = '#101113';
+const splashBackground = '#161412';
 const splashPortraitSize = { width: 1284, height: 2778 };
 
 const launcherSizes = [
