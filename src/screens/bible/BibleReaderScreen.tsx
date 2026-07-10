@@ -56,6 +56,7 @@ import { config } from '../../constants/config';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
+import { readerThemePreviews } from '../../design/readerThemePreviews';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
@@ -382,50 +383,6 @@ async function loadVideoTrimDependencies() {
     trimAudioMedia: videoTrimModule.trim,
   };
 }
-
-const readerThemePreviewOptions: Array<{
-  mode: ThemeMode;
-  labelKey: string;
-  background: readonly [string, string];
-  paper: string;
-  line: string;
-}> = [
-  {
-    mode: 'light',
-    labelKey: 'settings.themeLight',
-    background: ['#F7F9FB', '#EEF2F6'],
-    paper: '#FFFFFF',
-    line: '#202428',
-  },
-  {
-    mode: 'parchment',
-    labelKey: 'settings.themeParchment',
-    background: ['#F4E9D2', '#E6D2AB'],
-    paper: '#FFF4DD',
-    line: '#3F2F20',
-  },
-  {
-    mode: 'low-light',
-    labelKey: 'settings.themeLowLight',
-    background: ['#2B231D', '#19120E'],
-    paper: '#332820',
-    line: '#EEDCC2',
-  },
-  {
-    mode: 'dark',
-    labelKey: 'settings.themeDark',
-    background: ['#17191D', '#0B0C0E'],
-    paper: '#111111',
-    line: '#F5F2EA',
-  },
-  {
-    mode: 'midnight',
-    labelKey: 'settings.themeMidnight',
-    background: ['#172033', '#070A11'],
-    paper: '#0B1020',
-    line: '#ECF3FF',
-  },
-];
 
 interface AudioRangeSelectorProps {
   durationMs: number;
@@ -5563,7 +5520,7 @@ export function BibleReaderScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.readerThemeModeRail}
               >
-                {readerThemePreviewOptions.map((option) => {
+                {readerThemePreviews.map((option) => {
                   const isActive = themeMode === option.mode;
                   return (
                     <View key={option.mode} style={styles.readerThemeTileColumn}>
