@@ -46,6 +46,7 @@ import {
   type SetupStep,
 } from './localeSetupModel';
 import { radius, spacing } from '../../design/system';
+import { serifFamily } from '../../design/fonts';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import type { BibleTranslation } from '../../types';
 import {
@@ -957,6 +958,9 @@ export function LocaleSetupFlow({
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+        {mode === 'initial' && step === steps[0] ? (
+          <Text style={[styles.brandWordmark, { color: colors.accentPrimary }]}>EveryBible</Text>
+        ) : null}
         {step === 'interfaceLanguage' ? (
           <>
             <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
@@ -1353,6 +1357,11 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 32,
+  },
+  brandWordmark: {
+    fontFamily: serifFamily(400, true),
+    fontSize: 20,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
     fontSize: 30,
