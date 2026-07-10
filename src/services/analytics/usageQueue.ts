@@ -47,6 +47,46 @@ const eventQueue: QueuedEvent[] = [];
 
 const AUTO_FLUSH_SIZE = 20;
 const MAX_QUEUE_SIZE = 500;
+// Cap on how many queued events we mirror to disk so a force-kill/crash doesn't
+// lose everything. Kept well under MAX_QUEUE_SIZE to bound the MMKV write size.
+const MAX_PERSISTED_EVENTS = 200;
+const QUEUE_CACHE_KEY = 'analytics-usage-queue-v1';
+
+// Write-through persistence via a guarded require() so this module's static
+// import graph stays intact and the require is a no-op where the native MMKV
+// module is unavailable (e.g. node unit tests). This makes the queue durable
+// across force-kill/crash; on next launch load-on-init restores it.
+function loadPersistedQueue(): QueuedEvent[] {
+  try {
+    const { mmkvInstance } = require('../../stores/mmkvStorage');
+    const raw = mmkvInstance.getString(QUEUE_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (event): event is QueuedEvent =>
+        !!event && typeof event === 'object' && typeof event.event_name === 'string'
+    );
+  } catch {
+    return [];
+  }
+}
+
+function persistQueue(): void {
+  try {
+    const { mmkvInstance } = require('../../stores/mmkvStorage');
+    if (eventQueue.length === 0) {
+      mmkvInstance.delete(QUEUE_CACHE_KEY);
+      return;
+    }
+    mmkvInstance.set(QUEUE_CACHE_KEY, JSON.stringify(eventQueue.slice(0, MAX_PERSISTED_EVENTS)));
+  } catch {
+    // Best-effort — persistence is a crash-safety net, never required for delivery.
+  }
+}
+
+// Load-on-init: restore any events persisted before the last cold start.
+eventQueue.push(...loadPersistedQueue());
 
 // Uses the Crypto API available in Hermes / React Native's polyfill.
 export function generateUUID(): string {
@@ -104,6 +144,7 @@ export function enqueueUsageEvent(
   sessionId: string | null
 ): void {
   eventQueue.push(buildQueuedEvent(eventName, properties, sessionId));
+  persistQueue();
 
   if (eventQueue.length >= AUTO_FLUSH_SIZE) {
     // Fire-and-forget: flush in the background; caller does not need to await.
@@ -128,6 +169,9 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
   // Snapshot and drain before the await so that events arriving mid-flush are
   // NOT lost — they remain in the queue for the next call.
   const snapshot = eventQueue.splice(0, eventQueue.length);
+  // Mirror the drained queue immediately so a crash mid-flight doesn't resurrect
+  // already-sent events; requeue-on-failure below re-persists if delivery fails.
+  persistQueue();
 
   try {
     const geoContext = await resolveGeoContext();
@@ -145,12 +189,14 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
 
     if (error) {
       requeueSnapshot(snapshot);
+      persistQueue();
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (error) {
     requeueSnapshot(snapshot);
+    persistQueue();
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

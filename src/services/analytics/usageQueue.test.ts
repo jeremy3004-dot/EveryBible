@@ -95,3 +95,42 @@ test('usageQueue generates UUIDs with a randomUUID + Math.random fallback', () =
   assert.match(source, /randomUUID/, 'should prefer crypto.randomUUID()');
   assert.match(source, /Math\.random/, 'must have a Math.random fallback');
 });
+
+test('usageQueue is durable: write-through MMKV persistence + load-on-init, capped', () => {
+  const source = readRelativeSource('./usageQueue.ts');
+
+  // Capped mirror to bound the write size.
+  assert.match(source, /MAX_PERSISTED_EVENTS\s*=\s*\d+/, 'a persisted-events cap must be defined');
+  assert.match(
+    source,
+    /slice\(0,\s*MAX_PERSISTED_EVENTS\)/,
+    'persistence must cap how many events are written to disk'
+  );
+
+  // Persist + restore go through the shared MMKV instance (guarded require).
+  assert.match(source, /function loadPersistedQueue/, 'must define a load-on-init helper');
+  assert.match(source, /function persistQueue/, 'must define a write-through persist helper');
+  assert.match(source, /mmkvInstance/, 'persistence must use the shared MMKV instance');
+
+  // Load-on-init restores events queued before the last cold start.
+  assert.match(
+    source,
+    /eventQueue\.push\(\.\.\.loadPersistedQueue\(\)\)/,
+    'the queue must be restored from disk on module init'
+  );
+
+  // Write-through: persist after enqueue AND after flush drains/requeues.
+  const enqueueBody = source.slice(
+    source.indexOf('export function enqueueUsageEvent'),
+    source.indexOf('export async function flushUsageQueue')
+  );
+  assert.match(enqueueBody, /persistQueue\(\)/, 'enqueue must persist write-through');
+
+  const flushBody = source.slice(
+    source.indexOf('export async function flushUsageQueue'),
+    source.indexOf('export function getPendingUsageEventCount')
+  );
+  assert.match(flushBody, /persistQueue\(\)/, 'flush must re-persist after drain/requeue');
+  // Requeue-on-failure semantics preserved.
+  assert.match(flushBody, /requeueSnapshot\(snapshot\)/, 'flush must still requeue on failure');
+});
