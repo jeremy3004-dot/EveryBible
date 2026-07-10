@@ -257,8 +257,12 @@ export function TabNavigator() {
             const nestedRouteParams = focusedRoute?.params ?? bibleRouteState.params?.params;
             const isPlanSessionReader =
               nestedRouteName === 'BibleReader' && typeof nestedRouteParams?.planId === 'string';
-            const { hasReaderHistory, currentBibleBook, currentBibleChapter, preferredBibleMode } =
-              getBibleTabResumeState();
+            const {
+              hasReaderHistory,
+              currentBibleBook,
+              currentBibleChapter,
+              preferredBibleMode,
+            } = getBibleTabResumeState();
             const shouldResumeReader =
               hasReaderHistory && (nestedRouteName !== 'BibleReader' || isPlanSessionReader);
 
