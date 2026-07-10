@@ -31,7 +31,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores';
-import { useFontSize, useI18n } from '../../hooks';
+import { useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import { validateTranslatorReviewPasscode } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
@@ -84,6 +84,9 @@ export function SettingsScreen() {
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
+  // Absolute tab bar overlays the bottom of nested More screens; pad the scroll
+  // content so the last row (Clear Cache) clears it.
+  const { height: tabBarHeight } = useTabBarHeight();
   const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
@@ -445,7 +448,10 @@ export function SettingsScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xl }]}
+      >
         {/* Reading Settings */}
         <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
           {t('settings.reading')}
