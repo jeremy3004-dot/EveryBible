@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +10,9 @@ import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { layout, spacing, typography } from '../../design/system';
+import { serifFamily } from '../../design/fonts';
+import { AppButton, AppCard, Avatar, ListRow } from '../../components/ui';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -18,33 +20,53 @@ type MenuItem = {
   id: string;
   titleKey?: string;
   title?: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
+  icon: keyof typeof Ionicons.glyphMap;
   screen?: keyof MoreStackParamList;
   action?: () => void;
 };
 
-const menuItems: MenuItem[] = [
-  { id: 'profile', titleKey: 'more.profile', icon: 'person-outline', screen: 'Profile' },
+type MenuGroup = {
+  id: string;
+  items: MenuItem[];
+};
+
+const menuGroups: MenuGroup[] = [
   {
-    id: 'readingActivity',
-    titleKey: 'more.readingActivity',
-    icon: 'calendar-outline',
-    screen: 'ReadingActivity',
+    id: 'account',
+    items: [
+      { id: 'profile', titleKey: 'more.profile', icon: 'person-outline', screen: 'Profile' },
+      {
+        id: 'readingActivity',
+        titleKey: 'more.readingActivity',
+        icon: 'calendar-outline',
+        screen: 'ReadingActivity',
+      },
+      {
+        id: 'annotations',
+        titleKey: 'annotations.title',
+        icon: 'bookmarks-outline',
+        screen: 'Annotations',
+      },
+    ],
   },
   {
-    id: 'annotations',
-    titleKey: 'annotations.title',
-    icon: 'bookmarks-outline',
-    screen: 'Annotations',
+    id: 'content',
+    items: [
+      {
+        id: 'translations',
+        titleKey: 'translations.title',
+        icon: 'book-outline',
+        screen: 'TranslationBrowser',
+      },
+    ],
   },
-  { id: 'settings', titleKey: 'more.settings', icon: 'settings-outline', screen: 'Settings' },
   {
-    id: 'translations',
-    titleKey: 'translations.title',
-    icon: 'book-outline',
-    screen: 'TranslationBrowser',
+    id: 'app',
+    items: [
+      { id: 'settings', titleKey: 'more.settings', icon: 'settings-outline', screen: 'Settings' },
+      { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
+    ],
   },
-  { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
 ];
 
 export function MoreScreen() {
@@ -54,6 +76,9 @@ export function MoreScreen() {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const signOut = useAuthStore((state) => state.signOut);
+
+  const displayName = isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser');
+  const profileSubtitle = isAuthenticated && user?.email ? user.email : t('more.signInToSync');
 
   const handleMenuPress = (item: MenuItem) => {
     if (item.screen) {
@@ -68,108 +93,102 @@ export function MoreScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      t('more.signOut'),
-      t('more.signOutConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('more.signOut'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch {
-              // Sign-out failure is non-fatal; the user stays signed in
-            }
-          },
+    Alert.alert(t('more.signOut'), t('more.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('more.signOut'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch {
+            // Sign-out failure is non-fatal; the user stays signed in
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: colors.primaryText }]}>{t('more.title')}</Text>
 
-        {/* User Profile Card */}
-        <TouchableOpacity
-          style={[styles.profileCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+        {/* Profile card */}
+        <AppCard
+          pressable
           onPress={() => navigation.navigate('Profile')}
-          activeOpacity={0.7}
-          accessibilityRole="button"
+          style={styles.profileCard}
+          accessibilityLabel={displayName}
         >
-          <View style={[styles.avatar, { backgroundColor: colors.cardBorder }]}>
-            {user?.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={styles.avatarImage} />
-            ) : (
-              <Ionicons name="person" size={32} color={colors.secondaryText} />
-            )}
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.primaryText }]}>
-              {isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser')}
-            </Text>
-            <Text style={[styles.profileEmail, { color: colors.secondaryText }]}>
-              {isAuthenticated && user?.email ? user.email : t('more.signInToSync')}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-        </TouchableOpacity>
-
-        {/* Auth Buttons */}
-        {!isAuthenticated ? (
-          <TouchableOpacity
-            style={[styles.signInButton, { backgroundColor: colors.accentGreen }]}
-            onPress={handleSignIn}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.signInText, { color: colors.onAccent }]}>
-              {t('more.syncYourProgress')}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.signOutButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
-            onPress={handleSignOut}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.error} />
-            <Text style={[styles.signOutText, { color: colors.error }]}>{t('more.signOut')}</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Menu Items */}
-        <View style={[styles.menuSection, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.menuItem,
-                { borderBottomColor: colors.cardBorder },
-                index === menuItems.length - 1 && styles.menuItemLast,
-              ]}
-              onPress={() => handleMenuPress(item)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={item.title ?? (item.titleKey ? t(item.titleKey) : undefined)}
-            >
-              <Ionicons name={item.icon} size={24} color={colors.secondaryText} />
-              <Text style={[styles.menuItemText, { color: colors.primaryText }]}>
-                {item.title ?? (item.titleKey ? t(item.titleKey) : '')}
+          <View style={styles.profileRow}>
+            <Avatar name={displayName} imageUri={user?.photoURL ?? null} size={56} />
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.primaryText }]} numberOfLines={1}>
+                {displayName}
               </Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </TouchableOpacity>
-          ))}
-        </View>
+              <Text
+                style={[styles.profileEmail, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {profileSubtitle}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </View>
+        </AppCard>
 
-        {/* App Version */}
-        <Text style={[styles.version, { color: colors.secondaryText }]}>
-          {t('about.version', { version: config.version })}
-        </Text>
+        {!isAuthenticated ? (
+          <AppButton
+            label={t('more.syncYourProgress')}
+            onPress={handleSignIn}
+            style={styles.authButton}
+          />
+        ) : null}
+
+        {/* Grouped menu — visually separated cards */}
+        {menuGroups.map((group) => (
+          <View key={group.id} style={styles.group}>
+            <AppCard padding={0} style={styles.groupCard}>
+              {group.items.map((item, index) => (
+                <ListRow
+                  key={item.id}
+                  title={
+                    item.titleKey ? t(item.titleKey as Parameters<typeof t>[0]) : (item.title ?? '')
+                  }
+                  leadingIcon={item.icon}
+                  showChevron
+                  onPress={() => handleMenuPress(item)}
+                  isLast={index === group.items.length - 1}
+                />
+              ))}
+            </AppCard>
+          </View>
+        ))}
+
+        {/* Sign out */}
+        {isAuthenticated ? (
+          <AppCard padding={0} style={styles.groupCard}>
+            <ListRow
+              title={t('more.signOut')}
+              leadingIcon="log-out-outline"
+              destructive
+              isLast
+              onPress={handleSignOut}
+            />
+          </AppCard>
+        ) : null}
+
+        {/* Footer wordmark */}
+        <View style={styles.footer}>
+          <Text style={[styles.wordmark, { color: colors.textTertiary }]}>EveryBible</Text>
+          <Text style={[styles.version, { color: colors.textTertiary }]}>
+            {t('about.version', { version: config.version })}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -190,79 +209,42 @@ const styles = StyleSheet.create({
     marginBottom: layout.sectionGap,
   },
   profileCard: {
+    marginBottom: spacing.lg,
+  },
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
-    padding: layout.cardPadding,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.pill,
+    gap: spacing.md,
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    ...typography.cardTitle,
+    fontFamily: serifFamily(600),
+    fontSize: 20,
+    lineHeight: 26,
     marginBottom: spacing.xs,
   },
   profileEmail: {
     ...typography.micro,
   },
-  signInButton: {
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: layout.sectionGap,
+  authButton: {
+    marginBottom: spacing.lg,
   },
-  signInText: {
-    ...typography.button,
+  group: {
+    marginBottom: spacing.lg,
   },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    marginBottom: layout.sectionGap,
-    borderWidth: 1,
-    gap: spacing.sm,
-  },
-  signOutText: {
-    ...typography.button,
-  },
-  menuSection: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginBottom: layout.sectionGap,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 60,
+  groupCard: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
   },
-  menuItemLast: {
-    borderBottomWidth: 0,
+  footer: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+    gap: spacing.xs,
   },
-  menuItemText: {
-    flex: 1,
-    ...typography.bodyStrong,
-    marginLeft: spacing.md,
+  wordmark: {
+    fontFamily: serifFamily(400, true),
+    fontSize: 18,
   },
   version: {
     ...typography.micro,
