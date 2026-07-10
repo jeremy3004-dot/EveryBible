@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -19,7 +19,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
-import { radius, spacing, typography } from '../../design/system';
+import { motion, radius, spacing, typography } from '../../design/system';
+import { AppButton } from '../../components/ui';
 import type { AuthScreenMode, AuthStackParamList } from '../../navigation/types';
 import {
   getCurrentSession,
@@ -72,6 +73,11 @@ export function AuthScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const reduceMotion = useReducedMotion();
+  // Field errors fade+slide in (opacity-only under reduced motion).
+  const errorEntering = reduceMotion
+    ? FadeIn.duration(motion.duration.base)
+    : FadeInDown.duration(motion.duration.fast);
   const passwordInputRef = useRef<TextInput>(null);
   const setSession = useAuthStore((state) => state.setSession);
 
@@ -269,7 +275,10 @@ export function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
             <TouchableOpacity
@@ -360,7 +369,12 @@ export function AuthScreen() {
                   onSubmitEditing={() => passwordInputRef.current?.focus()}
                   blurOnSubmit={false}
                 />
-                {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                {errors.email ? (
+                  <Animated.View entering={errorEntering} style={styles.errorRow}>
+                    <Ionicons name="alert-circle" size={14} color={colors.error} />
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  </Animated.View>
+                ) : null}
               </View>
 
               <View style={styles.inputContainer}>
@@ -401,7 +415,12 @@ export function AuthScreen() {
                     />
                   </TouchableOpacity>
                 </View>
-                {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                {errors.password ? (
+                  <Animated.View entering={errorEntering} style={styles.errorRow}>
+                    <Ionicons name="alert-circle" size={14} color={colors.error} />
+                    <Text style={styles.errorText}>{errors.password}</Text>
+                  </Animated.View>
+                ) : null}
               </View>
 
               {mode === 'signIn' ? (
@@ -415,18 +434,12 @@ export function AuthScreen() {
                 </TouchableOpacity>
               ) : null}
 
-              <TouchableOpacity
-                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+              <AppButton
+                label={copy.primaryLabel}
                 onPress={handleEmailSubmit}
+                loading={isLoading}
                 disabled={isLoading}
-                activeOpacity={0.85}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.bibleBackground} />
-                ) : (
-                  <Text style={styles.primaryButtonText}>{copy.primaryLabel}</Text>
-                )}
-              </TouchableOpacity>
+              />
             </View>
 
             <View style={styles.footer}>
@@ -591,9 +604,16 @@ const createStyles = (colors: ThemeColors) =>
       bottom: 0,
       justifyContent: 'center',
     },
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+    },
     errorText: {
       ...typography.micro,
       color: colors.error,
+      flex: 1,
     },
     forgotPasswordButton: {
       alignSelf: 'flex-end',
