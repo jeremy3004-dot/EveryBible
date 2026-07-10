@@ -82,6 +82,7 @@ export type MoreStackParamList = {
   Profile: undefined;
   ReadingActivity: undefined;
   Annotations: undefined;
+  MyFeedback: undefined;
   TranslationBrowser: undefined;
   About: undefined;
   Diagnostics: undefined;
@@ -150,6 +151,7 @@ export type ReadingActivityScreenProps = NativeStackScreenProps<
   'ReadingActivity'
 >;
 export type AnnotationsScreenProps = NativeStackScreenProps<MoreStackParamList, 'Annotations'>;
+export type MyFeedbackScreenProps = NativeStackScreenProps<MoreStackParamList, 'MyFeedback'>;
 export type TranslationBrowserScreenProps = NativeStackScreenProps<
   MoreStackParamList,
   'TranslationBrowser'

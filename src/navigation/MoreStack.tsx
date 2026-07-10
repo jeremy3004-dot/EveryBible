@@ -47,6 +47,10 @@ export function MoreStack() {
         getComponent={() => require('../screens/more/AnnotationsScreen').AnnotationsScreen}
       />
       <Stack.Screen
+        name="MyFeedback"
+        getComponent={() => require('../screens/more/MyFeedbackScreen').MyFeedbackScreen}
+      />
+      <Stack.Screen
         name="TranslationBrowser"
         getComponent={() =>
           require('../screens/more/TranslationBrowserScreen').TranslationBrowserScreen

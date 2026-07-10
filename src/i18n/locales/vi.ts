@@ -1,4 +1,16 @@
 export const vi = {
+  myFeedback: {
+    title: 'My feedback',
+    settingsRow: 'My feedback',
+    settingsRowSummary: 'Track what the translation team did with your notes',
+    subtitle: 'What the translation team did with your chapter feedback',
+    empty: "You haven't sent any chapter feedback yet.",
+    signInRequired: 'Sign in to see the feedback you have sent.',
+    audioLabel: 'Voice note attached',
+    statusReceived: 'Received',
+    statusFixed: 'Fixed',
+    statusNoChange: 'Reviewed \u2014 no change',
+  },
   "common": {
     "cancel": "Hủy bỏ",
     "ok": "ĐƯỢC RỒI",

@@ -59,6 +59,18 @@ const ALLOWED_ENGLISH_VALUES = new Set([
   'settings.translatorAccessEnabledBody',
   'settings.translatorAccessSummaryOn',
   'settings.translatorAccessSummaryOff',
+  // Council "My feedback" surface — same admin-ish feedback tooling as the translator
+  // review keys above; kept English-only until the feature is localized.
+  'myFeedback.title',
+  'myFeedback.settingsRow',
+  'myFeedback.settingsRowSummary',
+  'myFeedback.subtitle',
+  'myFeedback.empty',
+  'myFeedback.signInRequired',
+  'myFeedback.audioLabel',
+  'myFeedback.statusReceived',
+  'myFeedback.statusFixed',
+  'myFeedback.statusNoChange',
   // Pure template tokens — nothing to translate
   'home.greetingWithName',
   'home.percentComplete',

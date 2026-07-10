@@ -703,7 +703,11 @@ export function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.settingItem, styles.lastItem, styles.feedbackIdentityRow]}
+            style={[
+              styles.settingItem,
+              styles.feedbackIdentityRow,
+              chapterFeedbackEnabled ? null : styles.lastItem,
+            ]}
             onPress={handleOpenChapterFeedbackIdentityEditor}
           >
             <View style={styles.settingLeft}>
@@ -730,6 +734,34 @@ export function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
             </View>
           </TouchableOpacity>
+
+          {chapterFeedbackEnabled ? (
+            <TouchableOpacity
+              style={[styles.settingItem, styles.lastItem]}
+              onPress={() => navigation.navigate('MyFeedback')}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="albums-outline" size={24} color={colors.secondaryText} />
+                <View style={styles.settingCopy}>
+                  <Text
+                    style={[
+                      styles.settingLabel,
+                      styles.settingLabelNoMargin,
+                      { color: colors.primaryText },
+                    ]}
+                  >
+                    {t('myFeedback.settingsRow')}
+                  </Text>
+                  <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
+                    {t('myFeedback.settingsRowSummary')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingRight}>
+                <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
+              </View>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View
