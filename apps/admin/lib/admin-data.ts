@@ -959,11 +959,16 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
 
   const latestSuccessfulSync = syncRuns.find((run) => run.state === 'succeeded');
   if (!latestSuccessfulSync) {
+    // Informational, not critical: the published translation catalog is populated
+    // via the media/R2 pipeline, so a never-succeeded upstream *metadata* refresh
+    // does not break anything users see. Kept visible so an operator can still
+    // notice if they intend the upstream feed to be live.
     issues.push({
-      description: 'No successful upstream translation sync has been recorded yet.',
+      description:
+        'The upstream translation metadata refresh has not completed successfully. The published catalog is unaffected; version/freshness metadata just will not update until the upstream feed is reachable.',
       href: '/translations',
-      severity: 'critical',
-      title: 'No successful translation sync',
+      severity: 'info',
+      title: 'Upstream metadata sync not running',
     });
   } else if (new Date(latestSuccessfulSync.started_at).getTime() < now - 1000 * 60 * 60 * 24) {
     issues.push({
