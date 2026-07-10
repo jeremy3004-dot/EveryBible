@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
+import { ProgressRing } from '../../components/ui/ProgressRing';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_TITLE_KEYS } from '../../data/gatherFoundations';
@@ -26,7 +27,6 @@ import type { LearnStackParamList } from '../../navigation/types';
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
 type ActiveTab = 'foundations' | 'wisdom';
-
 
 export function GatherScreen() {
   const { colors } = useTheme();
@@ -96,7 +96,10 @@ export function GatherScreen() {
       {activeTab === 'foundations' && (
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.foundationsContent, { padding: layout.screenPadding, gap: spacing.lg }]}
+          contentContainerStyle={[
+            styles.foundationsContent,
+            { padding: layout.screenPadding, gap: spacing.lg },
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {/* Foundation cards */}
@@ -107,9 +110,7 @@ export function GatherScreen() {
             return (
               <View key={foundation.id}>
                 {isFirst && (
-                  <Text
-                    style={[styles.getStartedLabel, { color: colors.accentPrimary }]}
-                  >
+                  <Text style={[styles.getStartedLabel, { color: colors.accentPrimary }]}>
                     {t('gather.getStarted')}
                   </Text>
                 )}
@@ -131,7 +132,11 @@ export function GatherScreen() {
                         },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={FOUNDATION_TITLE_KEYS[foundation.id] ? t(FOUNDATION_TITLE_KEYS[foundation.id]) : foundation.title}
+                  accessibilityLabel={
+                    FOUNDATION_TITLE_KEYS[foundation.id]
+                      ? t(FOUNDATION_TITLE_KEYS[foundation.id])
+                      : foundation.title
+                  }
                 >
                   {/* Icon */}
                   <GatherIconBadge
@@ -147,7 +152,9 @@ export function GatherScreen() {
                       {t('gather.foundationLabel', { number: foundation.number })}
                     </Text>
                     <Text style={[styles.foundationTitle, { color: colors.primaryText }]}>
-                      {FOUNDATION_TITLE_KEYS[foundation.id] ? t(FOUNDATION_TITLE_KEYS[foundation.id]) : foundation.title}
+                      {FOUNDATION_TITLE_KEYS[foundation.id]
+                        ? t(FOUNDATION_TITLE_KEYS[foundation.id])
+                        : foundation.title}
                     </Text>
                   </View>
 
@@ -166,11 +173,12 @@ export function GatherScreen() {
       {activeTab === 'wisdom' && (
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.wisdomContent, { padding: layout.screenPadding, gap: spacing.xl }]}
+          contentContainerStyle={[
+            styles.wisdomContent,
+            { padding: layout.screenPadding, gap: spacing.xl },
+          ]}
           showsVerticalScrollIndicator={false}
         >
-
-
           {/* Category sections */}
           {gatherWisdomCategories.map((category) => (
             <View key={category.id}>
@@ -220,13 +228,23 @@ export function GatherScreen() {
                       />
                       <Text
                         style={[styles.wisdomTitle, { color: colors.primaryText }]}
-                        numberOfLines={3}
+                        numberOfLines={2}
                       >
-                        {WISDOM_TITLE_KEYS[wisdom.id] ? t(WISDOM_TITLE_KEYS[wisdom.id]) : wisdom.title}
+                        {WISDOM_TITLE_KEYS[wisdom.id]
+                          ? t(WISDOM_TITLE_KEYS[wisdom.id])
+                          : wisdom.title}
                       </Text>
-                      <Text style={[styles.wisdomProgress, { color: colors.secondaryText }]}>
-                        {`${completedCount}/${wisdom.lessonCount}`}
-                      </Text>
+                      <View style={styles.wisdomProgressRow}>
+                        <ProgressRing
+                          progress={
+                            wisdom.lessonCount > 0 ? completedCount / wisdom.lessonCount : 0
+                          }
+                          size={20}
+                        />
+                        <Text style={[styles.wisdomProgress, { color: colors.secondaryText }]}>
+                          {`${completedCount}/${wisdom.lessonCount}`}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -335,7 +353,13 @@ const styles = StyleSheet.create({
   wisdomTitle: {
     ...typography.label,
     textAlign: 'center',
-    minHeight: 54,
+    // Fixed two-line slot so every wisdom card is the same height.
+    height: 36,
+  },
+  wisdomProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   wisdomProgress: {
     ...typography.micro,
