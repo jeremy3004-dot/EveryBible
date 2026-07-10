@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Alert,
   Image,
@@ -17,8 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { serifFamily } from '../../design/fonts';
+import { CardSkeleton } from '../../components/skeleton/CardSkeleton';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -104,11 +107,13 @@ function CoverImage({
   width,
   height,
   colors,
+  t,
 }: {
   plan: ReadingPlan;
   width: number;
   height: number;
   colors: ThemeColors;
+  t: TFunction;
 }) {
   const source = getReadingPlanCoverSource(plan);
   if (source) {
@@ -120,19 +125,33 @@ function CoverImage({
       />
     );
   }
+  // No artwork: a warm accent gradient with the plan's serif initial — a cover,
+  // distinct from the icon-led empty state.
+  const title = t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key });
+  const initial = title.trim().charAt(0).toUpperCase() || '✦';
   return (
-    <View
+    <LinearGradient
+      colors={[colors.accentSecondary, colors.accentPrimary]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={{
         width,
         height,
         borderRadius: radius.md,
-        backgroundColor: colors.accentSecondary,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Ionicons name="book-outline" size={Math.floor(height * 0.4)} color={colors.onAccent} />
-    </View>
+      <Text
+        style={{
+          fontFamily: serifFamily(600),
+          fontSize: Math.floor(height * 0.42),
+          color: colors.onAccent,
+        }}
+      >
+        {initial}
+      </Text>
+    </LinearGradient>
   );
 }
 
@@ -166,12 +185,12 @@ function formatProgressPercent(progress: number): string {
 
 const inlineStyles = StyleSheet.create({
   progressTrack: {
-    height: 4,
+    height: 6,
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressFill: {
-    height: 4,
+    height: 6,
     borderRadius: radius.pill,
   },
 });
@@ -399,7 +418,7 @@ function MyPlansSection({
           activeOpacity={0.7}
         >
           <View style={styles.coverFrame}>
-            <CoverImage plan={plan} width={88} height={88} colors={colors} />
+            <CoverImage plan={plan} width={88} height={88} colors={colors} t={t} />
           </View>
           <View style={styles.cardBody}>
             <View style={styles.titleRow}>
@@ -769,7 +788,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
         onPress={() => onPlanPress(plan.id)}
         activeOpacity={0.85}
       >
-        <CoverImage plan={plan} width={coverWidth} height={coverHeight} colors={colors} />
+        <CoverImage plan={plan} width={coverWidth} height={coverHeight} colors={colors} t={t} />
         <View style={styles.planCardBody}>
           <Text style={styles.planCardTitle} numberOfLines={2}>
             {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
@@ -1043,7 +1062,7 @@ function CompletedPlansSection({
               onPress={() => onPlanPress(item.plan.id)}
               activeOpacity={0.7}
             >
-              <CoverImage plan={item.plan} width={64} height={64} colors={colors} />
+              <CoverImage plan={item.plan} width={64} height={64} colors={colors} t={t} />
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {t(item.plan.title_key as Parameters<typeof t>[0])}
@@ -1264,8 +1283,10 @@ export function PlansHomeScreen() {
         {tabStrip}
 
         {loading && allPlans.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.accentPrimary} />
+          <View style={styles.loadingGrid}>
+            <CardSkeleton showImage lines={2} />
+            <CardSkeleton showImage lines={2} />
+            <CardSkeleton showImage lines={2} />
           </View>
         ) : (
           <>
@@ -1350,10 +1371,10 @@ const createMainStyles = (colors: ThemeColors) =>
       alignSelf: 'stretch',
       borderRadius: radius.pill,
     },
-    loadingContainer: {
-      minHeight: 240,
-      alignItems: 'center',
-      justifyContent: 'center',
+    loadingGrid: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      gap: spacing.lg,
     },
     scrollContent: {
       paddingBottom: layout.tabBarBaseHeight + spacing.xl,
