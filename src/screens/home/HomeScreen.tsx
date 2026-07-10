@@ -39,7 +39,7 @@ import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
 import { getVisibleCompletedEntryCount } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
-import { CardSkeleton } from '../../components';
+import { AppCard, CardSkeleton, ProgressBar } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { radius, spacing, typography } from '../../design/system';
@@ -462,7 +462,7 @@ export function HomeScreen() {
       >
         <View style={styles.heroEyebrowRow}>
           <Ionicons
-            name="partly-sunny-outline"
+            name="book-outline"
             size={Math.max(20, Math.round(22 * homeLayout.scale))}
             color={verseCardEyebrowColor}
           />
@@ -534,15 +534,15 @@ export function HomeScreen() {
       >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
           <View style={styles.headerRow}>
+            <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
             <Text
-              style={[styles.greetingLine, { color: colors.accentTertiary }]}
+              style={[styles.greetingLine, { color: colors.primaryText }]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.76}
+              minimumFontScale={0.72}
             >
               {greetingLabel}
             </Text>
-            <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
           </View>
 
           {isLoadingVerse ? (
@@ -573,20 +573,18 @@ export function HomeScreen() {
           )}
 
           <View style={styles.progressGrid}>
-            <TouchableOpacity
-              style={[
-                styles.smallCard,
-                { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-              ]}
-              activeOpacity={0.85}
+            <AppCard
+              pressable
               onPress={handleContinueReading}
-              accessibilityRole="button"
+              padding={spacing.lg}
+              style={styles.smallCard}
+              accessibilityLabel={`${t('common.continue')} ${currentPassageLabel}`}
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.secondaryText }]}>
                   {t('common.continue')}
                 </Text>
-                <Ionicons name="bookmark-outline" size={24} color={colors.accentPrimary} />
+                <Ionicons name="bookmark-outline" size={22} color={colors.accentPrimary} />
               </View>
               <Text
                 style={[styles.smallCardTitle, { color: colors.primaryText }]}
@@ -595,31 +593,32 @@ export function HomeScreen() {
                 {currentPassageLabel}
               </Text>
               <Text
-                style={[styles.smallCardMeta, styles.smallCardMetaBottom, { color: colors.secondaryText }]}
+                style={[
+                  styles.smallCardMeta,
+                  styles.smallCardMetaBottom,
+                  { color: colors.secondaryText },
+                ]}
                 numberOfLines={1}
               >
                 {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
               </Text>
-            </TouchableOpacity>
+            </AppCard>
 
-            <TouchableOpacity
-              style={[
-                styles.smallCard,
-                { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-              ]}
-              activeOpacity={0.85}
+            <AppCard
+              pressable
               onPress={() =>
                 featuredPlan
                   ? handleContinuePlan(featuredPlan.id)
                   : navigation.navigate('Plans', { screen: 'PlansHome' })
               }
-              accessibilityRole="button"
+              padding={spacing.lg}
+              style={styles.smallCard}
             >
               <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.accentTertiary }]}>
+                <Text style={[styles.smallCardEyebrow, { color: colors.secondaryText }]}>
                   {t('home.plan')}
                 </Text>
-                <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
+                <Ionicons name="calendar-outline" size={22} color={colors.accentPrimary} />
               </View>
               <Text
                 style={[styles.smallCardTitle, { color: colors.primaryText }]}
@@ -627,49 +626,35 @@ export function HomeScreen() {
               >
                 {featuredPlanTitle}
               </Text>
-              <Text
-                style={[styles.smallCardMeta, { color: colors.secondaryText }]}
-                numberOfLines={1}
-              >
-                {featuredPlanDuration > 0
-                  ? t('readingPlans.dayOf', {
-                      current: featuredPlanDay,
-                      total: featuredPlanDuration,
-                    })
-                  : t('readingPlans.browsePlans')}
-              </Text>
-              <View style={styles.dotProgressRow}>
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.progressDot,
-                      {
-                        backgroundColor:
-                          index / 8 < featuredPlanFraction
-                            ? colors.accentPrimary
-                            : colors.cardBorder,
-                      },
-                    ]}
-                  />
-                ))}
+              <View style={styles.smallCardMetaBottom}>
+                <Text
+                  style={[styles.smallCardMeta, { color: colors.secondaryText }]}
+                  numberOfLines={1}
+                >
+                  {featuredPlanDuration > 0
+                    ? t('readingPlans.dayOf', {
+                        current: featuredPlanDay,
+                        total: featuredPlanDuration,
+                      })
+                    : t('readingPlans.browsePlans')}
+                </Text>
+                {featuredPlanDuration > 0 ? (
+                  <ProgressBar progress={featuredPlanFraction} style={styles.planProgressBar} />
+                ) : null}
               </View>
-            </TouchableOpacity>
+            </AppCard>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.gatherStrip,
-              { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-            ]}
+          <AppCard
+            pressable
+            padding={spacing.lg}
+            style={styles.gatherStrip}
             onPress={() =>
               navigation.navigate('Learn', {
                 screen: 'FoundationDetail',
                 params: { foundationId: activeFoundation.id },
               })
             }
-            accessibilityRole="button"
           >
             <View style={styles.gatherStripHeader}>
               <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
@@ -692,10 +677,7 @@ export function HomeScreen() {
                     <View style={styles.gatherNodeRow}>
                       {index > 0 ? (
                         <View
-                          style={[
-                            styles.gatherConnector,
-                            { backgroundColor: colors.cardBorder },
-                          ]}
+                          style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
                         />
                       ) : null}
                       <GatherIconBadge
@@ -712,10 +694,7 @@ export function HomeScreen() {
                       />
                       {index < visibleFoundations.length - 1 ? (
                         <View
-                          style={[
-                            styles.gatherConnector,
-                            { backgroundColor: colors.cardBorder },
-                          ]}
+                          style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
                         />
                       ) : null}
                     </View>
@@ -723,7 +702,7 @@ export function HomeScreen() {
                 );
               })}
             </View>
-          </TouchableOpacity>
+          </AppCard>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -744,7 +723,7 @@ const styles = StyleSheet.create({
     ...typography.screenTitle,
   },
   card: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
   },
   verseCard: {
@@ -753,10 +732,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     minHeight: 0,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
   },
   verseCardImage: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
   },
   verseCardOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -791,11 +770,11 @@ const styles = StyleSheet.create({
     ...typography.sectionTitle,
   },
   verseText: {
-    ...typography.readingDisplay,
+    ...typography.serifQuote,
     marginBottom: 0,
   },
   reference: {
-    ...typography.label,
+    ...typography.eyebrow,
   },
   audioFallbackBody: {
     ...typography.bodyStrong,
@@ -812,14 +791,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   greetingLine: {
-    ...typography.bodyStrong,
-    fontSize: 18,
-    lineHeight: 24,
+    ...typography.displayHero,
   },
   dateLine: {
-    ...typography.body,
-    fontSize: 15,
-    lineHeight: 20,
+    ...typography.eyebrow,
   },
   beginTitle: {
     ...typography.readingHeading,
@@ -834,9 +809,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 154,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
     gap: spacing.md,
   },
   smallCardHeader: {
@@ -846,9 +818,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   smallCardEyebrow: {
-    ...typography.bodyStrong,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.eyebrow,
   },
   smallCardTitle: {
     ...typography.readingHeading,
@@ -863,22 +833,12 @@ const styles = StyleSheet.create({
   },
   smallCardMetaBottom: {
     marginTop: 'auto',
+    gap: spacing.sm,
   },
-  dotProgressRow: {
-    marginTop: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  progressDot: {
-    width: 12,
-    height: 12,
-    borderRadius: radius.pill,
+  planProgressBar: {
+    marginTop: spacing.xs,
   },
   gatherStrip: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
     gap: spacing.lg,
   },
   gatherStripHeader: {

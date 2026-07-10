@@ -1,10 +1,4 @@
-import {
-  type StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, typography } from '../../design/system';
 import { PressableScale } from './PressableScale';
@@ -27,7 +21,8 @@ export function SectionHeader({ title, action, style }: SectionHeaderProps) {
 
   return (
     <View style={[styles.row, style]}>
-      <Text style={[typography.eyebrow, { color: colors.textTertiary }]}>{title}</Text>
+      {/* secondaryText, not textTertiary: eyebrow labels are text and must clear 4.5:1. */}
+      <Text style={[typography.eyebrow, { color: colors.secondaryText }]}>{title}</Text>
       {action ? (
         <PressableScale
           haptic="selection"
