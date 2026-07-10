@@ -21,6 +21,7 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { serifFamily } from '../../design/fonts';
+import { EmptyState } from '../../components/ui';
 import { CardSkeleton } from '../../components/skeleton/CardSkeleton';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ThemeColors } from '../../contexts/ThemeContext';
@@ -486,21 +487,12 @@ function MyPlansSection({
         </View>
 
         {activePlans.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="book-outline" size={48} color={colors.secondaryText} />
-            <Text style={styles.emptyTitle}>{t('readingPlans.noActivePlans')}</Text>
-            <Text style={styles.emptyBody}>{t('readingPlans.findPlans')}</Text>
-            <TouchableOpacity
-              onPress={onAddPlan}
-              activeOpacity={0.85}
-              style={styles.emptyCtaButton}
-              accessibilityRole="button"
-              accessibilityLabel={t('readingPlans.addFirstPlan')}
-            >
-              <Ionicons name="add" size={18} color={colors.onAccent} />
-              <Text style={styles.emptyCtaLabel}>{t('readingPlans.addFirstPlan')}</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="book-outline"
+            title={t('readingPlans.noActivePlans')}
+            body={t('readingPlans.findPlans')}
+            cta={{ label: t('readingPlans.addFirstPlan'), onPress: onAddPlan }}
+          />
         ) : (
           dailyReadingPlans.map(renderPlanCard)
         )}
@@ -557,40 +549,6 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     primaryButtonLabel: {
       ...typography.label,
       color: colors.cardBackground,
-    },
-    emptyState: {
-      alignItems: 'center',
-      paddingVertical: spacing.xxxl,
-      gap: spacing.md,
-    },
-    emptyTitle: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-      textAlign: 'center',
-    },
-    emptyBody: {
-      ...typography.body,
-      color: colors.secondaryText,
-      textAlign: 'center',
-    },
-    emptyCtaButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xs,
-      alignSelf: 'center',
-      maxWidth: 320,
-      marginTop: spacing.sm,
-      minHeight: 44,
-      paddingHorizontal: spacing.lg,
-      borderRadius: radius.lg,
-      backgroundColor: colors.accentPrimary,
-    },
-    emptyCtaLabel: {
-      ...typography.button,
-      fontSize: 15,
-      lineHeight: 20,
-      color: colors.onAccent,
     },
     card: {
       flexDirection: 'row',

@@ -173,8 +173,8 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
   );
   assert.match(
     source,
-    /activePlans\.length === 0[\s\S]*<TouchableOpacity[\s\S]*styles\.emptyCtaButton[\s\S]*<Text style=\{styles\.emptyCtaLabel\}>\{t\('readingPlans\.addFirstPlan'\)\}<\/Text>/s,
-    'PlansHomeScreen should show the add-plan CTA inside the empty state when there are no active plans yet'
+    /activePlans\.length === 0[\s\S]*<EmptyState[\s\S]*cta=\{\{ label: t\('readingPlans\.addFirstPlan'\), onPress: onAddPlan \}\}/s,
+    'PlansHomeScreen should show the add-plan CTA inside the shared EmptyState when there are no active plans yet'
   );
   assert.equal(
     source.includes('styles.iconButton'),
