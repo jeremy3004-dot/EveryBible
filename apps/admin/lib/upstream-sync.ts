@@ -245,7 +245,7 @@ function buildEndpoint(baseUrl: string): string {
   return trimmed.endsWith('/translations') ? trimmed : `${trimmed}/translations`;
 }
 
-export async function runUpstreamTranslationSync(actorUserId: string) {
+export async function runUpstreamTranslationSync(actorUserId: string | null) {
   const env = getAdminServerEnv();
   const service = createAdminServiceClient();
   const endpoint = buildEndpoint(env.upstreamApiBaseUrl);

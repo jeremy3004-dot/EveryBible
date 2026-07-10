@@ -82,6 +82,10 @@ export default async function LangQuestPage({ searchParams }: LangQuestPageProps
     query,
   });
 
+  // Surface the silent short-circuit: without TRIGGER_SECRET_KEY, discovery/ingest
+  // only writes a "skipped" run record, so the queue never fills.
+  const triggerConfigured = Boolean(process.env.TRIGGER_SECRET_KEY);
+
   const candidateColumns = [
     { key: 'candidate', header: 'Candidate' },
     { key: 'coverage', header: 'Coverage' },
@@ -178,6 +182,14 @@ export default async function LangQuestPage({ searchParams }: LangQuestPageProps
 
       <AdminCard eyebrow="Control" title="24-hour selected-translation pull">
         <div className="stack-form stack-form--compact">
+          {!triggerConfigured ? (
+            <div className="notice notice--warning">
+              <strong>Trigger.dev is not configured.</strong> <code>TRIGGER_SECRET_KEY</code> is
+              missing, so discovery and ingest runs are recorded for visibility but no actual
+              Trigger.dev task fires — that&rsquo;s why the counters stay at zero. Set
+              <code> TRIGGER_SECRET_KEY</code> in the admin Vercel project to enable the pipeline.
+            </div>
+          ) : null}
           <p className="page-copy">
             The scheduled Trigger.dev task runs every 24 hours in production. Use this manual run
             only when an operator needs a fresh ingest pass before the next scheduled window.
