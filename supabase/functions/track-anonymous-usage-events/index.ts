@@ -21,7 +21,7 @@ interface AnonymousUsageEvent {
 }
 
 interface AnonymousUsageRequestBody {
-  events?: AnonymousUsageEvent[];
+  events: AnonymousUsageEvent[];
 }
 
 interface GeoResult {
@@ -222,6 +222,70 @@ function getText(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+// ---------------------------------------------------------------------------
+// Optional auth attribution
+//
+// This endpoint is the UNIFIED analytics ingestion path: it accepts events from
+// both signed-out and signed-in clients. supabase-js `functions.invoke` always
+// attaches an Authorization header — the anon apikey when signed out, or the
+// user's access token when signed in. We attribute user_id ONLY when a genuine
+// user token is present; anything else (anon key, service key, malformed, or
+// absent token) resolves to null. We NEVER reject a request on a bad/absent
+// token, so app builds <=1.0.4 (which send anon-only traffic here) keep working.
+// ---------------------------------------------------------------------------
+
+function getAccessToken(req: Request): string | null {
+  const authorization = req.headers.get('authorization');
+  if (!authorization) return null;
+  return authorization.toLowerCase().startsWith('bearer ')
+    ? authorization.slice(7).trim()
+    : authorization.trim() || null;
+}
+
+// Cheap, unverified peek at the JWT payload so we skip the getUser() round-trip
+// for the anon/service keys (which have no user subject). getUser() below still
+// cryptographically verifies before we trust the id.
+function looksLikeUserToken(token: string): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  try {
+    const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(json) as { role?: unknown; sub?: unknown };
+    return payload.role === 'authenticated' && typeof payload.sub === 'string' && payload.sub.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+// Structural type: just the getUser surface we use, so this helper stays
+// decoupled from the exact supabase-js generic parameterization.
+type AuthCapableClient = {
+  auth: {
+    getUser: (jwt: string) => Promise<{
+      data: { user: { id: string } | null };
+      error: { message?: string } | null;
+    }>;
+  };
+};
+
+async function resolveUserId(
+  req: Request,
+  supabase: AuthCapableClient
+): Promise<string | null> {
+  const token = getAccessToken(req);
+  if (!token || !looksLikeUserToken(token)) return null;
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
 function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   if (!body || typeof body !== 'object') return null;
   const events = (body as { events?: unknown }).events;
@@ -287,12 +351,14 @@ Deno.serve(async (request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const requestGeo = await resolveRequestGeo(request);
+    // Auth-optional: attribute user_id when a genuine user token is present.
+    const userId = await resolveUserId(request, supabase);
 
     const rows = batch.events.map((event) => {
       const geo = mergeGeo(requestGeo, resolveEventGeo(event));
 
       return {
-        user_id: null,
+        user_id: userId,
         event_name: event.event_name,
         event_properties: event.event_properties,
         session_id: event.session_id,
@@ -317,6 +383,7 @@ Deno.serve(async (request) => {
     return jsonResponse({
       inserted: rows.length,
       ok: true,
+      attributed: userId != null,
       geo: requestGeo.countryCode,
       geo_source: requestGeo.source,
     });

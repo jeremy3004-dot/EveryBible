@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-test('track-anonymous-usage-events inserts anonymous analytics rows without auth', async () => {
+test('track-anonymous-usage-events is the unified auth-OPTIONAL ingestion endpoint', async () => {
   const source = await readFile(
     path.join(repoRoot, 'supabase/functions/track-anonymous-usage-events/index.ts'),
     'utf8'
@@ -14,10 +14,24 @@ test('track-anonymous-usage-events inserts anonymous analytics rows without auth
 
   assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/, 'collector must use the service role key');
   assert.match(source, /from\(['"]analytics_events['"]\)/, 'collector should insert into analytics_events');
-  assert.match(source, /user_id:\s*null/, 'anonymous rows must store user_id as null');
 
-  assert.ok(!/auth\.getUser/.test(source), 'collector should not require auth');
-  assert.ok(!/Missing auth token/.test(source), 'collector should not reject unauthenticated requests');
+  // Auth is OPTIONAL: a valid user token attributes user_id, everything else is null.
+  assert.match(source, /resolveUserId/, 'collector should resolve an optional user id');
+  assert.match(source, /looksLikeUserToken/, 'collector should cheaply pre-filter non-user tokens');
+  assert.match(source, /auth\.getUser/, 'collector should verify a present user token');
+  assert.match(source, /user_id:\s*userId/, 'rows must carry the optionally-resolved user id');
+
+  // Backward compatibility: it must NEVER reject a request for missing/invalid auth,
+  // so app builds <=1.0.4 (anon-only traffic) keep working.
+  assert.ok(
+    !/Missing auth token/.test(source),
+    'collector must not reject unauthenticated requests'
+  );
+  assert.match(
+    source,
+    /if \(!token \|\| !looksLikeUserToken\(token\)\) return null;/,
+    'absent/invalid tokens must resolve user_id to null (never throw/reject)'
+  );
 });
 
 test('track-anonymous-usage-events can merge payload geo with request geo', async () => {
