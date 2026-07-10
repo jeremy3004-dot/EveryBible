@@ -120,15 +120,24 @@ export default async function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {auditLogs.map((log) => (
-                <tr key={log.id}>
-                  <td>{formatDateTime(log.created_at)}</td>
-                  <td>{log.action}</td>
-                  <td>{log.entity_type}</td>
-                  <td>{log.actor_email ?? 'Unknown'}</td>
-                  <td>{log.summary}</td>
+              {auditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="data-table__empty">
+                    No admin actions recorded yet — actions appear here when you publish,
+                    sync, or moderate.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{formatDateTime(log.created_at)}</td>
+                    <td>{log.action}</td>
+                    <td>{log.entity_type}</td>
+                    <td>{log.actor_email ?? 'Unknown'}</td>
+                    <td>{log.summary}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

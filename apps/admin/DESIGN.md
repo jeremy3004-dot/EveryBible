@@ -1,18 +1,25 @@
 # EveryBible Admin — Design System
-> Sacred Editorial Dark · Linear-grade component patterns · Internal admin tooling
+> Illuminated (Sacred Editorial Dark) · Linear-grade component patterns · Internal admin tooling
+
+> **Brand source of truth:** [`packages/brand`](../../packages/brand) — the admin,
+> the marketing site, and the mobile app all share ONE ember terracotta accent on
+> warm surfaces. Token values below mirror `packages/brand/tokens.css` and are
+> locked by `app/brandTokens.test.ts`. Change a color there, not just here.
 
 ## 1. Visual Theme & Atmosphere
 
-A dark-mode-only admin dashboard built for one: the operator. The visual register is **editorial darkness** — warm charcoal backgrounds where data surfaces at exactly the right luminance level. The accent is maroon (`#C0392B`), used sparingly as a signal color for actions, active states, and critical highlights. Everything else is achromatic.
+A dark-mode-only admin dashboard built for one: the operator. The visual register is **editorial darkness** — warm **ink** backgrounds where data surfaces at exactly the right luminance level. The accent is ember terracotta (`#D96C57`), used sparingly as a signal color for actions, active states, and critical highlights. Everything else is achromatic. This is the same ember/warm-ink brand as the mobile app and everybible.app — the admin was re-skinned from its earlier cool-charcoal + maroon palette to unify all three surfaces.
 
-Typography uses **Cormorant Garamond** for display/headings (gives an authoritative, crafted feeling) and **DM Sans** for all functional UI text (clean, legible, neutral). No light mode. No toggle.
+Typography uses **Fraunces** for display/headings (a soft contemporary serif shared with the marketing site) and **DM Sans** for all functional UI text (clean, legible, neutral, with tabular lining numerals for data). No light mode. No toggle.
 
 **Key characteristics:**
-- Dark-only: `#101113` base, `#17191d` surface, `#1d2026` elevated
-- Warm-neutral text: `#f5f2ea` primary, `#a09b93` muted, `#5a5651` dim
-- Single accent: maroon `#C0392B` / `#d94f3d` hover / `#a0301f` strong
-- Borders: semi-transparent `rgba(255,255,255,0.05)` and solid `#262a31`
-- Fonts: Cormorant Garamond (headings/display), DM Sans (body/UI)
+- Dark-only warm ink: `#161412` base, `#1E1B18` surface, `#262220` elevated
+- Warm parchment text: `#F2EDE3` primary, `#A8A094` muted, `#857D72` dim
+- Single accent: ember `#D96C57` / `#E08573` hover / `#B85441` strong (deep ember for text on light)
+- Borders: warm hairlines `rgba(242,237,227,0.05)` / `rgba(242,237,227,0.10)`
+- Fonts: Fraunces (headings/display), DM Sans (body/UI + tabular-nums data)
+- Data-viz heat ramp: parchment `#d0c2af` → amber `#d0a35a` → ember `#D96C57` → deep `#B85441`
+- Status: success `#80C16F`, warning `#d0a35a`, danger `#ff7b72`
 - Elevation via background luminance steps, not drop shadows
 
 ---

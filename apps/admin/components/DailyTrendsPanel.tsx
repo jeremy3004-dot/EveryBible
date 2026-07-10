@@ -56,31 +56,31 @@ export function DailyTrendsPanel({
       <div className="trend-spark-row">
 
         <div className="trend-spark">
-          <span className="trend-spark__label">Listening minutes</span>
+          <span className="trend-spark__label">Daily listening minutes</span>
           <strong className="trend-spark__val">{fmt(listeningTotal)}</strong>
           <Sparkline
             values={dailyListeningMinutes.map((p) => p.minutes)}
-            color="#C0392B"
+            color="#D96C57"
             gradId="spark-listening"
           />
         </div>
 
         <div className="trend-spark trend-spark--divider">
-          <span className="trend-spark__label">Reading minutes</span>
+          <span className="trend-spark__label">Daily reading minutes</span>
           <strong className="trend-spark__val">{fmt(readingTotal)}</strong>
           <Sparkline
             values={dailyReadingMinutes.map((p) => p.minutes)}
-            color="#4caf7d"
+            color="#80C16F"
             gradId="spark-reading"
           />
         </div>
 
         <div className="trend-spark trend-spark--divider">
-          <span className="trend-spark__label">Downloads</span>
+          <span className="trend-spark__label">Daily download units</span>
           <strong className="trend-spark__val">{fmt(downloadTotal)}</strong>
           <Sparkline
             values={dailyDownloadUnits.map((p) => p.value)}
-            color="#38b2ac"
+            color="#d0a35a"
             gradId="spark-downloads"
           />
         </div>

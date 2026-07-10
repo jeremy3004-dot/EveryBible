@@ -1,38 +1,42 @@
 :root {
-  /* Backgrounds */
-  --bg:           #101113;
-  --bg-surface:   #17191d;
-  --bg-elevated:  #1d2026;
-  --bg-input:     #13151a;
+  /* Unified "Illuminated" brand — warm ink surfaces + ONE ember accent, mirrors
+     packages/brand/tokens.css and the mobile app (src/constants/colors.ts).
+     Kept in sync by app/brandTokens.test.ts. */
 
-  /* Borders */
-  --border:       #262a31;
-  --border-soft:  rgba(255, 255, 255, 0.05);
-  --border-focus: rgba(192, 57, 43, 0.5);
+  /* Backgrounds — warm ink */
+  --bg:           #161412;
+  --bg-surface:   #1E1B18;
+  --bg-elevated:  #262220;
+  --bg-input:     #16130f;
 
-  /* Text */
-  --text:         #f5f2ea;
-  --text-muted:   #a09b93;
-  --text-dim:     #5a5651;
+  /* Borders — warm hairlines */
+  --border:       rgba(242, 237, 227, 0.10);
+  --border-soft:  rgba(242, 237, 227, 0.05);
+  --border-focus: rgba(217, 108, 87, 0.5);
 
-  /* Accent */
-  --accent:       #C0392B;
-  --accent-light: #d94f3d;
-  --accent-strong:#a0301f;
+  /* Text — warm parchment */
+  --text:         #F2EDE3;
+  --text-muted:   #A8A094;
+  --text-dim:     #857D72;
+
+  /* Accent — ember terracotta */
+  --accent:       #D96C57;
+  --accent-light: #E08573;
+  --accent-strong:#B85441;
   --accent-warm:  #d0c2af;
-  --accent-dim:   rgba(192, 57, 43, 0.12);
+  --accent-dim:   rgba(217, 108, 87, 0.12);
 
-  /* Status */
-  --success:      #4caf7d;
-  --warning:      #d4912a;
-  --danger:       #e05050;
+  /* Status — aligned to the app */
+  --success:      #80C16F;
+  --warning:      #d0a35a;
+  --danger:       #ff7b72;
 
   /* Shadows */
   --shadow:       0 8px 32px rgba(0,0,0,0.4);
   --shadow-soft:  0 4px 16px rgba(0,0,0,0.28);
 
-  /* Typography */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  /* Typography — Fraunces display unified across surfaces */
+  --font-display: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
   --font-body:    'DM Sans', -apple-system, system-ui, sans-serif;
   --font-mono:    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -778,8 +782,8 @@ textarea {
 
 .analytics-page .globe-card__back-link:hover {
   color: var(--text);
-  border-color: rgba(192, 57, 43, 0.22);
-  background: rgba(192, 57, 43, 0.05);
+  border-color: rgba(217, 108, 87, 0.22);
+  background: rgba(217, 108, 87, 0.05);
 }
 
 .analytics-page .segmented-control {
@@ -979,12 +983,10 @@ textarea {
   border-radius: 0px;
   background: linear-gradient(
     90deg,
-    #dbeafe 0%,
-    #7dd3fc 18%,
-    #34d399 38%,
-    #fde047 58%,
-    #fb923c 78%,
-    #ef4444 100%
+    #d0c2af 0%,
+    #d0a35a 40%,
+    #D96C57 72%,
+    #B85441 100%
   );
 }
 
@@ -1354,7 +1356,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 0px;
   background:
-    radial-gradient(circle at center, rgba(192, 57, 43, 0.05), transparent 60%),
+    radial-gradient(circle at center, rgba(217, 108, 87, 0.05), transparent 60%),
     linear-gradient(180deg, var(--bg-surface), var(--bg-elevated));
   overflow: hidden;
 }
@@ -1409,8 +1411,8 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 0px;
-  background: rgba(192, 57, 43, 0.16);
-  border: 1px solid rgba(192, 57, 43, 0.26);
+  background: rgba(217, 108, 87, 0.16);
+  border: 1px solid rgba(217, 108, 87, 0.26);
   color: var(--accent);
   transform: translate(-50%, -50%);
 }
@@ -1512,7 +1514,7 @@ textarea {
 }
 
 .translation-selector:focus {
-  outline: 2px solid rgba(192, 57, 43, 0.4);
+  outline: 2px solid rgba(217, 108, 87, 0.4);
   outline-offset: 1px;
 }
 
@@ -1553,9 +1555,9 @@ textarea {
 }
 
 .translation-chip--active {
-  border-color: rgba(192, 57, 43, 0.32);
-  background: rgba(192, 57, 43, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(192, 57, 43, 0.1);
+  border-color: rgba(217, 108, 87, 0.32);
+  background: rgba(217, 108, 87, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(217, 108, 87, 0.1);
 }
 
 .globe-card__content {
@@ -1672,7 +1674,7 @@ textarea {
   min-width: 5rem;
   height: 0.55rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 50%, #34d399 100%);
+  background: linear-gradient(90deg, #d0c2af 0%, #d0a35a 40%, var(--accent) 72%, var(--accent-strong) 100%);
 }
 
 .globe-card__selected,
@@ -1686,9 +1688,9 @@ textarea {
 
 .globe-card__notice {
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(192, 57, 43, 0.18);
+  border: 1px solid rgba(217, 108, 87, 0.18);
   border-radius: var(--radius-md);
-  background: rgba(192, 57, 43, 0.08);
+  background: rgba(217, 108, 87, 0.08);
 }
 
 .globe-card__notice p:last-child {

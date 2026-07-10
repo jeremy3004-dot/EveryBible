@@ -51,9 +51,11 @@ test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async
   assert.match(componentSource, /is the only active translation in this window/);
   assert.match(componentSource, /globe is reusing the overall map while the per-translation geo rows catch up/);
   assert.match(componentSource, /Click a country bubble to open the detailed country card/);
-  assert.match(componentSource, /#34d399/);
-  assert.match(componentSource, /#fb923c/);
-  assert.match(componentSource, /#ef4444/);
+  // Ember heat ramp (brand-unified): parchment → amber → ember → deep.
+  assert.match(componentSource, /#d0c2af/);
+  assert.match(componentSource, /#d0a35a/);
+  assert.match(componentSource, /#D96C57/);
+  assert.match(componentSource, /#B85441/);
   assert.doesNotMatch(componentSource, /globe-card__toplist/);
   assert.doesNotMatch(componentSource, /openfreemap/i);
   assert.match(layoutSource, /maplibre-gl\/dist\/maplibre-gl\.css/);
