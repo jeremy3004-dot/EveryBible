@@ -16,13 +16,11 @@ import {
   parseLocalDateKey,
   summarizeReadingActivity,
 } from '../../services/progress/readingActivity';
-import {
-  getEngagementSummary,
-  refreshEngagement,
-} from '../../services/analytics/analyticsService';
+import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
+import { StatCard } from '../../components/ui/StatCard';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -95,6 +93,15 @@ export function ReadingActivityScreen() {
   }, [isAuthenticated]);
 
   const activitySummary = summarizeReadingActivity(chaptersRead);
+  // Streak milestones escalate the flame color at 7 / 30 / 100 days.
+  const streakTint =
+    streakDays >= 100
+      ? colors.warning
+      : streakDays >= 30
+        ? colors.accentPrimary
+        : streakDays >= 7
+          ? colors.success
+          : undefined;
   const effectiveSelectedDateKey =
     selectedDateKey ?? getMonthSelectionKey(viewDate, activitySummary.daysByDateKey);
   const monthView = buildReadingActivityMonthView(chaptersRead, viewDate, effectiveSelectedDateKey);
@@ -146,9 +153,7 @@ export function ReadingActivityScreen() {
             <View style={styles.engagementRow}>
               <View style={styles.engagementChip}>
                 <Ionicons name="book-outline" size={14} color={colors.accentPrimary} />
-                <Text style={styles.engagementChipValue}>
-                  {engagement.total_chapters_read}
-                </Text>
+                <Text style={styles.engagementChipValue}>{engagement.total_chapters_read}</Text>
                 <Text style={styles.engagementChipLabel}>{t('engagement.totalChapters')}</Text>
               </View>
               <View style={styles.engagementDivider} />
@@ -163,18 +168,25 @@ export function ReadingActivityScreen() {
           )}
 
           <View style={styles.statsRow}>
-            <View style={styles.statChip}>
-              <Text style={styles.statNumber}>{streakDays}</Text>
-              <Text style={styles.statLabel}>{t('profile.streak')}</Text>
-            </View>
-            <View style={styles.statChip}>
-              <Text style={styles.statNumber}>{monthView.totalReadDays}</Text>
-              <Text style={styles.statLabel}>{t('profile.readingDays')}</Text>
-            </View>
-            <View style={styles.statChip}>
-              <Text style={styles.statNumber}>{monthView.totalChapterReads}</Text>
-              <Text style={styles.statLabel}>{t('profile.chaptersRead')}</Text>
-            </View>
+            <StatCard
+              icon="flame"
+              value={streakDays}
+              label={t('profile.streak')}
+              tint={streakTint}
+              style={styles.statCardFlex}
+            />
+            <StatCard
+              icon="calendar-clear-outline"
+              value={monthView.totalReadDays}
+              label={t('profile.readingDays')}
+              style={styles.statCardFlex}
+            />
+            <StatCard
+              icon="book-outline"
+              value={monthView.totalChapterReads}
+              label={t('profile.chaptersRead')}
+              style={styles.statCardFlex}
+            />
           </View>
         </View>
 
@@ -335,6 +347,9 @@ const createStyles = (colors: ThemeColors) =>
     statsRow: {
       flexDirection: 'row',
       gap: spacing.md,
+    },
+    statCardFlex: {
+      flex: 1,
     },
     statChip: {
       flex: 1,
