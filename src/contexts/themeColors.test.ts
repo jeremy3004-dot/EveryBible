@@ -137,7 +137,7 @@ test('Light-family accents (primaryDeep) stay readable on light surfaces', () =>
   const deepAccents = [...paletteSource.matchAll(/primaryDeep:\s*'(#[A-Fa-f0-9]{6})'/g)].map(
     (match) => match[1]
   );
-  assert.ok(deepAccents.length >= 4, 'each appearance palette should define a primaryDeep accent');
+  assert.ok(deepAccents.length >= 1, 'each appearance palette should define a primaryDeep accent');
 
   const lightBackground = extractColorToken(source, 'baseLightColors', 'background');
   const lightCard = extractColorToken(source, 'baseLightColors', 'cardBackground');
@@ -163,14 +163,15 @@ test('Light-family accents (primaryDeep) stay readable on light surfaces', () =>
   }
 });
 
-test('ThemeContext defines four appearance palette options with preview swatches', () => {
+test('ThemeContext defines the ember appearance palette option with preview swatches', () => {
   const source = readThemeSource();
 
   assert.match(source, /id:\s*'ember'/, 'Ember palette should be present');
-  assert.match(source, /id:\s*'sapphire'/, 'Sapphire palette should be present');
-  assert.match(source, /id:\s*'teal'/, 'Teal palette should be present');
-  assert.match(source, /id:\s*'olive'/, 'Olive palette should be present');
   assert.match(source, /previewColors:/, 'Palette options should define preview colors');
+  // Ember is the sole accent palette; the others were intentionally retired.
+  assert.doesNotMatch(source, /id:\s*'sapphire'/, 'Sapphire palette should be retired');
+  assert.doesNotMatch(source, /id:\s*'teal'/, 'Teal palette should be retired');
+  assert.doesNotMatch(source, /id:\s*'olive'/, 'Olive palette should be retired');
 });
 
 test('ThemeContext exposes isDark and isLowLight flags', () => {

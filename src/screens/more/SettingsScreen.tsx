@@ -18,7 +18,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  appearancePaletteOptions,
   useTheme,
   darkColors,
   lightColors,
@@ -75,7 +74,7 @@ const THEME_PREVIEW_TEXT: Record<ThemeMode, string> = {
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { colors, themeMode, appearancePalette, setTheme, setAppearancePalette } = useTheme();
+  const { colors, themeMode, setTheme } = useTheme();
   const settingSwitchOffColor = colors.secondaryText + '55';
   const settingSwitchTrackColor = {
     false: settingSwitchOffColor,
@@ -145,14 +144,6 @@ export function SettingsScreen() {
   const handleThemeChange = (mode: ThemeMode) => {
     selectionHaptic();
     setTheme(mode);
-    syncPreferences().catch(() => {});
-  };
-
-  const handleAppearancePaletteChange = (
-    palette: (typeof appearancePaletteOptions)[number]['id']
-  ) => {
-    selectionHaptic();
-    setAppearancePalette(palette);
     syncPreferences().catch(() => {});
   };
 
@@ -761,58 +752,8 @@ export function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Appearance */}
-        <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-          {t('settings.appearance')}
-        </Text>
-        <Text style={[styles.sectionDescription, { color: colors.secondaryText }]}>
-          {t('settings.appearanceBody')}
-        </Text>
-        <View
-          style={[
-            styles.settingsGroup,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          {appearancePaletteOptions.map((option, index) => {
-            const isActive = appearancePalette === option.id;
-
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.appearanceOption,
-                  { borderBottomColor: colors.cardBorder },
-                  index === appearancePaletteOptions.length - 1 && styles.lastItem,
-                  isActive && { backgroundColor: colors.accentPrimary + '10' },
-                ]}
-                onPress={() => handleAppearancePaletteChange(option.id)}
-              >
-                <View style={styles.appearancePreviewRow}>
-                  {option.previewColors.map((swatchColor) => (
-                    <View
-                      key={swatchColor}
-                      style={[styles.appearanceSwatch, { backgroundColor: swatchColor }]}
-                    />
-                  ))}
-                </View>
-                <View style={styles.appearanceCopy}>
-                  <Text style={[styles.appearanceTitle, { color: colors.primaryText }]}>
-                    {t(option.labelKey)}
-                  </Text>
-                  <Text style={[styles.appearanceDescription, { color: colors.secondaryText }]}>
-                    {t(option.descriptionKey)}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={isActive ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={22}
-                  color={isActive ? colors.accentPrimary : colors.secondaryText}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Accent-palette picker removed — ember is the sole accent palette; the
+            5 theme modes above remain the appearance control. */}
 
         <Modal
           visible={showChapterFeedbackIdentityModal}

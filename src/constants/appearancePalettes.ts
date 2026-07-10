@@ -1,4 +1,8 @@
-export const APPEARANCE_PALETTE_IDS = ['ember', 'sapphire', 'teal', 'olive'] as const;
+// Ember is the sole accent palette. The 5 theme MODES (dark/light/low-light/
+// parchment/midnight) remain; only the accent-palette picker was removed. Saved
+// preferences of the retired sapphire/teal/olive palettes fall back to ember via
+// the resolver in ThemeContext + the persisted-state sanitizer.
+export const APPEARANCE_PALETTE_IDS = ['ember'] as const;
 
 export type AppearancePaletteId = (typeof APPEARANCE_PALETTE_IDS)[number];
 
@@ -28,33 +32,6 @@ export const APPEARANCE_PALETTES: AppearancePalette[] = [
       primaryDeep: '#AE4732',
       secondary: '#E08573',
       tertiary: '#A39B8F',
-    },
-  },
-  {
-    id: 'sapphire',
-    swatches: {
-      primary: '#7E96F2',
-      primaryDeep: '#2F55C8',
-      secondary: '#9DB0F6',
-      tertiary: '#6C7FA6',
-    },
-  },
-  {
-    id: 'teal',
-    swatches: {
-      primary: '#4AA5A1',
-      primaryDeep: '#0F766E',
-      secondary: '#7BC4C0',
-      tertiary: '#4E8AA0',
-    },
-  },
-  {
-    id: 'olive',
-    swatches: {
-      primary: '#8FAF52',
-      primaryDeep: '#4C6B1F',
-      secondary: '#A9C374',
-      tertiary: '#7E8B65',
     },
   },
 ] as const;

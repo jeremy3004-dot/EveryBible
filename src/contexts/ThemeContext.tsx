@@ -276,24 +276,6 @@ export const appearancePaletteOptions: AppearancePaletteOption[] = [
     descriptionKey: 'settings.appearanceEmberBody',
     previewColors: ['#D96C57', '#E08573', '#A39B8F'],
   },
-  {
-    id: 'sapphire',
-    labelKey: 'settings.appearanceSapphireTitle',
-    descriptionKey: 'settings.appearanceSapphireBody',
-    previewColors: ['#7E96F2', '#9DB0F6', '#6C7FA6'],
-  },
-  {
-    id: 'teal',
-    labelKey: 'settings.appearanceTealTitle',
-    descriptionKey: 'settings.appearanceTealBody',
-    previewColors: ['#4AA5A1', '#7BC4C0', '#4E8AA0'],
-  },
-  {
-    id: 'olive',
-    labelKey: 'settings.appearanceOliveTitle',
-    descriptionKey: 'settings.appearanceOliveBody',
-    previewColors: ['#8FAF52', '#A9C374', '#7E8B65'],
-  },
 ];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

@@ -53,7 +53,7 @@ import {
   getTranslatedBookName,
 } from '../../constants';
 import { config } from '../../constants/config';
-import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
+import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
@@ -693,7 +693,7 @@ export function BibleReaderScreen() {
     returnToPlanOnComplete = false,
     sessionContext,
   } = route.params;
-  const { colors, themeMode, appearancePalette, setTheme, setAppearancePalette } = useTheme();
+  const { colors, themeMode, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
@@ -2577,12 +2577,6 @@ export function BibleReaderScreen() {
   };
   const handleReaderThemeChange = (mode: ThemeMode) => {
     setTheme(mode);
-    syncPreferences().catch(() => {});
-  };
-  const handleReaderAppearancePaletteChange = (
-    palette: (typeof appearancePaletteOptions)[number]['id']
-  ) => {
-    setAppearancePalette(palette);
     syncPreferences().catch(() => {});
   };
   const handleOpenAllSettings = () => {
@@ -5644,66 +5638,6 @@ export function BibleReaderScreen() {
                         {t(option.labelKey)}
                       </Text>
                     </View>
-                  );
-                })}
-              </ScrollView>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.readerPaletteRail}
-              >
-                {appearancePaletteOptions.map((option) => {
-                  const isActive = appearancePalette === option.id;
-
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      style={[
-                        styles.readerPaletteTile,
-                        {
-                          borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                          backgroundColor: colors.bibleElevatedSurface,
-                        },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(option.labelKey)}
-                      onPress={() => handleReaderAppearancePaletteChange(option.id)}
-                      activeOpacity={0.86}
-                    >
-                      <View style={styles.readerPaletteSwatches}>
-                        <LinearGradient
-                          colors={option.previewColors}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.readerPaletteGradient}
-                        />
-                        {option.previewColors.map((swatchColor) => (
-                          <View
-                            key={swatchColor}
-                            style={[
-                              styles.readerPaletteSwatch,
-                              {
-                                backgroundColor: swatchColor,
-                                borderColor: colors.bibleSurface,
-                              },
-                            ]}
-                          />
-                        ))}
-                      </View>
-                      <View
-                        style={[
-                          styles.readerThemeCheckCircle,
-                          {
-                            borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                            backgroundColor: isActive ? colors.accentPrimary : 'transparent',
-                          },
-                        ]}
-                      >
-                        {isActive ? (
-                          <Ionicons name="checkmark" size={18} color={colors.onAccent} />
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
                   );
                 })}
               </ScrollView>
