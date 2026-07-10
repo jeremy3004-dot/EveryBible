@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import type { TextStyle, ViewStyle } from 'react-native';
+import { serifFamily } from './fonts';
 
 export const spacing = {
   xs: 4,
@@ -11,13 +12,17 @@ export const spacing = {
   xxxl: 48,
 } as const;
 
+// Concentric radius rule: a child's corner radius should be its parent's radius
+// minus the padding between them (childRadius = parentRadius − padding), floored
+// at `xs` (4). Pick from these tokens rather than raw values so nested corners
+// stay optically concentric.
 export const radius = {
-  xs: 2,
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 20,
-  xxl: 28,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  sheet: 28,
   pill: 999,
 } as const;
 
@@ -27,44 +32,50 @@ const uiFontFamily = Platform.select({
   default: 'System',
 });
 
-const readingFontFamily = Platform.select({
-  ios: 'Georgia',
-  android: 'serif',
-  default: 'Georgia',
-});
-const readingFontFamilyItalic = Platform.select({
-  ios: 'Georgia-Italic',
-  android: 'serif',
-  default: 'Georgia-Italic',
-});
+// Identity + reading serif faces (Lora). Reading surfaces additionally route
+// through getReadingFontFamily() so non-Latin scripts fall back to the platform
+// serif; these token defaults cover Latin-script content.
+const serifRegular = serifFamily(400);
+const serifMedium = serifFamily(500);
+const serifSemiBold = serifFamily(600);
+const serifItalic = serifFamily(400, true);
 
 export const typography = {
+  displayHero: {
+    fontFamily: serifMedium,
+    fontSize: 30,
+    lineHeight: 40,
+    letterSpacing: -0.2,
+  } satisfies TextStyle,
   screenTitle: {
-    fontFamily: uiFontFamily,
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '700',
-    letterSpacing: -0.8,
+    fontFamily: serifSemiBold,
+    fontSize: 28,
+    lineHeight: 36,
+    letterSpacing: -0.3,
   } satisfies TextStyle,
   pageTitle: {
-    fontFamily: uiFontFamily,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    letterSpacing: -0.5,
+    fontFamily: serifSemiBold,
+    fontSize: 24,
+    lineHeight: 32,
+    letterSpacing: -0.2,
+  } satisfies TextStyle,
+  serifQuote: {
+    fontFamily: serifItalic,
+    fontSize: 20,
+    lineHeight: 30,
   } satisfies TextStyle,
   sectionTitle: {
     fontFamily: uiFontFamily,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   } satisfies TextStyle,
   cardTitle: {
     fontFamily: uiFontFamily,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700',
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '600',
     letterSpacing: -0.2,
   } satisfies TextStyle,
   body: {
@@ -84,7 +95,7 @@ export const typography = {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   } satisfies TextStyle,
   micro: {
     fontFamily: uiFontFamily,
@@ -97,16 +108,15 @@ export const typography = {
     fontFamily: uiFontFamily,
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '700',
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   } satisfies TextStyle,
   button: {
     fontFamily: uiFontFamily,
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: -0.1,
+    fontWeight: '600',
   } satisfies TextStyle,
   tabLabel: {
     fontFamily: uiFontFamily,
@@ -116,35 +126,41 @@ export const typography = {
     letterSpacing: 0.2,
   } satisfies TextStyle,
   readingDisplay: {
-    fontFamily: readingFontFamilyItalic,
+    fontFamily: serifItalic,
     fontSize: 28,
     lineHeight: 38,
-    fontStyle: 'italic',
-    fontWeight: '400',
-    letterSpacing: 0.2,
+  } satisfies TextStyle,
+  chapterNumeral: {
+    fontFamily: serifRegular,
+    fontSize: 64,
+    lineHeight: 68,
   } satisfies TextStyle,
   readingHeading: {
-    fontFamily: readingFontFamily,
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: '700',
+    fontFamily: serifSemiBold,
+    fontSize: 19,
+    lineHeight: 27,
     letterSpacing: -0.1,
   } satisfies TextStyle,
   readingBody: {
-    fontFamily: readingFontFamily,
+    fontFamily: serifRegular,
     fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '400',
+    lineHeight: 29,
     letterSpacing: 0.05,
   } satisfies TextStyle,
   readingVerseNumber: {
-    fontFamily: readingFontFamily,
-    fontSize: 10,
+    fontFamily: uiFontFamily,
+    fontSize: 11,
     lineHeight: 16,
-    fontWeight: '400',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   } satisfies TextStyle,
 } as const;
+
+// Apply to any glyph-aligned number that changes in place — timers, counters,
+// streaks, percentages, elapsed/remaining time — so digits don't jitter.
+export const numeric: TextStyle = {
+  fontVariant: ['tabular-nums'],
+};
 
 export const layout = {
   screenPadding: spacing.xl,
@@ -158,16 +174,21 @@ export const layout = {
 } as const;
 
 export const shadows = {
-  card: {} as ViewStyle, // Flat -- hierarchy via borders and spacing now
+  // Hierarchy via tone, not shadow — card surfaces sit lighter than the page
+  // background and are separated by hairline alpha borders, so resting cards
+  // stay flat.
+  card: {} as ViewStyle,
+  // Reserved for surfaces that genuinely float above the page: docks, pills,
+  // sheets, and FABs. Do not apply to resting cards.
   floating: Platform.select<ViewStyle>({
     ios: {
       shadowColor: '#000000',
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
     },
     android: {
-      elevation: 4,
+      elevation: 6,
     },
     default: {},
   }) as ViewStyle,

@@ -371,8 +371,8 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   sheet: {
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
     borderWidth: 1,
     borderBottomWidth: 0,
     paddingHorizontal: spacing.lg,

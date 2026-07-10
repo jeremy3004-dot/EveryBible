@@ -3,7 +3,12 @@ export const APPEARANCE_PALETTE_IDS = ['ember', 'sapphire', 'teal', 'olive'] as 
 export type AppearancePaletteId = (typeof APPEARANCE_PALETTE_IDS)[number];
 
 export interface AppearancePaletteSwatches {
+  // Accent for dark-family modes (dark, low-light, midnight) — a light pastel
+  // that reads as text/fills on near-black surfaces.
   primary: string;
+  // Accent for light-family modes (light, parchment) — a deep variant that reads
+  // on warm paper. Same hue as `primary`, lower lightness.
+  primaryDeep: string;
   secondary: string;
   tertiary: string;
 }
@@ -19,33 +24,37 @@ export const APPEARANCE_PALETTES: AppearancePalette[] = [
   {
     id: 'ember',
     swatches: {
-      primary: '#C8463C',
-      secondary: '#E05A50',
-      tertiary: '#9BA3B0',
+      primary: '#D96C57',
+      primaryDeep: '#AE4732',
+      secondary: '#E08573',
+      tertiary: '#A39B8F',
     },
   },
   {
     id: 'sapphire',
     swatches: {
-      primary: '#2F5BEA',
-      secondary: '#6E84F4',
-      tertiary: '#4B6792',
+      primary: '#7E96F2',
+      primaryDeep: '#2F55C8',
+      secondary: '#9DB0F6',
+      tertiary: '#6C7FA6',
     },
   },
   {
     id: 'teal',
     swatches: {
-      primary: '#0F766E',
-      secondary: '#4AA5A1',
-      tertiary: '#2C6B8D',
+      primary: '#4AA5A1',
+      primaryDeep: '#0F766E',
+      secondary: '#7BC4C0',
+      tertiary: '#4E8AA0',
     },
   },
   {
     id: 'olive',
     swatches: {
-      primary: '#4C6B1F',
-      secondary: '#7C9A3D',
-      tertiary: '#66754E',
+      primary: '#8FAF52',
+      primaryDeep: '#4C6B1F',
+      secondary: '#A9C374',
+      tertiary: '#7E8B65',
     },
   },
 ] as const;

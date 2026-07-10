@@ -55,15 +55,15 @@ test('high-traffic app surfaces consume the shared design system', () => {
   }
 });
 
-test('reading headings are bold, larger, and title case', () => {
+test('reading headings use the Lora semibold serif and title case', () => {
   const source = readRelativeSource('./system.ts');
 
   const readingHeadingBlock = source.match(/readingHeading:\s*{[\s\S]*?}\s*satisfies TextStyle,/);
 
   assert.ok(readingHeadingBlock, 'readingHeading should exist in the shared design system');
-  assert.match(readingHeadingBlock![0], /fontSize:\s*18,/);
-  assert.match(readingHeadingBlock![0], /lineHeight:\s*26,/);
-  assert.match(readingHeadingBlock![0], /fontWeight:\s*'700'/);
+  assert.match(readingHeadingBlock![0], /fontFamily:\s*serifSemiBold/);
+  assert.match(readingHeadingBlock![0], /fontSize:\s*19,/);
+  assert.match(readingHeadingBlock![0], /lineHeight:\s*27,/);
   assert.match(readingHeadingBlock![0], /letterSpacing:\s*-0\.1,/);
   assert.equal(
     readingHeadingBlock![0].includes("textTransform: 'uppercase'"),

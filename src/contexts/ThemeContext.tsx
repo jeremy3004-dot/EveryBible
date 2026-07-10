@@ -13,12 +13,15 @@ export interface ThemeColors {
   background: string;
   cardBackground: string;
   cardBorder: string;
+  borderStrong: string;
   primaryText: string;
   secondaryText: string;
+  textTertiary: string;
   accentPrimary: string;
   accentSecondary: string;
   accentGreen: string;
   accentTertiary: string;
+  accentSoft: string;
   onAccent: string;
   error: string;
   success: string;
@@ -60,75 +63,98 @@ const defaultPalette =
   APPEARANCE_PALETTES.find((palette) => palette.id === DEFAULT_APPEARANCE_PALETTE) ??
   APPEARANCE_PALETTES[0];
 const defaultPaletteSwatches = defaultPalette.swatches;
-const accentContrast = '#FDFAF5';
 
+// Dark-family accents are light pastels, so a warm near-black reads on top of
+// them; light-family accents are the deep variants, so pure white reads on them.
+// Both directions are verified ≥ 4.5:1 in themeColors.test.ts.
+const onAccentDark = '#1A140F';
+const onAccentLight = '#FFFFFF';
+
+// Convert a #RRGGBB hex to an rgba() string at the given alpha. Used for the
+// soft tinted accent fill (accentSoft) so a single accent hue drives both solid
+// and 12–14% wash treatments without shipping a second token per palette.
+const withAlpha = (hex: string, alpha: number): string => {
+  const normalized = hex.replace('#', '');
+  const red = parseInt(normalized.slice(0, 2), 16);
+  const green = parseInt(normalized.slice(2, 4), 16);
+  const blue = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};
+
+const ACCENT_SOFT_ALPHA = 0.13;
+
+// Placeholder accent fill for the base palette literals below — every value here
+// is overwritten by createThemeColors() with the mode-aware accent, but the keys
+// must exist so each base palette satisfies ThemeColors.
 const defaultPaletteColors = {
   accentPrimary: defaultPaletteSwatches.primary,
   accentSecondary: defaultPaletteSwatches.secondary,
   accentGreen: defaultPaletteSwatches.primary,
   accentTertiary: defaultPaletteSwatches.tertiary,
-  onAccent: accentContrast,
+  accentSoft: withAlpha(defaultPaletteSwatches.primary, ACCENT_SOFT_ALPHA),
+  onAccent: onAccentDark,
   bibleAccent: defaultPaletteSwatches.primary,
 } as const;
 
-const maranathaLightAccentTokens = {
-  accentPrimary: '#2F78D4',
-  accentSecondary: '#1F8A78',
-  accentGreen: '#1F8A78',
-  accentTertiary: '#376CAD',
-  bibleAccent: '#1F8A78',
-} as const;
-
+// Warm ink — the default surface for new users. Ink-on-near-black paper with
+// hairline alpha borders; surfaces separate by tone, not lines.
 const baseDarkColors: ThemeColors = {
-  background: '#101113',
-  cardBackground: '#17191D',
-  cardBorder: '#262A31',
-  primaryText: '#F5F2EA',
-  secondaryText: '#A09B93',
+  background: '#161412',
+  cardBackground: '#1E1B18',
+  cardBorder: 'rgba(242, 237, 227, 0.08)',
+  borderStrong: 'rgba(242, 237, 227, 0.14)',
+  primaryText: '#F2EDE3',
+  secondaryText: '#A8A094',
+  textTertiary: 'rgba(242, 237, 227, 0.45)',
   ...defaultPaletteColors,
   error: '#FF7B72',
   success: '#80C16F',
   warning: '#D0A35A',
-  overlay: 'rgba(0, 0, 0, 0.6)',
-  tabActive: '#F5F2EA',
-  tabInactive: '#7E8188',
-  bibleBackground: '#101113',
-  bibleSurface: '#17191D',
-  bibleElevatedSurface: '#1D2026',
-  bibleDivider: '#2A2F37',
-  biblePrimaryText: '#F5F2EA',
-  bibleSecondaryText: '#A09B93',
-  bibleControlBackground: '#F5F2EA',
+  overlay: 'rgba(12, 10, 8, 0.6)',
+  tabActive: '#F2EDE3',
+  tabInactive: '#857D72',
+  bibleBackground: '#161412',
+  bibleSurface: '#1E1B18',
+  bibleElevatedSurface: '#262220',
+  bibleDivider: 'rgba(242, 237, 227, 0.08)',
+  biblePrimaryText: '#F2EDE3',
+  bibleSecondaryText: '#A8A094',
+  bibleControlBackground: '#F2EDE3',
 };
 
+// Warm paper — light mode reads as a printed page, not a white app chrome.
 const baseLightColors: ThemeColors = {
-  background: '#F4F6F8',
+  background: '#FAF7F1',
   cardBackground: '#FFFFFF',
-  cardBorder: '#DDE3EA',
-  primaryText: '#202428',
-  secondaryText: '#646D76',
+  cardBorder: 'rgba(60, 50, 36, 0.1)',
+  borderStrong: 'rgba(60, 50, 36, 0.16)',
+  primaryText: '#211D18',
+  secondaryText: '#6E665B',
+  textTertiary: 'rgba(33, 29, 24, 0.45)',
   ...defaultPaletteColors,
   error: '#C43F3A',
   success: '#247756',
   warning: '#9A6A24',
-  overlay: 'rgba(32, 36, 40, 0.32)',
-  tabActive: '#202428',
-  tabInactive: '#717982',
-  bibleBackground: '#FFFFFF',
+  overlay: 'rgba(33, 29, 24, 0.32)',
+  tabActive: '#211D18',
+  tabInactive: '#8C8375',
+  bibleBackground: '#FAF7F1',
   bibleSurface: '#FFFFFF',
-  bibleElevatedSurface: '#EAF2FF',
-  bibleDivider: '#E2E6EA',
-  biblePrimaryText: '#202428',
-  bibleSecondaryText: '#646D76',
-  bibleControlBackground: '#202428',
+  bibleElevatedSurface: '#F3EEE5',
+  bibleDivider: 'rgba(60, 50, 36, 0.1)',
+  biblePrimaryText: '#211D18',
+  bibleSecondaryText: '#6E665B',
+  bibleControlBackground: '#211D18',
 };
 
 const baseLowLightColors: ThemeColors = {
   background: '#18130F',
   cardBackground: '#221B17',
-  cardBorder: '#352B25',
+  cardBorder: 'rgba(244, 232, 215, 0.1)',
+  borderStrong: 'rgba(244, 232, 215, 0.16)',
   primaryText: '#F4E8D7',
   secondaryText: '#C6B7A5',
+  textTertiary: 'rgba(244, 232, 215, 0.45)',
   ...defaultPaletteColors,
   error: '#E96B63',
   success: '#89C98A',
@@ -139,7 +165,7 @@ const baseLowLightColors: ThemeColors = {
   bibleBackground: '#18130F',
   bibleSurface: '#221B17',
   bibleElevatedSurface: '#2A221D',
-  bibleDivider: '#352B25',
+  bibleDivider: 'rgba(244, 232, 215, 0.1)',
   biblePrimaryText: '#F4E8D7',
   bibleSecondaryText: '#C6B7A5',
   bibleControlBackground: '#F4E8D7',
@@ -148,9 +174,11 @@ const baseLowLightColors: ThemeColors = {
 const baseParchmentColors: ThemeColors = {
   background: '#F4E9D2',
   cardBackground: '#FFF9ED',
-  cardBorder: '#DECDAF',
+  cardBorder: 'rgba(74, 56, 34, 0.16)',
+  borderStrong: 'rgba(74, 56, 34, 0.24)',
   primaryText: '#241A12',
   secondaryText: '#756651',
+  textTertiary: 'rgba(36, 26, 18, 0.45)',
   ...defaultPaletteColors,
   error: '#B44139',
   success: '#397A54',
@@ -161,18 +189,21 @@ const baseParchmentColors: ThemeColors = {
   bibleBackground: '#F4E9D2',
   bibleSurface: '#FFF7E8',
   bibleElevatedSurface: '#EBDCC2',
-  bibleDivider: '#DAC7A8',
+  bibleDivider: 'rgba(74, 56, 34, 0.16)',
   biblePrimaryText: '#241A12',
   bibleSecondaryText: '#756651',
   bibleControlBackground: '#241A12',
 };
 
+// Cool navy — a deliberate night option; the only non-warm base palette.
 const baseMidnightColors: ThemeColors = {
   background: '#080B12',
   cardBackground: '#101623',
-  cardBorder: '#212B3D',
+  cardBorder: 'rgba(190, 205, 235, 0.1)',
+  borderStrong: 'rgba(190, 205, 235, 0.16)',
   primaryText: '#F2F6FF',
   secondaryText: '#A5B0C3',
+  textTertiary: 'rgba(242, 246, 255, 0.45)',
   ...defaultPaletteColors,
   error: '#FF7B72',
   success: '#7FCB9B',
@@ -183,26 +214,35 @@ const baseMidnightColors: ThemeColors = {
   bibleBackground: '#080B12',
   bibleSurface: '#101623',
   bibleElevatedSurface: '#172033',
-  bibleDivider: '#233049',
+  bibleDivider: 'rgba(190, 205, 235, 0.1)',
   biblePrimaryText: '#F2F6FF',
   bibleSecondaryText: '#A5B0C3',
   bibleControlBackground: '#F2F6FF',
 };
 
+// Light-family modes (paper + parchment) use the deep accent so it reads on a
+// light surface; dark-family modes use the lighter pastel primary.
+const LIGHT_FAMILY_MODES: ReadonlySet<ThemeMode> = new Set(['light', 'parchment']);
+
 const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
   const palette =
     APPEARANCE_PALETTES.find((entry) => entry.id === paletteId)?.swatches ?? defaultPaletteSwatches;
 
+  const isLightFamily = LIGHT_FAMILY_MODES.has(mode);
+  const accentBase = isLightFamily ? palette.primaryDeep : palette.primary;
+
   const accentTokens = {
-    accentPrimary: palette.primary,
+    accentPrimary: accentBase,
     accentSecondary: palette.secondary,
-    accentGreen: palette.primary,
+    accentGreen: accentBase,
     accentTertiary: palette.tertiary,
-    bibleAccent: palette.primary,
+    accentSoft: withAlpha(accentBase, ACCENT_SOFT_ALPHA),
+    onAccent: isLightFamily ? onAccentLight : onAccentDark,
+    bibleAccent: accentBase,
   };
 
   if (mode === 'light') {
-    return { ...baseLightColors, ...maranathaLightAccentTokens, onAccent: '#FFFFFF' };
+    return { ...baseLightColors, ...accentTokens };
   }
 
   if (mode === 'low-light') {
@@ -234,25 +274,25 @@ export const appearancePaletteOptions: AppearancePaletteOption[] = [
     id: 'ember',
     labelKey: 'settings.appearanceEmberTitle',
     descriptionKey: 'settings.appearanceEmberBody',
-    previewColors: ['#C8463C', '#E05A50', '#9BA3B0'],
+    previewColors: ['#D96C57', '#E08573', '#A39B8F'],
   },
   {
     id: 'sapphire',
     labelKey: 'settings.appearanceSapphireTitle',
     descriptionKey: 'settings.appearanceSapphireBody',
-    previewColors: ['#2F5BEA', '#6E84F4', '#4B6792'],
+    previewColors: ['#7E96F2', '#9DB0F6', '#6C7FA6'],
   },
   {
     id: 'teal',
     labelKey: 'settings.appearanceTealTitle',
     descriptionKey: 'settings.appearanceTealBody',
-    previewColors: ['#0F766E', '#4AA5A1', '#2C6B8D'],
+    previewColors: ['#4AA5A1', '#7BC4C0', '#4E8AA0'],
   },
   {
     id: 'olive',
     labelKey: 'settings.appearanceOliveTitle',
     descriptionKey: 'settings.appearanceOliveBody',
-    previewColors: ['#4C6B1F', '#7C9A3D', '#66754E'],
+    previewColors: ['#8FAF52', '#A9C374', '#7E8B65'],
   },
 ];
 
@@ -265,7 +305,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
     ? preferences.theme
     : null;
-  const themeMode: ThemeMode = storedTheme ?? 'midnight';
+  // New users default to warm-ink dark; existing saved preferences are untouched.
+  const themeMode: ThemeMode = storedTheme ?? 'dark';
 
   const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
     preferences.appearancePalette

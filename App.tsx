@@ -16,6 +16,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { useFonts } from 'expo-font';
+import {
+  Lora_400Regular,
+  Lora_400Regular_Italic,
+  Lora_500Medium,
+  Lora_600SemiBold,
+  Lora_700Bold,
+} from '@expo-google-fonts/lora';
 import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
 import { useAuthStore } from './src/stores/authStore';
 import { usePrivacyStore } from './src/stores/privacyStore';
@@ -71,8 +78,11 @@ function LoadingScreen() {
   console.log('[EB-T] LoadingScreen:render', Date.now());
   const { colors } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
-    'Lora-Regular': require('./assets/fonts/Lora-Regular.ttf'),
-    'Lora-Italic': require('./assets/fonts/Lora-Italic.ttf'),
+    Lora_400Regular,
+    Lora_400Regular_Italic,
+    Lora_500Medium,
+    Lora_600SemiBold,
+    Lora_700Bold,
   });
   const [isReady, setIsReady] = useState(Platform.OS === 'android');
   const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);

@@ -66,6 +66,7 @@
     "play:publish-listing": "node scripts/publish_google_play_listing.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/lora": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@kesha-antonov/react-native-background-downloader": "^4.5.4",
     "@react-native-async-storage/async-storage": "2.2.0",

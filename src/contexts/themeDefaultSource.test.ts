@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-test('new installs default to the midnight theme', () => {
+test('new installs default to the warm-ink dark theme', () => {
   const source = readFileSync(
     fileURLToPath(new URL('../stores/persistedStateSanitizers.ts', import.meta.url).href),
     'utf8'
@@ -11,7 +11,7 @@ test('new installs default to the midnight theme', () => {
 
   assert.match(
     source,
-    /defaultAuthPreferences[\s\S]*theme:\s*'midnight'/,
-    'defaultAuthPreferences should use midnight as the persisted default theme'
+    /defaultAuthPreferences[\s\S]*theme:\s*'dark'/,
+    'defaultAuthPreferences should use dark as the persisted default theme'
   );
 });

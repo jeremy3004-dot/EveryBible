@@ -125,24 +125,42 @@ test('ThemeContext supports the low-light theme mode', () => {
   );
 });
 
-test('Light theme tertiary accent stays readable on light surfaces', () => {
+test('Light-family accents (primaryDeep) stay readable on light surfaces', () => {
   const source = readThemeSource();
-
-  const tertiaryAccent = extractColorToken(source, 'maranathaLightAccentTokens', 'accentTertiary');
-  const pageBackground = extractColorToken(source, 'baseLightColors', 'background');
-  const cardBackground = extractColorToken(source, 'baseLightColors', 'cardBackground');
-
-  assert.ok(tertiaryAccent, 'Light theme should define a tertiary accent');
-  assert.ok(pageBackground, 'Light theme should define a page background');
-  assert.ok(cardBackground, 'Light theme should define a card background');
-  assert.ok(
-    colorContrastRatio(tertiaryAccent, pageBackground) >= 4.5,
-    'Light tertiary accent must be readable on the page background'
+  const paletteSource = readFileSync(
+    fileURLToPath(new URL('../constants/appearancePalettes.ts', import.meta.url).href),
+    'utf8'
   );
-  assert.ok(
-    colorContrastRatio(tertiaryAccent, cardBackground) >= 4.5,
-    'Light tertiary accent must be readable on card backgrounds'
+
+  // Light-family modes (light, parchment) render accents via the palette's
+  // `primaryDeep` variant. Each must be readable on both light backgrounds.
+  const deepAccents = [...paletteSource.matchAll(/primaryDeep:\s*'(#[A-Fa-f0-9]{6})'/g)].map(
+    (match) => match[1]
   );
+  assert.ok(deepAccents.length >= 4, 'each appearance palette should define a primaryDeep accent');
+
+  const lightBackground = extractColorToken(source, 'baseLightColors', 'background');
+  const lightCard = extractColorToken(source, 'baseLightColors', 'cardBackground');
+  const parchmentBackground = extractColorToken(source, 'baseParchmentColors', 'background');
+
+  assert.ok(lightBackground, 'Light theme should define a page background');
+  assert.ok(lightCard, 'Light theme should define a card background');
+  assert.ok(parchmentBackground, 'Parchment theme should define a page background');
+
+  for (const accent of deepAccents) {
+    assert.ok(
+      colorContrastRatio(accent, lightBackground) >= 4.5,
+      `Deep accent ${accent} must be readable on the light page background`
+    );
+    assert.ok(
+      colorContrastRatio(accent, lightCard) >= 4.5,
+      `Deep accent ${accent} must be readable on light card backgrounds`
+    );
+    assert.ok(
+      colorContrastRatio(accent, parchmentBackground) >= 4.5,
+      `Deep accent ${accent} must be readable on the parchment background`
+    );
+  }
 });
 
 test('ThemeContext defines four appearance palette options with preview swatches', () => {
@@ -162,11 +180,11 @@ test('ThemeContext exposes isDark and isLowLight flags', () => {
   assert.match(source, /isLowLight/, 'ThemeContextValue should include isLowLight');
 });
 
-test('ThemeContext resolves themeMode from stored preference with midnight fallback', () => {
+test('ThemeContext resolves themeMode from stored preference with warm-ink dark fallback', () => {
   const source = readThemeSource();
 
   assert.match(source, /preferences\.theme/, 'should read theme from stored preferences');
-  assert.match(source, /storedTheme\s*\?\?\s*'midnight'/, 'should default to midnight');
+  assert.match(source, /storedTheme\s*\?\?\s*'dark'/, 'new users should default to dark');
 });
 
 // ---------------------------------------------------------------------------

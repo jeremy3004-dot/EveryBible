@@ -544,7 +544,9 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
 
 export const defaultAuthPreferences: UserPreferences = {
   fontSize: 'medium',
-  theme: 'midnight',
+  // New installs default to warm-ink dark. Existing users' persisted theme is
+  // untouched (their sanitized preferences already carry an explicit value).
+  theme: 'dark',
   appearancePalette: DEFAULT_APPEARANCE_PALETTE,
   language: 'en',
   countryCode: null,
