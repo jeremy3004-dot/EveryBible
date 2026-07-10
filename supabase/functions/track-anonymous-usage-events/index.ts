@@ -256,7 +256,9 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
 // city-level fixes ~50 km, country-only ~800 km. Whole-km integers to match the
 // geo_accuracy_km INTEGER column contract (see P2 S13).
 function accuracyKmForGeo(geo: GeoResult): number | null {
-  if (geo.accuracyKm != null) return geo.accuracyKm;
+  // Round to whole km: geo_accuracy_km is an INTEGER column (P2 S13), and a
+  // fractional value from an arbitrary payload would fail the whole batch insert.
+  if (geo.accuracyKm != null) return Math.round(geo.accuracyKm);
   if (geo.city) return 50;
   if (geo.countryCode) return 800;
   return null;

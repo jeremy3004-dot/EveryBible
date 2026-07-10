@@ -112,18 +112,26 @@ test('usageQueue is durable: write-through MMKV persistence + load-on-init, capp
   assert.match(source, /function persistQueue/, 'must define a write-through persist helper');
   assert.match(source, /mmkvInstance/, 'persistence must use the shared MMKV instance');
 
-  // Load-on-init restores events queued before the last cold start.
+  // Restore is DEFERRED off module-eval (first use), per the startup hot-path
+  // rules — a static importer must not pay the MMKV read at cold start.
+  assert.match(source, /function ensureQueueRestored/, 'restore must be a deferred first-use helper');
   assert.match(
     source,
     /eventQueue\.push\(\.\.\.loadPersistedQueue\(\)\)/,
-    'the queue must be restored from disk on module init'
+    'the deferred restore pushes persisted events'
+  );
+  assert.ok(
+    !/^eventQueue\.push\(\.\.\.loadPersistedQueue\(\)\);/m.test(source),
+    'restore must NOT run at module top-level'
   );
 
-  // Write-through: persist after enqueue AND after flush drains/requeues.
+  // Write-through: persist after enqueue AND after flush drains/requeues, and
+  // enqueue triggers the deferred restore first.
   const enqueueBody = source.slice(
     source.indexOf('export function enqueueUsageEvent'),
     source.indexOf('export async function flushUsageQueue')
   );
+  assert.match(enqueueBody, /ensureQueueRestored\(\)/, 'enqueue must trigger the deferred restore');
   assert.match(enqueueBody, /persistQueue\(\)/, 'enqueue must persist write-through');
 
   const flushBody = source.slice(

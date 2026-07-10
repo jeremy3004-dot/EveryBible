@@ -85,8 +85,15 @@ function persistQueue(): void {
   }
 }
 
-// Load-on-init: restore any events persisted before the last cold start.
-eventQueue.push(...loadPersistedQueue());
+// Restore persisted events on FIRST use, not at module eval — a static importer
+// (e.g. useAudioPlayer) would otherwise pay the MMKV read + JSON.parse at cold
+// start, which the startup hot-path rules forbid.
+let queueRestored = false;
+function ensureQueueRestored(): void {
+  if (queueRestored) return;
+  queueRestored = true;
+  eventQueue.push(...loadPersistedQueue());
+}
 
 // Uses the Crypto API available in Hermes / React Native's polyfill.
 export function generateUUID(): string {
@@ -143,6 +150,7 @@ export function enqueueUsageEvent(
   properties: Record<string, unknown>,
   sessionId: string | null
 ): void {
+  ensureQueueRestored();
   eventQueue.push(buildQueuedEvent(eventName, properties, sessionId));
   persistQueue();
 
@@ -158,6 +166,8 @@ export function enqueueUsageEvent(
 // session exists we forward its access token so the server attributes user_id;
 // otherwise the request is anonymous. Events arriving mid-flush are preserved.
 export async function flushUsageQueue(): Promise<UsageFlushResult> {
+  ensureQueueRestored();
+
   if (!isSupabaseConfigured()) {
     return { success: true };
   }
@@ -206,5 +216,6 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
 
 // Exposed for testing / diagnostics only.
 export function getPendingUsageEventCount(): number {
+  ensureQueueRestored();
   return eventQueue.length;
 }
