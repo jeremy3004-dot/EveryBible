@@ -12,6 +12,7 @@ import {
   AppState,
   type AppStateStatus,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -42,7 +43,7 @@ import type { ReadingPlan } from '../../services/plans/types';
 import { AppCard, CardSkeleton, ProgressBar } from '../../components';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
-import { radius, spacing, typography } from '../../design/system';
+import { motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils';
 import {
   getLiveVerseOfDayOverride,
@@ -80,6 +81,11 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, isDark } = useTheme();
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  // Top-to-bottom entrance choreography on first mount; opacity-only when the
+  // system asks for reduced motion.
+  const sectionEntering = (step: number) =>
+    (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const bottomTabBarHeight = useBottomTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
@@ -533,7 +539,7 @@ export function HomeScreen() {
         contentInsetAdjustmentBehavior="never"
       >
         <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
-          <View style={styles.headerRow}>
+          <Animated.View entering={sectionEntering(0)} style={styles.headerRow}>
             <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
             <Text
               style={[styles.greetingLine, { color: colors.primaryText }]}
@@ -543,7 +549,7 @@ export function HomeScreen() {
             >
               {greetingLabel}
             </Text>
-          </View>
+          </Animated.View>
 
           {isLoadingVerse ? (
             <CardSkeleton
@@ -572,7 +578,7 @@ export function HomeScreen() {
             </>
           )}
 
-          <View style={styles.progressGrid}>
+          <Animated.View entering={sectionEntering(1)} style={styles.progressGrid}>
             <AppCard
               pressable
               onPress={handleContinueReading}
@@ -643,66 +649,68 @@ export function HomeScreen() {
                 ) : null}
               </View>
             </AppCard>
-          </View>
+          </Animated.View>
 
-          <AppCard
-            pressable
-            padding={spacing.lg}
-            style={styles.gatherStrip}
-            onPress={() =>
-              navigation.navigate('Learn', {
-                screen: 'FoundationDetail',
-                params: { foundationId: activeFoundation.id },
-              })
-            }
-          >
-            <View style={styles.gatherStripHeader}>
-              <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
-                {t('tabs.gather')}
-              </Text>
-              <View style={styles.gatherHeaderCta}>
-                <Text style={[styles.gatherFoundationLabel, { color: colors.primaryText }]}>
-                  {t('gather.foundationLabel', { number: activeFoundation.number })}
+          <Animated.View entering={sectionEntering(2)}>
+            <AppCard
+              pressable
+              padding={spacing.lg}
+              style={styles.gatherStrip}
+              onPress={() =>
+                navigation.navigate('Learn', {
+                  screen: 'FoundationDetail',
+                  params: { foundationId: activeFoundation.id },
+                })
+              }
+            >
+              <View style={styles.gatherStripHeader}>
+                <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
+                  {t('tabs.gather')}
                 </Text>
-                <Ionicons name="chevron-forward" size={22} color={colors.primaryText} />
+                <View style={styles.gatherHeaderCta}>
+                  <Text style={[styles.gatherFoundationLabel, { color: colors.primaryText }]}>
+                    {t('gather.foundationLabel', { number: activeFoundation.number })}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={22} color={colors.primaryText} />
+                </View>
               </View>
-            </View>
-            <View style={styles.gatherPath}>
-              {gatherFoundations.slice(0, 4).map((foundation, index, visibleFoundations) => {
-                const done = completedLessons[foundation.id]?.length ?? 0;
-                const isActive = foundation.id === activeFoundation.id;
+              <View style={styles.gatherPath}>
+                {gatherFoundations.slice(0, 4).map((foundation, index, visibleFoundations) => {
+                  const done = completedLessons[foundation.id]?.length ?? 0;
+                  const isActive = foundation.id === activeFoundation.id;
 
-                return (
-                  <View key={foundation.id} style={styles.gatherNodeWrap}>
-                    <View style={styles.gatherNodeRow}>
-                      {index > 0 ? (
-                        <View
-                          style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
+                  return (
+                    <View key={foundation.id} style={styles.gatherNodeWrap}>
+                      <View style={styles.gatherNodeRow}>
+                        {index > 0 ? (
+                          <View
+                            style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
+                          />
+                        ) : null}
+                        <GatherIconBadge
+                          artworkKey={foundation.iconImage}
+                          size={58}
+                          iconSize={34}
+                          style={[
+                            styles.gatherNode,
+                            {
+                              borderColor: 'transparent',
+                              opacity: done > 0 || isActive ? 1 : 0.6,
+                            },
+                          ]}
                         />
-                      ) : null}
-                      <GatherIconBadge
-                        artworkKey={foundation.iconImage}
-                        size={58}
-                        iconSize={34}
-                        style={[
-                          styles.gatherNode,
-                          {
-                            borderColor: 'transparent',
-                            opacity: done > 0 || isActive ? 1 : 0.6,
-                          },
-                        ]}
-                      />
-                      {index < visibleFoundations.length - 1 ? (
-                        <View
-                          style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
-                        />
-                      ) : null}
+                        {index < visibleFoundations.length - 1 ? (
+                          <View
+                            style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
+                          />
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
-          </AppCard>
+                  );
+                })}
+              </View>
+            </AppCard>
+          </Animated.View>
         </View>
       </ScrollView>
     </SafeAreaView>
