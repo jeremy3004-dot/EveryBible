@@ -46,6 +46,7 @@ import {
   type SetupStep,
 } from './localeSetupModel';
 import { radius, spacing } from '../../design/system';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 import type { BibleTranslation } from '../../types';
 import {
   filterTranslationsBySearchQuery,
@@ -131,7 +132,7 @@ const CountryRow = memo(function CountryRow({
       style={[
         styles.optionCard,
         {
-          backgroundColor: colors.cardBackground,
+          backgroundColor: isSelected ? colors.accentSoft : colors.cardBackground,
           borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
         },
       ]}
@@ -174,7 +175,7 @@ const LanguageRow = memo(function LanguageRow({
       style={[
         styles.optionCard,
         {
-          backgroundColor: colors.cardBackground,
+          backgroundColor: isSelected ? colors.accentSoft : colors.cardBackground,
           borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
         },
       ]}
@@ -292,7 +293,11 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
           </View>
         </View>
       </View>
-      {isInstalling ? (
+      {isInstalling && progress != null ? (
+        <View style={styles.downloadProgress}>
+          <ProgressBar progress={progress / 100} />
+        </View>
+      ) : isInstalling ? (
         <ActivityIndicator color={colors.accentGreen} />
       ) : (
         <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
@@ -420,8 +425,7 @@ export function LocaleSetupFlow({
     return visibleTranslations.filter((translation) => {
       const selectionState = translationDisplayDataById.get(translation.id)?.selectionState;
       return (
-        selectionState?.isSelectable === true ||
-        selectionState?.reason === 'download-required'
+        selectionState?.isSelectable === true || selectionState?.reason === 'download-required'
       );
     });
   }, [translationDisplayDataById, visibleTranslations]);
@@ -1439,6 +1443,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  downloadProgress: {
+    width: 72,
   },
   optionCard: {
     borderWidth: 1,
