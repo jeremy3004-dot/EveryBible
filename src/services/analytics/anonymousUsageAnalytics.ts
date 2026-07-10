@@ -9,7 +9,6 @@ import {
 export type AnonymousUsageEventName =
   | 'session_started'
   | 'session_ended'
-  | 'chapter_completed'
   | 'audio_playback_progress'
   | 'reading_ended'
   // Rerouted from the authenticated path (P1 S3) so they work signed-out and
@@ -65,9 +64,9 @@ export function startAnonymousUsageSession(): string {
  *
  * Use this for authenticated users who have their own session lifecycle event
  * recorded via the authenticated analytics path (analyticsService.startSession).
- * We still need an anonymous session_id so that audio_playback_progress,
- * reading_ended, and chapter_completed — which always flow through
- * trackAnonymousUsageEvent for all users — carry a valid session_id.
+ * We still need an anonymous session_id so that audio_playback_progress and
+ * reading_ended — which always flow through trackAnonymousUsageEvent for all
+ * users — carry a valid session_id.
  *
  * Contrast with startAnonymousUsageSession(), which both sets the id AND
  * emits session_started. Calling that for authenticated users produces a

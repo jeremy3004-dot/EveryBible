@@ -377,9 +377,9 @@ function AppContent() {
             // Authenticated path: the session lifecycle event (session_started /
             // session_ended) is owned by analyticsService so it carries user_id.
             // We still establish an anonymous session_id context so that
-            // audio_playback_progress, reading_ended, and chapter_completed —
-            // which always flow through trackAnonymousUsageEvent for ALL users —
-            // have a valid session_id. Without this setup those events would
+            // audio_playback_progress and reading_ended — which always flow
+            // through trackAnonymousUsageEvent for ALL users — have a valid
+            // session_id. Without this setup those events would
             // lazily create a new anonymous session and emit their own
             // session_started, which is worse than just pre-creating the id.
             initAnonymousSessionContext();

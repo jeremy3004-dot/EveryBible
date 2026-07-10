@@ -656,7 +656,6 @@ export function BibleReaderScreen() {
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
-  const chapterCompletionGuardRef = useRef<string | null>(null);
   const planDayCompletionGuardRef = useRef<string | null>(null);
   const listenCountedNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listenCountedBaselineRef = useRef<{ key: string; alreadyCountedForPlan: boolean } | null>(
@@ -2024,7 +2023,6 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
     lastFollowAlongVerseRef.current = null;
-    chapterCompletionGuardRef.current = null;
     if (focusVerse == null) {
       scrollReaderToOffset(0, false);
     }
@@ -3780,19 +3778,9 @@ export function BibleReaderScreen() {
       return;
     }
 
-    if (chapterSessionMode === 'read' && verses.length > 0) {
-      const completionKey = `${bookId}:${chapter}:${currentTranslation}`;
-      if (chapterCompletionGuardRef.current !== completionKey) {
-        chapterCompletionGuardRef.current = completionKey;
-        trackAnonymousUsageEvent('chapter_completed', {
-          book_id: bookId,
-          chapter,
-          mode: 'read',
-          translation_id: currentTranslation,
-          source: 'navigation',
-        });
-      }
-    }
+    // chapter_completed was a write-only event (no RPC/admin consumer) gated on
+    // this fragile read-mode navigation path; chapter completion is derived from
+    // reading_ended instead (see P1 S7). Emission removed.
 
     setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));
     setShowTranslationSheet((current) =>
