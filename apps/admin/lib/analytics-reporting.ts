@@ -111,6 +111,14 @@ export interface TranslationListeningRollup {
   translationId: string;
 }
 
+// Phase 1 (metric truth): the SQL RPC computes one authoritative distinct
+// listener count per translation. The client displays it verbatim and never
+// re-derives listeners by summing or max-ing per-country rows.
+export interface TranslationListenerRollup {
+  listenerCount: number;
+  translationId: string;
+}
+
 /** One entry per translation that had any activity in the window. */
 export interface TranslationBreakdownEntry {
   translationId: string;
@@ -136,6 +144,7 @@ export function buildTranslationBreakdown(
   countryRollups: TranslationCountryRollup[],
   locationRollups: TranslationLocationRollup[],
   listeningRollups: TranslationListeningRollup[] = [],
+  listenerRollups: TranslationListenerRollup[] = [],
 ): TranslationBreakdownEntry[] {
   const byTranslation = new Map<
     string,
@@ -150,6 +159,12 @@ export function buildTranslationBreakdown(
     }
   >();
   const listeningMinutesByTranslation = new Map<string, number>();
+  // Authoritative per-translation distinct listener counts from the RPC.
+  const listenerCountByTranslation = new Map<string, number>();
+
+  for (const row of listenerRollups) {
+    listenerCountByTranslation.set(row.translationId, Math.max(0, Math.round(Number(row.listenerCount) || 0)));
+  }
 
   const ensure = (id: string) => {
     let entry = byTranslation.get(id);
@@ -170,6 +185,10 @@ export function buildTranslationBreakdown(
 
   for (const row of listeningRollups) {
     listeningMinutesByTranslation.set(row.translationId, Math.max(0, Number(row.listeningMinutes) || 0));
+    ensure(row.translationId);
+  }
+
+  for (const row of listenerRollups) {
     ensure(row.translationId);
   }
 
@@ -216,7 +235,9 @@ export function buildTranslationBreakdown(
         ),
         readingMinutes: Math.round(entry.readingMinutes),
         downloadUnits: entry.downloadUnits,
-        listenerCount: entry.listenerCount,
+        // Prefer the RPC's authoritative distinct count; fall back to the
+        // per-country max only when the RPC didn't supply one.
+        listenerCount: listenerCountByTranslation.get(translationId) ?? entry.listenerCount,
         countryMetrics: countryMetrics.length > 0 ? countryMetrics : locationMetrics,
         countryTableMetrics: countryMetrics,
         locationMetrics,

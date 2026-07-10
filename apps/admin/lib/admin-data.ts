@@ -8,6 +8,7 @@ import {
   type TranslationCountryRollup,
   type TranslationLocationRollup,
   type TranslationListeningRollup,
+  type TranslationListenerRollup,
   buildTranslationBreakdown,
   mapCountryRollupsToMetrics,
   mapLocationRollupsToMetrics,
@@ -326,6 +327,9 @@ export interface AnalyticsOverview {
   dailyListeningMinutes: Array<{ day: string; minutes: number }>;
   dailyReadingMinutes: Array<{ day: string; minutes: number }>;
   listeningTotalMinutes: number;
+  // Authoritative distinct listeners that resolved to a map location (Phase 1).
+  // Always <= userCountWithListening. Replaces the old client-summed 377.
+  locatedListenerCount: number;
   locationMetrics: CountryMetric[];
   readingTotalMinutes: number;
   totalDownloadUnits: number;
@@ -343,6 +347,7 @@ interface AnalyticsOverviewRpcPayload {
   dailyListeningMinutes?: DailyMetricPoint[];
   dailyReadingMinutes?: DailyMetricPoint[];
   listeningTotalMinutes?: number;
+  locatedListenerCount?: number;
   locationMetrics?: LocationMetricRollup[];
   readingTotalMinutes?: number;
   totalDownloadUnits?: number;
@@ -350,6 +355,7 @@ interface AnalyticsOverviewRpcPayload {
   translationCountryMetrics?: TranslationCountryRollup[];
   translationLocationMetrics?: TranslationLocationRollup[];
   translationListeningMinutes?: TranslationListeningRollup[];
+  translationListenerCounts?: TranslationListenerRollup[];
   userCountWithListening?: number;
 }
 
@@ -1198,7 +1204,8 @@ export async function getAnalyticsOverview(
   const translationBreakdown = buildTranslationBreakdown(
     (overview.translationCountryMetrics ?? []) as TranslationCountryRollup[],
     (overview.translationLocationMetrics ?? []) as TranslationLocationRollup[],
-    (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[]
+    (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[],
+    (overview.translationListenerCounts ?? []) as TranslationListenerRollup[]
   );
 
   return {
@@ -1214,6 +1221,7 @@ export async function getAnalyticsOverview(
     dailyListeningMinutes,
     dailyReadingMinutes,
     listeningTotalMinutes: Number(overview.listeningTotalMinutes ?? 0),
+    locatedListenerCount: Number(overview.locatedListenerCount ?? 0),
     locationMetrics,
     readingTotalMinutes: Number(overview.readingTotalMinutes ?? 0),
     totalDownloadUnits: Number(overview.totalDownloadUnits ?? 0),

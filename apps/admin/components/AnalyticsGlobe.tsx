@@ -18,6 +18,11 @@ interface AnalyticsGlobeProps {
   heatmapPoints?: CountryMetric[];
   metrics: CountryMetric[];
   listeningTotalMinutes?: number;
+  // Phase 1 (metric truth): authoritative counts from the RPC for the unfiltered
+  // coverage snapshot, so the globe never derives them from map buckets. Countries
+  // = distinct ISO codes; located listeners = distinct listeners with geo.
+  authoritativeCountryCount?: number;
+  authoritativeLocatedListeners?: number;
   translationBreakdown?: TranslationBreakdownEntry[];
   // Controlled translation filter (P3 S17): when a parent supplies both of these
   // it owns the filter and sibling views (e.g. the country totals table) stay in
@@ -228,6 +233,8 @@ export function AnalyticsGlobe({
   heatmapPoints,
   metrics,
   listeningTotalMinutes,
+  authoritativeCountryCount,
+  authoritativeLocatedListeners,
   translationBreakdown,
   selectedTranslation: selectedTranslationProp,
   onSelectedTranslationChange,
@@ -322,33 +329,47 @@ export function AnalyticsGlobe({
 
   const overviewMetrics = useMemo(() => {
     if (activeBreakdown) {
-      const activeCountryCount = activeBreakdown.countryMetrics.filter(
+      // Filtered to one translation: count genuine per-country rows (not map
+      // buckets), and take the RPC's authoritative per-translation listener
+      // count (buildTranslationBreakdown no longer max-merges country rows).
+      const activeCountryCount = activeBreakdown.countryTableMetrics.filter(
         (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
       ).length;
       return {
         activeCountryCount,
         listeningMinutes: activeBreakdown.listeningMinutes,
-        listenerCount: activeBreakdown.countryMetrics.reduce((sum, m) => sum + m.listenerCount, 0),
+        listenerCount: activeBreakdown.listenerCount,
         downloadUnits: activeBreakdown.downloadUnits,
       };
     }
 
-    const activeCountryCount = effectiveMetrics.filter(
+    // Unfiltered: prefer the RPC's authoritative scalars. "Countries" is the
+    // distinct ISO-country count (NOT the number of lat/lng map buckets), and
+    // "Listeners (located)" is the deduped distinct listener count with geo.
+    const derivedCountryCount = effectiveMetrics.filter(
       (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
     ).length;
 
     return {
-      activeCountryCount,
+      activeCountryCount: authoritativeCountryCount ?? derivedCountryCount,
       // Use the true total (includes anonymous events with no geo data) when
       // available. Falling back to the country sum makes unattributed minutes
       // invisible even though they are real listening time.
       listeningMinutes:
         effectiveListeningTotal ??
         effectiveMetrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
-      listenerCount: effectiveMetrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
+      listenerCount:
+        authoritativeLocatedListeners ??
+        effectiveMetrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
       downloadUnits: effectiveMetrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
     };
-  }, [effectiveMetrics, effectiveListeningTotal, activeBreakdown]);
+  }, [
+    effectiveMetrics,
+    effectiveListeningTotal,
+    activeBreakdown,
+    authoritativeCountryCount,
+    authoritativeLocatedListeners,
+  ]);
 
   const topCountry = rankedMetrics[0] ?? null;
   const modeLabel = getModeLabel(mode);
@@ -742,7 +763,7 @@ export function AnalyticsGlobe({
                 <strong>{overviewMetrics.activeCountryCount}</strong>
               </div>
               <div>
-                <span>Listeners</span>
+                <span>{activeBreakdown ? 'Listeners' : 'Listeners (located)'}</span>
                 <strong>{formatNumber(overviewMetrics.listenerCount)}</strong>
               </div>
               <div>

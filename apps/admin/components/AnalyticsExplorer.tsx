@@ -33,6 +33,8 @@ export function AnalyticsExplorer({
         heatmapPoints={analytics.locationMetrics}
         metrics={analytics.locationMetrics}
         listeningTotalMinutes={analytics.listeningTotalMinutes}
+        authoritativeCountryCount={analytics.activeCountryCount}
+        authoritativeLocatedListeners={analytics.locatedListenerCount}
         translationBreakdown={analytics.translationBreakdown}
         selectedTranslation={selectedTranslation}
         onSelectedTranslationChange={setSelectedTranslation}
@@ -56,11 +58,14 @@ export function AnalyticsExplorer({
           <strong>{analytics.totalDownloadUnits}</strong>
         </article>
         <article className="metric-card">
-          <span>Users with listening ({windowDays}d)</span>
+          <span>Listeners · total ({windowDays}d)</span>
           <strong>{analytics.userCountWithListening}</strong>
+          <small className="metric-card__note">
+            {analytics.locatedListenerCount} located on the map
+          </small>
         </article>
         <article className="metric-card">
-          <span>Active locations</span>
+          <span>Active map locations</span>
           <strong>{analytics.activeLocationCount}</strong>
         </article>
         <article className="metric-card">
@@ -108,7 +113,7 @@ export function AnalyticsExplorer({
                 <th>Reading min</th>
                 <th>Downloads</th>
                 <th>Listeners</th>
-                <th>Mapped points</th>
+                <th title="Distinct approximate lat/lng map buckets — not countries.">Map buckets</th>
                 <th>Map status</th>
               </tr>
             </thead>

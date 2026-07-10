@@ -136,3 +136,71 @@ test('buildTranslationBreakdown falls back to location listening totals before t
   assert.equal(breakdown[0]?.countryMetrics[0]?.code, 'NP');
   assert.equal(breakdown[0]?.countryMetrics[0]?.listeningMinutes, 27.3);
 });
+
+// ── Phase 1 (metric truth): listener counts come from the RPC, never derived ──
+
+test('buildTranslationBreakdown uses the authoritative per-translation listener count, not a max of country rows', () => {
+  // BSB has two country rows (145 + 137 listeners) that must NOT be summed or
+  // max-merged client-side. The RPC supplies the deduped distinct total (377).
+  const breakdown = buildTranslationBreakdown(
+    [
+      { translationId: 'bsb', code: 'NP', name: 'Nepal', listeningMinutes: 2424, readingMinutes: 530, listenerCount: 137, downloadUnits: 4 },
+      { translationId: 'bsb', code: 'US', name: 'United States', listeningMinutes: 983, readingMinutes: 414, listenerCount: 145, downloadUnits: 134 },
+    ],
+    [],
+    [{ translationId: 'bsb', listeningMinutes: 3247 }],
+    [{ translationId: 'bsb', listenerCount: 377 }]
+  );
+
+  assert.equal(breakdown.length, 1);
+  // NOT 145 (max of country rows) and NOT 282 (sum) — the RPC's dedup count.
+  assert.equal(breakdown[0]?.listenerCount, 377);
+});
+
+test('per-translation listeners never exceed the all-listeners total (subset invariant)', () => {
+  // Distinct listeners for any single translation are a subset of all distinct
+  // listeners, so this must hold for every translation the RPC returns.
+  const userCountWithListening = 418;
+  const listenerRollups = [
+    { translationId: 'bsb', listenerCount: 377 },
+    { translationId: 'byh', listenerCount: 22 },
+    { translationId: 'npiulb', listenerCount: 4 },
+  ];
+
+  const breakdown = buildTranslationBreakdown(
+    listenerRollups.map((r) => ({
+      translationId: r.translationId,
+      code: 'NP',
+      name: 'Nepal',
+      listeningMinutes: 10,
+      readingMinutes: 0,
+      listenerCount: r.listenerCount,
+      downloadUnits: 0,
+    })),
+    [],
+    [],
+    listenerRollups
+  );
+
+  for (const entry of breakdown) {
+    assert.ok(
+      entry.listenerCount <= userCountWithListening,
+      `translation ${entry.translationId} listeners (${entry.listenerCount}) must be <= total (${userCountWithListening})`
+    );
+  }
+});
+
+test('buildTranslationBreakdown still falls back to the country max when the RPC omits listener counts', () => {
+  // Backward compatibility: older RPC payloads without translationListenerCounts
+  // keep the previous behaviour rather than reporting zero listeners.
+  const breakdown = buildTranslationBreakdown(
+    [
+      { translationId: 'kjv', code: 'US', name: 'United States', listeningMinutes: 10, readingMinutes: 0, listenerCount: 6, downloadUnits: 0 },
+      { translationId: 'kjv', code: 'GB', name: 'United Kingdom', listeningMinutes: 8, readingMinutes: 0, listenerCount: 4, downloadUnits: 0 },
+    ],
+    [],
+    []
+  );
+
+  assert.equal(breakdown[0]?.listenerCount, 6);
+});
