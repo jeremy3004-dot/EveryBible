@@ -177,6 +177,7 @@ export function buildTranslationBreakdown(
       code: row.code,
       name: row.name,
       listeningMinutes: Number(row.listeningMinutes) || 0,
+      readingMinutes: Number(row.readingMinutes) || 0,
       downloadUnits: Math.round(Number(row.downloadUnits) || 0),
       listenerCount: Math.round(Number(row.listenerCount) || 0),
     });

@@ -16,5 +16,13 @@ test('admin analytics overview uses the shared Supabase analytics RPC for locati
   assert.match(source, /locationMetrics/);
   assert.match(source, /activeLocationCount/);
   assert.match(source, /translationListeningMinutes/);
-  assert.doesNotMatch(source, /countryMetrics/);
+  // Country totals are a first-class part of the dashboard (P3 S16), so the
+  // overview intentionally carries countryMetrics.
+  assert.match(source, /countryMetrics/);
+  // Engagement "computed at" comes from a separate user_engagement_summary query
+  // (the RPC doesn't expose it) — P3 S16.
+  assert.match(source, /user_engagement_summary/);
+  assert.match(source, /engagementScoreComputedAt/);
+  // The time-range window is parameterized + whitelisted (P3 S14).
+  assert.match(source, /normalizeAnalyticsWindow/);
 });

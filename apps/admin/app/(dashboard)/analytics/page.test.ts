@@ -6,39 +6,63 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../');
 
-test('analytics page puts the globe hero before secondary analytics sections', async () => {
-  const pageSource = await readFile(
-    path.join(repoRoot, 'apps/admin/app/(dashboard)/analytics/page.tsx'),
-    'utf8'
-  );
+async function read(relativePath: string): Promise<string> {
+  return readFile(path.join(repoRoot, relativePath), 'utf8');
+}
 
-  const globeIndex = pageSource.indexOf('<AnalyticsGlobe');
-  const metricsIndex = pageSource.indexOf('<section className="metric-grid analytics-page__metrics">');
-  const dailyTrendsIndex = pageSource.indexOf('<DailyTrendsPanel');
-  const translationTableIndex = pageSource.indexOf('<p className="eyebrow">By translation</p>');
-  const oldTrendIndex = pageSource.indexOf('<section className="two-column analytics-page__trends">');
-  const locationTableIndex = pageSource.indexOf('<p className="eyebrow">Top locations</p>');
+test('analytics page renders a whitelisted time-range picker + client explorer', async () => {
+  const page = await read('apps/admin/app/(dashboard)/analytics/page.tsx');
+
+  assert.match(
+    page,
+    /normalizeAnalyticsWindow\(\(await searchParams\)\.window\)/,
+    'the window must come from a whitelisted search param (P3 S14)'
+  );
+  assert.match(page, /getAnalyticsOverview\(windowDays\)/, 'the overview fetch is parameterized by the selected window');
+  assert.match(page, /<AnalyticsTimeRangePicker/, 'time-range picker present');
+  assert.match(
+    page,
+    /<AnalyticsExplorer analytics=\{analytics\} windowDays=\{windowDays\}/,
+    'the client explorer receives the overview + window'
+  );
+  // Globe + tables live in the client explorer now (for filter sync), not inline.
+  assert.doesNotMatch(page, /<AnalyticsGlobe/, 'globe should render inside the explorer, not the page');
+});
+
+test('analytics explorer: globe hero before metrics + tables, and translation filter syncs the tables', async () => {
+  const explorer = await read('apps/admin/components/AnalyticsExplorer.tsx');
+
+  const globeIndex = explorer.indexOf('<AnalyticsGlobe');
+  const metricsIndex = explorer.indexOf('<section className="metric-grid analytics-page__metrics">');
+  const dailyTrendsIndex = explorer.indexOf('<DailyTrendsPanel');
+  const translationTableIndex = explorer.indexOf('<p className="eyebrow">By translation</p>');
+  const countryTableIndex = explorer.indexOf('<p className="eyebrow">Top countries</p>');
 
   assert.ok(globeIndex >= 0, 'expected globe component to be present');
-  assert.match(pageSource, /metrics=\{analytics\.locationMetrics\}/, 'globe should use locationMetrics for markers');
-  assert.doesNotMatch(pageSource, /countryMetrics/, 'analytics page should not reference countryMetrics');
-  assert.ok(metricsIndex >= 0, 'expected metric grid to be present');
-  assert.ok(dailyTrendsIndex >= 0, 'expected compact daily trends panel to be present');
+  assert.match(explorer, /metrics=\{analytics\.locationMetrics\}/, 'globe should use locationMetrics for markers');
   assert.ok(
-    pageSource.includes('dailyListeningMinutes={analytics.dailyListeningMinutes}') &&
-      pageSource.includes('dailyDownloadUnits={analytics.dailyDownloadUnits}'),
-    'expected daily trends panel props to be wired'
+    globeIndex < metricsIndex &&
+      metricsIndex < dailyTrendsIndex &&
+      dailyTrendsIndex < translationTableIndex &&
+      translationTableIndex < countryTableIndex,
+    'sections must be ordered: globe → metrics → daily trends → translation table → country table'
   );
-  assert.equal(oldTrendIndex, -1, 'expected old two-column trend section to be removed');
-  assert.ok(globeIndex < metricsIndex, 'globe should appear before the metrics grid');
-  assert.ok(globeIndex < dailyTrendsIndex, 'globe should appear before the daily trends panel');
-  assert.ok(dailyTrendsIndex < translationTableIndex, 'daily trends should appear before the translation table');
-  assert.ok(translationTableIndex < locationTableIndex, 'translation table should appear before the location table');
-  assert.match(pageSource, /Active locations/);
-  assert.match(pageSource, /Translation engagement/);
-  assert.match(pageSource, /analytics\.translationBreakdown\.map/);
-  assert.match(pageSource, /Heatmap ready/);
-  assert.match(pageSource, /Top locations/);
-  assert.match(pageSource, /Location totals/);
-  assert.match(pageSource, /analytics\.locationMetrics\.map/);
+
+  // Filter sync (P3 S17): the in-globe selection drives the country table.
+  assert.match(
+    explorer,
+    /onSelectedTranslationChange=\{setSelectedTranslation\}/,
+    'globe selection must be lifted into the explorer state'
+  );
+  assert.match(
+    explorer,
+    /const countryRows = activeEntry \? activeEntry\.countryMetrics : analytics\.countryMetrics/,
+    'the country table must filter by the selected translation'
+  );
+
+  // S16 additions.
+  assert.match(explorer, /Reading min/, 'country table should show reading minutes');
+  assert.match(explorer, /country\.readingMinutes/, 'reading minutes must be wired into the country row');
+  assert.match(explorer, /engagementScoreComputedAt/, 'engagement computed-at timestamp should be shown');
+  assert.match(explorer, /Translation engagement/, 'translation table present');
 });

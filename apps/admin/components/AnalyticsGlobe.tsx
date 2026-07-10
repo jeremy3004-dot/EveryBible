@@ -19,6 +19,9 @@ interface AnalyticsGlobeProps {
   metrics: CountryMetric[];
   listeningTotalMinutes?: number;
   translationBreakdown?: TranslationBreakdownEntry[];
+  // Notifies a parent when the in-globe translation filter changes, so sibling
+  // views (e.g. the country totals table) can filter in sync (P3 S17).
+  onSelectedTranslationChange?: (translationId: string | null) => void;
 }
 
 interface MetricFeatureProperties {
@@ -224,6 +227,7 @@ export function AnalyticsGlobe({
   metrics,
   listeningTotalMinutes,
   translationBreakdown,
+  onSelectedTranslationChange,
 }: AnalyticsGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -244,6 +248,11 @@ export function AnalyticsGlobe({
     if (!selectedTranslation || !translationBreakdown?.length) return null;
     return translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ?? null;
   }, [selectedTranslation, translationBreakdown]);
+
+  // Keep sibling views (country totals table) in sync with the in-globe filter.
+  useEffect(() => {
+    onSelectedTranslationChange?.(selectedTranslation);
+  }, [selectedTranslation, onSelectedTranslationChange]);
 
   const isSingleTranslationWindow = (translationBreakdown?.length ?? 0) === 1;
   const selectedTranslationHasGeoMetrics = Boolean(
