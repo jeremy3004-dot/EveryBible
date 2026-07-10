@@ -319,6 +319,8 @@ export interface AnalyticsOverview {
   activeCountryCount: number;
   activeLocationCount: number;
   averageEngagementScore: number;
+  // When the nightly cron last recomputed engagement scores (ISO), or null.
+  engagementScoreComputedAt: string | null;
   countryMetrics: CountryMetric[];
   dailyDownloadUnits: DailyMetricPoint[];
   dailyListeningMinutes: Array<{ day: string; minutes: number }>;
@@ -1125,23 +1127,51 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
   };
 }
 
-// Rolling window for the shared analytics overview. The dashboard labels derive
-// from this same constant so the copy can never drift from the actual query
-// window (e.g. a label reading "30d" while the query asks for a different span).
-export const ANALYTICS_WINDOW_DAYS = 180;
+// Selectable rolling windows for the shared analytics overview. The dashboard
+// labels derive from the SELECTED value so the copy can never drift from the
+// actual query window.
+export const ANALYTICS_WINDOW_OPTIONS = [7, 30, 90, 180] as const;
+export type AnalyticsWindowDays = (typeof ANALYTICS_WINDOW_OPTIONS)[number];
+export const DEFAULT_ANALYTICS_WINDOW_DAYS: AnalyticsWindowDays = 180;
+// Back-compat alias (default window).
+export const ANALYTICS_WINDOW_DAYS = DEFAULT_ANALYTICS_WINDOW_DAYS;
 
-export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
+// Whitelists an untrusted query-param value to a supported window, defaulting to
+// 180d. Never passes an arbitrary number through to the RPC.
+export function normalizeAnalyticsWindow(value: unknown): AnalyticsWindowDays {
+  const parsed = Array.isArray(value) ? value[0] : value;
+  const days = Number(parsed);
+  return (ANALYTICS_WINDOW_OPTIONS as readonly number[]).includes(days)
+    ? (days as AnalyticsWindowDays)
+    : DEFAULT_ANALYTICS_WINDOW_DAYS;
+}
+
+export async function getAnalyticsOverview(
+  windowDays: AnalyticsWindowDays = DEFAULT_ANALYTICS_WINDOW_DAYS
+): Promise<AnalyticsOverview> {
   const service = createAdminServiceClient();
   const since = new Date();
-  since.setDate(since.getDate() - ANALYTICS_WINDOW_DAYS);
+  since.setDate(since.getDate() - windowDays);
   const { data, error } = await service.rpc('get_admin_analytics_overview', {
     p_since: since.toISOString(),
-    p_total_days: ANALYTICS_WINDOW_DAYS,
+    p_total_days: windowDays,
   });
 
   if (error) {
     throw new Error(`Unable to load shared analytics overview: ${error.message}`);
   }
+
+  // S16: engagement scores are pre-computed by the nightly cron, NOT within this
+  // window — expose when they were last refreshed. The RPC doesn't return this,
+  // so query the summary table's freshest updated_at directly.
+  const { data: engagementRow } = await service
+    .from('user_engagement_summary')
+    .select('updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const engagementScoreComputedAt =
+    (engagementRow as { updated_at?: string } | null)?.updated_at ?? null;
 
   const overview = ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {};
   const countryMetrics = overview.countryMetrics?.length
@@ -1169,6 +1199,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
     activeLocationCount: locationMetrics.length,
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
+    engagementScoreComputedAt,
     countryMetrics,
     dailyDownloadUnits: (overview.dailyDownloadUnits ?? []).map((point) => ({
       day: point.day,

@@ -2,20 +2,30 @@ import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { DailyTrendsPanel } from '@/components/DailyTrendsPanel';
 import { AnalyticsGlobe } from '@/components/AnalyticsGlobe';
 import { RefreshAnalyticsButton } from '@/components/RefreshAnalyticsButton';
-import { ANALYTICS_WINDOW_DAYS, getAnalyticsOverview } from '@/lib/admin-data';
+import { AnalyticsTimeRangePicker } from '@/components/AnalyticsTimeRangePicker';
+import {
+  ANALYTICS_WINDOW_OPTIONS,
+  getAnalyticsOverview,
+  normalizeAnalyticsWindow,
+} from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 
 // Analytics data must reflect the live DB on every request — disable static
 // generation and Next.js fetch caching for this route.
 export const dynamic = 'force-dynamic';
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const missingKeys = getAdminRequiredEnvKeys();
   if (missingKeys.length > 0) {
     return <AdminSetupCard missingKeys={missingKeys} />;
   }
 
-  const analytics = await getAnalyticsOverview();
+  const windowDays = normalizeAnalyticsWindow((await searchParams).window);
+  const analytics = await getAnalyticsOverview(windowDays);
 
   return (
     <div className="analytics-page">
@@ -27,7 +37,10 @@ export default async function AnalyticsPage() {
             Map and listening totals update live. Engagement scores refresh via nightly cron or manually below.
           </p>
         </div>
-        <RefreshAnalyticsButton />
+        <div className="analytics-page__header-actions">
+          <AnalyticsTimeRangePicker options={ANALYTICS_WINDOW_OPTIONS} selected={windowDays} />
+          <RefreshAnalyticsButton />
+        </div>
       </div>
 
       <AnalyticsGlobe
@@ -39,11 +52,11 @@ export default async function AnalyticsPage() {
 
       <section className="metric-grid analytics-page__metrics">
         <article className="metric-card">
-          <span>Listening minutes ({ANALYTICS_WINDOW_DAYS}d)</span>
+          <span>Listening minutes ({windowDays}d)</span>
           <strong>{analytics.listeningTotalMinutes}</strong>
         </article>
         <article className="metric-card">
-          <span>Reading minutes ({ANALYTICS_WINDOW_DAYS}d)</span>
+          <span>Reading minutes ({windowDays}d)</span>
           <strong>{analytics.readingTotalMinutes}</strong>
         </article>
         <article className="metric-card">
@@ -51,7 +64,7 @@ export default async function AnalyticsPage() {
           <strong>{analytics.totalTrackedSessions}</strong>
         </article>
         <article className="metric-card">
-          <span>Download units ({ANALYTICS_WINDOW_DAYS}d)</span>
+          <span>Download units ({windowDays}d)</span>
           <strong>{analytics.totalDownloadUnits}</strong>
         </article>
         <article className="metric-card">
@@ -63,8 +76,13 @@ export default async function AnalyticsPage() {
           <strong>{analytics.activeLocationCount}</strong>
         </article>
         <article className="metric-card">
-          <span>Average engagement</span>
+          <span>Average engagement (all users)</span>
           <strong>{analytics.averageEngagementScore}</strong>
+          <small className="metric-card__note">
+            {analytics.engagementScoreComputedAt
+              ? `Scores computed ${new Date(analytics.engagementScoreComputedAt).toLocaleString()}`
+              : 'Scores not yet computed'}
+          </small>
         </article>
       </section>
 
@@ -133,7 +151,10 @@ export default async function AnalyticsPage() {
                 <th>Country</th>
                 <th>Code</th>
                 <th>Listening min</th>
-                <th>Download units</th>
+                <th>Reading min</th>
+                <th title="Download units: 1 = one text translation pack, or one book of audio.">
+                  Download units
+                </th>
                 <th>Listeners</th>
               </tr>
             </thead>
@@ -143,6 +164,7 @@ export default async function AnalyticsPage() {
                   <td>{country.name}</td>
                   <td>{country.code}</td>
                   <td>{Math.round(country.listeningMinutes)}</td>
+                  <td>{Math.round(country.readingMinutes)}</td>
                   <td>{country.downloadUnits}</td>
                   <td>{country.listenerCount}</td>
                 </tr>
