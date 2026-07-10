@@ -16,6 +16,9 @@ interface AnonymousUsageEvent {
   geo_longitude?: number | null;
   geo_source?: string | null;
   geo_timezone?: string | null;
+  geo_city?: string | null;
+  geo_region_code?: string | null;
+  geo_region_name?: string | null;
   queued_at: string;
   session_id: string | null;
 }
@@ -31,6 +34,9 @@ interface GeoResult {
   longitude: number | null;
   source: string | null;
   timezone: string | null;
+  city: string | null;
+  region: string | null;
+  regionCode: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +109,7 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
     const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
-      | { country?: unknown; loc?: unknown; timezone?: unknown }
+      | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
       | null;
     if (!p) return null;
     let latitude: number | null = null;
@@ -119,7 +125,10 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
       countryCode: normalizeCountryCode(p.country),
       latitude, longitude,
       source: 'ipinfo',
-      timezone: typeof p.timezone === 'string' && p.timezone.trim().length > 0 ? p.timezone.trim() : null,
+      timezone: getText(p.timezone),
+      city: getText(p.city),
+      region: getText(p.region),
+      regionCode: null,
     };
   } catch { return null; }
 }
@@ -132,7 +141,16 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
     });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
-      | { country_code?: unknown; latitude?: unknown; longitude?: unknown; timezone?: unknown; error?: unknown }
+      | {
+          country_code?: unknown;
+          latitude?: unknown;
+          longitude?: unknown;
+          timezone?: unknown;
+          city?: unknown;
+          region?: unknown;
+          region_code?: unknown;
+          error?: unknown;
+        }
       | null;
     if (!p || p.error) return null;
     const lat = typeof p.latitude === 'number' ? p.latitude : null;
@@ -142,7 +160,10 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
       countryCode: normalizeCountryCode(p.country_code),
       latitude: lat, longitude: lng,
       source: 'ipapi',
-      timezone: typeof p.timezone === 'string' && p.timezone.trim().length > 0 ? p.timezone.trim() : null,
+      timezone: getText(p.timezone),
+      city: getText(p.city),
+      region: getText(p.region),
+      regionCode: getText(p.region_code)?.toUpperCase() ?? null,
     };
   } catch { return null; }
 }
@@ -154,6 +175,9 @@ function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
   const source = getText(event.geo_source);
   const timezone = getText(event.geo_timezone);
   const accuracyKm = normalizeAccuracyKm(event.geo_accuracy_km);
+  const city = getText(event.geo_city);
+  const region = getText(event.geo_region_name);
+  const regionCode = getText(event.geo_region_code)?.toUpperCase() ?? null;
 
   if (
     countryCode == null &&
@@ -161,7 +185,10 @@ function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
     longitude == null &&
     source == null &&
     timezone == null &&
-    accuracyKm == null
+    accuracyKm == null &&
+    city == null &&
+    region == null &&
+    regionCode == null
   ) {
     return null;
   }
@@ -173,6 +200,9 @@ function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
     longitude,
     source,
     timezone,
+    city,
+    region,
+    regionCode,
   };
 }
 
@@ -198,6 +228,9 @@ async function resolveRequestGeo(req: Request): Promise<GeoResult> {
     longitude: null,
     source: cfCountry ? 'cf_ipcountry' : null,
     timezone: null,
+    city: null,
+    region: null,
+    regionCode: null,
   };
 }
 
@@ -213,7 +246,20 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
     longitude: payloadGeo.longitude ?? requestGeo.longitude,
     source: payloadGeo.source ?? requestGeo.source,
     timezone: payloadGeo.timezone ?? requestGeo.timezone,
+    city: payloadGeo.city ?? requestGeo.city,
+    region: payloadGeo.region ?? requestGeo.region,
+    regionCode: payloadGeo.regionCode ?? requestGeo.regionCode,
   };
+}
+
+// Sets a coarse accuracy radius by source when the client didn't supply one:
+// city-level fixes ~50 km, country-only ~800 km. Also keeps edge output aligned
+// with the geo_accuracy_km DOUBLE PRECISION column contract (see P2 S13).
+function accuracyKmForGeo(geo: GeoResult): number | null {
+  if (geo.accuracyKm != null) return geo.accuracyKm;
+  if (geo.city) return 50;
+  if (geo.countryCode) return 800;
+  return null;
 }
 
 function getText(value: unknown): string | null {
@@ -316,6 +362,9 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       geo_longitude: raw.geo_longitude == null ? null : normalizeCoordinate(raw.geo_longitude),
       geo_source: raw.geo_source == null ? null : getText(raw.geo_source),
       geo_timezone: raw.geo_timezone == null ? null : getText(raw.geo_timezone),
+      geo_city: raw.geo_city == null ? null : getText(raw.geo_city),
+      geo_region_code: raw.geo_region_code == null ? null : getText(raw.geo_region_code),
+      geo_region_name: raw.geo_region_name == null ? null : getText(raw.geo_region_name),
       queued_at: queuedAt,
       session_id: raw.session_id === null || getText(raw.session_id) === null ? null : getText(raw.session_id),
     });
@@ -351,6 +400,9 @@ Deno.serve(async (request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const requestGeo = await resolveRequestGeo(request);
+    console.log(
+      `[track-anonymous-usage-events] geo tier=${requestGeo.source ?? 'none'} country=${requestGeo.countryCode ?? 'none'} city=${requestGeo.city ?? 'none'}`
+    );
     // Auth-optional: attribute user_id when a genuine user token is present.
     const userId = await resolveUserId(request, supabase);
 
@@ -365,13 +417,13 @@ Deno.serve(async (request) => {
         device_platform: event.device_platform,
         app_version: event.app_version,
         created_at: event.queued_at,
-        geo_accuracy_km: geo.accuracyKm,
-        geo_city: null,
+        geo_accuracy_km: accuracyKmForGeo(geo),
+        geo_city: geo.city,
         geo_country_code: geo.countryCode,
         geo_latitude: geo.latitude,
         geo_longitude: geo.longitude,
-        geo_region_code: null,
-        geo_region_name: null,
+        geo_region_code: geo.regionCode,
+        geo_region_name: geo.region,
         geo_source: geo.source,
         geo_timezone: geo.timezone,
       };

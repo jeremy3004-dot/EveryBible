@@ -16,6 +16,9 @@ interface QueuedAnalyticsEvent {
   geo_longitude?: number | null;
   geo_source?: string | null;
   geo_timezone?: string | null;
+  geo_city?: string | null;
+  geo_region_code?: string | null;
+  geo_region_name?: string | null;
   queued_at: string;
   session_id: string | null;
 }
@@ -27,6 +30,9 @@ interface GeoResult {
   longitude: number | null;
   source: string | null;
   timezone: string | null;
+  city: string | null;
+  region: string | null;
+  regionCode: string | null;
 }
 
 interface TrackAnalyticsRequestBody {
@@ -48,6 +54,12 @@ function getEventProperty(event: QueuedAnalyticsEvent, key: string): unknown {
   }
 
   return (properties as Record<string, unknown>)[key];
+}
+
+function getText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +133,7 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
     const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
-      | { country?: unknown; loc?: unknown; timezone?: unknown }
+      | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
       | null;
     if (!p) return null;
     let latitude: number | null = null;
@@ -137,7 +149,10 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
       countryCode: normalizeCountryCode(p.country),
       latitude, longitude,
       source: 'ipinfo',
-      timezone: typeof p.timezone === 'string' && p.timezone.trim().length > 0 ? p.timezone.trim() : null,
+      timezone: getText(p.timezone),
+      city: getText(p.city),
+      region: getText(p.region),
+      regionCode: null,
     };
   } catch { return null; }
 }
@@ -150,7 +165,16 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
     });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
-      | { country_code?: unknown; latitude?: unknown; longitude?: unknown; timezone?: unknown; error?: unknown }
+      | {
+          country_code?: unknown;
+          latitude?: unknown;
+          longitude?: unknown;
+          timezone?: unknown;
+          city?: unknown;
+          region?: unknown;
+          region_code?: unknown;
+          error?: unknown;
+        }
       | null;
     if (!p || p.error) return null;
     const lat = typeof p.latitude === 'number' ? p.latitude : null;
@@ -161,7 +185,10 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
       latitude: lat,
       longitude: lng,
       source: 'ipapi',
-      timezone: typeof p.timezone === 'string' && p.timezone.trim().length > 0 ? p.timezone.trim() : null,
+      timezone: getText(p.timezone),
+      city: getText(p.city),
+      region: getText(p.region),
+      regionCode: getText(p.region_code)?.toUpperCase() ?? null,
     };
   } catch { return null; }
 }
@@ -187,6 +214,10 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
   );
   const source = typeof sourceValue === 'string' && sourceValue.trim().length > 0 ? sourceValue.trim() : null;
   const timezone = typeof timezoneValue === 'string' && timezoneValue.trim().length > 0 ? timezoneValue.trim() : null;
+  const city = getText(event.geo_city ?? getEventProperty(event, 'geo_city'));
+  const region = getText(event.geo_region_name ?? getEventProperty(event, 'geo_region_name'));
+  const regionCode =
+    getText(event.geo_region_code ?? getEventProperty(event, 'geo_region_code'))?.toUpperCase() ?? null;
 
   if (
     countryCode == null &&
@@ -194,7 +225,10 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
     longitude == null &&
     source == null &&
     timezone == null &&
-    accuracyKm == null
+    accuracyKm == null &&
+    city == null &&
+    region == null &&
+    regionCode == null
   ) {
     return null;
   }
@@ -206,6 +240,9 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
     longitude,
     source,
     timezone,
+    city,
+    region,
+    regionCode,
   };
 }
 
@@ -235,6 +272,9 @@ async function resolveRequestGeo(req: Request): Promise<GeoResult> {
     longitude: null,
     source: cfCountry ? 'cf_ipcountry' : null,
     timezone: null,
+    city: null,
+    region: null,
+    regionCode: null,
   };
 }
 
@@ -250,7 +290,20 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
     longitude: payloadGeo.longitude ?? requestGeo.longitude,
     source: payloadGeo.source ?? requestGeo.source,
     timezone: payloadGeo.timezone ?? requestGeo.timezone,
+    city: payloadGeo.city ?? requestGeo.city,
+    region: payloadGeo.region ?? requestGeo.region,
+    regionCode: payloadGeo.regionCode ?? requestGeo.regionCode,
   };
+}
+
+// Coarse accuracy radius by source when the client didn't supply one:
+// city-level ~50 km, country-only ~800 km. Keeps edge output aligned with the
+// geo_accuracy_km DOUBLE PRECISION column contract (see P2 S13).
+function accuracyKmForGeo(geo: GeoResult): number | null {
+  if (geo.accuracyKm != null) return geo.accuracyKm;
+  if (geo.city) return 50;
+  if (geo.countryCode) return 800;
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -308,6 +361,9 @@ Deno.serve(async (req) => {
       );
     });
     const requestGeo = requiresRequestGeo ? await resolveRequestGeo(req) : null;
+    console.log(
+      `[track-analytics-events] geo tier=${requestGeo?.source ?? 'payload-or-none'} country=${requestGeo?.countryCode ?? 'none'} city=${requestGeo?.city ?? 'none'}`
+    );
     const now = new Date().toISOString();
 
     const rows = events.map((event, index) => {
@@ -319,6 +375,9 @@ Deno.serve(async (req) => {
         longitude: null,
         source: null,
         timezone: null,
+        city: null,
+        region: null,
+        regionCode: null,
       };
 
       return {
@@ -327,13 +386,13 @@ Deno.serve(async (req) => {
         device_platform: event.device_platform,
         event_name: event.event_name,
         event_properties: event.event_properties ?? {},
-        geo_accuracy_km: geo.accuracyKm,
-        geo_city: null,
+        geo_accuracy_km: accuracyKmForGeo(geo),
+        geo_city: geo.city,
         geo_country_code: geo.countryCode,
         geo_latitude: geo.latitude,
         geo_longitude: geo.longitude,
-        geo_region_code: null,
-        geo_region_name: null,
+        geo_region_code: geo.regionCode,
+        geo_region_name: geo.region,
         geo_source: geo.source,
         geo_timezone: geo.timezone,
         session_id: event.session_id,
