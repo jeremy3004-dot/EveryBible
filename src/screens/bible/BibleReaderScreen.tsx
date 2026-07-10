@@ -55,6 +55,7 @@ import {
 import { config } from '../../constants/config';
 import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { getReadingFontFamily } from '../../design/fonts';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
@@ -1059,6 +1060,10 @@ export function BibleReaderScreen() {
     bookId,
   }).canPlayAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  // Reading-surface serif family for this translation's script. Latin → Lora;
+  // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
+  // glyphs render instead of tofu. `language` is a display name ('Hindi').
+  const readingFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
@@ -4712,7 +4717,13 @@ export function BibleReaderScreen() {
     const textStyle = [
       styles.verseText,
       usePremiumTypography ? styles.premiumVerseText : null,
-      { fontSize: verseFontSize, lineHeight: verseLineHeight, color: colors.biblePrimaryText },
+      {
+        fontSize: verseFontSize,
+        lineHeight: verseLineHeight,
+        color: colors.biblePrimaryText,
+        // undefined for non-Latin scripts overrides the token's Lora → platform serif.
+        fontFamily: readingFontFamily,
+      },
     ];
     const verseNumberStyle = [
       styles.inlineVerseNumber,
@@ -4895,6 +4906,7 @@ export function BibleReaderScreen() {
               {
                 fontSize: headingFontSize,
                 color: colors.biblePrimaryText,
+                fontFamily: readingFontFamily,
               },
             ]}
           >
@@ -5483,6 +5495,24 @@ export function BibleReaderScreen() {
               <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
                 {t('bible.fontsAndSettings')}
               </Text>
+              <View
+                style={[styles.readerFontPreview, { backgroundColor: colors.bibleElevatedSurface }]}
+              >
+                <Text
+                  allowFontScaling={false}
+                  style={[
+                    styles.readerFontPreviewSpecimen,
+                    {
+                      color: colors.biblePrimaryText,
+                      fontFamily: readingFontFamily,
+                      fontSize: scaleValue(typography.readingBody.fontSize) * 1.7,
+                      lineHeight: scaleValue(typography.readingBody.lineHeight) * 1.7,
+                    },
+                  ]}
+                >
+                  Aa
+                </Text>
+              </View>
               <View style={styles.readerFontStepperRow}>
                 <TouchableOpacity
                   style={[
@@ -5542,68 +5572,78 @@ export function BibleReaderScreen() {
                 {readerThemePreviewOptions.map((option) => {
                   const isActive = themeMode === option.mode;
                   return (
-                    <TouchableOpacity
-                      key={option.mode}
-                      style={[
-                        styles.readerThemeTile,
-                        {
-                          borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                        },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(option.labelKey)}
-                      onPress={() => handleReaderThemeChange(option.mode)}
-                      activeOpacity={0.85}
-                    >
-                      <LinearGradient
-                        colors={option.background}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <View
+                    <View key={option.mode} style={styles.readerThemeTileColumn}>
+                      <TouchableOpacity
                         style={[
-                          styles.readerThemePaper,
-                          {
-                            backgroundColor: option.paper,
-                            borderColor: hexWithAlpha(option.line, 0.14),
-                          },
-                        ]}
-                      >
-                        <View style={styles.readerThemeLineStack}>
-                          <View
-                            style={[styles.readerThemeLine, { backgroundColor: option.line }]}
-                          />
-                          <View
-                            style={[
-                              styles.readerThemeLine,
-                              styles.readerThemeLineMedium,
-                              { backgroundColor: option.line },
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.readerThemeLine,
-                              styles.readerThemeLineShort,
-                              { backgroundColor: option.line },
-                            ]}
-                          />
-                        </View>
-                      </View>
-                      <View
-                        style={[
-                          styles.readerThemeCheckCircle,
+                          styles.readerThemeTile,
                           {
                             borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                            backgroundColor: isActive ? colors.accentPrimary : 'transparent',
                           },
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(option.labelKey)}
+                        onPress={() => handleReaderThemeChange(option.mode)}
+                        activeOpacity={0.85}
                       >
-                        {isActive ? (
-                          <Ionicons name="checkmark" size={18} color={colors.onAccent} />
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
+                        <LinearGradient
+                          colors={option.background}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                        <View
+                          style={[
+                            styles.readerThemePaper,
+                            {
+                              backgroundColor: option.paper,
+                              borderColor: hexWithAlpha(option.line, 0.14),
+                            },
+                          ]}
+                        >
+                          <View style={styles.readerThemeLineStack}>
+                            <View
+                              style={[styles.readerThemeLine, { backgroundColor: option.line }]}
+                            />
+                            <View
+                              style={[
+                                styles.readerThemeLine,
+                                styles.readerThemeLineMedium,
+                                { backgroundColor: option.line },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.readerThemeLine,
+                                styles.readerThemeLineShort,
+                                { backgroundColor: option.line },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                        <View
+                          style={[
+                            styles.readerThemeCheckCircle,
+                            {
+                              borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
+                              backgroundColor: isActive ? colors.accentPrimary : 'transparent',
+                            },
+                          ]}
+                        >
+                          {isActive ? (
+                            <Ionicons name="checkmark" size={18} color={colors.onAccent} />
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.readerThemeTileLabel,
+                          { color: isActive ? colors.accentPrimary : colors.bibleSecondaryText },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t(option.labelKey)}
+                      </Text>
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -7951,9 +7991,27 @@ const styles = StyleSheet.create({
     fontSize: 42,
     lineHeight: 48,
   },
+  readerFontPreview: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+  },
+  readerFontPreviewSpecimen: {
+    textAlign: 'center',
+  },
   readerThemeModeRail: {
     gap: 10,
     paddingRight: 2,
+  },
+  readerThemeTileColumn: {
+    width: 128,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  readerThemeTileLabel: {
+    ...typography.micro,
+    textAlign: 'center',
   },
   readerThemeTile: {
     width: 128,

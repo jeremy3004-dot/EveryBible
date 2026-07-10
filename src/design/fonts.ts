@@ -41,49 +41,81 @@ export const systemSerifFamily = Platform.select({
   default: 'Georgia',
 });
 
-// Base language codes whose scripts Lora does not cover. These fall back to the
-// platform serif on reading surfaces. Kept as a small allowlist-of-exclusions so
-// new Latin/Cyrillic translations get Lora automatically; extend when adding a
+// Languages whose scripts Lora does not cover. Kept as an allowlist-of-exclusions
+// so new Latin/Cyrillic translations get Lora automatically. Accepts BOTH ISO
+// codes ('hi') and the English display names our translation catalog stores
+// ('Hindi'), because callers pass whichever they have — extend when adding a
 // reading translation in an unsupported script.
 const NON_LATIN_READING_SCRIPTS = new Set([
   // Devanagari
   'hi',
+  'hindi',
   'ne',
+  'nepali',
   'mr',
+  'marathi',
   'sa',
-  // Other non-Latin scripts Lora lacks
+  'sanskrit',
+  // Other non-Latin scripts Lora lacks (ISO code + display name)
   'ar',
+  'arabic',
   'fa',
+  'persian',
   'ur',
+  'urdu',
   'he',
+  'hebrew',
   'zh',
+  'chinese',
   'ja',
+  'japanese',
   'ko',
+  'korean',
   'th',
+  'thai',
   'lo',
+  'lao',
   'my',
+  'burmese',
   'km',
+  'khmer',
   'ta',
+  'tamil',
   'te',
+  'telugu',
   'kn',
+  'kannada',
   'ml',
+  'malayalam',
   'bn',
+  'bengali',
   'gu',
+  'gujarati',
   'pa',
+  'punjabi',
   'or',
+  'odia',
   'si',
+  'sinhala',
   'am',
+  'amharic',
   'ti',
+  'tigrinya',
   'ka',
+  'georgian',
   'hy',
+  'armenian',
   'dz',
+  'dzongkha',
   'bo',
+  'tibetan',
 ]);
 
 /**
  * Resolve the reading-surface font family for a language. Latin-script languages
  * get Lora at the requested weight/style; Devanagari and other unsupported
- * scripts return `undefined` so the platform serif renders instead.
+ * scripts return `undefined` so the platform serif renders instead. Accepts an
+ * ISO code ('hi', 'ne') or an English display name ('Hindi', 'Nepali').
  */
 export function getReadingFontFamily(
   languageCode?: string,
