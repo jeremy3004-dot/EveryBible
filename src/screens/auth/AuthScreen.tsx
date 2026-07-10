@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -340,7 +341,10 @@ export function AuthScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
               >
-                <Ionicons name="logo-google" size={20} color={colors.primaryText} />
+                <Image
+                  source={require('../../../assets/icons/google-g.png')}
+                  style={styles.googleLogo}
+                />
                 <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
               </TouchableOpacity>
             </View>
@@ -547,6 +551,11 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.sm,
+    },
+    googleLogo: {
+      width: 20,
+      height: 20,
+      resizeMode: 'contain',
     },
     googleButtonText: {
       ...typography.button,
