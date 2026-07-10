@@ -1,6 +1,12 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { RootTabParamList } from './types';
@@ -12,9 +18,37 @@ import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
-import { spacing, typography } from '../design/system';
+import { motion, spacing, typography } from '../design/system';
 import { useTabBarHeight } from '../hooks';
 import { lightHaptic } from '../utils';
+
+// Bottom-tab icon with a subtle scale-up on select. Respects reduced motion.
+function TabBarIcon({
+  name,
+  size,
+  color,
+  focused,
+}: {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  size: number;
+  color: string;
+  focused: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = reduceMotion ? 1 : withSpring(focused ? 1.14 : 1, motion.spring);
+  }, [focused, reduceMotion, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Ionicons name={name} size={size} color={color} />
+    </Animated.View>
+  );
+}
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -182,9 +216,7 @@ export function TabNavigator() {
           headerShown: false,
           freezeOnBlur: true,
           tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.tabActive,
-          tabBarInactiveTintColor: isBibleReader
-            ? colors.bibleSecondaryText
-            : colors.tabInactive,
+          tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.tabInactive,
           tabBarStyle,
           tabBarLabelStyle: typography.tabLabel,
           tabBarItemStyle: {
@@ -198,7 +230,7 @@ export function TabNavigator() {
               return null;
             }
 
-            return <Ionicons name={iconName} size={size} color={color} />;
+            return <TabBarIcon name={iconName} size={size} color={color} focused={focused} />;
           },
         };
       }}
@@ -225,12 +257,8 @@ export function TabNavigator() {
             const nestedRouteParams = focusedRoute?.params ?? bibleRouteState.params?.params;
             const isPlanSessionReader =
               nestedRouteName === 'BibleReader' && typeof nestedRouteParams?.planId === 'string';
-            const {
-              hasReaderHistory,
-              currentBibleBook,
-              currentBibleChapter,
-              preferredBibleMode,
-            } = getBibleTabResumeState();
+            const { hasReaderHistory, currentBibleBook, currentBibleChapter, preferredBibleMode } =
+              getBibleTabResumeState();
             const shouldResumeReader =
               hasReaderHistory && (nestedRouteName !== 'BibleReader' || isPlanSessionReader);
 

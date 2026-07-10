@@ -10,6 +10,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
+import { mediumHaptic } from '../../utils/haptics';
 import { layout, radius } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
 
@@ -118,11 +119,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   }));
 
   return (
-    <View
-      style={[
-        styles.container,
-      ]}
-    >
+    <View style={[styles.container]}>
       <Animated.View
         style={[styles.sideTransportWrap, leftTransportAnimatedStyle]}
         pointerEvents={isCollapsed ? 'none' : 'auto'}
@@ -161,6 +158,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
               },
             ]}
             onPress={() => {
+              mediumHaptic();
               setOptimisticTransportState(
                 isPlaying || optimisticTransportState === 'playing' ? 'paused' : 'playing'
               );
@@ -229,7 +227,11 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           <Ionicons
             name={nextIconName}
             size={22}
-            color={hasNextChapter ? nextIconColor ?? colors.biblePrimaryText : colors.bibleSecondaryText}
+            color={
+              hasNextChapter
+                ? (nextIconColor ?? colors.biblePrimaryText)
+                : colors.bibleSecondaryText
+            }
           />
         </Pressable>
       </Animated.View>

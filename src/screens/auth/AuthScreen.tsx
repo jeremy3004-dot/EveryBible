@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { motion, radius, spacing, typography } from '../../design/system';
 import { AppButton } from '../../components/ui';
+import { errorHaptic } from '../../utils/haptics';
 import type { AuthScreenMode, AuthStackParamList } from '../../navigation/types';
 import {
   getCurrentSession,
@@ -148,6 +149,7 @@ export function AuthScreen() {
       return;
     }
 
+    errorHaptic();
     Alert.alert(
       mode === 'signUp' ? t('auth.signUpFailed') : t('auth.signInFailed'),
       getAuthFailureMessage(result, fallbackMessage)
