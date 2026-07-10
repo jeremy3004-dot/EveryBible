@@ -17,7 +17,7 @@ import {
 import { expoAudioFileSystemAdapter } from '../services/audio/audioDownloadStorage';
 import { fetchRemoteChapterAudio } from '../services/audio/audioRemote';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
-import { trackAnonymousUsageEvent, trackEvent } from '../services/analytics';
+import { trackAnonymousUsageEvent } from '../services/analytics';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
@@ -551,9 +551,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     emitAudioPlaybackProgress('finish', true);
     stopAudioProgressTelemetryTimer();
 
-    // Fire analytics event for the chapter that just finished
+    // Fire analytics event for the chapter that just finished. Routed through
+    // the unified anonymous-usage pipeline (P1 S3) so it lands for signed-out
+    // listeners too and picks up server-side geo enrichment.
     if (bookId && chapterNum) {
-      trackEvent('audio_completed', {
+      trackAnonymousUsageEvent('audio_completed', {
         duration_ms: finishedDuration,
         book: bookId,
         chapter: chapterNum,

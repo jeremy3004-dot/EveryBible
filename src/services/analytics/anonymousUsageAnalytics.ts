@@ -11,7 +11,12 @@ export type AnonymousUsageEventName =
   | 'session_ended'
   | 'chapter_completed'
   | 'audio_playback_progress'
-  | 'reading_ended';
+  | 'reading_ended'
+  // Rerouted from the authenticated path (P1 S3) so they work signed-out and
+  // pick up server-side geo enrichment via the unified endpoint.
+  | 'audio_completed'
+  | 'text_translation_download_completed'
+  | 'audio_download_completed';
 
 // Compat alias — the queued-event shape now lives in the unified queue module.
 export type AnonymousUsageEvent = QueuedEvent;

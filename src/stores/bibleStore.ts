@@ -75,10 +75,17 @@ async function fileSystemPathIsUsableDatabase(localPath: string): Promise<boolea
   return fileInfo.exists && fileInfo.size > 0;
 }
 
-function trackBibleStoreEvent(eventName: string, properties: Record<string, unknown>): void {
-  void import('../services/analytics/analyticsService')
-    .then(({ trackEvent }) => {
-      trackEvent(eventName, properties);
+// Download-completion analytics route through the unified anonymous-usage
+// pipeline (P1 S3) so they land for signed-out users and pick up server-side
+// geo enrichment, rather than the authenticated-only path that 401'd + fell back
+// to the geo-less RPC.
+function trackBibleStoreEvent(
+  eventName: 'text_translation_download_completed' | 'audio_download_completed',
+  properties: Record<string, unknown>
+): void {
+  void import('../services/analytics/anonymousUsageAnalytics')
+    .then(({ trackAnonymousUsageEvent }) => {
+      trackAnonymousUsageEvent(eventName, properties);
     })
     .catch(() => {});
 }
