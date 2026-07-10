@@ -162,6 +162,23 @@ export const numeric: TextStyle = {
   fontVariant: ['tabular-nums'],
 };
 
+// One interaction physics for the whole app. `spring` is the press/slide feel
+// shared by PressableScale, sheets, and animated fills; durations/easing drive
+// entrance choreography. All motion must respect useReducedMotion().
+export const motion = {
+  duration: {
+    fast: 140,
+    base: 220,
+    slow: 320,
+  },
+  // Standard "decelerate" curve — cubic-bezier(0.2, 0, 0, 1).
+  easing: [0.2, 0, 0, 1] as const,
+  spring: {
+    damping: 20,
+    stiffness: 260,
+  },
+} as const;
+
 export const layout = {
   screenPadding: spacing.xl,
   sectionGap: spacing.xl,
