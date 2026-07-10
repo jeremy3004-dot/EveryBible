@@ -66,6 +66,82 @@ const WORLD_BOUNDS: [[number, number], [number, number]] = [
   [180, 82],
 ];
 
+// Warm-ink basemap contrast (Phase 2). CartoCDN Dark Matter renders land and
+// ocean at almost the same near-black luminance, so continents are invisible
+// against the dashboard. We lift land a full step above ocean in the brand's
+// warm-ink family so the sphere reads at arm's length.
+const GLOBE_OCEAN = '#141210';
+const GLOBE_LAND = '#2a2521';
+const GLOBE_BORDER = 'rgba(242, 237, 227, 0.16)';
+const GLOBE_LABEL = '#a8a094';
+
+function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
+  if (theme !== 'dark') return;
+  const style = map.getStyle();
+  if (!style?.layers) return;
+
+  for (const layer of style.layers) {
+    const id = layer.id;
+    try {
+      if (layer.type === 'background') {
+        // Background is the land base showing through where there is no water.
+        map.setPaintProperty(id, 'background-color', GLOBE_LAND);
+      } else if (layer.type === 'fill' && /water|ocean|sea|marine|bathym/i.test(id)) {
+        map.setPaintProperty(id, 'fill-color', GLOBE_OCEAN);
+      } else if (
+        layer.type === 'fill' &&
+        /(land|earth|park|wood|forest|grass|landcover|landuse|glacier|sand)/i.test(id)
+      ) {
+        map.setPaintProperty(id, 'fill-color', GLOBE_LAND);
+      } else if (layer.type === 'line' && /(boundary|admin|border)/i.test(id)) {
+        map.setPaintProperty(id, 'line-color', GLOBE_BORDER);
+      } else if (layer.type === 'symbol') {
+        map.setPaintProperty(id, 'text-color', GLOBE_LABEL);
+      }
+    } catch {
+      // Some layers don't carry the property we tried to set — safe to skip.
+    }
+  }
+}
+
+// Faint warm atmosphere so the globe reads as a lit object floating on the page,
+// not a hole in it. Wrapped defensively: setSky is a MapLibre 5.x surface and we
+// never want an unsupported key to blank the map.
+function applyGlobeAtmosphere(map: MapLibreMap) {
+  try {
+    (map as unknown as { setSky: (spec: Record<string, unknown>) => void }).setSky({
+      'sky-color': '#161412',
+      'horizon-color': '#3a2620',
+      'fog-color': '#161412',
+      'fog-ground-blend': 0.6,
+      'horizon-fog-blend': 0.5,
+      'sky-horizon-blend': 0.8,
+      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 0.9, 5, 0.35],
+    });
+  } catch {
+    // setSky unavailable in this build — the globe still renders fine without it.
+  }
+}
+
+// Weighted (by listening minutes) centroid so the camera opens over where the
+// data actually is (South-Asia-heavy today) rather than the mid-Atlantic/Sahara.
+function computeWeightedCentroid(
+  metrics: Array<{ latitude: number; longitude: number; listeningMinutes: number; downloadUnits: number }>
+): [number, number] | null {
+  let latAcc = 0;
+  let lngAcc = 0;
+  let weightAcc = 0;
+  for (const metric of metrics) {
+    const weight = Math.max(metric.listeningMinutes, metric.downloadUnits, 0);
+    if (weight <= 0) continue;
+    latAcc += metric.latitude * weight;
+    lngAcc += metric.longitude * weight;
+    weightAcc += weight;
+  }
+  if (weightAcc <= 0) return null;
+  return [lngAcc / weightAcc, latAcc / weightAcc];
+}
+
 function getMapStyleUrl(theme: AdminThemeMode): string {
   return theme === 'dark' ? DARK_MAP_STYLE_URL : LIGHT_MAP_STYLE_URL;
 }
@@ -170,36 +246,37 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
     'interpolate',
     ['linear'],
     ['heatmap-density'],
+    // Ember heat ramp (brand-unified): transparent → parchment → amber → ember → deep.
     0,
-    'rgba(8, 16, 24, 0)',
-    0.08,
-    'rgba(59, 130, 246, 0.18)',
-    0.22,
-    'rgba(56, 189, 248, 0.32)',
-    0.4,
-    'rgba(52, 211, 153, 0.48)',
-    0.58,
-    'rgba(250, 204, 21, 0.58)',
-    0.76,
-    'rgba(251, 146, 60, 0.74)',
-    0.92,
-    'rgba(248, 113, 113, 0.86)',
+    'rgba(20, 18, 16, 0)',
+    0.1,
+    'rgba(208, 194, 175, 0.22)',
+    0.3,
+    'rgba(208, 163, 90, 0.4)',
+    0.55,
+    'rgba(217, 108, 87, 0.6)',
+    0.8,
+    'rgba(217, 108, 87, 0.8)',
     1,
-    'rgba(185, 28, 28, 0.92)',
+    'rgba(184, 84, 65, 0.92)',
   ]);
 
   map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-radius', [
     'interpolate',
     ['linear'],
     ['to-number', ['get', metricProperty]],
+    // Front-loaded (sqrt-like) stops so mid-tier countries read as mid-tier
+    // instead of collapsing to the min dot under a linear scale on skewed data.
     0,
-    8,
-    safeMax * 0.25,
-    14,
-    safeMax * 0.6,
-    24,
+    7,
+    safeMax * 0.04,
+    13,
+    safeMax * 0.15,
+    19,
+    safeMax * 0.45,
+    27,
     safeMax,
-    34,
+    36,
   ]);
   map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-color', [
     'interpolate',
@@ -246,10 +323,13 @@ export function AnalyticsGlobe({
   const latestMaxMetricValueRef = useRef(1);
   const modeRef = useRef<MapMetricMode>('listeningMinutes');
   const themeRef = useRef<AdminThemeMode>(getDocumentTheme());
+  const hasFlownRef = useRef(false);
   const [theme, setTheme] = useState<AdminThemeMode>(getDocumentTheme);
   const [mode, setMode] = useState<MapMetricMode>('listeningMinutes');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [internalTranslation, setInternalTranslation] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [showAllTranslations, setShowAllTranslations] = useState(false);
   const selectedTranslation =
     selectedTranslationProp !== undefined ? selectedTranslationProp : internalTranslation;
   const setSelectedTranslation = useCallback(
@@ -556,13 +636,14 @@ export function AnalyticsGlobe({
       bearing: -8,
       center: INITIAL_CENTER,
       container: containerRef.current,
-      dragRotate: false,
+      // Re-enabled (Phase 2): operators can spin the globe and zoom into a region.
+      dragRotate: true,
       maxBounds: WORLD_BOUNDS,
       pitch: 12,
       minZoom: 1,
       pitchWithRotate: false,
       renderWorldCopies: false,
-      scrollZoom: false,
+      scrollZoom: true,
       style: initialStyle,
       zoom: INITIAL_ZOOM,
     });
@@ -571,7 +652,10 @@ export function AnalyticsGlobe({
 
     map.on('style.load', () => {
       readyRef.current = true;
+      applyBasemapContrast(map, themeRef.current);
+      applyGlobeAtmosphere(map);
       syncVisualizationLayers(map);
+      setIsMapReady(true);
     });
 
     map.on('click', HIT_LAYER_ID, (event) => {
@@ -642,6 +726,74 @@ export function AnalyticsGlobe({
 
     showMetricPopup(selectedMetric);
   }, [selectedMetric, showMetricPopup]);
+
+  // Open the camera over the data's weighted centroid once the first metrics are
+  // ready, so the globe doesn't greet the operator with an empty ocean.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapReady || hasFlownRef.current) {
+      return;
+    }
+    const centroid = computeWeightedCentroid(effectiveMetrics);
+    if (!centroid) {
+      return;
+    }
+    hasFlownRef.current = true;
+    map.flyTo({ center: centroid, zoom: 3.1, duration: 2200, essential: true });
+  }, [isMapReady, effectiveMetrics]);
+
+  // Slow idle auto-rotate (~6°/min-ish) that pauses the moment the operator
+  // interacts and resumes after 10s of stillness. Respects reduced-motion.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapReady) {
+      return;
+    }
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let spinning = true;
+
+    const spin = () => {
+      if (!spinning || !mapRef.current) return;
+      map.easeTo({ bearing: map.getBearing() + 6, duration: 6000, easing: (t) => t });
+    };
+
+    const pause = () => {
+      spinning = false;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        spinning = true;
+        spin();
+      }, 10000);
+    };
+
+    const canvas = map.getCanvas();
+    canvas.addEventListener('mousedown', pause);
+    canvas.addEventListener('wheel', pause, { passive: true });
+    canvas.addEventListener('touchstart', pause, { passive: true });
+
+    // Hold off until the intro fly-to (2.2s) has settled so they don't fight.
+    const startTimer = setTimeout(() => {
+      spin();
+      interval = setInterval(spin, 6000);
+    }, 2800);
+
+    return () => {
+      clearTimeout(startTimer);
+      if (interval) clearInterval(interval);
+      if (idleTimer) clearTimeout(idleTimer);
+      canvas.removeEventListener('mousedown', pause);
+      canvas.removeEventListener('wheel', pause);
+      canvas.removeEventListener('touchstart', pause);
+    };
+  }, [isMapReady]);
 
   if (!effectiveMetrics.length) {
     return (
@@ -723,33 +875,79 @@ export function AnalyticsGlobe({
                 <span>All translations</span>
                 <small>{Math.round(listeningTotalMinutes ?? 0)} listen min</small>
               </button>
-              {translationBreakdown.map((entry) => (
-                <button
-                  key={entry.translationId}
-                  type="button"
-                  className={`translation-chip ${
-                    selectedTranslation === entry.translationId ? 'translation-chip--active' : ''
-                  }`.trim()}
-                  aria-pressed={selectedTranslation === entry.translationId}
-                  onClick={() => setSelectedTranslation(entry.translationId)}
-                >
-                  <span>{entry.translationId.toUpperCase()}</span>
-                  <small>
-                    {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.downloadUnits)} downloads
-                  </small>
-                </button>
-              ))}
+              {(() => {
+                const active = translationBreakdown.filter(
+                  (entry) => entry.listeningMinutes > 0 || entry.downloadUnits > 0
+                );
+                const zero = translationBreakdown.filter(
+                  (entry) => entry.listeningMinutes <= 0 && entry.downloadUnits <= 0
+                );
+                // Zero-activity translations (often the majority) bury the signal;
+                // keep them one click away behind a "+N more" toggle. Always show a
+                // zero translation if it's the current selection.
+                const visibleZero = showAllTranslations
+                  ? zero
+                  : zero.filter((entry) => entry.translationId === selectedTranslation);
+                const chips = [...active, ...visibleZero];
+                return (
+                  <>
+                    {chips.map((entry) => (
+                      <button
+                        key={entry.translationId}
+                        type="button"
+                        className={`translation-chip ${
+                          selectedTranslation === entry.translationId ? 'translation-chip--active' : ''
+                        }`.trim()}
+                        aria-pressed={selectedTranslation === entry.translationId}
+                        onClick={() => setSelectedTranslation(entry.translationId)}
+                      >
+                        <span>{entry.translationId.toUpperCase()}</span>
+                        <small>
+                          {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.downloadUnits)} downloads
+                        </small>
+                      </button>
+                    ))}
+                    {zero.length > 0 && !showAllTranslations && zero.length !== visibleZero.length && (
+                      <button
+                        type="button"
+                        className="translation-chip translation-chip--more"
+                        onClick={() => setShowAllTranslations(true)}
+                      >
+                        <span>+{zero.length - visibleZero.length} more</span>
+                        <small>no activity this window</small>
+                      </button>
+                    )}
+                    {showAllTranslations && zero.length > 0 && (
+                      <button
+                        type="button"
+                        className="translation-chip translation-chip--more"
+                        onClick={() => setShowAllTranslations(false)}
+                      >
+                        <span>Show less</span>
+                        <small>hide inactive</small>
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
       </div>
 
       <div className="globe-card__content">
-        <div
-          ref={containerRef}
-          className="globe-card__viewer"
-          aria-label="Global usage heatmap"
-        />
+        <div className="globe-card__viewer-wrap">
+          <div
+            ref={containerRef}
+            className="globe-card__viewer"
+            aria-label="Global usage heatmap"
+          />
+          {!isMapReady && (
+            <div className="globe-card__skeleton" aria-hidden="true">
+              <div className="globe-card__skeleton-orb" />
+            </div>
+          )}
+        </div>
 
         <aside className="globe-card__panel">
           <div className="globe-card__summary">

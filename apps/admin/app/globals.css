@@ -812,6 +812,75 @@ textarea {
   background: var(--bg-elevated);
 }
 
+/* Phase 2 globe: wrap + skeleton so the map never greets the operator as a
+   black void; fades out once MapLibre's style + first data layer are ready. */
+.globe-card__viewer-wrap {
+  position: relative;
+  display: flex;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.globe-card__viewer-wrap > .globe-card__viewer {
+  flex: 1;
+  width: 100%;
+  border-radius: 0;
+}
+
+.globe-card__skeleton {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 90% at 50% 40%, #201b18 0%, #161412 70%);
+  animation: globe-skeleton-fade 400ms ease forwards;
+}
+
+.globe-card__skeleton-orb {
+  width: min(58%, 26rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(217, 108, 87, 0.14), transparent 60%),
+    linear-gradient(180deg, #262220, #1a1613);
+  box-shadow: 0 0 0 1px rgba(242, 237, 227, 0.06), 0 0 80px rgba(217, 108, 87, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.globe-card__skeleton-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(242, 237, 227, 0.06) 50%, transparent 60%);
+  transform: translateX(-100%);
+  animation: globe-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes globe-skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@keyframes globe-skeleton-fade {
+  from { opacity: 1; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-card__skeleton-orb::after { animation: none; }
+}
+
+.translation-chip--more {
+  align-content: center;
+  min-width: auto;
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.translation-chip--more span {
+  color: var(--accent);
+}
+
 .analytics-page .globe-card__viewer .maplibregl-map {
   font-family: var(--font-body);
 }
