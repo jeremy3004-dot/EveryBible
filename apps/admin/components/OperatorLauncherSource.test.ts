@@ -48,9 +48,9 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
   assert.doesNotMatch(componentSource, /DEFAULT_PROMPTS/);
   assert.doesNotMatch(componentSource, /operator-launcher__prompts/);
   assert.doesNotMatch(componentSource, /operator-launcher__mark/);
-  assert.match(routeSource, /OPENAI_API_KEY/);
-  assert.match(chatSource, /chat\/completions/);
-  assert.match(chatSource, /gpt-4o-mini/);
+  assert.match(routeSource, /GEMINI_API_KEY/);
+  assert.match(chatSource, /generativelanguage\.googleapis\.com/);
+  assert.match(chatSource, /gemini-2\.5-flash/);
   assert.doesNotMatch(rootLayoutSource, /<OperatorLauncher \/>/);
   assert.match(dashboardLayoutSource, /<OperatorLauncher \/>/);
 });

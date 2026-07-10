@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { getAdminIdentity } from '@/lib/admin-auth';
 import {
-  buildOperatorChatContext,
-  buildOperatorChatSystemPrompt,
+  buildOperatorSystemPrompt,
   getOperatorChatApiKey,
   getOperatorChatModel,
-  requestOperatorChatCompletion,
+  runOperatorChat,
   sanitizeOperatorChatMessages,
 } from '@/lib/operator-chat';
 
@@ -34,7 +33,7 @@ export async function GET() {
   return json({
     available: Boolean(apiKey),
     model,
-    reason: apiKey ? null : 'missing_openai_api_key',
+    reason: apiKey ? null : 'missing_gemini_api_key',
   });
 }
 
@@ -49,8 +48,8 @@ export async function POST(request: Request) {
     return json(
       {
         error:
-          'The admin AI helper is not configured yet. Set OPENAI_API_KEY in Vercel to enable chat.',
-        reason: 'missing_openai_api_key',
+          'The admin AI helper is not configured yet. Set GEMINI_API_KEY in Vercel to enable chat.',
+        reason: 'missing_gemini_api_key',
       },
       { status: 503 }
     );
@@ -64,19 +63,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const context = await buildOperatorChatContext(identity);
-    const reply = await requestOperatorChatCompletion({
+    const generatedAt = new Date().toISOString();
+    const model = getOperatorChatModel();
+    const reply = await runOperatorChat({
       apiKey,
+      model,
+      systemPrompt: buildOperatorSystemPrompt(identity, generatedAt),
       messages,
-      model: getOperatorChatModel(),
-      systemPrompt: buildOperatorChatSystemPrompt(context),
     });
 
-    return json({
-      generatedAt: context.generatedAt,
-      model: getOperatorChatModel(),
-      reply,
-    });
+    return json({ generatedAt, model, reply });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown operator chat error';
     return json({ error: message }, { status: 500 });
