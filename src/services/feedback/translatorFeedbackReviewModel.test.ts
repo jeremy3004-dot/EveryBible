@@ -6,7 +6,6 @@ import {
   getTranslatorFeedbackReviewStatus,
   getTranslatorFeedbackUnresolvedCount,
   markTranslatorFeedbackListened,
-  markTranslatorFeedbackRead,
   normalizeTranslatorReviewPasscode,
   resolveDevelopmentTranslatorReviewPasscode,
   sortTranslatorFeedbackQueue,
@@ -40,35 +39,32 @@ test('development translator review passcode only resolves in dev builds', () =>
 test('review status derives resolution from server data, not local markers', () => {
   const markers = {};
 
-  // Unresolved on the server: needs review regardless of read/listened state.
+  // Unresolved on the server: needs review regardless of listened state.
   assert.deepEqual(
     getTranslatorFeedbackReviewStatus(
       { id: 'feedback-1', hasAudio: true, resolution: null },
       markers
     ),
     {
-      isRead: false,
       isListened: false,
       resolution: null,
       needsReview: true,
     }
   );
 
-  const readMarkers = markTranslatorFeedbackRead(markers, 'feedback-1', '2026-05-22T01:00:00Z');
   const listenedMarkers = markTranslatorFeedbackListened(
-    readMarkers,
+    markers,
     'feedback-1',
     '2026-05-22T01:01:00Z'
   );
 
-  // Local read/listened flags update the UX affordances but do not resolve the item.
+  // The local listened flag updates the UX affordance but does not resolve the item.
   assert.deepEqual(
     getTranslatorFeedbackReviewStatus(
       { id: 'feedback-1', hasAudio: true, resolution: null },
       listenedMarkers
     ),
     {
-      isRead: true,
       isListened: true,
       resolution: null,
       needsReview: true,
@@ -82,7 +78,6 @@ test('review status derives resolution from server data, not local markers', () 
       listenedMarkers
     ),
     {
-      isRead: true,
       isListened: true,
       resolution: 'fixed',
       needsReview: false,

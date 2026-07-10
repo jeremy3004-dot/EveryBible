@@ -306,7 +306,6 @@ type ChapterFeedbackAudioState =
   | 'recording'
   | 'preview'
   | 'uploading'
-  | 'success'
   | 'error';
 
 const waitForFeedbackAudioActiveAppState = async (): Promise<boolean> => {
@@ -3195,6 +3194,84 @@ export function BibleReaderScreen() {
     feedbackAudioPreviewSoundRef.current = null;
   };
 
+  // Mark an audio item listened only once the translator has heard most of it (B7),
+  // not the instant playback starts.
+  const TRANSLATOR_AUDIO_LISTENED_FRACTION = 0.6;
+
+  const startTranslatorAudioPlayback = async (
+    feedbackId: string,
+    playbackUrl: string
+  ): Promise<boolean> => {
+    try {
+      const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
+      translatorReviewAudioSoundRef.current = sound;
+      setTranslatorReviewPlayingFeedbackId(feedbackId);
+
+      let hasMarkedListened = false;
+      sound.setOnPlaybackStatusUpdate((playbackStatus) => {
+        if (!playbackStatus.isLoaded) {
+          if (translatorReviewAudioSoundRef.current === sound) {
+            translatorReviewAudioSoundRef.current = null;
+            setTranslatorReviewPlayingFeedbackId(null);
+          }
+          return;
+        }
+
+        if (
+          !hasMarkedListened &&
+          playbackStatus.durationMillis &&
+          playbackStatus.positionMillis / playbackStatus.durationMillis >=
+            TRANSLATOR_AUDIO_LISTENED_FRACTION
+        ) {
+          hasMarkedListened = true;
+          markTranslatorFeedbackListened(feedbackId);
+        }
+
+        if (playbackStatus.didJustFinish) {
+          if (!hasMarkedListened) {
+            hasMarkedListened = true;
+            markTranslatorFeedbackListened(feedbackId);
+          }
+          if (translatorReviewAudioSoundRef.current === sound) {
+            translatorReviewAudioSoundRef.current = null;
+            setTranslatorReviewPlayingFeedbackId(null);
+          }
+          void sound.unloadAsync().catch(() => undefined);
+        }
+      });
+
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Signed audio URLs expire after ~1h; if playback fails, refetch this chapter's
+  // feedback to obtain fresh URLs and return the new one for this item (B2).
+  const refreshTranslatorFeedbackAudioUrl = async (
+    feedbackId: string
+  ): Promise<string | null> => {
+    if (!translatorReviewPasscode) {
+      return null;
+    }
+
+    const result = await fetchChapterFeedbackForTranslatorReview({
+      translationId: currentTranslation,
+      bookId,
+      chapter,
+      passcode: translatorReviewPasscode,
+    });
+
+    if (!result.success) {
+      return null;
+    }
+
+    setTranslatorFeedbackItems(result.feedback);
+    return (
+      result.feedback.find((item) => item.id === feedbackId)?.audioResponse?.playbackUrl ?? null
+    );
+  };
+
   const playTranslatorFeedbackAudio = async (feedbackId: string, playbackUrl: string | null) => {
     if (!playbackUrl) {
       return;
@@ -3209,27 +3286,16 @@ export function BibleReaderScreen() {
     await translatorReviewAudioSoundRef.current?.unloadAsync().catch(() => undefined);
     setTranslatorReviewPlayingFeedbackId(null);
 
-    const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
-    translatorReviewAudioSoundRef.current = sound;
-    setTranslatorReviewPlayingFeedbackId(feedbackId);
-    sound.setOnPlaybackStatusUpdate((playbackStatus) => {
-      if (!playbackStatus.isLoaded) {
-        if (translatorReviewAudioSoundRef.current === sound) {
-          translatorReviewAudioSoundRef.current = null;
-          setTranslatorReviewPlayingFeedbackId(null);
-        }
-        return;
-      }
+    if (await startTranslatorAudioPlayback(feedbackId, playbackUrl)) {
+      return;
+    }
 
-      if (playbackStatus.didJustFinish) {
-        if (translatorReviewAudioSoundRef.current === sound) {
-          translatorReviewAudioSoundRef.current = null;
-          setTranslatorReviewPlayingFeedbackId(null);
-        }
-        void sound.unloadAsync().catch(() => undefined);
-      }
-    });
-    markTranslatorFeedbackListened(feedbackId);
+    const refreshedUrl = await refreshTranslatorFeedbackAudioUrl(feedbackId);
+    if (refreshedUrl && (await startTranslatorAudioPlayback(feedbackId, refreshedUrl))) {
+      return;
+    }
+
+    setTranslatorFeedbackError(t('bible.translatorReviewAudioError'));
   };
 
   const formatTranslatorFeedbackSubmittedAt = (submittedAt: string) => {
@@ -3448,10 +3514,9 @@ export function BibleReaderScreen() {
       if (sourceScreen === 'reader') {
         setShowFeedbackModal(false);
       }
-      setFeedbackAudioState('success');
       resetFeedbackDraft();
 
-      Alert.alert(t('common.ok'), t('bible.chapterFeedbackSuccess'));
+      Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
       return;
     }
 
@@ -4622,9 +4687,9 @@ export function BibleReaderScreen() {
                   styles.listenSentimentButton,
                   {
                     backgroundColor:
-                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleElevatedSurface,
+                      feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
                     borderColor:
-                      feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
+                      feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
                   },
                 ]}
                 onPress={() => {
@@ -5748,7 +5813,7 @@ export function BibleReaderScreen() {
                     {
                       key: 'font-size',
                       icon: 'text-outline',
-                      label: 'Fonts & Settings',
+                      label: t('bible.readerFontsAndSettings'),
                       onPress: handleOpenFontSizeOptions,
                     },
                   ]
@@ -5864,15 +5929,18 @@ export function BibleReaderScreen() {
 
               <View style={styles.feedbackSentimentRow}>
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedbackSentiment === 'up' }}
+                  accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
                   style={[
                     styles.feedbackSentimentButton,
                     {
                       backgroundColor:
                         feedbackSentiment === 'up'
-                          ? colors.accentGreen
+                          ? colors.success
                           : colors.bibleElevatedSurface,
                       borderColor:
-                        feedbackSentiment === 'up' ? colors.accentGreen : colors.bibleDivider,
+                        feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
                     },
                   ]}
                   onPress={() => {
@@ -5902,6 +5970,9 @@ export function BibleReaderScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedbackSentiment === 'down' }}
+                  accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
                   style={[
                     styles.feedbackSentimentButton,
                     {
@@ -5958,6 +6029,9 @@ export function BibleReaderScreen() {
                   },
                 ]}
               />
+              <Text style={[styles.feedbackCharCount, { color: colors.bibleSecondaryText }]}>
+                {`${feedbackComment.length}/2000`}
+              </Text>
 
               {renderChapterFeedbackAudioControls()}
 
@@ -5969,6 +6043,8 @@ export function BibleReaderScreen() {
 
               <View style={styles.feedbackActionRow}>
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.cancel')}
                   style={[
                     styles.feedbackActionButton,
                     {
@@ -5985,6 +6061,9 @@ export function BibleReaderScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
+                  accessibilityState={{ disabled: !canSubmitFeedback }}
                   style={[
                     styles.feedbackActionButton,
                     styles.feedbackSubmitButton,
@@ -7412,6 +7491,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     textAlignVertical: 'top',
+  },
+  feedbackCharCount: {
+    ...typography.micro,
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
   },
   feedbackAudioCard: {
     borderWidth: 1,

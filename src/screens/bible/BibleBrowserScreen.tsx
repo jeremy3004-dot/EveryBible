@@ -308,7 +308,13 @@ export function BibleBrowserScreen() {
     const isPending = status === 'pending';
     return (
       <View
-        pointerEvents="none"
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={
+          isPending
+            ? t('translatorQueue.title')
+            : t('bible.translatorReviewConfirmedAccurate')
+        }
         style={[
           styles.translatorFeedbackBadge,
           {
@@ -581,24 +587,41 @@ export function BibleBrowserScreen() {
             </View>
           </View>
 
-          {canOpenTranslationPicker ? (
-            <TouchableOpacity
-              style={[
-                styles.translationButton,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-              onPress={() => {
-                setShowTranslationModal(true);
-              }}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
-              <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
-                {currentTranslationInfo?.abbreviation || 'BSB'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
-            </TouchableOpacity>
-          ) : null}
+          <View style={styles.headerActionCluster}>
+            {translatorReviewEnabled ? (
+              <TouchableOpacity
+                style={[
+                  styles.headerIconButton,
+                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+                ]}
+                onPress={() => navigation.navigate('TranslatorQueue')}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t('translatorQueue.title')}
+              >
+                <Ionicons name="clipboard-outline" size={18} color={colors.biblePrimaryText} />
+              </TouchableOpacity>
+            ) : null}
+
+            {canOpenTranslationPicker ? (
+              <TouchableOpacity
+                style={[
+                  styles.translationButton,
+                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+                ]}
+                onPress={() => {
+                  setShowTranslationModal(true);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
+                <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
+                  {currentTranslationInfo?.abbreviation || 'BSB'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
 
         <View
@@ -790,6 +813,19 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.micro,
+  },
+  headerActionCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerIconButton: {
+    minHeight: 42,
+    minWidth: 42,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   translationButton: {
     minHeight: 42,

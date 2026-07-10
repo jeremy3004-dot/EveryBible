@@ -1,4 +1,12 @@
 export const en = {
+  translatorQueue: {
+    title: 'Feedback queue',
+    subtitle: 'Chapters with feedback to review',
+    empty: "You're all caught up. No feedback is waiting.",
+    pendingCount: '{{count}} chapters to review',
+    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
+    openLabel: 'Open {{reference}}',
+  },
   myFeedback: {
     title: 'My feedback',
     settingsRow: 'My feedback',
@@ -120,6 +128,9 @@ export const en = {
     finish: 'Finish setup',
   },
   bible: {
+    translatorReviewAudioError: "Couldn't play this audio. Try again.",
+    chapterFeedbackSuccessTitle: 'Feedback sent',
+    readerFontsAndSettings: 'Fonts & Settings',
     title: 'Bible',
     fontsAndSettings: 'Fonts & Settings',
     allSettings: 'All Settings',
@@ -203,8 +214,6 @@ export const en = {
     translatorReviewSubmittedAt: 'Submitted {{date}}',
     translatorReviewSubmittedBy: 'Submitted by {{name}}',
     translatorReviewNoComment: 'No written feedback.',
-    translatorReviewRead: 'Read',
-    translatorReviewMarkRead: 'Mark read',
     translatorReviewFixed: 'Fixed',
     translatorReviewConfirmedAccurate: 'Confirmed accurate',
     translatorReviewReviewed: 'No change needed',

@@ -3,7 +3,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import {
   markTranslatorFeedbackListened,
-  markTranslatorFeedbackRead,
   normalizeTranslatorReviewPasscode,
   resolveDevelopmentTranslatorReviewPasscode,
   type TranslatorFeedbackReviewMarker,
@@ -13,11 +12,10 @@ import {
 interface TranslatorReviewState {
   enabled: boolean;
   accessPasscode: string | null;
-  // Per-device UX state only (read / listened). Resolution lives on the server (D1).
+  // Per-device UX state only (audio listened). Resolution lives on the server (D1).
   feedbackMarkers: TranslatorFeedbackReviewMarkers;
   enableWithPasscode: (passcode: string) => boolean;
   disable: () => void;
-  markRead: (feedbackId: string) => void;
   markListened: (feedbackId: string) => void;
 }
 
@@ -29,8 +27,8 @@ const developmentTranslatorReviewPasscode = resolveDevelopmentTranslatorReviewPa
   typeof __DEV__ !== 'undefined' && __DEV__
 );
 
-// v2 markers carried resolvedAs/resolvedAt; resolution is now server-owned, so on
-// upgrade we keep only the read/listened fields and let the server data drive status.
+// Older markers carried resolvedAs/resolvedAt (now server-owned) and readAt (unused);
+// on upgrade we keep only listenedAt and let server data drive resolution status.
 function stripResolutionFromMarkers(markers: unknown): TranslatorFeedbackReviewMarkers {
   if (!markers || typeof markers !== 'object') {
     return {};
@@ -42,10 +40,9 @@ function stripResolutionFromMarkers(markers: unknown): TranslatorFeedbackReviewM
       continue;
     }
 
-    const legacy = marker as Partial<TranslatorFeedbackReviewMarker>;
+    const legacy = marker as Partial<TranslatorFeedbackReviewMarker> & { listenedAt?: unknown };
     next[id] = {
-      readAt: legacy.readAt ?? null,
-      listenedAt: legacy.listenedAt ?? null,
+      listenedAt: typeof legacy.listenedAt === 'string' ? legacy.listenedAt : null,
     };
   }
 
@@ -69,14 +66,6 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         return false;
       },
       disable: () => set({ enabled: false, accessPasscode: null }),
-      markRead: (feedbackId) =>
-        set((state) => ({
-          feedbackMarkers: markTranslatorFeedbackRead(
-            state.feedbackMarkers,
-            feedbackId,
-            new Date().toISOString()
-          ),
-        })),
       markListened: (feedbackId) =>
         set((state) => ({
           feedbackMarkers: markTranslatorFeedbackListened(

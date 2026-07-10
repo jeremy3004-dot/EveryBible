@@ -39,6 +39,7 @@ export type BibleStackParamList = {
   ChapterSelector: {
     bookId: string;
   };
+  TranslatorQueue: undefined;
 };
 
 // Learn Stack

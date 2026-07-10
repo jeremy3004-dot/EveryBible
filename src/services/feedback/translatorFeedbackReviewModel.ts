@@ -1,7 +1,6 @@
 // Server is the source of truth for whether a feedback item is resolved (D1). Local
-// markers only track per-device UX state (has this device read / listened to an item).
+// markers only track per-device UX state (has this device listened to an audio item).
 export interface TranslatorFeedbackReviewMarker {
-  readAt: string | null;
   listenedAt: string | null;
 }
 
@@ -28,7 +27,6 @@ export interface TranslatorFeedbackChapterSummary {
 }
 
 export interface TranslatorFeedbackReviewStatus {
-  isRead: boolean;
   isListened: boolean;
   resolution: TranslatorFeedbackResolution | null;
   needsReview: boolean;
@@ -57,12 +55,10 @@ export function getTranslatorFeedbackReviewStatus(
   markers: TranslatorFeedbackReviewMarkers
 ): TranslatorFeedbackReviewStatus {
   const marker = markers[item.id];
-  const isRead = Boolean(marker?.readAt);
   const isListened = !item.hasAudio || Boolean(marker?.listenedAt);
   const resolution = item.resolution;
 
   return {
-    isRead,
     isListened,
     resolution,
     needsReview: resolution === null,
@@ -127,20 +123,6 @@ export function sortTranslatorFeedbackQueue(
     });
 }
 
-export function markTranslatorFeedbackRead(
-  markers: TranslatorFeedbackReviewMarkers,
-  feedbackId: string,
-  markedAt: string
-): TranslatorFeedbackReviewMarkers {
-  return {
-    ...markers,
-    [feedbackId]: {
-      readAt: markedAt,
-      listenedAt: markers[feedbackId]?.listenedAt ?? null,
-    },
-  };
-}
-
 export function markTranslatorFeedbackListened(
   markers: TranslatorFeedbackReviewMarkers,
   feedbackId: string,
@@ -149,7 +131,6 @@ export function markTranslatorFeedbackListened(
   return {
     ...markers,
     [feedbackId]: {
-      readAt: markers[feedbackId]?.readAt ?? null,
       listenedAt: markedAt,
     },
   };

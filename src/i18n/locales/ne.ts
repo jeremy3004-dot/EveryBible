@@ -1,4 +1,12 @@
 export const ne = {
+  translatorQueue: {
+    title: 'Feedback queue',
+    subtitle: 'Chapters with feedback to review',
+    empty: "You're all caught up. No feedback is waiting.",
+    pendingCount: '{{count}} chapters to review',
+    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
+    openLabel: 'Open {{reference}}',
+  },
   myFeedback: {
     title: 'My feedback',
     settingsRow: 'My feedback',
@@ -111,6 +119,9 @@ export const ne = {
     "finish": "सेटअप पूरा गर्नुहोस्"
   },
   "bible": {
+    translatorReviewAudioError: "Couldn't play this audio. Try again.",
+    chapterFeedbackSuccessTitle: 'Feedback sent',
+    readerFontsAndSettings: 'Fonts & Settings',
     "title": "बाइबल",
     "oldTestament": "पुरानो नियम",
     "fontsAndSettings": "फन्ट र सेटिङ",
@@ -187,8 +198,6 @@ export const ne = {
     "translatorReviewSubmittedAt": "{{date}} मा पठाइयो",
     "translatorReviewSubmittedBy": "{{name}} द्वारा पठाइयो",
     "translatorReviewNoComment": "लिखित प्रतिक्रिया छैन।",
-    "translatorReviewRead": "पढियो",
-    "translatorReviewMarkRead": "पढिएको चिन्ह लगाउनुहोस्",
     "translatorReviewFixed": "सच्याइयो",
     "translatorReviewConfirmedAccurate": "सही पुष्टि गरियो",
     "translatorReviewReviewed": "कुनै परिवर्तन आवश्यक छैन",

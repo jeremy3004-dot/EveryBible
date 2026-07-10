@@ -31,6 +31,12 @@ export function BibleStack() {
         name="BibleReader"
         getComponent={() => require('../screens/bible/BibleReaderScreen').BibleReaderScreen}
       />
+      <Stack.Screen
+        name="TranslatorQueue"
+        getComponent={() =>
+          require('../screens/bible/TranslatorReviewQueueScreen').TranslatorReviewQueueScreen
+        }
+      />
     </Stack.Navigator>
   );
 }

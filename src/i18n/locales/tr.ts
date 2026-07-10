@@ -1,4 +1,12 @@
 export const tr = {
+  translatorQueue: {
+    title: 'Feedback queue',
+    subtitle: 'Chapters with feedback to review',
+    empty: "You're all caught up. No feedback is waiting.",
+    pendingCount: '{{count}} chapters to review',
+    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
+    openLabel: 'Open {{reference}}',
+  },
   myFeedback: {
     title: 'My feedback',
     settingsRow: 'My feedback',
@@ -111,6 +119,9 @@ export const tr = {
     "finish": "Kurulumu bitir"
   },
   "bible": {
+    translatorReviewAudioError: "Couldn't play this audio. Try again.",
+    chapterFeedbackSuccessTitle: 'Feedback sent',
+    readerFontsAndSettings: 'Fonts & Settings',
     "title": "İncil",
     "oldTestament": "Eski Ahit",
     "fontsAndSettings": "Yazı Tipleri ve Ayarlar",
@@ -255,8 +266,6 @@ export const tr = {
     "translatorReviewSubmittedAt": "Submitted {{date}}",
     "translatorReviewSubmittedBy": "Submitted by {{name}}",
     "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewRead": "Read",
-    "translatorReviewMarkRead": "Mark read",
     "translatorReviewFixed": "Fixed",
     "translatorReviewConfirmedAccurate": "Confirmed accurate",
     "translatorReviewReviewed": "Reviewed",
