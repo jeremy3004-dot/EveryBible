@@ -17,7 +17,17 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { appearancePaletteOptions, useTheme, type ThemeMode } from '../../contexts/ThemeContext';
+import {
+  appearancePaletteOptions,
+  useTheme,
+  darkColors,
+  lightColors,
+  lowLightColors,
+  parchmentColors,
+  midnightColors,
+  type ThemeMode,
+} from '../../contexts/ThemeContext';
+import { AppButton } from '../../components/ui';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
@@ -45,6 +55,23 @@ import { hexWithAlpha, lightHaptic, selectionHaptic } from '../../utils';
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
+
+// Per-mode background + text swatch colors for the theme-selector preview chips,
+// pulled straight from each mode's base palette so the mini mock is accurate.
+const THEME_PREVIEW_BG: Record<ThemeMode, string> = {
+  dark: darkColors.background,
+  light: lightColors.background,
+  'low-light': lowLightColors.background,
+  parchment: parchmentColors.background,
+  midnight: midnightColors.background,
+};
+const THEME_PREVIEW_TEXT: Record<ThemeMode, string> = {
+  dark: darkColors.primaryText,
+  light: lightColors.primaryText,
+  'low-light': lowLightColors.primaryText,
+  parchment: parchmentColors.primaryText,
+  midnight: midnightColors.primaryText,
+};
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -524,16 +551,39 @@ export function SettingsScreen() {
                     style={[
                       styles.themeSelectorButton,
                       {
-                        backgroundColor: isActive ? colors.accentPrimary : colors.cardBackground,
+                        backgroundColor: isActive ? colors.accentSoft : colors.cardBackground,
+                        borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
                       },
                     ]}
                     onPress={() => handleThemeChange(mode)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                    accessibilityLabel={label}
                   >
+                    <View
+                      style={[
+                        styles.themeSelectorSwatch,
+                        { backgroundColor: THEME_PREVIEW_BG[mode] },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.themeSelectorSwatchLine,
+                          { backgroundColor: THEME_PREVIEW_TEXT[mode] },
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.themeSelectorSwatchDot,
+                          { backgroundColor: colors.accentPrimary },
+                        ]}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.themeSelectorLabel,
                         {
-                          color: isActive ? colors.onAccent : colors.secondaryText,
+                          color: isActive ? colors.accentPrimary : colors.secondaryText,
                         },
                       ]}
                     >
@@ -932,49 +982,51 @@ export function SettingsScreen() {
                 </Text>
               ) : null}
               <View style={styles.translatorKeypad}>
-                {[['1', '2', '3', '4'], ['5', '6', '7', '8'], ['9', '0', 'clear', 'delete']].map(
-                  (row, rowIndex) => (
-                    <View key={rowIndex} style={styles.translatorKeyRow}>
-                      {row.map((key) => (
-                        <TouchableOpacity
-                          key={key}
-                          style={[
-                            styles.translatorKey,
-                            {
-                              backgroundColor:
-                                key === 'clear' || key === 'delete'
-                                  ? colors.cardBorder
-                                  : colors.background,
-                            },
-                          ]}
-                          onPress={() => {
-                            if (key === 'clear') {
-                              setTranslatorAccessPasscode('');
-                              setTranslatorAccessError(null);
-                              return;
-                            }
+                {[
+                  ['1', '2', '3', '4'],
+                  ['5', '6', '7', '8'],
+                  ['9', '0', 'clear', 'delete'],
+                ].map((row, rowIndex) => (
+                  <View key={rowIndex} style={styles.translatorKeyRow}>
+                    {row.map((key) => (
+                      <TouchableOpacity
+                        key={key}
+                        style={[
+                          styles.translatorKey,
+                          {
+                            backgroundColor:
+                              key === 'clear' || key === 'delete'
+                                ? colors.cardBorder
+                                : colors.background,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (key === 'clear') {
+                            setTranslatorAccessPasscode('');
+                            setTranslatorAccessError(null);
+                            return;
+                          }
 
-                            if (key === 'delete') {
-                              setTranslatorAccessPasscode((current) => current.slice(0, -1));
-                              setTranslatorAccessError(null);
-                              return;
-                            }
+                          if (key === 'delete') {
+                            setTranslatorAccessPasscode((current) => current.slice(0, -1));
+                            setTranslatorAccessError(null);
+                            return;
+                          }
 
-                            handleTranslatorAccessDigit(key);
-                          }}
-                        >
-                          <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
-                            {key === 'clear'
-                              ? t('privacy.clearKey')
-                              : key === 'delete'
-                                ? t('privacy.deleteKey')
-                                : key}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )
-                )}
+                          handleTranslatorAccessDigit(key);
+                        }}
+                      >
+                        <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
+                          {key === 'clear'
+                            ? t('privacy.clearKey')
+                            : key === 'delete'
+                              ? t('privacy.deleteKey')
+                              : key}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ))}
               </View>
               <View style={styles.modalButtons}>
                 <TouchableOpacity
@@ -1346,28 +1398,24 @@ export function SettingsScreen() {
               {t('settings.deleteAccountWarning')}
             </Text>
 
-            {isDeleting ? (
-              <ActivityIndicator size="large" color={colors.error} style={{ marginVertical: 20 }} />
-            ) : (
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.cardBorder }]}
-                  onPress={() => setShowDeleteConfirm(false)}
-                >
-                  <Text style={[styles.modalButtonTextCancel, { color: colors.secondaryText }]}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.error }]}
-                  onPress={handleDeleteAccount}
-                >
-                  <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
-                    {t('settings.delete')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.modalButtons}>
+              <AppButton
+                label={t('common.cancel')}
+                variant="secondary"
+                fullWidth={false}
+                disabled={isDeleting}
+                onPress={() => setShowDeleteConfirm(false)}
+                style={styles.modalButtonFlex}
+              />
+              <AppButton
+                label={t('settings.delete')}
+                variant="destructive"
+                fullWidth={false}
+                loading={isDeleting}
+                onPress={handleDeleteAccount}
+                style={styles.modalButtonFlex}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -1644,6 +1692,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  modalButtonFlex: {
+    flex: 1,
+  },
   modalButton: {
     flex: 1,
     padding: 14,
@@ -1705,9 +1756,34 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
   themeSelectorButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 6,
+    paddingRight: 10,
+    paddingVertical: 5,
     borderRadius: radius.sm,
+    borderWidth: 1,
+  },
+  themeSelectorSwatch: {
+    width: 24,
+    height: 18,
+    borderRadius: 5,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  themeSelectorSwatchLine: {
+    width: 8,
+    height: 2,
+    borderRadius: 1,
+  },
+  themeSelectorSwatchDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   themeSelectorLabel: {
     fontSize: 13,
