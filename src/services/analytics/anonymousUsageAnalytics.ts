@@ -15,7 +15,11 @@ export type AnonymousUsageEventName =
   // pick up server-side geo enrichment via the unified endpoint.
   | 'audio_completed'
   | 'text_translation_download_completed'
-  | 'audio_download_completed';
+  | 'audio_download_completed'
+  // Forwarded from bibleExperienceAnalytics (P1 S8) — the product-valuable
+  // Bible-experience events that were previously buffered and never sent.
+  | 'library_action'
+  | 'book_hub_chapter_opened';
 
 // Compat alias — the queued-event shape now lives in the unified queue module.
 export type AnonymousUsageEvent = QueuedEvent;

@@ -129,11 +129,20 @@ test('trackBibleExperienceEvent records events in insertion order', () => {
   resetTrackedBibleExperienceEvents();
 
   trackBibleExperienceEvent({ name: 'library_action', bookId: 'GEN', source: 'saved-library' });
-  trackBibleExperienceEvent({ name: 'library_reopened', bookId: 'REV', source: 'saved-library' });
+  trackBibleExperienceEvent({ name: 'book_hub_chapter_opened', bookId: 'REV', source: 'book-hub' });
 
   const events = getTrackedBibleExperienceEvents();
   assert.equal(events[0]?.name, 'library_action');
-  assert.equal(events[1]?.name, 'library_reopened');
+  assert.equal(events[1]?.name, 'book_hub_chapter_opened');
+  resetTrackedBibleExperienceEvents();
+});
+
+test('trackBibleExperienceEvent DROPS non-forwarded events (companion/reopen/feedback)', () => {
+  resetTrackedBibleExperienceEvents();
+  trackBibleExperienceEvent({ name: 'book_companion_opened', bookId: 'PSA', source: 'companion' });
+  trackBibleExperienceEvent({ name: 'library_reopened', bookId: 'REV', source: 'saved-library' });
+  trackBibleExperienceEvent({ name: 'chapter_feedback_opened', bookId: 'JHN', source: 'reader-feedback' });
+  assert.equal(getTrackedBibleExperienceEvents().length, 0, 'only library_action + book_hub_chapter_opened forward');
   resetTrackedBibleExperienceEvents();
 });
 
@@ -171,9 +180,9 @@ test('trackBibleExperienceEvent retains the most recent events when the cap is r
 
   // Sentinel — should survive the cap trim
   trackBibleExperienceEvent({
-    name: 'library_reopened',
+    name: 'book_hub_chapter_opened',
     bookId: 'REV',
-    source: 'saved-library',
+    source: 'book-hub',
     detail: 'sentinel',
   });
 
@@ -223,10 +232,10 @@ test('trackBibleExperienceEvent works without optional fields', () => {
   resetTrackedBibleExperienceEvents();
 
   // mode, chapter, and detail are all optional
-  trackBibleExperienceEvent({ name: 'book_companion_opened', bookId: 'PSA', source: 'companion' });
+  trackBibleExperienceEvent({ name: 'book_hub_chapter_opened', bookId: 'PSA', source: 'book-hub' });
 
   const [event] = getTrackedBibleExperienceEvents();
-  assert.equal(event?.name, 'book_companion_opened');
+  assert.equal(event?.name, 'book_hub_chapter_opened');
   assert.equal(event?.chapter, undefined);
   assert.equal(event?.mode, undefined);
   assert.equal(event?.detail, undefined);

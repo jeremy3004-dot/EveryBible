@@ -6,7 +6,7 @@ import {
   trackBibleExperienceEvent,
 } from './bibleExperienceAnalytics';
 
-test('trackBibleExperienceEvent records events through the local-first analytics seam', () => {
+test('trackBibleExperienceEvent forwards product-valuable events (book_hub_chapter_opened)', () => {
   resetTrackedBibleExperienceEvents();
 
   trackBibleExperienceEvent({
@@ -28,7 +28,7 @@ test('trackBibleExperienceEvent records events through the local-first analytics
   ]);
 });
 
-test('trackBibleExperienceEvent keeps chapter feedback analytics payloads intact', () => {
+test('trackBibleExperienceEvent DROPS non-product events (chapter feedback has its own pipeline)', () => {
   resetTrackedBibleExperienceEvents();
 
   trackBibleExperienceEvent({
@@ -41,15 +41,9 @@ test('trackBibleExperienceEvent keeps chapter feedback analytics payloads intact
     detail: 'saved-not-exported',
   });
 
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_submitted',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'down',
-      source: 'listener-feedback',
-      detail: 'saved-not-exported',
-    },
-  ]);
+  assert.deepEqual(
+    getTrackedBibleExperienceEvents(),
+    [],
+    'chapter feedback must not be analytics-forwarded (it has a dedicated submit pipeline)'
+  );
 });

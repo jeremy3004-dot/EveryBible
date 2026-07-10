@@ -1,3 +1,5 @@
+import type { AnonymousUsageEventName } from './anonymousUsageAnalytics';
+
 export type BibleExperienceEventName =
   | 'book_hub_chapter_opened'
   | 'book_companion_opened'
@@ -24,23 +26,57 @@ export interface BibleExperienceEvent {
   detail?: string;
 }
 
+// Only these carry product value worth an analytics row, so they are FORWARDED
+// to the unified ingestion pipeline (P1 S8). The rest — companion opens, library
+// re-opens, and chapter feedback (which has its own dedicated submit pipeline) —
+// are intentionally dropped. The old buffer-only machinery that queued every
+// event in memory and NEVER sent anything is gone.
+const FORWARDED_EVENTS: ReadonlySet<BibleExperienceEventName> = new Set([
+  'library_action',
+  'book_hub_chapter_opened',
+]);
+
 const MAX_TRACKED_EVENTS = 200;
-const trackedBibleExperienceEvents: BibleExperienceEvent[] = [];
+
+// Test-only mirror of what we actually forwarded, so unit tests can assert the
+// routing decision without importing the react-native-backed pipeline.
+const forwardedEvents: BibleExperienceEvent[] = [];
+
+function toUsageProperties(event: BibleExperienceEvent): Record<string, unknown> {
+  return {
+    book_id: event.bookId,
+    chapter: event.chapter,
+    source: event.source,
+    mode: event.mode,
+    translation_id: event.translationId,
+    detail: event.detail,
+  };
+}
 
 export function trackBibleExperienceEvent(event: BibleExperienceEvent) {
-  if (trackedBibleExperienceEvents.length >= MAX_TRACKED_EVENTS) {
-    trackedBibleExperienceEvents.splice(
-      0,
-      trackedBibleExperienceEvents.length - MAX_TRACKED_EVENTS + 1
-    );
+  if (!FORWARDED_EVENTS.has(event.name)) {
+    return;
   }
-  trackedBibleExperienceEvents.push(event);
+
+  if (forwardedEvents.length >= MAX_TRACKED_EVENTS) {
+    forwardedEvents.splice(0, forwardedEvents.length - MAX_TRACKED_EVENTS + 1);
+  }
+  forwardedEvents.push(event);
+
+  // Lazy import keeps this module free of the react-native-backed pipeline in
+  // its static graph so it stays directly unit-testable; a no-op if the import
+  // fails (e.g. node tests).
+  void import('./anonymousUsageAnalytics')
+    .then(({ trackAnonymousUsageEvent }) => {
+      trackAnonymousUsageEvent(event.name as AnonymousUsageEventName, toUsageProperties(event));
+    })
+    .catch(() => {});
 }
 
 export function getTrackedBibleExperienceEvents() {
-  return [...trackedBibleExperienceEvents];
+  return [...forwardedEvents];
 }
 
 export function resetTrackedBibleExperienceEvents() {
-  trackedBibleExperienceEvents.length = 0;
+  forwardedEvents.length = 0;
 }
