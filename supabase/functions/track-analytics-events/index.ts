@@ -297,8 +297,8 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
 }
 
 // Coarse accuracy radius by source when the client didn't supply one:
-// city-level ~50 km, country-only ~800 km. Keeps edge output aligned with the
-// geo_accuracy_km DOUBLE PRECISION column contract (see P2 S13).
+// city-level ~50 km, country-only ~800 km. Whole-km integers to match the
+// geo_accuracy_km INTEGER column contract (see P2 S13).
 function accuracyKmForGeo(geo: GeoResult): number | null {
   if (geo.accuracyKm != null) return geo.accuracyKm;
   if (geo.city) return 50;
