@@ -118,7 +118,13 @@ export interface TranslationBreakdownEntry {
   readingMinutes: number;
   downloadUnits: number;
   listenerCount: number;
+  // For the GLOBE: real country rollups, else a location-bucket fallback so a
+  // translation still has geography to render.
   countryMetrics: CountryMetric[];
+  // For the TABLE: ONLY genuine per-country rollups (one row per country, with
+  // reading minutes). Empty when per-country geo wasn't persisted — the table
+  // then shows a "totals only" note rather than duplicated location buckets.
+  countryTableMetrics: CountryMetric[];
   locationMetrics: CountryMetric[];
 }
 
@@ -212,6 +218,7 @@ export function buildTranslationBreakdown(
         downloadUnits: entry.downloadUnits,
         listenerCount: entry.listenerCount,
         countryMetrics: countryMetrics.length > 0 ? countryMetrics : locationMetrics,
+        countryTableMetrics: countryMetrics,
         locationMetrics,
       };
     })

@@ -1152,26 +1152,32 @@ export async function getAnalyticsOverview(
   const service = createAdminServiceClient();
   const since = new Date();
   since.setDate(since.getDate() - windowDays);
-  const { data, error } = await service.rpc('get_admin_analytics_overview', {
-    p_since: since.toISOString(),
-    p_total_days: windowDays,
-  });
 
+  // S16: engagement scores are pre-computed by the nightly cron, NOT within this
+  // window — expose when they were last refreshed. The RPC doesn't return this,
+  // so query the summary table's freshest updated_at in parallel. Its error is
+  // intentionally ignored (empty table => null => "not yet computed") so a
+  // missing timestamp never takes down the whole dashboard.
+  const [overviewResult, engagementResult] = await Promise.all([
+    service.rpc('get_admin_analytics_overview', {
+      p_since: since.toISOString(),
+      p_total_days: windowDays,
+    }),
+    service
+      .from('user_engagement_summary')
+      .select('updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const { data, error } = overviewResult;
   if (error) {
     throw new Error(`Unable to load shared analytics overview: ${error.message}`);
   }
 
-  // S16: engagement scores are pre-computed by the nightly cron, NOT within this
-  // window — expose when they were last refreshed. The RPC doesn't return this,
-  // so query the summary table's freshest updated_at directly.
-  const { data: engagementRow } = await service
-    .from('user_engagement_summary')
-    .select('updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
   const engagementScoreComputedAt =
-    (engagementRow as { updated_at?: string } | null)?.updated_at ?? null;
+    (engagementResult.data as { updated_at?: string } | null)?.updated_at ?? null;
 
   const overview = ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {};
   const countryMetrics = overview.countryMetrics?.length

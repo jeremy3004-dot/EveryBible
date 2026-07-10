@@ -48,7 +48,14 @@ test('analytics explorer: globe hero before metrics + tables, and translation fi
     'sections must be ordered: globe → metrics → daily trends → translation table → country table'
   );
 
-  // Filter sync (P3 S17): the in-globe selection drives the country table.
+  // Filter sync (P3 S17): the globe is CONTROLLED by the explorer (both the
+  // value and the setter are passed), so "Clear filter" and the chips share one
+  // source of truth.
+  assert.match(
+    explorer,
+    /selectedTranslation=\{selectedTranslation\}/,
+    'globe must be controlled (value passed down)'
+  );
   assert.match(
     explorer,
     /onSelectedTranslationChange=\{setSelectedTranslation\}/,
@@ -56,8 +63,8 @@ test('analytics explorer: globe hero before metrics + tables, and translation fi
   );
   assert.match(
     explorer,
-    /const countryRows = activeEntry \? activeEntry\.countryMetrics : analytics\.countryMetrics/,
-    'the country table must filter by the selected translation'
+    /const countryRows = activeEntry \? activeEntry\.countryTableMetrics : analytics\.countryMetrics/,
+    'the country table must filter by the selected translation, using table-safe rollups'
   );
 
   // S16 additions.

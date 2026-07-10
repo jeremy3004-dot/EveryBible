@@ -23,7 +23,9 @@ export function AnalyticsExplorer({
     ? analytics.translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ??
       null
     : null;
-  const countryRows = activeEntry ? activeEntry.countryMetrics : analytics.countryMetrics;
+  // Use the table-safe per-country rollups (not the globe's location-bucket
+  // fallback, which would duplicate keys/rows). Empty => "totals only" note.
+  const countryRows = activeEntry ? activeEntry.countryTableMetrics : analytics.countryMetrics;
 
   return (
     <>
@@ -32,6 +34,7 @@ export function AnalyticsExplorer({
         metrics={analytics.locationMetrics}
         listeningTotalMinutes={analytics.listeningTotalMinutes}
         translationBreakdown={analytics.translationBreakdown}
+        selectedTranslation={selectedTranslation}
         onSelectedTranslationChange={setSelectedTranslation}
       />
 
@@ -45,7 +48,7 @@ export function AnalyticsExplorer({
           <strong>{analytics.readingTotalMinutes}</strong>
         </article>
         <article className="metric-card">
-          <span>Tracked sessions</span>
+          <span>Tracked sessions ({windowDays}d)</span>
           <strong>{analytics.totalTrackedSessions}</strong>
         </article>
         <article className="metric-card">
@@ -53,7 +56,7 @@ export function AnalyticsExplorer({
           <strong>{analytics.totalDownloadUnits}</strong>
         </article>
         <article className="metric-card">
-          <span>Users with listening</span>
+          <span>Users with listening ({windowDays}d)</span>
           <strong>{analytics.userCountWithListening}</strong>
         </article>
         <article className="metric-card">
@@ -61,9 +64,11 @@ export function AnalyticsExplorer({
           <strong>{analytics.activeLocationCount}</strong>
         </article>
         <article className="metric-card">
-          <span>Average engagement (all users)</span>
+          <span>Average engagement (all-time)</span>
           <strong>{analytics.averageEngagementScore}</strong>
-          <small className="metric-card__note">
+          {/* toLocaleString differs server (UTC) vs client — suppress the
+              expected hydration diff. */}
+          <small className="metric-card__note" suppressHydrationWarning>
             {analytics.engagementScoreComputedAt
               ? `Scores computed ${new Date(analytics.engagementScoreComputedAt).toLocaleString()}`
               : 'Scores not yet computed'}
@@ -175,7 +180,11 @@ export function AnalyticsExplorer({
               ))}
               {countryRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No country activity for this selection.</td>
+                  <td colSpan={6}>
+                    {activeEntry
+                      ? 'Per-country rows were not persisted for this translation in this window — see the translation totals above.'
+                      : 'No country activity for this selection.'}
+                  </td>
                 </tr>
               ) : null}
             </tbody>

@@ -19,8 +19,10 @@ interface AnalyticsGlobeProps {
   metrics: CountryMetric[];
   listeningTotalMinutes?: number;
   translationBreakdown?: TranslationBreakdownEntry[];
-  // Notifies a parent when the in-globe translation filter changes, so sibling
-  // views (e.g. the country totals table) can filter in sync (P3 S17).
+  // Controlled translation filter (P3 S17): when a parent supplies both of these
+  // it owns the filter and sibling views (e.g. the country totals table) stay in
+  // sync; when omitted the globe manages its own filter internally.
+  selectedTranslation?: string | null;
   onSelectedTranslationChange?: (translationId: string | null) => void;
 }
 
@@ -227,6 +229,7 @@ export function AnalyticsGlobe({
   metrics,
   listeningTotalMinutes,
   translationBreakdown,
+  selectedTranslation: selectedTranslationProp,
   onSelectedTranslationChange,
 }: AnalyticsGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -242,17 +245,24 @@ export function AnalyticsGlobe({
   const [theme, setTheme] = useState<AdminThemeMode>(getDocumentTheme);
   const [mode, setMode] = useState<MapMetricMode>('listeningMinutes');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [selectedTranslation, setSelectedTranslation] = useState<string | null>(null);
+  const [internalTranslation, setInternalTranslation] = useState<string | null>(null);
+  const selectedTranslation =
+    selectedTranslationProp !== undefined ? selectedTranslationProp : internalTranslation;
+  const setSelectedTranslation = useCallback(
+    (value: string | null) => {
+      if (onSelectedTranslationChange) {
+        onSelectedTranslationChange(value);
+      } else {
+        setInternalTranslation(value);
+      }
+    },
+    [onSelectedTranslationChange]
+  );
 
   const activeBreakdown = useMemo(() => {
     if (!selectedTranslation || !translationBreakdown?.length) return null;
     return translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ?? null;
   }, [selectedTranslation, translationBreakdown]);
-
-  // Keep sibling views (country totals table) in sync with the in-globe filter.
-  useEffect(() => {
-    onSelectedTranslationChange?.(selectedTranslation);
-  }, [selectedTranslation, onSelectedTranslationChange]);
 
   const isSingleTranslationWindow = (translationBreakdown?.length ?? 0) === 1;
   const selectedTranslationHasGeoMetrics = Boolean(
