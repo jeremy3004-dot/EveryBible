@@ -47,6 +47,7 @@ export function ChapterSelectorScreen() {
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const isChapterRead = useProgressStore((state) => state.isChapterRead);
 
   const { width } = useWindowDimensions();
   const itemSize = useMemo(() => getChapterGridItemSize(width), [width]);
@@ -130,32 +131,33 @@ export function ChapterSelectorScreen() {
     <View style={styles.row}>
       {item.map((chapter) => {
         const isContinueChapter = chapter === bookHubPresentation.continueChapter;
+        const isRead = isChapterRead(bookId, chapter);
+        // Hierarchy from tone, not borders: current = accent fill, read = soft
+        // accent wash, unread = quiet tonal surface.
+        const fillColor = isContinueChapter
+          ? colors.bibleAccent
+          : isRead
+            ? colors.accentSoft
+            : colors.bibleSurface;
+        const numberColor = isContinueChapter
+          ? colors.onAccent
+          : isRead
+            ? colors.bibleAccent
+            : colors.biblePrimaryText;
 
         return (
           <TouchableOpacity
             key={chapter}
             style={[
               styles.chapterButton,
-              {
-                width: itemSize,
-                height: itemSize,
-                backgroundColor: isContinueChapter ? colors.bibleAccent : colors.bibleSurface,
-                borderColor: isContinueChapter ? colors.bibleAccent : colors.bibleDivider,
-              },
+              { width: itemSize, height: itemSize, backgroundColor: fillColor },
             ]}
             onPress={() => navigateToChapter(chapter)}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
           >
-            <Text
-              style={[
-                styles.chapterNumber,
-                {
-                  color: isContinueChapter ? colors.bibleBackground : colors.biblePrimaryText,
-                },
-              ]}
-            >
-              {chapter}
-            </Text>
+            <Text style={[styles.chapterNumber, { color: numberColor }]}>{chapter}</Text>
           </TouchableOpacity>
         );
       })}
@@ -216,7 +218,9 @@ export function ChapterSelectorScreen() {
                 <Image source={getBookIcon(book.id)} style={styles.bookIcon} resizeMode="contain" />
               </View>
 
-              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{getTranslatedBookName(bookId, t)}</Text>
+              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+                {getTranslatedBookName(bookId, t)}
+              </Text>
             </LinearGradient>
 
             <View style={styles.sectionHeader}>
@@ -292,8 +296,6 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.screenTitle,
-    fontSize: 36,
-    lineHeight: 46,
     marginTop: spacing.sm,
   },
   errorText: {
@@ -307,8 +309,7 @@ const styles = StyleSheet.create({
     ...typography.sectionTitle,
   },
   chapterButton: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
