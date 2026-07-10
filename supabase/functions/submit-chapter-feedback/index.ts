@@ -78,6 +78,22 @@ const AUDIO_RESPONSE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const AUDIO_RESPONSE_MAX_BASE64_LENGTH = Math.ceil((AUDIO_RESPONSE_MAX_SIZE_BYTES * 4) / 3) + 8;
 const AUDIO_RESPONSE_MIME_TYPE = 'audio/mp4';
 
+// Max submissions per user per rolling hour — spam/flood guard (S3, S8).
+const SUBMISSION_RATE_LIMIT_PER_HOUR = 20;
+
+// Canonical 66-book chapter counts. Guards against arbitrary book_id / out-of-range
+// chapter values polluting the dataset (S6). Keep in sync with src/constants/books.ts.
+const BOOK_CHAPTER_COUNTS: Record<string, number> = {
+  GEN: 50, EXO: 40, LEV: 27, NUM: 36, DEU: 34, JOS: 24, JDG: 21, RUT: 4, '1SA': 31,
+  '2SA': 24, '1KI': 22, '2KI': 25, '1CH': 29, '2CH': 36, EZR: 10, NEH: 13, EST: 10,
+  JOB: 42, PSA: 150, PRO: 31, ECC: 12, SNG: 8, ISA: 66, JER: 52, LAM: 5, EZK: 48,
+  DAN: 12, HOS: 14, JOL: 3, AMO: 9, OBA: 1, JON: 4, MIC: 7, NAM: 3, HAB: 3, ZEP: 3,
+  HAG: 2, ZEC: 14, MAL: 4, MAT: 28, MRK: 16, LUK: 24, JHN: 21, ACT: 28, ROM: 16,
+  '1CO': 16, '2CO': 13, GAL: 6, EPH: 6, PHP: 4, COL: 4, '1TH': 5, '2TH': 3, '1TI': 6,
+  '2TI': 4, TIT: 3, PHM: 1, HEB: 13, JAS: 5, '1PE': 5, '2PE': 3, '1JN': 5, '2JN': 1,
+  '3JN': 1, JUD: 1, REV: 22,
+};
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
     status,
@@ -174,8 +190,18 @@ const validateRequest = (
     };
   }
 
+  const normalizedBookId = bookId.toUpperCase();
+  const bookChapterCount = BOOK_CHAPTER_COUNTS[normalizedBookId];
+  if (bookChapterCount === undefined) {
+    return { error: 'bookId is not a recognized Bible book' };
+  }
+
   if (!Number.isInteger(body.chapter) || (body.chapter ?? 0) < 1) {
     return { error: 'chapter must be an integer greater than or equal to 1' };
+  }
+
+  if ((body.chapter ?? 0) > bookChapterCount) {
+    return { error: 'chapter is out of range for this book' };
   }
 
   if (body.sentiment !== 'up' && body.sentiment !== 'down') {
@@ -274,7 +300,7 @@ const validateRequest = (
       audio_response_size_bytes: audioResponse?.sizeBytes ?? null,
       audio_response_duration_ms: audioResponse?.durationMs ?? null,
       audio_response_created_at: audioResponse?.createdAt ?? null,
-      book_id: bookId,
+      book_id: normalizedBookId,
       chapter: body.chapter,
       sentiment: body.sentiment,
       comment,
@@ -308,6 +334,7 @@ Deno.serve(async (req) => {
       },
     });
 
+    // Feedback is council-only: require a valid signed-in user (S1). No anonymous path.
     let userId: string | null = null;
     if (authorization?.startsWith('Bearer ')) {
       const accessToken = authorization.slice('Bearer '.length).trim();
@@ -323,6 +350,60 @@ Deno.serve(async (req) => {
       userId = user?.id ?? null;
     }
 
+    if (!userId) {
+      return jsonResponse(401, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Sign in to send chapter feedback',
+      });
+    }
+
+    // Server-verify Scripture Council membership and take the participant identity from the
+    // server, ignoring whatever the client payload claims (S1).
+    const { data: prefs, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select(
+        'chapter_feedback_enabled, chapter_feedback_name, chapter_feedback_role, chapter_feedback_id_number'
+      )
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (prefsError) {
+      return jsonResponse(500, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: prefsError.message,
+      });
+    }
+
+    if (!prefs?.chapter_feedback_enabled) {
+      return jsonResponse(403, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Chapter feedback is not enabled for this account',
+      });
+    }
+
+    // Per-user flood guard (S3, S8).
+    const rateWindowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount, error: rateError } = await supabase
+      .from('chapter_feedback_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', rateWindowStart);
+
+    if (!rateError && (recentCount ?? 0) >= SUBMISSION_RATE_LIMIT_PER_HOUR) {
+      return jsonResponse(429, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Too many submissions. Please try again later.',
+      });
+    }
+
     const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
     const validation = validateRequest(requestBody, userId);
 
@@ -330,6 +411,7 @@ Deno.serve(async (req) => {
       return jsonResponse(400, { success: false, error: validation.error });
     }
 
+    let uploadedAudioPath: string | null = null;
     if (validation.pendingAudioUpload) {
       const { error: uploadError } = await supabase.storage
         .from('chapter-feedback-audio')
@@ -350,12 +432,16 @@ Deno.serve(async (req) => {
           error: uploadError.message,
         });
       }
+
+      uploadedAudioPath = validation.pendingAudioUpload.path;
     }
 
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
       user_id: userId,
-      participant_id_number: userId,
+      participant_name: trimOptionalText(prefs.chapter_feedback_name),
+      participant_role: trimOptionalText(prefs.chapter_feedback_role),
+      participant_id_number: trimOptionalText(prefs.chapter_feedback_id_number),
     };
 
     const { data: insertedRow, error: insertError } = await supabase
@@ -365,6 +451,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError || !insertedRow) {
+      // Don't orphan the just-uploaded audio object if the row insert fails (S7).
+      if (uploadedAudioPath) {
+        await supabase.storage.from('chapter-feedback-audio').remove([uploadedAudioPath]);
+      }
+
       return jsonResponse(500, {
         success: false,
         saved: false,
@@ -378,7 +469,7 @@ Deno.serve(async (req) => {
     return jsonResponse(200, {
       success: true,
       saved: true,
-      exported: false,
+      exported: true,
       feedbackId: feedbackRow.id,
     });
   } catch (error) {

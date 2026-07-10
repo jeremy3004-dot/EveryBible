@@ -42,6 +42,9 @@ export interface ChapterFeedbackFunctionResponse {
   exported: boolean;
   feedbackId?: string;
   error?: string;
+  // Set when the backend rejected the request for want of a signed-in user (401), so the
+  // UI can show a localized sign-in prompt instead of the raw server message.
+  requiresSignIn?: boolean;
 }
 
 interface ChapterFeedbackFunctionError {
@@ -66,30 +69,16 @@ interface ChapterFeedbackAuthClient {
   refreshAccessToken: () => Promise<string | null>;
 }
 
-function normalizeSubmissionText(value: string | null | undefined): string {
-  return value?.trim() ?? '';
-}
-
 function buildNormalizedIdentity(
   input: Pick<ChapterFeedbackSubmissionInput, 'participantName' | 'participantRole'>
 ): ChapterFeedbackIdentity | null {
-  const identity = normalizeChapterFeedbackIdentity({
+  // Both name and role are required or the identity is null — never emit a partial
+  // identity (B6). The server is the authority on identity now, but keep the client
+  // payload well-formed too.
+  return normalizeChapterFeedbackIdentity({
     name: input.participantName ?? '',
     role: input.participantRole ?? '',
   });
-
-  if (identity) {
-    return identity;
-  }
-
-  const name = normalizeSubmissionText(input.participantName);
-  const role = normalizeSubmissionText(input.participantRole);
-
-  if (!name && !role) {
-    return null;
-  }
-
-  return { name, role };
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | null> {
@@ -321,6 +310,7 @@ export async function submitChapterFeedback(
 
     if (error) {
       const resolvedErrorMessage = await resolveFunctionErrorMessage(error);
+      const requiresSignIn = getFunctionErrorStatus(error) === 401;
       trackBibleExperienceEvent({
         name: 'chapter_feedback_failed',
         translationId: payload.translationId,
@@ -335,6 +325,7 @@ export async function submitChapterFeedback(
         saved: false,
         exported: false,
         error: resolvedErrorMessage,
+        requiresSignIn,
       };
     }
 

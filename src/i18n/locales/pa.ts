@@ -244,7 +244,6 @@ export const pa = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "ਤੁਹਾਡੇ ਫੀਡਬੈਕ ਲਈ ਧੰਨਵਾਦ। ਤੁਹਾਡੀ ਸਬਮਿਸ਼ਨ ਪ੍ਰਾਪਤ ਹੋ ਗਈ ਹੈ ਅਤੇ ਸਾਡੀਆਂ ਅਨੁਵਾਦ ਟੀਮਾਂ ਦੁਆਰਾ ਜਿੰਨੀ ਜਲਦੀ ਹੋ ਸਕੇ ਸਮੀਖਿਆ ਕੀਤੀ ਜਾਵੇਗੀ।",
-    "chapterFeedbackSavedFallback": "ਤੁਹਾਡੇ ਫੀਡਬੈਕ ਲਈ ਧੰਨਵਾਦ। ਤੁਹਾਡੀ ਸਬਮਿਸ਼ਨ ਪ੍ਰਾਪਤ ਹੋ ਗਈ ਹੈ ਅਤੇ ਸਾਡੀਆਂ ਅਨੁਵਾਦ ਟੀਮਾਂ ਦੁਆਰਾ ਜਿੰਨੀ ਜਲਦੀ ਹੋ ਸਕੇ ਸਮੀਖਿਆ ਕੀਤੀ ਜਾਵੇਗੀ।",
     "chapterFeedbackSignInRequired": "ਕਿਰਪਾ ਕਰਕੇ ਚੈਪਟਰ ਫੀਡਬੈਕ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਸਾਈਨ ਇਨ ਕਰੋ।",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

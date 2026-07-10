@@ -244,7 +244,6 @@ export const ko = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "피드백을 보내주셔서 감사합니다. 귀하의 제출물이 접수되었으며 가능한 한 빨리 번역팀이 검토할 것입니다.",
-    "chapterFeedbackSavedFallback": "피드백을 보내주셔서 감사합니다. 귀하의 제출물이 접수되었으며 가능한 한 빨리 번역팀이 검토할 것입니다.",
     "chapterFeedbackSignInRequired": "챕터 피드백을 보내기 전에 로그인하세요.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

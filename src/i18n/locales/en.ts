@@ -192,8 +192,6 @@ export const en = {
       'Audio upload failed. Your recording is still here; try submitting again.',
     chapterFeedbackSuccess:
       'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
-    chapterFeedbackSavedFallback:
-      'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
     chapterFeedbackSignInRequired: 'Please sign in before sending chapter feedback.',
     translatorReviewTitle: 'Accuracy review',
     translatorReviewSummary: 'Pending decisions: {{pending}} of {{count}}',

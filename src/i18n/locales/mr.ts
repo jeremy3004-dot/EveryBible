@@ -244,7 +244,6 @@ export const mr = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "तुमच्या अभिप्रायाबद्दल धन्यवाद. तुमचे सबमिशन प्राप्त झाले आहे आणि आमच्या अनुवाद कार्यसंघाद्वारे शक्य तितक्या लवकर त्याचे पुनरावलोकन केले जाईल.",
-    "chapterFeedbackSavedFallback": "तुमच्या अभिप्रायाबद्दल धन्यवाद. तुमचे सबमिशन प्राप्त झाले आहे आणि आमच्या अनुवाद कार्यसंघाद्वारे शक्य तितक्या लवकर त्याचे पुनरावलोकन केले जाईल.",
     "chapterFeedbackSignInRequired": "कृपया धडा फीडबॅक पाठवण्यापूर्वी साइन इन करा.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

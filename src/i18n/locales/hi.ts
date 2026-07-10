@@ -176,7 +176,6 @@ export const hi = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "धन्यवाद। आपकी प्रतिक्रिया भेज दी गई है।",
-    "chapterFeedbackSavedFallback": "धन्यवाद। आपकी प्रतिक्रिया सुरक्षित हो गई है और जल्द समीक्षा के लिए निर्यात की जाएगी।",
     "chapterFeedbackSignInRequired": "अध्याय प्रतिक्रिया भेजने से पहले कृपया साइन इन करें।",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

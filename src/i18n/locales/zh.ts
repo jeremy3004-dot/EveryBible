@@ -244,7 +244,6 @@ export const zh = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "感谢您的反馈。您提交的内容已收到，我们的翻译团队将尽快进行审核。",
-    "chapterFeedbackSavedFallback": "感谢您的反馈。您提交的内容已收到，我们的翻译团队将尽快进行审核。",
     "chapterFeedbackSignInRequired": "请先登录，然后再发送章节反馈。",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

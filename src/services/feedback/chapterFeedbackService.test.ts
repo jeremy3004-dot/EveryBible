@@ -327,6 +327,8 @@ test('submitChapterFeedback maps a 401 edge-function response into a sign-in ret
   assert.equal(result.saved, false);
   assert.equal(result.exported, false);
   assert.equal(result.error, 'Please sign in again before sending chapter feedback.');
+  // The UI uses this flag to show a localized sign-in prompt instead of the raw message.
+  assert.equal(result.requiresSignIn, true);
   assert.deepEqual(getTrackedBibleExperienceEvents(), [
     {
       name: 'chapter_feedback_failed',

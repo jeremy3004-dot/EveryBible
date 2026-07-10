@@ -244,7 +244,6 @@ export const te = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "మీ అభిప్రాయానికి ధన్యవాదాలు. మీ సమర్పణ స్వీకరించబడింది మరియు వీలైనంత త్వరగా మా అనువాద బృందాలచే సమీక్షించబడుతుంది.",
-    "chapterFeedbackSavedFallback": "మీ అభిప్రాయానికి ధన్యవాదాలు. మీ సమర్పణ స్వీకరించబడింది మరియు వీలైనంత త్వరగా మా అనువాద బృందాలచే సమీక్షించబడుతుంది.",
     "chapterFeedbackSignInRequired": "దయచేసి అధ్యాయం అభిప్రాయాన్ని పంపే ముందు సైన్ ఇన్ చేయండి.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

@@ -244,7 +244,6 @@ export const ur = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "آپ کی رائے کا شکریہ۔ آپ کی جمع آوری موصول ہو گئی ہے اور ہماری ترجمے کی ٹیمیں جلد از جلد اس کا جائزہ لیں گی۔",
-    "chapterFeedbackSavedFallback": "آپ کی رائے کا شکریہ۔ آپ کی جمع آوری موصول ہو گئی ہے اور ہماری ترجمے کی ٹیمیں جلد از جلد اس کا جائزہ لیں گی۔",
     "chapterFeedbackSignInRequired": "براہ کرم باب کی رائے بھیجنے سے پہلے سائن ان کریں۔",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

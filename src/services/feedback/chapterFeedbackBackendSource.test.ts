@@ -252,18 +252,13 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     functionSource,
-    /participant_id_number:\s*userId/,
-    'Expected the Edge Function to derive the reviewer id number from the authenticated Supabase UUID when available'
+    /participant_id_number:\s*trimOptionalText\(prefs\.chapter_feedback_id_number\)/,
+    'Expected the Edge Function to source the reviewer id number from server preferences, not the auth UUID (S4)'
   );
   assert.match(
     functionSource,
     /audio_response_path/,
     'Expected the Edge Function to persist audio response metadata'
-  );
-  assert.doesNotMatch(
-    functionSource,
-    /audio responses require an authenticated user/,
-    'Expected the Edge Function to allow anonymous audio via service-role upload'
   );
   assert.match(
     functionSource,

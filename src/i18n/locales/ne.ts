@@ -176,7 +176,6 @@ export const ne = {
     "chapterFeedbackAudioRecordingMissing": "रेकर्डिङ सुरक्षित गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
     "chapterFeedbackAudioUploadError": "अडियो अपलोड असफल भयो। तपाईंको रेकर्डिङ अझै यहाँ छ; फेरि पठाउन प्रयास गर्नुहोस्।",
     "chapterFeedbackSuccess": "धन्यवाद। तपाईंको प्रतिक्रिया पठाइयो।",
-    "chapterFeedbackSavedFallback": "धन्यवाद। तपाईंको प्रतिक्रिया सुरक्षित भयो र चाँडै समीक्षा लागि निर्यात गरिनेछ।",
     "chapterFeedbackSignInRequired": "अध्याय प्रतिक्रिया पठाउनुअघि कृपया साइन इन गर्नुहोस्।",
     "translatorReviewTitle": "शुद्धता समीक्षा",
     "translatorReviewSummary": "लम्बित निर्णयहरू: {{count}} मध्ये {{pending}}",

@@ -31,14 +31,8 @@ test('shouldEnableChapterFeedbackSubmit only enables submit when a sentiment exi
   );
 });
 
-test('getChapterFeedbackResultVariant distinguishes exported, degraded, and failed submissions', () => {
-  assert.equal(getChapterFeedbackResultVariant({ success: true, saved: true, exported: true }), 'submitted');
-  assert.equal(
-    getChapterFeedbackResultVariant({ success: true, saved: true, exported: false }),
-    'saved-not-exported'
-  );
-  assert.equal(
-    getChapterFeedbackResultVariant({ success: false, saved: false, exported: false }),
-    'failed'
-  );
+test('getChapterFeedbackResultVariant marks a saved submission as submitted, otherwise failed', () => {
+  assert.equal(getChapterFeedbackResultVariant({ success: true, saved: true }), 'submitted');
+  assert.equal(getChapterFeedbackResultVariant({ success: false, saved: false }), 'failed');
+  assert.equal(getChapterFeedbackResultVariant({ success: true, saved: false }), 'failed');
 });

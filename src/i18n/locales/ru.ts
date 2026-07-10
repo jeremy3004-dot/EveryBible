@@ -176,7 +176,6 @@ export const ru = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "Спасибо за ваш отзыв. Мы получили его и как можно скорее передадим нашим переводческим командам на рассмотрение.",
-    "chapterFeedbackSavedFallback": "Спасибо за ваш отзыв. Мы получили его и как можно скорее передадим нашим переводческим командам на рассмотрение.",
     "chapterFeedbackSignInRequired": "Пожалуйста, войдите в систему перед отправкой отзыва о главе.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

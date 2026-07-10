@@ -23,7 +23,7 @@ test('submit-chapter-feedback stores feedback in Supabase without Google Sheets 
   );
 });
 
-test('submit-chapter-feedback stores optional reviewer identity and derives user columns only when authenticated', () => {
+test('submit-chapter-feedback requires a signed-in council member and sources identity server-side', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
 
   assert.equal(
@@ -31,20 +31,58 @@ test('submit-chapter-feedback stores optional reviewer identity and derives user
     false,
     'submit-chapter-feedback should not accept a manual participantIdNumber from the client payload'
   );
+  // Anonymous submissions are rejected (S1).
   assert.match(
     source,
-    /participant_id_number:\s*userId/,
-    'submit-chapter-feedback should source participant_id_number from the Supabase user UUID when available'
+    /if \(!userId\)[\s\S]*jsonResponse\(401/,
+    'submit-chapter-feedback should reject unauthenticated requests with 401'
   );
-  assert.doesNotMatch(
+  // Council membership is verified server-side against user_preferences (S1).
+  assert.match(
     source,
-    /participantIdNumber are required|participantIdNumber\)|participantName, and participantRole are required/,
-    'submit-chapter-feedback should not require reviewer-entered identity fields'
+    /chapter_feedback_enabled/,
+    'submit-chapter-feedback should verify chapter_feedback_enabled before accepting feedback'
   );
   assert.match(
     source,
-    /let userId:\s*string \| null = null/,
-    'submit-chapter-feedback should allow anonymous feedback rows'
+    /jsonResponse\(403/,
+    'submit-chapter-feedback should reject non-council accounts with 403'
+  );
+  // Identity comes from the server prefs, not the client payload (S1).
+  assert.match(
+    source,
+    /participant_id_number:\s*trimOptionalText\(prefs\.chapter_feedback_id_number\)/,
+    'submit-chapter-feedback should source participant_id_number from server preferences, not the auth UUID'
+  );
+  assert.match(
+    source,
+    /participant_name:\s*trimOptionalText\(prefs\.chapter_feedback_name\)/,
+    'submit-chapter-feedback should source the participant name from server preferences'
+  );
+});
+
+test('submit-chapter-feedback validates the book and chapter against the canon and rate-limits', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.match(
+    source,
+    /BOOK_CHAPTER_COUNTS/,
+    'submit-chapter-feedback should validate book_id against the canonical book list (S6)'
+  );
+  assert.match(
+    source,
+    /chapter is out of range for this book/,
+    'submit-chapter-feedback should reject chapters beyond a book\'s chapter count (S6)'
+  );
+  assert.match(
+    source,
+    /SUBMISSION_RATE_LIMIT_PER_HOUR/,
+    'submit-chapter-feedback should throttle submissions per user (S3, S8)'
+  );
+  assert.match(
+    source,
+    /\.storage\.from\('chapter-feedback-audio'\)\.remove\(\[uploadedAudioPath\]\)/,
+    'submit-chapter-feedback should delete orphaned audio when the row insert fails (S7)'
   );
 });
 
@@ -113,9 +151,9 @@ test('submit-chapter-feedback disables the legacy edge JWT gate and only enriche
     /createClient\(supabaseUrl,\s*serviceRoleKey/,
     'Expected submit-chapter-feedback to keep a separate service-role client for admin writes'
   );
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /Missing bearer token|Not authenticated/,
-    'Expected submit-chapter-feedback not to block anonymous feedback submissions'
+    /Sign in to send chapter feedback/,
+    'Expected submit-chapter-feedback to require authentication now that feedback is council-only'
   );
 });

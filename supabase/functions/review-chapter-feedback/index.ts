@@ -83,6 +83,54 @@ const trimRequiredText = (value: unknown): string | null => {
 const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
 
+// Brute-force protection for the shared translator passcode (S2). A hashed client IP is
+// locked out after too many failed attempts in a short window; the check runs before the
+// passcode comparison so it also covers `validateOnly` probes.
+const LOCKOUT_THRESHOLD = 10;
+const LOCKOUT_WINDOW_MINUTES = 15;
+
+const getClientIp = (request: Request): string => {
+  const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
+  const first = forwardedFor.split(',')[0]?.trim();
+  return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
+};
+
+const hashClientIp = async (request: Request): Promise<string> => {
+  const data = new TextEncoder().encode(getClientIp(request));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+const isPasscodeLockedOut = async (
+  service: ReturnType<typeof createClient>,
+  ipHash: string
+): Promise<boolean> => {
+  const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000).toISOString();
+  const { count, error } = await service
+    .from('translator_review_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', ipHash)
+    .eq('succeeded', false)
+    .gte('created_at', windowStart);
+
+  if (error) {
+    // Fail open on the counter rather than lock every translator out on a transient error.
+    return false;
+  }
+
+  return (count ?? 0) >= LOCKOUT_THRESHOLD;
+};
+
+const recordPasscodeAttempt = async (
+  service: ReturnType<typeof createClient>,
+  ipHash: string,
+  succeeded: boolean
+): Promise<void> => {
+  await service.from('translator_review_attempts').insert({ ip_hash: ipHash, succeeded });
+};
+
 // Resolve the acting translator's user id from an optional bearer token so we can
 // attribute fixes when a signed-in translator marks feedback off. Passcode-only
 // translators (no JWT) resolve to null, which the column allows.
@@ -119,21 +167,32 @@ Deno.serve(async (request) => {
 
   try {
     const body = (await request.json()) as ReviewRequest;
-    const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
-
-    if (body.passcode !== expectedPasscode) {
-      return jsonResponse(403, { success: false, error: 'Translator access denied' });
-    }
-
-    if (body.validateOnly === true) {
-      return jsonResponse(200, { success: true });
-    }
 
     const supabaseUrl = getRequiredSecret('SUPABASE_URL');
     const serviceRoleKey = getRequiredSecret('SUPABASE_SERVICE_ROLE_KEY');
     const service = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     });
+
+    const ipHash = await hashClientIp(request);
+
+    if (await isPasscodeLockedOut(service, ipHash)) {
+      return jsonResponse(429, {
+        success: false,
+        error: 'Too many attempts. Try again later.',
+      });
+    }
+
+    const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
+
+    if (body.passcode !== expectedPasscode) {
+      await recordPasscodeAttempt(service, ipHash, false);
+      return jsonResponse(403, { success: false, error: 'Translator access denied' });
+    }
+
+    if (body.validateOnly === true) {
+      return jsonResponse(200, { success: true });
+    }
 
     // --- Resolution mutation mode (translator marks feedback fixed / reopened) ---
     if (body.action === 'resolve' || body.action === 'reopen') {
@@ -346,7 +405,11 @@ Deno.serve(async (request) => {
         comment: row.comment,
         participantName: row.participant_name,
         participantRole: row.participant_role,
-        participantIdNumber: row.participant_id_number,
+        // Legacy rows stored the raw Supabase UUID here; never surface it to translators (S4).
+        participantIdNumber:
+          row.participant_id_number && row.participant_id_number === row.user_id
+            ? null
+            : row.participant_id_number,
         userId: row.user_id,
         sourceScreen: row.source_screen,
         resolution: row.scripture_council_resolution,

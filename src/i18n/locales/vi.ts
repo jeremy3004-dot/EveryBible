@@ -244,7 +244,6 @@ export const vi = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "Cảm ơn bạn đã phản hồi của bạn. Nội dung gửi của bạn đã được nhận và sẽ được nhóm dịch thuật của chúng tôi xem xét trong thời gian sớm nhất có thể.",
-    "chapterFeedbackSavedFallback": "Cảm ơn bạn đã phản hồi của bạn. Nội dung gửi của bạn đã được nhận và sẽ được nhóm dịch thuật của chúng tôi xem xét trong thời gian sớm nhất có thể.",
     "chapterFeedbackSignInRequired": "Vui lòng đăng nhập trước khi gửi phản hồi về chương.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

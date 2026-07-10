@@ -244,7 +244,6 @@ export const id = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "Terima kasih atas tanggapan Anda. Kiriman Anda telah diterima dan akan ditinjau oleh tim terjemahan kami sesegera mungkin.",
-    "chapterFeedbackSavedFallback": "Terima kasih atas tanggapan Anda. Kiriman Anda telah diterima dan akan ditinjau oleh tim terjemahan kami sesegera mungkin.",
     "chapterFeedbackSignInRequired": "Silakan masuk sebelum mengirim umpan balik bab.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

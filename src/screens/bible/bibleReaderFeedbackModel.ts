@@ -19,18 +19,11 @@ export function shouldEnableChapterFeedbackSubmit({
   return sentiment != null && !isSubmitting;
 }
 
+// Insertion is the terminal step server-side (there is no separate async export), so a
+// saved submission is a completed submission (B1).
 export function getChapterFeedbackResultVariant(result: {
   success: boolean;
   saved: boolean;
-  exported: boolean;
-}): 'submitted' | 'saved-not-exported' | 'failed' {
-  if (result.success && result.saved && result.exported) {
-    return 'submitted';
-  }
-
-  if (result.success && result.saved && !result.exported) {
-    return 'saved-not-exported';
-  }
-
-  return 'failed';
+}): 'submitted' | 'failed' {
+  return result.success && result.saved ? 'submitted' : 'failed';
 }

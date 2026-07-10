@@ -244,7 +244,6 @@ export const ja = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "ご意見ありがとうございます。あなたの提出物は受理され、できるだけ早く翻訳チームによって審査されます。",
-    "chapterFeedbackSavedFallback": "ご意見ありがとうございます。あなたの提出物は受理され、できるだけ早く翻訳チームによって審査されます。",
     "chapterFeedbackSignInRequired": "章のフィードバックを送信する前にサインインしてください。",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

@@ -166,7 +166,6 @@ import {
   shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
 import {
-  getChapterFeedbackResultVariant,
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
 } from './bibleReaderFeedbackModel';
@@ -3446,27 +3445,24 @@ export function BibleReaderScreen() {
     setIsSubmittingFeedback(false);
 
     if (result.success) {
-      const resultVariant = getChapterFeedbackResultVariant(result);
-
       if (sourceScreen === 'reader') {
         setShowFeedbackModal(false);
       }
       setFeedbackAudioState('success');
       resetFeedbackDraft();
 
-      Alert.alert(
-        t('common.ok'),
-        resultVariant === 'saved-not-exported'
-          ? t('bible.chapterFeedbackSavedFallback')
-          : t('bible.chapterFeedbackSuccess')
-      );
+      Alert.alert(t('common.ok'), t('bible.chapterFeedbackSuccess'));
       return;
     }
 
     if (feedbackAudioDraft) {
       setFeedbackAudioState('preview');
     }
-    setFeedbackSubmitError(result.error ?? t('common.unexpectedError'));
+    setFeedbackSubmitError(
+      result.requiresSignIn
+        ? t('bible.chapterFeedbackSignInRequired')
+        : (result.error ?? t('common.unexpectedError'))
+    );
   };
 
   const renderChapterFeedbackAudioControls = (compact = false) => {

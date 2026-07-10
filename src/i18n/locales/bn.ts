@@ -244,7 +244,6 @@ export const bn = {
     "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
     "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
     "chapterFeedbackSuccess": "আপনার মতামতের জন্য আপনাকে ধন্যবাদ. আপনার জমা দেওয়া হয়েছে এবং যত তাড়াতাড়ি সম্ভব আমাদের অনুবাদ দলগুলি দ্বারা পর্যালোচনা করা হবে৷",
-    "chapterFeedbackSavedFallback": "আপনার মতামতের জন্য আপনাকে ধন্যবাদ. আপনার জমা দেওয়া হয়েছে এবং যত তাড়াতাড়ি সম্ভব আমাদের অনুবাদ দলগুলি দ্বারা পর্যালোচনা করা হবে৷",
     "chapterFeedbackSignInRequired": "অধ্যায় প্রতিক্রিয়া পাঠানোর আগে সাইন ইন করুন.",
     "translatorReviewTitle": "Translator feedback review",
     "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",

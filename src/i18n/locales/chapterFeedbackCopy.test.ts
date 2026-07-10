@@ -7,5 +7,4 @@ test('chapter feedback confirmation copy uses the formal review wording', () => 
     'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.';
 
   assert.equal(en.bible.chapterFeedbackSuccess, expected);
-  assert.equal(en.bible.chapterFeedbackSavedFallback, expected);
 });
