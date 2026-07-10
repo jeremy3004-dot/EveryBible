@@ -79,22 +79,18 @@ test('clearAnonymousSessionContext sets currentAnonymousSessionId to null withou
   }
 });
 
-test('anonymousUsageAnalytics uses the anonymous edge function for delivery', () => {
+test('anonymousUsageAnalytics delegates enqueue + flush to the unified usage queue', () => {
   const source = readRelativeSource('./anonymousUsageAnalytics.ts');
+  assert.match(source, /from ['"]\.\/usageQueue['"]/, 'facade must delegate to the unified queue');
   assert.match(
     source,
-    /functions\.invoke\(\s*['"]track-anonymous-usage-events['"]/,
-    'flushAnonymousUsageEvents must invoke track-anonymous-usage-events'
+    /enqueueUsageEvent\(eventName, properties, sessionId\)/,
+    'trackAnonymousUsageEvent must enqueue onto the shared queue with the anonymous session id'
   );
-});
-
-test('anonymousUsageAnalytics enriches batches with client geo before delivery', () => {
-  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
-  assert.match(source, /resolveGeoContext\(\)/, 'anonymous analytics should resolve client geo before delivery');
   assert.match(
     source,
-    /attachGeoContext\(event,\s*geoContext\)/,
-    'anonymous analytics events should include payload geo when available'
+    /return flushUsageQueue\(\)/,
+    'flushAnonymousUsageEvents must delegate to the shared flush (single unified endpoint)'
   );
 });
 
@@ -110,25 +106,10 @@ test('anonymousUsageAnalytics emits session start/end markers and clears session
   );
 });
 
-test('anonymousUsageAnalytics does not depend on Supabase auth for anonymous events', () => {
+test('anonymousUsageAnalytics does not depend on Supabase auth (auth is optional in the shared queue)', () => {
   const source = readRelativeSource('./anonymousUsageAnalytics.ts');
-  assert.ok(!/supabase\.auth/.test(source), 'anonymous usage analytics should not use supabase.auth');
-  assert.ok(!/getUser\(\)/.test(source), 'anonymous usage analytics should not query getUser()');
-});
-
-test('anonymousUsageAnalytics guards queue growth and requeues with MAX_QUEUE_SIZE', () => {
-  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
-  assert.match(source, /MAX_QUEUE_SIZE/, 'MAX_QUEUE_SIZE should be defined');
-  assert.match(
-    source,
-    /MAX_QUEUE_SIZE\s*-\s*eventQueue\.length/,
-    'requeueSnapshot should respect MAX_QUEUE_SIZE'
-  );
-});
-
-test('anonymousUsageAnalytics generates UUIDs with randomUUID fallback', () => {
-  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
-  assert.match(source, /function generateUUID\s*\(/, 'generateUUID helper must be defined');
-  assert.match(source, /randomUUID/, 'should prefer crypto.randomUUID()');
-  assert.match(source, /Math\.random/, 'must have Math.random fallback UUID generation');
+  // The anonymous facade never touches auth. The unified queue attaches a token
+  // optionally when one exists, but the facade stays auth-free by construction.
+  assert.ok(!/supabase\.auth/.test(source), 'anonymous usage facade should not use supabase.auth');
+  assert.ok(!/getUser\(/.test(source), 'anonymous usage facade should not query getUser()');
 });

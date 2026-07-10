@@ -1,6 +1,10 @@
-import { Platform } from 'react-native';
-import { supabase, isSupabaseConfigured } from '../supabase';
-import { attachGeoContext, resolveGeoContext } from './geoContext';
+import {
+  enqueueUsageEvent,
+  flushUsageQueue,
+  generateUUID,
+  getPendingUsageEventCount,
+  type QueuedEvent,
+} from './usageQueue';
 
 export type AnonymousUsageEventName =
   | 'session_started'
@@ -9,20 +13,8 @@ export type AnonymousUsageEventName =
   | 'audio_playback_progress'
   | 'reading_ended';
 
-export interface AnonymousUsageEvent {
-  event_name: AnonymousUsageEventName;
-  event_properties: Record<string, unknown>;
-  geo_accuracy_km?: number | null;
-  geo_country_code?: string | null;
-  geo_latitude?: number | null;
-  geo_longitude?: number | null;
-  geo_source?: string | null;
-  geo_timezone?: string | null;
-  session_id: string | null;
-  device_platform: string;
-  app_version: string;
-  queued_at: string;
-}
+// Compat alias — the queued-event shape now lives in the unified queue module.
+export type AnonymousUsageEvent = QueuedEvent;
 
 export interface AnonymousUsageServiceResult<T = void> {
   success: boolean;
@@ -30,63 +22,17 @@ export interface AnonymousUsageServiceResult<T = void> {
   error?: string;
 }
 
-const eventQueue: AnonymousUsageEvent[] = [];
-const AUTO_FLUSH_SIZE = 20;
-const MAX_QUEUE_SIZE = 500;
+// This facade owns ONLY the anonymous session_id lifecycle. Enqueue, flush,
+// geo, and delivery are handled by the shared unified queue (usageQueue.ts),
+// which attaches a token optionally — so this module never touches the auth
+// client and stays independent of sign-in state.
 
 let currentAnonymousSessionId: string | null = null;
-
-function generateUUID(): string {
-  const webCrypto = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  if (typeof webCrypto?.randomUUID === 'function') {
-    return webCrypto.randomUUID();
-  }
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = character === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
-}
-
-function getAppVersion(): string {
-  try {
-    const Constants = require('expo-constants').default;
-    return Constants?.expoConfig?.version ?? Constants?.manifest?.version ?? '1.0.1';
-  } catch {
-    return '1.0.1';
-  }
-}
-
-function buildQueuedEvent(
-  eventName: AnonymousUsageEventName,
-  properties: Record<string, unknown> = {}
-): AnonymousUsageEvent {
-  return {
-    event_name: eventName,
-    event_properties: properties,
-    session_id: currentAnonymousSessionId,
-    device_platform: Platform.OS,
-    app_version: getAppVersion(),
-    queued_at: new Date().toISOString(),
-  };
-}
-
-function requeueSnapshot(snapshot: AnonymousUsageEvent[]): void {
-  const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
-  if (spaceLeft > 0) {
-    eventQueue.unshift(...snapshot.slice(0, spaceLeft));
-  }
-}
 
 function ensureAnonymousSession(): string {
   if (!currentAnonymousSessionId) {
     currentAnonymousSessionId = generateUUID();
-    eventQueue.push(
-      buildQueuedEvent('session_started', {
-        session_kind: 'app',
-      })
-    );
+    enqueueUsageEvent('session_started', { session_kind: 'app' }, currentAnonymousSessionId);
   }
 
   return currentAnonymousSessionId;
@@ -96,48 +42,12 @@ export function trackAnonymousUsageEvent(
   eventName: AnonymousUsageEventName,
   properties: Record<string, unknown> = {}
 ): void {
-  ensureAnonymousSession();
-  eventQueue.push(buildQueuedEvent(eventName, properties));
-
-  if (eventQueue.length >= AUTO_FLUSH_SIZE) {
-    flushAnonymousUsageEvents().catch(() => {
-      // Keep the queue intact on background delivery failure.
-    });
-  }
+  const sessionId = ensureAnonymousSession();
+  enqueueUsageEvent(eventName, properties, sessionId);
 }
 
 export async function flushAnonymousUsageEvents(): Promise<AnonymousUsageServiceResult> {
-  if (!isSupabaseConfigured()) {
-    return { success: true };
-  }
-
-  if (eventQueue.length === 0) {
-    return { success: true };
-  }
-
-  const snapshot = eventQueue.splice(0, eventQueue.length);
-
-  try {
-    const geoContext = await resolveGeoContext();
-    const enrichedSnapshot = snapshot.map((event) => attachGeoContext(event, geoContext));
-
-    const { error } = await supabase.functions.invoke('track-anonymous-usage-events', {
-      body: { events: enrichedSnapshot },
-    });
-
-    if (error) {
-      requeueSnapshot(snapshot);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error) {
-    requeueSnapshot(snapshot);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  return flushUsageQueue();
 }
 
 export function startAnonymousUsageSession(): string {
@@ -184,11 +94,7 @@ export function endAnonymousUsageSession(): void {
     return;
   }
 
-  eventQueue.push(
-    buildQueuedEvent('session_ended', {
-      session_kind: 'app',
-    })
-  );
+  enqueueUsageEvent('session_ended', { session_kind: 'app' }, currentAnonymousSessionId);
   currentAnonymousSessionId = null;
 }
 
@@ -197,5 +103,5 @@ export function getCurrentAnonymousUsageSessionId(): string | null {
 }
 
 export function getPendingAnonymousUsageEventCount(): number {
-  return eventQueue.length;
+  return getPendingUsageEventCount();
 }

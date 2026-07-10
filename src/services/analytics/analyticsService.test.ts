@@ -44,34 +44,20 @@ test('analyticsService exposes getPendingEventCount for diagnostics', () => {
   assert.match(source, /export function getPendingEventCount\s*\(/, 'getPendingEventCount must be exported');
 });
 
-test('analyticsService auto-flushes when the queue reaches AUTO_FLUSH_SIZE', () => {
+test('analyticsService delegates queue + flush to the unified usage queue', () => {
   const source = readRelativeSource('./analyticsService.ts');
-  // Queue must check length and call flushEvents() automatically
+  assert.match(source, /from ['"]\.\/usageQueue['"]/, 'analyticsService must delegate to the unified queue');
   assert.match(
     source,
-    /AUTO_FLUSH_SIZE[\s\S]*?flushEvents|flushEvents[\s\S]*?AUTO_FLUSH_SIZE/,
-    'analyticsService should trigger flushEvents when queue hits AUTO_FLUSH_SIZE'
+    /enqueueUsageEvent\(eventName, properties, currentSessionId\)/,
+    'trackEvent must enqueue onto the shared queue tagged with the auth session id'
   );
-});
-
-test('analyticsService caps the queue at MAX_QUEUE_SIZE to prevent unbounded growth', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(source, /MAX_QUEUE_SIZE/, 'A MAX_QUEUE_SIZE cap must be defined');
-  // Re-queue logic should reference the cap
+  assert.match(source, /return flushUsageQueue\(\)/, 'flushEvents must delegate to the shared flush');
   assert.match(
     source,
-    /MAX_QUEUE_SIZE\s*-\s*eventQueue\.length/,
-    'Failed flush re-queue must respect MAX_QUEUE_SIZE to prevent unbounded growth'
+    /getPendingUsageEventCount\(\)/,
+    'getPendingEventCount must report the shared queue depth'
   );
-});
-
-test('analyticsService generates a UUID for session IDs via generateUUID', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(source, /function generateUUID\s*\(/, 'generateUUID helper must be defined');
-  // Must use crypto.randomUUID when available
-  assert.match(source, /randomUUID/, 'should prefer crypto.randomUUID()');
-  // Must have Math.random fallback for environments without WebCrypto
-  assert.match(source, /Math\.random/, 'must have Math.random fallback UUID generation');
 });
 
 test('analyticsService startSession assigns currentSessionId and enqueues session_started', () => {
@@ -102,67 +88,15 @@ test('analyticsService endSession emits session_ended and clears currentSessionI
   );
 });
 
-test('analyticsService flushEvents re-queues events on Supabase RPC failure', () => {
+test('analyticsService facade holds no event-delivery internals (moved to usageQueue)', () => {
   const source = readRelativeSource('./analyticsService.ts');
-  assert.match(
-    source,
-    /requeueSnapshot\(snapshot\)|eventQueue\.unshift/,
-    'Failed events must be re-queued via unshift to preserve ordering'
+  assert.ok(
+    !/functions\.invoke/.test(source),
+    'edge-function delivery must live in the unified queue, not the facade'
   );
-});
-
-test('analyticsService keeps auth lookup inside guarded flush path so rejected getUser restores the queue', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(
-    source,
-    /try\s*{[\s\S]*await supabase\.auth\.getUser\(\)[\s\S]*catch\s*\(error\)\s*{[\s\S]*requeueSnapshot\(snapshot\)/,
-    'flushEvents must restore queued events when auth lookup fails during startup/session restore'
-  );
-});
-
-test('analyticsService uses the analytics Edge Function for bulk delivery', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(
-    source,
-    /functions\.invoke\(\s*['"]track-analytics-events['"]/,
-    'flushEvents must use the track-analytics-events Edge Function'
-  );
-});
-
-test('analyticsService forwards the current access token to the analytics Edge Function', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(source, /auth\.getSession\(\)/, 'flushEvents should fetch the current session first');
-  assert.match(
-    source,
-    /Authorization:\s*`Bearer \$\{accessToken\}`/,
-    'flushEvents should send the access token as an Authorization header'
-  );
-});
-
-test('analyticsService enriches both edge-function and RPC fallback payloads with client geo', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(source, /resolveGeoContext\(\)/, 'flushEvents should resolve client geo before delivery');
-  assert.match(source, /attachGeoContext\(event,\s*geoContext\)/, 'queued events should be enriched with geo');
-  assert.match(source, /geo_country_code:\s*e\.geo_country_code\s*\?\?\s*null/, 'RPC fallback must preserve country code');
-  assert.match(source, /geo_latitude:\s*e\.geo_latitude\s*\?\?\s*null/, 'RPC fallback must preserve latitude');
-  assert.match(source, /geo_longitude:\s*e\.geo_longitude\s*\?\?\s*null/, 'RPC fallback must preserve longitude');
-});
-
-test('analyticsService delegates authenticated geo enrichment to the shared client geo helper', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(source, /from ['"]\.\/geoContext['"]/, 'analyticsService should use the shared client geo helper');
-  assert.match(source, /resolveGeoContext\(\)/, 'authenticated analytics should resolve geo from the client when needed');
-  assert.match(source, /geo_country_code/, 'authenticated batches should carry coarse geo fields');
-  assert.match(source, /geo_latitude/, 'authenticated batches should carry latitude when available');
-  assert.match(source, /geo_longitude/, 'authenticated batches should carry longitude when available');
-});
-
-test('analyticsService skips flush when Supabase is not configured', () => {
-  const source = readRelativeSource('./analyticsService.ts');
-  assert.match(
-    source,
-    /isSupabaseConfigured[\s\S]*?return \{ success: true \}/,
-    'flushEvents must return early with success when Supabase is not configured'
+  assert.ok(
+    !/batch_track_events/.test(source),
+    'the batch_track_events RPC fallback must be gone (server geo enrichment is authoritative)'
   );
 });
 

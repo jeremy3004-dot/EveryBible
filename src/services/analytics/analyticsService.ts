@@ -1,7 +1,12 @@
-import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { AnalyticsEvent, UserEngagementSummary } from '../supabase/types';
-import { attachGeoContext, resolveGeoContext } from './geoContext';
+import type { UserEngagementSummary } from '../supabase/types';
+import {
+  enqueueUsageEvent,
+  flushUsageQueue,
+  generateUUID,
+  getPendingUsageEventCount,
+  type QueuedEvent,
+} from './usageQueue';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,185 +18,33 @@ export interface AnalyticsServiceResult<T = void> {
   error?: string;
 }
 
-export interface QueuedEvent {
-  event_name: string;
-  event_properties: Record<string, unknown>;
-  geo_accuracy_km?: number | null;
-  geo_country_code?: string | null;
-  geo_latitude?: number | null;
-  geo_longitude?: number | null;
-  geo_source?: string | null;
-  geo_timezone?: string | null;
-  session_id: string | null;
-  device_platform: string;
-  app_version: string;
-  // ISO timestamp captured at queue time so ordering is accurate even before flush
-  queued_at: string;
-}
+// Re-exported for existing importers; the queued-event shape lives in the
+// unified queue module now.
+export type { QueuedEvent };
 
 // ---------------------------------------------------------------------------
-// Module-level state
-// ---------------------------------------------------------------------------
-
-// Events are accumulated here until flushed or the queue reaches AUTO_FLUSH_SIZE.
-const eventQueue: QueuedEvent[] = [];
-
-const AUTO_FLUSH_SIZE = 20;
-const MAX_QUEUE_SIZE = 500;
-
 // Session state — null until startSession() is called.
+// ---------------------------------------------------------------------------
+
 let currentSessionId: string | null = null;
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Public API — thin facade over the unified usage queue (see usageQueue.ts).
 // ---------------------------------------------------------------------------
 
-// Uses the Crypto API available in Hermes / React Native's polyfill.
-function generateUUID(): string {
-  const webCrypto = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  if (typeof webCrypto?.randomUUID === 'function') {
-    return webCrypto.randomUUID();
-  }
-
-  // Fallback: manual v4 UUID construction via Math.random()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-// Reads the app version from Expo's Constants or falls back to the value in
-// app.json so the import stays side-effect-free in tests.
-function getAppVersion(): string {
-  try {
-    const Constants = require('expo-constants').default;
-    return (
-      Constants?.expoConfig?.version ??
-      Constants?.manifest?.version ??
-      '1.0.1'
-    );
-  } catch {
-    return '1.0.1';
-  }
-}
-
-function buildQueuedEvent(
-  eventName: string,
-  properties: Record<string, unknown> = {}
-): QueuedEvent {
-  return {
-    event_name: eventName,
-    event_properties: properties,
-    session_id: currentSessionId,
-    device_platform: Platform.OS,
-    app_version: getAppVersion(),
-    queued_at: new Date().toISOString(),
-  };
-}
-
-function requeueSnapshot(snapshot: QueuedEvent[]): void {
-  const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
-  if (spaceLeft > 0) {
-    eventQueue.unshift(...snapshot.slice(0, spaceLeft));
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-// Enqueues a named event with optional metadata properties.
-// Triggers an automatic flush if the queue reaches AUTO_FLUSH_SIZE.
+// Enqueues a named event with optional metadata properties, tagged with the
+// current authenticated session id. Delivery + auto-flush are handled by the
+// shared queue.
 export function trackEvent(
   eventName: string,
   properties: Record<string, unknown> = {}
 ): void {
-  eventQueue.push(buildQueuedEvent(eventName, properties));
-
-  if (eventQueue.length >= AUTO_FLUSH_SIZE) {
-    // Fire-and-forget: flush in the background; caller does not need to await.
-    flushEvents().catch(() => {
-      // Errors are non-fatal — events stay in the queue for the next flush.
-    });
-  }
+  enqueueUsageEvent(eventName, properties, currentSessionId);
 }
 
-// Drains the local event queue by sending all accumulated events to the
-// analytics Edge Function, with a legacy RPC fallback for rollout safety.
-// Returns early (success) when Supabase is not configured or no events are queued.
+// Drains the shared event queue to the unified ingestion endpoint.
 export async function flushEvents(): Promise<AnalyticsServiceResult> {
-  if (!isSupabaseConfigured()) {
-    return { success: true };
-  }
-
-  if (eventQueue.length === 0) {
-    return { success: true };
-  }
-
-  // Snapshot and drain before the await so that events arriving mid-flush are
-  // NOT lost — they remain in the queue for the next call.
-  const snapshot = eventQueue.splice(0, eventQueue.length);
-
-  try {
-    const geoContext = await resolveGeoContext();
-    const enrichedSnapshot = snapshot.map((event) => attachGeoContext(event, geoContext));
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token?.trim();
-
-    const { error: edgeFunctionError } = await supabase.functions.invoke(
-      'track-analytics-events',
-      {
-        body: { events: enrichedSnapshot },
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-      }
-    );
-
-    if (!edgeFunctionError) {
-      return { success: true };
-    }
-
-    // Auth/session restore can fail transiently during startup, so keep the
-    // drained snapshot inside the guarded path and restore it on failure.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const payload: Array<Omit<AnalyticsEvent, 'id' | 'created_at'>> = enrichedSnapshot.map((e) => ({
-      event_name: e.event_name,
-      event_properties: e.event_properties,
-      geo_accuracy_km: e.geo_accuracy_km ?? null,
-      geo_city: null,
-      geo_country_code: e.geo_country_code ?? null,
-      geo_latitude: e.geo_latitude ?? null,
-      geo_longitude: e.geo_longitude ?? null,
-      geo_region_code: null,
-      geo_region_name: null,
-      geo_source: e.geo_source ?? null,
-      geo_timezone: e.geo_timezone ?? null,
-      session_id: e.session_id,
-      device_platform: e.device_platform,
-      app_version: e.app_version,
-      user_id: user?.id ?? null,
-    }));
-
-    const { error } = await supabase.rpc('batch_track_events', { events: payload });
-
-    if (error) {
-      requeueSnapshot(snapshot);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error) {
-    requeueSnapshot(snapshot);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  return flushUsageQueue();
 }
 
 // Fetches the pre-computed engagement summary row for the current user.
@@ -299,7 +152,7 @@ export function getCurrentSessionId(): string | null {
   return currentSessionId;
 }
 
-// Exposed for testing only — returns a read-only snapshot of the current queue.
+// Exposed for testing only — returns the current shared queue depth.
 export function getPendingEventCount(): number {
-  return eventQueue.length;
+  return getPendingUsageEventCount();
 }
