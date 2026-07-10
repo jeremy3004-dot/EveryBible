@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { radius } from '../../design/system';
+import { radius, spacing } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -516,14 +516,18 @@ export function SettingsScreen() {
             </View>
           </View>
 
-          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
+          <View style={[styles.themeSettingBlock, { borderBottomColor: colors.cardBorder }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="moon-outline" size={24} color={colors.secondaryText} />
               <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
                 {t('settings.themeMode')}
               </Text>
             </View>
-            <View style={styles.themeSelectorRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.themeSelectorRow}
+            >
               {(['dark', 'light', 'low-light', 'parchment', 'midnight'] as const).map((mode) => {
                 const isActive = themeMode === mode;
                 const label =
@@ -583,7 +587,7 @@ export function SettingsScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
 
           <TouchableOpacity
@@ -1689,12 +1693,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 20,
   },
+  themeSettingBlock: {
+    padding: 16,
+    borderBottomWidth: 1,
+    gap: spacing.md,
+  },
   themeSelectorRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-    gap: 6,
-    maxWidth: 220,
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 4,
   },
   themeSelectorButton: {
     flexDirection: 'row',
