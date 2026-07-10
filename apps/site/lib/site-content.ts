@@ -169,7 +169,6 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: 'About', href: '/about' },
       { label: 'Mission', href: '/about#mission' },
-      { label: 'Admin', href: 'https://admin.everybible.app' },
       { label: 'Contact', href: '/support' },
     ],
   },

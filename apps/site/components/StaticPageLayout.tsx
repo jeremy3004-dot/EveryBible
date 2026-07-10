@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { SiteFooter } from './SiteFooter';
+import { SiteHeader } from './SiteHeader';
+
 interface StaticPageLayoutProps {
   eyebrow: string;
   title: string;
@@ -15,20 +18,24 @@ export function StaticPageLayout({
   children,
 }: StaticPageLayoutProps) {
   return (
-    <main className="static-page">
-      <div className="container static-page__container">
-        <Link href="/" className="static-page__backlink">
-          Back to homepage
-        </Link>
+    <>
+      <SiteHeader />
+      <main className="static-page">
+        <div className="container static-page__container">
+          <Link href="/" className="static-page__backlink">
+            Back to homepage
+          </Link>
 
-        <section className="static-page__hero">
-          <p className="eyebrow">{eyebrow}</p>
-          <h1>{title}</h1>
-          <p>{intro}</p>
-        </section>
+          <section className="static-page__hero">
+            <p className="eyebrow">{eyebrow}</p>
+            <h1>{title}</h1>
+            <p>{intro}</p>
+          </section>
 
-        <article className="static-page__content">{children}</article>
-      </div>
-    </main>
+          <article className="static-page__content">{children}</article>
+        </div>
+      </main>
+      <SiteFooter />
+    </>
   );
 }

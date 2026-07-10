@@ -1,0 +1,63 @@
+/* ================================================================
+   EveryBible — Unified "Illuminated" brand tokens (CANONICAL SOURCE)
+   ----------------------------------------------------------------
+   Single source of truth for the EveryBible brand across every web
+   surface (marketing site + admin) and mirrored from the mobile
+   app's palette in src/constants/colors.ts.
+
+   The accent is ONE ember terracotta. Two surface families: warm
+   ivory (light) and warm ink (dark). No blues, no maroon, no cool
+   greys — those older per-app palettes are retired.
+
+   NOTE ON USAGE: apps/site and apps/admin are deployed as separate
+   Vercel projects with different root directories, so they cannot
+   reliably share a cross-package CSS import at build time. Each app
+   therefore mirrors these exact values in its own globals.css /
+   neo-swiss.css, and a source-text test in each app asserts the
+   ember values stay in sync with this file. When you change a token
+   here, update both apps and their brand tests.
+   ================================================================ */
+
+:root {
+  /* ── Accent — ember terracotta (the brand) ───────────────────── */
+  --eb-ember:        #D96C57; /* primary accent, CTAs, active states */
+  --eb-ember-soft:   #E08573; /* hover / lighter accent */
+  --eb-ember-deep:   #B85441; /* pressed, and accent TEXT on light surfaces (AA) */
+  --eb-ember-darkest:#8F3D2E; /* strongest press / deep link text */
+  --eb-ember-tint:   rgba(217, 108, 87, 0.10); /* subtle fills */
+  --eb-ember-glow:   rgba(217, 108, 87, 0.25); /* halos, globe atmosphere */
+
+  /* ── Dark family — "warm ink" (admin + site dark bands) ──────── */
+  --eb-ink-bg:       #161412;
+  --eb-ink-surface:  #1E1B18;
+  --eb-ink-elevated: #262220;
+  --eb-ink-divider:  rgba(242, 237, 227, 0.08);
+  --eb-ink-border:   rgba(242, 237, 227, 0.10);
+  --eb-ink-text:     #F2EDE3; /* warm parchment-white */
+  --eb-ink-muted:    #A8A094;
+  --eb-ink-dim:      #857D72;
+
+  /* ── Light family — "warm ivory" (site) ──────────────────────── */
+  --eb-ivory-bg:     #F2EDE3; /* brightest ivory */
+  --eb-ivory-deep:   #ECE6DA; /* page base, one step down */
+  --eb-ivory-card:   #FAF6ED;
+  --eb-ivory-border: #D8D1C2;
+  --eb-ivory-text:   #26221E; /* warm near-black ink */
+  --eb-ivory-muted:  #74706A;
+  --eb-ivory-dim:    #9A948B;
+
+  /* ── Support / status (shared, tuned warm) ───────────────────── */
+  --eb-parchment:    #D0C2AF; /* complementary warm neutral */
+  --eb-amber:        #D0A35A;
+  --eb-success:      #80C16F;
+  --eb-warning:      #D0A35A;
+  --eb-danger:       #FF7B72; /* on dark; use --eb-ember-darkest for light errors */
+
+  /* ── Type ─────────────────────────────────────────────────────
+     Fraunces = display/headings on every surface.
+     DM Sans  = UI/body/data (with tabular-nums for numbers).
+     JetBrains Mono = code/scripture refs. */
+  --eb-font-display: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --eb-font-body:    'DM Sans', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  --eb-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}

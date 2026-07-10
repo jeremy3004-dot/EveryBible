@@ -1,11 +1,9 @@
 import Image from 'next/image';
 
 import { HeroDeviceStack } from '../components/HeroDeviceStack';
+import { SiteFooter } from '../components/SiteFooter';
+import { SiteHeader } from '../components/SiteHeader';
 import { getHomepageContent } from '../lib/homepage-content';
-import {
-  footerColumns,
-  siteNavigation,
-} from '../lib/site-content';
 import {
   EVERYBIBLE_APP_STORE_URL,
   EVERYBIBLE_GOOGLE_PLAY_URL,
@@ -77,41 +75,7 @@ export default async function Home() {
 
   return (
     <main>
-      {/* ── Header ── */}
-      <header className="site-header" aria-label="EveryBible navigation">
-        <div className="site-header__inner">
-          <a className="site-wordmark" href="/" aria-label="EveryBible">
-            <Image
-              className="site-wordmark__mark"
-              src="/everylanguage/symbol-blue.png"
-              alt=""
-              width={42}
-              height={30}
-              priority
-            />
-            <span>EveryBible</span>
-          </a>
-
-          <nav className="site-nav" aria-label="Primary">
-            {siteNavigation.map((item) => (
-              <a key={item.label} href={item.href} className="site-nav__link">
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
-          <a className="site-nav__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
-            Get the App
-          </a>
-
-          <div className="site-mobile-menu">
-            <a href="/about">Mission</a>
-            <a className="site-mobile-menu__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
-              Get the App
-            </a>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* ── Hero ── */}
       <section className="hero" id="top">
@@ -287,44 +251,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="site-footer" aria-label="Site footer">
-        <div className="wrap site-footer__inner">
-          <div className="site-footer__top">
-            <div className="site-footer__brand">
-              <h2>EveryBible</h2>
-              <p>
-                Encouraging and equipping every person to seek intimacy with God every day in their own language.
-              </p>
-            </div>
-
-            <div className="site-footer__columns">
-              {footerColumns.map((column) => (
-                <div key={column.title} className="site-footer__column">
-                  <h3>{column.title}</h3>
-                  <ul>
-                    {column.links.map((link) => (
-                      <li key={link.label}>
-                        <a href={link.href}>{link.label}</a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="site-footer__bottom">
-            <p className="site-footer__meta">
-              A digital ministry. Free to use, free to share.
-            </p>
-            <div className="site-footer__legal">
-              <a href="/privacy">Privacy</a>
-              <a href="/terms">Terms</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
