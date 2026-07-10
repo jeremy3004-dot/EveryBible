@@ -1,22 +1,30 @@
+// Server is the source of truth for whether a feedback item is resolved (D1). Local
+// markers only track per-device UX state (has this device read / listened to an item).
 export interface TranslatorFeedbackReviewMarker {
   readAt: string | null;
   listenedAt: string | null;
-  resolvedAs?: TranslatorFeedbackResolution | null;
-  resolvedAt?: string | null;
 }
 
 export type TranslatorFeedbackReviewMarkers = Record<string, TranslatorFeedbackReviewMarker>;
-export type TranslatorFeedbackResolution = 'fixed' | 'reviewed';
+
+// Mirrors the DB `scripture_council_resolution` enum. "fixed" = translator changed the
+// text; "no_change_needed" = reviewed and intentionally left as-is (covers both a
+// confirmed-accurate thumbs-up and a no-action-needed thumbs-down).
+export type TranslatorFeedbackResolution = 'fixed' | 'no_change_needed';
 
 export interface TranslatorFeedbackReviewStateInput {
   id: string;
   hasAudio: boolean;
+  resolution: TranslatorFeedbackResolution | null;
 }
 
+// Per-chapter counts computed server-side by the review summary endpoint.
 export interface TranslatorFeedbackChapterSummary {
   bookId: string;
   chapter: number;
-  feedback: TranslatorFeedbackReviewStateInput[];
+  total: number;
+  unresolvedDown: number;
+  unresolvedUp: number;
 }
 
 export interface TranslatorFeedbackReviewStatus {
@@ -51,7 +59,7 @@ export function getTranslatorFeedbackReviewStatus(
   const marker = markers[item.id];
   const isRead = Boolean(marker?.readAt);
   const isListened = !item.hasAudio || Boolean(marker?.listenedAt);
-  const resolution = marker?.resolvedAs ?? null;
+  const resolution = item.resolution;
 
   return {
     isRead,
@@ -61,25 +69,25 @@ export function getTranslatorFeedbackReviewStatus(
   };
 }
 
+export function getTranslatorFeedbackUnresolvedCount(
+  summary: TranslatorFeedbackChapterSummary
+): number {
+  return summary.unresolvedDown + summary.unresolvedUp;
+}
+
 export function getTranslatorFeedbackChapterSummaryStatus(
-  summary: TranslatorFeedbackChapterSummary,
-  markers: TranslatorFeedbackReviewMarkers
+  summary: TranslatorFeedbackChapterSummary
 ): TranslatorFeedbackAggregateStatus | null {
-  if (summary.feedback.length === 0) {
+  if (summary.total === 0) {
     return null;
   }
 
-  const hasPendingFeedback = summary.feedback.some(
-    (item) => getTranslatorFeedbackReviewStatus(item, markers).needsReview
-  );
-
-  return hasPendingFeedback ? 'pending' : 'addressed';
+  return getTranslatorFeedbackUnresolvedCount(summary) > 0 ? 'pending' : 'addressed';
 }
 
 export function getTranslatorFeedbackBookSummaryStatus(
   bookId: string,
-  summaries: TranslatorFeedbackChapterSummary[],
-  markers: TranslatorFeedbackReviewMarkers
+  summaries: TranslatorFeedbackChapterSummary[]
 ): TranslatorFeedbackAggregateStatus | null {
   const bookSummaries = summaries.filter((summary) => summary.bookId === bookId);
   if (bookSummaries.length === 0) {
@@ -87,10 +95,36 @@ export function getTranslatorFeedbackBookSummaryStatus(
   }
 
   const hasPendingFeedback = bookSummaries.some(
-    (summary) => getTranslatorFeedbackChapterSummaryStatus(summary, markers) === 'pending'
+    (summary) => getTranslatorFeedbackChapterSummaryStatus(summary) === 'pending'
   );
 
   return hasPendingFeedback ? 'pending' : 'addressed';
+}
+
+// Chapters sorted for the translator queue: most unresolved thumbs-down first (highest
+// signal), then most total unresolved, then book/chapter order for stability.
+export function sortTranslatorFeedbackQueue(
+  summaries: TranslatorFeedbackChapterSummary[]
+): TranslatorFeedbackChapterSummary[] {
+  return [...summaries]
+    .filter((summary) => getTranslatorFeedbackUnresolvedCount(summary) > 0)
+    .sort((a, b) => {
+      if (b.unresolvedDown !== a.unresolvedDown) {
+        return b.unresolvedDown - a.unresolvedDown;
+      }
+
+      const aTotal = getTranslatorFeedbackUnresolvedCount(a);
+      const bTotal = getTranslatorFeedbackUnresolvedCount(b);
+      if (bTotal !== aTotal) {
+        return bTotal - aTotal;
+      }
+
+      if (a.bookId !== b.bookId) {
+        return a.bookId < b.bookId ? -1 : 1;
+      }
+
+      return a.chapter - b.chapter;
+    });
 }
 
 export function markTranslatorFeedbackRead(
@@ -103,8 +137,6 @@ export function markTranslatorFeedbackRead(
     [feedbackId]: {
       readAt: markedAt,
       listenedAt: markers[feedbackId]?.listenedAt ?? null,
-      resolvedAs: markers[feedbackId]?.resolvedAs ?? null,
-      resolvedAt: markers[feedbackId]?.resolvedAt ?? null,
     },
   };
 }
@@ -119,40 +151,6 @@ export function markTranslatorFeedbackListened(
     [feedbackId]: {
       readAt: markers[feedbackId]?.readAt ?? null,
       listenedAt: markedAt,
-      resolvedAs: markers[feedbackId]?.resolvedAs ?? null,
-      resolvedAt: markers[feedbackId]?.resolvedAt ?? null,
-    },
-  };
-}
-
-export function resolveTranslatorFeedback(
-  markers: TranslatorFeedbackReviewMarkers,
-  feedbackId: string,
-  resolution: TranslatorFeedbackResolution,
-  resolvedAt: string
-): TranslatorFeedbackReviewMarkers {
-  return {
-    ...markers,
-    [feedbackId]: {
-      readAt: markers[feedbackId]?.readAt ?? resolvedAt,
-      listenedAt: markers[feedbackId]?.listenedAt ?? null,
-      resolvedAs: resolution,
-      resolvedAt,
-    },
-  };
-}
-
-export function reopenTranslatorFeedback(
-  markers: TranslatorFeedbackReviewMarkers,
-  feedbackId: string
-): TranslatorFeedbackReviewMarkers {
-  return {
-    ...markers,
-    [feedbackId]: {
-      readAt: markers[feedbackId]?.readAt ?? null,
-      listenedAt: markers[feedbackId]?.listenedAt ?? null,
-      resolvedAs: null,
-      resolvedAt: null,
     },
   };
 }

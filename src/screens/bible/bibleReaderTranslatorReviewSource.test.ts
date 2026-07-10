@@ -12,14 +12,17 @@ test('BibleReaderScreen renders translator feedback review tools only in transla
   assert.match(source, /getTranslatorFeedbackReviewStatus/);
 });
 
-test('BibleReaderScreen lets translators resolve or reopen each feedback item', () => {
+test('BibleReaderScreen lets translators resolve or reopen each feedback item via the server', () => {
   assert.match(source, /translatorReviewSummaryComplete/);
   assert.match(source, /isAccurateReview \? \(/);
   assert.match(source, /translatorReviewConfirmAccurate/);
   assert.match(source, /translatorReviewConfirmedAccurate/);
-  assert.match(source, /resolveTranslatorFeedback\(item\.id, 'fixed'\)/);
-  assert.match(source, /resolveTranslatorFeedback\(item\.id, 'reviewed'\)/);
-  assert.match(source, /reopenTranslatorFeedback\(item\.id\)/);
+  assert.match(source, /handleResolveTranslatorFeedback\(item\.id, 'fixed'\)/);
+  assert.match(source, /handleResolveTranslatorFeedback\(item\.id, 'no_change_needed'\)/);
+  assert.match(source, /handleReopenTranslatorFeedback\(item\.id\)/);
+  // Mark-offs must reach the backend, not just local device markers (D1).
+  assert.match(source, /resolveTranslatorFeedbackOnServer/);
+  assert.match(source, /reopenTranslatorFeedbackOnServer/);
   assert.match(source, /playTranslatorFeedbackAudio\(\s*item\.id/);
   assert.match(source, /markTranslatorFeedbackListened\(feedbackId\)/);
 });

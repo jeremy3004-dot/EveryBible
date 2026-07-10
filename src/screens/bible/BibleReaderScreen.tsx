@@ -78,8 +78,11 @@ import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readin
 import {
   fetchChapterFeedbackForTranslatorReview,
   getTranslatorFeedbackReviewStatus,
+  reopenTranslatorFeedbackOnServer,
+  resolveTranslatorFeedbackOnServer,
   submitChapterFeedback,
   type ChapterFeedbackReviewItem,
+  type TranslatorFeedbackResolution,
 } from '../../services/feedback';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
@@ -725,6 +728,7 @@ export function BibleReaderScreen() {
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
   const translatorReviewAudioSoundRef = useRef<Audio.Sound | null>(null);
+  const translatorFeedbackRequestIdRef = useRef(0);
   useEffect(() => {
     return () => {
       if (feedbackAudioTimerRef.current) {
@@ -940,8 +944,6 @@ export function BibleReaderScreen() {
   const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
   const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
   const markTranslatorFeedbackListened = useTranslatorReviewStore((state) => state.markListened);
-  const resolveTranslatorFeedback = useTranslatorReviewStore((state) => state.resolveFeedback);
-  const reopenTranslatorFeedback = useTranslatorReviewStore((state) => state.reopenFeedback);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
@@ -1395,6 +1397,7 @@ export function BibleReaderScreen() {
         {
           id: item.id,
           hasAudio: item.audioResponse?.playbackUrl != null,
+          resolution: item.resolution,
         },
         translatorFeedbackMarkers
       ).needsReview
@@ -1422,10 +1425,16 @@ export function BibleReaderScreen() {
 
   const loadTranslatorFeedback = useCallback(async () => {
     if (!translatorReviewEnabled || !translatorReviewPasscode) {
+      translatorFeedbackRequestIdRef.current += 1;
       setTranslatorFeedbackItems([]);
       setTranslatorFeedbackError(null);
       return;
     }
+
+    // Guard against out-of-order responses when the reader navigates chapters quickly:
+    // only the latest request is allowed to write state.
+    const requestId = translatorFeedbackRequestIdRef.current + 1;
+    translatorFeedbackRequestIdRef.current = requestId;
 
     setIsLoadingTranslatorFeedback(true);
     setTranslatorFeedbackError(null);
@@ -1436,6 +1445,10 @@ export function BibleReaderScreen() {
       chapter,
       passcode: translatorReviewPasscode,
     });
+
+    if (translatorFeedbackRequestIdRef.current !== requestId) {
+      return;
+    }
 
     setIsLoadingTranslatorFeedback(false);
 
@@ -1451,6 +1464,89 @@ export function BibleReaderScreen() {
   useEffect(() => {
     void loadTranslatorFeedback();
   }, [loadTranslatorFeedback]);
+
+  const applyLocalTranslatorResolution = useCallback(
+    (feedbackId: string, resolution: TranslatorFeedbackResolution | null) => {
+      setTranslatorFeedbackItems((items) =>
+        items.map((item) =>
+          item.id === feedbackId
+            ? {
+                ...item,
+                resolution,
+                resolvedAt: resolution ? new Date().toISOString() : null,
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
+
+  const handleResolveTranslatorFeedback = useCallback(
+    async (feedbackId: string, resolution: TranslatorFeedbackResolution) => {
+      if (!translatorReviewPasscode) {
+        return;
+      }
+
+      const priorResolution =
+        translatorFeedbackItems.find((item) => item.id === feedbackId)?.resolution ?? null;
+
+      // Optimistic: reflect the mark-off immediately, roll back if the server rejects it.
+      setTranslatorFeedbackError(null);
+      applyLocalTranslatorResolution(feedbackId, resolution);
+
+      const result = await resolveTranslatorFeedbackOnServer({
+        passcode: translatorReviewPasscode,
+        translationId: currentTranslation,
+        feedbackId,
+        resolution,
+      });
+
+      if (!result.success) {
+        applyLocalTranslatorResolution(feedbackId, priorResolution);
+        setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+      }
+    },
+    [
+      applyLocalTranslatorResolution,
+      currentTranslation,
+      t,
+      translatorFeedbackItems,
+      translatorReviewPasscode,
+    ]
+  );
+
+  const handleReopenTranslatorFeedback = useCallback(
+    async (feedbackId: string) => {
+      if (!translatorReviewPasscode) {
+        return;
+      }
+
+      const priorResolution =
+        translatorFeedbackItems.find((item) => item.id === feedbackId)?.resolution ?? null;
+
+      setTranslatorFeedbackError(null);
+      applyLocalTranslatorResolution(feedbackId, null);
+
+      const result = await reopenTranslatorFeedbackOnServer({
+        passcode: translatorReviewPasscode,
+        translationId: currentTranslation,
+        feedbackId,
+      });
+
+      if (!result.success) {
+        applyLocalTranslatorResolution(feedbackId, priorResolution);
+        setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+      }
+    },
+    [
+      applyLocalTranslatorResolution,
+      currentTranslation,
+      t,
+      translatorFeedbackItems,
+      translatorReviewPasscode,
+    ]
+  );
   const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
     annotation.verse_end ?? annotation.verse_start;
   const annotationOverlapsVerse = (
@@ -4154,13 +4250,14 @@ export function BibleReaderScreen() {
             {
               id: item.id,
               hasAudio: item.audioResponse?.playbackUrl != null,
+              resolution: item.resolution,
             },
             translatorFeedbackMarkers
           );
           const isTranslatorFeedbackAudioPlaying = translatorReviewPlayingFeedbackId === item.id;
           const isAccurateReview = item.sentiment === 'up';
           const isFixed = status.resolution === 'fixed';
-          const isReviewed = status.resolution === 'reviewed';
+          const isReviewed = status.resolution === 'no_change_needed';
           const isConfirmedAccurate = isAccurateReview && !status.needsReview;
           const itemAccentColor = status.needsReview
             ? colors.accentPrimary
@@ -4261,7 +4358,7 @@ export function BibleReaderScreen() {
                           backgroundColor: colors.success,
                         },
                       ]}
-                      onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
+                      onPress={() => handleResolveTranslatorFeedback(item.id, 'no_change_needed')}
                     >
                       <Text
                         style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
@@ -4279,7 +4376,7 @@ export function BibleReaderScreen() {
                             backgroundColor: colors.success,
                           },
                         ]}
-                        onPress={() => resolveTranslatorFeedback(item.id, 'fixed')}
+                        onPress={() => handleResolveTranslatorFeedback(item.id, 'fixed')}
                       >
                         <Text
                           style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
@@ -4296,7 +4393,7 @@ export function BibleReaderScreen() {
                             backgroundColor: colors.bibleSurface,
                           },
                         ]}
-                        onPress={() => resolveTranslatorFeedback(item.id, 'reviewed')}
+                        onPress={() => handleResolveTranslatorFeedback(item.id, 'no_change_needed')}
                       >
                         <Text
                           style={[
@@ -4318,7 +4415,7 @@ export function BibleReaderScreen() {
                         backgroundColor: colors.bibleSurface,
                       },
                     ]}
-                    onPress={() => reopenTranslatorFeedback(item.id)}
+                    onPress={() => handleReopenTranslatorFeedback(item.id)}
                   >
                     <Text
                       style={[

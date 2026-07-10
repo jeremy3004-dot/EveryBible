@@ -14,7 +14,12 @@ import {
   type TextInput as TextInputType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
@@ -96,6 +101,8 @@ export function BibleBrowserScreen() {
   const [translatorFeedbackSummaries, setTranslatorFeedbackSummaries] = useState<
     TranslatorFeedbackChapterSummary[]
   >([]);
+  const [isLoadingTranslatorSummary, setIsLoadingTranslatorSummary] = useState(false);
+  const [translatorSummaryError, setTranslatorSummaryError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
   const translatorFeedbackSummaryRequestIdRef = useRef(0);
   const searchInputRef = useRef<TextInputType | null>(null);
@@ -107,7 +114,6 @@ export function BibleBrowserScreen() {
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
-  const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
   const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
 
   const currentTranslationInfo = translations.find(
@@ -238,34 +244,51 @@ export function BibleBrowserScreen() {
     searchUnavailableMessage,
   ]);
 
-  useEffect(() => {
+  const loadTranslatorFeedbackSummaries = useCallback(async () => {
     if (!translatorReviewEnabled || !translatorReviewPasscode) {
       translatorFeedbackSummaryRequestIdRef.current += 1;
       setTranslatorFeedbackSummaries([]);
+      setTranslatorSummaryError(null);
+      setIsLoadingTranslatorSummary(false);
       return;
     }
 
-    let isCancelled = false;
     const requestId = translatorFeedbackSummaryRequestIdRef.current + 1;
     translatorFeedbackSummaryRequestIdRef.current = requestId;
+    setIsLoadingTranslatorSummary(true);
+    setTranslatorSummaryError(null);
 
-    void (async () => {
-      const result = await fetchChapterFeedbackReviewSummaryForTranslation({
-        translationId: currentTranslation,
-        passcode: translatorReviewPasscode,
-      });
+    const result = await fetchChapterFeedbackReviewSummaryForTranslation({
+      translationId: currentTranslation,
+      passcode: translatorReviewPasscode,
+    });
 
-      if (isCancelled || requestId !== translatorFeedbackSummaryRequestIdRef.current) {
-        return;
-      }
+    if (requestId !== translatorFeedbackSummaryRequestIdRef.current) {
+      return;
+    }
 
-      setTranslatorFeedbackSummaries(result.success ? result.chapters : []);
-    })();
+    setIsLoadingTranslatorSummary(false);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentTranslation, translatorReviewEnabled, translatorReviewPasscode]);
+    if (!result.success) {
+      setTranslatorFeedbackSummaries([]);
+      setTranslatorSummaryError(result.error ?? t('common.unexpectedError'));
+      return;
+    }
+
+    setTranslatorFeedbackSummaries(result.chapters);
+  }, [currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
+
+  useEffect(() => {
+    void loadTranslatorFeedbackSummaries();
+  }, [loadTranslatorFeedbackSummaries]);
+
+  // Refresh badge counts when returning to the browser so resolutions made in the reader
+  // (or by another translator) are reflected without a full remount (F6).
+  useFocusEffect(
+    useCallback(() => {
+      void loadTranslatorFeedbackSummaries();
+    }, [loadTranslatorFeedbackSummaries])
+  );
 
   const translatorFeedbackSummaryByChapter = useMemo(() => {
     const summariesByChapter = new Map<string, TranslatorFeedbackChapterSummary>();
@@ -353,6 +376,51 @@ export function BibleBrowserScreen() {
     }
   };
 
+  const renderTranslatorSummaryBanner = () => {
+    if (!translatorReviewEnabled) {
+      return null;
+    }
+
+    if (isLoadingTranslatorSummary && translatorFeedbackSummaries.length === 0) {
+      return (
+        <View style={styles.translatorSummaryBanner}>
+          <ActivityIndicator size="small" color={colors.bibleAccent} />
+          <Text style={[styles.translatorSummaryBannerText, { color: colors.bibleSecondaryText }]}>
+            {t('bible.translatorReviewLoading')}
+          </Text>
+        </View>
+      );
+    }
+
+    if (translatorSummaryError) {
+      return (
+        <View
+          style={[
+            styles.translatorSummaryErrorCard,
+            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+          ]}
+        >
+          <Text style={[styles.translatorSummaryBannerText, { color: colors.error }]}>
+            {translatorSummaryError}
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.retry')}
+            onPress={() => {
+              void loadTranslatorFeedbackSummaries();
+            }}
+          >
+            <Text style={[styles.translatorSummaryRetryText, { color: colors.bibleAccent }]}>
+              {t('common.retry')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   const renderRow = ({ item }: { item: BibleBrowserRow }) => {
     if (item.type === 'divider') {
       return (
@@ -371,8 +439,7 @@ export function BibleBrowserScreen() {
     const isExpanded = book.id === expandedBookId;
     const bookFeedbackStatus = getTranslatorFeedbackBookSummaryStatus(
       book.id,
-      translatorFeedbackSummaries,
-      translatorFeedbackMarkers
+      translatorFeedbackSummaries
     );
 
     return (
@@ -410,10 +477,7 @@ export function BibleBrowserScreen() {
                   `${book.id}:${chapter}`
                 );
                 const chapterFeedbackStatus = chapterSummary
-                  ? getTranslatorFeedbackChapterSummaryStatus(
-                      chapterSummary,
-                      translatorFeedbackMarkers
-                    )
+                  ? getTranslatorFeedbackChapterSummaryStatus(chapterSummary)
                   : null;
 
                 return (
@@ -630,6 +694,7 @@ export function BibleBrowserScreen() {
           data={bibleBrowserRows}
           initialScrollIndex={initialScrollIndex}
           renderItem={renderRow}
+          ListHeaderComponent={renderTranslatorSummaryBanner}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -638,9 +703,10 @@ export function BibleBrowserScreen() {
           extraData={{
             colors,
             expandedBookId,
-            translatorFeedbackMarkers,
             translatorFeedbackSummaries,
             translatorReviewEnabled,
+            isLoadingTranslatorSummary,
+            translatorSummaryError,
           }}
         />
       )}
@@ -820,6 +886,30 @@ const styles = StyleSheet.create({
   },
   searchFeedbackText: {
     ...typography.bodyStrong,
+  },
+  translatorSummaryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: layout.screenPadding,
+    marginTop: spacing.sm,
+  },
+  translatorSummaryBannerText: {
+    ...typography.label,
+  },
+  translatorSummaryErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginHorizontal: layout.screenPadding,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  translatorSummaryRetryText: {
+    ...typography.label,
   },
   referenceActionCard: {
     marginHorizontal: layout.screenPadding,

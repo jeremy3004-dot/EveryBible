@@ -1,6 +1,7 @@
 import {
   normalizeTranslatorReviewPasscode,
   type TranslatorFeedbackChapterSummary,
+  type TranslatorFeedbackResolution,
 } from './translatorFeedbackReviewModel';
 
 export type ChapterFeedbackReviewSentiment = 'up' | 'down';
@@ -27,6 +28,9 @@ export interface ChapterFeedbackReviewItem {
   participantIdNumber: string | null;
   userId: string | null;
   sourceScreen: string;
+  resolution: TranslatorFeedbackResolution | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
   audioResponse: ChapterFeedbackReviewAudio | null;
 }
 
@@ -35,6 +39,26 @@ export interface ChapterFeedbackReviewInput {
   bookId: string;
   chapter: number;
   passcode: string;
+}
+
+export interface TranslatorFeedbackResolveInput {
+  passcode: string;
+  translationId: string;
+  feedbackId: string;
+  resolution: TranslatorFeedbackResolution;
+  note?: string;
+}
+
+export interface TranslatorFeedbackReopenInput {
+  passcode: string;
+  translationId: string;
+  feedbackId: string;
+}
+
+export interface TranslatorFeedbackResolveResponse {
+  success: boolean;
+  resolution?: TranslatorFeedbackResolution | null;
+  error?: string;
 }
 
 export interface ChapterFeedbackReviewSummaryInput {
@@ -60,6 +84,15 @@ export interface TranslatorReviewPasscodeValidationResponse {
   error?: string;
 }
 
+type ChapterFeedbackReviewResolveBody = {
+  passcode: string;
+  translationId: string;
+  feedbackId: string;
+  action: 'resolve' | 'reopen';
+  resolution?: TranslatorFeedbackResolution;
+  note?: string;
+};
+
 interface ChapterFeedbackReviewFunctionClient {
   invoke: (
     functionName: string,
@@ -67,6 +100,7 @@ interface ChapterFeedbackReviewFunctionClient {
       body:
         | ChapterFeedbackReviewInput
         | ChapterFeedbackReviewSummaryInput
+        | ChapterFeedbackReviewResolveBody
         | { passcode: string; validateOnly: true };
     }
   ) => Promise<{
@@ -74,6 +108,7 @@ interface ChapterFeedbackReviewFunctionClient {
       | ChapterFeedbackReviewResponse
       | ChapterFeedbackReviewSummaryResponse
       | TranslatorReviewPasscodeValidationResponse
+      | TranslatorFeedbackResolveResponse
       | null;
     error: { message?: string; context?: { json?: () => Promise<unknown> } } | null;
   }>;
@@ -263,6 +298,116 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
       success: false,
       chapters: [],
       error: error instanceof Error ? error.message : 'Unable to load translator feedback.',
+    };
+  }
+}
+
+export async function resolveTranslatorFeedbackOnServer(
+  input: TranslatorFeedbackResolveInput,
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<TranslatorFeedbackResolveResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
+
+  if (!passcode) {
+    return { success: false, error: 'Translator access denied' };
+  }
+
+  const resolvedClient = client ?? (await resolveDefaultClient());
+
+  if (!resolvedClient) {
+    return {
+      success: false,
+      error: 'EveryBible backend is not configured for this build yet.',
+    };
+  }
+
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: {
+        passcode,
+        translationId: input.translationId,
+        feedbackId: input.feedbackId,
+        action: 'resolve',
+        resolution: input.resolution,
+        note: input.note,
+      },
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: await readEdgeFunctionErrorMessage(
+          error,
+          'Unable to update this feedback right now.'
+        ),
+      };
+    }
+
+    if (data && 'success' in data) {
+      return {
+        success: data.success,
+        resolution: 'resolution' in data ? data.resolution : input.resolution,
+        error: data.error,
+      };
+    }
+
+    return { success: false, error: 'Unable to update this feedback.' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unable to update this feedback.',
+    };
+  }
+}
+
+export async function reopenTranslatorFeedbackOnServer(
+  input: TranslatorFeedbackReopenInput,
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<TranslatorFeedbackResolveResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
+
+  if (!passcode) {
+    return { success: false, error: 'Translator access denied' };
+  }
+
+  const resolvedClient = client ?? (await resolveDefaultClient());
+
+  if (!resolvedClient) {
+    return {
+      success: false,
+      error: 'EveryBible backend is not configured for this build yet.',
+    };
+  }
+
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: {
+        passcode,
+        translationId: input.translationId,
+        feedbackId: input.feedbackId,
+        action: 'reopen',
+      },
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: await readEdgeFunctionErrorMessage(
+          error,
+          'Unable to reopen this feedback right now.'
+        ),
+      };
+    }
+
+    if (data && 'success' in data) {
+      return { success: data.success, resolution: null, error: data.error };
+    }
+
+    return { success: false, error: 'Unable to reopen this feedback.' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unable to reopen this feedback.',
     };
   }
 }

@@ -131,7 +131,7 @@ test('chapter feedback backend migration creates the durable preference flag and
   );
 });
 
-test('review-chapter-feedback can return translator-only book and chapter summaries', () => {
+test('review-chapter-feedback returns server-computed unresolved counts per chapter', () => {
   const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
 
   assert.match(
@@ -146,8 +146,33 @@ test('review-chapter-feedback can return translator-only book and chapter summar
   );
   assert.match(
     reviewFunction,
-    /hasAudio: row\.audio_response_path != null/,
-    'Expected summary badges to know whether feedback still needs audio listening'
+    /unresolvedDown/,
+    'Expected chapter summaries to expose unresolved counts computed from server resolution state'
+  );
+});
+
+test('review-chapter-feedback persists translator resolutions server-side', () => {
+  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
+
+  assert.match(
+    reviewFunction,
+    /action === 'resolve'/,
+    'Expected the review function to accept a resolve action'
+  );
+  assert.match(
+    reviewFunction,
+    /action === 'reopen'/,
+    'Expected the review function to accept a reopen action'
+  );
+  assert.match(
+    reviewFunction,
+    /scripture_council_resolution/,
+    'Expected resolutions to write the scripture_council_resolution column'
+  );
+  assert.match(
+    reviewFunction,
+    /scripture_council_fixed_at/,
+    'Expected resolutions to stamp scripture_council_fixed_at server-side'
   );
 });
 

@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import {
   fetchChapterFeedbackForTranslatorReview,
   fetchChapterFeedbackReviewSummaryForTranslation,
+  reopenTranslatorFeedbackOnServer,
+  resolveTranslatorFeedbackOnServer,
   validateTranslatorReviewPasscode,
 } from './chapterFeedbackReviewService';
 
@@ -138,7 +140,9 @@ test('fetchChapterFeedbackReviewSummaryForTranslation requests translator-only s
               {
                 bookId: 'GEN',
                 chapter: 1,
-                feedback: [{ id: 'feedback-1', hasAudio: false }],
+                total: 2,
+                unresolvedDown: 1,
+                unresolvedUp: 0,
               },
             ],
           },
@@ -150,8 +154,104 @@ test('fetchChapterFeedbackReviewSummaryForTranslation requests translator-only s
 
   assert.equal(result.success, true);
   assert.equal(result.chapters[0]?.bookId, 'GEN');
+  assert.equal(result.chapters[0]?.unresolvedDown, 1);
   assert.equal(calls[0]?.functionName, 'review-chapter-feedback');
   assert.equal(calls[0]?.body.passcode, 'entered-review-passcode');
   assert.equal(calls[0]?.body.translationId, 'bsb');
   assert.equal(calls[0]?.body.chapter, undefined);
+});
+
+test('resolveTranslatorFeedbackOnServer sends a resolve action with the passcode', async () => {
+  const calls: Array<{ functionName: string; body: Record<string, unknown> }> = [];
+  const result = await resolveTranslatorFeedbackOnServer(
+    {
+      passcode: ' entered-review-passcode ',
+      translationId: 'bsb',
+      feedbackId: 'feedback-1',
+      resolution: 'fixed',
+      note: 'Corrected the verb tense.',
+    },
+    {
+      invoke: async (functionName, options) => {
+        calls.push({ functionName, body: { ...options.body } });
+        return { data: { success: true, resolution: 'fixed' }, error: null };
+      },
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.resolution, 'fixed');
+  assert.equal(calls[0]?.functionName, 'review-chapter-feedback');
+  assert.equal(calls[0]?.body.passcode, 'entered-review-passcode');
+  assert.equal(calls[0]?.body.action, 'resolve');
+  assert.equal(calls[0]?.body.feedbackId, 'feedback-1');
+  assert.equal(calls[0]?.body.resolution, 'fixed');
+  assert.equal(calls[0]?.body.note, 'Corrected the verb tense.');
+});
+
+test('resolveTranslatorFeedbackOnServer surfaces the edge function error body', async () => {
+  const result = await resolveTranslatorFeedbackOnServer(
+    {
+      passcode: 'entered-review-passcode',
+      translationId: 'bsb',
+      feedbackId: 'missing',
+      resolution: 'fixed',
+    },
+    {
+      invoke: async () => ({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: {
+            json: async () => ({ success: false, error: 'Feedback item not found' }),
+          },
+        },
+      }),
+    }
+  );
+
+  assert.deepEqual(result, { success: false, error: 'Feedback item not found' });
+});
+
+test('resolveTranslatorFeedbackOnServer refuses to call the backend without a passcode', async () => {
+  let invoked = false;
+  const result = await resolveTranslatorFeedbackOnServer(
+    {
+      passcode: '   ',
+      translationId: 'bsb',
+      feedbackId: 'feedback-1',
+      resolution: 'fixed',
+    },
+    {
+      invoke: async () => {
+        invoked = true;
+        return { data: { success: true }, error: null };
+      },
+    }
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(invoked, false);
+});
+
+test('reopenTranslatorFeedbackOnServer sends a reopen action and clears the resolution', async () => {
+  const calls: Array<{ functionName: string; body: Record<string, unknown> }> = [];
+  const result = await reopenTranslatorFeedbackOnServer(
+    {
+      passcode: 'entered-review-passcode',
+      translationId: 'bsb',
+      feedbackId: 'feedback-1',
+    },
+    {
+      invoke: async (functionName, options) => {
+        calls.push({ functionName, body: { ...options.body } });
+        return { data: { success: true, resolution: null }, error: null };
+      },
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.resolution, null);
+  assert.equal(calls[0]?.body.action, 'reopen');
+  assert.equal(calls[0]?.body.feedbackId, 'feedback-1');
 });
