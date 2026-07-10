@@ -104,3 +104,4 @@ logs/
 .asc/
 *.mp4
 .easignore.*-backup-*
+.vercel
