@@ -23,7 +23,7 @@ test('submit-chapter-feedback stores feedback in Supabase without Google Sheets 
   );
 });
 
-test('submit-chapter-feedback requires a signed-in council member and sources identity server-side', () => {
+test('submit-chapter-feedback accepts any participant with a name and project role', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
 
   assert.equal(
@@ -31,33 +31,30 @@ test('submit-chapter-feedback requires a signed-in council member and sources id
     false,
     'submit-chapter-feedback should not accept a manual participantIdNumber from the client payload'
   );
-  // Anonymous submissions are rejected (S1).
-  assert.match(
+  assert.doesNotMatch(
     source,
     /if \(!userId\)[\s\S]*jsonResponse\(401/,
-    'submit-chapter-feedback should reject unauthenticated requests with 401'
+    'submit-chapter-feedback should not require an authenticated account'
   );
-  // Council membership is verified server-side against user_preferences (S1).
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /chapter_feedback_enabled/,
-    'submit-chapter-feedback should verify chapter_feedback_enabled before accepting feedback'
-  );
-  assert.match(
-    source,
-    /jsonResponse\(403/,
-    'submit-chapter-feedback should reject non-council accounts with 403'
-  );
-  // Identity comes from the server prefs, not the client payload (S1).
-  assert.match(
-    source,
-    /participant_id_number:\s*trimOptionalText\(prefs\.chapter_feedback_id_number\)/,
-    'submit-chapter-feedback should source participant_id_number from server preferences, not the auth UUID'
+    /\.from\('user_preferences'\)/,
+    'submit-chapter-feedback should not gate feedback on an account preference'
   );
   assert.match(
     source,
-    /participant_name:\s*trimOptionalText\(prefs\.chapter_feedback_name\)/,
-    'submit-chapter-feedback should source the participant name from server preferences'
+    /participantName and participantRole are required/,
+    'submit-chapter-feedback should require the participant name and project role'
+  );
+  assert.match(
+    source,
+    /participant_name:\s*participantName/,
+    'submit-chapter-feedback should persist the validated participant name'
+  );
+  assert.match(
+    source,
+    /participant_role:\s*participantRole/,
+    'submit-chapter-feedback should persist the validated participant role'
   );
 });
 
@@ -72,12 +69,17 @@ test('submit-chapter-feedback validates the book and chapter against the canon a
   assert.match(
     source,
     /chapter is out of range for this book/,
-    'submit-chapter-feedback should reject chapters beyond a book\'s chapter count (S6)'
+    "submit-chapter-feedback should reject chapters beyond a book's chapter count (S6)"
   );
   assert.match(
     source,
     /SUBMISSION_RATE_LIMIT_PER_HOUR/,
-    'submit-chapter-feedback should throttle submissions per user (S3, S8)'
+    'submit-chapter-feedback should throttle submissions'
+  );
+  assert.match(
+    source,
+    /participant_name[\s\S]*participant_role/,
+    'submit-chapter-feedback should also throttle anonymous submissions by their required identity'
   );
   assert.match(
     source,
@@ -127,7 +129,7 @@ test('submit-chapter-feedback bounds anonymous audio before service-role upload'
   );
 });
 
-test('submit-chapter-feedback disables the legacy edge JWT gate and only enriches auth when present', () => {
+test('submit-chapter-feedback disables the legacy edge JWT gate and enriches auth only when present', () => {
   const source = readFileSync(FUNCTION_PATH, 'utf8');
   const config = readFileSync(CONFIG_PATH, 'utf8');
 
@@ -151,9 +153,9 @@ test('submit-chapter-feedback disables the legacy edge JWT gate and only enriche
     /createClient\(supabaseUrl,\s*serviceRoleKey/,
     'Expected submit-chapter-feedback to keep a separate service-role client for admin writes'
   );
-  assert.match(
+  assert.doesNotMatch(
     source,
     /Sign in to send chapter feedback/,
-    'Expected submit-chapter-feedback to require authentication now that feedback is council-only'
+    'Expected submit-chapter-feedback not to block participants who do not have an account'
   );
 });

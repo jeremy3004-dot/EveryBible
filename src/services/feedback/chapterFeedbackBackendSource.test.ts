@@ -252,8 +252,13 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
   assert.match(
     functionSource,
-    /participant_id_number:\s*trimOptionalText\(prefs\.chapter_feedback_id_number\)/,
-    'Expected the Edge Function to source the reviewer id number from server preferences, not the auth UUID (S4)'
+    /participant_id_number:\s*null/,
+    'Expected the Edge Function not to manufacture a participant ID number from an account UUID'
+  );
+  assert.match(
+    functionSource,
+    /participantName and participantRole are required/,
+    'Expected the Edge Function to accept self-identified participants only after name and role are supplied'
   );
   assert.match(
     functionSource,

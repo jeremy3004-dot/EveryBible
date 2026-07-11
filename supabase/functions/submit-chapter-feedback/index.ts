@@ -78,7 +78,7 @@ const AUDIO_RESPONSE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const AUDIO_RESPONSE_MAX_BASE64_LENGTH = Math.ceil((AUDIO_RESPONSE_MAX_SIZE_BYTES * 4) / 3) + 8;
 const AUDIO_RESPONSE_MIME_TYPE = 'audio/mp4';
 
-// Max submissions per user per rolling hour — spam/flood guard (S3, S8).
+// Max submissions per account or anonymous identity per rolling hour.
 const SUBMISSION_RATE_LIMIT_PER_HOUR = 20;
 
 // Canonical 66-book chapter counts. Guards against arbitrary book_id / out-of-range
@@ -188,6 +188,14 @@ const validateRequest = (
       error:
         'translationId, translationLanguage, bookId, chapter, sentiment, and interfaceLanguage are required',
     };
+  }
+
+  if (!participantName || !participantRole) {
+    return { error: 'participantName and participantRole are required' };
+  }
+
+  if (participantName.length > 120 || participantRole.length > 120) {
+    return { error: 'participantName and participantRole must be 120 characters or fewer' };
   }
 
   const normalizedBookId = bookId.toUpperCase();
@@ -334,7 +342,8 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Feedback is council-only: require a valid signed-in user (S1). No anonymous path.
+    // Authentication is optional. A valid session enriches the row with user_id, while
+    // every participant is authorized by supplying the required name and project role.
     let userId: string | null = null;
     if (authorization?.startsWith('Bearer ')) {
       const accessToken = authorization.slice('Bearer '.length).trim();
@@ -350,50 +359,27 @@ Deno.serve(async (req) => {
       userId = user?.id ?? null;
     }
 
-    if (!userId) {
-      return jsonResponse(401, {
-        success: false,
-        saved: false,
-        exported: false,
-        error: 'Sign in to send chapter feedback',
-      });
+    const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
+    const validation = validateRequest(requestBody, userId);
+
+    if (!validation.value) {
+      return jsonResponse(400, { success: false, error: validation.error });
     }
 
-    // Server-verify Scripture Council membership and take the participant identity from the
-    // server, ignoring whatever the client payload claims (S1).
-    const { data: prefs, error: prefsError } = await supabase
-      .from('user_preferences')
-      .select(
-        'chapter_feedback_enabled, chapter_feedback_name, chapter_feedback_role, chapter_feedback_id_number'
-      )
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (prefsError) {
-      return jsonResponse(500, {
-        success: false,
-        saved: false,
-        exported: false,
-        error: prefsError.message,
-      });
-    }
-
-    if (!prefs?.chapter_feedback_enabled) {
-      return jsonResponse(403, {
-        success: false,
-        saved: false,
-        exported: false,
-        error: 'Chapter feedback is not enabled for this account',
-      });
-    }
-
-    // Per-user flood guard (S3, S8).
+    // Keep the flood guard for signed-in participants and scope anonymous participants
+    // by the name + role identity that is required for every submission.
     const rateWindowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentCount, error: rateError } = await supabase
+    const rateQuery = supabase
       .from('chapter_feedback_submissions')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
       .gte('created_at', rateWindowStart);
+    const scopedRateQuery = userId
+      ? rateQuery.eq('user_id', userId)
+      : rateQuery
+          .is('user_id', null)
+          .eq('participant_name', validation.value.participant_name)
+          .eq('participant_role', validation.value.participant_role);
+    const { count: recentCount, error: rateError } = await scopedRateQuery;
 
     if (!rateError && (recentCount ?? 0) >= SUBMISSION_RATE_LIMIT_PER_HOUR) {
       return jsonResponse(429, {
@@ -402,13 +388,6 @@ Deno.serve(async (req) => {
         exported: false,
         error: 'Too many submissions. Please try again later.',
       });
-    }
-
-    const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
-    const validation = validateRequest(requestBody, userId);
-
-    if (!validation.value) {
-      return jsonResponse(400, { success: false, error: validation.error });
     }
 
     let uploadedAudioPath: string | null = null;
@@ -439,9 +418,6 @@ Deno.serve(async (req) => {
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
       user_id: userId,
-      participant_name: trimOptionalText(prefs.chapter_feedback_name),
-      participant_role: trimOptionalText(prefs.chapter_feedback_role),
-      participant_id_number: trimOptionalText(prefs.chapter_feedback_id_number),
     };
 
     const { data: insertedRow, error: insertError } = await supabase

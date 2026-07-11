@@ -38,7 +38,7 @@ The admin backend shows the fixed submission contract:
 26. `scripture_council_fixed_by`
 27. `scripture_council_fixed_note`
 
-`participant_id_number` is not user-entered. When the app has an authenticated Supabase session, the Edge Function fills `user_id` and `participant_id_number` from that user UUID. Anonymous submissions are allowed and store those fields as `null`; reviewer name and role are also optional.
+`participant_name` and `participant_role` are required for every submission. They are self-reported in the app and are accepted whether or not the participant has an EveryBible account. When the app has a valid authenticated Supabase session, the Edge Function also fills `user_id`; anonymous submissions are allowed and store `user_id` as `null`. `participant_id_number` is not user-entered and remains `null`.
 
 Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app accepts M4A audio (`audio/mp4`) with a 1 minute and 5 MB limit. Authenticated submissions upload to a user-scoped path (`{user_id}/...`) before submitting the feedback row. Anonymous submissions send the encoded recording to the Edge Function, which verifies the encoded payload before uploading it with the service-role client under an `anonymous/...` path and saving the row. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
 
