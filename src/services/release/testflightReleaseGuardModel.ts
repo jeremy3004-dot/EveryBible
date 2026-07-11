@@ -68,11 +68,11 @@ export const evaluateRemoteBuildVersionState = (
 
   const expectedPrebuildNumber = state.latestUploadedBuildNumber;
 
-  if (state.easRemoteBuildNumber !== expectedPrebuildNumber) {
+  if (state.easRemoteBuildNumber < expectedPrebuildNumber) {
     errors.push(
       [
-        `EAS remote iOS build number drift detected: expected pre-build value ${expectedPrebuildNumber} because App Store Connect's latest uploaded build is ${state.latestUploadedBuildNumber}, but EAS is set to ${state.easRemoteBuildNumber}.`,
-        'EAS auto-increments during the build, so the remote pre-build value must match the latest uploaded App Store Connect build.',
+        `EAS remote iOS build number is behind App Store Connect: expected at least ${expectedPrebuildNumber} because App Store Connect's latest uploaded build is ${state.latestUploadedBuildNumber}, but EAS is set to ${state.easRemoteBuildNumber}.`,
+        'EAS auto-increments during the build, so a higher reserved remote value is safe, but a lower value can produce an invalid upload.',
         'Reset it before building with:',
         `eas build:version:set --platform ios --profile production`,
       ].join(' ')

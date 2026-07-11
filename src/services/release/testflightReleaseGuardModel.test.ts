@@ -26,7 +26,7 @@ test('evaluateRemoteBuildVersionState accepts the current App Store build number
   assert.deepEqual(result.errors, []);
 });
 
-test('evaluateRemoteBuildVersionState rejects remote build number drift', () => {
+test('evaluateRemoteBuildVersionState accepts a reserved EAS build number above the latest App Store upload', () => {
   const result = evaluateRemoteBuildVersionState({
     appVersionSource: 'remote',
     autoIncrement: true,
@@ -34,8 +34,20 @@ test('evaluateRemoteBuildVersionState rejects remote build number drift', () => 
     easRemoteBuildNumber: 287,
   });
 
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test('evaluateRemoteBuildVersionState rejects an EAS build number behind the latest App Store upload', () => {
+  const result = evaluateRemoteBuildVersionState({
+    appVersionSource: 'remote',
+    autoIncrement: true,
+    latestUploadedBuildNumber: 285,
+    easRemoteBuildNumber: 284,
+  });
+
   assert.equal(result.ok, false);
-  assert.match(result.errors.join('\n'), /expected pre-build value 285/);
+  assert.match(result.errors.join('\n'), /expected at least 285/);
   assert.match(result.errors.join('\n'), /eas build:version:set/);
 });
 
