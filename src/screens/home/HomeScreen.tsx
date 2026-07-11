@@ -528,7 +528,8 @@ export function HomeScreen() {
           {
             paddingHorizontal: homeLayout.screenPadding,
             paddingTop: Math.max(spacing.sm, homeLayout.screenPadding - spacing.sm),
-            paddingBottom: Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
+            paddingBottom:
+              bottomTabBarHeight + Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
             gap: homeLayout.sectionGap,
           },
         ]}

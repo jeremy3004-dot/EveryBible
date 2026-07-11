@@ -35,13 +35,13 @@ test('HomeScreen uses a bounce-enabled scroll shell while sizing itself against 
   );
 });
 
-test('HomeScreen trims the bottom padding so Chapters Read clears the tab bar', () => {
+test('HomeScreen reserves the tab bar height below its final card', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
   assert.match(
     source,
-    /paddingBottom:\s*Math\.max\(spacing\.sm,\s*homeLayout\.screenPadding\s*-\s*spacing\.xs\)/,
-    'HomeScreen should keep a little less space under the content so the bottom card sits above the tabs'
+    /paddingBottom:\s*bottomTabBarHeight\s*\+\s*Math\.max\(spacing\.sm,\s*homeLayout\.screenPadding\s*-\s*spacing\.xs\)/,
+    'HomeScreen should reserve the absolutely positioned tab bar below the scroll content so the final card can be revealed completely'
   );
 
   assert.match(
