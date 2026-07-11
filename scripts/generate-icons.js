@@ -28,6 +28,14 @@ const iosIconPath = path.join(
   'AppIcon.appiconset',
   'App-Icon-1024x1024@1x.png'
 );
+const iosNowPlayingIconPath = path.join(
+  projectRoot,
+  'ios',
+  'EveryBible',
+  'Images.xcassets',
+  'NowPlayingAppIcon.imageset',
+  'App-Icon-1024x1024@1x.png'
+);
 const iosSplashDir = path.join(
   projectRoot,
   'ios',
@@ -165,6 +173,7 @@ async function generateIcons() {
   await writeRasterOutput(siteAppIconPath, 1024, 'png');
   await writeSplashPortraitOutput(generatedSplashPath);
   await writeRasterOutput(iosIconPath, 1024, 'png');
+  await fs.copyFile(iosIconPath, iosNowPlayingIconPath);
   await writeSplashPortraitOutput(path.join(iosSplashDir, 'image.png'));
   await writeSplashPortraitOutput(path.join(iosSplashDir, 'image@2x.png'));
   await writeSplashPortraitOutput(path.join(iosSplashDir, 'image@3x.png'));
@@ -198,6 +207,7 @@ async function generateIcons() {
   console.log('- apps/site/public/everybible/app-icon.png');
   console.log('- assets/splash-icon.png');
   console.log('- ios/EveryBible/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png');
+  console.log('- ios/EveryBible/Images.xcassets/NowPlayingAppIcon.imageset/App-Icon-1024x1024@1x.png');
   console.log('- ios/EveryBible/Images.xcassets/SplashScreenBrand.imageset/image*.png');
   console.log('- android/app/src/main/res/drawable-*/splashscreen_logo.png');
   console.log('- android/app/src/main/res/mipmap-*/ic_launcher*.webp');
