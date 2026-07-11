@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -43,18 +43,28 @@ export function TranslatorReviewQueueScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
+  const loadQueueRequestIdRef = useRef(0);
+
   const loadQueue = useCallback(async () => {
     if (!translatorReviewEnabled || !translatorReviewPasscode) {
+      loadQueueRequestIdRef.current += 1;
       setQueue([]);
       setLoadError(false);
       setLoading(false);
       return;
     }
 
+    const requestId = loadQueueRequestIdRef.current + 1;
+    loadQueueRequestIdRef.current = requestId;
+
     const result = await fetchChapterFeedbackReviewSummaryForTranslation({
       translationId: currentTranslation,
       passcode: translatorReviewPasscode,
     });
+
+    if (requestId !== loadQueueRequestIdRef.current) {
+      return;
+    }
 
     if (result.success) {
       setQueue(sortTranslatorFeedbackQueue(result.chapters));
@@ -183,7 +193,7 @@ export function TranslatorReviewQueueScreen() {
         <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
           {t('translatorQueue.title')}
         </Text>
-        <View style={{ width: 32 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
@@ -217,6 +227,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.sectionTitle,
+  },
+  headerSpacer: {
+    width: 32,
   },
   subtitle: {
     ...typography.label,

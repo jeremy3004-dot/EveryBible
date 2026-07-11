@@ -46,10 +46,12 @@ interface ChapterFeedbackReviewRow {
 }
 
 interface ChapterFeedbackSummaryRow {
+  id: string;
   book_id: string;
   chapter: number;
   sentiment: 'up' | 'down';
   scripture_council_resolution: ReviewResolution | null;
+  audio_response_path: string | null;
 }
 
 const SUMMARY_ROW_LIMIT = 5000;
@@ -90,9 +92,32 @@ const LOCKOUT_THRESHOLD = 10;
 const LOCKOUT_WINDOW_MINUTES = 15;
 
 const getClientIp = (request: Request): string => {
+  // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the
+  // proxy and cannot be spoofed by the client, unlike the first x-forwarded-for
+  // entry (which the client controls — trusted proxies append the real IP, they
+  // do not prepend it). Mirrors track-anonymous-usage-events/getClientIp so the
+  // brute-force lockout keys on a stable identifier instead of an attacker-rotated
+  // XFF value.
+  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
+  if (cfIp) return cfIp;
   const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
   const first = forwardedFor.split(',')[0]?.trim();
   return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
+};
+
+// Constant-time string comparison so a wrong passcode cannot be recovered via
+// early-exit timing. Folds a length mismatch into the accumulator and always
+// walks the full max length rather than short-circuiting on first difference.
+const constantTimeEquals = (a: string, b: string): boolean => {
+  const encoder = new TextEncoder();
+  const aBytes = encoder.encode(a);
+  const bBytes = encoder.encode(b);
+  const length = Math.max(aBytes.length, bBytes.length);
+  let mismatch = aBytes.length ^ bBytes.length;
+  for (let i = 0; i < length; i += 1) {
+    mismatch |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return mismatch === 0;
 };
 
 const hashClientIp = async (request: Request): Promise<string> => {
@@ -185,8 +210,20 @@ Deno.serve(async (request) => {
 
     const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
 
-    if (body.passcode !== expectedPasscode) {
+    if (!constantTimeEquals(body.passcode ?? '', expectedPasscode)) {
+      // Record the failed attempt FIRST, then evaluate the lockout from a count
+      // that includes it. Recording-then-counting closes the check-then-insert
+      // race where parallel wrong-passcode requests all read count < threshold
+      // before any INSERT lands (each otherwise getting a fresh guess). Combined
+      // with the un-spoofable cf-connecting-ip key, a burst can no longer exceed
+      // the window budget.
       await recordPasscodeAttempt(service, ipHash, false);
+      if (await isPasscodeLockedOut(service, ipHash)) {
+        return jsonResponse(429, {
+          success: false,
+          error: 'Too many attempts. Try again later.',
+        });
+      }
       return jsonResponse(403, { success: false, error: 'Translator access denied' });
     }
 
@@ -299,7 +336,7 @@ Deno.serve(async (request) => {
     if (!hasChapter) {
       let summaryQuery = service
         .from('chapter_feedback_submissions')
-        .select('book_id, chapter, sentiment, scripture_council_resolution')
+        .select('id, book_id, chapter, sentiment, scripture_council_resolution, audio_response_path')
         .eq('translation_id', translationId)
         .order('book_id', { ascending: true })
         .order('chapter', { ascending: true })
@@ -325,6 +362,11 @@ Deno.serve(async (request) => {
           total: number;
           unresolvedDown: number;
           unresolvedUp: number;
+          // Back-compat (B3): pre-1.0.5 app builds read a per-chapter `feedback`
+          // array (summary.feedback.length / .some(hasAudio)). New clients use the
+          // count fields above and ignore this, but old binaries TypeError without
+          // it, so it must live INSIDE each chapter item (not at the top level).
+          feedback: Array<{ id: string; hasAudio: boolean }>;
         }
       >();
 
@@ -338,9 +380,11 @@ Deno.serve(async (request) => {
             total: 0,
             unresolvedDown: 0,
             unresolvedUp: 0,
+            feedback: [] as Array<{ id: string; hasAudio: boolean }>,
           };
 
         summary.total += 1;
+        summary.feedback.push({ id: row.id, hasAudio: row.audio_response_path != null });
         if (row.scripture_council_resolution == null) {
           if (row.sentiment === 'down') {
             summary.unresolvedDown += 1;

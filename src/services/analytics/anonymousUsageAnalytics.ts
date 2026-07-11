@@ -46,11 +46,42 @@ function ensureAnonymousSession(): string {
   return currentAnonymousSessionId;
 }
 
+/**
+ * Returns the current anonymous session_id, creating one WITHOUT emitting
+ * session_started if none exists.
+ *
+ * This is the id-provider for event-originated tracking (audio_playback_progress
+ * ticks, audio_completed auto-advance, reading_ended). Those events can fire
+ * while the app is backgrounded — this app keeps JS running to play audio in the
+ * background — AFTER App.tsx has already ended the session on background
+ * (endAnonymousUsageSession / clearAnonymousSessionContext null out the id).
+ *
+ * If such a background event lazily minted-and-emitted a fresh session_started
+ * (as ensureAnonymousSession does), it would create an UNPAIRED session_started
+ * with no matching session_ended — inflating session counts. Per P1 S4, the
+ * single session_started/session_ended pair is owned exclusively by App.tsx's
+ * foreground/background orchestration (via startAnonymousUsageSession /
+ * analyticsService.startSession). Background-originated events must never
+ * originate a session lifecycle event — they only need a valid session_id to
+ * carry, so they create the id silently and let the next real foreground start
+ * own the session_started.
+ */
+function ensureAnonymousSessionIdWithoutEmit(): string {
+  if (!currentAnonymousSessionId) {
+    currentAnonymousSessionId = generateUUID();
+    // No session_started event — see doc comment. App.tsx owns the emission.
+  }
+  return currentAnonymousSessionId;
+}
+
 export function trackAnonymousUsageEvent(
   eventName: AnonymousUsageEventName,
   properties: Record<string, unknown> = {}
 ): void {
-  const sessionId = ensureAnonymousSession();
+  // Event-originated tracking never emits session_started: it can run in the
+  // background after the session was ended, and a lazy emission there would
+  // produce an unpaired session_started (P1 S4). Get/create the id silently.
+  const sessionId = ensureAnonymousSessionIdWithoutEmit();
   enqueueUsageEvent(eventName, properties, sessionId);
 }
 

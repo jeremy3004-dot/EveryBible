@@ -55,6 +55,10 @@ const resetPerUserStores = (): void => {
     // Exported as `readingPlansStore` (not the use-prefixed name).
     require('./readingPlansStore').readingPlansStore,
     require('./fourFieldsStore').useFourFieldsStore,
+    // Translator mode and per-device listened-markers must not bleed across
+    // account switches (A1). The passcode is a shared secret but enabled state
+    // and markers are per-session and should be cleared here.
+    require('./translatorReviewStore').useTranslatorReviewStore,
   ];
 
   for (const store of stores) {

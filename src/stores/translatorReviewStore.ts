@@ -17,6 +17,9 @@ interface TranslatorReviewState {
   enableWithPasscode: (passcode: string) => boolean;
   disable: () => void;
   markListened: (feedbackId: string) => void;
+  // Clears enabled state, passcode, and per-device markers at an auth boundary so
+  // translator mode and listened-markers never bleed across account switches (A1).
+  resetForSignOut: () => void;
 }
 
 const developmentTranslatorReviewPasscode = resolveDevelopmentTranslatorReviewPasscode(
@@ -66,6 +69,8 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         return false;
       },
       disable: () => set({ enabled: false, accessPasscode: null }),
+      resetForSignOut: () =>
+        set({ enabled: false, accessPasscode: null, feedbackMarkers: {} }),
       markListened: (feedbackId) =>
         set((state) => ({
           feedbackMarkers: markTranslatorFeedbackListened(

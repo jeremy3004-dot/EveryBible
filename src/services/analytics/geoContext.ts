@@ -39,8 +39,27 @@ type GeoAttachableEvent = {
 
 const GEO_CACHE_KEY = 'analytics-geo-cache-v1';
 const GEO_FETCH_TIMEOUT_MS = 3000;
+// How long a disk-restored fix is treated as "fresh enough" to skip a refetch.
+// Beyond this, restored geo stays usable (it still enriches flushes) but the
+// next foreground prime is allowed to refetch so a moved/travelling/VPN user
+// stops reporting a stale first-launch location indefinitely.
+const GEO_FRESH_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+// Persisted shape wraps the server-facing GeoContext with a fetch timestamp so
+// restored geo can be aged out. The wrapped `geo` keeps the exact payload shape
+// (incl. geo_source 'cf-worker') emitted to the server — only the envelope is new.
+interface PersistedGeo {
+  geo: GeoContext;
+  fetched_at: number;
+}
 
 let cachedGeoContext: GeoContext | null = null;
+// Wall-clock time the current in-memory geo was fetched (from the worker in this
+// process) or last fetched (when restored from disk). null when nothing cached.
+let cachedFetchedAt: number | null = null;
+// True only when the current cache was fetched in THIS process. Disk-restored
+// geo is usable but not "fresh in-process", so it permits exactly one refetch.
+let cachedFetchedThisProcess = false;
 let persistedLoaded = false;
 let primePromise: Promise<GeoContext | null> | null = null;
 
@@ -73,22 +92,36 @@ function normalizeCoordinate(value: unknown): number | null {
 // MMKV persistence is loaded lazily via require() so this module stays free of
 // react-native imports and remains directly unit-testable under node --test.
 // The require is a no-op (caught) in any environment without the native module.
-function loadPersistedGeo(): GeoContext | null {
+function loadPersistedGeo(): PersistedGeo | null {
   try {
     const { mmkvInstance } = require('../../stores/mmkvStorage');
     const raw = mmkvInstance.getString(GEO_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as GeoContext;
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    // New envelope: { geo, fetched_at }. Legacy rows persisted the bare
+    // GeoContext — treat those as already-aged (fetched_at 0) so they stay
+    // usable but always permit a refetch on the next prime.
+    const candidate = parsed as Partial<PersistedGeo> & Partial<GeoContext>;
+    if (candidate.geo && typeof candidate.geo === 'object') {
+      return {
+        geo: candidate.geo as GeoContext,
+        fetched_at:
+          typeof candidate.fetched_at === 'number' ? candidate.fetched_at : 0,
+      };
+    }
+    return { geo: parsed as GeoContext, fetched_at: 0 };
   } catch {
     return null;
   }
 }
 
-function persistGeo(geo: GeoContext): void {
+function persistGeo(geo: GeoContext, fetchedAt: number): void {
   try {
     const { mmkvInstance } = require('../../stores/mmkvStorage');
-    mmkvInstance.set(GEO_CACHE_KEY, JSON.stringify(geo));
+    const envelope: PersistedGeo = { geo, fetched_at: fetchedAt };
+    mmkvInstance.set(GEO_CACHE_KEY, JSON.stringify(envelope));
   } catch {
     // Best-effort — persistence is a stale fallback, never required for delivery.
   }
@@ -101,7 +134,11 @@ function ensurePersistedLoaded(): void {
   persistedLoaded = true;
   const persisted = loadPersistedGeo();
   if (persisted && !cachedGeoContext) {
-    cachedGeoContext = persisted;
+    cachedGeoContext = persisted.geo;
+    cachedFetchedAt = persisted.fetched_at;
+    // Restored from disk — usable, but NOT fetched in this process, so the next
+    // foreground prime is allowed to refetch (subject to the freshness TTL).
+    cachedFetchedThisProcess = false;
   }
 }
 
@@ -183,9 +220,18 @@ async function fetchWorkerGeo(): Promise<GeoContext | null> {
 export function primeGeoContext(): Promise<GeoContext | null> {
   ensurePersistedLoaded();
 
-  // Already have a fresh (worker-sourced) fix — no need to refetch this session.
+  // Short-circuit only when the cached worker fix is genuinely fresh: either it
+  // was fetched in THIS process, or it was restored from disk within the TTL.
+  // Disk-restored geo older than the TTL stays usable for flushes but falls
+  // through here so a moved/travelling/VPN user gets exactly one refetch per
+  // foreground (the single in-flight promise below prevents a refetch storm).
   if (cachedGeoContext?.geo_source === 'cf-worker') {
-    return Promise.resolve(cachedGeoContext);
+    const isFresh =
+      cachedFetchedThisProcess ||
+      (cachedFetchedAt != null && Date.now() - cachedFetchedAt < GEO_FRESH_TTL_MS);
+    if (isFresh) {
+      return Promise.resolve(cachedGeoContext);
+    }
   }
 
   if (primePromise) {
@@ -196,8 +242,11 @@ export function primeGeoContext(): Promise<GeoContext | null> {
     try {
       const geo = await fetchWorkerGeo();
       if (geo) {
+        const fetchedAt = Date.now();
         cachedGeoContext = geo;
-        persistGeo(geo);
+        cachedFetchedAt = fetchedAt;
+        cachedFetchedThisProcess = true;
+        persistGeo(geo, fetchedAt);
       }
       return geo ?? cachedGeoContext;
     } finally {
@@ -229,6 +278,8 @@ export async function resolveGeoContext(): Promise<GeoContext | null> {
 // from a cold module. Not used by app code.
 export function __resetGeoContextForTests(): void {
   cachedGeoContext = null;
+  cachedFetchedAt = null;
+  cachedFetchedThisProcess = false;
   persistedLoaded = false;
   primePromise = null;
 }

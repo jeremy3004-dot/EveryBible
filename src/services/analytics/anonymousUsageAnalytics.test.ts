@@ -5,7 +5,7 @@
  * so these tests validate the contract structurally without importing it.
  */
 
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -112,4 +112,155 @@ test('anonymousUsageAnalytics does not depend on Supabase auth (auth is optional
   // optionally when one exists, but the facade stays auth-free by construction.
   assert.ok(!/supabase\.auth/.test(source), 'anonymous usage facade should not use supabase.auth');
   assert.ok(!/getUser\(/.test(source), 'anonymous usage facade should not query getUser()');
+});
+
+// A4: background audio resurrects the anonymous session.
+// Structural lock — trackAnonymousUsageEvent (the sole path for event-originated
+// audio/reading ticks) must NOT route through ensureAnonymousSession, which
+// emits session_started. Background audio ticks fire AFTER App.tsx has already
+// ended the session on background; a lazy emission there would create an
+// unpaired session_started and inflate session counts (violating P1 S4, which
+// makes App.tsx the single owner of the session_started/ended pair).
+test('A4: trackAnonymousUsageEvent does NOT emit session_started (id-only, no lazy emission)', () => {
+  const source = readRelativeSource('./anonymousUsageAnalytics.ts');
+
+  const fnMatch = source.match(
+    /export function trackAnonymousUsageEvent\s*\([\s\S]*?\)\s*:\s*void\s*\{([\s\S]*?)^}/m
+  );
+  assert.ok(fnMatch, 'trackAnonymousUsageEvent must be defined');
+  assert.ok(
+    !fnMatch![1]?.includes('ensureAnonymousSession('),
+    'trackAnonymousUsageEvent must NOT call ensureAnonymousSession() — that emits session_started for background-originated events'
+  );
+
+  // Only startAnonymousUsageSession (the real foreground start) may emit
+  // session_started via ensureAnonymousSession.
+  const starterMatch = source.match(
+    /export function startAnonymousUsageSession\s*\(\)[\s\S]*?\{([\s\S]*?)^}/m
+  );
+  assert.ok(starterMatch, 'startAnonymousUsageSession must be defined');
+  assert.match(
+    starterMatch![1] ?? '',
+    /ensureAnonymousSession\(\)/,
+    'startAnonymousUsageSession (the real foreground start) still owns the session_started emission'
+  );
+});
+
+// Behavioral lock (requires `--experimental-test-module-mocks`). We mock the
+// sibling usageQueue so we can import the real facade in Node (it otherwise
+// pulls react-native transitively) and observe exactly which events it enqueues.
+// If module mocking is unavailable (bare `tsx --test`), the real import throws on
+// react-native — we detect that and skip, since the structural tests above cover
+// the invariant in that mode.
+//
+// The queue is mocked ONCE (Node forbids re-mocking the same specifier) with a
+// module-scoped log; each behavioral test resets that log + the facade's session
+// singleton so the scenarios stay independent.
+type Enqueued = { name: string; sessionId: string | null };
+
+const enqueueLog: Enqueued[] = [];
+let uuidCounter = 0;
+let facadeModule: typeof import('./anonymousUsageAnalytics') | null = null;
+
+async function loadFacade(): Promise<typeof import('./anonymousUsageAnalytics') | null> {
+  if (facadeModule) return facadeModule;
+  if (typeof (mock as { module?: unknown }).module !== 'function') {
+    return null;
+  }
+  mock.module(new URL('./usageQueue.ts', import.meta.url).pathname, {
+    namedExports: {
+      enqueueUsageEvent: (name: string, _props: unknown, sessionId: string | null) => {
+        enqueueLog.push({ name, sessionId });
+      },
+      flushUsageQueue: async () => ({ success: true }),
+      generateUUID: () => `test-uuid-${++uuidCounter}`,
+      getPendingUsageEventCount: () => enqueueLog.length,
+    },
+  });
+  try {
+    facadeModule = await import('./anonymousUsageAnalytics');
+  } catch {
+    // Mock not applied (flag absent) — real usageQueue -> react-native import fails.
+    facadeModule = null;
+  }
+  return facadeModule;
+}
+
+// Resets the module-level session singleton + capture log so each scenario runs
+// from a clean slate. clearAnonymousSessionContext nulls the id without emitting.
+function resetFacade(facade: typeof import('./anonymousUsageAnalytics')): void {
+  facade.clearAnonymousSessionContext();
+  enqueueLog.length = 0;
+}
+
+test('A4: a background audio tick does NOT emit a second session_started (unauth path)', async (t) => {
+  const facade = await loadFacade();
+  if (!facade) {
+    t.skip('module mocking unavailable (run with --experimental-test-module-mocks)');
+    return;
+  }
+  resetFacade(facade);
+
+  // Real foreground start (App.tsx unauth path): exactly one session_started.
+  const foregroundId = facade.startAnonymousUsageSession();
+  assert.equal(
+    enqueueLog.filter((e) => e.name === 'session_started').length,
+    1,
+    'foreground start emits exactly one session_started'
+  );
+
+  // App backgrounds: unauth path emits the single session_ended and nulls the id.
+  facade.endAnonymousUsageSession();
+  assert.equal(facade.getCurrentAnonymousUsageSessionId(), null, 'background clears the session id');
+  assert.equal(
+    enqueueLog.filter((e) => e.name === 'session_ended').length,
+    1,
+    'background emits exactly one session_ended'
+  );
+
+  // Background audio keeps JS running: a progress tick fires AFTER the session
+  // ended. It must NOT mint a new session_started.
+  facade.trackAnonymousUsageEvent('audio_playback_progress', { position_seconds: 42 });
+  facade.trackAnonymousUsageEvent('audio_completed', {});
+
+  assert.equal(
+    enqueueLog.filter((e) => e.name === 'session_started').length,
+    1,
+    'background audio ticks must NOT emit a second session_started'
+  );
+
+  // The ticks still carry a valid (fresh, silently-created) session_id so the
+  // rows are attributable — just without originating a lifecycle event.
+  const tick = enqueueLog.find((e) => e.name === 'audio_playback_progress');
+  assert.ok(tick && typeof tick.sessionId === 'string', 'the tick still carries a session_id');
+  assert.notEqual(tick!.sessionId, foregroundId, 'a new id was created silently for post-session ticks');
+
+  facade.endAnonymousUsageSession();
+});
+
+test('A4: background audio tick emits NO session_started for the authenticated path', async (t) => {
+  const facade = await loadFacade();
+  if (!facade) {
+    t.skip('module mocking unavailable (run with --experimental-test-module-mocks)');
+    return;
+  }
+  resetFacade(facade);
+
+  // Auth path (App.tsx): establish the anon id context WITHOUT an event; the
+  // authenticated analytics path owns session_started separately.
+  facade.initAnonymousSessionContext();
+  // App backgrounds: auth path clears the anon id context (no anon session_ended).
+  facade.clearAnonymousSessionContext();
+  assert.equal(facade.getCurrentAnonymousUsageSessionId(), null, 'auth background clears the anon id');
+
+  // Background audio tick after the context was cleared.
+  facade.trackAnonymousUsageEvent('audio_playback_progress', {});
+
+  assert.equal(
+    enqueueLog.filter((e) => e.name === 'session_started').length,
+    0,
+    'the anonymous facade must never emit session_started on the authenticated path'
+  );
+
+  facade.clearAnonymousSessionContext();
 });

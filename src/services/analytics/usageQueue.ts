@@ -52,6 +52,35 @@ const MAX_QUEUE_SIZE = 500;
 const MAX_PERSISTED_EVENTS = 200;
 const QUEUE_CACHE_KEY = 'analytics-usage-queue-v1';
 
+// Fallback dead-letter guard: even a 5xx/network fault should not requeue the
+// SAME batch forever. Once a batch has been retried this many times we drop it
+// so a permanently-failing (but non-4xx-reporting) endpoint can't loop the queue
+// indefinitely. Tracked out-of-band on the in-flight snapshot, not persisted —
+// worst case a cross-launch retry gets a fresh budget, which is acceptable.
+const MAX_BATCH_RETRIES = 8;
+// How many times the current head-of-queue batch has been requeued after a
+// transient failure. The live `eventQueue` array identity never changes (only its
+// contents are spliced/unshifted), so a simple counter tracks the retry budget of
+// whatever batch currently sits at the head. Reset to 0 on any successful flush.
+let headBatchRetries = 0;
+
+// The four fields the server's parseBatchRequest requires on EVERY event
+// (track-anonymous-usage-events 400s the whole batch if any event is missing
+// one). Restore validation must enforce all four so a cross-version or corrupt
+// persisted payload can't poison the queue into a permanent 400 loop.
+const REQUIRED_EVENT_FIELDS = [
+  'event_name',
+  'device_platform',
+  'app_version',
+  'queued_at',
+] as const;
+
+function hasAllRequiredFields(event: unknown): event is QueuedEvent {
+  if (!event || typeof event !== 'object') return false;
+  const record = event as Record<string, unknown>;
+  return REQUIRED_EVENT_FIELDS.every((field) => typeof record[field] === 'string');
+}
+
 // Write-through persistence via a guarded require() so this module's static
 // import graph stays intact and the require is a no-op where the native MMKV
 // module is unavailable (e.g. node unit tests). This makes the queue durable
@@ -63,10 +92,11 @@ function loadPersistedQueue(): QueuedEvent[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (event): event is QueuedEvent =>
-        !!event && typeof event === 'object' && typeof event.event_name === 'string'
-    );
+    // Require ALL fields the server requires (not just event_name). A payload
+    // written under a different app schema version — or a corrupt MMKV blob —
+    // missing any required field would otherwise be restored and 400 the whole
+    // batch forever; drop such entries on restore instead of keeping them.
+    return parsed.filter(hasAllRequiredFields);
   } catch {
     return [];
   }
@@ -143,6 +173,24 @@ function requeueSnapshot(snapshot: QueuedEvent[]): void {
   }
 }
 
+// Classifies a supabase functions.invoke error as permanent (drop the batch) or
+// transient (requeue and retry). functions.invoke surfaces non-2xx responses as
+// a FunctionsHttpError whose `.context` is the raw Response, so `.context.status`
+// carries the HTTP status; network faults arrive as FunctionsFetchError (no
+// status) and MUST retry. We treat any 4xx as permanent — the server's
+// parseBatchRequest 400s a malformed batch and it will 400 identically on every
+// retry, so requeuing only poisons the queue. Anything else (5xx, relay, network,
+// or a status we can't read) is treated as transient and retried.
+function isPermanentFlushError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const context = (error as { context?: unknown }).context;
+  const status =
+    context && typeof context === 'object'
+      ? (context as { status?: unknown }).status
+      : undefined;
+  return typeof status === 'number' && status >= 400 && status < 500;
+}
+
 // Enqueues a named event carrying the caller-supplied session id. Triggers an
 // automatic background flush when the queue reaches AUTO_FLUSH_SIZE.
 export function enqueueUsageEvent(
@@ -179,9 +227,25 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
   // Snapshot and drain before the await so that events arriving mid-flush are
   // NOT lost — they remain in the queue for the next call.
   const snapshot = eventQueue.splice(0, eventQueue.length);
+  // Retry budget already spent by the batch currently at the head of the queue.
+  const retriesSoFar = headBatchRetries;
   // Mirror the drained queue immediately so a crash mid-flight doesn't resurrect
   // already-sent events; requeue-on-failure below re-persists if delivery fails.
   persistQueue();
+
+  // Requeues the batch for a later retry unless it's a permanent client error or
+  // has exhausted its retry budget, in which case it is DROPPED (dead-lettered)
+  // so a single poison batch can never loop the queue forever.
+  const requeueUnlessPoison = (error: unknown): void => {
+    if (isPermanentFlushError(error) || retriesSoFar + 1 >= MAX_BATCH_RETRIES) {
+      // Drop the batch: don't requeue, don't re-persist it, and clear the retry
+      // budget so the next distinct batch starts fresh.
+      headBatchRetries = 0;
+      return;
+    }
+    requeueSnapshot(snapshot);
+    headBatchRetries = retriesSoFar + 1;
+  };
 
   try {
     const geoContext = await resolveGeoContext();
@@ -198,14 +262,20 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
     });
 
     if (error) {
-      requeueSnapshot(snapshot);
+      // 4xx = permanent (drop); 5xx/relay = transient (requeue). See
+      // isPermanentFlushError.
+      requeueUnlessPoison(error);
       persistQueue();
       return { success: false, error: error.message };
     }
 
+    // Successful delivery — the head batch is gone; reset the retry budget.
+    headBatchRetries = 0;
     return { success: true };
   } catch (error) {
-    requeueSnapshot(snapshot);
+    // Thrown errors here are network/geo/session faults — transient by nature —
+    // so requeue and retry (still bounded by the dead-letter cap).
+    requeueUnlessPoison(error);
     persistQueue();
     return {
       success: false,

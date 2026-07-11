@@ -76,17 +76,74 @@ test('usageQueue auto-flushes at AUTO_FLUSH_SIZE and caps at MAX_QUEUE_SIZE', ()
   );
 });
 
-test('usageQueue re-queues events on delivery failure and skips flush when unconfigured', () => {
+test('usageQueue re-queues events on TRANSIENT failure and skips flush when unconfigured', () => {
   const source = readRelativeSource('./usageQueue.ts');
+  // Transient failures still go back on the queue via unshift to preserve order.
   assert.match(
     source,
     /requeueSnapshot\(snapshot\)|eventQueue\.unshift/,
-    'failed events must be re-queued via unshift to preserve ordering'
+    'transiently-failed events must be re-queued via unshift to preserve ordering'
   );
   assert.match(
     source,
     /isSupabaseConfigured[\s\S]*?return \{ success: true \}/,
     'flush must return early with success when Supabase is not configured'
+  );
+});
+
+test('usageQueue DROPS the batch on a 4xx (permanent) response instead of requeuing', () => {
+  const source = readRelativeSource('./usageQueue.ts');
+  // A status classifier distinguishes permanent (4xx) from transient (5xx/network).
+  assert.match(
+    source,
+    /function isPermanentFlushError/,
+    'flush must classify errors as permanent vs transient'
+  );
+  assert.match(
+    source,
+    /status\s*>=\s*400\s*&&\s*status\s*<\s*500/,
+    'a 4xx status must be treated as a permanent/client error'
+  );
+  // The requeue path is guarded by the permanent-error check, so a 4xx drops.
+  assert.match(
+    source,
+    /isPermanentFlushError\(error\)[\s\S]*?return/,
+    'a permanent (4xx) error must short-circuit before requeue (drop the batch)'
+  );
+});
+
+test('usageQueue caps per-batch retries so a poison batch cannot loop forever', () => {
+  const source = readRelativeSource('./usageQueue.ts');
+  assert.match(source, /MAX_BATCH_RETRIES\s*=\s*\d+/, 'a per-batch retry cap must be defined');
+  assert.match(
+    source,
+    /retriesSoFar\s*\+\s*1\s*>=\s*MAX_BATCH_RETRIES/,
+    'exhausting the retry budget must drop the batch (dead-letter)'
+  );
+});
+
+test('usageQueue restore validation requires ALL server-required fields', () => {
+  const source = readRelativeSource('./usageQueue.ts');
+  assert.match(
+    source,
+    /REQUIRED_EVENT_FIELDS[\s\S]*?event_name[\s\S]*?device_platform[\s\S]*?app_version[\s\S]*?queued_at/,
+    'restore must require every field the server requires'
+  );
+  // Restore filters through the strict validator, not the loose event_name check.
+  assert.match(
+    source,
+    /parsed\.filter\(hasAllRequiredFields\)/,
+    'loadPersistedQueue must drop entries missing any required field'
+  );
+  assert.match(
+    source,
+    /REQUIRED_EVENT_FIELDS\.every\(\(field\)\s*=>\s*typeof record\[field\]\s*===\s*'string'\)/,
+    'validation must confirm each required field is a string'
+  );
+  // The old loose-only check (event_name alone) must be gone from restore.
+  assert.ok(
+    !/typeof event\.event_name === 'string'\s*\n?\s*\);/.test(source),
+    'restore must no longer accept entries validated by event_name alone'
   );
 });
 
@@ -139,6 +196,8 @@ test('usageQueue is durable: write-through MMKV persistence + load-on-init, capp
     source.indexOf('export function getPendingUsageEventCount')
   );
   assert.match(flushBody, /persistQueue\(\)/, 'flush must re-persist after drain/requeue');
-  // Requeue-on-failure semantics preserved.
-  assert.match(flushBody, /requeueSnapshot\(snapshot\)/, 'flush must still requeue on failure');
+  // Transient-failure requeue semantics preserved (gated by the permanent-error
+  // + retry-cap drop path — see the dedicated 4xx/retry-cap tests above).
+  assert.match(flushBody, /requeueSnapshot\(snapshot\)/, 'flush must still requeue on transient failure');
+  assert.match(flushBody, /requeueUnlessPoison\(error\)/, 'flush must route failures through the drop-or-requeue guard');
 });
