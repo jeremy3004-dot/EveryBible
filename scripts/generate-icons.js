@@ -6,12 +6,20 @@ const sharp = require('sharp');
 
 const projectRoot = path.resolve(__dirname, '..');
 const assetsDir = path.join(projectRoot, 'assets');
-const sourceIconPath = path.join(assetsDir, 'icon-source.jpg');
+const sourceIconPath = path.join(assetsDir, 'icon-source.png');
 const generatedIconPath = path.join(assetsDir, 'icon.png');
 const generatedAdaptivePath = path.join(assetsDir, 'adaptive-icon.png');
 const generatedMonochromePath = path.join(assetsDir, 'monochrome-icon.png');
 const generatedFaviconPath = path.join(assetsDir, 'favicon.png');
 const generatedSplashPath = path.join(assetsDir, 'splash-icon.png');
+const siteAppIconPath = path.join(
+  projectRoot,
+  'apps',
+  'site',
+  'public',
+  'everybible',
+  'app-icon.png'
+);
 const iosIconPath = path.join(
   projectRoot,
   'ios',
@@ -57,16 +65,16 @@ const androidSplashSizes = [
 
 const monochromeIconSvg = `
 <svg width="432" height="432" viewBox="0 0 432 432" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path
-    d="M120 90C146 90 172 93 198 100V332C174 325 147 322 120 322C101 322 83 324 66 328V132C82 104 99 90 120 90Z"
-    fill="#121212"
-  />
-  <path
-    d="M312 90C286 90 260 93 234 100V332C258 325 285 322 312 322C331 322 349 324 366 328V132C350 104 333 90 312 90Z"
-    fill="#121212"
-  />
-  <rect x="205" y="80" width="22" height="250" rx="11" fill="#121212"/>
-  <rect x="166" y="188" width="100" height="22" rx="11" fill="#121212"/>
+  <path d="M66 164C113 166 157 177 204 198V330C160 305 116 295 66 298V164Z" fill="#121212"/>
+  <path d="M366 164C319 166 275 177 228 198V330C272 305 316 295 366 298V164Z" fill="#121212"/>
+  <path d="M207 196H225V330H207V196Z" fill="#121212"/>
+  <path d="M205 40H227L220 124H212L205 40Z" fill="#121212"/>
+  <path d="M98 68L114 58L178 130L171 138L98 68Z" fill="#121212"/>
+  <path d="M334 68L318 58L254 130L261 138L334 68Z" fill="#121212"/>
+  <path d="M34 186L42 170L130 196L130 205L34 186Z" fill="#121212"/>
+  <path d="M398 186L390 170L302 196L302 205L398 186Z" fill="#121212"/>
+  <path d="M92 362L106 374L172 302L165 295L92 362Z" fill="#121212"/>
+  <path d="M340 362L326 374L260 302L267 295L340 362Z" fill="#121212"/>
 </svg>
 `;
 
@@ -148,12 +156,13 @@ const writeMonochromeOutput = async () => {
 async function generateIcons() {
   await ensureSourceIconExists();
 
-  console.log('Generating Every Bible brand icons from assets/icon-source.jpg...\n');
+  console.log('Generating Every Bible brand icons from assets/icon-source.png...\n');
 
   await writeRasterOutput(generatedIconPath, 1024, 'png');
   await writeRasterOutput(generatedAdaptivePath, 432, 'png');
   await writeMonochromeOutput();
   await writeRasterOutput(generatedFaviconPath, 64, 'png');
+  await writeRasterOutput(siteAppIconPath, 1024, 'png');
   await writeSplashPortraitOutput(generatedSplashPath);
   await writeRasterOutput(iosIconPath, 1024, 'png');
   await writeSplashPortraitOutput(path.join(iosSplashDir, 'image.png'));
@@ -181,11 +190,12 @@ async function generateIcons() {
   }
 
   console.log('Updated icon assets from the approved source image:');
-  console.log('- assets/icon-source.jpg');
+  console.log('- assets/icon-source.png');
   console.log('- assets/icon.png');
   console.log('- assets/adaptive-icon.png');
   console.log('- assets/monochrome-icon.png');
   console.log('- assets/favicon.png');
+  console.log('- apps/site/public/everybible/app-icon.png');
   console.log('- assets/splash-icon.png');
   console.log('- ios/EveryBible/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png');
   console.log('- ios/EveryBible/Images.xcassets/SplashScreenBrand.imageset/image*.png');

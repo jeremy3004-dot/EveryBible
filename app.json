@@ -36,7 +36,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/monochrome-icon.png",
-        "backgroundColor": "#5E1212"
+        "backgroundColor": "#D96C57"
       },
       "package": "com.everybible.app",
       "googleServicesFile": "./google-services.json",
