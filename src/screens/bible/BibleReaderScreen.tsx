@@ -151,6 +151,7 @@ import {
   getEstimatedFollowAlongVerse,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getReaderVerseContentOffset,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
@@ -674,6 +675,9 @@ export function BibleReaderScreen() {
   );
   const pendingReaderAutoScrollVerseRef = useRef<number | null>(null);
   const paragraphHeightsRef = useRef<Record<string, number>>({});
+  // Translator review tools render above the paragraphs, pushing every verse
+  // down by their measured height.
+  const readerListHeaderHeightRef = useRef(0);
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
   // Monotonic follow-along: verse index only advances forward, never retreats.
   // Prevents highlight flickering caused by interpolated position noise.
@@ -1700,55 +1704,29 @@ export function BibleReaderScreen() {
     },
     [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
   );
-  const getPlanReaderVerseOffset = useCallback(
+  // Scroll-content position of a verse. The premium reader is a virtualized
+  // FlatList, so a paragraph's own onLayout `y` is cell-relative and unusable as
+  // a scroll offset; offsets are accumulated from measured paragraph heights
+  // instead. Only the legacy ScrollView reader lays paragraphs out directly in
+  // content space, so only it can read verseOffsetsRef.
+  const getReaderVerseOffset = useCallback(
     (verseNumber: number) => {
-      const paragraphIndex = premiumReaderParagraphs.findIndex((paragraph) =>
-        paragraph.verses.some((verse) => verse.verse === verseNumber)
-      );
-      if (paragraphIndex < 0) {
-        return null;
+      if (showPremiumReadMode) {
+        return getReaderVerseContentOffset({
+          paragraphs: premiumReaderParagraphs,
+          paragraphHeights: paragraphHeightsRef.current,
+          contentTopOffset: readerContentTopPadding + readerListHeaderHeightRef.current,
+          verseNumber,
+        });
       }
 
-      let paragraphOffset = readerContentTopPadding;
-      for (let index = 0; index < paragraphIndex; index += 1) {
-        const measuredHeight = paragraphHeightsRef.current[premiumReaderParagraphs[index].key];
-        if (measuredHeight == null) {
-          return null;
-        }
-        paragraphOffset += measuredHeight;
-      }
-
-      const paragraph = premiumReaderParagraphs[paragraphIndex];
-      const paragraphHeight = paragraphHeightsRef.current[paragraph.key];
-      if (paragraphHeight == null) {
-        return null;
-      }
-
-      const totalWeight = paragraph.verses.reduce(
-        (sum, verse) => sum + Math.max(verse.text.length, 12),
-        0
-      );
-      if (totalWeight <= 0) {
-        return paragraphOffset;
-      }
-
-      let cumulativeWeight = 0;
-      for (const verse of paragraph.verses) {
-        if (verse.verse === verseNumber) {
-          return paragraphOffset + (cumulativeWeight / totalWeight) * paragraphHeight;
-        }
-        cumulativeWeight += Math.max(verse.text.length, 12);
-      }
-
-      return paragraphOffset;
+      return verseOffsetsRef.current[verseNumber] ?? null;
     },
-    [premiumReaderParagraphs, readerContentTopPadding]
+    [premiumReaderParagraphs, readerContentTopPadding, showPremiumReadMode]
   );
   const scrollReaderToMeasuredVerse = useCallback(
     (verseNumber: number, animated: boolean) => {
-      const verseOffset = showPlanSessionChrome
-        ? (getPlanReaderVerseOffset(verseNumber) ?? verseOffsetsRef.current[verseNumber])
-        : verseOffsetsRef.current[verseNumber];
+      const verseOffset = getReaderVerseOffset(verseNumber);
       if (verseOffset == null) {
         return false;
       }
@@ -1769,7 +1747,7 @@ export function BibleReaderScreen() {
       scrollReaderToOffset(targetOffset, animated);
       return true;
     },
-    [getPlanReaderVerseOffset, scrollReaderToOffset, sharedTopChromeTop, showPlanSessionChrome]
+    [getReaderVerseOffset, scrollReaderToOffset, sharedTopChromeTop]
   );
   const flushPendingReaderAutoScroll = useCallback(
     (animated: boolean) => {
@@ -2019,6 +1997,7 @@ export function BibleReaderScreen() {
     verseOffsetsRef.current = {};
     pendingReaderAutoScrollVerseRef.current = null;
     paragraphHeightsRef.current = {};
+    readerListHeaderHeightRef.current = 0;
     followAlongOffsetsRef.current = {};
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
@@ -2089,13 +2068,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const verseOffset = verseOffsetsRef.current[focusVerse];
+    const verseOffset = getReaderVerseOffset(focusVerse);
     if (verseOffset == null) {
       return;
     }
 
     scrollReaderToOffset(verseOffset - 24, false);
-  }, [focusVerse, isLoading, scrollReaderToOffset, verses]);
+  }, [focusVerse, getReaderVerseOffset, isLoading, scrollReaderToOffset, verses]);
 
   useEffect(() => {
     if (!showFollowAlongText || activeFollowAlongVerse == null) {
@@ -2125,14 +2104,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const verseOffset = verseOffsetsRef.current[readerInlineActiveVerse];
-    if (verseOffset == null) {
+    // Until the paragraphs above the verse have been measured its content
+    // offset is unknown, so fall back to FlatList's own index scrolling and
+    // retry from onLayout once the measurements land.
+    if (!scrollReaderToMeasuredVerse(readerInlineActiveVerse, true)) {
       pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
       scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
-      return;
     }
-
-    scrollReaderToMeasuredVerse(readerInlineActiveVerse, true);
   }, [
     didRestartFollowAlongPlayback,
     isCurrentAudioChapter,
@@ -4231,6 +4209,10 @@ export function BibleReaderScreen() {
 
     return (
       <View
+        onLayout={(event) => {
+          readerListHeaderHeightRef.current = event.nativeEvent.layout.height;
+          flushPendingReaderAutoScroll(true);
+        }}
         style={[
           styles.translatorReviewCard,
           {
@@ -4980,6 +4962,14 @@ export function BibleReaderScreen() {
         onLayout={(event) => {
           const y = event.nativeEvent.layout.y;
           paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
+          // Virtualized cells measure `y` against their own cell wrapper, so it
+          // is always ~0 and must never be stored as a scroll offset; those
+          // readers resolve offsets from the measured heights above instead.
+          if (renderVirtualized) {
+            flushPendingReaderAutoScroll(true);
+            return;
+          }
+
           const hasFormattedVerse = paragraph.verses.some(
             (verse) => (verse.formatting?.lines.length ?? 0) > 0
           );

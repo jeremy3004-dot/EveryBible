@@ -17,6 +17,7 @@ import {
   getEstimatedFollowAlongVerse,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getReaderVerseContentOffset,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
@@ -840,5 +841,98 @@ test('reader only follows active audio chapter changes when the reader was alrea
       previousActiveAudioChapter: 3,
     }),
     true
+  );
+});
+
+// Regression: the premium reader renders paragraphs inside a virtualized
+// FlatList, where each paragraph's onLayout `y` is measured against its own
+// cell wrapper (always ~0) rather than the scroll content. Verse offsets must
+// therefore be accumulated from measured paragraph heights.
+const AUTO_SCROLL_PARAGRAPHS = [
+  { key: 'p0', verses: [{ verse: 1, text: 'a'.repeat(100) }] },
+  { key: 'p1', verses: [{ verse: 2, text: 'b'.repeat(100) }] },
+  {
+    key: 'p2',
+    verses: [
+      { verse: 3, text: 'c'.repeat(100) },
+      { verse: 4, text: 'd'.repeat(100) },
+    ],
+  },
+];
+const AUTO_SCROLL_HEIGHTS = { p0: 200, p1: 200, p2: 400 };
+const AUTO_SCROLL_CONTENT_TOP = 120;
+
+test('resolves verse offsets in scroll-content space by accumulating paragraph heights', () => {
+  const offsetFor = (verseNumber: number) =>
+    getReaderVerseContentOffset({
+      paragraphs: AUTO_SCROLL_PARAGRAPHS,
+      paragraphHeights: AUTO_SCROLL_HEIGHTS,
+      contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+      verseNumber,
+    });
+
+  assert.equal(offsetFor(1), 120);
+  assert.equal(offsetFor(2), 320);
+  assert.equal(offsetFor(3), 520);
+  // Second verse of a two-verse paragraph sits halfway through its block.
+  assert.equal(offsetFor(4), 720);
+  assert.equal(offsetFor(99), null);
+});
+
+test('defers verse offsets until every preceding paragraph has been measured', () => {
+  // p1 is still virtualized away, so the absolute position of p2 is unknown and
+  // the caller must fall back to scrollToIndex instead of scrolling to a guess.
+  assert.equal(
+    getReaderVerseContentOffset({
+      paragraphs: AUTO_SCROLL_PARAGRAPHS,
+      paragraphHeights: { p0: 200, p2: 400 },
+      contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+      verseNumber: 3,
+    }),
+    null
+  );
+
+  assert.equal(
+    getReaderVerseContentOffset({
+      paragraphs: AUTO_SCROLL_PARAGRAPHS,
+      paragraphHeights: { p0: 200, p2: 400 },
+      contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+      verseNumber: 1,
+    }),
+    120
+  );
+});
+
+test('keeps the playing verse on screen once follow-along passes the trigger line', () => {
+  const verseOffsetY = getReaderVerseContentOffset({
+    paragraphs: AUTO_SCROLL_PARAGRAPHS,
+    paragraphHeights: AUTO_SCROLL_HEIGHTS,
+    contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+    verseNumber: 4,
+  });
+  assert.notEqual(verseOffsetY, null);
+
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 0,
+      viewportHeight: 700,
+      verseOffsetY: verseOffsetY as number,
+      triggerViewportFraction: 0.48,
+      targetTopOffset: 140,
+    }),
+    580
+  );
+
+  // The cell-relative value the virtualized list reports for the same verse is
+  // below the trigger line, which is why auto-scroll silently stopped firing.
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 0,
+      viewportHeight: 700,
+      verseOffsetY: 200,
+      triggerViewportFraction: 0.48,
+      targetTopOffset: 140,
+    }),
+    null
   );
 });

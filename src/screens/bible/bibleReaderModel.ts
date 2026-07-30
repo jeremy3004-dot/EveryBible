@@ -88,6 +88,13 @@ interface ReaderAutoScrollTargetInput {
   targetTopOffset: number;
 }
 
+interface ReaderVerseContentOffsetInput {
+  paragraphs: { key: string; verses: { verse: number; text: string }[] }[];
+  paragraphHeights: Record<string, number>;
+  contentTopOffset: number;
+  verseNumber: number;
+}
+
 interface AudioPositionRestartInput {
   currentPosition: number;
   previousPosition: number | null;
@@ -451,6 +458,61 @@ export const getReaderAutoScrollTarget = ({
   }
 
   return Math.max(verseOffsetY - targetTopOffset, 0);
+};
+
+// Position of a verse in scroll-content space. The premium reader renders its
+// paragraphs as virtualized FlatList cells, so a paragraph's own onLayout `y` is
+// measured against its cell wrapper (effectively 0) and cannot be used as a
+// scroll offset. Offsets are accumulated from measured paragraph heights
+// instead, and stay null until every preceding paragraph has been measured so
+// callers can fall back to scrollToIndex rather than scrolling to a guess.
+export const getReaderVerseContentOffset = ({
+  paragraphs,
+  paragraphHeights,
+  contentTopOffset,
+  verseNumber,
+}: ReaderVerseContentOffsetInput): number | null => {
+  const paragraphIndex = paragraphs.findIndex((paragraph) =>
+    paragraph.verses.some((verse) => verse.verse === verseNumber)
+  );
+  if (paragraphIndex < 0) {
+    return null;
+  }
+
+  let paragraphOffset = contentTopOffset;
+  for (let index = 0; index < paragraphIndex; index += 1) {
+    const measuredHeight = paragraphHeights[paragraphs[index].key];
+    if (measuredHeight == null) {
+      return null;
+    }
+    paragraphOffset += measuredHeight;
+  }
+
+  const paragraph = paragraphs[paragraphIndex];
+  const paragraphHeight = paragraphHeights[paragraph.key];
+  if (paragraphHeight == null) {
+    return null;
+  }
+
+  // Verses share a rendered paragraph, so approximate each verse's share of the
+  // block by its text length.
+  const totalWeight = paragraph.verses.reduce(
+    (sum, verse) => sum + Math.max(verse.text.length, 12),
+    0
+  );
+  if (totalWeight <= 0) {
+    return paragraphOffset;
+  }
+
+  let cumulativeWeight = 0;
+  for (const verse of paragraph.verses) {
+    if (verse.verse === verseNumber) {
+      return paragraphOffset + (cumulativeWeight / totalWeight) * paragraphHeight;
+    }
+    cumulativeWeight += Math.max(verse.text.length, 12);
+  }
+
+  return paragraphOffset;
 };
 
 export const getNextFollowAlongVisibility = ({
