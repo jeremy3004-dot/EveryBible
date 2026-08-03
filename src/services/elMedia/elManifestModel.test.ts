@@ -170,6 +170,59 @@ test('returns null when resolving an unknown book or missing chapter', () => {
   assert.equal(resolveElChapterFromManifest(manifest, 'JHN', 99), null);
 });
 
+test('drops durationMs when it is NaN, Infinity, or negative but keeps the chapter', () => {
+  for (const badDuration of [NaN, Infinity, -100]) {
+    const chapter = { ...validChapter(1), duration_ms: badDuration };
+    const manifest = parseElManifestPayload(
+      validManifest({ books: { JHN: { chapters: [chapter] } } })
+    );
+    assert.ok(manifest, `manifest should parse for duration_ms=${badDuration}`);
+    assert.equal(manifest.books.JHN.length, 1);
+    assert.equal(manifest.books.JHN[0].chapter, 1);
+    assert.equal(manifest.books.JHN[0].durationMs, undefined);
+  }
+});
+
+test('ignores a __proto__ book key without polluting Object.prototype', () => {
+  const manifest = parseElManifestPayload(
+    validManifest({
+      books: {
+        JHN: { chapters: [validChapter(1)] },
+        // A malicious book key must never reach the books map or the prototype chain.
+        __proto__: { chapters: [validChapter(1)] },
+      },
+    })
+  );
+  assert.ok(manifest);
+  assert.deepEqual(Object.keys(manifest.books), ['JHN']);
+  assert.equal(({} as Record<string, unknown>).chapters, undefined);
+});
+
+test('returns null when base_url is not an http(s) URL', () => {
+  assert.equal(parseElManifestPayload(validManifest({ base_url: 'ftp://example.com' })), null);
+  assert.equal(parseElManifestPayload(validManifest({ base_url: 'example.com' })), null);
+});
+
+test('drops a chapter whose path is protocol-relative', () => {
+  const manifest = parseElManifestPayload(
+    validManifest({
+      books: {
+        JHN: {
+          chapters: [
+            validChapter(1),
+            { ...validChapter(2), path: '//evil.example.com/audio/2.mp3' },
+          ],
+        },
+      },
+    })
+  );
+  assert.ok(manifest);
+  assert.deepEqual(
+    manifest.books.JHN.map((c) => c.chapter),
+    [1]
+  );
+});
+
 test('returns null for non-object payloads', () => {
   assert.equal(parseElManifestPayload(null), null);
   assert.equal(parseElManifestPayload('nope'), null);

@@ -23,13 +23,13 @@ export interface ElCatalog {
   translations: ElCatalogTranslation[];
 }
 
+import { isNonEmptyString, isNonNegativeInteger, isSha256Hex } from './elParseGuards';
+
 const EL_CATALOG_SCHEMA_PREFIX = 'lqd-catalog/v1';
 // Collision guard: EL ids are always lq-prefixed, lowercase — reject anything else.
 const EL_TRANSLATION_ID_RE = /^lq[a-z0-9][a-z0-9-]*$/;
-const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0;
+// Only absolute http(s) base URLs are trusted.
+const HTTP_URL_RE = /^https?:\/\//;
 
 function parseElCatalogTranslation(raw: unknown): ElCatalogTranslation | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -48,8 +48,7 @@ function parseElCatalogTranslation(raw: unknown): ElCatalogTranslation | null {
     typeof entry.has_audio !== 'boolean' ||
     !isNonEmptyString(entry.current_audio_version) ||
     !isNonEmptyString(entry.manifest_url) ||
-    !isNonEmptyString(entry.manifest_sha256) ||
-    !SHA256_HEX_RE.test(entry.manifest_sha256)
+    !isSha256Hex(entry.manifest_sha256)
   ) {
     return null;
   }
@@ -83,10 +82,16 @@ export function parseElCatalogPayload(payload: unknown): ElCatalog | null {
   ) {
     return null;
   }
-  if (typeof doc.sequence !== 'number' || !Number.isInteger(doc.sequence) || doc.sequence < 0) {
+  if (!isNonNegativeInteger(doc.sequence)) {
     return null;
   }
-  if (!isNonEmptyString(doc.generated_at) || !isNonEmptyString(doc.base_url)) return null;
+  if (
+    !isNonEmptyString(doc.generated_at) ||
+    !isNonEmptyString(doc.base_url) ||
+    !HTTP_URL_RE.test(doc.base_url)
+  ) {
+    return null;
+  }
   if (!Array.isArray(doc.translations)) return null;
   const translations: ElCatalogTranslation[] = [];
   for (const raw of doc.translations) {

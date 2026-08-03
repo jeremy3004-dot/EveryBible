@@ -25,29 +25,37 @@ export interface ElResolvedChapter {
   durationMs?: number;
 }
 
+import {
+  isNonEmptyString,
+  isNonNegativeInteger,
+  isPositiveInteger,
+  isSha256Hex,
+} from './elParseGuards';
+
 const EL_MANIFEST_SCHEMA_PREFIX = 'everybible-audio-manifest/v1';
-const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0;
-
-const isPositiveInteger = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isInteger(value) && value > 0;
+// Only absolute http(s) base URLs are trusted; protocol-relative chapter paths are rejected below.
+const HTTP_URL_RE = /^https?:\/\//;
+// Book keys that would pollute the prototype chain if assigned to a plain object.
+const UNSAFE_BOOK_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function parseElManifestChapter(raw: unknown): ElManifestChapter | null {
   if (!raw || typeof raw !== 'object') return null;
   const entry = raw as Record<string, unknown>;
   if (!isPositiveInteger(entry.chapter)) return null;
-  if (!isNonEmptyString(entry.path) || !entry.path.startsWith('/')) return null;
+  // Absolute paths only; reject protocol-relative ('//host') paths that would escape base_url.
+  if (!isNonEmptyString(entry.path) || !entry.path.startsWith('/') || entry.path.startsWith('//')) {
+    return null;
+  }
   if (!isPositiveInteger(entry.bytes)) return null;
-  if (!isNonEmptyString(entry.sha256) || !SHA256_HEX_RE.test(entry.sha256)) return null;
+  if (!isSha256Hex(entry.sha256)) return null;
   const parsed: ElManifestChapter = {
     chapter: entry.chapter,
     path: entry.path,
     bytes: entry.bytes,
     sha256: entry.sha256,
   };
-  if (typeof entry.duration_ms === 'number') parsed.durationMs = entry.duration_ms;
+  // Only a non-negative integer millisecond count is trusted; NaN/Infinity/floats/negatives dropped.
+  if (isNonNegativeInteger(entry.duration_ms)) parsed.durationMs = entry.duration_ms;
   return parsed;
 }
 
@@ -76,14 +84,17 @@ export function parseElManifestPayload(payload: unknown): ElAudioManifest | null
     !isNonEmptyString(doc.translation_id) ||
     !isNonEmptyString(doc.audio_version) ||
     !isNonEmptyString(doc.base_url) ||
+    !HTTP_URL_RE.test(doc.base_url) ||
     !isNonEmptyString(doc.file_ext) ||
     !isNonEmptyString(doc.mime_type)
   ) {
     return null;
   }
   if (!doc.books || typeof doc.books !== 'object') return null;
-  const books: Record<string, ElManifestChapter[]> = {};
+  // Prototype-free map so a malicious `__proto__`/`constructor` book key cannot pollute Object.prototype.
+  const books: Record<string, ElManifestChapter[]> = Object.create(null);
   for (const [bookId, rawBook] of Object.entries(doc.books as Record<string, unknown>)) {
+    if (UNSAFE_BOOK_KEYS.has(bookId)) continue;
     const chapters = parseElManifestBook(rawBook);
     // One malformed book never drops the others.
     if (chapters) books[bookId] = chapters;

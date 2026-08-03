@@ -142,6 +142,11 @@ test('drops an invalid manifest_sha256', () => {
   assert.equal(catalog.translations.length, 0);
 });
 
+test('returns null when base_url is not an http(s) URL', () => {
+  assert.equal(parseElCatalogPayload(validCatalog({ base_url: 'ftp://example.com' })), null);
+  assert.equal(parseElCatalogPayload(validCatalog({ base_url: 'example.com' })), null);
+});
+
 test('returns null for non-object payloads', () => {
   assert.equal(parseElCatalogPayload(null), null);
   assert.equal(parseElCatalogPayload('nope'), null);
