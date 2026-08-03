@@ -1,3 +1,13 @@
+> **SUPERSEDED (2026-08-04).** This in-repo LangQuest ingest workstream never
+> received production credentials and has been retired. Every Language's own
+> media distribution replaces it (contract T6) and is now integrated on `main`
+> as `src/services/elMedia/`. The Trigger.dev workflows app, ingest package,
+> admin `/langquest` surface, ops script, CI workflow, and the six
+> `langquest_*` / `workflow_*` tables have been removed. See
+> `docs/plans/2026-08-03-el-media-integration.md` (Part E) for the retirement
+> plan and the EL integration. The content below is retained for historical
+> reference only.
+
 # State
 
 ## Current Status
