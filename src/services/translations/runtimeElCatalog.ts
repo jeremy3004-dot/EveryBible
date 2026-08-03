@@ -23,7 +23,10 @@ export interface ApplyElRuntimeCatalogDeps {
 // null catalog there is nothing to add.
 const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
   const [{ refreshElCatalog, getLastVerifiedElCatalog }, { mapElCatalogToBibleTranslations }] =
-    await Promise.all([import('../elMedia/elCatalogService'), import('../elMedia/elTranslationMapping')]);
+    await Promise.all([
+      import('../elMedia/elCatalogService'),
+      import('../elMedia/elTranslationMapping'),
+    ]);
 
   const catalog = (await refreshElCatalog(catalogUrl)) ?? (await getLastVerifiedElCatalog());
   if (!catalog) {

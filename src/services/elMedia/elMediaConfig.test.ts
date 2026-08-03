@@ -13,14 +13,8 @@ test('returns null when the base URL is missing, blank, or wrong scheme', () => 
   assert.equal(resolveElCatalogUrl({ baseUrl: null, isFlagEnabled: true }), null);
   assert.equal(resolveElCatalogUrl({ baseUrl: '', isFlagEnabled: true }), null);
   assert.equal(resolveElCatalogUrl({ baseUrl: '   ', isFlagEnabled: true }), null);
-  assert.equal(
-    resolveElCatalogUrl({ baseUrl: 'ftp://example.com', isFlagEnabled: true }),
-    null
-  );
-  assert.equal(
-    resolveElCatalogUrl({ baseUrl: 'example.com', isFlagEnabled: true }),
-    null
-  );
+  assert.equal(resolveElCatalogUrl({ baseUrl: 'ftp://example.com', isFlagEnabled: true }), null);
+  assert.equal(resolveElCatalogUrl({ baseUrl: 'example.com', isFlagEnabled: true }), null);
 });
 
 test('appends /catalog.dev.json in dev when flag enabled and base URL valid', () => {

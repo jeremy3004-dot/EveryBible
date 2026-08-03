@@ -7,10 +7,7 @@ import type {
   TranslationAudioBookCatalog,
   TranslationAudioCoverage,
 } from '../../types';
-import {
-  resolveBibleAssetBaseUrl,
-  resolveBibleAssetUrl,
-} from '../bible/bibleAssetBaseUrl';
+import { resolveBibleAssetBaseUrl, resolveBibleAssetUrl } from '../bible/bibleAssetBaseUrl';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import type { RemoteAudioAsset } from './audioDownloadService';
 
@@ -217,12 +214,7 @@ function inferFileExtensionFromPath(path: string | null | undefined): string | u
 function buildRemoteAudioMetadataFromTranslation(
   translation: Pick<
     BibleTranslation,
-    | 'id'
-    | 'hasAudio'
-    | 'audioGranularity'
-    | 'audioProvider'
-    | 'audioFilesetId'
-    | 'catalog'
+    'id' | 'hasAudio' | 'audioGranularity' | 'audioProvider' | 'audioFilesetId' | 'catalog'
   > | null
 ): RemoteAudioMetadata | null {
   if (!translation) {
@@ -336,7 +328,9 @@ function buildRemoteAudioMetadataFromTranslation(
 export function createRemoteAudioMetadataResolverFromTranslations(
   translations: readonly BibleTranslation[]
 ): RemoteAudioMetadataResolver {
-  const translationsById = new Map(translations.map((translation) => [translation.id, translation]));
+  const translationsById = new Map(
+    translations.map((translation) => [translation.id, translation])
+  );
 
   return (translationId) =>
     buildRemoteAudioMetadataFromTranslation(
@@ -349,9 +343,7 @@ const defaultRemoteAudioMetadataResolver: RemoteAudioMetadataResolver = (transla
 
 let remoteAudioMetadataResolver: RemoteAudioMetadataResolver = defaultRemoteAudioMetadataResolver;
 
-export function setRemoteAudioMetadataResolver(
-  resolver: RemoteAudioMetadataResolver | null
-): void {
+export function setRemoteAudioMetadataResolver(resolver: RemoteAudioMetadataResolver | null): void {
   remoteAudioMetadataResolver = resolver ?? defaultRemoteAudioMetadataResolver;
   audioUrlCache.clear();
 }
@@ -470,7 +462,10 @@ function buildStreamTemplateAudioUrl(
     .replaceAll('{verse}', verse == null ? '' : String(verse))
     .replaceAll('{versePadded}', versePadded);
 
-  if (!path || Array.from(AUDIO_TEMPLATE_PLACEHOLDERS).every((placeholder) => !path.includes(placeholder))) {
+  if (
+    !path ||
+    Array.from(AUDIO_TEMPLATE_PLACEHOLDERS).every((placeholder) => !path.includes(placeholder))
+  ) {
     return `${normalizedBaseUrl}/${path.replace(/^\/+/, '')}`;
   }
 
@@ -661,10 +656,7 @@ export async function fetchRemoteChapterAudio(
   return bibleIsAudio;
 }
 
-export function isRemoteAudioAvailable(
-  translationId: string,
-  bookId?: string | null
-): boolean {
+export function isRemoteAudioAvailable(translationId: string, bookId?: string | null): boolean {
   const translation = resolveRemoteAudioMetadata(translationId);
   if (!translation?.hasAudio) {
     return false;

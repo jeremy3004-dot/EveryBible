@@ -35,9 +35,7 @@ const readPlistStringArray = (contents: string, key: string): string[] => {
 };
 
 const readGradleProperty = (contents: string, propertyName: string): string | null => {
-  const match = contents.match(
-    new RegExp(`^${propertyName}=(.+)$`, 'm')
-  );
+  const match = contents.match(new RegExp(`^${propertyName}=(.+)$`, 'm'));
 
   return match?.[1]?.trim() ?? null;
 };
@@ -84,18 +82,9 @@ test('buildPublicRuntimeConfig falls back to Expo extra when release bundles mis
     },
   });
 
-  assert.equal(
-    runtimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL,
-    'https://media.everybible.app'
-  );
-  assert.equal(
-    runtimeConfig.EXPO_PUBLIC_GEO_WORKER_URL,
-    'https://everybible-geo.workers.dev'
-  );
-  assert.equal(
-    runtimeConfig.EXPO_PUBLIC_SUPABASE_URL,
-    'https://ganmududzdzpruvdulkg.supabase.co'
-  );
+  assert.equal(runtimeConfig.EXPO_PUBLIC_BIBLE_ASSET_BASE_URL, 'https://media.everybible.app');
+  assert.equal(runtimeConfig.EXPO_PUBLIC_GEO_WORKER_URL, 'https://everybible-geo.workers.dev');
+  assert.equal(runtimeConfig.EXPO_PUBLIC_SUPABASE_URL, 'https://ganmududzdzpruvdulkg.supabase.co');
   assert.equal(runtimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY, 'publishable-key');
   assert.equal(runtimeConfig.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 'web-client-id');
   assert.equal(
@@ -190,7 +179,10 @@ test('ios background modes stay aligned with notification delivery requirements'
   };
   const expectedModes = ['audio', 'fetch', 'remote-notification'];
   const configuredModes = appConfig.expo.ios?.infoPlist?.UIBackgroundModes ?? [];
-  const infoPlistModes = readPlistStringArray(readRootFile('ios/EveryBible/Info.plist'), 'UIBackgroundModes');
+  const infoPlistModes = readPlistStringArray(
+    readRootFile('ios/EveryBible/Info.plist'),
+    'UIBackgroundModes'
+  );
 
   assert.deepEqual(configuredModes, expectedModes);
   assert.deepEqual(infoPlistModes, expectedModes);

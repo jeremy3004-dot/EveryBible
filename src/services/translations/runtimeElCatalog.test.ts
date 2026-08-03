@@ -83,7 +83,11 @@ test('flag off / resolver null → zero EL work and the base list is applied unc
     applyRuntimeCatalog: (list) => applied.push(list),
   });
 
-  assert.equal(elStepInvoked, false, 'the heavy EL step must not be reached when the resolver is null');
+  assert.equal(
+    elStepInvoked,
+    false,
+    'the heavy EL step must not be reached when the resolver is null'
+  );
   // Nothing to merge: applyElRuntimeCatalog performs no extra apply (Supabase apply already happened).
   assert.equal(applied.length, 0);
 });
@@ -103,7 +107,11 @@ test('EL catalog fetched + mapped + applied on success, combined with the base l
 
   assert.ok(applied, 'a combined apply must occur when EL translations resolve');
   const ids = (applied as BibleTranslation[]).map((t) => t.id).sort();
-  assert.deepEqual(ids, ['lqdtest', 'niv'], 'both Supabase and EL runtime entries survive the combined apply');
+  assert.deepEqual(
+    ids,
+    ['lqdtest', 'niv'],
+    'both Supabase and EL runtime entries survive the combined apply'
+  );
 });
 
 test('EL failure leaves the base (Supabase) translations intact and performs no EL apply', async () => {
@@ -120,7 +128,11 @@ test('EL failure leaves the base (Supabase) translations intact and performs no 
     },
   });
 
-  assert.equal(applyCount, 0, 'a thrown EL step must never trigger a re-apply that could disturb the base list');
+  assert.equal(
+    applyCount,
+    0,
+    'a thrown EL step must never trigger a re-apply that could disturb the base list'
+  );
 });
 
 test('EL step returning an empty list performs no re-apply (nothing to add)', async () => {

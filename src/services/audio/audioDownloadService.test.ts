@@ -339,10 +339,7 @@ test('getChapterAudioFileUri uses the configured remote audio file extension', (
     };
   });
 
-  assert.equal(
-    getChapterAudioFileUri('bsb', 'JHN', 3),
-    'file:///everybible-audio/bsb/JHN/3.m4a'
-  );
+  assert.equal(getChapterAudioFileUri('bsb', 'JHN', 3), 'file:///everybible-audio/bsb/JHN/3.m4a');
 });
 
 test('getDownloadedChapterAudioUri falls back to legacy mp3 file names for existing downloads', async () => {

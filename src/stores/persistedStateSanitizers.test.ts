@@ -468,15 +468,9 @@ test('sanitizePersistedBibleState preserves a valid el-manifest audio catalog on
   const lqd = sanitized.translations.find((translation) => translation.id === 'lqdtest');
   assert.ok(lqd, 'el-manifest runtime translation should survive sanitization');
   assert.equal(lqd.catalog?.audio?.strategy, 'el-manifest');
-  assert.equal(
-    lqd.catalog?.audio?.manifestUrl,
-    '/manifests/audio/lqdtest/v2026-07-20-1.json'
-  );
+  assert.equal(lqd.catalog?.audio?.manifestUrl, '/manifests/audio/lqdtest/v2026-07-20-1.json');
   assert.equal(lqd.catalog?.audio?.audioVersion, 'v2026-07-20-1');
-  assert.equal(
-    lqd.catalog?.audio?.catalogBaseUrl,
-    'https://lqd-media.platform-979.workers.dev'
-  );
+  assert.equal(lqd.catalog?.audio?.catalogBaseUrl, 'https://lqd-media.platform-979.workers.dev');
   assert.equal(lqd.catalog?.audio?.fileExtension, 'mp3');
 });
 

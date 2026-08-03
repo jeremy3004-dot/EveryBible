@@ -160,14 +160,14 @@ test('an EL-shaped audio-only entry is excluded from text selection but selectab
 
   // The ONLY way it becomes selectable is the audio branch — and only when audio can play for
   // the current book — so it surfaces as an audio source, never as a text translation.
-  assert.deepEqual(
-    getTranslationSelectionState({ ...elEntry, canPlayAudio: true }),
-    { isSelectable: true, reason: null }
-  );
-  assert.deepEqual(
-    getTranslationSelectionState({ ...elEntry, canPlayAudio: false }),
-    { isSelectable: false, reason: 'audio-unavailable' }
-  );
+  assert.deepEqual(getTranslationSelectionState({ ...elEntry, canPlayAudio: true }), {
+    isSelectable: true,
+    reason: null,
+  });
+  assert.deepEqual(getTranslationSelectionState({ ...elEntry, canPlayAudio: false }), {
+    isSelectable: false,
+    reason: 'audio-unavailable',
+  });
 
   // With NO downloadable text pack it can never fall into the text-download prompt path either.
   assert.deepEqual(

@@ -23,10 +23,7 @@ const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([
 
 // Every Language catalogBaseUrl must be an absolute http(s) origin (manifestUrl may be relative).
 const HTTP_URL_RE = /^https?:\/\//i;
-const validAudioProviders = new Set<AudioProvider>([
-  'bible-is',
-  'ebible-webbe',
-]);
+const validAudioProviders = new Set<AudioProvider>(['bible-is', 'ebible-webbe']);
 
 export type BundledBibleDatabaseStatus = {
   verseCount: number;
@@ -51,8 +48,7 @@ const sanitizeIsoDateString = (value: unknown): string | null => {
   return Number.isNaN(Date.parse(value)) ? null : value;
 };
 
-const sanitizeUrlString = (value: unknown): string | null =>
-  sanitizeBibleAssetReference(value);
+const sanitizeUrlString = (value: unknown): string | null => sanitizeBibleAssetReference(value);
 
 const parseAudioBooks = (
   value: unknown
@@ -122,7 +118,10 @@ const parseTextCatalog = (value: unknown): TranslationTextCatalog | null => {
 };
 
 const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
-  if (!isRecord(value) || !validAudioStrategies.has(value.strategy as TranslationAudioCatalog['strategy'])) {
+  if (
+    !isRecord(value) ||
+    !validAudioStrategies.has(value.strategy as TranslationAudioCatalog['strategy'])
+  ) {
     return null;
   }
 
@@ -242,7 +241,9 @@ const parseManifestTranslation = (value: unknown): TranslationCatalogManifestTra
   const description = sanitizeRequiredString(value.description);
   const copyright = sanitizeRequiredString(value.copyright);
   const totalBooks =
-    typeof value.totalBooks === 'number' && Number.isInteger(value.totalBooks) && value.totalBooks > 0
+    typeof value.totalBooks === 'number' &&
+    Number.isInteger(value.totalBooks) &&
+    value.totalBooks > 0
       ? value.totalBooks
       : null;
   const sizeInMB =
@@ -297,7 +298,10 @@ export function parseTranslationCatalogManifest(value: unknown): TranslationCata
   const translations = Array.isArray(value.translations)
     ? value.translations
         .map((translation) => parseManifestTranslation(translation))
-        .filter((translation): translation is TranslationCatalogManifestTranslation => translation !== null)
+        .filter(
+          (translation): translation is TranslationCatalogManifestTranslation =>
+            translation !== null
+        )
     : null;
 
   if (!manifestVersion || !issuedAt || !translations) {

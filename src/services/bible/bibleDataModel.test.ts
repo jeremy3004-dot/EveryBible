@@ -93,8 +93,7 @@ test('verifySignedCatalogManifest rejects a tampered signed envelope payload', a
   const [header, , signature] = envelope.compactJws.split('.');
   const tamperedPayload = Buffer.from(
     JSON.stringify({ ...manifest, manifestVersion: 'tampered' })
-  )
-    .toString('base64url');
+  ).toString('base64url');
 
   await assert.rejects(
     () =>
