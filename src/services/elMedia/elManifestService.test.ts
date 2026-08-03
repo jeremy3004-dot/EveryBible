@@ -343,6 +343,40 @@ test('digest unavailable skips the integrity pre-check (wrong sha256 still retur
   }
 });
 
+test('verification unsupported returns null WITHOUT fetching', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  const manifest = await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: fetcher.fetchFn,
+    storage,
+    getKeys,
+    isVerificationSupported: () => false,
+  });
+  assert.equal(manifest, null);
+  assert.equal(fetcher.calls, 0);
+});
+
+test('a fetch that hangs until aborted returns null (timeout path, no cache)', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  // fetch never resolves on its own — it only rejects when the injected timeout aborts the
+  // signal, exercising the AbortController wiring. If the timeout were missing this would hang.
+  const hangingFetch = ((_url: string, init?: { signal?: AbortSignal }) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) return; // No signal wired → test would hang, surfacing the regression.
+      signal.addEventListener('abort', () => reject(new Error('aborted')));
+    })) as unknown as typeof fetch;
+  const manifest = await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: hangingFetch,
+    storage,
+    getKeys,
+    timeoutMs: 5,
+  });
+  assert.equal(manifest, null);
+});
+
 test('relative manifest URL resolves against catalogBaseUrl (trailing slash stripped)', async () => {
   __resetElManifestRuntimeForTests();
   const storage = createMemoryStorage();

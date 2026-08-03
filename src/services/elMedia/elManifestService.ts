@@ -1,3 +1,4 @@
+import { isManifestVerificationRuntimeSupported } from '../bible/bibleDataModel';
 import type { ElCatalogTranslation } from './elCatalogModel';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
@@ -20,10 +21,18 @@ export interface ElManifestServiceDeps {
   // silently rather than reject). Injectable so tests can exercise the digest-unavailable
   // branch without tearing out globalThis.crypto (which jose itself needs to verify).
   computeSha256Hex?: (bytes: Uint8Array) => Promise<string | null>;
+  isVerificationSupported?: () => boolean;
+  // Network fetch timeout in ms. Injectable so tests can exercise the abort path. Aborting is
+  // treated identically to a network error (cached copy / null), so a hung socket cannot pin
+  // the warmup path forever.
+  timeoutMs?: number;
 }
 
 const DISK_KEY_PREFIX = 'el-media:manifest:';
 const HTTP_URL_RE = /^https?:\/\//;
+
+// Ceiling on the manifest network fetch so a stalled socket cannot pin the warmup path forever.
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 // Manifests are immutable by URL: a new current_audio_version yields a new URL, so caching
 // forever keyed by the absolute URL is safe. Memory cache survives a single launch; the disk
@@ -123,10 +132,19 @@ export async function getElManifest(
   catalogBaseUrl: string,
   deps: ElManifestServiceDeps = {}
 ): Promise<ElAudioManifest | null> {
+  const isSupported = deps.isVerificationSupported ?? isManifestVerificationRuntimeSupported;
+
+  // Verification is a hard requirement: with no crypto.subtle the EL source is unavailable.
+  // Return null before any work — mirrors refreshElCatalog for a consistent gate. We could
+  // instead serve a previously-VERIFIED disk copy here (offline-friendly), but early-null keeps
+  // the two services behaviourally identical and avoids trusting a cache we can no longer verify.
+  if (!isSupported()) return null;
+
   const storage = deps.storage ?? defaultStorage();
   const fetchFn = deps.fetchFn ?? fetch;
   const getKeys = deps.getKeys ?? defaultGetKeys;
   const computeSha256Hex = deps.computeSha256Hex ?? sha256Hex;
+  const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 
   const url = resolveManifestUrl(entry.manifestUrl, catalogBaseUrl);
 
@@ -143,13 +161,22 @@ export async function getElManifest(
   // Falls back to any cached verified copy on failure; here there is none (checked above).
   const fail = (): null => null;
 
+  // AbortController + setTimeout(abort) mirrors the repo's existing fetch-timeout pattern
+  // (see verseTimestamps.ts / audioRemote.ts). We deliberately do NOT use AbortSignal.timeout,
+  // which is not guaranteed on the Hermes runtime. An abort surfaces as a fetch rejection and
+  // therefore lands on the same failure path as any network error.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   let bytes: Uint8Array;
   try {
-    const response = await fetchFn(url);
+    const response = await fetchFn(url, { signal: controller.signal });
     if (!response.ok) return fail();
     bytes = new Uint8Array(await response.arrayBuffer());
   } catch {
     return fail();
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   // Integrity pre-check against the catalog's file digest (skipped silently if subtle absent).

@@ -190,6 +190,27 @@ test('equal sequence is accepted (same document re-fetched)', async () => {
   assert.equal(catalog.translations.length, 1);
 });
 
+test('a fetch that hangs until aborted resolves to last-good (timeout path)', async () => {
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(8) });
+  // fetch never resolves on its own — it only rejects when the injected timeout aborts the
+  // signal, exercising the AbortController wiring. If the timeout were missing this would hang.
+  const hangingFetch = ((_url: string, init?: { signal?: AbortSignal }) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) return; // No signal wired → test would hang, surfacing the regression.
+      signal.addEventListener('abort', () => reject(new Error('aborted')));
+    })) as unknown as typeof fetch;
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: hangingFetch,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+    timeoutMs: 5,
+  });
+  assert.ok(catalog);
+  assert.equal(catalog.sequence, 8);
+});
+
 test('verification unsupported returns null WITHOUT fetching', async () => {
   const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(7) });
   const fetcher = makeFetch(catalogEnvelope);

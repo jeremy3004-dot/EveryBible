@@ -19,7 +19,14 @@ export interface ElCatalogServiceDeps {
   // once on an unknown kid). Injectable so tests can supply the dev fixture keys directly.
   getKeys?: (keyId: string) => Promise<ElJwk[]>;
   isVerificationSupported?: () => boolean;
+  // Network fetch timeout in ms. Injectable so tests can exercise the abort path. Aborting is
+  // treated identically to a network error (last-good / null), so warmup can never be pinned
+  // by a hung socket.
+  timeoutMs?: number;
 }
+
+// Ceiling on the catalog network fetch so a stalled socket cannot pin the warmup path forever.
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 // Persisted last-verified catalog record. `payloadJson` is the raw verified catalog payload
 // (never the envelope); it is always re-parsed on read so corrupt storage cannot inject data.
@@ -122,19 +129,31 @@ export async function refreshElCatalog(
   // we must not spend a network request that we cannot validate.
   if (!isSupported()) return null;
 
+  // Read-snapshot the stored record ONCE up front; last-write-wins under concurrent refresh.
+  // Today there is a single warmup caller, so overlapping refreshes cannot race here.
   const storedRecord = await readStoredRecord(storage);
   const lastGood = () => parseStoredRecord(storedRecord);
 
   const fetchFn = deps.fetchFn ?? fetch;
   const getKeys = deps.getKeys ?? defaultGetKeys;
+  const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+
+  // AbortController + setTimeout(abort) mirrors the repo's existing fetch-timeout pattern
+  // (see verseTimestamps.ts / audioRemote.ts). We deliberately do NOT use AbortSignal.timeout,
+  // which is not guaranteed on the Hermes runtime. An abort surfaces as a fetch rejection and
+  // therefore lands on the same last-good failure path as any network error.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let envelope: unknown;
   try {
-    const response = await fetchFn(catalogUrl);
+    const response = await fetchFn(catalogUrl, { signal: controller.signal });
     if (!response.ok) return lastGood();
     envelope = await response.json();
   } catch {
     return lastGood();
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!isElEnvelopeShape(envelope)) return lastGood();
