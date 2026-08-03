@@ -82,12 +82,8 @@ For the web apps, `.env.example` also includes the required Next.js and admin va
 - `EVERYBIBLE_UPSTREAM_API_BASE_URL`
 - `EVERYBIBLE_UPSTREAM_API_KEY`
 - `OPENAI_API_KEY` - optional for the admin-side AI helper chat
-- `TRIGGER_SECRET_KEY` - optional until `/langquest` manual workflow enqueue is enabled
-- `TRIGGER_ACCESS_TOKEN` - required for non-interactive Trigger.dev workflow deploys
 
 If those admin variables are missing, `admin.everybible.app` now renders a setup screen listing the missing keys instead of crashing with a server error.
-
-LangQuest ingestion workflows additionally require `TRIGGER_PROJECT_REF`, `LANGQUEST_SUPABASE_URL`, `LANGQUEST_SUPABASE_SERVICE_ROLE_KEY`, `LANGQUEST_STORAGE_BUCKET`, `LANGQUEST_ALLOWED_PROJECT_IDS`, and the R2 server-only variables. Trigger.dev documents `TRIGGER_ACCESS_TOKEN` as the non-interactive deploy credential for CI/CD. Use `npm run langquest:ops-check` before enabling the 24-hour ingestion schedule.
 
 ### 3. Supabase Setup
 
@@ -153,9 +149,6 @@ npm run site:build        # Build the public Next.js site
 npm run admin:build       # Build the internal Next.js admin app
 npm run admin:lint        # Lint the admin app
 npm run admin:typecheck   # Type-check the admin app
-npm run workflows:typecheck       # Type-check Trigger.dev workflow tasks
-npm run workflows:deploy:dry-run  # Dry-run Trigger.dev workflow deployment
-npm run langquest:ops-check       # Verify LangQuest/Supabase/R2 operational readiness
 ```
 
 ### Building
