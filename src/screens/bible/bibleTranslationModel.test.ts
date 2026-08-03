@@ -13,6 +13,7 @@ import {
   resolvePreferredTranslationLanguage,
   getTranslationSelectionState,
   isTranslationReadableLocally,
+  isAudioOnlyTranslation,
 } from './bibleTranslationModel';
 
 test('downloaded translations are selectable', () => {
@@ -140,6 +141,43 @@ test('runtime text translations become selectable once the local pack exists', (
     isSelectable: true,
     reason: null,
   });
+});
+
+test('an EL-shaped audio-only entry is excluded from text selection but selectable as an audio source', () => {
+  // EL entries are audio-only: hasText:false, hasAudio:true, source:'runtime', no text pack.
+  const elEntry = {
+    isDownloaded: false,
+    hasText: false,
+    hasAudio: true,
+    source: 'runtime' as const,
+    textPackLocalPath: null,
+  };
+
+  // TEXT selection is prevented at the readable-locally gate: an entry with hasText:false is
+  // never readable as the reader's text translation, regardless of source or download state.
+  assert.equal(isTranslationReadableLocally(elEntry), false);
+  assert.equal(isAudioOnlyTranslation({ hasText: false, hasAudio: true }), true);
+
+  // The ONLY way it becomes selectable is the audio branch — and only when audio can play for
+  // the current book — so it surfaces as an audio source, never as a text translation.
+  assert.deepEqual(
+    getTranslationSelectionState({ ...elEntry, canPlayAudio: true }),
+    { isSelectable: true, reason: null }
+  );
+  assert.deepEqual(
+    getTranslationSelectionState({ ...elEntry, canPlayAudio: false }),
+    { isSelectable: false, reason: 'audio-unavailable' }
+  );
+
+  // With NO downloadable text pack it can never fall into the text-download prompt path either.
+  assert.deepEqual(
+    getTranslationSelectionState({
+      ...elEntry,
+      canPlayAudio: false,
+      hasDownloadableTextPack: false,
+    }),
+    { isSelectable: false, reason: 'audio-unavailable' }
+  );
 });
 
 test('runtime text translations without an R2 text pack stay marked as coming soon', () => {

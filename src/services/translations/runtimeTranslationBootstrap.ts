@@ -7,6 +7,8 @@ import {
 } from './translationService';
 import { normalizeCatalogTranslationId } from './translationCatalogModel';
 import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
+import { applyElRuntimeCatalog } from './runtimeElCatalog';
+import { resolveElCatalogUrl } from '../elMedia/elMediaConfig';
 
 let runtimeCatalogHydrationPromise: Promise<void> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
@@ -36,21 +38,45 @@ function isReadableLocally(translation: {
 
 export async function bootstrapRuntimeTranslations(): Promise<void> {
   const catalogResult = await listAvailableTranslations();
-  if (!catalogResult.success || !catalogResult.data || catalogResult.data.length === 0) {
+  const hasSupabaseCatalog = Boolean(
+    catalogResult.success && catalogResult.data && catalogResult.data.length > 0
+  );
+
+  // resolveElCatalogUrl is a cheap, side-effect-free check (feature flag + configured base
+  // URL). When it is null — the default in production today and in every flag-off build — the
+  // EL path is completely inert and this function's behaviour is byte-identical to before:
+  // an empty/failed Supabase catalog returns early without marking hydration, exactly as it
+  // used to. The heavy EL/jose module graph is never loaded on this path.
+  const isElActive = resolveElCatalogUrl() !== null;
+
+  if (!hasSupabaseCatalog && !isElActive) {
     return;
   }
 
-  const currentStoreTranslations = useBibleStore.getState().translations;
-  const runtimeTranslations = catalogResult.data.map((entry) =>
-    mapCatalogEntryToBibleTranslation(
-      entry,
-      currentStoreTranslations.find(
-        (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
+  // Map + apply the Supabase runtime catalog (if any) first — the fast, established path.
+  let runtimeTranslations: BibleTranslation[] = [];
+  if (hasSupabaseCatalog && catalogResult.data) {
+    const currentStoreTranslations = useBibleStore.getState().translations;
+    runtimeTranslations = catalogResult.data.map((entry) =>
+      mapCatalogEntryToBibleTranslation(
+        entry,
+        currentStoreTranslations.find(
+          (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
+        )
       )
-    )
-  );
+    );
+    useBibleStore.getState().applyRuntimeCatalog(runtimeTranslations);
+  }
 
-  useBibleStore.getState().applyRuntimeCatalog(runtimeTranslations);
+  // Additive EL merge, piggybacking the same once-per-launch hydration. Re-applies the
+  // COMBINED [Supabase, EL] list so both sets survive under either ordering (EL ids are
+  // lq-prefixed and collision-proof); any EL failure is swallowed and never affects the
+  // Supabase flow above. Only reached when the flag resolves a URL, so it is a no-op with
+  // zero startup cost otherwise.
+  if (isElActive) {
+    await applyElRuntimeCatalog(runtimeTranslations);
+  }
+
   hasHydratedRuntimeCatalogThisLaunch = true;
 }
 
