@@ -303,6 +303,46 @@ test('absolute manifest URL is used as-is', async () => {
   assert.equal(seenUrl, absolute);
 });
 
+test('digest unavailable skips the integrity pre-check (wrong sha256 still returns manifest)', async () => {
+  // Contract B12: when no SHA-256 primitive is available the integrity pre-check is skipped
+  // silently — envelope verification alone gates trust. We simulate the digest-unavailable
+  // runtime by injecting a computeSha256Hex seam that returns null (rather than tearing out
+  // globalThis.crypto, which jose itself needs to verify the ES256 signature). The entry
+  // carries a deliberately WRONG manifestSha256; because the digest is unavailable the
+  // mismatch is never detected, so the manifest still verifies and is returned.
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+
+  const savedCrypto = globalThis.crypto;
+  try {
+    const manifest = await getElManifest(
+      baseEntry({ manifestSha256: 'f'.repeat(64) }),
+      CATALOG_BASE_URL,
+      {
+        fetchFn: fetcher.fetchFn,
+        storage,
+        getKeys,
+        // Simulate a runtime with no digest primitive: integrity check must be skipped.
+        computeSha256Hex: async () => null,
+      }
+    );
+    assert.ok(manifest, 'manifest should still verify when the integrity check is skipped');
+    assert.equal(manifest.translationId, 'lqdtest');
+    assert.equal(manifest.audioVersion, 'v2026-07-20-1');
+    // Sanity: the same wrong sha256 WOULD have been rejected with a working digest (see the
+    // "integrity mismatch" test above), proving this path genuinely took the skip branch.
+  } finally {
+    // Restore in case any prior assertion touched global crypto state.
+    if (globalThis.crypto !== savedCrypto) {
+      Object.defineProperty(globalThis, 'crypto', {
+        value: savedCrypto,
+        configurable: true,
+      });
+    }
+  }
+});
+
 test('relative manifest URL resolves against catalogBaseUrl (trailing slash stripped)', async () => {
   __resetElManifestRuntimeForTests();
   const storage = createMemoryStorage();

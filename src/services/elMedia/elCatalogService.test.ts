@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { refreshElCatalog, getLastVerifiedElCatalog } from './elCatalogService';
 import type { ElJwk } from './elEnvelope';
+import { __resetElJwksRuntimeForTests } from './elJwks';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
@@ -242,4 +243,48 @@ test('shape rejection (non-envelope body) returns last-good', async () => {
   });
   assert.ok(catalog);
   assert.equal(catalog.sequence, 6);
+});
+
+test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JWKS fetches', async () => {
+  // Exercises the DEFAULT trust-store composition: no `getKeys` override, so refreshElCatalog
+  // falls through to defaultGetKeys -> getElKeys() -> pinned JWKS. The dev fixture envelope is
+  // signed with the pinned `lqd-dev-2026-a` kid, so the pinned path must satisfy verification
+  // WITHOUT ever hitting the /.well-known/keys.json discovery endpoint.
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+
+  const jwksUrl = 'https://media.example.test/.well-known/keys.json';
+  let catalogFetches = 0;
+  let jwksFetches = 0;
+  const fetchFn = (async (url: string) => {
+    if (url.includes('/.well-known/keys.json')) {
+      jwksFetches += 1;
+      return {
+        ok: true,
+        json: async () => ({ keys: jwks }),
+      } as unknown as Response;
+    }
+    catalogFetches += 1;
+    return {
+      ok: true,
+      json: async () => catalogEnvelope,
+    } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn,
+    storage,
+    // getKeys intentionally NOT injected — prove defaultGetKeys pinned-first wiring works.
+    isVerificationSupported: supported,
+  });
+
+  assert.ok(catalog, 'catalog should verify and parse via the pinned trust store');
+  assert.equal(catalog.schemaVersion, 'lqd-catalog/v1');
+  assert.equal(catalog.sequence, 1);
+  assert.equal(catalog.translations[0].translationId, 'lqdtest');
+  assert.equal(catalogFetches, 1);
+  // The whole point: pinned kid means the JWKS discovery URL is never fetched.
+  assert.equal(jwksFetches, 0, `expected zero JWKS fetches, got ${jwksFetches} (${jwksUrl})`);
+
+  __resetElJwksRuntimeForTests();
 });

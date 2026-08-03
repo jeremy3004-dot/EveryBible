@@ -15,6 +15,11 @@ export interface ElManifestServiceDeps {
   fetchFn?: typeof fetch;
   storage?: ElManifestStorage;
   getKeys?: (keyId: string) => Promise<ElJwk[]>;
+  // Digest seam for the integrity pre-check. Defaults to the WebCrypto-backed hasher and
+  // returns null when no digest primitive is available (contract B12: skip the check
+  // silently rather than reject). Injectable so tests can exercise the digest-unavailable
+  // branch without tearing out globalThis.crypto (which jose itself needs to verify).
+  computeSha256Hex?: (bytes: Uint8Array) => Promise<string | null>;
 }
 
 const DISK_KEY_PREFIX = 'el-media:manifest:';
@@ -121,6 +126,7 @@ export async function getElManifest(
   const storage = deps.storage ?? defaultStorage();
   const fetchFn = deps.fetchFn ?? fetch;
   const getKeys = deps.getKeys ?? defaultGetKeys;
+  const computeSha256Hex = deps.computeSha256Hex ?? sha256Hex;
 
   const url = resolveManifestUrl(entry.manifestUrl, catalogBaseUrl);
 
@@ -147,7 +153,7 @@ export async function getElManifest(
   }
 
   // Integrity pre-check against the catalog's file digest (skipped silently if subtle absent).
-  const actualDigest = await sha256Hex(bytes);
+  const actualDigest = await computeSha256Hex(bytes);
   if (actualDigest !== null && actualDigest !== entry.manifestSha256) return fail();
 
   let envelope: unknown;
