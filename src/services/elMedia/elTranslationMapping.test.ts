@@ -33,8 +33,11 @@ test('maps the real fixture catalog to one BibleTranslation with every field', a
   assert.equal(t.id, 'lqdtest');
   assert.equal(t.name, 'EL Test Translation');
   assert.equal(t.abbreviation, 'LQTEST');
-  // languageIso6393 'eng' → app language code 'en'.
-  assert.equal(t.language, 'en');
+  // language is the EL catalog's English display name (language_name), which is
+  // the picker's filter-grouping bucket key — NOT the ISO-style code. This keeps
+  // EL entries in the same language bucket as Supabase entries for the same
+  // language instead of fragmenting into a raw code bucket.
+  assert.equal(t.language, 'English (EL test)');
   // languageAutonym ('English') preferred over languageName for the display label.
   assert.equal(t.description, 'English');
   // CC0-1.0 → the app's public-domain-audio representation.

@@ -29,6 +29,9 @@ const EL_LANGUAGE_CODE_MAP: Record<string, string> = {
   zho: 'zh',
 };
 
+// NOTE: This maps to an ISO-style language *code* and is for code-keyed consumers
+// (e.g. reading-font selection). It must NOT feed BibleTranslation.language, which
+// is the English display-name bucket key used by the picker's filter grouping.
 export function mapElLanguageCode(iso6393: string): string {
   return EL_LANGUAGE_CODE_MAP[iso6393] ?? iso6393;
 }
@@ -57,8 +60,11 @@ function mapElTranslation(entry: ElCatalogTranslation, catalogBaseUrl: string): 
     id: entry.translationId,
     name: entry.translationName,
     abbreviation: entry.abbreviation,
-    // Language grouping label uses the app's language code where known.
-    language: mapElLanguageCode(entry.languageIso6393),
+    // Language grouping bucket for the picker MUST be the English display name
+    // (matches mapCatalogEntryToBibleTranslation using entry.language_name), so
+    // EL entries share a bucket with same-language Supabase entries instead of
+    // fragmenting into a raw ISO-code bucket. Do NOT use mapElLanguageCode here.
+    language: entry.languageName,
     // Display: prefer the autonym for the language label, fall back to the name.
     description: entry.languageAutonym ?? entry.languageName,
     copyright: EL_COPYRIGHT,
