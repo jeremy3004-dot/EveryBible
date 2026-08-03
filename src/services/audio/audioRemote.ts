@@ -126,10 +126,75 @@ type RemoteAudioMetadata = {
         coverage?: TranslationAudioCoverage;
         books?: Record<string, TranslationAudioBookCatalog>;
         downloadUrl: string;
+      }
+    | {
+        // Every Language signed audio manifests. Chapter URLs resolve from a verified,
+        // immutable manifest fetched via manifestUrl (against catalogBaseUrl) rather than a
+        // path template. The heavy elMedia/jose graph is loaded lazily on dispatch only.
+        strategy: 'el-manifest';
+        coverage?: TranslationAudioCoverage;
+        books?: Record<string, TranslationAudioBookCatalog>;
+        manifestUrl: string;
+        audioVersion: string;
+        catalogBaseUrl: string;
       };
 };
 
 export type RemoteAudioMetadataResolver = (translationId: string) => RemoteAudioMetadata | null;
+
+// Reference the audio layer hands to the EL manifest service: the persisted catalog.audio
+// fields for an 'el-manifest' entry (no manifest_sha256 — it is not threaded through
+// BibleTranslation persistence, so the manifest service skips the integrity pre-check and
+// relies on signature verification instead).
+interface ElManifestAudioRef {
+  translationId: string;
+  manifestUrl: string;
+  audioVersion: string;
+  catalogBaseUrl: string;
+}
+
+interface ElResolvedChapterAudio {
+  url: string;
+  mimeType: string;
+  fileExt: string;
+  bytes: number;
+  durationMs?: number;
+}
+
+type ElManifestChapterResolver = (
+  ref: ElManifestAudioRef,
+  bookId: string,
+  chapter: number
+) => Promise<ElResolvedChapterAudio | null>;
+
+// Default resolver: lazy-imports the elMedia manifest service + chapter resolver so the heavy
+// jose/JWKS graph never enters audioRemote's static import graph (audioRemote is on warm audio
+// paths). Any failure degrades to "no audio" (null), never throws.
+const defaultElManifestChapterResolver: ElManifestChapterResolver = async (
+  ref,
+  bookId,
+  chapter
+) => {
+  const [{ getElManifestForAudioCatalog }, { resolveElChapterFromManifest }] = await Promise.all([
+    import('../elMedia/elManifestService'),
+    import('../elMedia/elManifestModel'),
+  ]);
+  const manifest = await getElManifestForAudioCatalog(ref);
+  if (!manifest) {
+    return null;
+  }
+  return resolveElChapterFromManifest(manifest, bookId, chapter);
+};
+
+let elManifestChapterResolver: ElManifestChapterResolver = defaultElManifestChapterResolver;
+
+// Test seam: inject a manifest-chapter resolver double (keeps jose/network out of unit tests).
+// Passing null restores the lazy production resolver.
+export function setElManifestChapterResolverForTests(
+  resolver: ElManifestChapterResolver | null
+): void {
+  elManifestChapterResolver = resolver ?? defaultElManifestChapterResolver;
+}
 
 function normalizeFileExtension(extension: string | null | undefined): string | undefined {
   if (!extension) {
@@ -223,6 +288,25 @@ function buildRemoteAudioMetadataFromTranslation(
           coverage: catalogAudio.coverage,
           books: catalogAudio.books,
           downloadUrl: catalogAudio.downloadUrl ?? '',
+        },
+      };
+    }
+
+    if (catalogAudio.strategy === 'el-manifest') {
+      // EL audio is always mp3 (contract); the mapper sets fileExtension: 'mp3'. Downloads name
+      // files by this extension, so default to 'mp3' if it is ever missing from the catalog.
+      return {
+        id: translation.id,
+        hasAudio: true,
+        audioGranularity: translation.audioGranularity,
+        fileExtension: normalizeFileExtension(catalogAudio.fileExtension) ?? 'mp3',
+        audio: {
+          strategy: 'el-manifest',
+          coverage: catalogAudio.coverage,
+          books: catalogAudio.books,
+          manifestUrl: catalogAudio.manifestUrl ?? '',
+          audioVersion: catalogAudio.audioVersion ?? '',
+          catalogBaseUrl: catalogAudio.catalogBaseUrl ?? '',
         },
       };
     }
@@ -529,6 +613,39 @@ export async function fetchRemoteChapterAudio(
     return result;
   }
 
+  if (audio.strategy === 'el-manifest') {
+    if (!audio.manifestUrl || !audio.audioVersion || !audio.catalogBaseUrl) {
+      return null;
+    }
+
+    let resolved: ElResolvedChapterAudio | null = null;
+    try {
+      resolved = await elManifestChapterResolver(
+        {
+          translationId,
+          manifestUrl: audio.manifestUrl,
+          audioVersion: audio.audioVersion,
+          catalogBaseUrl: audio.catalogBaseUrl,
+        },
+        bookId,
+        chapter
+      );
+    } catch (error) {
+      // Verification/network failure degrades to "no audio" — never surface an error here.
+      console.warn('[Audio] Failed to resolve EL manifest chapter audio:', error);
+      return null;
+    }
+
+    if (!resolved?.url) {
+      return null;
+    }
+
+    // EL manifest URLs are immutable, so caching the resolved chapter URL is safe.
+    const result = { url: resolved.url, duration: resolved.durationMs ?? 0 };
+    audioUrlCache.set(cacheKey, result);
+    return result;
+  }
+
   const providerUrl = buildProviderChapterAudioUrl(audio.provider, bookId, chapter);
   if (providerUrl) {
     const result = { url: providerUrl, duration: 0 };
@@ -564,6 +681,12 @@ export function isRemoteAudioAvailable(
 
   if (audio.strategy === 'audio-pack') {
     return Boolean(audio.downloadUrl);
+  }
+
+  if (audio.strategy === 'el-manifest') {
+    // Availability = the manifest is addressable. Whether a *specific* chapter exists is
+    // determined at fetch time (manifest lookup), matching stream-template's coverage semantics.
+    return Boolean(audio.manifestUrl && audio.audioVersion && audio.catalogBaseUrl);
   }
 
   if (audio.provider === 'ebible-webbe') {

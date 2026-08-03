@@ -6,12 +6,14 @@ import {
   getFirstAvailableAudioBook,
   getRemoteAudioFileExtension,
   isRemoteAudioAvailable,
+  setElManifestChapterResolverForTests,
   setRemoteAudioMetadataResolver,
 } from './audioRemote';
 
 test.afterEach(() => {
   clearRemoteAudioCache();
   setRemoteAudioMetadataResolver(null);
+  setElManifestChapterResolverForTests(null);
 });
 
 test('berean standard bible audio resolves through the EveryBible media route when Supabase base URL is not configured', async () => {
@@ -214,6 +216,73 @@ test('runtime provider audio resolves through the injected metadata resolver', a
     duration: 0,
   });
   assert.equal(isRemoteAudioAvailable('esv'), true);
+});
+
+function elManifestMetadata(translationId: string) {
+  return {
+    id: translationId,
+    hasAudio: true as const,
+    fileExtension: 'mp3',
+    audio: {
+      strategy: 'el-manifest' as const,
+      manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+      audioVersion: 'v2026-07-20-1',
+      catalogBaseUrl: 'https://media.example.test',
+    },
+  };
+}
+
+test('el-manifest audio resolves a chapter URL through the injected manifest-service double', async () => {
+  setRemoteAudioMetadataResolver((translationId) =>
+    translationId === 'lqdtest' ? elManifestMetadata('lqdtest') : null
+  );
+
+  const calls: Array<{ ref: unknown; bookId: string; chapter: number }> = [];
+  setElManifestChapterResolverForTests(async (ref, bookId, chapter) => {
+    calls.push({ ref, bookId, chapter });
+    if (bookId === 'JHN' && chapter === 1) {
+      return {
+        url: 'https://media.example.test/audio/lqdtest/v2026-07-20-1/chapters/JHN/1.mp3',
+        mimeType: 'audio/mpeg',
+        fileExt: 'mp3',
+        bytes: 2703104,
+        durationMs: 225000,
+      };
+    }
+    return null;
+  });
+
+  const audio = await fetchRemoteChapterAudio('lqdtest', 'JHN', 1);
+
+  assert.deepEqual(audio, {
+    url: 'https://media.example.test/audio/lqdtest/v2026-07-20-1/chapters/JHN/1.mp3',
+    duration: 225000,
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(getRemoteAudioFileExtension('lqdtest'), 'mp3');
+  assert.equal(isRemoteAudioAvailable('lqdtest'), true);
+});
+
+test('el-manifest audio returns null for a chapter absent from the manifest', async () => {
+  setRemoteAudioMetadataResolver((translationId) =>
+    translationId === 'lqdtest' ? elManifestMetadata('lqdtest') : null
+  );
+  setElManifestChapterResolverForTests(async () => null);
+
+  const audio = await fetchRemoteChapterAudio('lqdtest', 'JHN', 99);
+  assert.equal(audio, null);
+});
+
+test('el-manifest audio returns null (no throw) when the manifest is unavailable', async () => {
+  setRemoteAudioMetadataResolver((translationId) =>
+    translationId === 'lqdtest' ? elManifestMetadata('lqdtest') : null
+  );
+  setElManifestChapterResolverForTests(async () => {
+    throw new Error('manifest verification failed');
+  });
+
+  const audio = await fetchRemoteChapterAudio('lqdtest', 'JHN', 1);
+  assert.equal(audio, null);
 });
 
 test('getFirstAvailableAudioBook returns the first New Testament book for NT-only audio (so OT readers can still listen)', () => {

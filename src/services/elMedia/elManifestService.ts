@@ -220,6 +220,52 @@ export async function getElManifest(
   return manifest;
 }
 
+// Minimal shape the audio layer can supply: the persisted BibleTranslation `catalog.audio`
+// for an 'el-manifest' entry carries manifestUrl/audioVersion/catalogBaseUrl but NOT the
+// catalog's manifest_sha256 (that field lives only on the verified catalog entry and is not
+// threaded through BibleTranslation persistence). manifestSha256 is therefore optional here.
+export interface ElAudioCatalogRef {
+  translationId: string;
+  manifestUrl: string;
+  audioVersion: string;
+  catalogBaseUrl: string;
+  manifestSha256?: string;
+}
+
+// Adapter seam for the audio playback/download layer (audioRemote), which knows an entry's
+// `catalog.audio` fields but not the catalog's manifest_sha256. It builds the minimal
+// ElCatalogTranslation getElManifest expects and, when no manifest_sha256 is available,
+// deliberately skips the integrity pre-check by injecting a null-returning digest — envelope
+// signature verification + the translation_id/audio_version anti-swap guards remain the trust
+// gate. When a manifestSha256 IS supplied it is honored (default digest runs the check).
+// Only the audio fields needed to resolve chapters are populated; the rest are placeholders
+// getElManifest never reads.
+export async function getElManifestForAudioCatalog(
+  ref: ElAudioCatalogRef,
+  deps: ElManifestServiceDeps = {}
+): Promise<ElAudioManifest | null> {
+  const entry: ElCatalogTranslation = {
+    translationId: ref.translationId,
+    languageIso6393: '',
+    languageName: '',
+    translationName: '',
+    abbreviation: '',
+    source: '',
+    copyright: '',
+    deliveryMode: 'chapter',
+    hasAudio: true,
+    currentAudioVersion: ref.audioVersion,
+    manifestUrl: ref.manifestUrl,
+    // Empty string when absent; the integrity check is disabled below so it is never compared.
+    manifestSha256: ref.manifestSha256 ?? '',
+  };
+
+  const resolvedDeps: ElManifestServiceDeps =
+    ref.manifestSha256 == null ? { ...deps, computeSha256Hex: async () => null } : deps;
+
+  return getElManifest(entry, ref.catalogBaseUrl, resolvedDeps);
+}
+
 // Test-only: clears the per-launch in-memory manifest cache so each test starts cold.
 export function __resetElManifestRuntimeForTests(): void {
   memoryCache.clear();

@@ -16,8 +16,12 @@ export { refreshElCatalog, getLastVerifiedElCatalog } from './elCatalogService';
 export type { ElCatalogServiceDeps, ElCatalogStorage } from './elCatalogService';
 
 // Manifest service (heavy — prefer lazy `import('./elManifestService')` on hot paths).
-export { getElManifest } from './elManifestService';
-export type { ElManifestServiceDeps, ElManifestStorage } from './elManifestService';
+export { getElManifest, getElManifestForAudioCatalog } from './elManifestService';
+export type {
+  ElManifestServiceDeps,
+  ElManifestStorage,
+  ElAudioCatalogRef,
+} from './elManifestService';
 
 // Catalog → BibleTranslation mapping (heavy — prefer lazy import on hot paths).
 export { mapElCatalogToBibleTranslations, mapElLanguageCode } from './elTranslationMapping';

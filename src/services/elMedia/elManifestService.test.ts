@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { getElManifest, __resetElManifestRuntimeForTests } from './elManifestService';
+import {
+  getElManifest,
+  getElManifestForAudioCatalog,
+  __resetElManifestRuntimeForTests,
+} from './elManifestService';
 import type { ElCatalogTranslation } from './elCatalogModel';
 import type { ElJwk } from './elEnvelope';
 
@@ -374,6 +378,60 @@ test('a fetch that hangs until aborted returns null (timeout path, no cache)', a
     getKeys,
     timeoutMs: 5,
   });
+  assert.equal(manifest, null);
+});
+
+test('getElManifestForAudioCatalog verifies a manifest without a manifestSha256 (integrity check skipped, signature gates)', async () => {
+  // audioRemote only has catalog.audio fields — manifestUrl/audioVersion/catalogBaseUrl —
+  // and never persisted manifest_sha256. The adapter must build the minimal entry and skip
+  // the integrity pre-check when the digest is absent; envelope verification remains the gate.
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  const manifest = await getElManifestForAudioCatalog(
+    {
+      translationId: 'lqdtest',
+      manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+      audioVersion: 'v2026-07-20-1',
+      catalogBaseUrl: CATALOG_BASE_URL,
+    },
+    { fetchFn: fetcher.fetchFn, storage, getKeys }
+  );
+  assert.ok(manifest);
+  assert.equal(manifest.translationId, 'lqdtest');
+  assert.equal(manifest.audioVersion, 'v2026-07-20-1');
+  assert.equal(fetcher.calls, 1);
+});
+
+test('getElManifestForAudioCatalog still rejects a tampered/unverifiable manifest (signature is the gate)', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  const manifest = await getElManifestForAudioCatalog(
+    {
+      translationId: 'lqdtest',
+      manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+      audioVersion: 'v2026-07-20-1',
+      catalogBaseUrl: CATALOG_BASE_URL,
+    },
+    { fetchFn: fetcher.fetchFn, storage, getKeys: async () => [] }
+  );
+  assert.equal(manifest, null);
+});
+
+test('getElManifestForAudioCatalog enforces the audio_version guard (document swap)', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  const manifest = await getElManifestForAudioCatalog(
+    {
+      translationId: 'lqdtest',
+      manifestUrl: '/manifests/audio/lqdtest/v9999.json',
+      audioVersion: 'v9999',
+      catalogBaseUrl: CATALOG_BASE_URL,
+    },
+    { fetchFn: fetcher.fetchFn, storage, getKeys }
+  );
   assert.equal(manifest, null);
 });
 
