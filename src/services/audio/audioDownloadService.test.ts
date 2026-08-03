@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getBookById } from '../../constants/books';
-import { setRemoteAudioMetadataResolver } from './audioRemote';
+import {
+  fetchRemoteChapterAudio,
+  setElManifestChapterResolverForTests,
+  setRemoteAudioMetadataResolver,
+} from './audioRemote';
 import {
   createAudioDownloadJobId,
   createAudioDownloadJobStore,
@@ -58,6 +62,74 @@ const createPersistentFileSystemDouble = () => {
 
 test.afterEach(() => {
   setRemoteAudioMetadataResolver(null);
+  setElManifestChapterResolverForTests(null);
+});
+
+test('el-manifest chapter downloads through the existing machinery to the .mp3 path and is found offline', async () => {
+  // Exercise the REAL production callback (fetchRemoteChapterAudio is what bibleStore /
+  // BibleReaderScreen pass as resolveRemoteAudio — no site filters by strategy), so this
+  // proves the el-manifest strategy flows end-to-end through the download machinery.
+  setRemoteAudioMetadataResolver((translationId) =>
+    translationId === 'lqdtest'
+      ? {
+          id: 'lqdtest',
+          hasAudio: true,
+          fileExtension: 'mp3',
+          audio: {
+            strategy: 'el-manifest',
+            manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+            audioVersion: 'v2026-07-20-1',
+            catalogBaseUrl: 'https://media.example.test',
+          },
+        }
+      : null
+  );
+  setElManifestChapterResolverForTests(async (_ref, bookId, chapter) => ({
+    url: `https://media.example.test/audio/lqdtest/v2026-07-20-1/chapters/${bookId}/${chapter}.mp3`,
+    mimeType: 'audio/mpeg',
+    fileExt: 'mp3',
+    bytes: 2703104,
+    durationMs: 225000,
+  }));
+
+  // File system double that records byte sizes so the >=1024-byte validity guard is exercised.
+  const files = new Map<string, number>();
+  const downloads: Array<{ from: string; to: string }> = [];
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => {},
+    fileExists: async (fileUri) => files.has(fileUri),
+    downloadFile: async (from, to) => {
+      downloads.push({ from, to });
+      files.set(to, 2703104);
+    },
+    getFileSize: async (fileUri) => files.get(fileUri) ?? null,
+    deleteFile: async (fileUri) => {
+      files.delete(fileUri);
+    },
+  };
+
+  const philemon = getBookById('PHM');
+  assert.ok(philemon);
+
+  const result = await downloadAudioBook({
+    translationId: 'lqdtest',
+    book: philemon,
+    fileSystem,
+    resolveRemoteAudio: fetchRemoteChapterAudio,
+  });
+
+  assert.equal(result.bookId, 'PHM');
+  assert.equal(downloads.length, 1);
+  const expectedFileUri = getChapterAudioFileUri('lqdtest', 'PHM', 1);
+  assert.ok(expectedFileUri.endsWith('lqdtest/PHM/1.mp3'));
+  assert.deepEqual(downloads[0], {
+    from: 'https://media.example.test/audio/lqdtest/v2026-07-20-1/chapters/PHM/1.mp3',
+    to: expectedFileUri,
+  });
+
+  // Offline lookup resolves the just-downloaded file, and the byte-size guard accepts it.
+  const localUri = await getDownloadedChapterAudioUri('lqdtest', 'PHM', 1, fileSystem);
+  assert.equal(localUri, expectedFileUri);
 });
 
 test('createAudioDownloadJobId keeps book and translation download jobs distinct', () => {
