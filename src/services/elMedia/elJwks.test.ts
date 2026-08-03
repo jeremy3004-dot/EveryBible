@@ -126,6 +126,29 @@ test('malformed JWKS response leaves the pinned set intact and never throws', as
   assert.deepEqual(kids, [PINNED_DEV_KID, PINNED_PROD_KID]);
 });
 
+test('a remote EC key on a non-P-256 curve is filtered out of the trust set', async () => {
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const p384Key = {
+    kty: 'EC',
+    crv: 'P-384',
+    x: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+    y: 'YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
+    kid: 'lqd-prod-2028-a',
+    alg: 'ES384',
+    use: 'sig',
+  };
+  const fetcher = makeFetch({ keys: [p384Key] });
+  const keys = await refreshElJwksForUnknownKeyId('lqd-prod-2028-a', {
+    baseUrl: 'https://example.test',
+    storage,
+    fetchFn: fetcher.fetchFn,
+  });
+  assert.equal(fetcher.calls, 1);
+  assert.ok(!keys.some((k) => k.kid === 'lqd-prod-2028-a'));
+  assert.deepEqual(keys.map((k) => k.kid).sort(), [PINNED_DEV_KID, PINNED_PROD_KID]);
+});
+
 test('a fetch that rejects returns the keys we had without throwing', async () => {
   __resetElJwksRuntimeForTests();
   const storage = createMemoryStorage();

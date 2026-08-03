@@ -10,8 +10,12 @@ export interface ElJwk {
   use?: string;
 }
 
+// The shared SignedCatalogEnvelope type allows 'ES256' | 'RS256' for the app's other
+// (PEM-based) verification path. The EL contract is ES256-only, so narrow to that here.
+export type ElSignedEnvelope = SignedCatalogEnvelope & { algorithm: 'ES256' };
+
 // EL contract is ES256-only; compact JWS has exactly three dot-separated segments.
-export function isElEnvelopeShape(value: unknown): value is SignedCatalogEnvelope {
+export function isElEnvelopeShape(value: unknown): value is ElSignedEnvelope {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return (
@@ -24,7 +28,7 @@ export function isElEnvelopeShape(value: unknown): value is SignedCatalogEnvelop
 }
 
 export async function verifyElEnvelope(
-  envelope: SignedCatalogEnvelope,
+  envelope: ElSignedEnvelope,
   keys: ElJwk[]
 ): Promise<unknown | null> {
   const jwk = keys.find((key) => key.kid === envelope.keyId);

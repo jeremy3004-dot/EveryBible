@@ -85,8 +85,12 @@ function defaultStorage(): ElJwksStorage {
 function isElJwk(value: unknown): value is ElJwk {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
+  // Require the P-256 curve explicitly: the EL contract is ES256-only, and jose's
+  // explicit-alg import rejects other curves at verify time anyway, but keys on any
+  // other curve must never survive into the trust set in the first place (defense-in-depth).
   return (
     v.kty === 'EC' &&
+    v.crv === 'P-256' &&
     typeof v.kid === 'string' &&
     v.kid.length > 0 &&
     typeof v.x === 'string' &&
