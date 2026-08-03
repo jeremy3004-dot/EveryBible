@@ -30,12 +30,6 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Delivery',
   },
   {
-    label: 'LangQuest',
-    href: '/langquest',
-    description: 'Translation ownership review, selected ingestion, and R2 artifact health.',
-    group: 'Delivery',
-  },
-  {
     label: 'Analytics',
     href: '/analytics',
     description: 'Listening metrics and privacy-safe geography reporting.',
