@@ -49,7 +49,11 @@ export type TranslationInstallState =
   | 'rollback-available'
   | 'update-available';
 export type TranslationTextFormat = 'sqlite';
-export type TranslationAudioStrategy = 'provider' | 'stream-template' | 'audio-pack';
+export type TranslationAudioStrategy =
+  | 'provider'
+  | 'stream-template'
+  | 'audio-pack'
+  | 'el-manifest';
 export type TranslationTimingStrategy = 'stream-template';
 export type TranslationAudioCoverage = 'full-bible' | 'new-testament' | 'partial';
 export type TranslationDownloadJobKind =
@@ -91,6 +95,12 @@ export interface TranslationAudioCatalog {
   sha256?: string;
   signature?: string;
   books?: Record<string, TranslationAudioBookCatalog>;
+  // Fields for the 'el-manifest' strategy (Every Language signed audio manifests).
+  // Chapter URLs are resolved from a verified, immutable manifest fetched via
+  // `manifestUrl` (resolved against `catalogBaseUrl`) rather than a path template.
+  manifestUrl?: string;
+  audioVersion?: string;
+  catalogBaseUrl?: string;
 }
 
 export interface TranslationTimingCatalog {
