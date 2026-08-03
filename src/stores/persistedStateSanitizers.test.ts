@@ -429,6 +429,142 @@ test('sanitizePersistedBibleState restores an audio-only runtime translation as 
   );
 });
 
+test('sanitizePersistedBibleState preserves a valid el-manifest audio catalog on a runtime translation', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    translations: [
+      {
+        id: 'lqdtest',
+        name: 'LangQuest Distribution Test',
+        abbreviation: 'LQDT',
+        language: 'Test Language',
+        description: 'Every Language audio-only entry',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: ['JHN'],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: 'v2026-07-20-1',
+          updatedAt: '2026-07-20T00:00:00.000Z',
+          audio: {
+            strategy: 'el-manifest',
+            manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+            audioVersion: 'v2026-07-20-1',
+            catalogBaseUrl: 'https://lqd-media.platform-979.workers.dev',
+            fileExtension: 'mp3',
+          },
+        },
+      },
+    ],
+  });
+
+  const lqd = sanitized.translations.find((translation) => translation.id === 'lqdtest');
+  assert.ok(lqd, 'el-manifest runtime translation should survive sanitization');
+  assert.equal(lqd.catalog?.audio?.strategy, 'el-manifest');
+  assert.equal(
+    lqd.catalog?.audio?.manifestUrl,
+    '/manifests/audio/lqdtest/v2026-07-20-1.json'
+  );
+  assert.equal(lqd.catalog?.audio?.audioVersion, 'v2026-07-20-1');
+  assert.equal(
+    lqd.catalog?.audio?.catalogBaseUrl,
+    'https://lqd-media.platform-979.workers.dev'
+  );
+  assert.equal(lqd.catalog?.audio?.fileExtension, 'mp3');
+});
+
+test('sanitizePersistedBibleState rejects an el-manifest audio catalog missing required fields', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    translations: [
+      {
+        id: 'lqdbad',
+        name: 'Broken EL Entry',
+        abbreviation: 'LQDB',
+        language: 'Test Language',
+        description: 'Every Language entry with an incomplete audio block',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: 'v2026-07-20-1',
+          updatedAt: '2026-07-20T00:00:00.000Z',
+          audio: {
+            strategy: 'el-manifest',
+            // manifestUrl missing → the whole audio block, and thus the catalog
+            // (audio-only entry), is rejected, so the runtime translation is dropped.
+            audioVersion: 'v2026-07-20-1',
+            catalogBaseUrl: 'https://lqd-media.platform-979.workers.dev',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.equal(
+    sanitized.translations.some((translation) => translation.id === 'lqdbad'),
+    false,
+    'An el-manifest entry missing manifestUrl must be rejected to null, dropping the audio-only runtime translation'
+  );
+});
+
+test('sanitizePersistedBibleState rejects an el-manifest audio catalog with a non-http catalogBaseUrl', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    translations: [
+      {
+        id: 'lqdscheme',
+        name: 'Bad Scheme EL Entry',
+        abbreviation: 'LQDS',
+        language: 'Test Language',
+        description: 'Every Language entry with a non-http base URL',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: 'v2026-07-20-1',
+          updatedAt: '2026-07-20T00:00:00.000Z',
+          audio: {
+            strategy: 'el-manifest',
+            manifestUrl: '/manifests/audio/lqdscheme/v.json',
+            audioVersion: 'v2026-07-20-1',
+            catalogBaseUrl: 'ftp://lqd-media.example.com',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.equal(
+    sanitized.translations.some((translation) => translation.id === 'lqdscheme'),
+    false,
+    'An el-manifest entry with a non-http catalogBaseUrl must be rejected'
+  );
+});
+
 test('sanitizePersistedProgressState removes invalid chapter entries', () => {
   const sanitized = sanitizePersistedProgressState({
     chaptersRead: {

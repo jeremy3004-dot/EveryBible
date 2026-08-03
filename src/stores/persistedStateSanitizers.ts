@@ -75,7 +75,12 @@ const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([
   'provider',
   'stream-template',
   'audio-pack',
+  'el-manifest',
 ]);
+
+// Every Language catalogBaseUrl must be an absolute http(s) origin; relative refs are not
+// valid here (unlike manifestUrl, which may be relative and is resolved against this base).
+const HTTP_URL_RE = /^https?:\/\//i;
 const validDownloadJobKinds = new Set<TranslationDownloadJob['kind']>([
   'text-pack',
   'audio-pack',
@@ -218,6 +223,29 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
       strategy,
       baseUrl,
       chapterPathTemplate,
+      fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
+      mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
+      signature: sanitizeOptionalString(value.signature) ?? undefined,
+    };
+  }
+
+  if (strategy === 'el-manifest') {
+    // Every Language signed-manifest audio. Chapter URLs are resolved from a verified,
+    // immutable manifest fetched via manifestUrl (relative or absolute) against
+    // catalogBaseUrl (absolute http(s) only). Any missing/invalid field rejects the whole
+    // block to null — an audio-only EL entry then drops out during catalog sanitization.
+    const manifestUrl = sanitizeRequiredString(value.manifestUrl);
+    const audioVersion = sanitizeRequiredString(value.audioVersion);
+    const catalogBaseUrl = sanitizeRequiredString(value.catalogBaseUrl);
+    if (!manifestUrl || !audioVersion || !catalogBaseUrl || !HTTP_URL_RE.test(catalogBaseUrl)) {
+      return null;
+    }
+
+    return {
+      strategy,
+      manifestUrl,
+      audioVersion,
+      catalogBaseUrl,
       fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
       mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,

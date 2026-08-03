@@ -8,6 +8,7 @@ import {
   activateTranslationPackCandidate,
   buildInstalledBibleDatabaseSource,
   failTranslationPackCandidate,
+  parseTranslationCatalogManifest,
   rollbackTranslationPack,
   stageTranslationPackCandidate,
   verifySignedCatalogManifest,
@@ -106,6 +107,75 @@ test('verifySignedCatalogManifest rejects a tampered signed envelope payload', a
       ),
     /signature verification failed|JWS Protected Header is invalid|signature/i
   );
+});
+
+test('parseTranslationCatalogManifest preserves a valid el-manifest audio block', () => {
+  const parsed = parseTranslationCatalogManifest({
+    manifestVersion: '2026.07.20',
+    issuedAt: '2026-07-20T00:00:00.000Z',
+    translations: [
+      {
+        id: 'lqdtest',
+        name: 'LangQuest Distribution Test',
+        abbreviation: 'LQDT',
+        language: 'Test Language',
+        description: 'Every Language audio-only entry',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        totalBooks: 66,
+        sizeInMB: 0,
+        audio: {
+          strategy: 'el-manifest',
+          manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+          audioVersion: 'v2026-07-20-1',
+          catalogBaseUrl: 'https://lqd-media.platform-979.workers.dev',
+          fileExtension: 'mp3',
+        },
+      },
+    ],
+  });
+
+  assert.equal(parsed.translations.length, 1);
+  const audio = parsed.translations[0]?.audio;
+  assert.equal(audio?.strategy, 'el-manifest');
+  assert.equal(audio?.manifestUrl, '/manifests/audio/lqdtest/v2026-07-20-1.json');
+  assert.equal(audio?.audioVersion, 'v2026-07-20-1');
+  assert.equal(audio?.catalogBaseUrl, 'https://lqd-media.platform-979.workers.dev');
+  assert.equal(audio?.fileExtension, 'mp3');
+});
+
+test('parseTranslationCatalogManifest drops an el-manifest audio block with a non-http catalogBaseUrl', () => {
+  const parsed = parseTranslationCatalogManifest({
+    manifestVersion: '2026.07.20',
+    issuedAt: '2026-07-20T00:00:00.000Z',
+    translations: [
+      {
+        id: 'lqdtest',
+        name: 'LangQuest Distribution Test',
+        abbreviation: 'LQDT',
+        language: 'Test Language',
+        description: 'Every Language audio-only entry',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        totalBooks: 66,
+        sizeInMB: 0,
+        audio: {
+          strategy: 'el-manifest',
+          manifestUrl: '/manifests/audio/lqdtest/v.json',
+          audioVersion: 'v2026-07-20-1',
+          catalogBaseUrl: 'ftp://lqd-media.example.com',
+        },
+      },
+    ],
+  });
+
+  // hasAudio:true + an unparseable el-manifest audio block drops the whole translation
+  // (parseManifestTranslation requires audio when hasAudio is true), so it must not leak in.
+  assert.equal(parsed.translations.length, 0);
 });
 
 function createPackTranslation(

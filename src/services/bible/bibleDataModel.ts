@@ -18,7 +18,11 @@ const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([
   'provider',
   'stream-template',
   'audio-pack',
+  'el-manifest',
 ]);
+
+// Every Language catalogBaseUrl must be an absolute http(s) origin (manifestUrl may be relative).
+const HTTP_URL_RE = /^https?:\/\//i;
 const validAudioProviders = new Set<AudioProvider>([
   'bible-is',
   'ebible-webbe',
@@ -169,6 +173,35 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
         ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
         : {}),
       ...(books ? { books } : {}),
+    };
+  }
+
+  if (strategy === 'el-manifest') {
+    // Every Language signed-manifest audio. EL entries are not sourced from the Supabase
+    // catalog today, but the strategy set is kept consistent with the persistence sanitizer
+    // so this parser cannot silently misclassify one as an audio-pack. Chapter URLs resolve
+    // from a verified manifest fetched via manifestUrl against catalogBaseUrl.
+    const manifestUrl = sanitizeRequiredString(value.manifestUrl);
+    const audioVersion = sanitizeRequiredString(value.audioVersion);
+    const catalogBaseUrl = sanitizeRequiredString(value.catalogBaseUrl);
+    if (!manifestUrl || !audioVersion || !catalogBaseUrl || !HTTP_URL_RE.test(catalogBaseUrl)) {
+      return null;
+    }
+
+    return {
+      strategy,
+      manifestUrl,
+      audioVersion,
+      catalogBaseUrl,
+      ...(sanitizeRequiredString(value.fileExtension)
+        ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
+        : {}),
+      ...(sanitizeRequiredString(value.mimeType)
+        ? { mimeType: sanitizeRequiredString(value.mimeType) ?? undefined }
+        : {}),
+      ...(sanitizeRequiredString(value.signature)
+        ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
+        : {}),
     };
   }
 
