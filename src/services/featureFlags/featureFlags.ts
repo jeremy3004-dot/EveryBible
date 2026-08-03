@@ -3,6 +3,7 @@ const FEATURE_FLAG_DEFAULTS = {
   appsmith_ops_poc: false,
   audio_track_player_engine: false,
   posthog_reduced_mirror: false,
+  el_media_source: false,
 } as const;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAG_DEFAULTS;

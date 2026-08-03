@@ -66,6 +66,7 @@ test('env example documents only supported Google sign-in client IDs', () => {
   assert.match(envExample, /EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=/);
   assert.doesNotMatch(envExample, /EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=/);
   assert.match(envExample, /EXPO_PUBLIC_CONTENT_API_URL=/);
+  assert.match(envExample, /EXPO_PUBLIC_EL_MEDIA_BASE_URL=/);
 });
 
 test('buildPublicRuntimeConfig falls back to Expo extra when release bundles miss inline env vars', () => {

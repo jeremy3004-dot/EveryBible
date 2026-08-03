@@ -14,6 +14,7 @@ test('returns safe local defaults for registered feature flags', () => {
   assert.equal(getFeatureFlag('appsmith_ops_poc'), false);
   assert.equal(getFeatureFlag('audio_track_player_engine'), false);
   assert.equal(getFeatureFlag('posthog_reduced_mirror'), false);
+  assert.equal(getFeatureFlag('el_media_source'), false);
 });
 
 test('applies and resets dev/test feature flag overrides', () => {
@@ -45,6 +46,7 @@ test('feature flag context serializes only non-sensitive registered keys and sta
       appsmith_ops_poc: true,
       audio_track_player_engine: false,
       posthog_reduced_mirror: false,
+      el_media_source: false,
     },
   });
   assert.equal(JSON.stringify(getFeatureFlagContext()).includes('missing_flag'), false);
