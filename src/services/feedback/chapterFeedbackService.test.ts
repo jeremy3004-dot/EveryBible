@@ -28,7 +28,6 @@ const baseInput: ChapterFeedbackSubmissionInput = {
 };
 
 test('submitChapterFeedback calls the edge function with a trimmed payload', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<{
     functionName: string;
     body: ChapterFeedbackSubmissionInput;
@@ -64,21 +63,9 @@ test('submitChapterFeedback calls the edge function with a trimmed payload', asy
   assert.equal(result.saved, true);
   assert.equal(result.exported, false);
   assert.equal(result.feedbackId, 'feedback-1');
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_submitted',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'saved',
-    },
-  ]);
 });
 
 test('submitChapterFeedback sends the live access token explicitly when one is available', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<{ headers?: Record<string, string> }> = [];
 
   const result = await submitChapterFeedback(
@@ -114,7 +101,6 @@ test('submitChapterFeedback sends the live access token explicitly when one is a
 });
 
 test('submitChapterFeedback converts a blank comment to null before invoke', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<ChapterFeedbackSubmissionInput> = [];
 
   await submitChapterFeedback(
@@ -142,7 +128,6 @@ test('submitChapterFeedback converts a blank comment to null before invoke', asy
 });
 
 test('submitChapterFeedback forwards uploaded audio response metadata', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<ChapterFeedbackSubmissionInput> = [];
 
   const result = await submitChapterFeedback(
@@ -186,7 +171,6 @@ test('submitChapterFeedback forwards uploaded audio response metadata', async ()
 });
 
 test('submitChapterFeedback allows anonymous reviewer identity', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<ChapterFeedbackSubmissionInput> = [];
 
   const result = await submitChapterFeedback(
@@ -217,7 +201,6 @@ test('submitChapterFeedback allows anonymous reviewer identity', async () => {
 });
 
 test('submitChapterFeedback treats the saved database row as the successful outcome', async () => {
-  resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {
     invoke: async () => ({
       data: {
@@ -234,22 +217,9 @@ test('submitChapterFeedback treats the saved database row as the successful outc
   assert.equal(result.saved, true);
   assert.equal(result.exported, false);
   assert.equal(result.error, undefined);
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_submitted',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'saved',
-    },
-  ]);
 });
 
-test('submitChapterFeedback tracks listener feedback with a listener source tag', async () => {
-  resetTrackedBibleExperienceEvents();
-
+test('submitChapterFeedback accepts the listener source screen', async () => {
   const result = await submitChapterFeedback(
     {
       ...baseInput,
@@ -269,21 +239,9 @@ test('submitChapterFeedback tracks listener feedback with a listener source tag'
   );
 
   assert.equal(result.success, true);
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_submitted',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'listener-feedback',
-      detail: 'saved',
-    },
-  ]);
 });
 
 test('submitChapterFeedback returns a failure result when the function invoke errors', async () => {
-  resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {
     invoke: async () => ({
       data: null,
@@ -295,21 +253,9 @@ test('submitChapterFeedback returns a failure result when the function invoke er
   assert.equal(result.saved, false);
   assert.equal(result.exported, false);
   assert.equal(result.error, 'network down');
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_failed',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'network down',
-    },
-  ]);
 });
 
 test('submitChapterFeedback maps a 401 edge-function response into a sign-in retry message', async () => {
-  resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {
     invoke: async () => ({
       data: null,
@@ -329,21 +275,9 @@ test('submitChapterFeedback maps a 401 edge-function response into a sign-in ret
   assert.equal(result.error, 'Please sign in again before sending chapter feedback.');
   // The UI uses this flag to show a localized sign-in prompt instead of the raw message.
   assert.equal(result.requiresSignIn, true);
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_failed',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'Please sign in again before sending chapter feedback.',
-    },
-  ]);
 });
 
 test('submitChapterFeedback surfaces backend auth misconfiguration when the edge runtime rejects the JWT', async () => {
-  resetTrackedBibleExperienceEvents();
   const result = await submitChapterFeedback(baseInput, {
     invoke: async () => ({
       data: null,
@@ -364,21 +298,9 @@ test('submitChapterFeedback surfaces backend auth misconfiguration when the edge
     result.error,
     'Chapter feedback is temporarily unavailable right now. Please try again soon.'
   );
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_failed',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'Chapter feedback is temporarily unavailable right now. Please try again soon.',
-    },
-  ]);
 });
 
 test('submitChapterFeedback refreshes the session and retries once after a 401 edge-function response', async () => {
-  resetTrackedBibleExperienceEvents();
   const calls: Array<{ headers?: Record<string, string> }> = [];
 
   const result = await submitChapterFeedback(
@@ -431,15 +353,30 @@ test('submitChapterFeedback refreshes the session and retries once after a 401 e
       },
     },
   ]);
-  assert.deepEqual(getTrackedBibleExperienceEvents(), [
-    {
-      name: 'chapter_feedback_submitted',
-      translationId: 'bsb',
-      bookId: 'JHN',
-      chapter: 3,
-      sentiment: 'up',
-      source: 'reader-feedback',
-      detail: 'saved',
-    },
-  ]);
+});
+
+// Chapter feedback is deliberately NOT analytics-forwarded: the submit pipeline
+// writes the feedback row itself, so a duplicate usage event carries no value
+// (see the FORWARDED_EVENTS allowlist in bibleExperienceAnalytics.ts). This
+// guards the integration point — before 400f1df2 these tests asserted the
+// opposite, and were left asserting a buffer that no longer records these names.
+test('submitChapterFeedback does not analytics-forward chapter feedback events', async () => {
+  resetTrackedBibleExperienceEvents();
+
+  await submitChapterFeedback(baseInput, {
+    invoke: async () => ({
+      data: { success: true, saved: true, exported: false, feedbackId: 'feedback-forward' },
+      error: null,
+    }),
+  });
+
+  await submitChapterFeedback(baseInput, {
+    invoke: async () => ({ data: null, error: { message: 'network down' } }),
+  });
+
+  assert.deepEqual(
+    getTrackedBibleExperienceEvents(),
+    [],
+    'neither the success nor the failure path may forward a bible-experience event'
+  );
 });
