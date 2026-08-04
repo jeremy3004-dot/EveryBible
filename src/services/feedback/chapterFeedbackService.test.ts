@@ -356,10 +356,10 @@ test('submitChapterFeedback refreshes the session and retries once after a 401 e
 });
 
 // Chapter feedback is deliberately NOT analytics-forwarded: the submit pipeline
-// writes the feedback row itself, so a duplicate usage event carries no value
-// (see the FORWARDED_EVENTS allowlist in bibleExperienceAnalytics.ts). This
-// guards the integration point — before 400f1df2 these tests asserted the
-// opposite, and were left asserting a buffer that no longer records these names.
+// writes the feedback row itself, so a duplicate usage event carries no value.
+// 400f1df2 dropped these names from the FORWARDED_EVENTS allowlist; the calls
+// that fed it were removed afterwards, so the service now emits nothing at all.
+// This guards against either half being reintroduced.
 test('submitChapterFeedback does not analytics-forward chapter feedback events', async () => {
   resetTrackedBibleExperienceEvents();
 

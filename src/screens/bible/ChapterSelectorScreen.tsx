@@ -109,14 +109,6 @@ export function ChapterSelectorScreen() {
   };
 
   const handleCompanionPress = (item: BookCompanionCardModel) => {
-    trackBookHubEvent({
-      name: 'book_companion_opened',
-      bookId: item.target.bookId,
-      chapter: item.target.chapter,
-      source: 'companion',
-      mode: preferredChapterLaunchMode,
-      detail: item.kind,
-    });
     navigation.navigate('BibleReader', {
       ...buildChapterLaunchParams(
         item.target.bookId,

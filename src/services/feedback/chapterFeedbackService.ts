@@ -1,5 +1,4 @@
 import { config } from '../../constants/config';
-import { trackBibleExperienceEvent } from '../analytics/bibleExperienceAnalytics';
 import {
   normalizeChapterFeedbackIdentity,
   type ChapterFeedbackIdentity,
@@ -155,12 +154,6 @@ function buildPayload(
   };
 }
 
-function getAnalyticsSource(
-  sourceScreen: ChapterFeedbackSourceScreen
-): 'reader-feedback' | 'listener-feedback' {
-  return sourceScreen === 'listener' ? 'listener-feedback' : 'reader-feedback';
-}
-
 function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): number | null {
   if (!error) {
     return null;
@@ -271,15 +264,6 @@ export async function submitChapterFeedback(
   const payload = buildPayload(input);
 
   if (!resolvedClient) {
-    trackBibleExperienceEvent({
-      name: 'chapter_feedback_failed',
-      translationId: payload.translationId,
-      bookId: payload.bookId,
-      chapter: payload.chapter,
-      sentiment: payload.sentiment,
-      source: getAnalyticsSource(payload.sourceScreen),
-      detail: 'backend-unconfigured',
-    });
     return {
       success: false,
       saved: false,
@@ -311,15 +295,6 @@ export async function submitChapterFeedback(
     if (error) {
       const resolvedErrorMessage = await resolveFunctionErrorMessage(error);
       const requiresSignIn = getFunctionErrorStatus(error) === 401;
-      trackBibleExperienceEvent({
-        name: 'chapter_feedback_failed',
-        translationId: payload.translationId,
-        bookId: payload.bookId,
-        chapter: payload.chapter,
-        sentiment: payload.sentiment,
-        source: getAnalyticsSource(payload.sourceScreen),
-        detail: resolvedErrorMessage,
-      });
       return {
         success: false,
         saved: false,
@@ -330,15 +305,6 @@ export async function submitChapterFeedback(
     }
 
     if (!data) {
-      trackBibleExperienceEvent({
-        name: 'chapter_feedback_failed',
-        translationId: payload.translationId,
-        bookId: payload.bookId,
-        chapter: payload.chapter,
-        sentiment: payload.sentiment,
-        source: getAnalyticsSource(payload.sourceScreen),
-        detail: 'empty-response',
-      });
       return {
         success: false,
         saved: false,
@@ -347,26 +313,8 @@ export async function submitChapterFeedback(
       };
     }
 
-    trackBibleExperienceEvent({
-      name: data.success ? 'chapter_feedback_submitted' : 'chapter_feedback_failed',
-      translationId: payload.translationId,
-      bookId: payload.bookId,
-      chapter: payload.chapter,
-      sentiment: payload.sentiment,
-      source: getAnalyticsSource(payload.sourceScreen),
-      detail: data.success ? 'saved' : data.error,
-    });
     return data;
   } catch (error) {
-    trackBibleExperienceEvent({
-      name: 'chapter_feedback_failed',
-      translationId: payload.translationId,
-      bookId: payload.bookId,
-      chapter: payload.chapter,
-      sentiment: payload.sentiment,
-      source: getAnalyticsSource(payload.sourceScreen),
-      detail: error instanceof Error ? error.message : 'unexpected-error',
-    });
     return {
       success: false,
       saved: false,

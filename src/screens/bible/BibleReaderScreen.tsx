@@ -3429,13 +3429,6 @@ export function BibleReaderScreen() {
   const handleOpenChapterFeedback = () => {
     setShowChapterActionsSheet(false);
 
-    trackBibleExperienceEvent({
-      name: 'chapter_feedback_opened',
-      translationId: currentTranslation,
-      bookId,
-      chapter,
-      source: 'reader-feedback',
-    });
     setFeedbackSubmitError(null);
     setShowFeedbackModal(true);
   };
