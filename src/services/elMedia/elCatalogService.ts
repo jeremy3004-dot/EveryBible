@@ -1,5 +1,5 @@
-import { isManifestVerificationRuntimeSupported } from '../bible/bibleDataModel';
 import type { ElCatalog } from './elCatalogModel';
+import { isElVerificationRuntimeSupported } from './elRuntimeSupport';
 import { parseElCatalogPayload } from './elCatalogModel';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
@@ -123,10 +123,11 @@ export async function refreshElCatalog(
   deps: ElCatalogServiceDeps = {}
 ): Promise<ElCatalog | null> {
   const storage = deps.storage ?? defaultStorage();
-  const isSupported = deps.isVerificationSupported ?? isManifestVerificationRuntimeSupported;
+  const isSupported = deps.isVerificationSupported ?? isElVerificationRuntimeSupported;
 
-  // Verification is a hard requirement: with no crypto.subtle the EL source is unavailable, and
-  // we must not spend a network request that we cannot validate.
+  // Verification is a hard requirement: we must not spend a network request we cannot validate.
+  // Verification is pure JS now, so this is satisfied on Hermes as well as Node — previously it
+  // gated on crypto.subtle and therefore returned null on every real device.
   if (!isSupported()) return null;
 
   // Read-snapshot the stored record ONCE up front; last-write-wins under concurrent refresh.

@@ -1,5 +1,6 @@
-import { isManifestVerificationRuntimeSupported } from '../bible/bibleDataModel';
 import type { ElCatalogTranslation } from './elCatalogModel';
+import { sha256HexSync } from './elEs256';
+import { isElVerificationRuntimeSupported } from './elRuntimeSupport';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
 import { getElKeys, refreshElJwksForUnknownKeyId } from './elJwks';
@@ -16,10 +17,9 @@ export interface ElManifestServiceDeps {
   fetchFn?: typeof fetch;
   storage?: ElManifestStorage;
   getKeys?: (keyId: string) => Promise<ElJwk[]>;
-  // Digest seam for the integrity pre-check. Defaults to the WebCrypto-backed hasher and
-  // returns null when no digest primitive is available (contract B12: skip the check
-  // silently rather than reject). Injectable so tests can exercise the digest-unavailable
-  // branch without tearing out globalThis.crypto (which jose itself needs to verify).
+  // Digest seam for the integrity pre-check. Defaults to the pure-JS hasher, which always
+  // resolves. Callers inject `async () => null` to skip the check when the catalog entry
+  // carries no manifest_sha256 (contract B12: skip silently rather than reject).
   computeSha256Hex?: (bytes: Uint8Array) => Promise<string | null>;
   isVerificationSupported?: () => boolean;
   // Network fetch timeout in ms. Injectable so tests can exercise the abort path. Aborting is
@@ -79,29 +79,20 @@ function resolveManifestUrl(manifestUrl: string, catalogBaseUrl: string): string
   return `${base}${manifestUrl}`;
 }
 
-function toHex(bytes: Uint8Array): string {
-  let hex = '';
-  for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
-  return hex;
-}
-
-// SHA-256 the manifest bytes when crypto.subtle is present; returns null when unavailable so
-// the caller skips the integrity pre-check silently (contract B12).
+// SHA-256 the manifest bytes. Pure JS (see elEs256.ts), so unlike the previous crypto.subtle
+// implementation this resolves on Hermes too — meaning the integrity pre-check now actually
+// runs on device instead of being silently skipped. The nullable return is retained because
+// callers inject `async () => null` to skip the check when the catalog carries no digest.
 async function sha256Hex(bytes: Uint8Array): Promise<string | null> {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) return null;
   try {
-    // Copy into a fresh Uint8Array so the digest input is a plain ArrayBuffer (never a
-    // SharedArrayBuffer view), which crypto.subtle.digest requires.
-    const digest = await subtle.digest('SHA-256', Uint8Array.from(bytes));
-    return toHex(new Uint8Array(digest));
+    return sha256HexSync(bytes);
   } catch {
     return null;
   }
 }
 
-// Disk cache key derived from the absolute manifest URL: sha256 when crypto is available,
-// else a URL-encoded fallback (both are stable per URL).
+// Disk cache key derived from the absolute manifest URL: sha256, with a URL-encoded fallback
+// if hashing ever fails (both are stable per URL).
 async function diskKeyForUrl(url: string): Promise<string> {
   const hashed = await sha256Hex(new globalThis.TextEncoder().encode(url));
   return `${DISK_KEY_PREFIX}${hashed ?? encodeURIComponent(url)}`;
@@ -123,7 +114,7 @@ async function readDiskCache(
 
 // Resolves the verified, immutable audio manifest for a catalog entry. Cache order is
 // memory → disk → network; a cache hit performs zero fetches. On fetch the raw bytes are
-// integrity-checked (when crypto.subtle is available) against the catalog's manifest_sha256,
+// integrity-checked against the catalog's manifest_sha256 (always, now that hashing is pure JS),
 // then the envelope is verified and the payload is required to match the entry's
 // translation_id and audio_version (anti-document-swap). Any failure falls back to a cached
 // verified copy if present, else null. Never throws, never returns unverified data.
@@ -132,9 +123,9 @@ export async function getElManifest(
   catalogBaseUrl: string,
   deps: ElManifestServiceDeps = {}
 ): Promise<ElAudioManifest | null> {
-  const isSupported = deps.isVerificationSupported ?? isManifestVerificationRuntimeSupported;
+  const isSupported = deps.isVerificationSupported ?? isElVerificationRuntimeSupported;
 
-  // Verification is a hard requirement: with no crypto.subtle the EL source is unavailable.
+  // Verification is a hard requirement: an unverifiable runtime means no EL source.
   // Return null before any work — mirrors refreshElCatalog for a consistent gate. We could
   // instead serve a previously-VERIFIED disk copy here (offline-friendly), but early-null keeps
   // the two services behaviourally identical and avoids trusting a cache we can no longer verify.
@@ -179,7 +170,7 @@ export async function getElManifest(
     clearTimeout(timeoutId);
   }
 
-  // Integrity pre-check against the catalog's file digest (skipped silently if subtle absent).
+  // Integrity pre-check against the catalog's file digest (skipped only when none is given).
   const actualDigest = await computeSha256Hex(bytes);
   if (actualDigest !== null && actualDigest !== entry.manifestSha256) return fail();
 

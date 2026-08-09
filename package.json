@@ -63,6 +63,8 @@
     "@expo-google-fonts/lora": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@kesha-antonov/react-native-background-downloader": "^4.5.4",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-google-signin/google-signin": "^16.1.1",

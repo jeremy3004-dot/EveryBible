@@ -51,6 +51,50 @@ test('rejects when keyId is not in the key set', async () => {
   assert.equal(await verifyElEnvelope({ ...catalogEnvelope, keyId: 'unknown-kid' }, jwks), null);
 });
 
+// Regression: Hermes (React Native) exposes NO globalThis.crypto at all — verified on an
+// iOS 26.5 simulator, where `typeof globalThis.crypto` is 'undefined'. Verification previously
+// went through `jose`, which requires crypto.subtle, so on-device the EL catalog silently
+// resolved to null and no EL translation ever reached the picker. Every existing test passed
+// because node:test provides real WebCrypto. This test removes it to model the real runtime.
+test('verifies without any globalThis.crypto (Hermes/React Native runtime)', async () => {
+  const savedCrypto = globalThis.crypto;
+  // @ts-expect-error - deliberately modelling a runtime that has no WebCrypto at all.
+  delete globalThis.crypto;
+  try {
+    assert.equal(globalThis.crypto, undefined);
+    const payload = (await verifyElEnvelope(catalogEnvelope, jwks)) as Record<
+      string,
+      unknown
+    > | null;
+    assert.ok(payload, 'catalog envelope must verify with no WebCrypto present');
+    assert.equal(payload.schema_version, 'lqd-catalog/v1');
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: savedCrypto,
+      configurable: true,
+      writable: true,
+    });
+  }
+});
+
+test('rejects a tampered signature with no globalThis.crypto', async () => {
+  const savedCrypto = globalThis.crypto;
+  // @ts-expect-error - deliberately modelling a runtime that has no WebCrypto at all.
+  delete globalThis.crypto;
+  try {
+    const parts = catalogEnvelope.compactJws.split('.');
+    const tamperedSig = parts[2].slice(0, -2) + (parts[2].endsWith('A') ? 'BB' : 'AA');
+    const tampered = { ...catalogEnvelope, compactJws: [parts[0], parts[1], tamperedSig].join('.') };
+    assert.equal(await verifyElEnvelope(tampered, jwks), null);
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: savedCrypto,
+      configurable: true,
+      writable: true,
+    });
+  }
+});
+
 test('rejects kid/keyId mismatch', async () => {
   // envelope claims the dev kid but we present a key set where that kid maps to a different key
   const wrongKey = {

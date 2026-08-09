@@ -34,13 +34,13 @@ export async function verifyElEnvelope(
   const jwk = keys.find((key) => key.kid === envelope.keyId);
   if (!jwk) return null;
   try {
-    const { importJWK, compactVerify } = await import('jose');
-    const publicKey = await importJWK(jwk as Parameters<typeof importJWK>[0], 'ES256');
-    const { payload, protectedHeader } = await compactVerify(envelope.compactJws, publicKey, {
-      algorithms: ['ES256'],
-    });
-    if (protectedHeader.kid !== envelope.keyId) return null;
-    return JSON.parse(new TextDecoder().decode(payload)) as unknown;
+    // Pure-JS ES256 (see elEs256.ts). Deliberately NOT `jose`: it requires WebCrypto, which
+    // Hermes does not provide, so on-device every EL envelope silently failed to verify.
+    const { verifyEs256CompactJws } = await import('./elEs256');
+    const verified = verifyEs256CompactJws(envelope.compactJws, jwk);
+    if (!verified) return null;
+    if (verified.protectedHeader.kid !== envelope.keyId) return null;
+    return JSON.parse(new TextDecoder().decode(verified.payload)) as unknown;
   } catch {
     return null;
   }
