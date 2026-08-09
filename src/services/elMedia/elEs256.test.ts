@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { p256 } from '@noble/curves/nist.js';
 
 import { base64UrlToBytes, sha256HexSync, verifyEs256CompactJws } from './elEs256';
 
@@ -76,4 +77,35 @@ test('verifyEs256CompactJws rejects malformed keys, signatures, and headers', ()
   assert.equal(verifyEs256CompactJws(`${noneHeader}.${payload}.${sig}`, jwk), null);
   // Header that is not JSON at all.
   assert.equal(verifyEs256CompactJws(`${payload}.${payload}.${sig}`, jwk), null);
+});
+
+test('verifyEs256CompactJws forces noble to parse the fixed-width compact format', () => {
+  // This valid fixture deliberately starts with a DER-looking 0x30, 0x3e prefix. Without an
+  // explicit format, noble attempts DER parsing first, which is not the JWS signature format.
+  const jwk = {
+    kty: 'EC' as const,
+    crv: 'P-256' as const,
+    kid: 'k',
+    x: 'axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY',
+    y: 'T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU',
+  };
+  const compactJws =
+    'eyJhbGciOiJFUzI1NiIsImtpZCI6ImsifQ.eyJmaXh0dXJlIjo4ODAyN30.MD4rxQ2f3DDvP4VguR1KIWap4CBz9rsIeYiMx0Q0x7-P2bKp1xwArS-lkyHnZCJRNuxMWBuwSlP3S_dUpP_0GQ';
+  const signature = base64UrlToBytes(compactJws.split('.')[2]);
+  assert.ok(signature);
+  assert.deepEqual(Array.from(signature.slice(0, 2)), [0x30, 0x3e]);
+
+  const originalVerify = p256.verify;
+  let options: Parameters<typeof p256.verify>[3] | undefined;
+  p256.verify = ((sig, message, publicKey, verifyOptions) => {
+    options = verifyOptions;
+    return originalVerify(sig, message, publicKey, verifyOptions);
+  }) as typeof originalVerify;
+  try {
+    assert.ok(verifyEs256CompactJws(compactJws, jwk));
+  } finally {
+    p256.verify = originalVerify;
+  }
+
+  assert.deepEqual(options, { format: 'compact', lowS: false });
 });

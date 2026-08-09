@@ -137,6 +137,10 @@ export function verifyEs256CompactJws(
   let isValid = false;
   try {
     isValid = p256.verify(signature, sha256(signingInput), publicKey, {
+      // JWS signatures are fixed-width R||S, while noble otherwise tries DER first when no
+      // format is provided. Force compact parsing so a DER-shaped 64-byte signature cannot be
+      // misinterpreted before the JWS format is applied.
+      format: 'compact',
       // JWS/WebCrypto do not require the signature's s value to be in the lower half of the
       // curve order, but noble enforces that by default. Leaving it on would reject roughly
       // half of all otherwise-valid signatures. Malleability is irrelevant here: we verify a
