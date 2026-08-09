@@ -76,5 +76,33 @@ target 'EveryBible' do
 
       File.write(resource_script, updated_contents)
     end
+
+    # fmt 11.0.2 (pinned transitively by RCT-Folly) fails to compile under the
+    # Clang shipped with Xcode 26, which correctly rejects fmt's own internal
+    # FMT_STRING(...) calls inside consteval context:
+    #   fmt/format-inl.h:59 error: call to consteval function
+    #   'fmt::basic_format_string<...>' is not a constant expression
+    # Upstream fixed this in fmt 11.1.0, but React Native pins `fmt (= 11.0.2)`
+    # so we cannot bump it here. Disabling consteval downgrades those format
+    # strings from compile-time to run-time checked, which is exactly the
+    # behaviour fmt itself selects on any toolchain lacking consteval support.
+    #
+    # This has to patch the header rather than pass -DFMT_USE_CONSTEVAL=0:
+    # base.h defines BOTH FMT_USE_CONSTEVAL and FMT_CONSTEVAL unconditionally
+    # (no #ifndef guard), so any external -D for either one is overwritten.
+    # Remove this once React Native ships a fmt >= 11.1.0.
+    fmt_base_header = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base_header)
+      contents = File.read(fmt_base_header)
+      patched = contents.gsub('#  define FMT_USE_CONSTEVAL 1', '#  define FMT_USE_CONSTEVAL 0')
+
+      unless patched == contents
+        # CocoaPods checks out pod sources read-only, so restore the mode after.
+        original_mode = File.stat(fmt_base_header).mode
+        File.chmod(0o644, fmt_base_header)
+        File.write(fmt_base_header, patched)
+        File.chmod(original_mode, fmt_base_header)
+      end
+    end
   end
 end
