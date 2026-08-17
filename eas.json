@@ -7,6 +7,10 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_EL_MEDIA_BASE_URL": "https://lqd-media.platform-979.workers.dev",
+        "EXPO_PUBLIC_EL_MEDIA_SOURCE": "true"
+      },
       "ios": {
         "simulator": true
       },
@@ -16,6 +20,10 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_EL_MEDIA_BASE_URL": "https://lqd-media.platform-979.workers.dev",
+        "EXPO_PUBLIC_EL_MEDIA_SOURCE": "true"
+      },
       "ios": {
         "simulator": false
       },
@@ -26,7 +34,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4g"
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4g",
+        "EXPO_PUBLIC_EL_MEDIA_BASE_URL": "https://lqd-media.platform-979.workers.dev"
       },
       "ios": {
         "resourceClass": "m-medium",

@@ -26,8 +26,11 @@ export interface ElCatalog {
 import { isNonEmptyString, isNonNegativeInteger, isSha256Hex } from './elParseGuards';
 
 const EL_CATALOG_SCHEMA_PREFIX = 'lqd-catalog/v1';
-// Collision guard: EL ids are always lq-prefixed, lowercase — reject anything else.
-const EL_TRANSLATION_ID_RE = /^lq[a-z0-9][a-z0-9-]*$/;
+// Collision guard: EL ids are always lowercase and either `el-{slug}` (the permanent,
+// source-agnostic id scheme as of the 2026-08-15 contract rev) or `lq`-prefixed (the
+// grandfathered ids, e.g. the `lqdtest` fixture). Both stay collision-proof against the
+// app's eBible-style ids — reject anything else.
+const EL_TRANSLATION_ID_RE = /^(el-|lq)[a-z0-9][a-z0-9-]*$/;
 // Only absolute http(s) base URLs are trusted.
 const HTTP_URL_RE = /^https?:\/\//;
 

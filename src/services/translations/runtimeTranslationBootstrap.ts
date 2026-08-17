@@ -70,7 +70,7 @@ export async function bootstrapRuntimeTranslations(): Promise<void> {
 
   // Additive EL merge, piggybacking the same once-per-launch hydration. Re-applies the
   // COMBINED [Supabase, EL] list so both sets survive under either ordering (EL ids are
-  // lq-prefixed and collision-proof); any EL failure is swallowed and never affects the
+  // `el-`/`lq`-prefixed and collision-proof); any EL failure is swallowed and never affects the
   // Supabase flow above. Only reached when the flag resolves a URL, so it is a no-op with
   // zero startup cost otherwise.
   if (isElActive) {

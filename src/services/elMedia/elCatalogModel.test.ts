@@ -117,12 +117,69 @@ test('skips entries whose translation_id fails the collision guard', () => {
       translations: [
         { ...validEntry(), translation_id: 'bsb' },
         { ...validEntry(), translation_id: 'LQDT' },
+        { ...validEntry(), translation_id: 'EL-BHUJEL' },
+        { ...validEntry(), translation_id: 'el-' },
+        { ...validEntry(), translation_id: 'elephant' },
         validEntry(),
       ],
     })
   );
   assert.ok(catalog);
   assert.equal(catalog.translations.length, 1);
+});
+
+// Contract rev 2026-08-15: EL translation ids are `el-{slug}` (source-agnostic permanent
+// ids); `lqdtest` stays grandfathered. A regex that rejects `el-*` drops every real EL
+// translation *silently*, because the parser is deliberately tolerant.
+test('keeps el-prefixed translation ids from the production catalog', () => {
+  const catalog = parseElCatalogPayload(
+    validCatalog({
+      translations: [
+        {
+          ...validEntry(),
+          translation_id: 'el-bhujel',
+          language_iso639_3: 'byh',
+          language_name: 'Bhujel',
+          translation_name: 'Bhujel Bible',
+          abbreviation: 'BYH',
+          source: 'every-language',
+          current_audio_version: 'v2026-08-15-2',
+          manifest_url: '/manifests/audio/el-bhujel/v2026-08-15-2.json',
+        },
+        validEntry(),
+      ],
+    })
+  );
+  assert.ok(catalog);
+  assert.equal(catalog.translations.length, 2);
+  assert.equal(catalog.translations[0].translationId, 'el-bhujel');
+  assert.equal(
+    catalog.translations[0].manifestUrl,
+    '/manifests/audio/el-bhujel/v2026-08-15-2.json'
+  );
+  assert.equal(catalog.translations[1].translationId, 'lqdtest');
+});
+
+// `mis` is ISO 639-3's own "uncoded languages" value; many EL field languages have no
+// ISO code, so it appears verbatim and must not disqualify an entry.
+test('accepts the ISO uncoded-language value and unknown source labels', () => {
+  const catalog = parseElCatalogPayload(
+    validCatalog({
+      translations: [
+        {
+          ...validEntry(),
+          translation_id: 'el-santhali',
+          language_iso639_3: 'mis',
+          language_glottocode: 'sant1410',
+          source: 'some-future-source',
+        },
+      ],
+    })
+  );
+  assert.ok(catalog);
+  assert.equal(catalog.translations.length, 1);
+  assert.equal(catalog.translations[0].languageIso6393, 'mis');
+  assert.equal(catalog.translations[0].source, 'some-future-source');
 });
 
 test('drops an invalid text_direction but keeps the entry', () => {

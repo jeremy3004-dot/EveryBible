@@ -44,7 +44,7 @@ const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
  * applyRuntimeCatalog → mergeRuntimeCatalogTranslations only preserves prior runtime rows that
  * are downloaded/installed, so a second, EL-only apply would WIPE the freshly-applied but
  * not-yet-downloaded Supabase entries. Re-applying the combined list keeps BOTH sets under
- * either ordering (EL ids are lq-prefixed and collision-proof with Supabase ids).
+ * either ordering (EL ids are `el-`/`lq`-prefixed and collision-proof with Supabase ids).
  *
  * The whole EL path is guarded: a null resolver (flag off / unconfigured) short-circuits
  * BEFORE the heavy step loads, and any EL failure is swallowed so the existing (Supabase)

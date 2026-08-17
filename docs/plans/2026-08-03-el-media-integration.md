@@ -739,3 +739,54 @@ Commit as a small series (workflows app, admin surface, scripts/workspace, migra
 2. Confirm the app pins `lqd-prod-2026-a` + `lqd-dev-2026-a` and treats JWKS as rotation-only, as recommended.
 3. Picker UX decision (his open question): EL translations surface as audio-only sources in the audio-source/preference selection, grouped by language, labeled with `translation_name`/`abbreviation`, autonym-preferred language labels. Not selectable as a primary text translation until EL ships text packs.
 4. Timing (his open question): T1–T5 are one focused implementation session plus device QA — realistic calendar time ~1 week from start; well ahead of K2 in September.
+
+---
+
+## Part G — Contract rev 2026-08-15 (Skyler handoff) — LANDED 2026-08-17
+
+Source: `el-media-handoff-2026-08-15.md`. Supersedes the specific rows below; everything else
+in this plan stands as-built. T1–T5 were reviewed by EL and endorsed, including the deliberate
+deferrals (per-chapter downloaded-bytes hashing, `manifest_sha256` not threaded into the audio
+path).
+
+### What changed in the contract
+
+| Change | App-side effect |
+|---|---|
+| `translation_id` is now `el-{slug}` (source-agnostic permanent ids); `lqdtest` grandfathered | **Required fix, landed:** the collision guard in `elCatalogModel.ts` is now `/^(el-\|lq)[a-z0-9][a-z0-9-]*$/`. The old `lq`-only regex dropped every real EL translation *silently*, because the parser is deliberately tolerant. Regression tests: `keeps el-prefixed translation ids from the production catalog` |
+| `language_iso639_3` may be `mis` (ISO's own "uncoded language" value) | None — picker grouping keys off English `language_name`, and `mapElLanguageCode` passes unknown codes through unchanged. Covered by a parser test |
+| New optional `language_glottocode` (e.g. `sant1410`) | None — unknown fields are ignored by design; available if code-keyed grouping is ever wanted |
+| `source` is no longer the constant `"langquest"` — opaque provenance label | None — no code enums it. The `has_text === false && source === 'langquest'` phrasing in §B6 above is stale: the picker gate is `hasText === false`, never the source value |
+| Launch domain will be `bible.everylanguage.com` (not `media.everylanguage.com`) | Cosmetic until cutover; the dev worker keeps serving through the transition. `.env.example` updated |
+| A third dev-only kid `lqd-dev-2026-b` appears in the JWKS | None — it never signs anything the app consumes; rotation-discovery path handles it |
+
+### Live content as of the handoff
+
+`el-bhujel` — "Bhujel Bible" (BYH, iso `byh`), `v2026-08-15-2`: the complete book of Job,
+42 chapters, 3.9 h of measured-duration audio, in the **production** catalog. Catalog
+`sequence` is 3, still signed with the pinned `lqd-prod-2026-a`. Remaining Bhujel OT books
+publish over the following days under the same translation id (new catalog versions), and
+~322 chapters across more `el-{slug}` languages are export-ready in the first wave.
+Additive `verse_timings` (per-chapter verse → `{start_ms, end_ms}`) is planned upstream —
+ignore until verse navigation/highlighting is wanted.
+
+### Build-plumbing gaps closed (EL's review found all three)
+
+1. `app.config.js` `PUBLIC_RUNTIME_CONFIG_KEYS` now includes `EXPO_PUBLIC_EL_MEDIA_BASE_URL`,
+   so release builds resolve it from Expo `extra` and not just inlined env. A new test
+   (`app config allowlist matches the public runtime config keys`) fails on any future drift
+   between that allowlist and `publicRuntimeConfig.ts`.
+2. `eas.json` now sets `EXPO_PUBLIC_EL_MEDIA_BASE_URL` in the `development`, `preview`, and
+   `production` build profiles.
+3. `el_media_source` has an enable path: `EXPO_PUBLIC_EL_MEDIA_SOURCE=true|1` resolves the
+   flag ON (precedence: explicit `setFeatureFlagOverride` > env opt-in > `FEATURE_FLAG_DEFAULTS`).
+   `development` and `preview` builds set it; **production deliberately does not**, so prod
+   stays inert until the launch cutover. A test asserts that production gate.
+
+### Revised rollout gates (supersede Part F)
+
+| Gate | Action | Status |
+|---|---|---|
+| Dev soak | `development`/`preview` builds now resolve the flag ON against `lqd-media.platform-979.workers.dev`; expect the book of Job in Bhujel to appear as an audio-only source and play | Ready — needs on-device QA |
+| K2 | Joint check with Skyler (`el-bhujel` + Santhali via `catalog.dev.json`) | EL side, ~September |
+| Launch cutover | Point `EXPO_PUBLIC_EL_MEDIA_BASE_URL` at `https://bible.everylanguage.com` and add `EXPO_PUBLIC_EL_MEDIA_SOURCE=true` to the `production` profile (which flips the test in `runtimeConfig.test.ts` — update it deliberately, in the same commit), then release via the normal TestFlight flow | When Skyler gives notice |
