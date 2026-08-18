@@ -51,6 +51,10 @@ yarn-error.*
 !/ios/EveryBible.xcodeproj/xcshareddata/xcschemes/EveryBible.xcscheme
 !/ios/Podfile
 !/ios/Podfile.properties.json
+# Tracked so every EAS archive resolves the same pod versions. Without it each
+# build re-resolves against the CocoaPods trunk and picks up upstream releases
+# that were never tested here.
+!/ios/Podfile.lock
 /android
 .env
 .claude-flow/

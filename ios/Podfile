@@ -53,6 +53,17 @@ target 'EveryBible' do
   pod 'GoogleUtilities', :modular_headers => true
   pod 'RecaptchaInterop', :modular_headers => true
 
+  # MMKVCore 2.4.1 added a secure_wipe() helper that calls memset_s() whenever
+  # MMKV_APPLE is defined, but Apple's <string.h> only declares memset_s when
+  # __STDC_WANT_LIB_EXT1__ is set before it is included. The pod therefore fails
+  # to compile against the Xcode 26 SDK with:
+  #   AESCrypt.cpp:83 error: use of undeclared identifier 'memset_s'
+  # react-native-mmkv only requires ">= 1.3.3", so an unpinned resolve picks up
+  # the broken release. Hold both pods at the last version that builds; drop the
+  # pin once upstream fixes the guard.
+  pod 'MMKV', '2.4.0'
+  pod 'MMKVCore', '2.4.0'
+
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
