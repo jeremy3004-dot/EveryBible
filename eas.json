@@ -44,6 +44,13 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "testflight-el": {
+      "extends": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_EL_MEDIA_SOURCE": "true"
+      }
     }
   },
   "submit": {
