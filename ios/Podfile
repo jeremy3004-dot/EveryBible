@@ -41,6 +41,18 @@ target 'EveryBible' do
 
   config = use_native_modules!(config_command)
 
+  # AppCheckCore ships as a Swift pod and is pulled in transitively by
+  # @react-native-google-signin. CocoaPods refuses to integrate a Swift pod as a
+  # static library unless its Objective-C dependencies generate module maps, so
+  # a clean `pod install` fails with:
+  #   [!] The following Swift pods cannot yet be integrated as static libraries
+  # Opt just those two dependencies into modular headers instead of flipping
+  # use_modular_headers! globally, which would change how every pod is built.
+  # Podfile.lock is untracked, so every EAS archive resolves pods from scratch
+  # and hits this; pinning it here keeps clean-checkout builds reproducible.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
