@@ -446,6 +446,12 @@ test('translation picker keeps search results reachable above the on-screen keyb
 
   assert.match(
     source,
+    /contentContainerStyle=\{translationListContentStyle\}/,
+    'TranslationPickerList should actually feed the keyboard-aware style to the FlashList — asserting the style exists is not enough, since reverting this one prop would leave every other assertion passing'
+  );
+
+  assert.match(
+    source,
     /keyboardShouldPersistTaps="handled"/,
     'TranslationPickerList should keep single-tap row activation while the keyboard is up'
   );
