@@ -422,3 +422,37 @@ test('translation picker keeps the delete chip available for any translation wit
     'TranslationPickerList should route delete-chip presses through the shared translation cleanup action'
   );
 });
+
+test('translation picker keeps search results reachable above the on-screen keyboard', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /import \{[^}]*useKeyboardBottomInset[^}]*\} from '\.\.\/\.\.\/hooks';/,
+    'TranslationPickerList should read the live keyboard inset so list padding can grow while the search keyboard is open'
+  );
+
+  assert.match(
+    source,
+    /keyboardDismissMode="on-drag"/,
+    'TranslationPickerList should dismiss the keyboard when the user drags the translation list'
+  );
+
+  assert.match(
+    source,
+    /paddingBottom:\s*layout\.sectionGap \+ keyboardBottomInset/,
+    'TranslationPickerList should extend the FlashList bottom padding by the keyboard height so rows behind the keyboard can scroll into view'
+  );
+
+  assert.match(
+    source,
+    /keyboardShouldPersistTaps="handled"/,
+    'TranslationPickerList should keep single-tap row activation while the keyboard is up'
+  );
+
+  assert.match(
+    source,
+    /translationListContent:[\s\S]*paddingBottom:\s*layout\.sectionGap/,
+    'TranslationPickerList should keep the static content style for the keyboard-free ScrollViews (languages mode and the audio manager)'
+  );
+});

@@ -15,7 +15,7 @@ import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useI18n } from '../../hooks';
+import { useI18n, useKeyboardBottomInset } from '../../hooks';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import {
   isAudioBookDownloaded,
@@ -73,6 +73,19 @@ export function TranslationPickerList({
 }: TranslationPickerListProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
+  const keyboardBottomInset = useKeyboardBottomInset();
+
+  // The search box lives inside this list, and the picker's own sheet is a plain
+  // Modal that iOS never resizes for the keyboard. Growing the scrollable extent
+  // by the keyboard height is what lets the bottom rows reach above it.
+  // FlashList wants a plain ContentStyle object, not a StyleSheet reference.
+  const translationListContentStyle = useMemo(
+    () => ({
+      paddingTop: spacing.sm,
+      paddingBottom: layout.sectionGap + keyboardBottomInset,
+    }),
+    [keyboardBottomInset]
+  );
 
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
@@ -951,11 +964,12 @@ export function TranslationPickerList({
           data={translationRows}
           renderItem={renderTranslationRow}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.translationListContent}
+          contentContainerStyle={translationListContentStyle}
           showsVerticalScrollIndicator={false}
           estimatedItemSize={TRANSLATION_PICKER_ROW_ESTIMATED_SIZE}
           getItemType={(item) => item.type}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           extraData={{
             activeAudioDownloadKey,
             colors,
