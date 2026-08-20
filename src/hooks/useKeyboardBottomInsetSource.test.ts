@@ -19,7 +19,7 @@ test('useKeyboardBottomInset tracks the iOS keyboard frame and stays inert on An
   assert.match(
     source,
     /Platform\.OS !== 'ios'/,
-    "useKeyboardBottomInset should return 0 on Android, where softwareKeyboardLayoutMode=resize already shrinks the window and extra padding would double-compensate"
+    'useKeyboardBottomInset should return 0 on Android so behavior there stays byte-identical until the overlap is measured on a real device — the screen-math shortcuts are unsound on Android and would risk double-compensating'
   );
 
   assert.match(
