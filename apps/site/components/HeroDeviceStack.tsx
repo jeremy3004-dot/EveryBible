@@ -71,7 +71,7 @@ function Phone({ src, alt, width, height, style, priority }: PhoneProps) {
 export function HeroDeviceStack() {
   return (
     <div className="device-stack">
-      {/* Warm maroon glow beneath phones */}
+      {/* EL-blue ground glow beneath the phones */}
       <div className="device-stack__glow" />
 
       {/* Left phone – search */}

@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { AdminNavLink } from '@/components/AdminNavLink';
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { OperatorLauncher } from '@/components/OperatorLauncher';
 import { StatusPill } from '@/components/StatusPill';
@@ -38,10 +38,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <p className="nav-group__label">{section.group}</p>
               <div className="nav-group__items">
                 {section.items.map((item) => (
-                  <Link key={item.href} href={item.href} className="nav-link">
-                    <span>{item.label}</span>
-                    <small>{item.description}</small>
-                  </Link>
+                  <AdminNavLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    description={item.description}
+                  />
                 ))}
               </div>
             </div>

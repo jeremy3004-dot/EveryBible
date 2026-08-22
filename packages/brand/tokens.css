@@ -1,63 +1,415 @@
 /* ================================================================
-   EveryBible — Unified "Illuminated" brand tokens (CANONICAL SOURCE)
+   Every Language — design-system tokens (CANONICAL SOURCE)
    ----------------------------------------------------------------
-   Single source of truth for the EveryBible brand across every web
-   surface (marketing site + admin) and mirrored from the mobile
-   app's palette in src/constants/colors.ts.
+   Ported verbatim from the Every Language Design System kit
+   ("Field Sync 2026.07"), which is byte-verified against the live
+   Field product at field.everylanguage.com.
 
-   The accent is ONE ember terracotta. Two surface families: warm
-   ivory (light) and warm ink (dark). No blues, no maroon, no cool
-   greys — those older per-app palettes are retired.
+   This is the single source of truth for every EveryBible web
+   surface (apps/site + apps/admin). The retired "Illuminated" ember
+   palette is gone from the web; the mobile app keeps its own palette
+   in src/constants/colors.ts and is intentionally NOT covered here.
 
-   NOTE ON USAGE: apps/site and apps/admin are deployed as separate
-   Vercel projects with different root directories, so they cannot
-   reliably share a cross-package CSS import at build time. Each app
-   therefore mirrors these exact values in its own globals.css /
-   neo-swiss.css, and a source-text test in each app asserts the
-   ember values stay in sync with this file. When you change a token
-   here, update both apps and their brand tests.
+   CONVENTION: colors are bare HSL triplets, consumed as
+   `hsl(var(--primary))` or `hsl(var(--primary) / 0.35)`. Prefer the
+   semantic tokens (--background, --card, --primary) over the raw
+   --brand-* / --series-* tokens; reach for those only when the role
+   really is brand or data.
+
+   USAGE: apps/site and apps/admin deploy as separate Vercel projects
+   with different root directories, so they cannot reliably share a
+   cross-package CSS import at build time. Each app mirrors these
+   exact values in its own stylesheet:
+
+     - apps/site/app/globals.css
+     - apps/admin/app/el-field.css
+
+   A source-text test in each app (brandTokens.test.ts) asserts the
+   values stay in sync with this file. When you change a token here,
+   update both apps and re-run their brand tests.
    ================================================================ */
 
+/* Webfonts. Field loads all three families from Google Fonts; there are no
+   local binaries in the source kit (see readme.md → Fonts). */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 :root {
-  /* ── Accent — ember terracotta (the brand) ───────────────────── */
-  --eb-ember:        #D96C57; /* primary accent, CTAs, active states */
-  --eb-ember-soft:   #E08573; /* hover / lighter accent */
-  --eb-ember-deep:   #B85441; /* pressed, and accent TEXT on light surfaces (AA) */
-  --eb-ember-darkest:#8F3D2E; /* strongest press / deep link text */
-  --eb-ember-tint:   rgba(217, 108, 87, 0.10); /* subtle fills */
-  --eb-ember-glow:   rgba(217, 108, 87, 0.25); /* halos, globe atmosphere */
+  --font-display: 'Bricolage Grotesque', 'Archivo', system-ui, sans-serif; /* @kind font */
+  --font-name: var(--font-display); /* @kind font */
+  --font-ui: 'Archivo', system-ui, -apple-system, sans-serif; /* @kind font */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; /* @kind font */
 
-  /* ── Dark family — "warm ink" (admin + site dark bands) ──────── */
-  --eb-ink-bg:       #161412;
-  --eb-ink-surface:  #1E1B18;
-  --eb-ink-elevated: #262220;
-  --eb-ink-divider:  rgba(242, 237, 227, 0.08);
-  --eb-ink-border:   rgba(242, 237, 227, 0.10);
-  --eb-ink-text:     #F2EDE3; /* warm parchment-white */
-  --eb-ink-muted:    #A8A094;
-  --eb-ink-dim:      #857D72;
+  --text-display: clamp(40px, 6vw, 72px); /* @kind font */
+  --text-h1: 32px; /* @kind font */
+  --text-h2: 24px; /* @kind font */
+  --text-h3: 18px; /* @kind font */
+  --text-body: 15px; /* @kind font */
+  --text-caption: 13px; /* @kind font */
+  --text-eyebrow: 11px; /* @kind font */
+  --text-min: 12px; /* @kind font */
 
-  /* ── Light family — "warm ivory" (site) ──────────────────────── */
-  --eb-ivory-bg:     #F2EDE3; /* brightest ivory */
-  --eb-ivory-deep:   #ECE6DA; /* page base, one step down */
-  --eb-ivory-card:   #FAF6ED;
-  --eb-ivory-border: #D8D1C2;
-  --eb-ivory-text:   #26221E; /* warm near-black ink */
-  --eb-ivory-muted:  #74706A;
-  --eb-ivory-dim:    #9A948B;
+  --tracking-display: -0.04em; /* @kind other */
+  --tracking-heading: -0.025em; /* @kind other */
+  --tracking-eyebrow: 0.18em; /* @kind other */
+  --leading-display: 0.92; /* @kind other */
+  --leading-heading: 1.25; /* @kind other */
+  --leading-body: 1.5; /* @kind other */
+}
 
-  /* ── Support / status (shared, tuned warm) ───────────────────── */
-  --eb-parchment:    #D0C2AF; /* complementary warm neutral */
-  --eb-amber:        #D0A35A;
-  --eb-success:      #80C16F;
-  --eb-warning:      #D0A35A;
-  --eb-danger:       #FF7B72; /* on dark; use --eb-ember-darkest for light errors */
+:root {
+  /* Paper foundation — Field vellum canvas, lit paper panels, warm ink */
+  --vellum: 40 26% 92%; /* @kind color */
+  --vellum-lit: 44 40% 97%; /* @kind color */
+  --ink: 48 13% 9%; /* @kind color */
+  --graphite: 45 14% 36%; /* @kind color */
 
-  /* ── Type ─────────────────────────────────────────────────────
-     Fraunces = display/headings on every surface.
-     DM Sans  = UI/body/data (with tabular-nums for numbers).
-     JetBrains Mono = code/scripture refs. */
-  --eb-font-display: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
-  --eb-font-body:    'DM Sans', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
-  --eb-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Semantic surfaces */
+  --background: var(--vellum); /* @kind color */
+  --foreground: var(--ink); /* @kind color */
+  --card: var(--vellum-lit); /* @kind color */
+  --card-foreground: var(--ink); /* @kind color */
+  --popover: 44 44% 98%; /* @kind color */
+  --popover-foreground: var(--ink); /* @kind color */
+  --secondary: 42 22% 89%; /* @kind color */
+  --secondary-foreground: 48 10% 22%; /* @kind color */
+  --muted: 42 22% 90%; /* @kind color */
+  --muted-foreground: var(--graphite); /* @kind color */
+  --text-faint: 45 12% 39%; /* @kind color */
+
+  /* Product accent */
+  --primary: 200 100% 45%; /* @kind color */
+  --primary-foreground: 0 0% 100%; /* @kind color */
+  --primary-deep: 200 100% 28%; /* @kind color */
+  --primary-deep-foreground: 0 0% 100%; /* @kind color */
+  --accent: 204 87% 92%; /* @kind color */
+  --accent-foreground: 200 100% 28%; /* @kind color */
+
+  /* Structure */
+  --border: 42 12% 80%; /* @kind color */
+  --card-border: 42 14% 76%; /* @kind color */
+  --input: 42 12% 80%; /* @kind color */
+  --ring: 200 100% 45%; /* @kind color */
+  --rule-ink: 1.5px solid hsl(var(--ink) / 0.8); /* @kind color */
+
+  --destructive: 0 72% 48%; /* @kind color */
+  --destructive-foreground: 0 0% 100%; /* @kind color */
+
+  /* Status families — solid for dots/bars, *-soft for chips and banners */
+  --success: 147 51% 37%; /* @kind color */
+  --success-foreground: 0 0% 100%; /* @kind color */
+  --success-soft: 142 46% 83%; /* @kind color */
+  --success-soft-foreground: 147 54% 27%; /* @kind color */
+
+  --warning: 30 79% 46%; /* @kind color */
+  --warning-foreground: 0 0% 100%; /* @kind color */
+  --warning-soft: 34 80% 84%; /* @kind color */
+  --warning-soft-foreground: 29 80% 30%; /* @kind color */
+
+  --danger: 354 65% 47%; /* @kind color */
+  --danger-foreground: 0 0% 100%; /* @kind color */
+  --danger-soft: 354 64% 87%; /* @kind color */
+  --danger-soft-foreground: 354 65% 34%; /* @kind color */
+
+  --info: 200 100% 45%; /* @kind color */
+  --info-foreground: 0 0% 100%; /* @kind color */
+  --info-soft: 204 90% 87%; /* @kind color */
+  --info-soft-foreground: 200 100% 28%; /* @kind color */
+
+  --neutral: 35 5% 47%; /* @kind color */
+  --neutral-foreground: 0 0% 100%; /* @kind color */
+  --neutral-soft: 40 12% 85%; /* @kind color */
+  --neutral-soft-foreground: 40 5% 32%; /* @kind color */
+
+  /* Official EL brand colors — brand-asset use only, not semantic surfaces */
+  --brand-blue: 200 100% 45%; /* @kind color */
+  --brand-blue-deep: 200 100% 28%; /* @kind color */
+  --brand-tan: 60 32% 83%; /* @kind color */
+  --brand-offwhite: 40 24% 90%; /* @kind color */
+  --brand-lightblue: 206 100% 84%; /* @kind color */
+  --brand-red: 354 65% 47%; /* @kind color */
+
+  /* Field data series — use in order */
+  --sea: 200 100% 45%; /* @kind color */
+  --reef: 171 64% 33%; /* @kind color */
+  --ochre: 40 79% 48%; /* @kind color */
+  --clay: 23 53% 49%; /* @kind color */
+  --dusk: 254 49% 55%; /* @kind color */
+  --sage: 90 23% 46%; /* @kind color */
+
+  --series-1: var(--sea); /* @kind color */
+  --series-2: var(--reef); /* @kind color */
+  --series-3: var(--ochre); /* @kind color */
+  --series-4: var(--clay); /* @kind color */
+  --series-5: var(--dusk); /* @kind color */
+  --series-6: var(--sage); /* @kind color */
+  --target: var(--ochre); /* @kind color */
+  --accent-2: var(--reef); /* @kind color */
+  --accent-2-deep: 171 70% 24%; /* @kind color */
+
+  /* Sequential map scale */
+  --elev-1: 96 24% 93%; /* @kind color */
+  --elev-2: 176 30% 74%; /* @kind color */
+  --elev-3: 192 46% 60%; /* @kind color */
+  --elev-4: 199 64% 45%; /* @kind color */
+  --elev-5: 201 88% 27%; /* @kind color */
+  --seq-1: var(--elev-1); /* @kind color */
+  --seq-2: var(--elev-2); /* @kind color */
+  --seq-3: var(--elev-3); /* @kind color */
+  --seq-4: var(--elev-4); /* @kind color */
+  --seq-5: var(--elev-5); /* @kind color */
+
+  --map-bg: 45 8% 89%; /* @kind color */
+  --map-land: 45 13% 92%; /* @kind color */
+  --map-water: 200 18% 86%; /* @kind color */
+
+  /* Sidebar / navigation rail */
+  --sidebar-background: 45 13% 93%; /* @kind color */
+  --sidebar-foreground: 40 7% 34%; /* @kind color */
+  --sidebar-primary: 200 100% 45%; /* @kind color */
+  --sidebar-primary-foreground: 0 0% 100%; /* @kind color */
+  --sidebar-accent: 204 87% 92%; /* @kind color */
+  --sidebar-accent-foreground: 200 100% 28%; /* @kind color */
+  --sidebar-border: 45 8% 88%; /* @kind color */
+  --sidebar-ring: 200 100% 45%; /* @kind color */
+}
+
+:root {
+  --space-0: 0; /* @kind spacing */
+  --space-1: 0.25rem; /* @kind spacing */
+  --space-2: 0.5rem; /* @kind spacing */
+  --space-3: 0.75rem; /* @kind spacing */
+  --space-4: 1rem; /* @kind spacing */
+  --space-5: 1.25rem; /* @kind spacing */
+  --space-6: 1.5rem; /* @kind spacing */
+  --space-8: 2rem; /* @kind spacing */
+  --space-10: 2.5rem; /* @kind spacing */
+  --space-12: 3rem; /* @kind spacing */
+  --space-16: 4rem; /* @kind spacing */
+  --space-24: 6rem; /* @kind spacing */
+
+  /* Layout constants measured from the live Field dashboard */
+  --rail-width: 256px; /* @kind spacing */
+  --gutter-desktop: 32px; /* @kind spacing */
+  --gutter-mobile: 16px; /* @kind spacing */
+  --region-gap-desktop: 24px; /* @kind spacing */
+  --region-gap-mobile: 20px; /* @kind spacing */
+  --doc-max-width: 1120px; /* @kind spacing */
+}
+
+:root {
+  --radius: 0.625rem; /* @kind radius */
+  --radius-sm: 6px; /* @kind radius */
+  --radius-md: 8px; /* @kind radius */
+  --radius-lg: 10px; /* @kind radius */
+  --radius-xl: 14px; /* @kind radius */
+  --radius-2xl: 20px; /* @kind radius */
+  --radius-full: 9999px; /* @kind radius */
+
+  --control-height: 36px; /* @kind spacing */
+  --control-height-touch: 44px; /* @kind spacing */
+}
+
+:root {
+  --shadow-xs: 0 1px 0 #1a1a160a, 0 1px 2px #1a1a160a;
+  --shadow-sm: 0 2px 8px #1a1a160f, 0 1px 2px #1a1a160a;
+  --shadow-md: 0 6px 20px #1a1a1614, 0 2px 4px #1a1a160a;
+  --shadow-lg: 0 12px 32px #1a1a161a, 0 2px 6px #1a1a160d;
+  --shadow-2xl: 0 24px 56px #1a1a1629, 0 8px 20px #1a1a161a;
+  --shadow-focus: 0 0 0 3px hsl(var(--ring) / 0.35);
+}
+
+:root {
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1); /* @kind other */
+  --ease-linear: linear; /* @kind other */
+  --duration-instant: 90ms; /* @kind other */
+  --duration-fast: 0.15s; /* @kind other */
+  --duration-normal: 0.24s; /* @kind other */
+  --duration-slow: 0.4s; /* @kind other */
+  --duration-slower: 0.6s; /* @kind other */
+  --duration-count: 1.2s; /* @kind other */
+  --duration-draw: 1.5s; /* @kind other */
+  --duration-pulse: 1.8s; /* @kind other */
+  --duration-shimmer: 1.4s; /* @kind other */
+  --stagger-step: 40ms; /* @kind other */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:root {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); /* @kind other */
+  --grain-opacity: 0.035; /* @kind other */
+  --edge-light: inset 0 1.5px 0 #ffffffb3; /* @kind other */
+  --progress-sheen: #ffffff59; /* @kind other */
+
+  --glass-bg: #f8f7f3d1; /* @kind other */
+  --glass-border: #ffffffa6; /* @kind other */
+  --glass-blur: 16px; /* @kind other */
+  --glass-shadow: 0 2px 8px #1a1a160f, 0 1px 2px #1a1a160a; /* @kind shadow */
+}
+
+/* Theme scopes. Apply .dark or .hc on a wrapper element (Field uses <html>). */
+.dark {
+  --ink: 48 13% 7%; /* @kind color */
+  --graphite: 45 12% 62%; /* @kind color */
+  --background: 48 14% 6%; /* @kind color */
+  --foreground: 44 30% 91%; /* @kind color */
+  --card: 48 13% 11%; /* @kind color */
+  --card-foreground: 44 30% 91%; /* @kind color */
+  --popover: 40 14% 15%; /* @kind color */
+  --popover-foreground: 40 24% 90%; /* @kind color */
+  --secondary: 40 14% 14%; /* @kind color */
+  --secondary-foreground: 40 20% 80%; /* @kind color */
+  --muted: 40 14% 13%; /* @kind color */
+  --muted-foreground: 40 12% 65%; /* @kind color */
+  --text-faint: 40 10% 56%; /* @kind color */
+  --primary: 202 80% 56%; /* @kind color */
+  --primary-foreground: 43 20% 7%; /* @kind color */
+  --primary-deep: 200 100% 34%; /* @kind color */
+  --accent: 200 65% 18%; /* @kind color */
+  --accent-foreground: 206 100% 84%; /* @kind color */
+  --border: 40 14% 21%; /* @kind color */
+  --card-border: 40 14% 24%; /* @kind color */
+  --input: 40 14% 17%; /* @kind color */
+  --ring: 202 80% 56%; /* @kind color */
+  --success: 140 43% 57%; /* @kind color */
+  --success-foreground: 43 20% 7%; /* @kind color */
+  --success-soft: 140 43% 16%; /* @kind color */
+  --success-soft-foreground: 140 47% 70%; /* @kind color */
+  --warning: 35 79% 58%; /* @kind color */
+  --warning-foreground: 43 20% 7%; /* @kind color */
+  --warning-soft: 35 50% 16%; /* @kind color */
+  --warning-soft-foreground: 35 83% 71%; /* @kind color */
+  --danger: 355 73% 60%; /* @kind color */
+  --danger-foreground: 43 20% 7%; /* @kind color */
+  --danger-soft: 355 55% 20%; /* @kind color */
+  --danger-soft-foreground: 355 79% 76%; /* @kind color */
+  --info: 202 80% 56%; /* @kind color */
+  --info-foreground: 43 20% 7%; /* @kind color */
+  --info-soft: 200 65% 18%; /* @kind color */
+  --info-soft-foreground: 204 81% 72%; /* @kind color */
+  --neutral: 40 12% 59%; /* @kind color */
+  --neutral-foreground: 43 20% 7%; /* @kind color */
+  --neutral-soft: 40 10% 16%; /* @kind color */
+  --neutral-soft-foreground: 40 16% 71%; /* @kind color */
+  --brand-blue: 202 80% 56%; /* @kind color */
+  --brand-red: 355 65% 55%; /* @kind color */
+  --sea: 202 80% 56%; /* @kind color */
+  --reef: 171 58% 50%; /* @kind color */
+  --ochre: 40 84% 61%; /* @kind color */
+  --clay: 23 60% 60%; /* @kind color */
+  --dusk: 252 68% 76%; /* @kind color */
+  --sage: 90 30% 58%; /* @kind color */
+  --elev-1: 169 39% 14%; /* @kind color */
+  --elev-2: 174 40% 22%; /* @kind color */
+  --elev-3: 188 45% 38%; /* @kind color */
+  --elev-4: 199 70% 52%; /* @kind color */
+  --elev-5: 200 84% 62%; /* @kind color */
+  --map-bg: 40 10% 6%; /* @kind color */
+  --map-land: 40 12% 10%; /* @kind color */
+  --map-water: 210 20% 5%; /* @kind color */
+  --sidebar-background: 40 18% 9%; /* @kind color */
+  --sidebar-foreground: 40 14% 70%; /* @kind color */
+  --sidebar-primary: 202 80% 56%; /* @kind color */
+  --sidebar-primary-foreground: 43 20% 7%; /* @kind color */
+  --sidebar-accent: 200 65% 18%; /* @kind color */
+  --sidebar-accent-foreground: 206 100% 84%; /* @kind color */
+  --sidebar-border: 40 14% 15%; /* @kind color */
+  --sidebar-ring: 202 80% 56%; /* @kind color */
+  --grain-opacity: 0.025; /* @kind other */
+  --edge-light: inset 0 1px 0 #ffffff0d; /* @kind other */
+  --progress-sheen: #ffffff29; /* @kind other */
+  --glass-bg: #211e18b8; /* @kind color */
+  --glass-border: #ece8e014; /* @kind color */
+  --glass-blur: 20px; /* @kind other */
+  --glass-shadow: 0 4px 32px #00000073, 0 1px 4px #0000004d; /* @kind shadow */
+  --shadow-xs: 0 1px 0 #00000059, 0 1px 2px #0000004d; /* @kind shadow */
+  --shadow-sm: 0 2px 8px #0006, 0 1px 2px #0000004d; /* @kind shadow */
+  --shadow-md: 0 6px 20px #00000073, 0 2px 4px #0000004d; /* @kind shadow */
+  --shadow-lg: 0 12px 32px #0000008c, 0 2px 6px #00000059; /* @kind shadow */
+  --shadow-2xl: 0 24px 56px #0009, 0 8px 20px #0006; /* @kind shadow */
+}
+
+/* High contrast */
+.hc {
+  --background: 44 44% 96%; /* @kind color */
+  --foreground: 0 0% 0%; /* @kind color */
+  --card: 0 0% 100%; /* @kind color */
+  --card-foreground: 0 0% 0%; /* @kind color */
+  --border: 48 13% 9%; /* @kind color */
+  --card-border: 48 13% 9%; /* @kind color */
+  --input: 48 13% 9%; /* @kind color */
+  --primary: 200 100% 30%; /* @kind color */
+  --primary-foreground: 0 0% 100%; /* @kind color */
+  --muted: 44 24% 91%; /* @kind color */
+  --muted-foreground: 48 13% 16%; /* @kind color */
+  --grain-opacity: 0; /* @kind other */
+}
+
+/* Field surface utilities. Paper is the base; glass is the exception. */
+.atlas-paper {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: var(--edge-light), var(--shadow-sm);
+}
+
+.atlas-strip {
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--card));
+  box-shadow: var(--edge-light), var(--shadow-xs);
+}
+
+.glass {
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.grain::before {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  content: '';
+  background-image: var(--grain);
+  opacity: var(--grain-opacity);
+  mix-blend-mode: multiply;
+}
+
+.field-control {
+  min-height: var(--control-height);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font: 600 14px/1 var(--font-ui);
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.field-control:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.field-control:active { transform: translateY(1px); }
+.field-control:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+@media print {
+  .atlas-paper, .atlas-strip { box-shadow: none; }
+  .grain::before { display: none; }
 }

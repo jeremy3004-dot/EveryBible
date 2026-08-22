@@ -66,17 +66,42 @@ const WORLD_BOUNDS: [[number, number], [number, number]] = [
   [180, 82],
 ];
 
-// Warm-ink basemap contrast (Phase 2). CartoCDN Dark Matter renders land and
-// ocean at almost the same near-black luminance, so continents are invisible
-// against the dashboard. We lift land a full step above ocean in the brand's
-// warm-ink family so the sphere reads at arm's length.
-const GLOBE_OCEAN = '#141210';
-const GLOBE_LAND = '#2a2521';
-const GLOBE_BORDER = 'rgba(242, 237, 227, 0.16)';
-const GLOBE_LABEL = '#a8a094';
+// Every Language map chrome. Hex mirrors of the --map-* tokens in
+// packages/brand/tokens.css: MapLibre's colour parser predates the
+// space-separated hsl() syntax the stylesheets use, so the values are resolved
+// here. Land sits a clear step above water in both themes so continents read at
+// arm's length instead of dissolving into the sphere.
+const GLOBE_CHROME = {
+  light: {
+    water: '#d5dde2', // --map-water hsl(200 18% 86%)
+    land: '#edece8', //  --map-land  hsl(45 13% 92%)
+    border: '#d2cec6', // --border   hsl(42 12% 80%)
+    label: '#69624f', //  --muted-foreground hsl(45 14% 36%)
+    sky: '#f0ece5', //    --background hsl(40 26% 92%)
+    horizon: '#0099e6', //--primary    hsl(200 100% 45%)
+  },
+  dark: {
+    water: '#0a0d0f', // --map-water hsl(210 20% 5%)
+    land: '#1d1b16', //  --map-land  hsl(40 12% 10%)
+    border: '#3d382e', // --border   hsl(40 14% 21%)
+    label: '#b0a99b', //  --muted-foreground hsl(40 12% 65%)
+    sky: '#11110d', //    --background hsl(48 14% 6%)
+    horizon: '#35a7e9', //--primary    hsl(202 80% 56%)
+  },
+} as const;
+
+// Sequential map scale, low → high. Mirrors --seq-1..5.
+const GLOBE_SEQUENTIAL = {
+  light: ['#ecf1e9', '#a9d1ce', '#6ab5c8', '#298ebc', '#085781'],
+  dark: ['#16322d', '#224f4a', '#35818d', '#2fa4da', '#4db9ef'],
+} as const;
 
 function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
-  if (theme !== 'dark') return;
+  const chrome = GLOBE_CHROME[theme === 'dark' ? 'dark' : 'light'];
+  const GLOBE_OCEAN = chrome.water;
+  const GLOBE_LAND = chrome.land;
+  const GLOBE_BORDER = chrome.border;
+  const GLOBE_LABEL = chrome.label;
   const style = map.getStyle();
   if (!style?.layers) return;
 
@@ -104,15 +129,16 @@ function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
   }
 }
 
-// Faint warm atmosphere so the globe reads as a lit object floating on the page,
-// not a hole in it. Wrapped defensively: setSky is a MapLibre 5.x surface and we
+// Faint atmosphere so the globe reads as a lit object sitting on the paper, not
+// a hole in it. Wrapped defensively: setSky is a MapLibre 5.x surface and we
 // never want an unsupported key to blank the map.
-function applyGlobeAtmosphere(map: MapLibreMap) {
+function applyGlobeAtmosphere(map: MapLibreMap, theme: AdminThemeMode) {
+  const chrome = GLOBE_CHROME[theme === 'dark' ? 'dark' : 'light'];
   try {
     (map as unknown as { setSky: (spec: Record<string, unknown>) => void }).setSky({
-      'sky-color': '#161412',
-      'horizon-color': '#3a2620',
-      'fog-color': '#161412',
+      'sky-color': chrome.sky,
+      'horizon-color': chrome.horizon,
+      'fog-color': chrome.sky,
       'fog-ground-blend': 0.6,
       'horizon-fog-blend': 0.5,
       'sky-horizon-blend': 0.8,
@@ -207,9 +233,16 @@ function buildMetricsFeatureCollection(metrics: CountryMetric[]): MetricFeatureC
   };
 }
 
-function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMetricValue: number) {
+function updateVisualizationLayers(
+  map: MapLibreMap,
+  mode: MapMetricMode,
+  maxMetricValue: number,
+  theme: AdminThemeMode
+) {
   const metricProperty = getMetricProperty(mode);
   const safeMax = Math.max(maxMetricValue, 1);
+  const scope = theme === 'dark' ? 'dark' : 'light';
+  const seq = GLOBE_SEQUENTIAL[scope];
 
   map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-weight', [
     'interpolate',
@@ -246,19 +279,20 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
     'interpolate',
     ['linear'],
     ['heatmap-density'],
-    // Ember heat ramp (brand-unified): transparent → parchment → amber → ember → deep.
+    // Every Language sequential map scale, low → high, faded in from the
+    // basemap so density reads as magnitude rather than decoration.
     0,
-    'rgba(20, 18, 16, 0)',
+    'rgba(0, 0, 0, 0)',
     0.1,
-    'rgba(208, 194, 175, 0.22)',
+    seq[0],
     0.3,
-    'rgba(208, 163, 90, 0.4)',
+    seq[1],
     0.55,
-    'rgba(217, 108, 87, 0.6)',
+    seq[2],
     0.8,
-    'rgba(217, 108, 87, 0.8)',
+    seq[3],
     1,
-    'rgba(184, 84, 65, 0.92)',
+    seq[4],
   ]);
 
   map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-radius', [
@@ -282,15 +316,15 @@ function updateVisualizationLayers(map: MapLibreMap, mode: MapMetricMode, maxMet
     'interpolate',
     ['linear'],
     ['to-number', ['get', metricProperty]],
-    // Ember heat ramp (brand-unified): parchment → amber → ember → deep.
+    // Every Language sequential map scale, low → high.
     0,
-    '#d0c2af',
+    seq[1],
     safeMax * 0.35,
-    '#d0a35a',
+    seq[2],
     safeMax * 0.7,
-    '#D96C57',
+    seq[3],
     safeMax,
-    '#B85441',
+    seq[4],
   ]);
   map.setPaintProperty(HIT_LAYER_ID, 'circle-radius', [
     'interpolate',
@@ -506,7 +540,8 @@ export function AnalyticsGlobe({
               3,
               0.72,
             ],
-            'circle-stroke-color': currentTheme === 'dark' ? '#0f172a' : '#f8fafc',
+            'circle-stroke-color':
+              currentTheme === 'dark' ? GLOBE_CHROME.dark.land : GLOBE_CHROME.light.land,
             'circle-stroke-opacity': currentTheme === 'dark' ? 0.7 : 0.85,
             'circle-stroke-width': 1.25,
           },
@@ -527,7 +562,7 @@ export function AnalyticsGlobe({
       }
 
       map.setProjection({ type: 'globe' });
-      updateVisualizationLayers(map, modeRef.current, latestMaxValue);
+      updateVisualizationLayers(map, modeRef.current, latestMaxValue, themeRef.current);
     },
     []
   );
@@ -591,6 +626,11 @@ export function AnalyticsGlobe({
 
   useEffect(() => {
     themeRef.current = theme;
+    const map = mapRef.current;
+    if (map && readyRef.current) {
+      applyBasemapContrast(map, theme);
+      applyGlobeAtmosphere(map, theme);
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -653,7 +693,7 @@ export function AnalyticsGlobe({
     map.on('style.load', () => {
       readyRef.current = true;
       applyBasemapContrast(map, themeRef.current);
-      applyGlobeAtmosphere(map);
+      applyGlobeAtmosphere(map, themeRef.current);
       syncVisualizationLayers(map);
       setIsMapReady(true);
     });
@@ -715,8 +755,8 @@ export function AnalyticsGlobe({
 
     const source = map.getSource(METRIC_SOURCE_ID) as GeoJSONSource | undefined;
     source?.setData(featureCollection);
-    updateVisualizationLayers(map, mode, maxMetricValue);
-  }, [featureCollection, maxMetricValue, mode]);
+    updateVisualizationLayers(map, mode, maxMetricValue, theme);
+  }, [featureCollection, maxMetricValue, mode, theme]);
 
   useEffect(() => {
     if (!selectedMetric) {

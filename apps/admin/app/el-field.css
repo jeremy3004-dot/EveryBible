@@ -1,0 +1,471 @@
+/* ================================================================
+   EveryBible Admin — Every Language "Field" layer
+   ----------------------------------------------------------------
+   Loads LAST, after globals.css and neo-swiss.css. Those two carry
+   the shell's structure and now read every colour from the EL tokens
+   in globals.css `:root`; this file applies the parts of the design
+   system that are decisions rather than values — paper surfaces,
+   the type system, the interaction states, the geometry scale, and
+   the materiality.
+
+   The character to hold: a field atlas or a well-made research
+   instrument. Warm, precise, operational, grounded. Not a SaaS
+   dashboard, not a charity microsite.
+   ================================================================ */
+
+/* ── Materiality ────────────────────────────────────────────────
+   Grain keeps the paper feeling like paper: 3.5% multiply in light,
+   2.5% in dark, 0 in high contrast, removed in print. */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background-image: var(--grain);
+  opacity: var(--grain-opacity);
+  mix-blend-mode: multiply;
+}
+
+/* ── Type ───────────────────────────────────────────────────────
+   Bricolage Grotesque displays, Archivo for everything read, mono
+   for eyebrows and technical metadata. Tabular numerals wherever
+   numbers align. Sentence case in the markup, uppercase only here. */
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: 400;
+  font-feature-settings: 'tnum';
+  line-height: var(--leading-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-heading);
+  line-height: var(--leading-heading);
+}
+
+.auth-card h1,
+.page-header h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.05;
+}
+
+.dashboard-sidebar__brand h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-heading);
+}
+
+.eyebrow,
+.dashboard-sidebar__eyebrow,
+.nav-group__label,
+.operator-chat__role,
+.operator-launcher__toggle-eyebrow,
+.analytics-map-popup__eyebrow,
+.table-note,
+.trend-spark__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* The accent belongs on state, not on every eyebrow. */
+.analytics-page .analytics-page__header .eyebrow {
+  color: hsl(var(--muted-foreground));
+}
+
+.metric-card strong,
+.data-table td,
+.data-table th,
+.bar-chart__row strong,
+.globe-card__toplist strong,
+.trend-spark__val,
+.analytics-map-popup__value,
+.pill,
+table,
+[role='grid'] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.metric-card strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+}
+
+/* Timestamps, IDs and other technical metadata are mono. */
+.json-block,
+.operator-launcher__status,
+.globe-card__legend {
+  font-family: var(--font-mono);
+}
+
+/* ── Geometry ───────────────────────────────────────────────────
+   Six radii and nothing else: 6 chips · 8 buttons and inputs ·
+   10 paper · 14 overlays · 20 rare · full for badges. The previous
+   flat 0px "neo-swiss" geometry is retired. */
+
+.auth-card,
+.card,
+.metric-card,
+.issue-card,
+.map-card,
+.image-card,
+.globe-card,
+.globe-card__panel,
+.table-wrap,
+.notice,
+.json-block,
+.data-table__empty {
+  border-radius: var(--radius-lg);
+}
+
+.button,
+.button--primary,
+input,
+select,
+textarea,
+.segmented-control__button,
+.theme-toggle__button,
+.filter-form__check {
+  border-radius: var(--radius-md);
+}
+
+.pill,
+.translation-chip,
+.spark {
+  border-radius: var(--radius-full);
+}
+
+.nav-link {
+  border-radius: var(--radius-md);
+}
+
+.operator-launcher__panel,
+.operator-launcher__toggle,
+.analytics-map-popup {
+  border-radius: var(--radius-xl);
+}
+
+.brand-mark {
+  border-radius: var(--radius-md);
+}
+
+/* ── Surfaces ───────────────────────────────────────────────────
+   Cards are bordered paper with a whisper of warm shadow and an
+   inset edge light — not floating, not borderless, and never a
+   coloured left border as decoration. No decorative gradients. */
+
+.auth-card,
+.card,
+.metric-card,
+.issue-card,
+.map-card,
+.image-card,
+.globe-card,
+.table-wrap {
+  border: 1px solid hsl(var(--card-border));
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: var(--edge-light), var(--shadow-sm);
+}
+
+/* Compact utility rows sit a step lighter. */
+.globe-card__panel,
+.data-table__empty,
+.trend-spark-row {
+  border: 1px solid hsl(var(--card-border));
+  background: hsl(var(--card));
+  box-shadow: var(--edge-light), var(--shadow-xs);
+}
+
+/* Solid fills, not washes. */
+.brand-mark,
+.button--primary,
+.theme-toggle__button--active,
+.segmented-control__button--active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+
+.bar-chart__track {
+  background: hsl(var(--muted));
+}
+
+/* Data series in order — never cherry-picked for decoration. */
+.bar-chart__fill { background: hsl(var(--series-1)); }
+.bar-chart__fill--secondary { background: hsl(var(--series-2)); }
+.bar-chart__fill--tertiary { background: hsl(var(--series-3)); }
+
+.globe-card__legend-bar {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--seq-1)) 0%,
+    hsl(var(--seq-2)) 25%,
+    hsl(var(--seq-3)) 50%,
+    hsl(var(--seq-4)) 75%,
+    hsl(var(--seq-5)) 100%
+  );
+}
+
+/* ── Navigation rail ────────────────────────────────────────────
+   A persistent 256px rail, never icon-collapsed. Selected is a 2px
+   blue left rule plus a paper fill and 600 weight. */
+
+.dashboard-shell {
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+}
+
+.dashboard-sidebar {
+  padding: var(--gutter-desktop) var(--space-5, 1.25rem);
+  border-right: 1px solid hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-background));
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.dashboard-sidebar .nav-link {
+  border-left: 2px solid transparent;
+  color: hsl(var(--sidebar-foreground));
+}
+
+.dashboard-sidebar .nav-link:hover {
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+}
+
+.dashboard-sidebar .nav-link[aria-current='page'] {
+  border-left-color: hsl(var(--sidebar-primary));
+  background: hsl(var(--card));
+  font-weight: 600;
+}
+
+.dashboard-sidebar .nav-link[aria-current='page'] span {
+  color: hsl(var(--sidebar-accent-foreground));
+}
+
+.dashboard-main {
+  padding: var(--gutter-desktop);
+  padding-bottom: clamp(6rem, 8vw, 7rem);
+  display: grid;
+  gap: var(--region-gap-desktop);
+  align-content: start;
+}
+
+/* ── Interaction states ─────────────────────────────────────────
+   Hover is a COLOUR change, canvas → pale blue accent, ink → deep
+   blue. Press is translateY(1px): no scale-down, no darkening.
+   Focus is always the visible 3px blue ring. Disabled is 45%. */
+
+.button,
+.nav-link,
+.metric-card,
+.card,
+.issue-card,
+.map-card,
+.theme-toggle__button,
+.segmented-control__button,
+.translation-chip,
+.globe-card__toplist button {
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover,
+.segmented-control__button:hover,
+.theme-toggle__button:hover,
+.translation-chip:hover,
+.globe-card__toplist button:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  border-color: hsl(var(--primary) / 0.35);
+}
+
+.button--primary:hover,
+.theme-toggle__button--active:hover,
+.segmented-control__button--active:hover {
+  background: hsl(var(--primary-deep));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary-deep));
+}
+
+.button:active,
+.nav-link:active,
+.segmented-control__button:active,
+.theme-toggle__button:active,
+.translation-chip:active,
+.globe-card__toplist button:active,
+.operator-launcher__toggle:active {
+  transform: translateY(1px);
+  scale: 1;
+}
+
+.button:focus-visible,
+.nav-link:focus-visible,
+.segmented-control__button:focus-visible,
+.theme-toggle__button:focus-visible,
+.translation-chip:focus-visible,
+.operator-launcher__toggle:focus-visible,
+.operator-chat__input:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+:disabled,
+[aria-disabled='true'] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Controls stay ≥36px, ≥44px when they are a primary touch target. */
+.button,
+input,
+select,
+.segmented-control__button,
+.theme-toggle__button {
+  min-height: var(--control-height);
+}
+
+textarea { min-height: calc(var(--control-height) * 2); }
+
+/* ── Theme switch ───────────────────────────────────────────────
+   The kit ships both themes and a ThemeSwitch, so the toggle that
+   was hidden while the shell was dark-only is visible again. */
+
+.theme-toggle {
+  position: fixed;
+  top: var(--gutter-mobile);
+  right: var(--gutter-mobile);
+  z-index: 120;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-full);
+  background: hsl(var(--card));
+  box-shadow: var(--edge-light), var(--shadow-xs);
+}
+
+.theme-toggle__button {
+  display: inline-flex;
+  min-height: var(--control-height);
+  padding: 0.4rem 0.8rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.theme-toggle__button--active {
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+/* ── Overlays ───────────────────────────────────────────────────
+   Transparency and blur are the exception, reserved for transient
+   overlays that visibly float. Never the base surface. */
+
+.operator-launcher__panel,
+.analytics-map-popup {
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), var(--shadow-lg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* ── Status ─────────────────────────────────────────────────────
+   Chips and banners use the *-soft + *-soft-foreground pairs; dots
+   and bars use the solid tokens. */
+
+.pill--success,
+.notice--success {
+  background: hsl(var(--success-soft));
+  color: hsl(var(--success-soft-foreground));
+  border-color: hsl(var(--success) / 0.35);
+}
+
+.pill--warning,
+.notice--warning {
+  background: hsl(var(--warning-soft));
+  color: hsl(var(--warning-soft-foreground));
+  border-color: hsl(var(--warning) / 0.35);
+}
+
+.pill--danger,
+.notice--danger {
+  background: hsl(var(--danger-soft));
+  color: hsl(var(--danger-soft-foreground));
+  border-color: hsl(var(--danger) / 0.35);
+}
+
+/* ── Motion ─────────────────────────────────────────────────────
+   Progress and chart draws are the only animated data. No perpetual
+   decorative motion in a dashboard. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Mobile — the rail is removed entirely, one column, no data
+   hidden, and never any horizontal overflow. ─────────────────── */
+
+@media (max-width: 900px) {
+  .dashboard-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-sidebar {
+    position: static;
+    height: auto;
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--sidebar-border));
+    padding: var(--gutter-mobile);
+  }
+
+  .dashboard-main {
+    padding: var(--gutter-mobile);
+    padding-bottom: clamp(5rem, 12vw, 7rem);
+    gap: var(--region-gap-mobile);
+  }
+}
+
+@media print {
+  .auth-card,
+  .card,
+  .metric-card,
+  .issue-card,
+  .map-card,
+  .globe-card,
+  .table-wrap { box-shadow: none; }
+
+  body::before { display: none; }
+  .theme-toggle,
+  .operator-launcher { display: none; }
+}

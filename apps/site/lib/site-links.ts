@@ -1,4 +1,6 @@
 export const EVERYBIBLE_SITE_URL = 'https://everybible.app';
+/** Parent organisation. EveryBible carries the Every Language design system. */
+export const EVERY_LANGUAGE_URL = 'https://everylanguage.com';
 export const EVERYBIBLE_SUPPORT_PATH = '/support';
 export const EVERYBIBLE_PRIVACY_PATH = '/privacy';
 export const EVERYBIBLE_TERMS_PATH = '/terms';

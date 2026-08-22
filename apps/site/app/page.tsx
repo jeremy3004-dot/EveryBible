@@ -85,7 +85,7 @@ export default async function Home() {
           <div className="hero__text">
             <span className="hero__eyebrow" aria-hidden="true">
               <span className="hero__eyebrow-dot" />
-              Free · No Ads · No Purchases
+              Free · No ads · No purchases
             </span>
 
             <h1 className="hero__headline">
@@ -175,10 +175,10 @@ export default async function Home() {
       </section>
 
       {/* ── Scripture ── */}
-      <section className="scripture" id="verse-of-the-day" aria-label="Verse of the Day">
+      <section className="scripture dark" id="verse-of-the-day" aria-label="Verse of the Day">
         <div className="wrap">
           <div className="scripture__inner">
-            <p className="scripture__label">Verse of the Day</p>
+            <p className="scripture__label">Verse of the day</p>
 
             <blockquote className="scripture__quote">
               {verseOfDay.verse}
@@ -188,7 +188,7 @@ export default async function Home() {
 
             <a className="scripture__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
               <DownloadIcon />
-              Get Daily Verses Free
+              Get daily verses free
             </a>
           </div>
         </div>

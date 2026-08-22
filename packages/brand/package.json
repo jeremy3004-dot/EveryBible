@@ -2,7 +2,7 @@
   "name": "@everybible/brand",
   "version": "0.1.0",
   "private": true,
-  "description": "Canonical EveryBible Illuminated brand tokens (ember terracotta, warm ivory/ink) shared across the marketing site and admin.",
+  "description": "Canonical Every Language design-system tokens (vellum paper, EL blue, Bricolage/Archivo/JetBrains Mono) shared across the EveryBible marketing site and admin.",
   "type": "module",
   "main": "index.ts",
   "exports": {

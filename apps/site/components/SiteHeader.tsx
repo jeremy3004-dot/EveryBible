@@ -32,13 +32,13 @@ export function SiteHeader() {
         </nav>
 
         <a className="site-nav__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
-          Get the App
+          Get the app
         </a>
 
         <div className="site-mobile-menu">
           <a href="/about">Mission</a>
           <a className="site-mobile-menu__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
-            Get the App
+            Get the app
           </a>
         </div>
       </div>

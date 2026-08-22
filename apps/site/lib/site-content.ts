@@ -79,7 +79,7 @@ export interface HomepageContent {
 
 export const siteNavigation: SiteNavigationItem[] = [
   { label: 'Mission', href: '#mission' },
-  { label: 'Verse of the Day', href: '#verse-of-the-day' },
+  { label: 'Verse of the day', href: '#verse-of-the-day' },
   { label: 'Support', href: '/support' },
 ];
 
@@ -131,18 +131,18 @@ export const featureCards: FeatureCard[] = [
     iconAlt: 'Make it your Bible',
   },
   {
-    title: 'Install the App Now',
+    title: 'Install the app now',
     description:
       'EveryBible is completely free to use, with no ads and no purchases.',
     href: EVERYBIBLE_SMART_DOWNLOAD_PATH,
-    actionLabel: 'Download the Free EveryBible App',
+    actionLabel: 'Download the free EveryBible app',
     iconSrc: '/everybible/icons/install-app.svg',
-    iconAlt: 'Install the App Now',
+    iconAlt: 'Install the app now',
   },
 ];
 
 export const verseOfDay: VerseOfDayContent = {
-  label: 'Verse of the Day',
+  label: 'Verse of the day',
   verse: 'Your word is a lamp to my feet and a light to my path.',
   reference: 'Psalm 119:105 (BSB)',
   imageSrc: '/everybible/verse-home-device.png',
@@ -152,7 +152,7 @@ export const verseOfDay: VerseOfDayContent = {
     href: '#verse-of-the-day',
   },
   secondaryAction: {
-    label: 'Get Verse of the Day',
+    label: 'Get verse of the day',
     href: EVERYBIBLE_SMART_DOWNLOAD_PATH,
   },
 };
@@ -173,12 +173,12 @@ export const footerColumns: FooterColumn[] = [
     ],
   },
   {
-    title: 'Useful Links',
+    title: 'Useful links',
     links: [
-      { label: 'Bible Languages', href: '/about#languages' },
-      { label: 'Verse of the Day', href: '#verse-of-the-day' },
-      { label: 'Privacy Policy', href: EVERYBIBLE_PRIVACY_PATH },
-      { label: 'Terms of Service', href: EVERYBIBLE_TERMS_PATH },
+      { label: 'Bible languages', href: '/about#languages' },
+      { label: 'Verse of the day', href: '#verse-of-the-day' },
+      { label: 'Privacy policy', href: EVERYBIBLE_PRIVACY_PATH },
+      { label: 'Terms of service', href: EVERYBIBLE_TERMS_PATH },
       { label: 'Get the app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH },
     ],
   },
@@ -190,7 +190,7 @@ export const mobileTabs: MobileTabItem[] = [
   { label: 'Home', href: '#top', icon: 'home', active: true },
   { label: 'Mission', href: '#mission', icon: 'bible' },
   { label: 'Support', href: '/support', icon: 'plans' },
-  { label: 'Get App', href: EVERYBIBLE_SMART_DOWNLOAD_PATH, icon: 'videos' },
+  { label: 'Get app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH, icon: 'videos' },
 ];
 
 export const supportChannels = {

@@ -39,6 +39,8 @@ test('site legal pages use canonical support and legal links', async () => {
   assert.match(supportPage, /EVERYBIBLE_PRIVACY_PATH/);
   assert.match(supportPage, /EVERYBIBLE_TERMS_PATH/);
 
-  assert.match(siteContent, /label: 'Privacy Policy', href: EVERYBIBLE_PRIVACY_PATH/);
-  assert.match(siteContent, /label: 'Terms of Service', href: EVERYBIBLE_TERMS_PATH/);
+  // Labels are sentence case per the Every Language content rules; what this
+  // asserts is that they still resolve through the canonical path constants.
+  assert.match(siteContent, /label: 'Privacy policy', href: EVERYBIBLE_PRIVACY_PATH/);
+  assert.match(siteContent, /label: 'Terms of service', href: EVERYBIBLE_TERMS_PATH/);
 });

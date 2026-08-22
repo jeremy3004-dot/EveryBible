@@ -6,14 +6,14 @@ export function VerseDeviceFrame() {
       style={{
         position: 'absolute',
         inset: 0,
-        background: 'linear-gradient(160deg, #f6f5f4 0%, #ede8e1 100%)',
+        background: 'hsl(40 26% 92%)', // vellum canvas
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
       }}
     >
-      {/* Subtle warm radial glow behind the phone */}
+      {/* Subtle ground shade behind the phone */}
       <div
         style={{
           position: 'absolute',
