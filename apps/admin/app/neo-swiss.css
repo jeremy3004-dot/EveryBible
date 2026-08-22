@@ -951,14 +951,6 @@ label {
 
 .analytics-page .globe-card__legend-bar {
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--series-1)) 0%,
-    hsl(var(--series-2)) 35%,
-    hsl(var(--series-3)) 65%,
-    hsl(var(--series-4)) 82%,
-    hsl(var(--primary)) 100%
-  );
 }
 
 .analytics-page .globe-card__viewer .maplibregl-ctrl-group {

@@ -90,10 +90,13 @@ const GLOBE_CHROME = {
   },
 } as const;
 
-// Sequential map scale, low → high. Mirrors --seq-1..5.
-const GLOBE_SEQUENTIAL = {
-  light: ['#ecf1e9', '#a9d1ce', '#6ab5c8', '#298ebc', '#085781'],
-  dark: ['#16322d', '#224f4a', '#35818d', '#2fa4da', '#4db9ef'],
+// Intensity ramp, low → high: blue → teal → yellow → orange → red. Hex mirror
+// of --heat-1..5 in app/globals.css; the legend bar in el-field.css draws the
+// same five stops, so the bar and the map always agree. Red is the highest
+// value, not a brand or error colour.
+const GLOBE_HEAT = {
+  light: ['#0099e6', '#239f8c', '#db9b1a', '#db6a24', '#c32232'],
+  dark: ['#35a7e9', '#36c9b3', '#efb748', '#eb8647', '#e34f5b'],
 } as const;
 
 function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
@@ -242,7 +245,7 @@ function updateVisualizationLayers(
   const metricProperty = getMetricProperty(mode);
   const safeMax = Math.max(maxMetricValue, 1);
   const scope = theme === 'dark' ? 'dark' : 'light';
-  const seq = GLOBE_SEQUENTIAL[scope];
+  const heat = GLOBE_HEAT[scope];
 
   map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-weight', [
     'interpolate',
@@ -279,20 +282,20 @@ function updateVisualizationLayers(
     'interpolate',
     ['linear'],
     ['heatmap-density'],
-    // Every Language sequential map scale, low → high, faded in from the
-    // basemap so density reads as magnitude rather than decoration.
+    // Intensity ramp, low → high, faded in from the basemap so density reads
+    // as magnitude rather than decoration.
     0,
     'rgba(0, 0, 0, 0)',
     0.1,
-    seq[0],
+    heat[0],
     0.3,
-    seq[1],
+    heat[1],
     0.55,
-    seq[2],
+    heat[2],
     0.8,
-    seq[3],
+    heat[3],
     1,
-    seq[4],
+    heat[4],
   ]);
 
   map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-radius', [
@@ -316,15 +319,18 @@ function updateVisualizationLayers(
     'interpolate',
     ['linear'],
     ['to-number', ['get', metricProperty]],
-    // Every Language sequential map scale, low → high.
+    // Intensity ramp, low → high. The lowest-magnitude countries start at the
+    // blue end and the busiest land on red.
     0,
-    seq[1],
-    safeMax * 0.35,
-    seq[2],
-    safeMax * 0.7,
-    seq[3],
+    heat[0],
+    safeMax * 0.25,
+    heat[1],
+    safeMax * 0.5,
+    heat[2],
+    safeMax * 0.75,
+    heat[3],
     safeMax,
-    seq[4],
+    heat[4],
   ]);
   map.setPaintProperty(HIT_LAYER_ID, 'circle-radius', [
     'interpolate',

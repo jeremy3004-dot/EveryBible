@@ -98,7 +98,9 @@ test('the analytics globe paints from the EL map chrome, not the ember ramp', as
     'utf8'
   );
 
-  assert.ok(globe.includes('GLOBE_SEQUENTIAL'), 'the globe uses the sequential map scale');
+  // Magnitude uses the intensity ramp (see analyticsGlobeCamera.test.ts); the
+  // basemap chrome still comes from the kit's --map-* tokens.
+  assert.ok(globe.includes('GLOBE_HEAT'), 'the globe uses the intensity ramp');
   assert.ok(globe.includes('GLOBE_CHROME'), 'the globe uses the --map-* chrome mirror');
 
   for (const retired of ['#D96C57', '#B85441', '#d0c2af', '#d0a35a', 'rgba(217, 108, 87']) {

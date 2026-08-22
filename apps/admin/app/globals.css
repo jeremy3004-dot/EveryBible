@@ -103,6 +103,19 @@
   --seq-4: var(--elev-4);
   --seq-5: var(--elev-5);
 
+  /* Intensity ramp — low → high. An EveryBible addition on top of the kit:
+     the kit's sequential --seq-* scale is monochrome blue, which reads as
+     "more blue" rather than "hotter". Listening intensity needs a ramp an
+     operator can read at a glance, so this runs Sea → Reef → Ochre → Clay →
+     red. Used by the globe legend and by the MapLibre heatmap/circle paint,
+     which mirrors these values as hex in components/AnalyticsGlobe.tsx.
+     Keep the two in sync. */
+  --heat-1: 200 100% 45%;
+  --heat-2: 171 64% 38%;
+  --heat-3: 40 79% 48%;
+  --heat-4: 23 72% 50%;
+  --heat-5: 354 70% 45%;
+
   --map-bg: 45 8% 89%;
   --map-land: 45 13% 92%;
   --map-water: 200 18% 86%;
@@ -251,6 +264,11 @@
   --elev-3: 188 45% 38%;
   --elev-4: 199 70% 52%;
   --elev-5: 200 84% 62%;
+  --heat-1: 202 80% 56%;
+  --heat-2: 171 58% 50%;
+  --heat-3: 40 84% 61%;
+  --heat-4: 23 80% 60%;
+  --heat-5: 355 73% 60%;
   --map-bg: 40 10% 6%;
   --map-land: 40 12% 10%;
   --map-water: 210 20% 5%;
@@ -1295,13 +1313,6 @@ textarea {
   min-width: 5rem;
   height: 0.55rem;
   border-radius: 0px;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--brand-tan)) 0%,
-    hsl(var(--ochre)) 40%,
-    hsl(var(--primary)) 72%,
-    hsl(var(--primary-deep)) 100%
-  );
 }
 
 .analytics-page .globe-card__selected,
@@ -1988,7 +1999,6 @@ textarea {
   min-width: 5rem;
   height: 0.55rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, hsl(var(--brand-tan)) 0%, hsl(var(--ochre)) 40%, hsl(var(--primary)) 72%, hsl(var(--primary-deep)) 100%);
 }
 
 .globe-card__selected,

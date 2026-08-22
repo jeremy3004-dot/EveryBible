@@ -217,14 +217,18 @@ textarea,
 .bar-chart__fill--secondary { background: hsl(var(--series-2)); }
 .bar-chart__fill--tertiary { background: hsl(var(--series-3)); }
 
-.globe-card__legend-bar {
+/* The single definition of the legend ramp. Three earlier copies disagreed
+   with each other and the most specific one ended on --primary, which put
+   blue at BOTH ends of the bar. Stops match the MapLibre paint exactly. */
+.globe-card__legend-bar,
+.analytics-page .globe-card__legend-bar {
   background: linear-gradient(
     90deg,
-    hsl(var(--seq-1)) 0%,
-    hsl(var(--seq-2)) 25%,
-    hsl(var(--seq-3)) 50%,
-    hsl(var(--seq-4)) 75%,
-    hsl(var(--seq-5)) 100%
+    hsl(var(--heat-1)) 0%,
+    hsl(var(--heat-2)) 25%,
+    hsl(var(--heat-3)) 50%,
+    hsl(var(--heat-4)) 75%,
+    hsl(var(--heat-5)) 100%
   );
 }
 

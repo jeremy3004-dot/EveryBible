@@ -80,6 +80,13 @@ const LIGHT_HSL = {
   seq4: '199 64% 45%',
   seq5: '201 88% 27%',
 
+  // Intensity ramp, low → high (EveryBible addition, not part of the EL kit)
+  heat1: '200 100% 45%',
+  heat2: '171 64% 38%',
+  heat3: '40 79% 48%',
+  heat4: '23 72% 50%',
+  heat5: '354 70% 45%',
+
   // Map chrome
   mapBg: '45 8% 89%',
   mapLand: '45 13% 92%',
@@ -139,6 +146,12 @@ const DARK_HSL = {
   seq3: '188 45% 38%',
   seq4: '199 70% 52%',
   seq5: '200 84% 62%',
+
+  heat1: '202 80% 56%',
+  heat2: '171 58% 50%',
+  heat3: '40 84% 61%',
+  heat4: '23 80% 60%',
+  heat5: '355 73% 60%',
 
   mapBg: '40 10% 6%',
   mapLand: '40 12% 10%',
@@ -226,6 +239,17 @@ export const sequential = (theme: 'light' | 'dark' = 'light') => {
   return [t.seq1, t.seq2, t.seq3, t.seq4, t.seq5].map((h) => `hsl(${h})`);
 };
 
+/**
+ * Intensity ramp for analytics magnitude, low → high: blue → teal → yellow →
+ * orange → red. An EveryBible addition on top of the kit — the EL sequential
+ * scale is monochrome blue and reads as "more blue" rather than "hotter". The
+ * red stop is a magnitude, not the brand red and not an error colour.
+ */
+export const heat = (theme: 'light' | 'dark' = 'light') => {
+  const t = theme === 'dark' ? DARK_HSL : LIGHT_HSL;
+  return [t.heat1, t.heat2, t.heat3, t.heat4, t.heat5].map((h) => `hsl(${h})`);
+};
+
 export const brand = {
   light,
   dark,
@@ -236,6 +260,7 @@ export const brand = {
   layout,
   series,
   sequential,
+  heat,
 } as const;
 
 export type Brand = typeof brand;

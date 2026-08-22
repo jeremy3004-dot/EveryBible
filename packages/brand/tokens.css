@@ -158,6 +158,19 @@
   --seq-4: var(--elev-4); /* @kind color */
   --seq-5: var(--elev-5); /* @kind color */
 
+  /* Intensity ramp — low → high. An EveryBible addition, NOT part of the
+     Every Language kit: the kit's sequential --seq-* scale is monochrome
+     blue, which reads as "more blue" rather than "hotter". Analytics
+     intensity needs a ramp an operator can read at a glance, so this runs
+     Sea → Reef → Ochre → Clay → red. Red here is a magnitude, not the brand
+     red and not an error colour. Mirrored in apps/admin/app/globals.css and,
+     as hex, in apps/admin/components/AnalyticsGlobe.tsx. */
+  --heat-1: 200 100% 45%; /* @kind color */
+  --heat-2: 171 64% 38%; /* @kind color */
+  --heat-3: 40 79% 48%; /* @kind color */
+  --heat-4: 23 72% 50%; /* @kind color */
+  --heat-5: 354 70% 45%; /* @kind color */
+
   --map-bg: 45 8% 89%; /* @kind color */
   --map-land: 45 13% 92%; /* @kind color */
   --map-water: 200 18% 86%; /* @kind color */
@@ -312,6 +325,11 @@
   --elev-3: 188 45% 38%; /* @kind color */
   --elev-4: 199 70% 52%; /* @kind color */
   --elev-5: 200 84% 62%; /* @kind color */
+  --heat-1: 202 80% 56%; /* @kind color */
+  --heat-2: 171 58% 50%; /* @kind color */
+  --heat-3: 40 84% 61%; /* @kind color */
+  --heat-4: 23 80% 60%; /* @kind color */
+  --heat-5: 355 73% 60%; /* @kind color */
   --map-bg: 40 10% 6%; /* @kind color */
   --map-land: 40 12% 10%; /* @kind color */
   --map-water: 210 20% 5%; /* @kind color */
