@@ -181,6 +181,14 @@ textarea,
   box-shadow: var(--edge-light), var(--shadow-sm);
 }
 
+/* The auth and setup cards are documents, not dialogs: give them a real
+   measure so the display heading is not forced into five short lines. */
+.auth-card {
+  justify-self: center;
+  width: min(100%, 560px);
+  padding: var(--gutter-desktop);
+}
+
 /* Compact utility rows sit a step lighter. */
 .globe-card__panel,
 .data-table__empty,

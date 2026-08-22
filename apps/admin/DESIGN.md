@@ -1,243 +1,164 @@
 # EveryBible Admin — Design System
-> Illuminated (Sacred Editorial Dark) · Linear-grade component patterns · Internal admin tooling
 
-> **Brand source of truth:** [`packages/brand`](../../packages/brand) — the admin,
-> the marketing site, and the mobile app all share ONE ember terracotta accent on
-> warm surfaces. Token values below mirror `packages/brand/tokens.css` and are
-> locked by `app/brandTokens.test.ts`. Change a color there, not just here.
+> Every Language "Field" · operational dashboard · internal admin tooling
 
-## 1. Visual Theme & Atmosphere
+> **Brand source of truth:** [`packages/brand`](../../packages/brand) — the
+> canonical Every Language token set, ported from the design-system kit whose
+> values are byte-verified against the live Field product at
+> [field.everylanguage.com](https://field.everylanguage.com/). Token values
+> below mirror `packages/brand/tokens.css` and are locked by
+> `app/brandTokens.test.ts`. Change a colour there, not just here.
+>
+> The retired ember "Illuminated" palette this document used to describe is
+> gone from the web. The mobile app keeps its own palette in
+> `src/constants/colors.ts` and is deliberately outside this system.
 
-A dark-mode-only admin dashboard built for one: the operator. The visual register is **editorial darkness** — warm **ink** backgrounds where data surfaces at exactly the right luminance level. The accent is ember terracotta (`#D96C57`), used sparingly as a signal color for actions, active states, and critical highlights. Everything else is achromatic. This is the same ember/warm-ink brand as the mobile app and everybible.app — the admin was re-skinned from its earlier cool-charcoal + maroon palette to unify all three surfaces.
+## 1. Visual theme and atmosphere
 
-Typography uses **Fraunces** for display/headings (a soft contemporary serif shared with the marketing site) and **DM Sans** for all functional UI text (clean, legible, neutral, with tabular lining numerals for data). No light mode. No toggle.
+The character to hold is **a field atlas or a well-made research instrument** —
+not a SaaS dashboard, not a charity microsite. Warm, precise, operational,
+grounded. Quiet confidence over marketing spectacle.
+
+The canvas is **vellum, not white**: `hsl(40 26% 92%)`. Panels are lit paper
+`hsl(44 40% 97%)`. Ink is a warm off-black `hsl(48 13% 9%)` — never `#000`,
+never a cool grey. There is **one accent, EL blue** `hsl(200 100% 45%)`, with
+`hsl(200 100% 28%)` for blue text on pale fills, and pale blue
+`hsl(204 87% 92%)` as the hover/selected surface.
+
+Both themes ship. Light is the default; the shell stamps `data-theme="dark"` on
+`<html>` and the stylesheet scopes the dark values to
+`[data-theme='dark'], .dark`. A `.hc` high-contrast scope also ships.
 
 **Key characteristics:**
-- Dark-only warm ink: `#161412` base, `#1E1B18` surface, `#262220` elevated
-- Warm parchment text: `#F2EDE3` primary, `#A8A094` muted, `#857D72` dim
-- Single accent: ember `#D96C57` / `#E08573` hover / `#B85441` strong (deep ember for text on light)
-- Borders: warm hairlines `rgba(242,237,227,0.05)` / `rgba(242,237,227,0.10)`
-- Fonts: Fraunces (headings/display), DM Sans (body/UI + tabular-nums data)
-- Data-viz heat ramp: parchment `#d0c2af` → amber `#d0a35a` → ember `#D96C57` → deep `#B85441`
-- Status: success `#80C16F`, warning `#d0a35a`, danger `#ff7b72`
-- Elevation via background luminance steps, not drop shadows
 
----
+- Paper foundation: vellum canvas, lit-paper panels, warm ink.
+- Single accent, EL blue. Everything else is paper, ink and status.
+- **Brand red `#C72A37` is not an error colour.** Product danger is the separate
+  `--danger` token that happens to look similar.
+- Fonts: **Bricolage Grotesque** (display, 800, tight negative tracking),
+  **Archivo** (all reading and UI), **JetBrains Mono** (eyebrows, timestamps,
+  technical metadata). Tabular numerals everywhere numbers align.
+- Data gets the expanded palette **in order**: Sea, Reef, Ochre, Clay, Dusk,
+  Sage. Never cherry-picked for decoration.
+- Choropleths and heatmaps use the sequential `--seq-1..5` scale.
+- Elevation is a warm shadow plus an inset edge light — never neutral black.
+- A `--grain` overlay at 3.5% multiply keeps the paper feeling like paper
+  (2.5% in dark, 0 in high contrast, removed in print).
 
-## 2. Color Tokens
+## 2. Stylesheet layering
 
-```css
-:root {
-  /* Backgrounds — luminance stacking model */
-  --bg:           #101113;   /* page base */
-  --bg-surface:   #17191d;   /* cards, panels */
-  --bg-elevated:  #1d2026;   /* nested cards, inputs */
-  --bg-input:     #13151a;   /* form inputs */
+Three files load in this order from `app/layout.tsx`:
 
-  /* Borders */
-  --border:       #262a31;              /* solid structural border */
-  --border-soft:  rgba(255,255,255,0.05); /* subtle card border */
-  --border-focus: rgba(192,57,43,0.5);  /* focus ring */
+| File | Role |
+|---|---|
+| `app/globals.css` | The `:root` token mirror (light), the `[data-theme='dark'] / .dark` and `.hc` scopes, plus the base shell rules. |
+| `app/neo-swiss.css` | Shell structure and per-component layout. Reads every colour from the tokens above. |
+| `app/el-field.css` | **Loads last.** The design-system decisions rather than values: paper surfaces, the type system, the geometry scale, the interaction states, the nav rail, and the materiality. |
 
-  /* Text */
-  --text:         #f5f2ea;   /* primary — warm off-white */
-  --text-muted:   #a09b93;   /* secondary — warm gray */
-  --text-dim:     #5a5651;   /* tertiary — for metadata */
+Prefer the semantic tokens (`--background`, `--card`, `--primary`) over the raw
+`--brand-*` / `--series-*` ones. Reach for the raw tokens only when the role
+really is brand or data.
 
-  /* Accent — maroon, used sparingly */
-  --accent:       #C0392B;
-  --accent-light: #d94f3d;   /* hover */
-  --accent-strong:#a0301f;   /* pressed/active */
-  --accent-warm:  #d0c2af;   /* parchment complement */
-  --accent-dim:   rgba(192,57,43,0.12); /* subtle tint */
+## 3. Typography
 
-  /* Status */
-  --success:      #4caf7d;
-  --warning:      #d4912a;
-  --danger:       #e05050;
+Loaded from Google Fonts in `app/layout.tsx`.
 
-  /* Shadows */
-  --shadow:       0 8px 32px rgba(0,0,0,0.4);
-  --shadow-soft:  0 4px 16px rgba(0,0,0,0.28);
+| Role | Family | Size | Weight | Notes |
+|---|---|---|---|---|
+| Display | Bricolage Grotesque | `--text-display` `clamp(40px, 6vw, 72px)` | 800 | `-.04em`, `.92` line height |
+| H1 / H2 / H3 | Bricolage Grotesque | 32 / 24 / 18px | 800 | `-.025em` |
+| Body, UI | Archivo | 15–16px | 400–600 | 1.5 line height |
+| Caption | Archivo | 13px | 400 | `--muted-foreground` |
+| Eyebrow | JetBrains Mono | 11px | 600 | uppercase, `.18em` |
+| Metadata, IDs, JSON | JetBrains Mono | 11–13px | 400–600 | timestamps, `⌘K` |
 
-  /* Typography */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body:    'DM Sans', -apple-system, sans-serif;
-  --font-mono:    ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+**Sentence case** for headings and UI labels — "Average completion across Bible
+projects", not Title Case. **UPPERCASE only in mono eyebrows and metadata**;
+the stylesheet applies it, so the markup stays sentence case. **No emoji, ever**
+— not in product, not in reports.
 
-  /* Radius */
-  --radius-sm:    6px;
-  --radius-md:    10px;
-  --radius-lg:    12px;
-}
-```
+## 4. Component styles
 
----
+**Cards** are bordered paper with a whisper of shadow: 1px `--card-border`,
+`--radius-lg` (10px), `--card` fill, `--edge-light` + `--shadow-sm`. Not
+floating, not borderless, and never a coloured left border as decoration.
+Compact utility rows use `--shadow-xs`.
 
-## 3. Typography Rules
+**Metric cards** put the number first and the explanation second, set in
+Bricolage 800 with tabular numerals: "590,584 total recordings · Across 35
+connected projects · last synced just now."
 
-### Font Loading
-```html
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" />
-```
+**Buttons** are `--radius-md` (8px), minimum 36px tall (44px for a primary touch
+target). The primary action is a solid `--primary` fill with
+`--primary-foreground` text. No gradients.
 
-### Type Scale
+**Eyebrow + title** is the standard region header: a mono uppercase eyebrow in
+`--muted-foreground`, then a Bricolage title. The accent belongs on state, not
+on every eyebrow.
 
-| Role | Font | Size | Weight | Notes |
-|------|------|------|--------|-------|
-| Page title | Cormorant Garamond | 2rem–2.5rem | 600 | -0.03em letter-spacing |
-| Section heading | Cormorant Garamond | 1.4rem–1.65rem | 600 | -0.02em |
-| Card heading | Cormorant Garamond | 1.1rem–1.25rem | 600 | -0.01em |
-| Eyebrow label | DM Sans | 0.65rem | 600 | uppercase, 0.08em letter-spacing |
-| Body | DM Sans | 0.875rem–1rem | 400 | normal spacing |
-| UI label | DM Sans | 0.75rem | 500 | |
-| Stat number | Cormorant Garamond | 2rem–2.5rem | 600 | tabular-nums |
-| Metadata/caption | DM Sans | 0.7rem | 400 | text-muted |
-| Mono | system mono | 0.8rem | 400 | code, env vars |
+**Data tables** carry tabular numerals throughout. Every table, chart and map
+should carry a source line naming owner, system and retrieval date.
 
-### Principles
-- Cormorant Garamond for anything that should feel **crafted or authoritative** (page titles, metric numbers, card headings)
-- DM Sans for everything **functional** (labels, body, navigation, form elements)
-- Eyebrow labels are ALWAYS uppercase DM Sans 600 with wide letter-spacing
-- Metric numbers use Cormorant Garamond tabular-nums for visual impact
+**Status** comes in two forms: solid tokens for dots and bars, and the
+`*-soft` + `*-soft-foreground` pairs for chips, badges and banners.
 
----
+**Overlays** — and only transient overlays that visibly float — use `.glass`
+(16px blur, ~82% paper fill). Glass is never the base surface.
 
-## 4. Component Styles
+## 5. Layout
 
-### Cards
-```css
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-}
-/* Elevated / nested */
-.card--elevated {
-  background: var(--bg-elevated);
-}
-/* With top accent bar */
-.card--accented::before {
-  content: '';
-  display: block;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  margin: -1.25rem -1.25rem 1.25rem;
-}
-```
+- Desktop: a persistent **256px** navigation rail (`--rail-width`), fixed and
+  never icon-collapsed, plus a fluid canvas at a 32px gutter and 24px region
+  gap.
+- Selected nav row: a 2px blue left rule, a paper fill and 600 weight. Wired via
+  `aria-current="page"` from `components/AdminNavLink.tsx`.
+- Mobile (≤900px): **the rail is removed entirely**, everything becomes one
+  column at a 16px gutter, and no data is hidden — order and hierarchy are
+  preserved. No horizontal overflow at 390px, ever.
+- Controls stay ≥36px, ≥44px when they're a primary touch target.
 
-### Metric Cards
-- Background: `var(--bg-surface)` with `var(--border-soft)` border
-- 2px top accent bar in maroon gradient
-- Label: DM Sans 0.65rem uppercase 600, `var(--text-dim)`
-- Number: Cormorant Garamond clamp(1.75rem, 2vw, 2.25rem) 600, `var(--text)`
-- Sub-text: DM Sans 0.72rem, `var(--text-muted)`
-- Hover: subtle translateY(-2px) + shadow lift
+## 6. Radii and elevation
 
-### Buttons
+Six radii and nothing else: **6** chips · **8** buttons and inputs · **10**
+paper · **14** overlays · **20** rare · **full** for badges.
 
-**Primary (maroon)**
-- Background: `var(--accent)` → hover `var(--accent-light)`
-- Text: `#fff`
-- Padding: 0.45em 1em
-- Radius: `var(--radius-sm)`
+Shadows are warm (`#1a1a16` at 4–16% alpha), never neutral black, and always
+paired with the inset edge light. Five steps, `--shadow-xs` → `--shadow-2xl`,
+plus `--shadow-focus` for the 3px 35%-alpha blue focus ring.
 
-**Secondary / Ghost**
-- Background: `rgba(255,255,255,0.04)` → hover `rgba(255,255,255,0.07)`
-- Border: `1px solid var(--border-soft)`
-- Text: `var(--text-muted)` → hover `var(--text)`
-- Radius: `var(--radius-sm)`
+## 7. Motion and interaction
 
-**Tab / Segmented**
-- Inactive: transparent, `var(--text-muted)`
-- Active: `var(--accent)` background, `#fff` text, `var(--radius-sm)` radius
+Quick and physically restrained: `90ms / 150ms / 240ms / 400ms` with
+`cubic-bezier(.22, 1, .36, 1)`. Transform and opacity only.
 
-### Eyebrow + Title Pattern (used everywhere)
-```html
-<p class="eyebrow">SECTION LABEL</p>
-<h2 class="section-title">Section heading here</h2>
-```
-- Eyebrow: DM Sans 0.65rem 600 uppercase, 0.08em letter-spacing, `var(--text-dim)`
-- Title: Cormorant Garamond 1.4–2rem 600, `var(--text)`
+- **Hover** is a *colour* change — canvas to pale blue accent, text to deep
+  blue. Not an opacity change.
+- **Active/press** is `translateY(1px)`. No scale-down, no colour darkening.
+- **Focus** is `--shadow-focus`, always visible.
+- **Disabled** is 45% opacity with pointer events off.
 
-### Data Tables
-- Background: `var(--bg-surface)`, `var(--border-soft)` border
-- Header row: DM Sans 0.68rem 600 uppercase, `var(--text-dim)`, border-bottom
-- Data rows: DM Sans 0.875rem, `var(--text)`, `rgba(255,255,255,0.02)` hover
-- Accented value cells: `var(--accent)` text or left border marker
-- Rank numbers: Cormorant Garamond 1.1rem, `var(--text-dim)`
+Progress and chart draws are the only animated data. No perpetual decorative
+motion in a dashboard. `prefers-reduced-motion` is honoured globally.
 
----
-
-## 5. Layout Principles
-
-### Spacing System (base 4px)
-- 4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 48px
-- Page padding: `clamp(1rem, 2vw, 1.5rem)`
-- Card inner padding: `1.25rem`
-- Grid gap: `1rem`
-
-### Analytics Page Grid
-```
-┌─────────────────────────────────────────┐
-│  Page header (eyebrow + title + actions) │
-├─────────────────────────────────────────┤
-│  Metric strip (6–7 cards, scroll on mob) │
-├──────────────────────┬──────────────────┤
-│                      │  Sidebar          │
-│   Globe / map        │  (stats, legend,  │
-│   (2/3 width)        │   explore panel)  │
-│                      │  (1/3 width)      │
-├─────────────────────────────────────────┤
-│  Daily trends (3 calendar panels)        │
-├─────────────────────────────────────────┤
-│  Translation table  │  Locations table   │
-└─────────────────────────────────────────┘
-```
-
-### Grid Columns
-- Metric grid: `repeat(auto-fill, minmax(160px, 1fr))`
-- Globe+sidebar: `minmax(0, 2fr) minmax(300px, 1fr)`
-- Two data tables: `repeat(2, 1fr)` → stacked on mobile
-
-### Responsive
-- < 980px: sidebar below globe
-- < 720px: metrics 2-col, tables stacked
-
----
-
-## 6. Elevation
-
-| Level | Background | Border | Use |
-|-------|-----------|--------|-----|
-| Page | `#101113` | none | App background |
-| Surface | `#17191d` | `rgba(255,255,255,0.05)` | Cards, panels |
-| Elevated | `#1d2026` | `rgba(255,255,255,0.05)` | Nested cards |
-| Input | `#13151a` | `#262a31` | Form controls |
-| Overlay | `rgba(255,255,255,0.06)` | none | Hover states |
-
-**Rule:** Use luminance stepping, not drop shadows, for depth. `--shadow-soft` only for floating elements.
-
----
-
-## 7. Do's and Don'ts
+## 8. Do's and don'ts
 
 ### Do
-- Use Cormorant Garamond for all display text, headings, stat numbers
-- Use DM Sans for all labels, body, form elements, navigation
-- Use `var(--border-soft)` (semi-transparent) for card borders
-- Use solid `var(--border)` only for dividers and input borders
-- Reserve `var(--accent)` for primary actions and active states only
-- Apply eyebrow labels (uppercase DM Sans) before every section heading
-- Use luminance stacking for elevation: --bg → --bg-surface → --bg-elevated
+
+- Read colours from the semantic tokens; add new ones to
+  `packages/brand/tokens.css` first and mirror them into `app/globals.css`.
+- Use the data series in order, and the sequential scale for magnitude.
+- Put the number first and the explanation second.
+- Label facts, estimates and recommendations separately, and say "estimated,
+  not measured" out loud when it is.
+- Keep both themes working — check the dark scope before shipping.
 
 ### Don't
-- Don't use colored backgrounds on cards (except the 2px accent bar)
-- Don't use `--accent` for decorative elements
-- Don't mix font families on the same visual element
-- Don't use pure white text — `var(--text)` (`#f5f2ea`) is the warmest allowed
-- Don't add light mode styles
-- Don't use visible border on `.metric-card` — rely on background contrast
-- Don't use bright status colors for anything non-critical
+
+- Don't add decorative gradients, photographic backgrounds, or textures beyond
+  the grain.
+- Don't use brand red as an error colour, or collapse the official brand
+  off-white `#ECE8E0` into the product vellum canvas.
+- Don't use glass or blur as a base surface.
+- Don't use Title Case in headings or UI labels, and don't use emoji.
+- Don't hard-code a hex where a token exists — `brandTokens.test.ts` will catch
+  the retired palette, but it can't catch a brand-new stray colour.
