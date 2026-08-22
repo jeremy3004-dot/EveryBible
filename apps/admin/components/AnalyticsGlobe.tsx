@@ -673,13 +673,16 @@ export function AnalyticsGlobe({
       attributionControl: {
         compact: true,
       },
-      bearing: -8,
+      // North-up and flat. The globe used to open at bearing -8 / pitch 12 and
+      // then drift, which left no way to get the world square again.
+      bearing: 0,
       center: INITIAL_CENTER,
       container: containerRef.current,
-      // Re-enabled (Phase 2): operators can spin the globe and zoom into a region.
+      // Operators can still spin the globe and zoom into a region; the compass
+      // control below puts it back to north.
       dragRotate: true,
       maxBounds: WORLD_BOUNDS,
-      pitch: 12,
+      pitch: 0,
       minZoom: 1,
       pitchWithRotate: false,
       renderWorldCopies: false,
@@ -688,7 +691,9 @@ export function AnalyticsGlobe({
       zoom: INITIAL_ZOOM,
     });
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // showCompass gives the operator a reset-bearing button: clicking it snaps
+    // the globe back to north-up.
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
     map.on('style.load', () => {
       readyRef.current = true;
@@ -781,59 +786,6 @@ export function AnalyticsGlobe({
     hasFlownRef.current = true;
     map.flyTo({ center: centroid, zoom: 3.1, duration: 2200, essential: true });
   }, [isMapReady, effectiveMetrics]);
-
-  // Slow idle auto-rotate (~6°/min-ish) that pauses the moment the operator
-  // interacts and resumes after 10s of stillness. Respects reduced-motion.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !isMapReady) {
-      return;
-    }
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-
-    let idleTimer: ReturnType<typeof setTimeout> | null = null;
-    let interval: ReturnType<typeof setInterval> | null = null;
-    let spinning = true;
-
-    const spin = () => {
-      if (!spinning || !mapRef.current) return;
-      map.easeTo({ bearing: map.getBearing() + 6, duration: 6000, easing: (t) => t });
-    };
-
-    const pause = () => {
-      spinning = false;
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        spinning = true;
-        spin();
-      }, 10000);
-    };
-
-    const canvas = map.getCanvas();
-    canvas.addEventListener('mousedown', pause);
-    canvas.addEventListener('wheel', pause, { passive: true });
-    canvas.addEventListener('touchstart', pause, { passive: true });
-
-    // Hold off until the intro fly-to (2.2s) has settled so they don't fight.
-    const startTimer = setTimeout(() => {
-      spin();
-      interval = setInterval(spin, 6000);
-    }, 2800);
-
-    return () => {
-      clearTimeout(startTimer);
-      if (interval) clearInterval(interval);
-      if (idleTimer) clearTimeout(idleTimer);
-      canvas.removeEventListener('mousedown', pause);
-      canvas.removeEventListener('wheel', pause);
-      canvas.removeEventListener('touchstart', pause);
-    };
-  }, [isMapReady]);
 
   if (!effectiveMetrics.length) {
     return (
