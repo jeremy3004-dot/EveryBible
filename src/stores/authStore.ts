@@ -5,7 +5,12 @@ import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
-import { resolveInitializedAuthState, resolveUserStateUpdate } from './authSessionState';
+import {
+  applyAuthBoundaryEffects,
+  resolveInitializedAuthState,
+  resolveUserStateUpdate,
+  shouldResetPerUserStateAtAuthBoundary,
+} from './authSessionState';
 import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
 
 interface AuthState {
@@ -20,6 +25,9 @@ interface AuthState {
   // Used to detect an account switch on sign-in so account B never inherits
   // account A's local reading data (H2).
   lastSyncedUserId: string | null;
+  // Monotonic auth boundary generation. A uid can be reused after sign-out and
+  // sign-in, so uid equality alone must not keep an old continuation alive.
+  authGeneration: number;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -32,7 +40,7 @@ interface AuthState {
   // Reconcile the auth boundary before the first post-sign-in sync: if the newly
   // authenticated uid differs from the last-synced uid, reset all per-user
   // stores so the previous account's local data is never merged into this one.
-  reconcileUserBoundary: (userId: string) => void;
+  reconcileUserBoundary: (userId: string, previousUserId?: string | null) => void;
 }
 
 let authSubscription: Subscription | null = null;
@@ -43,6 +51,13 @@ let authSubscription: Subscription | null = null;
 interface ResettableStore {
   getState: () => { resetForSignOut?: () => void };
 }
+
+// Guest plan unenroll tombstones are local-only and must never be interpreted
+// as deletes for the first authenticated account. Consume only those markers
+// while preserving the guest's normal reading progress and preferences.
+const clearGuestPlanTombstones = (): void => {
+  require('./readingPlansStore').readingPlansStore.getState().clearPendingUnenrolls?.();
+};
 
 // Reset every per-user store back to its initial state at an auth boundary
 // (sign-out, or sign-in as a different account). Optional-chained so it is safe
@@ -96,37 +111,92 @@ export const useAuthStore = create<AuthState>()(
       preferences: defaultAuthPreferences,
       preferencesUpdatedAt: null,
       lastSyncedUserId: null,
+      authGeneration: 0,
 
       setUser: (user) => {
-        set((state) =>
-          resolveUserStateUpdate({
+        const previousUserId = get().user?.uid ?? null;
+        const nextUserId = user?.uid ?? null;
+        set((state) => {
+          const update = resolveUserStateUpdate({
             session: state.session,
             user,
-          })
-        );
+          });
+          return {
+            ...update,
+            authGeneration: state.authGeneration + (previousUserId === nextUserId ? 0 : 1),
+          };
+        });
         // Reconcile the auth boundary synchronously at the identity change so a
-        // switched account never briefly sees the previous account's local data
-        // before the deferred sync effect runs (H2). reconcileUserBoundary is a
-        // no-op unless the incoming non-null uid differs from lastSyncedUserId,
-        // so first sign-in, token refresh, and returning-same-user launches do
-        // not wipe.
-        if (user?.uid) {
-          get().reconcileUserBoundary(user.uid);
+        // switched account never sees previous-account data; first sign-in
+        // preserves normal guest progress while consuming guest tombstones.
+        if (nextUserId) {
+          get().reconcileUserBoundary(nextUserId, previousUserId);
+        } else if (
+          shouldResetPerUserStateAtAuthBoundary({
+            previousUserId,
+            nextUserId,
+            lastSyncedUserId: get().lastSyncedUserId,
+          })
+        ) {
+          applyAuthBoundaryEffects(
+            {
+              previousUserId,
+              nextUserId,
+              lastSyncedUserId: get().lastSyncedUserId,
+            },
+            {
+              resetPerUserState: resetPerUserStores,
+              resetPreferences: () =>
+                set({
+                  preferences: defaultAuthPreferences,
+                  preferencesUpdatedAt: null,
+                  lastSyncedUserId: null,
+                }),
+              clearGuestTombstones: clearGuestPlanTombstones,
+            }
+          );
         }
       },
 
       setSession: (session) => {
         const user = session?.user ? mapSupabaseUser(session.user) : null;
-        set({
+        const previousUserId = get().user?.uid ?? null;
+        const nextUserId = user?.uid ?? null;
+        set((state) => ({
           session,
           user,
           isAuthenticated: session !== null,
-        });
+          authGeneration: state.authGeneration + (previousUserId === nextUserId ? 0 : 1),
+        }));
         // Same synchronous auth-boundary reconcile as setUser: a session swap
-        // to a different account resets per-user stores immediately; same-uid
-        // token refreshes and returning-same-user launches are a no-op (H2).
-        if (user?.uid) {
-          get().reconcileUserBoundary(user.uid);
+        // resets previous-account stores; first sign-in preserves guest data
+        // while consuming guest tombstones (H2).
+        if (nextUserId) {
+          get().reconcileUserBoundary(nextUserId, previousUserId);
+        } else if (
+          shouldResetPerUserStateAtAuthBoundary({
+            previousUserId,
+            nextUserId,
+            lastSyncedUserId: get().lastSyncedUserId,
+          })
+        ) {
+          applyAuthBoundaryEffects(
+            {
+              previousUserId,
+              nextUserId,
+              lastSyncedUserId: get().lastSyncedUserId,
+            },
+            {
+              resetPerUserState: resetPerUserStores,
+              resetPreferences: () =>
+                set({
+                  preferences: defaultAuthPreferences,
+                  preferencesUpdatedAt: null,
+                  lastSyncedUserId: null,
+                }),
+              clearGuestTombstones: clearGuestPlanTombstones,
+            }
+          );
         }
       },
 
@@ -193,19 +263,28 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           session: null,
           isAuthenticated: false,
+          preferences: defaultAuthPreferences,
           preferencesUpdatedAt: null,
           lastSyncedUserId: null,
+          authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
         });
       },
 
-      reconcileUserBoundary: (userId) => {
+      reconcileUserBoundary: (userId, previousUserId = get().user?.uid ?? null) => {
         const { lastSyncedUserId } = get();
-        if (lastSyncedUserId && lastSyncedUserId !== userId) {
-          // Account switched on this device without a sign-out in between:
-          // wipe the previous account's per-user local data before the first
-          // sync so it is never merged into the new account (H2).
-          resetPerUserStores();
-        }
+        applyAuthBoundaryEffects(
+          {
+            previousUserId,
+            nextUserId: userId,
+            lastSyncedUserId,
+          },
+          {
+            resetPerUserState: resetPerUserStores,
+            resetPreferences: () =>
+              set({ preferences: defaultAuthPreferences, preferencesUpdatedAt: null }),
+            clearGuestTombstones: clearGuestPlanTombstones,
+          }
+        );
         if (lastSyncedUserId !== userId) {
           set({ lastSyncedUserId: userId });
         }
@@ -222,24 +301,22 @@ export const useAuthStore = create<AuthState>()(
             ? resolveInitializedAuthState(await getCurrentSession())
             : resolveInitializedAuthState({ session: null, user: null });
 
-          set(restoredState);
+          // Route restored sessions through the same synchronous boundary as
+          // interactive auth. This clears stale persisted A state before the
+          // initialized UI can render as B (or as signed-out guest).
+          get().setSession(restoredState.session);
 
           if (hasSupabaseConfig) {
             // Get current session
             if (!authSubscription) {
               const { data } = supabase.auth.onAuthStateChange((_event, session) => {
                 if (session?.user) {
-                  set({
-                    session,
-                    user: mapSupabaseUser(session.user),
-                    isAuthenticated: true,
-                  });
+                  // Route auth callbacks through the same boundary-aware action
+                  // as interactive sign-in so an account swap resets local
+                  // per-user stores before any sync continuation can run.
+                  get().setSession(session);
                 } else {
-                  set({
-                    session: null,
-                    user: null,
-                    isAuthenticated: false,
-                  });
+                  get().setSession(null);
                 }
               });
               authSubscription = data.subscription;

@@ -10,6 +10,7 @@ import {
 } from './elManifestService';
 import type { ElCatalogTranslation } from './elCatalogModel';
 import type { ElJwk } from './elEnvelope';
+import { __resetElJwksRuntimeForTests } from './elJwks';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readFixtureBytes = (name: string) =>
@@ -139,6 +140,35 @@ test('a disk cache hit (cold memory) performs zero fetches', async () => {
   assert.equal(fetcher.calls, 1);
   assert.ok(again);
   assert.equal(again.translationId, 'lqdtest');
+});
+
+test('memory and disk cache hits enforce translation and audio-version identity guards', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: fetcher.fetchFn,
+    storage,
+    getKeys,
+  });
+
+  // Same URL, but a different translation: a memory hit must not return the cached document.
+  const memorySwap = await getElManifest(
+    baseEntry({ translationId: 'lqother' }),
+    CATALOG_BASE_URL,
+    { fetchFn: fetcher.fetchFn, storage, getKeys }
+  );
+  assert.equal(memorySwap, null);
+
+  // Cold memory, same URL on disk, but a different audio version: a disk hit must also be
+  // checked against the requested entry before it can be returned.
+  __resetElManifestRuntimeForTests();
+  const diskSwap = await getElManifest(
+    baseEntry({ currentAudioVersion: 'v9999' }),
+    CATALOG_BASE_URL,
+    { fetchFn: fetcher.fetchFn, storage, getKeys }
+  );
+  assert.equal(diskSwap, null);
 });
 
 test('cached payload is the verified manifest JSON (not the envelope)', async () => {
@@ -452,4 +482,94 @@ test('relative manifest URL resolves against catalogBaseUrl (trailing slash stri
   }) as unknown as typeof fetch;
   await getElManifest(baseEntry(), 'https://media.example.test/', { fetchFn, storage, getKeys });
   assert.equal(seenUrl, 'https://media.example.test/manifests/audio/lqdtest/v2026-07-20-1.json');
+});
+
+test('default getKeys discovers an unknown manifest kid from catalogBaseUrl using injected deps', async () => {
+  __resetElManifestRuntimeForTests();
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const unknownKid = 'lqd-rotated-2027-a';
+  const jwksUrl = `${CATALOG_BASE_URL}/.well-known/keys.json`;
+  const rotatedManifestBytes = new TextEncoder().encode(
+    JSON.stringify({ ...readJson('manifest-lqdtest.json'), keyId: unknownKid })
+  );
+  let jwksFetches = 0;
+
+  const fetchFn = (async (url: string) => {
+    if (url === jwksUrl) {
+      jwksFetches += 1;
+      return {
+        ok: true,
+        json: async () => ({ keys: [{ ...jwks[0], kid: unknownKid }] }),
+      } as unknown as Response;
+    }
+    return {
+      ok: true,
+      arrayBuffer: async () =>
+        rotatedManifestBytes.buffer.slice(
+          rotatedManifestBytes.byteOffset,
+          rotatedManifestBytes.byteOffset + rotatedManifestBytes.byteLength
+        ),
+    } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+  // The fixture's signed header still has the pinned kid, so verification is expected to fail;
+  // this regression is specifically about reaching JWKS discovery with the right URL and deps.
+  assert.equal(
+    await getElManifest(baseEntry({ manifestSha256: '' }), CATALOG_BASE_URL, {
+      fetchFn,
+      storage,
+      computeSha256Hex: async () => null,
+    }),
+    null
+  );
+  assert.equal(jwksFetches, 1, 'unknown manifest kids must trigger base-URL JWKS discovery');
+  assert.ok(storage.raw.has('el-media:jwks-cache'), 'JWKS discovery must use the service storage');
+
+  __resetElJwksRuntimeForTests();
+});
+
+test('default manifest key discovery is bounded after the manifest fetch succeeds', async () => {
+  __resetElManifestRuntimeForTests();
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const unknownKid = 'lqd-rotated-hanging-a';
+  const jwksUrl = `${CATALOG_BASE_URL}/.well-known/keys.json`;
+  const rotatedManifestBytes = new TextEncoder().encode(
+    JSON.stringify({ ...readJson('manifest-lqdtest.json'), keyId: unknownKid })
+  );
+  let observedSignal: AbortSignal | undefined;
+
+  const fetchFn = (async (url: string, init?: RequestInit) => {
+    if (url === jwksUrl) {
+      observedSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      });
+    }
+    return {
+      ok: true,
+      arrayBuffer: async () =>
+        rotatedManifestBytes.buffer.slice(
+          rotatedManifestBytes.byteOffset,
+          rotatedManifestBytes.byteOffset + rotatedManifestBytes.byteLength
+        ),
+    } as unknown as Response;
+  }) as typeof fetch;
+
+  const deadline = Symbol('deadline');
+  const result = await Promise.race([
+    getElManifest(baseEntry({ manifestSha256: '' }), CATALOG_BASE_URL, {
+      fetchFn,
+      storage,
+      computeSha256Hex: async () => null,
+      timeoutMs: 5,
+    }),
+    new Promise<typeof deadline>((resolve) => setTimeout(() => resolve(deadline), 500)),
+  ]);
+
+  assert.notEqual(result, deadline, 'manifest key discovery must not hang');
+  assert.equal(result, null);
+  assert.ok(observedSignal, 'manifest key discovery should receive an abort signal');
+  __resetElJwksRuntimeForTests();
 });

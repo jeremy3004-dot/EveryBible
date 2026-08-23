@@ -247,6 +247,8 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   addPendingUnenroll: (planId: string) => void;
   /** Clears a tombstone once the remote delete is confirmed (or the plan is re-enrolled) (M12). */
   clearPendingUnenroll: (planId: string) => void;
+  /** Consumes guest-only tombstones before the first authenticated sync. */
+  clearPendingUnenrolls: () => void;
   resetAll: () => void;
   /**
    * Clears all per-user plan progress, rhythms, and tombstones back to the initial

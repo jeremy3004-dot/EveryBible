@@ -4,7 +4,9 @@ import {
   type AppStateStatus,
   InteractionManager,
   Platform,
+  Pressable,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -74,6 +76,32 @@ function scheduleAfterInteractions(task: () => void, delayMs = 0): () => void {
   };
 }
 
+function PrivacyInitializationRetryScreen({ onRetry }: { onRetry: () => Promise<void> }) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.privacyRetryShell, { backgroundColor: colors.background }]}>
+      <View style={[styles.privacyRetryCard, { backgroundColor: colors.bibleElevatedSurface }]}>
+        <Text style={[styles.privacyRetryTitle, { color: colors.biblePrimaryText }]}>
+          {i18n.t('common.error')}
+        </Text>
+        <Text style={[styles.privacyRetryBody, { color: colors.bibleSecondaryText }]}>
+          {i18n.t('loading.errorLoading')}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void onRetry()}
+          style={[styles.privacyRetryButton, { backgroundColor: colors.bibleAccent }]}
+        >
+          <Text style={[styles.privacyRetryButtonText, { color: colors.background }]}>
+            {i18n.t('common.retry')}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function LoadingScreen() {
   console.log('[EB-T] LoadingScreen:render', Date.now());
   const { colors } = useTheme();
@@ -90,6 +118,9 @@ function LoadingScreen() {
   const warmupCancelRef = useRef<(() => void) | null>(null);
   const initializeAuth = useAuthStore((state) => state.initialize);
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
+  const retryInitializePrivacy = usePrivacyStore((state) => state.retryInitialize);
+  const isPrivacyInitialized = usePrivacyStore((state) => state.isInitialized);
+  const privacyInitializationError = usePrivacyStore((state) => state.initializationError);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -125,7 +156,9 @@ function LoadingScreen() {
         },
         onCriticalTimeout: (taskName) => {
           console.warn(
-            `Critical startup timed out during ${taskName}; continuing launch with safe defaults.`
+            taskName === 'privacy'
+              ? 'Privacy initialization timed out; keeping launch locked until retry.'
+              : `Critical startup timed out during ${taskName}; continuing launch with safe defaults.`
           );
         },
       }),
@@ -259,7 +292,7 @@ function LoadingScreen() {
   }, [preferences.language]);
 
   useEffect(() => {
-    if (!isReady || !preferences.onboardingCompleted || isPrivacyLocked) {
+    if (!isReady || !preferences.onboardingCompleted || !isPrivacyInitialized || isPrivacyLocked) {
       setShouldRenderNavigator(false);
       return;
     }
@@ -271,12 +304,16 @@ function LoadingScreen() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [isPrivacyLocked, isReady, preferences.onboardingCompleted]);
+  }, [isPrivacyInitialized, isPrivacyLocked, isReady, preferences.onboardingCompleted]);
 
   const shouldWaitForFonts =
     Platform.OS !== 'android' && !fontsLoaded && !fontError && !fontLoadTimedOut;
 
-  if (!isReady || shouldWaitForFonts) {
+  if (privacyInitializationError) {
+    return <PrivacyInitializationRetryScreen onRetry={retryInitializePrivacy} />;
+  }
+
+  if (!isReady || !isPrivacyInitialized || shouldWaitForFonts) {
     return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
   }
 
@@ -302,7 +339,8 @@ function LoadingScreen() {
   return <RootNavigator />;
 }
 
-type LocaleSetupFlowComponent = typeof import('./src/screens/onboarding/LocaleSetupFlow')['LocaleSetupFlow'];
+type LocaleSetupFlowComponent =
+  (typeof import('./src/screens/onboarding/LocaleSetupFlow'))['LocaleSetupFlow'];
 
 // Async-load the onboarding flow so its heavy import graph (bibleStore hydration,
 // @supabase/supabase-js, translations service) evaluates off the render pass
@@ -351,6 +389,7 @@ function AppContent() {
   const onboardingCompleted = useAuthStore((state) => state.preferences.onboardingCompleted);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const isPrivacyInitialized = usePrivacyStore((state) => state.isInitialized);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
 
@@ -561,7 +600,7 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <AppRuntimeEffectsHost enabled={onboardingCompleted} />
+      <AppRuntimeEffectsHost enabled={onboardingCompleted && isPrivacyInitialized} />
       <ErrorBoundary>
         <LoadingScreen />
       </ErrorBoundary>
@@ -610,5 +649,37 @@ const styles = StyleSheet.create({
   },
   gestureRoot: {
     flex: 1,
+  },
+  privacyRetryShell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  privacyRetryCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    padding: 24,
+  },
+  privacyRetryTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  privacyRetryBody: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  privacyRetryButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    marginTop: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  privacyRetryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

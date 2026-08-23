@@ -125,3 +125,135 @@ test('resolveUserStateUpdate preserves auth when a live session user profile cha
     }
   );
 });
+
+test('auth boundaries preserve guest progress but reset account-owned state', async () => {
+  const authSessionState = await import('./authSessionState');
+
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: null,
+      nextUserId: 'user-b',
+      lastSyncedUserId: null,
+    }),
+    false,
+    'guest progress and preferences should transfer into the first account'
+  );
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: 'user-a',
+      nextUserId: 'user-b',
+      lastSyncedUserId: null,
+    }),
+    true,
+    'account A state must be cleared before account B syncs'
+  );
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: 'user-a',
+      nextUserId: 'user-b',
+      lastSyncedUserId: 'user-b',
+    }),
+    true,
+    'a stale owner marker must not suppress an A-to-B reset'
+  );
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: 'user-b',
+      nextUserId: 'user-b',
+      lastSyncedUserId: 'user-b',
+    }),
+    false,
+    'same-user token refreshes must preserve preferences and plan state'
+  );
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: null,
+      nextUserId: null,
+      lastSyncedUserId: null,
+    }),
+    false,
+    'first-launch guest state must not be wiped by an empty auth callback'
+  );
+  assert.equal(
+    authSessionState.shouldResetPerUserStateAtAuthBoundary({
+      previousUserId: 'user-a',
+      nextUserId: null,
+      lastSyncedUserId: 'user-a',
+    }),
+    true,
+    'a session-expiry callback must clear account A stores before guest state resumes'
+  );
+});
+
+test('first guest-to-account boundary consumes guest tombstones without deleting guest progress', async () => {
+  const authSessionState = await import('./authSessionState');
+  const { createReadingPlansStore } = await import('./readingPlansStore');
+  const store = createReadingPlansStore({
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  });
+  const guestProgress = store.getState().enrollPlan('sermon-on-the-mount-7-days');
+  store.getState().addPendingUnenroll('legacy-guest-plan');
+
+  const shouldResetAll = authSessionState.shouldResetPerUserStateAtAuthBoundary({
+    previousUserId: null,
+    nextUserId: 'user-b',
+    lastSyncedUserId: null,
+  });
+  assert.equal(shouldResetAll, false);
+
+  // This is the actual injectable boundary action used by authStore: only
+  // legacy guest tombstones are consumed; normal guest progress remains
+  // transferable.
+  authSessionState.applyAuthBoundaryEffects(
+    {
+      previousUserId: null,
+      nextUserId: 'user-b',
+      lastSyncedUserId: null,
+    },
+    {
+      resetPerUserState: () => assert.fail('guest boundary must not reset progress'),
+      resetPreferences: () => assert.fail('guest boundary must not reset preferences'),
+      clearGuestTombstones: () => store.getState().clearPendingUnenrolls(),
+    }
+  );
+  assert.deepEqual(store.getState().pendingUnenrollPlanIds, []);
+  assert.deepEqual(store.getState().getProgress(guestProgress.plan_id), guestProgress);
+});
+
+test('auth boundary effects reset account state for A-to-B and session expiry', async () => {
+  const authSessionState = await import('./authSessionState');
+  let resetCount = 0;
+  let preferenceResetCount = 0;
+  let guestClearCount = 0;
+  const effects = {
+    resetPerUserState: () => {
+      resetCount += 1;
+    },
+    resetPreferences: () => {
+      preferenceResetCount += 1;
+    },
+    clearGuestTombstones: () => {
+      guestClearCount += 1;
+    },
+  };
+
+  assert.equal(
+    authSessionState.applyAuthBoundaryEffects(
+      { previousUserId: 'user-a', nextUserId: 'user-b', lastSyncedUserId: 'user-a' },
+      effects
+    ),
+    'reset'
+  );
+  assert.equal(
+    authSessionState.applyAuthBoundaryEffects(
+      { previousUserId: 'user-a', nextUserId: null, lastSyncedUserId: 'user-a' },
+      effects
+    ),
+    'reset'
+  );
+  assert.equal(resetCount, 2);
+  assert.equal(preferenceResetCount, 2);
+  assert.equal(guestClearCount, 0);
+});

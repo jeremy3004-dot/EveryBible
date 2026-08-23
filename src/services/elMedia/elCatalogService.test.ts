@@ -2,10 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { p256 } from '@noble/curves/nist.js';
 
 import { refreshElCatalog, getLastVerifiedElCatalog } from './elCatalogService';
 import type { ElJwk } from './elEnvelope';
 import { __resetElJwksRuntimeForTests } from './elJwks';
+import { sha256Bytes } from './elEs256';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
@@ -55,6 +57,39 @@ function makeFetch(body: unknown, ok = true, isJsonThrow = false) {
 
 const getKeys = async () => jwks;
 const supported = () => true;
+
+const toBase64Url = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url');
+
+function createRotatedCatalogFixture(keyId: string): { envelope: unknown; key: ElJwk } {
+  const privateKey = new Uint8Array(32).fill(7);
+  const publicKey = p256.getPublicKey(privateKey, false);
+  const key: ElJwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    x: toBase64Url(publicKey.slice(1, 33)),
+    y: toBase64Url(publicKey.slice(33)),
+    kid: keyId,
+    alg: 'ES256',
+    use: 'sig',
+  };
+  const payloadSegment = catalogEnvelope.compactJws.split('.')[1] as string;
+  const headerSegment = toBase64Url(
+    new TextEncoder().encode(JSON.stringify({ alg: 'ES256', kid: keyId }))
+  );
+  const signingInput = new TextEncoder().encode(`${headerSegment}.${payloadSegment}`);
+  const signature = p256
+    .sign(sha256Bytes(signingInput), privateKey, { format: 'compact', lowS: false })
+    .toCompactRawBytes();
+
+  return {
+    key,
+    envelope: {
+      ...catalogEnvelope,
+      keyId,
+      compactJws: `${headerSegment}.${payloadSegment}.${toBase64Url(signature)}`,
+    },
+  };
+}
 
 // A synthetic stored catalog state at a given sequence. The stored payloadJson must be a
 // valid lqd-catalog/v1 payload so getLastVerifiedElCatalog can re-parse it.
@@ -307,5 +342,79 @@ test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JW
   // The whole point: pinned kid means the JWKS discovery URL is never fetched.
   assert.equal(jwksFetches, 0, `expected zero JWKS fetches, got ${jwksFetches} (${jwksUrl})`);
 
+  __resetElJwksRuntimeForTests();
+});
+
+test('default getKeys discovers an unknown catalog kid from the catalog origin using injected deps', async () => {
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const unknownKid = 'lqd-rotated-2027-a';
+  const catalogUrl = 'https://example.test/media/catalog.dev.json';
+  const jwksUrl = 'https://example.test/.well-known/keys.json';
+  const rotatedFixture = createRotatedCatalogFixture(unknownKid);
+  let jwksFetches = 0;
+
+  const fetchFn = (async (url: string) => {
+    if (url === jwksUrl) {
+      jwksFetches += 1;
+      return {
+        ok: true,
+        json: async () => ({ keys: [rotatedFixture.key] }),
+      } as unknown as Response;
+    }
+    return {
+      ok: true,
+      json: async () => rotatedFixture.envelope,
+    } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+  const catalog = await refreshElCatalog(catalogUrl, {
+    fetchFn,
+    storage,
+    isVerificationSupported: supported,
+  });
+  assert.ok(catalog, 'a discovered rotated key must verify a signed catalog');
+  assert.equal(catalog.sequence, 1);
+  assert.equal(jwksFetches, 1, 'unknown catalog kids must trigger origin-scoped JWKS discovery');
+  assert.ok(storage.raw.has('el-media:jwks-cache'), 'JWKS discovery must use the service storage');
+
+  __resetElJwksRuntimeForTests();
+});
+
+test('default catalog key discovery is bounded after the catalog fetch succeeds', async () => {
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const unknownKid = 'lqd-rotated-hanging-a';
+  const catalogUrl = 'https://example.test/media/catalog.dev.json';
+  const jwksUrl = 'https://example.test/.well-known/keys.json';
+  let observedSignal: AbortSignal | undefined;
+
+  const fetchFn = (async (url: string, init?: RequestInit) => {
+    if (url === jwksUrl) {
+      observedSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      });
+    }
+    return {
+      ok: true,
+      json: async () => ({ ...catalogEnvelope, keyId: unknownKid }),
+    } as unknown as Response;
+  }) as typeof fetch;
+
+  const deadline = Symbol('deadline');
+  const result = await Promise.race([
+    refreshElCatalog(catalogUrl, {
+      fetchFn,
+      storage,
+      isVerificationSupported: supported,
+      timeoutMs: 5,
+    }),
+    new Promise<typeof deadline>((resolve) => setTimeout(() => resolve(deadline), 500)),
+  ]);
+
+  assert.notEqual(result, deadline, 'catalog key discovery must not hang');
+  assert.equal(result, null);
+  assert.ok(observedSignal, 'catalog key discovery should receive an abort signal');
   __resetElJwksRuntimeForTests();
 });

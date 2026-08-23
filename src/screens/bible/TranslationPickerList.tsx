@@ -138,7 +138,7 @@ export function TranslationPickerList({
     getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
       translationHasAudio: translation.hasAudio,
-      remoteAudioAvailable: isRemoteAudioAvailable(translation.id, currentBook),
+      remoteAudioAvailable: isRemoteAudioAvailable(translation.id, bookId ?? currentBook),
       downloadedAudioBooks: translation.downloadedAudioBooks,
       bookId: bookId ?? currentBook,
     });

@@ -4,6 +4,7 @@ import { isElVerificationRuntimeSupported } from './elRuntimeSupport';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
 import { getElKeys, refreshElJwksForUnknownKeyId } from './elJwks';
+import type { ElJwksDeps } from './elJwks';
 import type { ElAudioManifest } from './elManifestModel';
 import { parseElManifestPayload } from './elManifestModel';
 
@@ -67,16 +68,23 @@ function defaultStorage(): ElManifestStorage {
 }
 
 // Default trust-store resolver: pinned keys + cached JWKS, refetching once for an unknown kid.
-async function defaultGetKeys(keyId: string): Promise<ElJwk[]> {
-  const keys = await getElKeys();
+async function defaultGetKeys(keyId: string, jwksDeps: ElJwksDeps): Promise<ElJwk[]> {
+  const keys = await getElKeys(jwksDeps);
   if (keys.some((key) => key.kid === keyId)) return keys;
-  return refreshElJwksForUnknownKeyId(keyId);
+  return refreshElJwksForUnknownKeyId(keyId, jwksDeps);
 }
 
 function resolveManifestUrl(manifestUrl: string, catalogBaseUrl: string): string {
   if (HTTP_URL_RE.test(manifestUrl)) return manifestUrl;
   const base = catalogBaseUrl.replace(/\/+$/, '');
   return `${base}${manifestUrl}`;
+}
+
+function matchesManifestEntry(manifest: ElAudioManifest, entry: ElCatalogTranslation): boolean {
+  return (
+    manifest.translationId === entry.translationId &&
+    manifest.audioVersion === entry.currentAudioVersion
+  );
 }
 
 // SHA-256 the manifest bytes. Pure JS (see elEs256.ts), so unlike the previous crypto.subtle
@@ -133,18 +141,26 @@ export async function getElManifest(
 
   const storage = deps.storage ?? defaultStorage();
   const fetchFn = deps.fetchFn ?? fetch;
-  const getKeys = deps.getKeys ?? defaultGetKeys;
-  const computeSha256Hex = deps.computeSha256Hex ?? sha256Hex;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const getKeys =
+    deps.getKeys ??
+    ((keyId: string) =>
+      defaultGetKeys(keyId, {
+        baseUrl: catalogBaseUrl,
+        fetchFn,
+        storage,
+        timeoutMs,
+      }));
+  const computeSha256Hex = deps.computeSha256Hex ?? sha256Hex;
 
   const url = resolveManifestUrl(entry.manifestUrl, catalogBaseUrl);
 
   const cachedInMemory = memoryCache.get(url);
-  if (cachedInMemory) return cachedInMemory;
+  if (cachedInMemory && matchesManifestEntry(cachedInMemory, entry)) return cachedInMemory;
 
   const diskKey = await diskKeyForUrl(url);
   const cachedOnDisk = await readDiskCache(storage, diskKey);
-  if (cachedOnDisk) {
+  if (cachedOnDisk && matchesManifestEntry(cachedOnDisk, entry)) {
     memoryCache.set(url, cachedOnDisk);
     return cachedOnDisk;
   }
@@ -195,12 +211,7 @@ export async function getElManifest(
   if (!manifest) return fail();
 
   // Anti-document-swap: the verified manifest must be the exact one this entry advertises.
-  if (
-    manifest.translationId !== entry.translationId ||
-    manifest.audioVersion !== entry.currentAudioVersion
-  ) {
-    return fail();
-  }
+  if (!matchesManifestEntry(manifest, entry)) return fail();
 
   memoryCache.set(url, manifest);
   try {

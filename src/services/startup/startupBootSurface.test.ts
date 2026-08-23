@@ -121,7 +121,7 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   );
   assert.match(
     appSource,
-    /if \(!isReady \|\| shouldWaitForFonts\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
+    /if \(\s*!isReady\s*\|\|\s*!isPrivacyInitialized\s*\|\|\s*shouldWaitForFonts\s*\)\s*\{[\s\S]*<View style=\{\[styles\.bootShell/,
     'App.tsx should still render a stable boot shell when non-Android startup is waiting'
   );
   assert.match(
@@ -154,7 +154,8 @@ test('App.tsx installs global error handlers at module scope before render', () 
     'both setup calls should be present at module scope'
   );
   assert.ok(
-    installHandlersCallIndex > setupNotificationCallIndex && installHandlersCallIndex < firstComponentIndex,
+    installHandlersCallIndex > setupNotificationCallIndex &&
+      installHandlersCallIndex < firstComponentIndex,
     'installGlobalErrorHandlers() should run at module scope, before any component is defined, so early boot crashes are captured'
   );
 });
@@ -218,6 +219,28 @@ test('App.tsx static import closure never reaches heavy runtime modules', () => 
   assert.ok(
     closure.size > 5,
     'static import closure walker should resolve more than App.tsx itself — check resolveModuleFile if this fails'
+  );
+});
+
+test('LoadingScreen fails closed until privacy initialization completes', () => {
+  const appSource = readRelativeSource('../../../App.tsx');
+
+  assert.match(
+    appSource,
+    /const isPrivacyInitialized = usePrivacyStore\(\(state\) => state\.isInitialized\);/,
+    'LoadingScreen should observe privacy initialization state before exposing sensitive content'
+  );
+
+  assert.match(
+    appSource,
+    /if \(!isReady \|\| !isPrivacyInitialized \|\| shouldWaitForFonts\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
+    'LoadingScreen should keep the boot shell visible while privacy initialization is pending'
+  );
+
+  assert.match(
+    appSource,
+    /if \(\s*!isReady\s*\|\|\s*!preferences\.onboardingCompleted\s*\|\|\s*!isPrivacyInitialized\s*\|\|\s*isPrivacyLocked\s*\)/,
+    'LoadingScreen should not schedule the navigator before privacy initialization completes'
   );
 });
 

@@ -30,6 +30,7 @@ export const EL_PINNED_JWKS: ElJwk[] = [
 const JWKS_PATH = '/.well-known/keys.json';
 const JWKS_CACHE_KEY = 'el-media:jwks-cache';
 const JWKS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+export const DEFAULT_JWKS_FETCH_TIMEOUT_MS = 10_000;
 
 export interface ElJwksStorage {
   getItem(key: string): Promise<string | null>;
@@ -41,6 +42,7 @@ export interface ElJwksDeps {
   storage?: ElJwksStorage;
   fetchFn?: typeof fetch;
   now?: () => number;
+  timeoutMs?: number;
 }
 
 interface CachedJwks {
@@ -186,8 +188,15 @@ export async function refreshElJwksForUnknownKeyId(
   }
 
   const fetchFn = deps.fetchFn ?? fetch;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    deps.timeoutMs ?? DEFAULT_JWKS_FETCH_TIMEOUT_MS
+  );
   try {
-    const response = await fetchFn(`${baseUrl}${JWKS_PATH}`);
+    const response = await fetchFn(`${baseUrl}${JWKS_PATH}`, {
+      signal: controller.signal,
+    });
     if (!response.ok) {
       return isFresh(cache, now) ? mergeKeys(cache.keys) : mergeKeys([]);
     }
@@ -197,6 +206,8 @@ export async function refreshElJwksForUnknownKeyId(
     return mergeKeys(remoteKeys);
   } catch {
     return isFresh(cache, now) ? mergeKeys(cache.keys) : mergeKeys([]);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

@@ -459,5 +459,5 @@ export function buildBibleSearchQuery(query: string): string | null {
     return null;
   }
 
-  return normalizedTokens.map((token) => `${token}*`).join(' ');
+  return normalizedTokens.map((token) => `"${token.replace(/"/g, '""')}"*`).join(' ');
 }

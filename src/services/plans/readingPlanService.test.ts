@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { StateStorage } from 'zustand/middleware';
+import { createSyncIdentityBoundary } from '../sync/syncIdentity';
+import { resolvePlanSyncIdentity, retryPlanTombstonesWithIdentity } from './readingPlanService';
 
 function createMemoryStorage(): StateStorage {
   const store = new Map<string, string>();
@@ -105,4 +107,72 @@ test('reading plan service marks local progress complete without auth', async ()
   assert.equal(completedResult.success, true);
   assert.equal(completedResult.data?.is_completed, true);
   assert.equal(completedResult.data?.completed_entries['7'] !== undefined, true);
+});
+
+test('pending tombstones reuse one prevalidated identity across every delete', async () => {
+  let captureCalls = 0;
+  let currentUserId: string | null = 'A';
+  let authGeneration = 11;
+  const identity = createSyncIdentityBoundary(
+    'A',
+    () => currentUserId,
+    authGeneration,
+    () => authGeneration
+  );
+  const seen: Array<{ planId: string; identity: typeof identity }> = [];
+  const captureIdentity = async () => {
+    captureCalls += 1;
+    return identity;
+  };
+  const capturedIdentity = await captureIdentity();
+
+  const results = await retryPlanTombstonesWithIdentity(
+    ['plan-a', 'plan-b', 'plan-c'],
+    capturedIdentity,
+    async (planId, capturedIdentity) => {
+      seen.push({ planId, identity: capturedIdentity });
+      return capturedIdentity.expectedUserId === 'A';
+    }
+  );
+
+  assert.equal(captureCalls, 1);
+  assert.deepEqual(results, [true, true, true]);
+  assert.deepEqual(
+    seen.map(({ planId }) => planId),
+    ['plan-a', 'plan-b', 'plan-c']
+  );
+  assert.equal(
+    seen.every(({ identity: capturedIdentity }) => capturedIdentity === identity),
+    true
+  );
+});
+
+test('plan pulls reuse a prevalidated identity without another remote capture', async () => {
+  let captureCalls = 0;
+  const identity = createSyncIdentityBoundary(
+    'A',
+    () => 'A',
+    5,
+    () => 5
+  );
+  const captureIdentity = async () => {
+    captureCalls += 1;
+    return identity;
+  };
+
+  const reused = await resolvePlanSyncIdentity('A', 5, identity, captureIdentity);
+  assert.equal(reused, identity);
+  assert.equal(captureCalls, 0);
+
+  const standalone = await resolvePlanSyncIdentity('A', 5, undefined, captureIdentity);
+  assert.equal(standalone, identity);
+  assert.equal(captureCalls, 1);
+
+  const mismatched = await resolvePlanSyncIdentity('B', 5, identity, captureIdentity);
+  assert.equal(mismatched, null);
+  assert.equal(captureCalls, 1);
+
+  const mismatchedGeneration = await resolvePlanSyncIdentity('A', 6, identity, captureIdentity);
+  assert.equal(mismatchedGeneration, null);
+  assert.equal(captureCalls, 1);
 });

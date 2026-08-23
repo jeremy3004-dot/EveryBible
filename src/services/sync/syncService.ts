@@ -7,6 +7,13 @@ import {
   type LocalPreferenceSnapshot,
   type LocalReadingSnapshot,
 } from './syncMerge';
+import {
+  createSyncIdentityBoundary,
+  createSyncCycleCache,
+  STALE_SYNC_ERROR,
+  type SyncIdentityBoundary,
+} from './syncIdentity';
+import { runSyncCycleSubsyncs } from './syncCycle';
 
 export interface SyncResult {
   success: boolean;
@@ -14,11 +21,13 @@ export interface SyncResult {
   merged?: boolean;
 }
 
-// Per-sync-cycle memo for ensureCloudProfile so a single syncAll pass upserts
-// the profile once instead of up to 4× (progress + reading plans + preferences,
-// each of which independently ensured the profile). Reset at the start/end of
-// each syncAll cycle.
-let ensureCloudProfileCycle: Promise<SyncResult> | null = null;
+// Per-user memo for ensureCloudProfile so concurrent sub-syncs share one
+// profile upsert without allowing account A's promise to be reused by B.
+const ensureCloudProfileCycles = createSyncCycleCache<SyncResult>();
+const activeSyncAllCycles = new Map<string, number>();
+
+const getSyncCycleKey = (identity: SyncIdentityBoundary): string =>
+  `${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;
 
 // One bounded retry with jitter for transient network errors. Non-network
 // failures (RLS, validation, PGRST codes) are returned immediately so we do not
@@ -68,95 +77,145 @@ const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
   };
 };
 
-const syncReadingPlans = async (): Promise<SyncResult> => {
-  if (!isSupabaseConfigured()) {
-    return { success: true };
+const getAuthGeneration = (): number => useAuthStore.getState().authGeneration;
+
+const staleSyncResult = (): SyncResult => ({
+  success: false,
+  error: STALE_SYNC_ERROR,
+});
+
+const captureSyncIdentity = async (
+  expectedUserId?: string,
+  expectedGeneration?: number
+): Promise<SyncIdentityBoundary | null> => {
+  const candidate = expectedUserId ?? useAuthStore.getState().user?.uid ?? null;
+  if (!candidate) {
+    return null;
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: true };
+  const generation = expectedGeneration ?? getAuthGeneration();
+
+  if (useAuthStore.getState().user?.uid !== candidate) {
+    return null;
   }
 
-  const profileResult = await ensureCloudProfile();
+  const liveUserId = await getCurrentUserId();
+  if (liveUserId !== candidate || useAuthStore.getState().user?.uid !== candidate) {
+    return null;
+  }
+
+  const boundary = createSyncIdentityBoundary(
+    candidate,
+    () => useAuthStore.getState().user?.uid ?? null,
+    generation,
+    getAuthGeneration
+  );
+
+  return (await boundary.isCurrent()) ? boundary : null;
+};
+
+const syncReadingPlansForIdentity = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+  const userId = identity.expectedUserId;
+  const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
     return profileResult;
   }
 
-  const [{ readingPlansStore }, { syncPlanProgress }] = await Promise.all([
-    import('../../stores/readingPlansStore'),
-    import('../plans'),
-  ]);
+  const stores = await Promise.all([import('../../stores/readingPlansStore'), import('../plans')]);
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
+  }
 
+  const [{ readingPlansStore }, { syncPlanProgress }] = stores;
   const localProgress = Object.values(readingPlansStore.getState().progressByPlanId);
-  const result = await syncPlanProgress(localProgress);
+  const result = await syncPlanProgress(
+    localProgress,
+    userId,
+    identity.expectedGeneration,
+    identity
+  );
   if (!result.success) {
     return { success: false, error: result.error };
+  }
+
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
   }
 
   return { success: true, merged: false };
 };
 
-const pullReadingPlansFromCloud = async (): Promise<SyncResult> => {
+const pullReadingPlansFromCloud = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
   if (!isSupabaseConfigured()) {
     return { success: true };
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: false, error: 'Not signed in' };
-  }
-
-  const profileResult = await ensureCloudProfile();
-  if (!profileResult.success) {
-    return profileResult;
-  }
-
   const { getUserPlanProgress } = await import('../plans');
-  const result = await getUserPlanProgress();
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
+  }
+
+  const result = await getUserPlanProgress(
+    undefined,
+    identity.expectedUserId,
+    identity.expectedGeneration,
+    identity
+  );
   if (!result.success) {
     return { success: false, error: result.error };
+  }
+
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
   }
 
   return { success: true, merged: Boolean(result.data?.length) };
 };
 
 const applyMergedReadingState = async (
-  mergedReading: ReturnType<typeof mergeReadingSnapshot>
-): Promise<void> => {
+  mergedReading: ReturnType<typeof mergeReadingSnapshot>,
+  identity: SyncIdentityBoundary
+): Promise<boolean> => {
   const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
     import('../../stores/progressStore'),
     import('../../stores/bibleStore'),
   ]);
 
-  useProgressStore.getState().applySyncedProgress(mergedReading.progress);
-  useBibleStore.getState().applySyncedReadingPosition({
-    bookId: mergedReading.readingPosition.bookId,
-    chapter: mergedReading.readingPosition.chapter,
+  const result = await identity.runIfCurrent(() => {
+    useProgressStore.getState().applySyncedProgress(mergedReading.progress);
+    useBibleStore.getState().applySyncedReadingPosition({
+      bookId: mergedReading.readingPosition.bookId,
+      chapter: mergedReading.readingPosition.chapter,
+    });
   });
-};
 
-const ensureCloudProfile = async (): Promise<SyncResult> => {
-  // Within a syncAll cycle, reuse the in-flight/completed profile upsert so the
-  // three sub-syncs don't each hit the network. A failed ensure is not cached so
-  // a later sub-sync can retry it.
-  if (ensureCloudProfileCycle) {
-    const cached = await ensureCloudProfileCycle;
-    if (cached.success) {
-      return cached;
-    }
+  if (!result.applied) {
+    return false;
   }
 
-  const pending = ensureCloudProfileImpl();
-  ensureCloudProfileCycle = pending;
-  const result = await pending;
-  if (!result.success && ensureCloudProfileCycle === pending) {
-    ensureCloudProfileCycle = null;
+  return true;
+};
+
+const ensureCloudProfile = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+  // Only retain the memo while at least one syncAll cycle is active. A failed
+  // ensure is evicted by the cache so a later sub-sync can retry it.
+  const cycleKey = getSyncCycleKey(identity);
+  if (!activeSyncAllCycles.has(cycleKey)) {
+    return ensureCloudProfileImpl(identity);
+  }
+
+  const result = await ensureCloudProfileCycles.getOrCreate(cycleKey, () =>
+    ensureCloudProfileImpl(identity)
+  );
+  if (!result.success) {
+    // Do not retain normal profile errors as a successful-cycle memo: the
+    // bounded sub-sync retry must be able to attempt the profile again.
+    ensureCloudProfileCycles.clear(cycleKey);
   }
   return result;
 };
 
-const ensureCloudProfileImpl = async (): Promise<SyncResult> => {
+const ensureCloudProfileImpl = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
   const {
     data: { user },
     error: userError,
@@ -166,24 +225,32 @@ const ensureCloudProfileImpl = async (): Promise<SyncResult> => {
     return { success: false, error: userError.message };
   }
 
-  if (!user) {
-    return { success: false, error: 'Not signed in' };
+  if (!user || user.id !== identity.expectedUserId || !(await identity.isCurrent())) {
+    return staleSyncResult();
   }
 
-  const { error } = await supabase.from('profiles').upsert(
-    {
-      id: user.id,
-      email: user.email ?? null,
-      display_name:
-        user.user_metadata?.display_name ||
-        user.user_metadata?.full_name ||
-        user.email?.split('@')[0] ||
-        null,
-      avatar_url: user.user_metadata?.avatar_url ?? null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'id' }
+  const write = await identity.runIfCurrent(() =>
+    supabase.from('profiles').upsert(
+      {
+        id: user.id,
+        email: user.email ?? null,
+        display_name:
+          user.user_metadata?.display_name ||
+          user.user_metadata?.full_name ||
+          user.email?.split('@')[0] ||
+          null,
+        avatar_url: user.user_metadata?.avatar_url ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    )
   );
+
+  if (!write.applied) {
+    return staleSyncResult();
+  }
+
+  const { error } = await write.value!;
 
   if (error) {
     return { success: false, error: error.message };
@@ -192,22 +259,17 @@ const ensureCloudProfileImpl = async (): Promise<SyncResult> => {
   return { success: true };
 };
 
-export const syncProgress = async (): Promise<SyncResult> => {
-  if (!isSupabaseConfigured()) {
-    return { success: true };
-  }
-
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: true };
-  }
-
-  const profileResult = await ensureCloudProfile();
+const syncProgressForIdentity = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+  const userId = identity.expectedUserId;
+  const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
     return profileResult;
   }
 
   const localState = await getLocalReadingSnapshot();
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
+  }
 
   try {
     const { data, error: fetchError } = await supabase
@@ -224,21 +286,32 @@ export const syncProgress = async (): Promise<SyncResult> => {
     const mergedReading = mergeReadingSnapshot(localState, remoteData);
 
     if (mergedReading.changed) {
-      await applyMergedReadingState(mergedReading);
+      const applied = await applyMergedReadingState(mergedReading, identity);
+      if (!applied) {
+        return staleSyncResult();
+      }
     }
 
-    const { error: upsertError } = await supabase.from('user_progress').upsert(
-      {
-        user_id: userId,
-        chapters_read: mergedReading.progress.chaptersRead,
-        streak_days: mergedReading.progress.streakDays,
-        last_read_date: mergedReading.progress.lastReadDate,
-        current_book: mergedReading.readingPosition.bookId,
-        current_chapter: mergedReading.readingPosition.chapter,
-        synced_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
+    const write = await identity.runIfCurrent(() =>
+      supabase.from('user_progress').upsert(
+        {
+          user_id: userId,
+          chapters_read: mergedReading.progress.chaptersRead,
+          streak_days: mergedReading.progress.streakDays,
+          last_read_date: mergedReading.progress.lastReadDate,
+          current_book: mergedReading.readingPosition.bookId,
+          current_chapter: mergedReading.readingPosition.chapter,
+          synced_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
     );
+
+    if (!write.applied) {
+      return staleSyncResult();
+    }
+
+    const { error: upsertError } = await write.value!;
 
     if (upsertError) {
       return { success: false, error: upsertError.message };
@@ -253,17 +326,25 @@ export const syncProgress = async (): Promise<SyncResult> => {
   }
 };
 
-export const syncPreferences = async (): Promise<SyncResult> => {
+export const syncProgress = async (
+  expectedUserId?: string,
+  expectedGeneration?: number
+): Promise<SyncResult> => {
   if (!isSupabaseConfigured()) {
     return { success: true };
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: true };
+  const identity = await captureSyncIdentity(expectedUserId, expectedGeneration);
+  if (!identity) {
+    return expectedUserId ? staleSyncResult() : { success: true };
   }
 
-  const profileResult = await ensureCloudProfile();
+  return syncProgressForIdentity(identity);
+};
+
+const syncPreferencesForIdentity = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+  const userId = identity.expectedUserId;
+  const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
     return profileResult;
   }
@@ -280,51 +361,74 @@ export const syncPreferences = async (): Promise<SyncResult> => {
       return { success: false, error: fetchError.message };
     }
 
+    if (!(await identity.isCurrent())) {
+      return staleSyncResult();
+    }
+
     const remotePreferences = data as UserPreferences | null;
     const mergedPreferences = mergePreferences(localSnapshot, remotePreferences);
 
     if (mergedPreferences.source === 'remote') {
-      useAuthStore
-        .getState()
-        .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+      const applied = await identity.runIfCurrent(() =>
+        useAuthStore
+          .getState()
+          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt)
+      );
+      if (!applied.applied) {
+        return staleSyncResult();
+      }
 
       return {
         success: true,
-        merged: mergedPreferences.changed || mergedPreferences.updatedAt !== localSnapshot.updatedAt,
+        merged:
+          mergedPreferences.changed || mergedPreferences.updatedAt !== localSnapshot.updatedAt,
       };
     }
 
     const syncedAt = new Date().toISOString();
-    const { error: upsertError } = await supabase.from('user_preferences').upsert(
-      {
-        user_id: userId,
-        font_size: mergedPreferences.preferences.fontSize,
-        theme: mergedPreferences.preferences.theme,
-        appearance_palette: mergedPreferences.preferences.appearancePalette,
-        language: mergedPreferences.preferences.language,
-        country_code: mergedPreferences.preferences.countryCode,
-        country_name: mergedPreferences.preferences.countryName,
-        content_language_code: mergedPreferences.preferences.contentLanguageCode,
-        content_language_name: mergedPreferences.preferences.contentLanguageName,
-        content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
-        chapter_feedback_name: mergedPreferences.preferences.chapterFeedbackName,
-        chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
-        onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
-        chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
-        hide_play_button_from_reading_tab:
-          mergedPreferences.preferences.hidePlayButtonFromReadingTab,
-        notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
-        reminder_time: mergedPreferences.preferences.reminderTime,
-        synced_at: syncedAt,
-      },
-      { onConflict: 'user_id' }
+    const write = await identity.runIfCurrent(() =>
+      supabase.from('user_preferences').upsert(
+        {
+          user_id: userId,
+          font_size: mergedPreferences.preferences.fontSize,
+          theme: mergedPreferences.preferences.theme,
+          appearance_palette: mergedPreferences.preferences.appearancePalette,
+          language: mergedPreferences.preferences.language,
+          country_code: mergedPreferences.preferences.countryCode,
+          country_name: mergedPreferences.preferences.countryName,
+          content_language_code: mergedPreferences.preferences.contentLanguageCode,
+          content_language_name: mergedPreferences.preferences.contentLanguageName,
+          content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
+          chapter_feedback_name: mergedPreferences.preferences.chapterFeedbackName,
+          chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
+          onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
+          chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
+          hide_play_button_from_reading_tab:
+            mergedPreferences.preferences.hidePlayButtonFromReadingTab,
+          notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
+          reminder_time: mergedPreferences.preferences.reminderTime,
+          synced_at: syncedAt,
+        },
+        { onConflict: 'user_id' }
+      )
     );
+
+    if (!write.applied) {
+      return staleSyncResult();
+    }
+
+    const { error: upsertError } = await write.value!;
 
     if (upsertError) {
       return { success: false, error: upsertError.message };
     }
 
-    useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt);
+    const applied = await identity.runIfCurrent(() =>
+      useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt)
+    );
+    if (!applied.applied) {
+      return staleSyncResult();
+    }
 
     return {
       success: true,
@@ -341,43 +445,93 @@ export const syncPreferences = async (): Promise<SyncResult> => {
   }
 };
 
-export const syncAll = async (): Promise<SyncResult> => {
-  // Fresh profile-ensure memo for this cycle so ensureCloudProfile runs once.
-  ensureCloudProfileCycle = null;
+export const syncPreferences = async (
+  expectedUserId?: string,
+  expectedGeneration?: number
+): Promise<SyncResult> => {
+  if (!isSupabaseConfigured()) {
+    return { success: true };
+  }
+
+  const identity = await captureSyncIdentity(expectedUserId, expectedGeneration);
+  if (!identity) {
+    return expectedUserId ? staleSyncResult() : { success: true };
+  }
+
+  return syncPreferencesForIdentity(identity);
+};
+
+export const syncAll = async (
+  expectedUserId?: string,
+  expectedGeneration?: number
+): Promise<SyncResult> => {
+  if (!isSupabaseConfigured()) {
+    return { success: true };
+  }
+
+  let cycleKey: string | null = null;
 
   try {
-    // Run each sub-sync independently so one transient failure doesn't skip the
-    // rest until the next external trigger (L18). Each gets one bounded retry.
-    const results = await Promise.all([
-      withTransientRetry(syncProgress),
-      withTransientRetry(syncReadingPlans),
-      withTransientRetry(syncPreferences),
-    ]);
+    const cycle = await runSyncCycleSubsyncs(
+      () => captureSyncIdentity(expectedUserId, expectedGeneration),
+      {
+        progress: syncProgressForIdentity,
+        readingPlans: syncReadingPlansForIdentity,
+        preferences: syncPreferencesForIdentity,
+      },
+      withTransientRetry,
+      (identity) => {
+        cycleKey = getSyncCycleKey(identity);
+        activeSyncAllCycles.set(cycleKey, (activeSyncAllCycles.get(cycleKey) ?? 0) + 1);
+      }
+    );
+    if (!cycle.identity) {
+      return expectedUserId ? staleSyncResult() : { success: true };
+    }
+
+    const { identity, results } = cycle;
 
     const firstFailure = results.find((result) => !result.success);
+    if (!(await identity.isCurrent())) {
+      return staleSyncResult();
+    }
+
     return {
       success: !firstFailure,
       error: firstFailure?.error,
       merged: results.some((result) => result.merged),
     };
   } finally {
-    ensureCloudProfileCycle = null;
+    if (cycleKey) {
+      const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;
+      if (remaining > 0) {
+        activeSyncAllCycles.set(cycleKey, remaining);
+      } else {
+        activeSyncAllCycles.delete(cycleKey);
+        ensureCloudProfileCycles.clear(cycleKey);
+      }
+    }
   }
 };
 
-export const pullFromCloud = async (): Promise<SyncResult> => {
+export const pullFromCloud = async (expectedUserId?: string): Promise<SyncResult> => {
   if (!isSupabaseConfigured()) {
     return { success: true };
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: false, error: 'Not signed in' };
+  const identity = await captureSyncIdentity(expectedUserId);
+  if (!identity) {
+    return staleSyncResult();
   }
 
-  const profileResult = await ensureCloudProfile();
+  const userId = identity.expectedUserId;
+  const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
     return profileResult;
+  }
+
+  if (!(await identity.isCurrent())) {
+    return staleSyncResult();
   }
 
   try {
@@ -395,7 +549,13 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
     const localState = await getLocalReadingSnapshot();
 
     if (progressData) {
-      await applyMergedReadingState(mergeReadingSnapshot(localState, progressData));
+      const applied = await applyMergedReadingState(
+        mergeReadingSnapshot(localState, progressData),
+        identity
+      );
+      if (!applied) {
+        return staleSyncResult();
+      }
     }
 
     const { data: prefsDataRaw, error: prefsError } = await supabase
@@ -411,13 +571,26 @@ export const pullFromCloud = async (): Promise<SyncResult> => {
     const prefsData = prefsDataRaw as UserPreferences | null;
 
     if (prefsData) {
+      if (!(await identity.isCurrent())) {
+        return staleSyncResult();
+      }
+
       const mergedPreferences = mergePreferences(getLocalPreferenceSnapshot(), prefsData);
-      useAuthStore
-        .getState()
-        .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+      const applied = await identity.runIfCurrent(() =>
+        useAuthStore
+          .getState()
+          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt)
+      );
+      if (!applied.applied) {
+        return staleSyncResult();
+      }
     }
 
-    const readingPlansResult = await pullReadingPlansFromCloud();
+    if (!(await identity.isCurrent())) {
+      return staleSyncResult();
+    }
+
+    const readingPlansResult = await pullReadingPlansFromCloud(identity);
     if (!readingPlansResult.success) {
       return readingPlansResult;
     }

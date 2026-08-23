@@ -87,6 +87,31 @@ test('unknown keyId triggers exactly one fetch and caches the discovered key', a
   assert.ok(keys.some((k) => k.kid === PINNED_PROD_KID));
 });
 
+test('passes an abort signal and falls back when JWKS discovery hangs', async () => {
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  let observedSignal: AbortSignal | undefined;
+
+  const hangingFetch = ((_url: string, init?: RequestInit) => {
+    observedSignal = init?.signal ?? undefined;
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    });
+  }) as typeof fetch;
+
+  const startedAt = Date.now();
+  const keys = await refreshElJwksForUnknownKeyId('unknown-key', {
+    baseUrl: 'https://example.test',
+    storage,
+    fetchFn: hangingFetch,
+    timeoutMs: 5,
+  });
+
+  assert.ok(observedSignal, 'JWKS discovery should receive an abort signal');
+  assert.ok(Date.now() - startedAt < 1_000, 'JWKS discovery should be bounded');
+  assert.deepEqual(keys.map((key) => key.kid).sort(), [PINNED_DEV_KID, PINNED_PROD_KID].sort());
+});
+
 test('known (pinned) keyId triggers no fetch', async () => {
   __resetElJwksRuntimeForTests();
   const storage = createMemoryStorage();

@@ -4,6 +4,7 @@ import { parseElCatalogPayload } from './elCatalogModel';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
 import { getElKeys, refreshElJwksForUnknownKeyId } from './elJwks';
+import type { ElJwksDeps } from './elJwks';
 
 // AsyncStorage-shaped adapter. Mirrors the convention in elJwks.ts so tests can inject an
 // in-memory double while production lazily wraps MMKV.
@@ -66,10 +67,15 @@ function defaultStorage(): ElCatalogStorage {
 }
 
 // Default trust-store resolver: pinned keys + cached JWKS, refetching once for an unknown kid.
-async function defaultGetKeys(keyId: string): Promise<ElJwk[]> {
-  const keys = await getElKeys();
+async function defaultGetKeys(keyId: string, jwksDeps: ElJwksDeps): Promise<ElJwk[]> {
+  const keys = await getElKeys(jwksDeps);
   if (keys.some((key) => key.kid === keyId)) return keys;
-  return refreshElJwksForUnknownKeyId(keyId);
+  return refreshElJwksForUnknownKeyId(keyId, jwksDeps);
+}
+
+function resolveCatalogOrigin(catalogUrl: string): string | null {
+  const match = catalogUrl.match(/^https?:\/\/[^/]+/i);
+  return match?.[0] ?? null;
 }
 
 async function readStoredRecord(storage: ElCatalogStorage): Promise<StoredCatalogRecord | null> {
@@ -136,8 +142,16 @@ export async function refreshElCatalog(
   const lastGood = () => parseStoredRecord(storedRecord);
 
   const fetchFn = deps.fetchFn ?? fetch;
-  const getKeys = deps.getKeys ?? defaultGetKeys;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const getKeys =
+    deps.getKeys ??
+    ((keyId: string) =>
+      defaultGetKeys(keyId, {
+        baseUrl: resolveCatalogOrigin(catalogUrl),
+        fetchFn,
+        storage,
+        timeoutMs,
+      }));
 
   // AbortController + setTimeout(abort) mirrors the repo's existing fetch-timeout pattern
   // (see verseTimestamps.ts / audioRemote.ts). We deliberately do NOT use AbortSignal.timeout,

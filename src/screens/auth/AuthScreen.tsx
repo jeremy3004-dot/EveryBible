@@ -107,24 +107,25 @@ export function AuthScreen() {
     clearTransientState();
   };
 
-  const hydrateLiveSession = async (): Promise<boolean> => {
+  const hydrateLiveSession = async (): Promise<string | null> => {
     const { session } = await getCurrentSession();
 
     if (!session) {
-      return false;
+      return null;
     }
 
     setSession(session);
-    return true;
+    return session.user.id;
   };
 
   const completeAuthenticatedFlow = async () => {
-    if (!(await hydrateLiveSession())) {
+    const userId = await hydrateLiveSession();
+    if (!userId) {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
       return;
     }
 
-    await pullFromCloud();
+    await pullFromCloud(userId);
     dismiss();
   };
 
@@ -189,8 +190,9 @@ export function AuthScreen() {
         const result = await signUpWithEmail(email, password);
 
         if (result.success && result.user) {
-          if (await hydrateLiveSession()) {
-            await pullFromCloud();
+          const userId = await hydrateLiveSession();
+          if (userId) {
+            await pullFromCloud(userId);
             dismiss();
             return;
           }

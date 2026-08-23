@@ -8,6 +8,7 @@ import {
   validatePrivacyPin,
   verifyPrivacyPin,
 } from '../services/privacy';
+import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
 
 interface SavePrivacyConfigurationInput {
   mode: PrivacyAppIconMode;
@@ -22,129 +23,177 @@ interface SavePrivacyConfigurationResult {
 interface PrivacyState {
   isInitialized: boolean;
   isLoading: boolean;
+  initializationError: 'timeout' | 'unavailable' | null;
   mode: PrivacyAppIconMode;
   hasPin: boolean;
   isLocked: boolean;
   initialize: () => Promise<void>;
-  saveConfiguration: (input: SavePrivacyConfigurationInput) => Promise<SavePrivacyConfigurationResult>;
+  retryInitialize: () => Promise<void>;
+  saveConfiguration: (
+    input: SavePrivacyConfigurationInput
+  ) => Promise<SavePrivacyConfigurationResult>;
   lock: () => void;
   unlock: (pinInput: string) => Promise<boolean>;
   disablePrivacy: () => Promise<void>;
 }
 
-export const usePrivacyStore = create<PrivacyState>()((set, get) => ({
-  isInitialized: false,
-  isLoading: false,
-  mode: 'standard',
-  hasPin: false,
-  isLocked: false,
+let initializationGeneration = 0;
 
-  initialize: async () => {
+export const usePrivacyStore = create<PrivacyState>()((set, get) => {
+  const initialize = async (): Promise<void> => {
     if (get().isInitialized || get().isLoading) {
       return;
     }
 
-    set({ isLoading: true });
+    const generation = ++initializationGeneration;
+    set({ isLoading: true, initializationError: null, isLocked: true });
 
-    try {
-      const storedSettings = await loadPrivacySettings();
-      const hasPin = Boolean(storedSettings.pin);
-      const shouldStartLocked = storedSettings.mode === 'discreet' && hasPin;
+    const result = await initializePrivacyWithTimeout(loadPrivacySettings);
+    if (generation !== initializationGeneration) {
+      return;
+    }
+
+    if (result.status === 'ready') {
+      const hasPin = Boolean(result.settings.pin);
+      const shouldStartLocked = result.settings.mode === 'discreet' && hasPin;
 
       set({
         isInitialized: true,
         isLoading: false,
-        mode: storedSettings.mode,
+        initializationError: null,
+        mode: result.settings.mode,
         hasPin,
         isLocked: shouldStartLocked,
       });
-    } catch (error) {
-      console.error('Failed to initialize privacy mode:', error);
+      return;
+    }
+
+    if (result.status === 'unavailable') {
+      console.error('Failed to initialize privacy mode:', result.error);
+    } else {
+      console.warn('Privacy mode initialization timed out; waiting for retry.');
+    }
+
+    set({
+      isInitialized: false,
+      isLoading: false,
+      initializationError: result.status,
+      isLocked: true,
+    });
+  };
+
+  return {
+    isInitialized: false,
+    isLoading: false,
+    initializationError: null,
+    mode: 'standard',
+    hasPin: false,
+    isLocked: true,
+
+    initialize,
+
+    retryInitialize: async () => {
+      if (get().isLoading) {
+        return;
+      }
+      // Invalidate the previous attempt so a late SecureStore resolution cannot
+      // unlock the app after the user has requested a retry.
+      initializationGeneration += 1;
+      set({
+        isInitialized: false,
+        isLoading: false,
+        initializationError: null,
+        isLocked: true,
+      });
+      await initialize();
+    },
+
+    saveConfiguration: async ({ mode, pinInput }) => {
+      if (mode === 'discreet') {
+        const validation = validatePrivacyPin(pinInput ?? '');
+
+        if (!validation.isValid) {
+          return {
+            success: false,
+            errorKey: validation.errorKey,
+          };
+        }
+
+        await updatePrivacyMode('discreet', validation.normalized);
+        set({
+          isInitialized: true,
+          initializationError: null,
+          mode: 'discreet',
+          hasPin: true,
+          isLocked: false,
+        });
+
+        // Defer icon change until after navigation and re-renders complete to
+        // prevent the concurrent Zustand + AppState cascade that OOMs Hermes GC.
+        setTimeout(() => {
+          void applyPrivacyAppIcon('discreet');
+        }, 400);
+
+        return {
+          success: true,
+          errorKey: null,
+        };
+      }
+
+      await updatePrivacyMode('standard', null);
       set({
         isInitialized: true,
-        isLoading: false,
+        initializationError: null,
         mode: 'standard',
         hasPin: false,
         isLocked: false,
       });
-    }
-  },
 
-  saveConfiguration: async ({ mode, pinInput }) => {
-    if (mode === 'discreet') {
-      const validation = validatePrivacyPin(pinInput ?? '');
-
-      if (!validation.isValid) {
-        return {
-          success: false,
-          errorKey: validation.errorKey,
-        };
-      }
-
-      await updatePrivacyMode('discreet', validation.normalized);
-      set({
-        mode: 'discreet',
-        hasPin: true,
-        isLocked: false,
-      });
-
-      // Defer icon change until after navigation and re-renders complete to
-      // prevent the concurrent Zustand + AppState cascade that OOMs Hermes GC.
+      // Defer icon change until after navigation and re-renders complete.
       setTimeout(() => {
-        void applyPrivacyAppIcon('discreet');
+        void applyPrivacyAppIcon('standard');
       }, 400);
 
       return {
         success: true,
         errorKey: null,
       };
-    }
+    },
 
-    await updatePrivacyMode('standard', null);
-    set({
-      mode: 'standard',
-      hasPin: false,
-      isLocked: false,
-    });
+    lock: () =>
+      set((state) => ({
+        isLocked: !state.isInitialized || (state.mode === 'discreet' && state.hasPin),
+      })),
 
-    // Defer icon change until after navigation and re-renders complete.
-    setTimeout(() => {
-      void applyPrivacyAppIcon('standard');
-    }, 400);
+    unlock: async (pinInput) => {
+      if (!get().isInitialized) {
+        return false;
+      }
 
-    return {
-      success: true,
-      errorKey: null,
-    };
-  },
+      const validation = validatePrivacyPin(pinInput);
 
-  lock: () =>
-    set((state) => ({
-      isLocked: state.mode === 'discreet' && state.hasPin,
-    })),
+      if (!validation.isValid) {
+        return false;
+      }
 
-  unlock: async (pinInput) => {
-    const validation = validatePrivacyPin(pinInput);
+      const matches = await verifyPrivacyPin(validation.normalized);
 
-    if (!validation.isValid) {
-      return false;
-    }
+      if (matches) {
+        set({ isLocked: false });
+      }
 
-    const matches = await verifyPrivacyPin(validation.normalized);
+      return matches;
+    },
 
-    if (matches) {
-      set({ isLocked: false });
-    }
-
-    return matches;
-  },
-
-  disablePrivacy: async () => {
-    await clearPrivacySettings();
-    set({
-      mode: 'standard',
-      hasPin: false,
-      isLocked: false,
-    });
-  },
-}));
+    disablePrivacy: async () => {
+      await clearPrivacySettings();
+      set({
+        isInitialized: true,
+        initializationError: null,
+        mode: 'standard',
+        hasPin: false,
+        isLocked: false,
+      });
+    },
+  };
+});

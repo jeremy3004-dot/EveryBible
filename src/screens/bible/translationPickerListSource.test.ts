@@ -395,6 +395,16 @@ test('translation picker renders collection, by-book, and text chip download act
   );
 });
 
+test('translation picker checks remote availability against each by-book row', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /remoteAudioAvailable:\s*isRemoteAudioAvailable\(translation\.id,\s*bookId\s*\?\?\s*currentBook\)/,
+    'TranslationPickerList should check remote audio coverage against the row book instead of the reader book'
+  );
+});
+
 test('translation picker keeps the delete chip available for any translation with removable local data', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
 

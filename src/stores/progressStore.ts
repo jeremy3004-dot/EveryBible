@@ -4,13 +4,38 @@ import { zustandStorage } from './mmkvStorage';
 import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
 let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+type ProgressSyncIdentity = {
+  expectedUserId: string | undefined;
+  expectedGeneration: number | undefined;
+};
+
+const getProgressSyncIdentity = (): ProgressSyncIdentity => {
+  try {
+    const { useAuthStore } = require('./authStore') as typeof import('./authStore');
+    const authState = useAuthStore.getState();
+    return {
+      expectedUserId: authState.user?.uid,
+      expectedGeneration: authState.authGeneration,
+    };
+  } catch {
+    return { expectedUserId: undefined, expectedGeneration: undefined };
+  }
+};
+
 function debouncedSyncProgress() {
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(() => {
-    void import('../services/sync')
-      .then(({ syncProgress }) => syncProgress())
-      .catch(() => {});
+  const { expectedUserId, expectedGeneration } = getProgressSyncIdentity();
+  if (!expectedUserId) {
     syncDebounceTimer = null;
+    return;
+  }
+
+  syncDebounceTimer = setTimeout(() => {
+    syncDebounceTimer = null;
+    void import('../services/sync')
+      .then(({ syncProgress }) => syncProgress(expectedUserId, expectedGeneration))
+      .catch(() => {});
   }, 2000);
 }
 
@@ -187,6 +212,8 @@ export const useProgressStore = create<ProgressState>()(
       },
 
       resetForSignOut: () => {
+        if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = null;
         set({ ...initialProgressState });
       },
     }),

@@ -148,27 +148,32 @@ test('buildBibleSearchQuery returns null for a punctuation-only string', () => {
 });
 
 test('buildBibleSearchQuery appends a wildcard to a single token', () => {
-  assert.equal(buildBibleSearchQuery('grace'), 'grace*');
+  assert.equal(buildBibleSearchQuery('grace'), '"grace"*');
 });
 
 test('buildBibleSearchQuery appends wildcards to all tokens', () => {
-  assert.equal(buildBibleSearchQuery('love one another'), 'love* one* another*');
+  assert.equal(buildBibleSearchQuery('love one another'), '"love"* "one"* "another"*');
 });
 
 test('buildBibleSearchQuery strips punctuation between tokens', () => {
   const result = buildBibleSearchQuery('faith, hope, and love');
-  assert.equal(result, 'faith* hope* and* love*');
+  assert.equal(result, '"faith"* "hope"* "and"* "love"*');
+});
+
+test('buildBibleSearchQuery quotes uppercase FTS operator tokens', () => {
+  assert.equal(buildBibleSearchQuery('LOVE AND HATE'), '"LOVE"* "AND"* "HATE"*');
+  assert.equal(buildBibleSearchQuery('OR NOT NEAR'), '"OR"* "NOT"* "NEAR"*');
 });
 
 test('buildBibleSearchQuery handles unicode letter tokens', () => {
   // Hebrew / accented characters should be kept as tokens
   const result = buildBibleSearchQuery('grâce');
-  assert.equal(result, 'grâce*');
+  assert.equal(result, '"grâce"*');
 });
 
 test('buildBibleSearchQuery handles mixed numeric and letter tokens', () => {
   const result = buildBibleSearchQuery('John 3');
-  assert.equal(result, 'John* 3*');
+  assert.equal(result, '"John"* "3"*');
 });
 
 // ── isBundledBibleDatabaseReady ───────────────────────────────────────────────

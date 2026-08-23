@@ -1,29 +1,68 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../services/supabase';
 import { syncAll, pullFromCloud } from '../services/sync';
 import { useAuthStore } from '../stores/authStore';
+import { createSyncCoordinator } from './syncCoordinator';
 
 export const useSync = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitialized = useAuthStore((state) => state.isInitialized);
+  const authenticatedUserId = useAuthStore((state) => state.user?.uid ?? null);
+  const authGeneration = useAuthStore((state) => state.authGeneration);
   const appState = useRef(AppState.currentState);
-  const isSyncing = useRef(false);
-  const hasInitialSynced = useRef(false);
+  const initialSyncUserId = useRef<string | null>(null);
+  const initialSyncGeneration = useRef<number | null>(null);
+  const syncCoordinator = useMemo(() => createSyncCoordinator(), []);
 
-  const performSync = useCallback(async () => {
-    if (!isInitialized || !isAuthenticated || isSyncing.current) return;
-
-    isSyncing.current = true;
-    try {
-      await syncAll();
-    } catch {
-      // Sync failure is non-fatal
-    } finally {
-      isSyncing.current = false;
+  const runInitialPull = useCallback(async (userId: string, generation: number) => {
+    const liveAuthState = useAuthStore.getState();
+    if (liveAuthState.user?.uid !== userId || liveAuthState.authGeneration !== generation) {
+      return { success: false };
     }
-  }, [isAuthenticated, isInitialized]);
+
+    // Before pulling/merging cloud data, reconcile the auth boundary so
+    // guest/previous-account data never merges into this session (H2).
+    useAuthStore.getState().reconcileUserBoundary(userId);
+    return pullFromCloud(userId);
+  }, []);
+
+  const queueInitialPull = useCallback(
+    (userId: string, generation: number) =>
+      syncCoordinator.enqueuePull({ userId, generation }, () => runInitialPull(userId, generation)),
+    [runInitialPull, syncCoordinator]
+  );
+
+  const performSync = useCallback(
+    async (expectedUserId?: string, expectedGeneration?: number) => {
+      const authState = useAuthStore.getState();
+      const currentUserId = authState.user?.uid ?? null;
+      const currentGeneration = authState.authGeneration;
+      if (
+        !authState.isInitialized ||
+        !authState.isAuthenticated ||
+        !currentUserId ||
+        (expectedUserId !== undefined && currentUserId !== expectedUserId) ||
+        (expectedGeneration !== undefined && currentGeneration !== expectedGeneration)
+      ) {
+        return;
+      }
+
+      try {
+        await syncCoordinator.enqueuePush(
+          { userId: currentUserId, generation: currentGeneration },
+          async () => {
+            await syncAll(currentUserId, currentGeneration);
+          },
+          () => runInitialPull(currentUserId, currentGeneration)
+        );
+      } catch {
+        // Sync failure is non-fatal
+      }
+    },
+    [runInitialPull, syncCoordinator]
+  );
 
   // Sync on app foreground, and drive Supabase's auth auto-refresh with the app
   // lifecycle (L11): refresh only while foregrounded so long-backgrounded
@@ -68,21 +107,45 @@ export const useSync = () => {
     };
   }, [performSync]);
 
-  // Initial sync when auth changes (runs once per auth state change)
+  // Initial sync when auth identity changes (uid or auth generation). The
+  // cleanup flag matters when a pull started for account A resolves after the
+  // auth boundary has already moved to account B or a new A session.
   useEffect(() => {
-    if (isInitialized && isAuthenticated && !hasInitialSynced.current) {
-      hasInitialSynced.current = true;
+    let isCancelled = false;
+
+    if (
+      isInitialized &&
+      isAuthenticated &&
+      authenticatedUserId &&
+      (initialSyncUserId.current !== authenticatedUserId ||
+        initialSyncGeneration.current !== authGeneration)
+    ) {
+      initialSyncUserId.current = authenticatedUserId;
+      initialSyncGeneration.current = authGeneration;
+      const currentUserId = authenticatedUserId;
+      const currentGeneration = authGeneration;
+
       void (async () => {
         try {
-          // Before pulling/merging cloud data, reconcile the auth boundary: if
-          // this device last synced a different account, wipe the previous
-          // account's per-user local data so it never merges into this one (H2).
-          const currentUserId = useAuthStore.getState().user?.uid;
-          if (currentUserId) {
-            useAuthStore.getState().reconcileUserBoundary(currentUserId);
+          if (
+            isCancelled ||
+            useAuthStore.getState().user?.uid !== currentUserId ||
+            useAuthStore.getState().authGeneration !== currentGeneration
+          )
+            return;
+
+          const pullSucceeded = await queueInitialPull(currentUserId, currentGeneration);
+          if (!pullSucceeded) {
+            return;
           }
-          await pullFromCloud();
-          await performSync();
+
+          if (
+            isCancelled ||
+            useAuthStore.getState().user?.uid !== currentUserId ||
+            useAuthStore.getState().authGeneration !== currentGeneration
+          )
+            return;
+          await performSync(currentUserId, currentGeneration);
         } catch {
           // Initial cloud sync failure is non-fatal
         }
@@ -90,9 +153,22 @@ export const useSync = () => {
     }
 
     if (!isAuthenticated) {
-      hasInitialSynced.current = false;
+      initialSyncUserId.current = null;
+      initialSyncGeneration.current = null;
     }
-  }, [isAuthenticated, isInitialized, performSync]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    authGeneration,
+    authenticatedUserId,
+    isAuthenticated,
+    isInitialized,
+    queueInitialPull,
+    performSync,
+    syncCoordinator,
+  ]);
 
   return { sync: performSync };
 };

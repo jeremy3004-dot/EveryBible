@@ -96,7 +96,7 @@ export function ResetPasswordScreen() {
       const { session } = await getCurrentSession();
       if (session) {
         setSession(session);
-        await pullFromCloud();
+        await pullFromCloud(session.user.id);
       }
 
       Alert.alert(t('auth.resetPasswordSuccess'), undefined, [

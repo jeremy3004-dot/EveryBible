@@ -24,6 +24,11 @@ import type {
   UserReadingPlanProgress,
   UserSavedPlan,
 } from './types';
+import {
+  createSyncIdentityBoundary,
+  STALE_SYNC_ERROR,
+  type SyncIdentityBoundary,
+} from '../sync/syncIdentity';
 
 export interface PlanServiceResult<T = undefined> {
   success: boolean;
@@ -44,12 +49,19 @@ export interface ReadingPlanService {
     dayNumber: number,
     sessionKey: PlanSessionKey
   ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
-  getUserPlanProgress(planId?: string): Promise<PlanServiceResult<UserReadingPlanProgress[]>>;
+  getUserPlanProgress(
+    planId?: string,
+    expectedUserId?: string,
+    expectedGeneration?: number,
+    prevalidatedIdentity?: SyncIdentityBoundary
+  ): Promise<PlanServiceResult<UserReadingPlanProgress[]>>;
   unenrollFromPlan(planId: string): Promise<PlanServiceResult>;
   assignPlanToGroup(planId: string, groupId: string): Promise<PlanServiceResult<GroupReadingPlan>>;
   getGroupPlans(groupId: string): Promise<PlanServiceResult<GroupReadingPlan[]>>;
   syncPlanProgress(
-    localProgress: UserReadingPlanProgress[]
+    localProgress: UserReadingPlanProgress[],
+    expectedUserId?: string,
+    expectedGeneration?: number
   ): Promise<PlanServiceResult<UserReadingPlanProgress[]>>;
 }
 
@@ -75,6 +87,92 @@ async function loadSupabaseModule() {
 
   return supabaseModulePromise;
 }
+
+const stalePlanResult = <T = undefined>(): PlanServiceResult<T> => ({
+  success: false,
+  error: STALE_SYNC_ERROR,
+});
+
+const getAuthUserIdSnapshot = (): string | undefined => {
+  try {
+    const { useAuthStore } =
+      require('../../stores/authStore') as typeof import('../../stores/authStore');
+    return useAuthStore.getState().user?.uid ?? undefined;
+  } catch {
+    // Keep local-only plan mutations usable in non-native runtimes where the
+    // auth store's native persistence adapter is unavailable.
+    return undefined;
+  }
+};
+
+const getAuthGenerationSnapshot = (): number | undefined => {
+  try {
+    const { useAuthStore } =
+      require('../../stores/authStore') as typeof import('../../stores/authStore');
+    return useAuthStore.getState().authGeneration;
+  } catch {
+    return undefined;
+  }
+};
+
+const capturePlanSyncIdentity = async (
+  expectedUserId: string | undefined,
+  action: string,
+  expectedGeneration?: number
+): Promise<SyncIdentityBoundary | null> => {
+  const candidate = expectedUserId ?? getAuthUserIdSnapshot() ?? null;
+  if (!candidate) {
+    return null;
+  }
+
+  const generation = expectedGeneration ?? getAuthGenerationSnapshot();
+  const getCurrentGeneration =
+    generation === undefined ? undefined : () => getAuthGenerationSnapshot() ?? -1;
+
+  if (getAuthUserIdSnapshot() !== candidate) {
+    return null;
+  }
+
+  const { user } = await requireSignedInUser(action);
+  if (getAuthUserIdSnapshot() !== candidate || user?.id !== candidate) {
+    return null;
+  }
+
+  const boundary = createSyncIdentityBoundary(
+    candidate,
+    () => getAuthUserIdSnapshot() ?? null,
+    generation,
+    getCurrentGeneration
+  );
+
+  return (await boundary.isCurrent()) ? boundary : null;
+};
+
+/**
+ * Reuses a cycle's opaque identity capability, or performs the standalone
+ * remote validation supplied by the caller. The expected uid/generation check
+ * keeps a capability from being applied to a different request boundary.
+ */
+export const resolvePlanSyncIdentity = async (
+  expectedUserId: string | undefined,
+  expectedGeneration: number | undefined,
+  prevalidatedIdentity: SyncIdentityBoundary | undefined,
+  captureIdentity: () => Promise<SyncIdentityBoundary | null>
+): Promise<SyncIdentityBoundary | null> => {
+  const identity = prevalidatedIdentity ?? (await captureIdentity());
+  if (!identity) {
+    return null;
+  }
+
+  if (
+    identity.expectedUserId !== expectedUserId ||
+    identity.expectedGeneration !== expectedGeneration
+  ) {
+    return null;
+  }
+
+  return identity;
+};
 
 function getPlan(planId: string): ReadingPlan | undefined {
   return readingPlansById.get(planId);
@@ -197,7 +295,10 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
         return { success: false, error: 'Plan not found' };
       }
 
-      const sessionGroups = getDaySessionEntries(readingPlanEntriesByPlanId[planId] ?? [], dayNumber);
+      const sessionGroups = getDaySessionEntries(
+        readingPlanEntriesByPlanId[planId] ?? [],
+        dayNumber
+      );
       const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
       if (sessionIndex < 0) {
         return { success: false, error: 'Plan session not found' };
@@ -260,22 +361,41 @@ export async function getPlanEntries(
   return { success: true, data: readingPlanEntriesByPlanId[planId] ?? [] };
 }
 
-async function pushProgressToRemote(progress: UserReadingPlanProgress): Promise<void> {
+async function pushProgressToRemote(
+  progress: UserReadingPlanProgress,
+  expectedUserId?: string,
+  expectedGeneration: number | undefined = getAuthGenerationSnapshot()
+): Promise<void> {
   try {
+    let identity: SyncIdentityBoundary | null = null;
     const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-    const { user } = await requireSignedInUser('sync reading plan progress');
-
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured()) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('user_reading_plan_progress')
-      .upsert(buildRemoteReadingPlanProgressPayload(progress, user.id), {
-        onConflict: 'user_id,plan_slug',
-      })
-      .select('*')
-      .single();
+    identity = await capturePlanSyncIdentity(
+      expectedUserId,
+      'sync reading plan progress',
+      expectedGeneration
+    );
+    if (!identity) {
+      return;
+    }
+
+    const write = await identity.runIfCurrent(() =>
+      supabase
+        .from('user_reading_plan_progress')
+        .upsert(buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId), {
+          onConflict: 'user_id,plan_slug',
+        })
+        .select('*')
+        .single()
+    );
+    if (!write.applied) {
+      return;
+    }
+
+    const { data, error } = await write.value!;
 
     if (error) {
       return;
@@ -283,7 +403,9 @@ async function pushProgressToRemote(progress: UserReadingPlanProgress): Promise<
 
     const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
     if (syncedProgress) {
-      readingPlansStore.getState().upsertProgress(syncedProgress);
+      await identity.runIfCurrent(() => {
+        readingPlansStore.getState().upsertProgress(syncedProgress);
+      });
     }
   } catch {
     // Offline-first: swallow — the row stays local and is retried by the next sync.
@@ -301,7 +423,7 @@ export async function enrollInPlan(
   // L20: land the local mutation and return synchronously so navigation is never
   // blocked on the (un-timed) network round-trip; push in the background.
   const localProgress = readingPlansStore.getState().enrollPlan(planId);
-  void pushProgressToRemote(localProgress);
+  void pushProgressToRemote(localProgress, getAuthUserIdSnapshot(), getAuthGenerationSnapshot());
 
   return { success: true, data: localProgress };
 }
@@ -327,7 +449,7 @@ export async function markDayComplete(
 
   // L20: return after the local mutation; push in the background so a slow/flaky
   // network can never freeze the tap or block navigation.
-  void pushProgressToRemote(localUpdated);
+  void pushProgressToRemote(localUpdated, getAuthUserIdSnapshot(), getAuthGenerationSnapshot());
 
   return { success: true, data: localUpdated };
 }
@@ -349,14 +471,16 @@ export async function markPlanSessionComplete(
   }
 
   const nextSessionKey = sessionGroups[sessionIndex + 1]?.sessionKey ?? null;
-  const localUpdated = readingPlansStore.getState().markSessionComplete(planId, dayNumber, sessionKey, {
-    completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
-    dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
-    totalDays: plan.duration_days,
-    isFinalSession: nextSessionKey == null,
-    advanceDayOnCompletion: !isRecurringPlan(plan),
-    nextSessionKey,
-  });
+  const localUpdated = readingPlansStore
+    .getState()
+    .markSessionComplete(planId, dayNumber, sessionKey, {
+      completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
+      dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
+      totalDays: plan.duration_days,
+      isFinalSession: nextSessionKey == null,
+      advanceDayOnCompletion: !isRecurringPlan(plan),
+      nextSessionKey,
+    });
 
   if (!localUpdated) {
     return { success: false, error: 'Not enrolled in this plan' };
@@ -376,10 +500,7 @@ export async function markPlanSessionComplete(
  *
  * H3: local-only rows are upserted (never dropped) and returned for a follow-up push.
  */
-function commitReconciledProgress(
-  reconciled: UserReadingPlanProgress[],
-  fetchedAt: string
-): void {
+function commitReconciledProgress(reconciled: UserReadingPlanProgress[], fetchedAt: string): void {
   const store = readingPlansStore.getState();
   const tombstoned = new Set(store.pendingUnenrollPlanIds);
 
@@ -395,8 +516,13 @@ function commitReconciledProgress(
 }
 
 export async function getUserPlanProgress(
-  planId?: string
+  planId?: string,
+  expectedUserId?: string,
+  expectedGeneration?: number,
+  prevalidatedIdentity?: SyncIdentityBoundary
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
+  const capturedUserId = expectedUserId ?? getAuthUserIdSnapshot();
+  const capturedGeneration = expectedGeneration ?? getAuthGenerationSnapshot();
   const localProgress = getLocalProgressList(readingPlansStore, planId);
   const localFallback = { success: true, data: localProgress } satisfies PlanServiceResult<
     UserReadingPlanProgress[]
@@ -409,14 +535,33 @@ export async function getUserPlanProgress(
 
   const remoteFetch = (async (): Promise<PlanServiceResult<UserReadingPlanProgress[]>> => {
     const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-    const { user } = await requireSignedInUser('fetch reading plan progress');
-
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured()) {
       return localFallback;
     }
 
+    // An omitted expected uid is captured synchronously above. If there was no
+    // authenticated uid at entry, do not bind this snapshot to whichever
+    // account appears after dependency loading yields.
+    if (!capturedUserId) {
+      return localFallback;
+    }
+
+    const identity = await resolvePlanSyncIdentity(
+      capturedUserId,
+      capturedGeneration,
+      prevalidatedIdentity,
+      () =>
+        capturePlanSyncIdentity(capturedUserId, 'fetch reading plan progress', capturedGeneration)
+    );
+    if (!identity) {
+      return stalePlanResult<UserReadingPlanProgress[]>();
+    }
+
     try {
-      let query = supabase.from('user_reading_plan_progress').select('*').eq('user_id', user.id);
+      let query = supabase
+        .from('user_reading_plan_progress')
+        .select('*')
+        .eq('user_id', identity.expectedUserId);
 
       if (planId) {
         query = query.eq('plan_slug', planId);
@@ -425,7 +570,13 @@ export async function getUserPlanProgress(
       const { data, error } = await query.order('started_at', { ascending: false });
 
       if (error) {
-        return localFallback;
+        return (await identity.isCurrent())
+          ? localFallback
+          : stalePlanResult<UserReadingPlanProgress[]>();
+      }
+
+      if (!(await identity.isCurrent())) {
+        return stalePlanResult<UserReadingPlanProgress[]>();
       }
 
       const remoteProgress = normalizeRemoteProgressRows(
@@ -436,14 +587,18 @@ export async function getUserPlanProgress(
 
       // L19: if the fallback already won, do not clobber the live store.
       if (fallbackWon) {
-        return localFallback;
+        return (await identity.isCurrent())
+          ? localFallback
+          : stalePlanResult<UserReadingPlanProgress[]>();
       }
 
       const fetchedAt = new Date().toISOString();
       const tombstonedPlanIds = readingPlansStore.getState().pendingUnenrollPlanIds;
 
       if (remoteProgress.length === 0) {
-        return { success: true, data: localProgress };
+        return (await identity.isCurrent())
+          ? { success: true, data: localProgress }
+          : stalePlanResult<UserReadingPlanProgress[]>();
       }
 
       // H3: reconcile without dropping local-only rows.
@@ -455,16 +610,23 @@ export async function getUserPlanProgress(
       );
 
       // L19: commit via a live-store re-read + per-plan merge (never wholesale replace).
-      commitReconciledProgress(reconciledProgress, fetchedAt);
+      const committed = await identity.runIfCurrent(() => {
+        commitReconciledProgress(reconciledProgress, fetchedAt);
+      });
+      if (!committed.applied) {
+        return stalePlanResult<UserReadingPlanProgress[]>();
+      }
 
       // H3: push local-only rows that lack a remote counterpart so they are durably synced.
       localOnlyProgress.forEach((progress) => {
-        void pushProgressToRemote(progress);
+        void pushProgressToRemote(progress, identity.expectedUserId, identity.expectedGeneration);
       });
 
       return { success: true, data: reconciledProgress };
     } catch {
-      return localFallback;
+      return identity && !(await identity.isCurrent())
+        ? stalePlanResult<UserReadingPlanProgress[]>()
+        : localFallback;
     }
   })();
 
@@ -473,7 +635,10 @@ export async function getUserPlanProgress(
     new Promise<PlanServiceResult<UserReadingPlanProgress[]>>((resolve) => {
       timeoutId = setTimeout(() => {
         fallbackWon = true;
-        resolve(localFallback);
+        const authBoundaryStale =
+          (capturedUserId !== undefined && getAuthUserIdSnapshot() !== capturedUserId) ||
+          (capturedGeneration !== undefined && getAuthGenerationSnapshot() !== capturedGeneration);
+        resolve(authBoundaryStale ? stalePlanResult<UserReadingPlanProgress[]>() : localFallback);
       }, PLAN_REMOTE_PROGRESS_TIMEOUT_MS);
     }),
   ]).finally(() => {
@@ -488,30 +653,83 @@ export async function getUserPlanProgress(
  * confirmed success. Returns false when the delete could not be confirmed (offline,
  * RLS, network) so the tombstone survives and syncReadingPlans can retry (M12).
  */
-async function deleteRemotePlanProgress(planId: string): Promise<boolean> {
+async function deleteRemotePlanProgress(
+  planId: string,
+  expectedUserId?: string,
+  expectedGeneration: number | undefined = getAuthGenerationSnapshot(),
+  prevalidatedIdentity?: SyncIdentityBoundary
+): Promise<boolean> {
   try {
     const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-    const { user } = await requireSignedInUser('unenroll from a reading plan');
 
     // No backend/user means there is nothing to delete server-side; the local
     // tombstone is enough and can be cleared.
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured()) {
+      if (
+        (expectedUserId && getAuthUserIdSnapshot() !== expectedUserId) ||
+        (expectedGeneration !== undefined && getAuthGenerationSnapshot() !== expectedGeneration)
+      ) {
+        return false;
+      }
+
+      if (prevalidatedIdentity) {
+        if (
+          (expectedUserId !== undefined &&
+            prevalidatedIdentity.expectedUserId !== expectedUserId) ||
+          (expectedGeneration !== undefined &&
+            prevalidatedIdentity.expectedGeneration !== expectedGeneration)
+        ) {
+          return false;
+        }
+        const cleared = await prevalidatedIdentity.runIfCurrent(() => {
+          readingPlansStore.getState().clearPendingUnenroll(planId);
+        });
+        return cleared.applied;
+      }
+
       readingPlansStore.getState().clearPendingUnenroll(planId);
       return true;
     }
 
-    const { error } = await supabase
-      .from('user_reading_plan_progress')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('plan_slug', planId);
+    const identity =
+      prevalidatedIdentity ??
+      (await capturePlanSyncIdentity(
+        expectedUserId,
+        'unenroll from a reading plan',
+        expectedGeneration
+      ));
+    if (!identity) {
+      return false;
+    }
+
+    if (
+      (expectedUserId !== undefined && identity.expectedUserId !== expectedUserId) ||
+      (expectedGeneration !== undefined && identity.expectedGeneration !== expectedGeneration)
+    ) {
+      return false;
+    }
+
+    const deletion = await identity.runIfCurrent(() =>
+      supabase
+        .from('user_reading_plan_progress')
+        .delete()
+        .eq('user_id', identity.expectedUserId)
+        .eq('plan_slug', planId)
+    );
+    if (!deletion.applied) {
+      return false;
+    }
+
+    const { error } = await deletion.value!;
 
     if (error) {
       return false;
     }
 
-    readingPlansStore.getState().clearPendingUnenroll(planId);
-    return true;
+    const cleared = await identity.runIfCurrent(() => {
+      readingPlansStore.getState().clearPendingUnenroll(planId);
+    });
+    return cleared.applied;
   } catch {
     return false;
   }
@@ -520,11 +738,21 @@ async function deleteRemotePlanProgress(planId: string): Promise<boolean> {
 export async function unenrollFromPlan(planId: string): Promise<PlanServiceResult> {
   // Records a pending-unenroll tombstone (see readingPlansStore.unenrollPlan) so a
   // stale remote row cannot re-enroll the user before the remote delete confirms.
+  const expectedUserId = getAuthUserIdSnapshot();
+  const expectedGeneration = getAuthGenerationSnapshot();
   readingPlansStore.getState().unenrollPlan(planId);
+
+  // Guest progress is local-only. Consume its tombstone immediately instead of
+  // allowing a later authenticated session to interpret it as that account's
+  // remote delete.
+  if (!expectedUserId) {
+    readingPlansStore.getState().clearPendingUnenroll(planId);
+    return { success: true };
+  }
 
   // M12: do NOT swallow the delete failure as success — an unconfirmed delete
   // leaves the tombstone in place for syncReadingPlans to retry.
-  const deleted = await deleteRemotePlanProgress(planId);
+  const deleted = await deleteRemotePlanProgress(planId, expectedUserId, expectedGeneration);
 
   return { success: deleted };
 }
@@ -594,29 +822,123 @@ export async function getGroupPlans(
  * Retries the remote delete for every plan the user unenrolled while the delete
  * could not be confirmed. Clears each tombstone on success (M12).
  */
-async function retryPendingUnenrolls(): Promise<void> {
+async function retryPendingUnenrolls(
+  expectedUserId?: string,
+  expectedGeneration?: number,
+  prevalidatedIdentity?: SyncIdentityBoundary
+): Promise<void> {
   const pending = readingPlansStore.getState().pendingUnenrollPlanIds;
   if (pending.length === 0) {
     return;
   }
 
-  await Promise.all(pending.map((planId) => deleteRemotePlanProgress(planId)));
+  if (!prevalidatedIdentity) {
+    await Promise.all(
+      pending.map((planId) => deleteRemotePlanProgress(planId, expectedUserId, expectedGeneration))
+    );
+    return;
+  }
+
+  await retryPlanTombstonesWithIdentity(pending, prevalidatedIdentity, (planId, identity) =>
+    deleteRemotePlanProgress(planId, identity.expectedUserId, identity.expectedGeneration, identity)
+  );
 }
 
+/**
+ * Runs pending tombstone deletes with one already-captured identity capability.
+ * Keeping this seam injectable makes it explicit that N tombstones do not each
+ * perform another remote auth lookup.
+ */
+export const retryPlanTombstonesWithIdentity = async (
+  planIds: string[],
+  identity: SyncIdentityBoundary,
+  deletePlan: (planId: string, identity: SyncIdentityBoundary) => Promise<boolean>
+): Promise<boolean[]> => Promise.all(planIds.map((planId) => deletePlan(planId, identity)));
+
 export async function syncPlanProgress(
-  localProgress: UserReadingPlanProgress[]
+  localProgress: UserReadingPlanProgress[],
+  expectedUserId?: string,
+  expectedGeneration?: number,
+  prevalidatedIdentity?: SyncIdentityBoundary
 ): Promise<PlanServiceResult<UserReadingPlanProgress[]>> {
+  const entryAuthUserId = getAuthUserIdSnapshot();
+  const capturedUserId = expectedUserId ?? getAuthUserIdSnapshot();
+  const capturedGeneration = expectedGeneration ?? getAuthGenerationSnapshot();
+  const supabaseModule = await loadSupabaseModule().catch(() => null);
+
+  const applyLocalProgress = (): void => {
+    localProgress.forEach((progress) => {
+      readingPlansStore.getState().upsertProgress(progress);
+    });
+  };
+
+  const entryBoundaryIsCurrent = (): boolean => {
+    const liveUserId = getAuthUserIdSnapshot();
+    const expectedUidStartedFromGuest =
+      expectedUserId !== undefined && entryAuthUserId === undefined;
+    const userMatches =
+      liveUserId === capturedUserId || (expectedUidStartedFromGuest && liveUserId === undefined);
+    return userMatches && getAuthGenerationSnapshot() === capturedGeneration;
+  };
+
+  if (!supabaseModule || !supabaseModule.isSupabaseConfigured() || !capturedUserId) {
+    if (!entryBoundaryIsCurrent()) {
+      return stalePlanResult<UserReadingPlanProgress[]>();
+    }
+
+    if (prevalidatedIdentity) {
+      const applied = await prevalidatedIdentity.runIfCurrent(applyLocalProgress);
+      return applied.applied
+        ? { success: true, data: localProgress }
+        : stalePlanResult<UserReadingPlanProgress[]>();
+    }
+
+    applyLocalProgress();
+    return { success: true, data: localProgress };
+  }
+
+  if (!entryBoundaryIsCurrent()) {
+    return stalePlanResult<UserReadingPlanProgress[]>();
+  }
+
+  const identity =
+    prevalidatedIdentity ??
+    (await capturePlanSyncIdentity(
+      capturedUserId,
+      'sync reading plan progress',
+      capturedGeneration
+    ));
+  if (!identity) {
+    return stalePlanResult<UserReadingPlanProgress[]>();
+  }
+
+  if (
+    identity.expectedUserId !== capturedUserId ||
+    identity.expectedGeneration !== capturedGeneration
+  ) {
+    return stalePlanResult<UserReadingPlanProgress[]>();
+  }
+
   // M12: retry any unconfirmed remote unenroll deletes before pushing progress,
   // so a tombstoned plan is never resurrected by a subsequent fetch.
-  await retryPendingUnenrolls();
+  await retryPendingUnenrolls(identity.expectedUserId, identity.expectedGeneration, identity);
+
+  if (!(await identity.isCurrent())) {
+    return stalePlanResult<UserReadingPlanProgress[]>();
+  }
 
   const tombstoned = new Set(readingPlansStore.getState().pendingUnenrollPlanIds);
 
-  localProgress
-    .filter((progress) => !tombstoned.has(progress.plan_id))
-    .forEach((progress) => {
-      readingPlansStore.getState().upsertProgress(progress);
-    });
+  const localApplied = await identity.runIfCurrent(() => {
+    localProgress
+      .filter((progress) => !tombstoned.has(progress.plan_id))
+      .forEach((progress) => {
+        readingPlansStore.getState().upsertProgress(progress);
+      });
+  });
+  if (!localApplied.applied) {
+    return stalePlanResult<UserReadingPlanProgress[]>();
+  }
 
   const remoteSyncableProgress = localProgress.filter(
     (progress) =>
@@ -624,34 +946,45 @@ export async function syncPlanProgress(
   );
 
   if (remoteSyncableProgress.length === 0) {
-    return { success: true, data: localProgress };
+    return (await identity.isCurrent())
+      ? { success: true, data: localProgress }
+      : stalePlanResult<UserReadingPlanProgress[]>();
   }
 
-  const { supabase, isSupabaseConfigured } = await loadSupabaseModule();
-  const { user } = await requireSignedInUser('sync reading plan progress');
-
-  if (!isSupabaseConfigured() || !user) {
-    return { success: true, data: localProgress };
-  }
+  const { supabase } = supabaseModule;
 
   try {
     const upsertPayload = remoteSyncableProgress.map((progress) =>
-      buildRemoteReadingPlanProgressPayload(progress, user.id)
+      buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId)
     );
 
-    const { data, error } = await supabase
-      .from('user_reading_plan_progress')
-      .upsert(upsertPayload, { onConflict: 'user_id,plan_slug' })
-      .select('*');
+    const write = await identity.runIfCurrent(() =>
+      supabase
+        .from('user_reading_plan_progress')
+        .upsert(upsertPayload, { onConflict: 'user_id,plan_slug' })
+        .select('*')
+    );
+    if (!write.applied) {
+      return stalePlanResult<UserReadingPlanProgress[]>();
+    }
+
+    const { data, error } = await write.value!;
 
     if (error) {
-      return { success: true, data: localProgress };
+      return (await identity.isCurrent())
+        ? { success: true, data: localProgress }
+        : stalePlanResult<UserReadingPlanProgress[]>();
     }
 
     const syncedRows = normalizeRemoteProgressRows((data ?? []) as RemoteReadingPlanProgressRow[]);
-    syncedRows.forEach((progress) => {
-      readingPlansStore.getState().upsertProgress(progress);
+    const syncedApplied = await identity.runIfCurrent(() => {
+      syncedRows.forEach((progress) => {
+        readingPlansStore.getState().upsertProgress(progress);
+      });
     });
+    if (!syncedApplied.applied) {
+      return stalePlanResult<UserReadingPlanProgress[]>();
+    }
 
     return {
       success: true,

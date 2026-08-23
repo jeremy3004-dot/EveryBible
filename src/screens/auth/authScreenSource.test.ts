@@ -32,6 +32,31 @@ test('AuthScreen hydrates the live session into auth state after successful auth
   );
 });
 
+test('authenticated auth flows pass the hydrated uid into cloud restoration', () => {
+  const source = readRelativeSource('./AuthScreen.tsx');
+
+  assert.match(
+    source,
+    /return session\.user\.id/,
+    'the hydrated session should expose the exact authenticated uid'
+  );
+  assert.match(
+    source,
+    /pullFromCloud\(userId\)/,
+    'sign-in and sign-up cloud pulls should bind to the hydrated uid'
+  );
+});
+
+test('password recovery passes its hydrated uid into cloud restoration', () => {
+  const source = readRelativeSource('./ResetPasswordScreen.tsx');
+
+  assert.match(
+    source,
+    /pullFromCloud\(session\.user\.id\)/,
+    'password recovery cloud restoration should bind to the recovery session uid'
+  );
+});
+
 test('AuthStack registers one shared auth route instead of split sign-in and sign-up screens', () => {
   const authStackSource = readRelativeSource('../../navigation/AuthStack.tsx');
 

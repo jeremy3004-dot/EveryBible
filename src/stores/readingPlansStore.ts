@@ -861,6 +861,13 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           }));
         },
 
+        clearPendingUnenrolls: () => {
+          set((state) => ({
+            ...state,
+            pendingUnenrollPlanIds: [],
+          }));
+        },
+
         getProgress: (planId) => get().progressByPlanId[planId] ?? null,
 
         assignGroupPlan: (groupId, planId, assignedBy = 'local-user') => {
