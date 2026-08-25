@@ -89,7 +89,13 @@ test('ThemeContext exports theme palettes and appearance options as named consta
     /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/,
     'lightColors must be a named export'
   );
-  assert.match(source, /appearancePaletteOptions/, 'appearancePaletteOptions must be exported');
+  // appearancePaletteOptions was removed with the accent-palette picker: it had
+  // no consumers and carried stale Ember copy on the el-blue id.
+  assert.doesNotMatch(
+    source,
+    /appearancePaletteOptions/,
+    'the dead palette-options export should stay deleted'
+  );
 });
 
 test('ThemeContext ships exactly the two scopes the EL design system defines', () => {
@@ -197,16 +203,22 @@ test('Light-family accents (primaryDeep) stay readable on vellum surfaces', () =
   }
 });
 
-test('ThemeContext defines the EL blue appearance palette option with preview swatches', () => {
-  const source = readThemeSource();
+test('EL blue is the sole appearance palette and the retired ids stay retired', () => {
+  // The palette definition lives in appearancePalettes.ts; ThemeContext no
+  // longer carries a picker-options list (it was dead code with stale copy).
+  const paletteSource = readFileSync(
+    fileURLToPath(new URL('../constants/appearancePalettes.ts', import.meta.url).href),
+    'utf8'
+  );
 
-  assert.match(source, /id:\s*'el-blue'/, 'EL blue palette should be present');
-  assert.match(source, /previewColors:/, 'Palette options should define preview colors');
-  // EL blue is the sole accent palette; the others were intentionally retired.
-  assert.doesNotMatch(source, /id:\s*'ember'/, 'Ember palette should be retired');
-  assert.doesNotMatch(source, /id:\s*'sapphire'/, 'Sapphire palette should be retired');
-  assert.doesNotMatch(source, /id:\s*'teal'/, 'Teal palette should be retired');
-  assert.doesNotMatch(source, /id:\s*'olive'/, 'Olive palette should be retired');
+  assert.match(paletteSource, /id:\s*'el-blue'/, 'EL blue palette should be present');
+  for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
+    assert.doesNotMatch(
+      paletteSource,
+      new RegExp(`id:\\s*'${retired}'`),
+      `${retired} palette should be retired`
+    );
+  }
 });
 
 test('ThemeContext exposes the isDark flag', () => {

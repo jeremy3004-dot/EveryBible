@@ -45,13 +45,6 @@ export interface ThemeColors {
   bibleControlBackground: string;
 }
 
-export interface AppearancePaletteOption {
-  id: AppearancePaletteId;
-  labelKey: string;
-  descriptionKey: string;
-  previewColors: [string, string, string];
-}
-
 interface ThemeContextValue {
   colors: ThemeColors;
   themeMode: ThemeMode;
@@ -190,15 +183,6 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
 
 export { baseDarkColors as darkColors, baseLightColors as lightColors };
 export type { AppearancePaletteId } from '../constants/appearancePalettes';
-
-export const appearancePaletteOptions: AppearancePaletteOption[] = [
-  {
-    id: 'el-blue',
-    labelKey: 'settings.appearanceEmberTitle',
-    descriptionKey: 'settings.appearanceEmberBody',
-    previewColors: ['#35A7E9', '#ADDCFF', '#B0A99B'],
-  },
-];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const preferences = useAuthStore((state) => state.preferences);
