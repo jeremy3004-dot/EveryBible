@@ -9,6 +9,7 @@ const assetsDir = path.join(projectRoot, 'assets');
 const sourceIconPath = path.join(assetsDir, 'icon-source.png');
 const generatedIconPath = path.join(assetsDir, 'icon.png');
 const generatedAdaptivePath = path.join(assetsDir, 'adaptive-icon.png');
+const generatedAdaptiveBackgroundPath = path.join(assetsDir, 'adaptive-background.png');
 const generatedMonochromePath = path.join(assetsDir, 'monochrome-icon.png');
 const generatedFaviconPath = path.join(assetsDir, 'favicon.png');
 const generatedSplashPath = path.join(assetsDir, 'splash-icon.png');
@@ -71,20 +72,30 @@ const androidSplashSizes = [
   ['xxxhdpi', 1152],
 ];
 
-const monochromeIconSvg = `
-<svg width="432" height="432" viewBox="0 0 432 432" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M66 164C113 166 157 177 204 198V330C160 305 116 295 66 298V164Z" fill="#121212"/>
-  <path d="M366 164C319 166 275 177 228 198V330C272 305 316 295 366 298V164Z" fill="#121212"/>
-  <path d="M207 196H225V330H207V196Z" fill="#121212"/>
-  <path d="M205 40H227L220 124H212L205 40Z" fill="#121212"/>
-  <path d="M98 68L114 58L178 130L171 138L98 68Z" fill="#121212"/>
-  <path d="M334 68L318 58L254 130L261 138L334 68Z" fill="#121212"/>
-  <path d="M34 186L42 170L130 196L130 205L34 186Z" fill="#121212"/>
-  <path d="M398 186L390 170L302 196L302 205L398 186Z" fill="#121212"/>
-  <path d="M92 362L106 374L172 302L165 295L92 362Z" fill="#121212"/>
-  <path d="M340 362L326 374L260 302L267 295L340 362Z" fill="#121212"/>
+const adaptiveForegroundScale = 0.78;
+
+// The selected square artwork contains both the launcher background and the
+// ivory cross/page mark. Android adaptive icons need those as separate layers
+// so the mark remains inside the launcher mask's safe area.
+const adaptiveBackgroundSvg = `
+<svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24A5ED"/>
+      <stop offset="0.42" stop-color="#0D9BE0"/>
+      <stop offset="1" stop-color="#066EAD"/>
+    </linearGradient>
+  </defs>
+  <rect width="432" height="432" fill="url(#blue)"/>
 </svg>
 `;
+
+const adaptiveIconXml = `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>`;
 
 const ensureDirectory = async (directoryPath) => {
   await fs.mkdir(directoryPath, { recursive: true });
@@ -119,6 +130,144 @@ const writeRasterOutput = async (outputPath, size, format) => {
   }
 
   await pipeline.toFile(outputPath);
+};
+
+const createSelectedForegroundBuffer = async () => {
+  const { data, info } = await sharp(sourceIconPath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const output = Buffer.alloc(info.width * info.height * 4);
+
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const sourceOffset = (y * info.width + x) * 4;
+      const red = data[sourceOffset];
+      const green = data[sourceOffset + 1];
+      const blue = data[sourceOffset + 2];
+      let alpha = 0;
+
+      // The ivory mark is deliberately separated by its warm, high-value
+      // palette. A proportional score retains anti-aliased edges.
+      if (red > 40 && green > 125 && blue > 145) {
+        const ivoryScore = Math.min(
+          (red - 40) / 202,
+          (green - 125) / 113,
+          (blue - 145) / 83
+        );
+        alpha = Math.max(alpha, Math.min(1, ivoryScore));
+      }
+
+      // Preserve the deep-blue bookmark as a distinct foreground shape. Its
+      // source geometry is a rectangle with a centered V-shaped cut-out.
+      const inBookmarkBounds = x >= 255 && x <= 435 && y >= 952 && y <= 1095;
+      const bookmarkTipY = 1049 + Math.abs(x - 345) * (45 / 88);
+      if (
+        inBookmarkBounds &&
+        x >= 257 &&
+        x <= 433 &&
+        y >= 954 &&
+        y <= 1094 &&
+        (x <= 345 || y <= bookmarkTipY) &&
+        red < 40 &&
+        green < 130 &&
+        blue < 190
+      ) {
+        alpha = Math.max(alpha, 1);
+      }
+
+      output[sourceOffset] = red;
+      output[sourceOffset + 1] = green;
+      output[sourceOffset + 2] = blue;
+      output[sourceOffset + 3] = Math.round(alpha * 255);
+    }
+  }
+
+  return sharp(output, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: 4,
+    },
+  })
+    .png()
+    .toBuffer();
+};
+
+const writeAdaptiveForegroundOutput = async (
+  outputPath,
+  size,
+  monochrome = false,
+  format = 'png'
+) => {
+  await ensureDirectory(path.dirname(outputPath));
+  const sourceBuffer = await createSelectedForegroundBuffer();
+  const scaledSize = Math.round(size * adaptiveForegroundScale);
+  const scaled = await sharp(sourceBuffer)
+    .resize(scaledSize, scaledSize, { fit: 'contain' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const output = Buffer.alloc(size * size * 4);
+  const offset = Math.floor((size - scaledSize) / 2);
+
+  for (let y = 0; y < scaled.info.height; y += 1) {
+    for (let x = 0; x < scaled.info.width; x += 1) {
+      const sourceOffset = (y * scaled.info.width + x) * 4;
+      const targetOffset = ((y + offset) * size + x + offset) * 4;
+      output[targetOffset] = monochrome ? 0 : scaled.data[sourceOffset];
+      output[targetOffset + 1] = monochrome ? 0 : scaled.data[sourceOffset + 1];
+      output[targetOffset + 2] = monochrome ? 0 : scaled.data[sourceOffset + 2];
+      output[targetOffset + 3] = scaled.data[sourceOffset + 3];
+    }
+  }
+
+  let pipeline = sharp(output, {
+    raw: {
+      width: size,
+      height: size,
+      channels: 4,
+    },
+  });
+
+  if (format === 'webp') {
+    pipeline = pipeline.webp({ lossless: true });
+  } else {
+    pipeline = pipeline.png();
+  }
+
+  await pipeline.toFile(outputPath);
+};
+
+const writeAdaptiveBackgroundOutput = async (outputPath, size, format = 'png') => {
+  await ensureDirectory(path.dirname(outputPath));
+  let pipeline = sharp(Buffer.from(adaptiveBackgroundSvg)).resize(size, size).removeAlpha();
+  if (format === 'webp') {
+    pipeline = pipeline.webp({ lossless: true });
+  } else {
+    pipeline = pipeline.png();
+  }
+  await pipeline.toFile(outputPath);
+};
+
+const writeAdaptiveLegacyOutput = async (outputPath, size, round = false) => {
+  await ensureDirectory(path.dirname(outputPath));
+  const foreground = await sharp(generatedAdaptivePath)
+    .resize(size, size, { fit: 'contain' })
+    .png()
+    .toBuffer();
+  let pipeline = sharp(generatedAdaptiveBackgroundPath)
+    .resize(size, size)
+    .ensureAlpha()
+    .composite([{ input: foreground }]);
+
+  if (round) {
+    const circleMask = Buffer.from(
+      `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/></svg>`
+    );
+    pipeline = pipeline.composite([{ input: circleMask, blend: 'dest-in' }]);
+  }
+
+  await pipeline.webp({ lossless: true }).toFile(outputPath);
 };
 
 const writeSplashPortraitOutput = async (outputPath) => {
@@ -157,18 +306,15 @@ const writeAndroidSplashOutput = async (outputPath, size) => {
     .toFile(outputPath);
 };
 
-const writeMonochromeOutput = async () => {
-  await sharp(Buffer.from(monochromeIconSvg)).resize(432, 432).png().toFile(generatedMonochromePath);
-};
-
 async function generateIcons() {
   await ensureSourceIconExists();
 
   console.log('Generating Every Bible brand icons from assets/icon-source.png...\n');
 
   await writeRasterOutput(generatedIconPath, 1024, 'png');
-  await writeRasterOutput(generatedAdaptivePath, 432, 'png');
-  await writeMonochromeOutput();
+  await writeAdaptiveForegroundOutput(generatedAdaptivePath, 432);
+  await writeAdaptiveBackgroundOutput(generatedAdaptiveBackgroundPath, 432);
+  await writeAdaptiveForegroundOutput(generatedMonochromePath, 432, true);
   await writeRasterOutput(generatedFaviconPath, 64, 'png');
   await writeRasterOutput(siteAppIconPath, 1024, 'png');
   await writeSplashPortraitOutput(generatedSplashPath);
@@ -180,17 +326,40 @@ async function generateIcons() {
 
   for (const [density, size] of launcherSizes) {
     const densityDir = path.join(androidResDir, `mipmap-${density}`);
-    await writeRasterOutput(path.join(densityDir, 'ic_launcher.webp'), size, 'webp');
-    await writeRasterOutput(path.join(densityDir, 'ic_launcher_round.webp'), size, 'webp');
+    await writeAdaptiveLegacyOutput(path.join(densityDir, 'ic_launcher.webp'), size);
+    await writeAdaptiveLegacyOutput(
+      path.join(densityDir, 'ic_launcher_round.webp'),
+      size,
+      true
+    );
   }
 
   for (const [density, size] of adaptiveSizes) {
     const densityDir = path.join(androidResDir, `mipmap-${density}`);
-    await writeRasterOutput(path.join(densityDir, 'ic_launcher_foreground.webp'), size, 'webp');
-    await sharp(Buffer.from(monochromeIconSvg))
-      .resize(size, size)
-      .webp({ lossless: true })
-      .toFile(path.join(densityDir, 'ic_launcher_monochrome.webp'));
+    await writeAdaptiveForegroundOutput(
+      path.join(densityDir, 'ic_launcher_foreground.webp'),
+      size,
+      false,
+      'webp'
+    );
+    await writeAdaptiveBackgroundOutput(
+      path.join(densityDir, 'ic_launcher_background.webp'),
+      size,
+      'webp'
+    );
+    await writeAdaptiveForegroundOutput(
+      path.join(densityDir, 'ic_launcher_monochrome.webp'),
+      size,
+      true,
+      'webp'
+    );
+  }
+
+  for (const launcherXmlName of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
+    await fs.writeFile(
+      path.join(androidResDir, 'mipmap-anydpi-v26', launcherXmlName),
+      adaptiveIconXml
+    );
   }
 
   for (const [density, size] of androidSplashSizes) {
@@ -202,6 +371,7 @@ async function generateIcons() {
   console.log('- assets/icon-source.png');
   console.log('- assets/icon.png');
   console.log('- assets/adaptive-icon.png');
+  console.log('- assets/adaptive-background.png');
   console.log('- assets/monochrome-icon.png');
   console.log('- assets/favicon.png');
   console.log('- apps/site/public/everybible/app-icon.png');

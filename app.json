@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.everybible.app",
-      "buildNumber": "415",
+      "buildNumber": "416",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UILaunchStoryboardName": "EveryBibleLaunchScreen",
@@ -35,8 +35,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-background.png",
         "monochromeImage": "./assets/monochrome-icon.png",
-        "backgroundColor": "#D96C57"
+        "backgroundColor": "#078ED0"
       },
       "package": "com.everybible.app",
       "edgeToEdgeEnabled": true,
