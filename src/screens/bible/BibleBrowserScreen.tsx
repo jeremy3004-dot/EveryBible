@@ -33,7 +33,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
-import { useI18n } from '../../hooks';
+import { useI18n, useDisplayFont } from '../../hooks';
 import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
 import {
   parsePassageReferenceLocale,
@@ -84,6 +84,7 @@ export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleBrowserRoute>();
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t, currentLanguage } = useI18n();
   const currentBook = useBibleStore((state) => state.currentBook);
   const initialBookId = route.params?.initialBookId ?? null;
@@ -578,7 +579,7 @@ export function BibleBrowserScreen() {
               </TouchableOpacity>
             ) : null}
             <View>
-              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+              <Text style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}>
                 {t('bible.title')}
               </Text>
               <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>

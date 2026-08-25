@@ -6827,7 +6827,9 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     flexDirection: 'row',
-    alignItems: 'center',
+    // Baseline the row on its bottom edge so the larger play disc grows upward
+    // and its bottom stays level with the chapter chevrons.
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     zIndex: 26,
   },

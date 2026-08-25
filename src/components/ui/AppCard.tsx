@@ -23,9 +23,16 @@ export interface AppCardProps {
   accessibilityLabel?: string;
 }
 
-// Resting surface: lighter than the page background, separated by a hairline
-// alpha border — hierarchy via tone, not shadow. Pass `pressable` for tap
-// affordance and `elevated` only when the card genuinely floats.
+// EL atlas-paper: a lit-paper panel on the vellum ground, warm hairline border,
+// a whisper of shadow, and an edge light along the top so the panel reads as
+// paper catching the light.
+//
+// The EL kit expresses that edge light as `inset 0 1.5px 0 #ffffffb3`, but this
+// app runs the old React Native architecture (app.json newArchEnabled: false),
+// where `boxShadow` — and therefore inset shadows — is unavailable. So it is
+// drawn as a real hairline view pinned to the top edge instead, clipped to the
+// card radius. Pass `pressable` for tap affordance and `elevated` only when the
+// card genuinely floats.
 export function AppCard({
   children,
   pressable = false,
@@ -36,7 +43,7 @@ export function AppCard({
   style,
   accessibilityLabel,
 }: AppCardProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const cardStyle: StyleProp<ViewStyle> = [
     styles.card,
@@ -45,9 +52,21 @@ export function AppCard({
       borderColor: colors.cardBorder,
       padding,
     },
-    elevated && shadows.floating,
+    elevated ? shadows.floating : shadows.card,
     style,
   ];
+
+  // Bright on paper, barely there on ink — the EL kit drops the edge light to
+  // 5% white in its dark scope.
+  const edgeLight = (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.edgeLight,
+        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)' },
+      ]}
+    />
+  );
 
   if (pressable || onPress) {
     return (
@@ -58,6 +77,7 @@ export function AppCard({
         accessibilityLabel={accessibilityLabel}
         style={cardStyle}
       >
+        {edgeLight}
         {children}
       </PressableScale>
     );
@@ -65,6 +85,7 @@ export function AppCard({
 
   return (
     <View style={cardStyle} accessibilityLabel={accessibilityLabel}>
+      {edgeLight}
       {children}
     </View>
   );
@@ -74,5 +95,18 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
+    // No `overflow: 'hidden'` here: on iOS it sets clipsToBounds, which masks the
+    // card's own layer shadow and would silently no-op both shadows.card and the
+    // `elevated` floating shadow. The edge light rounds its own corners instead.
+  },
+  edgeLight: {
+    position: 'absolute',
+    // Inset by the hairline border so the light sits inside it, not on top.
+    top: 1,
+    left: 1,
+    right: 1,
+    height: StyleSheet.hairlineWidth * 2,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
   },
 });

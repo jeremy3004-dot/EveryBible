@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { motion, radius, shadows, spacing, typography } from '../../design/system';
 
 export interface SheetProps {
@@ -31,6 +32,7 @@ export interface SheetProps {
 // floating shadow. All modal surfaces adopt this so sheets feel identical.
 export function Sheet({ visible, onClose, children, title, contentStyle, closeLabel }: SheetProps) {
   const { colors, isDark } = useTheme();
+  const displayFont = useDisplayFont();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
 
@@ -79,7 +81,7 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
           >
             <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
             {title ? (
-              <Text style={[typography.pageTitle, styles.title, { color: colors.primaryText }]}>
+              <Text style={[typography.pageTitle, displayFont.bold, styles.title, { color: colors.primaryText }]}>
                 {title}
               </Text>
             ) : null}

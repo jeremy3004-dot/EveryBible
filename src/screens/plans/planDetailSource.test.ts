@@ -164,7 +164,7 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
 test('PlanDetailScreen overlays the plan title on the hero image and removes the duration badge row', () => {
   assert.match(
     source,
-    /<View style=\{styles\.coverTitleWrap\}>[\s\S]*<Text style=\{styles\.coverTitle\}/s,
+    /<View style=\{styles\.coverTitleWrap\}>[\s\S]*<Text style=\{\[styles\.coverTitle, displayFont\.bold\]\}/s,
     'PlanDetailScreen should render the plan title inside the cover image so the content below can sit higher'
   );
   assert.match(

@@ -114,6 +114,11 @@ function LoadingScreen() {
     Lora_500Medium,
     Lora_600SemiBold,
     Lora_700Bold,
+    // Every Language display face. Self-hosted from the EL kit (converted from
+    // the kit's .woff to .ttf, which React Native requires) — it is not on
+    // Google Fonts. Two weights only; see src/design/fonts.ts.
+    'AlteHaasGrotesk-Regular': require('./assets/fonts/AlteHaasGrotesk-Regular.ttf'),
+    'AlteHaasGrotesk-Bold': require('./assets/fonts/AlteHaasGrotesk-Bold.ttf'),
   });
   const [isReady, setIsReady] = useState(Platform.OS === 'android');
   const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);

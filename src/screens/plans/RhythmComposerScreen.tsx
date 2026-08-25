@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { RhythmComposerScreenProps } from '../../navigation/types';
@@ -210,6 +211,7 @@ function PresetCard({
 
 export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreenProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const rhythmId = route.params?.rhythmId ?? null;
@@ -299,7 +301,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorTitle, { color: colors.primaryText }]}>
+          <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
             {t('readingPlans.rhythms')}
           </Text>
           <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
@@ -337,7 +339,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={[styles.screenTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.screenTitle, displayFont.bold, { color: colors.primaryText }]}>
               {isEditing ? t('readingPlans.editRhythm') : t('readingPlans.createRhythm')}
             </Text>
             <Text style={[styles.screenSubtitle, { color: colors.secondaryText }]}>

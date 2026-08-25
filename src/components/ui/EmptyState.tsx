@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { radius, spacing, typography } from '../../design/system';
 import { AppButton } from './AppButton';
 
@@ -30,13 +31,14 @@ const CIRCLE_SIZE = 64;
 // heading, calm body copy, and an optional CTA.
 export function EmptyState({ icon, title, body, cta, style }: EmptyStateProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
 
   return (
     <View style={[styles.container, style]}>
       <View style={[styles.iconCircle, { backgroundColor: colors.accentSoft }]}>
         <Ionicons name={icon} size={30} color={colors.accentPrimary} />
       </View>
-      <Text style={[typography.pageTitle, styles.title, { color: colors.primaryText }]}>
+      <Text style={[typography.pageTitle, displayFont.bold, styles.title, { color: colors.primaryText }]}>
         {title}
       </Text>
       {body ? (

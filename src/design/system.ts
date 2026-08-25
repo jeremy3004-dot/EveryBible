@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import type { TextStyle, ViewStyle } from 'react-native';
-import { serifFamily } from './fonts';
+import { displayFamily, serifFamily } from './fonts';
 
 export const spacing = {
   xs: 4,
@@ -16,14 +16,16 @@ export const spacing = {
 // minus the padding between them (childRadius = parentRadius − padding), floored
 // at `xs` (4). Pick from these tokens rather than raw values so nested corners
 // stay optically concentric.
+// Every Language geometry: the EL kit runs tighter corners than the previous
+// ember scale — 10 for paper panels, 14 for the hero card, 20 for sheets.
 export const radius = {
   xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  sheet: 28,
-  pill: 999,
+  sm: 6, // EL --radius-sm
+  md: 8, // EL --radius-md
+  lg: 10, // EL --radius-lg — the atlas-paper card radius
+  xl: 14, // EL --radius-xl
+  sheet: 20, // EL --radius-2xl
+  pill: 999, // EL --radius-full
 } as const;
 
 const uiFontFamily = Platform.select({
@@ -32,37 +34,46 @@ const uiFontFamily = Platform.select({
   default: 'System',
 });
 
-// Identity + reading serif faces (Lora). Reading surfaces additionally route
-// through getReadingFontFamily() so non-Latin scripts fall back to the platform
-// serif; these token defaults cover Latin-script content.
+// Identity display face (Alte Haas Grotesk) — the Every Language display family.
+// Screen titles, greetings and chapter numerals carry it. Surfaces that render
+// user-selected interface languages must route through getDisplayFontFamily()
+// instead: the face is Latin-only, so these token defaults cover Latin content
+// and non-Latin locales fall back to the platform UI font.
+const displayBold = displayFamily(700);
+const displayRegular = displayFamily(400);
+
+// Reading serif face (Lora). The EL system ships no serif, so the reading
+// surface deliberately keeps Lora — swapping Scripture onto a grotesque is a
+// separate decision. Reading surfaces route through getReadingFontFamily() so
+// non-Latin scripts fall back to the platform serif.
 const serifRegular = serifFamily(400);
-const serifMedium = serifFamily(500);
 const serifSemiBold = serifFamily(600);
 const serifItalic = serifFamily(400, true);
 
 export const typography = {
   displayHero: {
-    fontFamily: serifMedium,
+    fontFamily: displayBold,
     fontSize: 30,
-    lineHeight: 40,
-    letterSpacing: -0.2,
+    lineHeight: 31, // EL --leading-display 0.92, floored so descenders clear
+    letterSpacing: -1.2, // EL --tracking-display -0.04em at 30px
   } satisfies TextStyle,
   screenTitle: {
-    fontFamily: serifSemiBold,
+    fontFamily: displayBold,
     fontSize: 28,
-    lineHeight: 36,
-    letterSpacing: -0.3,
+    lineHeight: 34,
+    letterSpacing: -0.98, // EL --tracking-heading -0.035em
   } satisfies TextStyle,
   pageTitle: {
-    fontFamily: serifSemiBold,
+    fontFamily: displayBold,
     fontSize: 24,
-    lineHeight: 32,
-    letterSpacing: -0.2,
+    lineHeight: 30,
+    letterSpacing: -0.84,
   } satisfies TextStyle,
   serifQuote: {
-    fontFamily: serifItalic,
-    fontSize: 20,
-    lineHeight: 30,
+    fontFamily: displayRegular,
+    fontSize: 24,
+    lineHeight: 33,
+    letterSpacing: -0.48,
   } satisfies TextStyle,
   sectionTitle: {
     fontFamily: uiFontFamily,
@@ -107,9 +118,9 @@ export const typography = {
   eyebrow: {
     fontFamily: uiFontFamily,
     fontSize: 11,
-    lineHeight: 14,
+    lineHeight: 17,
     fontWeight: '600',
-    letterSpacing: 1.4,
+    letterSpacing: 1.98, // EL --tracking-eyebrow 0.18em at 11px
     textTransform: 'uppercase',
   } satisfies TextStyle,
   button: {
@@ -131,9 +142,10 @@ export const typography = {
     lineHeight: 38,
   } satisfies TextStyle,
   chapterNumeral: {
-    fontFamily: serifRegular,
+    fontFamily: displayBold,
     fontSize: 64,
-    lineHeight: 68,
+    lineHeight: 62,
+    letterSpacing: -2.56,
   } satisfies TextStyle,
   readingHeading: {
     fontFamily: serifSemiBold,
@@ -191,10 +203,21 @@ export const layout = {
 } as const;
 
 export const shadows = {
-  // Hierarchy via tone, not shadow — card surfaces sit lighter than the page
-  // background and are separated by hairline alpha borders, so resting cards
-  // stay flat.
-  card: {} as ViewStyle,
+  // EL paper: a warm hairline shadow under every panel (--shadow-xs), so cards
+  // read as paper lifted off the vellum rather than tone-only blocks. Kept very
+  // low so it survives on the dark scope without haloing.
+  card: Platform.select<ViewStyle>({
+    ios: {
+      shadowColor: '#1A1916',
+      shadowOpacity: 0.06,
+      shadowRadius: 2,
+      shadowOffset: { width: 0, height: 1 },
+    },
+    android: {
+      elevation: 1,
+    },
+    default: {},
+  }) as ViewStyle,
   // Reserved for surfaces that genuinely float above the page: docks, pills,
   // sheets, and FABs. Do not apply to resting cards.
   floating: Platform.select<ViewStyle>({

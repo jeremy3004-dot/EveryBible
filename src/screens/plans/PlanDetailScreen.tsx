@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Circle } from 'react-native-svg';
 
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
   useBibleStore,
@@ -688,6 +689,7 @@ const COVER_HEIGHT = 220;
 export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { planId } = route.params;
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
@@ -981,7 +983,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         <LinearGradient colors={['transparent', colors.overlay]} style={styles.coverGradient} />
 
         <View style={styles.coverTitleWrap}>
-          <Text style={styles.coverTitle} numberOfLines={3}>
+          <Text style={[styles.coverTitle, displayFont.bold]} numberOfLines={3}>
             {planTitle}
           </Text>
         </View>

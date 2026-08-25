@@ -28,6 +28,7 @@ import type {
   UserPreferences,
 } from '../types';
 import { sanitizeBibleAssetReference } from '../services/bible/bibleAssetBaseUrl';
+import { resolveThemeMode } from '../design/themeMode';
 import { normalizeCatalogTranslationId } from '../services/translations/translationCatalogModel';
 
 const supportedBibleTranslationIds = new Set(
@@ -35,13 +36,7 @@ const supportedBibleTranslationIds = new Set(
 );
 const supportedLanguageCodes = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
 const validFontSizes = new Set<UserPreferences['fontSize']>(['small', 'medium', 'large']);
-const validThemes = new Set<UserPreferences['theme']>([
-  'dark',
-  'light',
-  'low-light',
-  'parchment',
-  'midnight',
-]);
+
 const validAppearancePalettes = new Set<UserPreferences['appearancePalette']>(
   APPEARANCE_PALETTE_IDS
 );
@@ -606,9 +601,8 @@ export const sanitizeUserPreferences = (value: unknown): UserPreferences => {
     ? (value.fontSize as UserPreferences['fontSize'])
     : defaultAuthPreferences.fontSize;
 
-  const theme = validThemes.has(value.theme as UserPreferences['theme'])
-    ? (value.theme as UserPreferences['theme'])
-    : defaultAuthPreferences.theme;
+  // Retired modes ('low-light', 'parchment', 'midnight') fold onto a live scope.
+  const theme = resolveThemeMode(value.theme);
 
   const appearancePalette = validAppearancePalettes.has(
     value.appearancePalette as UserPreferences['appearancePalette']

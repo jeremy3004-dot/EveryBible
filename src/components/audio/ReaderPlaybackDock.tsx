@@ -152,8 +152,11 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
             style={({ pressed }) => [
               styles.playButton,
               {
-                backgroundColor: colors.bibleControlBackground,
-                borderColor: colors.bibleElevatedSurface,
+                // Reader transport keeps the disc close to the page tone and lets
+                // the glyph carry the contrast, rather than inverting the whole
+                // button — an inverted disc reads as a hard slam over Scripture.
+                backgroundColor: colors.bibleElevatedSurface,
+                borderColor: colors.bibleDivider,
                 transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
               },
             ]}
@@ -198,7 +201,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
             <Ionicons
               name={playButtonIconName}
               size={30}
-              color={colors.bibleBackground}
+              color={colors.biblePrimaryText}
               style={playButtonIconName === 'play' ? styles.playIcon : undefined}
             />
           </Pressable>

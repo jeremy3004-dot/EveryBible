@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { resolveThemeMode, type ThemeMode } from '../design/themeMode';
 import type { AppearancePaletteId } from '../constants/appearancePalettes';
 import {
   APPEARANCE_PALETTES,
@@ -7,7 +8,10 @@ import {
   DEFAULT_APPEARANCE_PALETTE,
 } from '../constants/appearancePalettes';
 
-export type ThemeMode = 'dark' | 'light' | 'low-light' | 'parchment' | 'midnight';
+// The Every Language design system ships exactly two scopes: the vellum default
+// and `.dark`. The modes the reskin retired, and where a saved preference naming
+// one lands, are decided in one place — see src/design/themeMode.ts.
+export type { ThemeMode } from '../design/themeMode';
 
 export interface ThemeColors {
   background: string;
@@ -51,7 +55,6 @@ interface ThemeContextValue {
   themeMode: ThemeMode;
   appearancePalette: AppearancePaletteId;
   isDark: boolean;
-  isLowLight: boolean;
   setTheme: (mode: ThemeMode) => void;
   toggleTheme: () => void;
   setAppearancePalette: (palette: AppearancePaletteId) => void;
@@ -96,133 +99,66 @@ const defaultPaletteColors = {
   bibleAccent: defaultPaletteSwatches.primary,
 } as const;
 
-// Warm ink — the default surface for new users. Ink-on-near-black paper with
-// hairline alpha borders; surfaces separate by tone, not lines.
+// Field dark — the Every Language design system's own shipped dark scope. Warm
+// off-black paper, ink-toned panels lifted by tone rather than lines. Every value
+// is the EL token resolved to hex; see the EL kit's tokens/themes.css (.dark).
 const baseDarkColors: ThemeColors = {
-  background: '#161412',
-  cardBackground: '#1E1B18',
-  cardBorder: 'rgba(242, 237, 227, 0.08)',
-  borderStrong: 'rgba(242, 237, 227, 0.14)',
-  primaryText: '#F2EDE3',
-  secondaryText: '#A8A094',
-  textTertiary: 'rgba(242, 237, 227, 0.45)',
+  background: '#11110D', // --background 48 14% 6%
+  cardBackground: '#201E18', // --card 48 13% 11%
+  cardBorder: '#464035', // --card-border 40 14% 24%
+  borderStrong: '#3D382E', // --border 40 14% 21%
+  primaryText: '#EFEBE1', // --foreground 44 30% 91%
+  secondaryText: '#B0A99B', // --muted-foreground 40 12% 65%
+  textTertiary: '#9A9384', // --text-faint 40 10% 56%
   ...defaultPaletteColors,
-  error: '#FF7B72',
-  success: '#80C16F',
-  warning: '#D0A35A',
-  overlay: 'rgba(12, 10, 8, 0.6)',
-  tabActive: '#F2EDE3',
-  tabInactive: '#857D72',
-  bibleBackground: '#161412',
-  bibleSurface: '#1E1B18',
-  bibleElevatedSurface: '#262220',
-  bibleDivider: 'rgba(242, 237, 227, 0.08)',
-  biblePrimaryText: '#F2EDE3',
-  bibleSecondaryText: '#A8A094',
-  bibleControlBackground: '#F2EDE3',
+  error: '#E34F5B', // --danger 355 73% 60%
+  success: '#62C082', // --success 140 43% 57%
+  warning: '#E9A23F', // --warning 35 79% 58%
+  overlay: 'rgba(17, 17, 13, 0.62)',
+  tabActive: '#ADDCFF', // --accent-foreground, the active tab pill glyph
+  tabInactive: '#B0A99B',
+  bibleBackground: '#11110D',
+  bibleSurface: '#201E18',
+  // Reader transport discs sit on --popover so the surface stays close to the
+  // page tone and only the glyph carries contrast.
+  bibleElevatedSurface: '#2C2821', // --popover 40 14% 15%
+  bibleDivider: '#3D382E',
+  biblePrimaryText: '#EFEBE1',
+  bibleSecondaryText: '#B0A99B',
+  // Page-inverse fill for primary CTAs (onboarding Continue, sign-in). Callers
+  // pair it with `bibleBackground` as the label colour, so it must stay inverted.
+  bibleControlBackground: '#EFEBE1',
 };
 
-// Warm paper — light mode reads as a printed page, not a white app chrome.
+// Vellum — the canonical EL canvas. Warm paper, never white; lit-paper panels on
+// a vellum ground, warm ink rather than a cool gray. EL kit tokens/colors.css.
 const baseLightColors: ThemeColors = {
-  background: '#FAF7F1',
-  cardBackground: '#FFFFFF',
-  cardBorder: 'rgba(60, 50, 36, 0.1)',
-  borderStrong: 'rgba(60, 50, 36, 0.16)',
-  primaryText: '#211D18',
-  secondaryText: '#6E665B',
-  textTertiary: 'rgba(33, 29, 24, 0.45)',
+  background: '#F0ECE5', // --vellum 40 26% 92%
+  cardBackground: '#FAF9F4', // --vellum-lit 44 40% 97%
+  cardBorder: '#CAC5B9', // --card-border 42 14% 76%
+  borderStrong: '#D2CEC6', // --border 42 12% 80%
+  primaryText: '#1A1914', // --ink 48 13% 9%
+  secondaryText: '#69624F', // --graphite 45 14% 36%
+  textTertiary: '#6F6958', // --text-faint 45 12% 39%
   ...defaultPaletteColors,
-  error: '#C43F3A',
-  success: '#247756',
-  warning: '#9A6A24',
-  overlay: 'rgba(33, 29, 24, 0.32)',
-  tabActive: '#211D18',
-  tabInactive: '#8C8375',
-  bibleBackground: '#FAF7F1',
-  bibleSurface: '#FFFFFF',
-  bibleElevatedSurface: '#F3EEE5',
-  bibleDivider: 'rgba(60, 50, 36, 0.1)',
-  biblePrimaryText: '#211D18',
-  bibleSecondaryText: '#6E665B',
-  bibleControlBackground: '#211D18',
+  error: '#C62A3A', // --danger 354 65% 47%
+  success: '#2E8E5A', // --success 147 51% 37%
+  warning: '#D27519', // --warning 30 79% 46%
+  overlay: 'rgba(26, 25, 20, 0.34)',
+  tabActive: '#005F8F', // --accent-foreground, the active tab pill glyph
+  tabInactive: '#69624F',
+  bibleBackground: '#F0ECE5',
+  bibleSurface: '#FAF9F4',
+  bibleElevatedSurface: '#FCFBF8', // --popover 44 44% 98%
+  bibleDivider: '#CAC5B9',
+  biblePrimaryText: '#1A1914',
+  bibleSecondaryText: '#69624F',
+  bibleControlBackground: '#1A1914',
 };
 
-const baseLowLightColors: ThemeColors = {
-  background: '#18130F',
-  cardBackground: '#221B17',
-  cardBorder: 'rgba(244, 232, 215, 0.1)',
-  borderStrong: 'rgba(244, 232, 215, 0.16)',
-  primaryText: '#F4E8D7',
-  secondaryText: '#C6B7A5',
-  textTertiary: 'rgba(244, 232, 215, 0.45)',
-  ...defaultPaletteColors,
-  error: '#E96B63',
-  success: '#89C98A',
-  warning: '#D1A05B',
-  overlay: 'rgba(0, 0, 0, 0.52)',
-  tabActive: '#F4E8D7',
-  tabInactive: '#908679',
-  bibleBackground: '#18130F',
-  bibleSurface: '#221B17',
-  bibleElevatedSurface: '#2A221D',
-  bibleDivider: 'rgba(244, 232, 215, 0.1)',
-  biblePrimaryText: '#F4E8D7',
-  bibleSecondaryText: '#C6B7A5',
-  bibleControlBackground: '#F4E8D7',
-};
-
-const baseParchmentColors: ThemeColors = {
-  background: '#F4E9D2',
-  cardBackground: '#FFF9ED',
-  cardBorder: 'rgba(74, 56, 34, 0.16)',
-  borderStrong: 'rgba(74, 56, 34, 0.24)',
-  primaryText: '#241A12',
-  secondaryText: '#756651',
-  textTertiary: 'rgba(36, 26, 18, 0.45)',
-  ...defaultPaletteColors,
-  error: '#B44139',
-  success: '#397A54',
-  warning: '#9C6E2E',
-  overlay: 'rgba(30, 22, 14, 0.36)',
-  tabActive: '#241A12',
-  tabInactive: '#7D6F5C',
-  bibleBackground: '#F4E9D2',
-  bibleSurface: '#FFF7E8',
-  bibleElevatedSurface: '#EBDCC2',
-  bibleDivider: 'rgba(74, 56, 34, 0.16)',
-  biblePrimaryText: '#241A12',
-  bibleSecondaryText: '#756651',
-  bibleControlBackground: '#241A12',
-};
-
-// Cool navy — a deliberate night option; the only non-warm base palette.
-const baseMidnightColors: ThemeColors = {
-  background: '#080B12',
-  cardBackground: '#101623',
-  cardBorder: 'rgba(190, 205, 235, 0.1)',
-  borderStrong: 'rgba(190, 205, 235, 0.16)',
-  primaryText: '#F2F6FF',
-  secondaryText: '#A5B0C3',
-  textTertiary: 'rgba(242, 246, 255, 0.45)',
-  ...defaultPaletteColors,
-  error: '#FF7B72',
-  success: '#7FCB9B',
-  warning: '#D5A65D',
-  overlay: 'rgba(0, 0, 0, 0.66)',
-  tabActive: '#F2F6FF',
-  tabInactive: '#7E899A',
-  bibleBackground: '#080B12',
-  bibleSurface: '#101623',
-  bibleElevatedSurface: '#172033',
-  bibleDivider: 'rgba(190, 205, 235, 0.1)',
-  biblePrimaryText: '#F2F6FF',
-  bibleSecondaryText: '#A5B0C3',
-  bibleControlBackground: '#F2F6FF',
-};
-
-// Light-family modes (paper + parchment) use the deep accent so it reads on a
-// light surface; dark-family modes use the lighter pastel primary.
-const LIGHT_FAMILY_MODES: ReadonlySet<ThemeMode> = new Set(['light', 'parchment']);
+// The vellum scope uses the deep accent so EL blue reads on warm paper; Field
+// dark uses the lighter primary so it reads on the near-black ground.
+const LIGHT_FAMILY_MODES: ReadonlySet<ThemeMode> = new Set(['light']);
 
 const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
   const palette =
@@ -233,7 +169,7 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
 
   const accentTokens = {
     accentPrimary: accentBase,
-    accentSecondary: palette.secondary,
+    accentSecondary: isLightFamily ? palette.secondaryDeep : palette.secondary,
     accentGreen: accentBase,
     accentTertiary: palette.tertiary,
     accentSoft: withAlpha(accentBase, ACCENT_SOFT_ALPHA),
@@ -245,36 +181,18 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
     return { ...baseLightColors, ...accentTokens };
   }
 
-  if (mode === 'low-light') {
-    return { ...baseLowLightColors, ...accentTokens };
-  }
-
-  if (mode === 'parchment') {
-    return { ...baseParchmentColors, ...accentTokens };
-  }
-
-  if (mode === 'midnight') {
-    return { ...baseMidnightColors, ...accentTokens };
-  }
-
   return { ...baseDarkColors, ...accentTokens };
 };
 
-export {
-  baseDarkColors as darkColors,
-  baseLightColors as lightColors,
-  baseLowLightColors as lowLightColors,
-  baseParchmentColors as parchmentColors,
-  baseMidnightColors as midnightColors,
-};
+export { baseDarkColors as darkColors, baseLightColors as lightColors };
 export type { AppearancePaletteId } from '../constants/appearancePalettes';
 
 export const appearancePaletteOptions: AppearancePaletteOption[] = [
   {
-    id: 'ember',
+    id: 'el-blue',
     labelKey: 'settings.appearanceEmberTitle',
     descriptionKey: 'settings.appearanceEmberBody',
-    previewColors: ['#D96C57', '#E08573', '#A39B8F'],
+    previewColors: ['#35A7E9', '#ADDCFF', '#B0A99B'],
   },
 ];
 
@@ -282,13 +200,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  const storedTheme = ['dark', 'light', 'low-light', 'parchment', 'midnight'].includes(
-    preferences.theme
-  )
-    ? preferences.theme
-    : null;
-  // New users default to warm-ink dark; existing saved preferences are untouched.
-  const themeMode: ThemeMode = storedTheme ?? 'dark';
+  // Retired modes fold onto a live scope here rather than leaving the provider
+  // in a scope it can no longer render.
+  const themeMode: ThemeMode = resolveThemeMode(preferences.theme);
 
   const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
     preferences.appearancePalette
@@ -307,7 +221,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       themeMode,
       appearancePalette,
       isDark: themeMode !== 'light',
-      isLowLight: themeMode === 'low-light',
       setTheme: (mode) => {
         setPreferences({ theme: mode });
       },

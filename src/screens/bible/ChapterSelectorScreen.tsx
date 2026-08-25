@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
 import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useProgressStore } from '../../stores/progressStore';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
@@ -41,6 +42,7 @@ export function ChapterSelectorScreen() {
   const route = useRoute<ChapterSelectorScreenProps['route']>();
   const { bookId } = route.params;
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
 
   const currentBookId = useBibleStore((state) => state.currentBook);
@@ -210,7 +212,7 @@ export function ChapterSelectorScreen() {
                 <Image source={getBookIcon(book.id)} style={styles.bookIcon} resizeMode="contain" />
               </View>
 
-              <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+              <Text style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}>
                 {getTranslatedBookName(bookId, t)}
               </Text>
             </LinearGradient>

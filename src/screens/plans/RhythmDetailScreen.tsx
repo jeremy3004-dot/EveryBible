@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
@@ -153,6 +154,7 @@ function SegmentCard({
 
 export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const rhythmId = route.params.rhythmId;
@@ -334,7 +336,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorTitle, { color: colors.primaryText }]}>
+          <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
             {t('readingPlans.rhythms')}
           </Text>
           <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
@@ -369,7 +371,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
             <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, { color: colors.primaryText }]} numberOfLines={2}>
+            <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]} numberOfLines={2}>
               {rhythm.title}
             </Text>
             {slotPresentation ? (

@@ -1,8 +1,7 @@
-// Ember is the sole accent palette. The 5 theme MODES (dark/light/low-light/
-// parchment/midnight) remain; only the accent-palette picker was removed. Saved
-// preferences of the retired sapphire/teal/olive palettes fall back to ember via
-// the resolver in ThemeContext + the persisted-state sanitizer.
-export const APPEARANCE_PALETTE_IDS = ['ember'] as const;
+// EL blue is the sole accent palette — the Every Language brand accent, used once
+// per region. Saved preferences of the retired ember/sapphire/teal/olive palettes
+// fall back to it via the resolver in ThemeContext + the persisted-state sanitizer.
+export const APPEARANCE_PALETTE_IDS = ['el-blue'] as const;
 
 export type AppearancePaletteId = (typeof APPEARANCE_PALETTE_IDS)[number];
 
@@ -14,6 +13,9 @@ export interface AppearancePaletteSwatches {
   // on warm paper. Same hue as `primary`, lower lightness.
   primaryDeep: string;
   secondary: string;
+  /** Secondary accent for light-family modes. `secondary` is a pale tint that is
+   *  unreadable on vellum, and accentSecondary is used as foreground text. */
+  secondaryDeep: string;
   tertiary: string;
 }
 
@@ -22,16 +24,20 @@ export interface AppearancePalette {
   swatches: AppearancePaletteSwatches;
 }
 
-export const DEFAULT_APPEARANCE_PALETTE: AppearancePaletteId = 'ember';
+export const DEFAULT_APPEARANCE_PALETTE: AppearancePaletteId = 'el-blue';
 
 export const APPEARANCE_PALETTES: AppearancePalette[] = [
   {
-    id: 'ember',
+    id: 'el-blue',
     swatches: {
-      primary: '#D96C57',
-      primaryDeep: '#AE4732',
-      secondary: '#E08573',
-      tertiary: '#A39B8F',
+      // Field dark reads EL blue at hsl(202 80% 56%); vellum takes the deep
+      // variant hsl(200 100% 28%), which is the only pairing the EL system
+      // allows for blue text on pale-blue fills.
+      primary: '#35A7E9',
+      primaryDeep: '#005F8F',
+      secondary: '#ADDCFF',
+      secondaryDeep: '#00567F',
+      tertiary: '#B0A99B',
     },
   },
 ] as const;

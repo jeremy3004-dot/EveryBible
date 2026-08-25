@@ -1,4 +1,12 @@
 import { Platform } from 'react-native';
+import {
+  NON_LATIN_READING_SCRIPTS,
+  displayFamily,
+  getDisplayFontFamily,
+  type DisplayWeight,
+} from './scriptCoverage';
+
+export { displayFamily, getDisplayFontFamily, type DisplayWeight };
 
 // ---------------------------------------------------------------------------
 // Serif (Lora) family resolver
@@ -41,75 +49,6 @@ export const systemSerifFamily = Platform.select({
   default: 'Georgia',
 });
 
-// Languages whose scripts Lora does not cover. Kept as an allowlist-of-exclusions
-// so new Latin/Cyrillic translations get Lora automatically. Accepts BOTH ISO
-// codes ('hi') and the English display names our translation catalog stores
-// ('Hindi'), because callers pass whichever they have — extend when adding a
-// reading translation in an unsupported script.
-const NON_LATIN_READING_SCRIPTS = new Set([
-  // Devanagari
-  'hi',
-  'hindi',
-  'ne',
-  'nepali',
-  'mr',
-  'marathi',
-  'sa',
-  'sanskrit',
-  // Other non-Latin scripts Lora lacks (ISO code + display name)
-  'ar',
-  'arabic',
-  'fa',
-  'persian',
-  'ur',
-  'urdu',
-  'he',
-  'hebrew',
-  'zh',
-  'chinese',
-  'ja',
-  'japanese',
-  'ko',
-  'korean',
-  'th',
-  'thai',
-  'lo',
-  'lao',
-  'my',
-  'burmese',
-  'km',
-  'khmer',
-  'ta',
-  'tamil',
-  'te',
-  'telugu',
-  'kn',
-  'kannada',
-  'ml',
-  'malayalam',
-  'bn',
-  'bengali',
-  'gu',
-  'gujarati',
-  'pa',
-  'punjabi',
-  'or',
-  'odia',
-  'si',
-  'sinhala',
-  'am',
-  'amharic',
-  'ti',
-  'tigrinya',
-  'ka',
-  'georgian',
-  'hy',
-  'armenian',
-  'dz',
-  'dzongkha',
-  'bo',
-  'tibetan',
-]);
 
 /**
  * Resolve the reading-surface font family for a language. Latin-script languages
@@ -128,3 +67,22 @@ export function getReadingFontFamily(
   }
   return serifFamily(weight, italic);
 }
+
+// ---------------------------------------------------------------------------
+// Display (Alte Haas Grotesk) family resolver
+//
+// Alte Haas Grotesk is the Every Language display face, self-hosted from the EL
+// kit and loaded at startup in App.tsx alongside Lora. It ships two weights
+// (400/700) — the EL kit documents that 800 requests render as the 700 face.
+//
+// IMPORTANT: the face covers 297 codepoints — Latin-1 plus a little. It cannot
+// render Cyrillic, Vietnamese diacritics, Devanagari, Bengali, Tamil, Telugu,
+// Gurmukhi, Arabic, CJK or Hangul, which is 14 of the 21 interface languages the
+// app ships. Every display-face decision therefore routes through
+// getDisplayFontFamily(), which returns `undefined` for those locales so the
+// platform UI font renders instead of a row of tofu. This mirrors EL's own
+// declared fallback chain: 'Alte Haas Grotesk', 'Noto Sans', system-ui.
+// ---------------------------------------------------------------------------
+
+
+

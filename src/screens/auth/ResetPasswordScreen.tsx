@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { radius, spacing, typography } from '../../design/system';
 import type { AuthStackParamList } from '../../navigation/types';
 import { getCurrentSession, updatePassword, type AuthResult } from '../../services/auth';
@@ -35,6 +36,7 @@ export function ResetPasswordScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const displayFont = useDisplayFont();
   const setSession = useAuthStore((state) => state.setSession);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
@@ -129,7 +131,7 @@ export function ResetPasswordScreen() {
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.title}>{t('auth.resetPasswordTitle')}</Text>
+            <Text style={[styles.title, displayFont.bold]}>{t('auth.resetPasswordTitle')}</Text>
             <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
 
             <View style={styles.form}>

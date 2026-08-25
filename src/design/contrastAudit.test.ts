@@ -54,12 +54,11 @@ function contrastRatio(foreground: string, background: string): number {
 
 const source = readThemeSource();
 
+// The EL design system ships two scopes; low-light, parchment and midnight were
+// retired with the reskin.
 const MODES = [
   { name: 'dark', object: 'baseDarkColors', lightFamily: false },
   { name: 'light', object: 'baseLightColors', lightFamily: true },
-  { name: 'low-light', object: 'baseLowLightColors', lightFamily: false },
-  { name: 'parchment', object: 'baseParchmentColors', lightFamily: true },
-  { name: 'midnight', object: 'baseMidnightColors', lightFamily: false },
 ] as const;
 
 for (const palette of APPEARANCE_PALETTES) {

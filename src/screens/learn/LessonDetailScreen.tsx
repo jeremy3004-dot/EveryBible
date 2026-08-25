@@ -17,6 +17,7 @@ import { Audio, type AVPlaybackStatus } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { gatherFoundations, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
@@ -49,6 +50,7 @@ const LESSON_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
 export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProps) {
   const { parentId, lessonId, parentType } = route.params;
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // Seed the lesson font multiplier from the user's global Settings font-size so
@@ -475,7 +477,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             iconSize={54}
             style={styles.heroIconCircle}
           />
-          <Text style={[styles.heroLessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
+          <Text style={[styles.heroLessonTitle, displayFont.bold, { color: colors.primaryText }]}>{lessonTitle}</Text>
           <Text style={[styles.heroReference, { color: colors.secondaryText }]}>
             {formatBibleReferenceLabel(lesson.references, resolveBookName)}
           </Text>
@@ -487,7 +489,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             sectionYRef.current.fellowship = e.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionHeading, { color: colors.primaryText, paddingTop: 32 }]}>
+          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
             {t('gather.fellowship')}
           </Text>
           <FellowshipSection questions={translatedFellowshipQuestions} colors={colors} />
@@ -499,7 +501,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             sectionYRef.current.story = e.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionHeading, { color: colors.primaryText, paddingTop: 32 }]}>
+          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
             {formatBibleReferenceLabel(lesson.references, resolveBookName)}
           </Text>
           <StorySection
@@ -516,7 +518,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             sectionYRef.current.application = e.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionHeading, { color: colors.primaryText, paddingTop: 32 }]}>
+          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
             {t('gather.application')}
           </Text>
           <ApplicationSection

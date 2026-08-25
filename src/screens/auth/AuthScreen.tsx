@@ -20,6 +20,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { motion, radius, spacing, typography } from '../../design/system';
 import { AppButton } from '../../components/ui';
 import { errorHaptic } from '../../utils/haptics';
@@ -75,6 +76,7 @@ export function AuthScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const displayFont = useDisplayFont();
   const reduceMotion = useReducedMotion();
   // Field errors fade+slide in (opacity-only under reduced motion).
   const errorEntering = reduceMotion
@@ -297,7 +299,7 @@ export function AuthScreen() {
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.title}>{copy.title}</Text>
+            <Text style={[styles.title, displayFont.bold]}>{copy.title}</Text>
             <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
             {verificationNotice ? (

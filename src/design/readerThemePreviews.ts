@@ -1,9 +1,6 @@
 import {
   darkColors,
   lightColors,
-  lowLightColors,
-  midnightColors,
-  parchmentColors,
   type ThemeColors,
   type ThemeMode,
 } from '../contexts/ThemeContext';
@@ -31,13 +28,10 @@ const previewFor = (
   line: palette.biblePrimaryText,
 });
 
-// Appearance-sheet theme tiles, pulled straight from each mode's base palette
-// so the mini mock always matches what tapping it actually does. Rail order:
-// paper modes first, then the inks.
+// Appearance-sheet theme tiles, pulled straight from each mode's base palette so
+// the mini mock always matches what tapping it actually does. The EL system ships
+// two scopes, so the rail is vellum then Field dark.
 export const readerThemePreviews: ReaderThemePreview[] = [
   previewFor('light', 'settings.themeLight', lightColors),
-  previewFor('parchment', 'settings.themeParchment', parchmentColors),
-  previewFor('low-light', 'settings.themeLowLight', lowLightColors),
   previewFor('dark', 'settings.themeDark', darkColors),
-  previewFor('midnight', 'settings.themeMidnight', midnightColors),
 ];

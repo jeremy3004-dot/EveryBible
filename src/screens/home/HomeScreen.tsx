@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { bibleTranslations, getBookById, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -80,6 +81,7 @@ function getGreetingKey(
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, isDark } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   // Top-to-bottom entrance choreography on first mount; opacity-only when the
@@ -484,6 +486,7 @@ export function HomeScreen() {
         <Text
           style={[
             styles.verseText,
+            displayFont.regular,
             {
               color: verseCardTextColor,
               fontSize: homeLayout.verseTextFontSize,
@@ -543,7 +546,7 @@ export function HomeScreen() {
           <Animated.View entering={sectionEntering(0)} style={styles.headerRow}>
             <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
             <Text
-              style={[styles.greetingLine, { color: colors.primaryText }]}
+              style={[styles.greetingLine, displayFont.bold, { color: colors.primaryText }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.72}

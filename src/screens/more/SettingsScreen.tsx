@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -11,21 +11,13 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { radius, spacing } from '../../design/system';
+import { layout, radius, spacing } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  useTheme,
-  darkColors,
-  lightColors,
-  lowLightColors,
-  parchmentColors,
-  midnightColors,
-  type ThemeMode,
-} from '../../contexts/ThemeContext';
+import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { AppButton } from '../../components/ui';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -55,22 +47,16 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
 
-// Per-mode background + text swatch colors for the theme-selector preview chips,
-// pulled straight from each mode's base palette so the mini mock is accurate.
-const THEME_PREVIEW_BG: Record<ThemeMode, string> = {
-  dark: darkColors.background,
-  light: lightColors.background,
-  'low-light': lowLightColors.background,
-  parchment: parchmentColors.background,
-  midnight: midnightColors.background,
-};
-const THEME_PREVIEW_TEXT: Record<ThemeMode, string> = {
-  dark: darkColors.primaryText,
-  light: lightColors.primaryText,
-  'low-light': lowLightColors.primaryText,
-  parchment: parchmentColors.primaryText,
-  midnight: midnightColors.primaryText,
-};
+// The EL system ships two scopes, so the selector is a two-up segment carrying a
+// sun and a moon rather than five labelled swatch chips.
+const THEME_SEGMENTS: ReadonlyArray<{
+  mode: ThemeMode;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  labelKey: string;
+}> = [
+  { mode: 'light', icon: 'sunny', labelKey: 'settings.themeLight' },
+  { mode: 'dark', icon: 'moon', labelKey: 'settings.themeDark' },
+];
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -529,71 +515,30 @@ export function SettingsScreen() {
                 {t('settings.themeMode')}
               </Text>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.themeSelectorRow}
-            >
-              {(['dark', 'light', 'low-light', 'parchment', 'midnight'] as const).map((mode) => {
+            <View style={[styles.themeSegment, { borderColor: colors.cardBorder }]}>
+              {THEME_SEGMENTS.map(({ mode, icon, labelKey }) => {
                 const isActive = themeMode === mode;
-                const label =
-                  mode === 'dark'
-                    ? t('settings.themeDark')
-                    : mode === 'light'
-                      ? t('settings.themeLight')
-                      : mode === 'low-light'
-                        ? t('settings.themeLowLight')
-                        : mode === 'parchment'
-                          ? t('settings.themeParchment')
-                          : t('settings.themeMidnight');
                 return (
                   <TouchableOpacity
                     key={mode}
                     style={[
-                      styles.themeSelectorButton,
-                      {
-                        backgroundColor: isActive ? colors.accentSoft : colors.cardBackground,
-                        borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
-                      },
+                      styles.themeSegmentItem,
+                      { backgroundColor: isActive ? colors.accentSoft : colors.cardBackground },
                     ]}
                     onPress={() => handleThemeChange(mode)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isActive }}
-                    accessibilityLabel={label}
+                    accessibilityLabel={t(labelKey)}
                   >
-                    <View
-                      style={[
-                        styles.themeSelectorSwatch,
-                        { backgroundColor: THEME_PREVIEW_BG[mode] },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.themeSelectorSwatchLine,
-                          { backgroundColor: THEME_PREVIEW_TEXT[mode] },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.themeSelectorSwatchDot,
-                          { backgroundColor: colors.accentPrimary },
-                        ]}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.themeSelectorLabel,
-                        {
-                          color: isActive ? colors.accentPrimary : colors.secondaryText,
-                        },
-                      ]}
-                    >
-                      {label}
-                    </Text>
+                    <Ionicons
+                      name={isActive ? icon : (`${icon}-outline` as typeof icon)}
+                      size={20}
+                      color={isActive ? colors.accentPrimary : colors.secondaryText}
+                    />
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -1736,44 +1681,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: spacing.md,
   },
-  themeSelectorRow: {
+  themeSegment: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingRight: 4,
-  },
-  themeSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingLeft: 6,
-    paddingRight: 10,
-    paddingVertical: 5,
-    borderRadius: radius.sm,
     borderWidth: 1,
-  },
-  themeSelectorSwatch: {
-    width: 24,
-    height: 18,
-    borderRadius: 5,
+    borderRadius: radius.md,
     overflow: 'hidden',
-    flexDirection: 'row',
+  },
+  themeSegmentItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-  },
-  themeSelectorSwatchLine: {
-    width: 8,
-    height: 2,
-    borderRadius: 1,
-  },
-  themeSelectorSwatchDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  themeSelectorLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    height: layout.minTouchTarget,
   },
 });

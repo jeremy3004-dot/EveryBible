@@ -1,4 +1,9 @@
 import type { UserPreferences } from '../../types';
+import {
+  APPEARANCE_PALETTE_IDS,
+  DEFAULT_APPEARANCE_PALETTE,
+} from '../../constants/appearancePalettes';
+import { resolveThemeMode } from '../../design/themeMode';
 import type {
   UserPreferences as RemoteUserPreferences,
   UserProgress as RemoteUserProgress,
@@ -166,10 +171,26 @@ export const mergeReadingSnapshot = (
   };
 };
 
+// The profiles row can still hold a theme retired by the EL reskin ('low-light',
+// 'parchment', 'midnight') for anyone who has not synced since. Fold those onto
+// Field dark at the boundary rather than letting them reach the theme provider.
+const normalizeRemoteTheme = (theme: RemoteUserPreferences['theme']): UserPreferences['theme'] =>
+  resolveThemeMode(theme);
+
+// Same story for the accent palette: every user synced before the EL reskin has
+// 'ember' (or an older retired id) in their row. Left unnormalized it round-trips
+// back to Supabase and makes preferencesEqual report a diff on every sync.
+const normalizeRemotePalette = (
+  palette: RemoteUserPreferences['appearance_palette']
+): UserPreferences['appearancePalette'] =>
+  (APPEARANCE_PALETTE_IDS as readonly string[]).includes(palette)
+    ? (palette as UserPreferences['appearancePalette'])
+    : DEFAULT_APPEARANCE_PALETTE;
+
 const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPreferences => ({
   fontSize: remotePreferences.font_size,
-  theme: remotePreferences.theme,
-  appearancePalette: remotePreferences.appearance_palette,
+  theme: normalizeRemoteTheme(remotePreferences.theme),
+  appearancePalette: normalizeRemotePalette(remotePreferences.appearance_palette),
   language: remotePreferences.language,
   countryCode: remotePreferences.country_code,
   countryName: remotePreferences.country_name,

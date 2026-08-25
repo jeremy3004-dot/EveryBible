@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -18,37 +19,58 @@ import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
-import { motion, spacing, typography } from '../design/system';
+import { motion, radius, spacing, typography } from '../design/system';
 import { useTabBarHeight } from '../hooks';
 import { lightHaptic } from '../utils';
 
-// Bottom-tab icon with a subtle scale-up on select. Respects reduced motion.
+// Bottom-tab icon on the EL accent pill. The pill carries the selected state, so
+// the icon no longer scales up on focus — instead the pill fades in. Respects
+// reduced motion.
 function TabBarIcon({
   name,
   size,
   color,
   focused,
+  pillColor,
 }: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   size: number;
   color: string;
   focused: boolean;
+  pillColor: string;
 }) {
   const reduceMotion = useReducedMotion();
-  const scale = useSharedValue(1);
+  const progress = useSharedValue(focused ? 1 : 0);
 
   useEffect(() => {
-    scale.value = reduceMotion ? 1 : withSpring(focused ? 1.14 : 1, motion.spring);
-  }, [focused, reduceMotion, scale]);
+    progress.value = reduceMotion ? (focused ? 1 : 0) : withSpring(focused ? 1 : 0, motion.spring);
+  }, [focused, reduceMotion, progress]);
 
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   return (
-    <Animated.View style={animatedStyle}>
+    <View style={styles.tabIconWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.tabIconPill, { backgroundColor: pillColor }, animatedStyle]}
+      />
       <Ionicons name={name} size={size} color={color} />
-    </Animated.View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconWrap: {
+    minWidth: 56,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconPill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.pill,
+  },
+});
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -230,7 +252,15 @@ export function TabNavigator() {
               return null;
             }
 
-            return <TabBarIcon name={iconName} size={size} color={color} focused={focused} />;
+            return (
+              <TabBarIcon
+                name={iconName}
+                size={size}
+                color={color}
+                focused={focused}
+                pillColor={colors.accentSoft}
+              />
+            );
           },
         };
       }}

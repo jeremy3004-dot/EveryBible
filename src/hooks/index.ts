@@ -4,6 +4,7 @@ export { useAudioPlayer } from './useAudioPlayer';
 export { useAudioPosition } from './useAudioPosition';
 export { useAuthDeepLink } from './useAuthDeepLink';
 export { useI18n } from './useI18n';
+export { useDisplayFont, type DisplayFontOverrides } from './useDisplayFont';
 export { useKeyboardBottomInset } from './useKeyboardBottomInset';
 export { usePrivacyLock } from './usePrivacyLock';
 export { useTabBarHeight, type TabBarHeightMetrics } from './useTabBarHeight';

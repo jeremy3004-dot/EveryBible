@@ -12,7 +12,7 @@ export interface User {
 
 export interface UserPreferences {
   fontSize: 'small' | 'medium' | 'large';
-  theme: 'dark' | 'light' | 'low-light' | 'parchment' | 'midnight';
+  theme: 'dark' | 'light';
   appearancePalette: AppearancePaletteId;
   language: LanguageCode;
   countryCode: string | null;

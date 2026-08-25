@@ -29,7 +29,9 @@ export interface UserPreferences {
   user_id: string;
   font_size: 'small' | 'medium' | 'large';
   theme: 'dark' | 'light' | 'low-light' | 'parchment' | 'midnight';
-  appearance_palette: AppearancePaletteId;
+  // Widened deliberately: the row can still hold a palette id retired by the EL
+  // reskin ('ember', 'sapphire', 'teal', 'olive'). Normalized in syncMerge.
+  appearance_palette: AppearancePaletteId | (string & {});
   language: LanguageCode;
   country_code: string | null;
   country_name: string | null;

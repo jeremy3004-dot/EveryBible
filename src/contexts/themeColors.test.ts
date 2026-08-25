@@ -65,32 +65,15 @@ test('all base theme palettes declare the same set of color keys', () => {
 
   const darkKeys = extractPaletteKeys(source, 'baseDarkColors');
   const lightKeys = extractPaletteKeys(source, 'baseLightColors');
-  const lowLightKeys = extractPaletteKeys(source, 'baseLowLightColors');
-  const parchmentKeys = extractPaletteKeys(source, 'baseParchmentColors');
-  const midnightKeys = extractPaletteKeys(source, 'baseMidnightColors');
 
   assert.ok(darkKeys.length > 0, 'baseDarkColors palette should declare color properties');
   assert.ok(lightKeys.length > 0, 'baseLightColors palette should declare color properties');
-  assert.ok(lowLightKeys.length > 0, 'baseLowLightColors palette should declare color properties');
-  assert.ok(
-    parchmentKeys.length > 0,
-    'baseParchmentColors palette should declare color properties'
-  );
-  assert.ok(midnightKeys.length > 0, 'baseMidnightColors palette should declare color properties');
 
-  const expectedKeys = [...darkKeys].sort();
-  for (const [paletteName, paletteKeys] of [
-    ['baseLightColors', lightKeys],
-    ['baseLowLightColors', lowLightKeys],
-    ['baseParchmentColors', parchmentKeys],
-    ['baseMidnightColors', midnightKeys],
-  ] as const) {
-    assert.deepEqual(
-      [...paletteKeys].sort(),
-      expectedKeys,
-      `${paletteName} must define the same keys as baseDarkColors`
-    );
-  }
+  assert.deepEqual(
+    [...lightKeys].sort(),
+    [...darkKeys].sort(),
+    'baseLightColors must define the same keys as baseDarkColors'
+  );
 });
 
 test('ThemeContext exports theme palettes and appearance options as named constants', () => {
@@ -106,34 +89,91 @@ test('ThemeContext exports theme palettes and appearance options as named consta
     /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/,
     'lightColors must be a named export'
   );
-  assert.match(
-    source,
-    /export\s*\{[^}]*baseLowLightColors\s+as\s+lowLightColors/,
-    'lowLightColors must be a named export'
-  );
   assert.match(source, /appearancePaletteOptions/, 'appearancePaletteOptions must be exported');
 });
 
-test('ThemeContext supports the low-light theme mode', () => {
+test('ThemeContext ships exactly the two scopes the EL design system defines', () => {
+  // Match against code only — the retired mode names still appear in comments
+  // that document why they were dropped and where saved preferences land.
+  const source = readThemeSource()
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '');
+
+  const modeSource = readFileSync(
+    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    modeSource,
+    /export type ThemeMode = 'dark' \| 'light';/,
+    'ThemeMode should be exactly the vellum and Field dark scopes'
+  );
+  for (const retired of ['low-light', 'parchment', 'midnight']) {
+    assert.doesNotMatch(
+      source,
+      new RegExp(`'${retired}'`),
+      `${retired} was retired with the EL reskin and must not resolve to a palette`
+    );
+  }
+  for (const retired of ['baseLowLightColors', 'baseParchmentColors', 'baseMidnightColors']) {
+    assert.doesNotMatch(source, new RegExp(retired), `${retired} should be removed`);
+  }
+});
+
+test('a persisted theme retired by the EL reskin falls back to Field dark', () => {
+  // Narrowing the validation list is the migration: anything outside it resolves
+  // to 'dark' rather than leaving the provider in a scope it cannot render.
   const source = readThemeSource();
 
-  assert.match(source, /'low-light'/, 'ThemeContext should reference low-light as a theme mode');
+  // All three boundaries share one resolver so they cannot drift apart.
   assert.match(
     source,
-    /baseLowLightColors/,
-    'ThemeContext should reference the baseLowLightColors palette'
+    /resolveThemeMode\(preferences\.theme\)/,
+    'ThemeProvider should resolve the stored preference through the shared resolver'
+  );
+
+  const modeSource = readFileSync(
+    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    modeSource,
+    /return value === 'parchment' \? 'light' : DEFAULT_THEME_MODE;/,
+    'parchment was a light-paper mode and should resolve to vellum, not Field dark'
+  );
+  assert.match(modeSource, /DEFAULT_THEME_MODE: ThemeMode = 'dark'/, 'default should be dark');
+
+  const sanitizerSource = readFileSync(
+    fileURLToPath(new URL('../stores/persistedStateSanitizers.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    sanitizerSource,
+    /resolveThemeMode\(value\.theme\)/,
+    'the persisted-state sanitizer should use the shared resolver'
+  );
+
+  // The Supabase column can still hold a retired value for anyone who has not
+  // synced since the reskin, so the sync boundary must normalize it too.
+  const syncSource = readFileSync(
+    fileURLToPath(new URL('../services/sync/syncMerge.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    syncSource,
+    /normalizeRemoteTheme/,
+    'remote preferences should be normalized before reaching the theme provider'
   );
 });
 
-test('Light-family accents (primaryDeep) stay readable on light surfaces', () => {
+test('Light-family accents (primaryDeep) stay readable on vellum surfaces', () => {
   const source = readThemeSource();
   const paletteSource = readFileSync(
     fileURLToPath(new URL('../constants/appearancePalettes.ts', import.meta.url).href),
     'utf8'
   );
 
-  // Light-family modes (light, parchment) render accents via the palette's
-  // `primaryDeep` variant. Each must be readable on both light backgrounds.
+  // The vellum scope renders accents via the palette's `primaryDeep` variant.
   const deepAccents = [...paletteSource.matchAll(/primaryDeep:\s*'(#[A-Fa-f0-9]{6})'/g)].map(
     (match) => match[1]
   );
@@ -141,51 +181,61 @@ test('Light-family accents (primaryDeep) stay readable on light surfaces', () =>
 
   const lightBackground = extractColorToken(source, 'baseLightColors', 'background');
   const lightCard = extractColorToken(source, 'baseLightColors', 'cardBackground');
-  const parchmentBackground = extractColorToken(source, 'baseParchmentColors', 'background');
 
-  assert.ok(lightBackground, 'Light theme should define a page background');
-  assert.ok(lightCard, 'Light theme should define a card background');
-  assert.ok(parchmentBackground, 'Parchment theme should define a page background');
+  assert.ok(lightBackground, 'Vellum theme should define a page background');
+  assert.ok(lightCard, 'Vellum theme should define a card background');
 
   for (const accent of deepAccents) {
     assert.ok(
       colorContrastRatio(accent, lightBackground) >= 4.5,
-      `Deep accent ${accent} must be readable on the light page background`
+      `Deep accent ${accent} must be readable on the vellum page background`
     );
     assert.ok(
       colorContrastRatio(accent, lightCard) >= 4.5,
-      `Deep accent ${accent} must be readable on light card backgrounds`
-    );
-    assert.ok(
-      colorContrastRatio(accent, parchmentBackground) >= 4.5,
-      `Deep accent ${accent} must be readable on the parchment background`
+      `Deep accent ${accent} must be readable on lit-paper card backgrounds`
     );
   }
 });
 
-test('ThemeContext defines the ember appearance palette option with preview swatches', () => {
+test('ThemeContext defines the EL blue appearance palette option with preview swatches', () => {
   const source = readThemeSource();
 
-  assert.match(source, /id:\s*'ember'/, 'Ember palette should be present');
+  assert.match(source, /id:\s*'el-blue'/, 'EL blue palette should be present');
   assert.match(source, /previewColors:/, 'Palette options should define preview colors');
-  // Ember is the sole accent palette; the others were intentionally retired.
+  // EL blue is the sole accent palette; the others were intentionally retired.
+  assert.doesNotMatch(source, /id:\s*'ember'/, 'Ember palette should be retired');
   assert.doesNotMatch(source, /id:\s*'sapphire'/, 'Sapphire palette should be retired');
   assert.doesNotMatch(source, /id:\s*'teal'/, 'Teal palette should be retired');
   assert.doesNotMatch(source, /id:\s*'olive'/, 'Olive palette should be retired');
 });
 
-test('ThemeContext exposes isDark and isLowLight flags', () => {
+test('ThemeContext exposes the isDark flag', () => {
   const source = readThemeSource();
 
   assert.match(source, /isDark/, 'ThemeContextValue should include isDark');
-  assert.match(source, /isLowLight/, 'ThemeContextValue should include isLowLight');
+  // isLowLight went with the low-light mode; nothing consumed it any more.
+  assert.doesNotMatch(source, /isLowLight/, 'isLowLight should be retired with the low-light mode');
 });
 
-test('ThemeContext resolves themeMode from stored preference with warm-ink dark fallback', () => {
+test('ThemeContext resolves themeMode from stored preference with Field dark fallback', () => {
   const source = readThemeSource();
 
   assert.match(source, /preferences\.theme/, 'should read theme from stored preferences');
-  assert.match(source, /storedTheme\s*\?\?\s*'dark'/, 'new users should default to dark');
+  assert.match(
+    source,
+    /resolveThemeMode\(preferences\.theme\)/,
+    'the fallback lives in the shared resolver, not inline in the provider'
+  );
+
+  const modeSource = readFileSync(
+    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    modeSource,
+    /DEFAULT_THEME_MODE: ThemeMode = 'dark'/,
+    'new users should default to Field dark'
+  );
 });
 
 // ---------------------------------------------------------------------------

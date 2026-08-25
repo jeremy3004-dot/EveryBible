@@ -22,8 +22,14 @@ test('TabNavigator keeps the bottom tab bar flat instead of rounding its top cor
     'TabNavigator should not round the top-right corner of the shared bottom tab bar'
   );
 
+  // The EL reskin adds a rounded accent pill behind the SELECTED TAB ICON, which
+  // is a different element from the bar. Scope the guard to the bar style objects
+  // so it still catches a radius creeping onto the bar itself.
+  const barStyleStart = source.indexOf('const defaultTabBarStyle');
+  const barStyleSource = source.slice(barStyleStart, source.indexOf('return (', barStyleStart));
+  assert.ok(barStyleSource.length > 0, 'tab bar style block should be locatable');
   assert.equal(
-    source.includes('borderRadius'),
+    barStyleSource.includes('borderRadius'),
     false,
     'TabNavigator should not reintroduce a generic border radius on the shared bottom tab bar'
   );

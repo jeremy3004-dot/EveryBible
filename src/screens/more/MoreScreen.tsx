@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
@@ -72,6 +73,7 @@ const menuGroups: MenuGroup[] = [
 export function MoreScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -115,7 +117,7 @@ export function MoreScreen() {
       edges={['top']}
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: colors.primaryText }]}>{t('more.title')}</Text>
+        <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]}>{t('more.title')}</Text>
 
         {/* Profile card */}
         <AppCard
