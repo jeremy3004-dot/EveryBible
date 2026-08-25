@@ -674,6 +674,19 @@ test('auto-scrolls the inline audio highlight to the top before it reaches the p
   );
 });
 
+test('auto-scrolls back when the spoken verse is above the reader safe area', () => {
+  assert.equal(
+    getReaderAutoScrollTarget({
+      currentScrollOffsetY: 900,
+      viewportHeight: 700,
+      verseOffsetY: 840,
+      triggerViewportFraction: 0.48,
+      targetTopOffset: 176,
+    }),
+    664
+  );
+});
+
 test('detects chapter repeat playback restarting at the beginning', () => {
   assert.equal(
     hasAudioPositionRestarted({

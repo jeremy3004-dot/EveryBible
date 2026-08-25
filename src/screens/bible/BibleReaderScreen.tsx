@@ -1739,7 +1739,7 @@ export function BibleReaderScreen() {
         viewportHeight: readerScrollViewportHeightRef.current,
         verseOffsetY: verseOffset,
         triggerViewportFraction: 0.48,
-        targetTopOffset: sharedTopChromeTop + spacing.md,
+        targetTopOffset: readerContentTopPadding,
       });
 
       pendingReaderAutoScrollVerseRef.current = null;
@@ -1750,7 +1750,7 @@ export function BibleReaderScreen() {
       scrollReaderToOffset(targetOffset, animated);
       return true;
     },
-    [getReaderVerseOffset, scrollReaderToOffset, sharedTopChromeTop]
+    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
   );
   const flushPendingReaderAutoScroll = useCallback(
     (animated: boolean) => {

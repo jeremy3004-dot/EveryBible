@@ -453,7 +453,9 @@ export const getReaderAutoScrollTarget = ({
 
   const clampedTriggerFraction = Math.min(triggerViewportFraction, 1);
   const triggerOffsetY = currentScrollOffsetY + viewportHeight * clampedTriggerFraction;
-  if (verseOffsetY < triggerOffsetY) {
+  const safeAreaTopOffsetY = currentScrollOffsetY + targetTopOffset;
+  const isAboveSafeArea = verseOffsetY < safeAreaTopOffsetY;
+  if (!isAboveSafeArea && verseOffsetY < triggerOffsetY) {
     return null;
   }
 
