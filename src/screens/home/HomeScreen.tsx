@@ -632,7 +632,10 @@ export function HomeScreen() {
               </View>
               <Text
                 style={[styles.smallCardTitle, { color: colors.primaryText }]}
-                numberOfLines={1}
+                // Plan names run long ("Daily Proverbs Chapter a Day") and the
+                // card already reserves space below the title, so let them wrap
+                // rather than truncating against empty space.
+                numberOfLines={2}
               >
                 {featuredPlanTitle}
               </Text>
@@ -833,7 +836,9 @@ const styles = StyleSheet.create({
     ...typography.eyebrow,
   },
   smallCardTitle: {
-    ...typography.readingHeading,
+    // Card sub-head, not reading copy — keep it in the UI face so it sits with
+    // the EL display heading rather than clashing with it.
+    ...typography.cardTitle,
     fontSize: 17,
     lineHeight: 22,
   },

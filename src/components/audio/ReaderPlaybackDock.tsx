@@ -245,7 +245,10 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // Bottom-aligned, not centred: the play button is larger than the chapter
+    // chevrons, so centring pushed its lower edge under the tab bar. Sharing a
+    // baseline lets it grow upward instead of being clipped.
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     width: '100%',
   },
