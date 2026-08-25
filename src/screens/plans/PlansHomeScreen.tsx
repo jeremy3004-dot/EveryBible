@@ -24,6 +24,7 @@ import { serifFamily } from '../../design/fonts';
 import { EmptyState } from '../../components/ui';
 import { CardSkeleton } from '../../components/skeleton/CardSkeleton';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
@@ -531,7 +532,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       gap: spacing.md,
     },
     sectionTitle: {
-      ...typography.readingHeading,
+      ...typography.cardTitle,
       fontSize: 20,
       lineHeight: 26,
       color: colors.primaryText,
@@ -577,7 +578,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
     },
     cardTitle: {
-      ...typography.readingHeading,
+      ...typography.cardTitle,
       fontSize: 21,
       lineHeight: 26,
       color: colors.primaryText,
@@ -899,7 +900,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       gap: spacing.lg,
     },
     categoryHeader: {
-      ...typography.readingHeading,
+      ...typography.cardTitle,
       fontSize: 22,
       lineHeight: 28,
       color: colors.primaryText,
@@ -922,7 +923,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
     },
     planCardTitle: {
-      ...typography.readingHeading,
+      ...typography.cardTitle,
       fontSize: 18,
       lineHeight: 22,
       color: colors.primaryText,
@@ -1087,6 +1088,7 @@ const createCompletedStyles = (colors: ThemeColors) =>
 
 export function PlansHomeScreen() {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
@@ -1237,7 +1239,7 @@ export function PlansHomeScreen() {
           />
         }
       >
-        <Text style={styles.title}>{t('readingPlans.title')}</Text>
+        <Text style={[styles.title, displayFont.bold]}>{t('readingPlans.title')}</Text>
         {tabStrip}
 
         {loading && allPlans.length === 0 ? (
@@ -1290,7 +1292,9 @@ const createMainStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     title: {
-      ...typography.readingHeading,
+      // Screen title, not reading copy — the EL display face, matching Home,
+      // More and Settings.
+      ...typography.screenTitle,
       fontSize: 34,
       lineHeight: 42,
       color: colors.primaryText,

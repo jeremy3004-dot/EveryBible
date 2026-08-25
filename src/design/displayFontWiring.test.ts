@@ -61,6 +61,7 @@ test('every display-token surface merges the useDisplayFont override', () => {
     '../screens/bible/BibleBrowserScreen.tsx',
     '../screens/learn/LessonDetailScreen.tsx',
     '../screens/plans/PlanDetailScreen.tsx',
+    '../screens/plans/PlansHomeScreen.tsx',
     '../screens/plans/RhythmDetailScreen.tsx',
     '../screens/plans/RhythmComposerScreen.tsx',
     '../screens/auth/AuthScreen.tsx',

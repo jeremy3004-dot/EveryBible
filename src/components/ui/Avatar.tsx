@@ -9,18 +9,22 @@ export interface AvatarProps {
   size?: number;
 }
 
-// Curated warm two-stop gradients — the identity fallback stays on-brand instead
-// of drifting into arbitrary hues.
+// Two-stop gradients drawn from the Every Language field data series, in the
+// order the kit prescribes (Sea, Reef, Ochre, Clay, Dusk, Sage). An avatar
+// colour is categorical, which is exactly what that palette is for — the
+// previous set was warm ember hues that now fight the EL blue accent.
+// Each pair is the series colour over a darker stop; white initials clear
+// 4.5:1 on every lower stop (lowest is Ochre at 4.60).
 const WARM_GRADIENTS: ReadonlyArray<readonly [string, string]> = [
-  ['#D96C57', '#AE4732'],
-  ['#E0A15A', '#C2712B'],
-  ['#C77B62', '#9A4B36'],
-  ['#8FAF52', '#4C6B1F'],
-  ['#C98A73', '#8F5A3C'],
-  ['#B5766B', '#7E4A44'],
+  ['#0099E6', '#006699'], // sea
+  ['#1E8A7A', '#0E4E44'], // reef
+  ['#DB9B1A', '#9C6C0D'], // ochre
+  ['#BF6D3B', '#8A4B24'], // clay
+  ['#6E54C4', '#482E9E'], // dusk
+  ['#75905A', '#4F6638'], // sage
 ];
 
-const INITIALS_COLOR = '#FBF6EE';
+const INITIALS_COLOR = '#FFFFFF';
 
 function hashName(value: string): number {
   let hash = 0;
