@@ -25,14 +25,17 @@ import {
   Lora_600SemiBold,
   Lora_700Bold,
 } from '@expo-google-fonts/lora';
-import { migrateFromAsyncStorage } from './src/stores/migrateFromAsyncStorage';
 import { useAuthStore } from './src/stores/authStore';
 import { usePrivacyStore } from './src/stores/privacyStore';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import i18n, { changeLanguage } from './src/i18n';
-import { createStartupCoordinator } from './src/services/startup';
+import {
+  createAuthInitializer,
+  createPrivacyRetryInitializer,
+  createStartupCoordinator,
+} from './src/services/startup';
 import { queryClient } from './src/services/queryClient';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
@@ -124,11 +127,29 @@ function LoadingScreen() {
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const initializeAuthAfterStorage = useMemo(
+    () =>
+      createAuthInitializer({
+        rehydrateAuth: () => useAuthStore.persist.rehydrate(),
+        initializeAuth,
+      }),
+    [initializeAuth]
+  );
+  const retryPrivacyAndAuth = useMemo(
+    () =>
+      createPrivacyRetryInitializer({
+        retryPrivacy: retryInitializePrivacy,
+        isPrivacyInitialized: () => usePrivacyStore.getState().isInitialized,
+        initializeAuth: initializeAuthAfterStorage,
+      }),
+    [initializeAuthAfterStorage, retryInitializePrivacy]
+  );
   const startupCoordinator = useMemo(
     () =>
       createStartupCoordinator({
-        initializeAuth,
+        initializeAuth: initializeAuthAfterStorage,
         initializePrivacy,
+        isPrivacyInitialized: () => usePrivacyStore.getState().isInitialized,
         preloadBibleData: async () => {
           const { initBibleData } = await import('./src/services/bible/bibleService');
           await initBibleData();
@@ -139,9 +160,6 @@ function LoadingScreen() {
           await bootstrapRuntimeTranslationsAndPreferences();
           const { useBibleStore } = await import('./src/stores/bibleStore');
           await useBibleStore.getState().reconcileTranslationPacks();
-        },
-        migrateStorage: async () => {
-          await migrateFromAsyncStorage();
         },
         scheduleTask: (task) => {
           return scheduleAfterInteractions(
@@ -162,7 +180,7 @@ function LoadingScreen() {
           );
         },
       }),
-    [initializeAuth, initializePrivacy]
+    [initializeAuthAfterStorage, initializePrivacy]
   );
 
   useEffect(() => {
@@ -310,11 +328,15 @@ function LoadingScreen() {
     Platform.OS !== 'android' && !fontsLoaded && !fontError && !fontLoadTimedOut;
 
   if (privacyInitializationError) {
-    return <PrivacyInitializationRetryScreen onRetry={retryInitializePrivacy} />;
+    return <PrivacyInitializationRetryScreen onRetry={retryPrivacyAndAuth} />;
   }
 
   if (!isReady || !isPrivacyInitialized || shouldWaitForFonts) {
     return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
+  }
+
+  if (isPrivacyLocked) {
+    return <PrivacyLockScreen />;
   }
 
   if (!preferences.onboardingCompleted) {
@@ -323,10 +345,6 @@ function LoadingScreen() {
         <OnboardingHost />
       </View>
     );
-  }
-
-  if (isPrivacyLocked) {
-    return <PrivacyLockScreen />;
   }
 
   if (!shouldRenderNavigator) {

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import type { PrivacyAppIconMode, StoredPrivacySettings } from '../../types';
-import { setPrivacyAppIcon } from './appIcon';
+import { setPrivacyAppIcon, supportsDynamicAppIcon } from './appIcon';
 
 const privacySettingsKey = 'everybible.privacy.settings';
 
@@ -48,7 +48,10 @@ export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<voi
 
 export const clearPrivacySettings = async (): Promise<void> => {
   await SecureStore.deleteItemAsync(privacySettingsKey);
-  await setPrivacyAppIcon('standard');
+  const didApplyStandardIcon = await setPrivacyAppIcon('standard');
+  if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
+    throw new Error('Failed to apply the standard privacy app icon');
+  }
 };
 
 export const verifyPrivacyPin = async (pin: string): Promise<boolean> => {

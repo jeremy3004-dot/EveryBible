@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createPrivacyInstallationBootstrap } from '../privacy/privacyInstallationAdapter';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -96,11 +97,6 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   );
   assert.match(
     appSource,
-    /migrateStorage:\s*async\s*\(\)\s*=>\s*\{[\s\S]*await migrateFromAsyncStorage\(\);[\s\S]*\}/,
-    'App.tsx should keep the critical storage migration small during boot'
-  );
-  assert.match(
-    appSource,
     /import\('\.\/src\/services\/startup\/AppRuntimeEffects'\)/,
     'App.tsx should defer sync and privacy app-state hooks so NetInfo/cloud sync modules stay off the first render path'
   );
@@ -134,6 +130,22 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     /const STARTUP_READY_TIMEOUT_MS = \d+;[\s\S]*Startup readiness timed out; continuing launch with safe defaults\.[\s\S]*setIsReady\(true\);/,
     'App.tsx should not leave Android stuck on the boot shell if critical startup does not resolve'
   );
+});
+
+test('privacy installation bootstrap migrates before reconciliation', async () => {
+  const calls: string[] = [];
+  const bootstrap = createPrivacyInstallationBootstrap({
+    migrateStorage: async () => {
+      calls.push('migration');
+    },
+    reconcileInstallation: async () => {
+      calls.push('reconciliation');
+    },
+  });
+
+  await bootstrap();
+
+  assert.deepEqual(calls, ['migration', 'reconciliation']);
 });
 
 test('App.tsx installs global error handlers at module scope before render', () => {
@@ -241,6 +253,19 @@ test('LoadingScreen fails closed until privacy initialization completes', () => 
     appSource,
     /if \(\s*!isReady\s*\|\|\s*!preferences\.onboardingCompleted\s*\|\|\s*!isPrivacyInitialized\s*\|\|\s*isPrivacyLocked\s*\)/,
     'LoadingScreen should not schedule the navigator before privacy initialization completes'
+  );
+
+  assert.match(
+    appSource,
+    /createAuthInitializer\(\{[\s\S]*rehydrateAuth:\s*\(\)\s*=>\s*useAuthStore\.persist\.rehydrate\(\),[\s\S]*initializeAuth,[\s\S]*\}\)/,
+    'LoadingScreen should rehydrate persisted auth state after privacy migration before auth initialization'
+  );
+
+  const privacyLockIndex = appSource.indexOf('if (isPrivacyLocked) {');
+  const onboardingIndex = appSource.indexOf('if (!preferences.onboardingCompleted) {');
+  assert.ok(
+    privacyLockIndex !== -1 && onboardingIndex !== -1 && privacyLockIndex < onboardingIndex,
+    'LoadingScreen should render the privacy lock before onboarding once readiness is complete'
   );
 });
 

@@ -1,18 +1,21 @@
 interface StartupCoordinatorDependencies {
   initializeAuth: () => Promise<void>;
   initializePrivacy: () => Promise<void>;
+  isPrivacyInitialized: () => boolean;
   preloadBibleData: () => Promise<void>;
   preloadRuntimeTranslations?: () => Promise<void>;
-  migrateStorage?: () => Promise<void>;
   scheduleTask?: (task: () => Promise<void> | void) => () => void;
   onWarmupError?: (error: unknown) => void;
   criticalTaskTimeoutMs?: number;
-  onCriticalTimeout?: (taskName: 'migrateStorage' | 'auth' | 'privacy') => void;
-  migrateStorageTimeoutMs?: number;
+  onCriticalTimeout?: (taskName: 'auth' | 'privacy') => void;
+}
+
+interface AuthInitializerDependencies {
+  rehydrateAuth: () => Promise<void> | void;
+  initializeAuth: () => Promise<void>;
 }
 
 const DEFAULT_CRITICAL_TASK_TIMEOUT_MS = 4000;
-const DEFAULT_MIGRATION_TIMEOUT_MS = 2000;
 
 const defaultScheduleTask = (task: () => Promise<void> | void) => {
   const timeoutId = setTimeout(() => {
@@ -24,99 +27,86 @@ const defaultScheduleTask = (task: () => Promise<void> | void) => {
   };
 };
 
+interface PrivacyRetryInitializerDependencies {
+  retryPrivacy: () => Promise<void>;
+  isPrivacyInitialized: () => boolean;
+  initializeAuth: () => Promise<void>;
+}
+
+/**
+ * Rehydrates persisted auth state after storage migration and before auth reads
+ * that state to initialize the session and onboarding flow.
+ */
+export const createAuthInitializer =
+  ({ rehydrateAuth, initializeAuth }: AuthInitializerDependencies) =>
+  async (): Promise<void> => {
+    await rehydrateAuth();
+    await initializeAuth();
+  };
+
+/**
+ * Reopens auth only after a failed privacy-installation retry has completed
+ * successfully. This keeps the retry path subject to the same ordering gate
+ * as the initial startup path.
+ */
+export const createPrivacyRetryInitializer =
+  ({ retryPrivacy, isPrivacyInitialized, initializeAuth }: PrivacyRetryInitializerDependencies) =>
+  async (): Promise<void> => {
+    await retryPrivacy();
+    if (isPrivacyInitialized()) {
+      await initializeAuth();
+    }
+  };
+
 export const createStartupCoordinator = ({
   initializeAuth,
   initializePrivacy,
+  isPrivacyInitialized,
   preloadBibleData,
   preloadRuntimeTranslations,
-  migrateStorage,
   scheduleTask = defaultScheduleTask,
   onWarmupError,
   criticalTaskTimeoutMs = DEFAULT_CRITICAL_TASK_TIMEOUT_MS,
   onCriticalTimeout,
-  migrateStorageTimeoutMs = DEFAULT_MIGRATION_TIMEOUT_MS,
-}: StartupCoordinatorDependencies) => ({
-  initializeCritical: async () => {
-    // Run storage migration before auth/privacy so MMKV keys are populated
-    // before stores attempt to rehydrate. Failure is non-fatal and the
-    // migration is time-boxed so a broken native storage path cannot stall boot.
-    if (migrateStorage) {
-      await runBestEffortTask({
-        taskName: 'migrateStorage',
-        task: migrateStorage,
-        timeoutMs: migrateStorageTimeoutMs,
-        onTimeout: onCriticalTimeout,
-      });
-    }
-    await Promise.all([
-      runCriticalTask({
-        taskName: 'auth',
-        task: initializeAuth,
-        timeoutMs: criticalTaskTimeoutMs,
-        onTimeout: onCriticalTimeout,
-      }),
-      runCriticalTask({
+}: StartupCoordinatorDependencies) => {
+  if (!isPrivacyInitialized) {
+    throw new Error('isPrivacyInitialized is required');
+  }
+
+  return {
+    initializeCritical: async () => {
+      const privacyCompleted = await runCriticalTask({
         taskName: 'privacy',
         task: initializePrivacy,
         timeoutMs: criticalTaskTimeoutMs,
         onTimeout: onCriticalTimeout,
-      }),
-    ]);
-  },
+      });
 
-  startDeferredWarmups: () =>
-    scheduleTask(async () => {
-      try {
-        if (preloadRuntimeTranslations) {
-          await preloadRuntimeTranslations();
-        }
-        await preloadBibleData();
-      } catch (error) {
-        onWarmupError?.(error);
-      }
-    }),
-});
-
-async function runBestEffortTask({
-  taskName,
-  task,
-  timeoutMs,
-  onTimeout,
-}: {
-  taskName: 'migrateStorage';
-  task: () => Promise<void>;
-  timeoutMs: number;
-  onTimeout?: (taskName: 'migrateStorage' | 'auth' | 'privacy') => void;
-}) {
-  let timedOut = false;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const taskPromise = Promise.resolve()
-    .then(task)
-    .catch((error) => {
-      if (timedOut) {
+      if (!privacyCompleted || !isPrivacyInitialized()) {
         return;
       }
 
-      console.warn('[Startup] Storage migration failed:', error);
-    });
+      await runCriticalTask({
+        taskName: 'auth',
+        task: initializeAuth,
+        timeoutMs: criticalTaskTimeoutMs,
+        onTimeout: onCriticalTimeout,
+      });
+    },
 
-  const timeoutPromise = new Promise<void>((resolve) => {
-    timeoutId = setTimeout(() => {
-      timedOut = true;
-      onTimeout?.(taskName);
-      resolve();
-    }, timeoutMs);
-  });
-
-  try {
-    await Promise.race([taskPromise, timeoutPromise]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
+    startDeferredWarmups: () =>
+      scheduleTask(async () => {
+        try {
+          if (preloadRuntimeTranslations) {
+            await preloadRuntimeTranslations();
+          }
+          await preloadBibleData();
+        } catch (error) {
+          onWarmupError?.(error);
+        }
+      }),
+  };
+};
 
 async function runCriticalTask({
   taskName,
@@ -127,8 +117,8 @@ async function runCriticalTask({
   taskName: 'auth' | 'privacy';
   task: () => Promise<void>;
   timeoutMs: number;
-  onTimeout?: (taskName: 'migrateStorage' | 'auth' | 'privacy') => void;
-}) {
+  onTimeout?: (taskName: 'auth' | 'privacy') => void;
+}): Promise<boolean> {
   let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -151,7 +141,7 @@ async function runCriticalTask({
   });
 
   try {
-    await Promise.race([taskPromise, timeoutPromise]);
+    return await Promise.race([taskPromise.then(() => true), timeoutPromise.then(() => false)]);
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);

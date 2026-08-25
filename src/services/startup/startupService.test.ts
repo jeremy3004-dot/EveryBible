@@ -1,6 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStartupCoordinator } from './startupService';
+import {
+  createAuthInitializer,
+  createPrivacyRetryInitializer,
+  createStartupCoordinator,
+} from './startupService';
+
+test('critical startup rejects a coordinator without the privacy readiness gate', () => {
+  assert.throws(
+    () =>
+      // @ts-expect-error The production gate is intentionally required.
+      createStartupCoordinator({
+        initializeAuth: async () => {},
+        initializePrivacy: async () => {},
+        preloadBibleData: async () => {},
+      }),
+    /isPrivacyInitialized is required/
+  );
+});
 
 test('critical startup only initializes auth and privacy', async () => {
   const calls: string[] = [];
@@ -12,6 +29,7 @@ test('critical startup only initializes auth and privacy', async () => {
     initializePrivacy: async () => {
       calls.push('privacy');
     },
+    isPrivacyInitialized: () => true,
     preloadBibleData: async () => {
       calls.push('bible');
     },
@@ -19,41 +37,126 @@ test('critical startup only initializes auth and privacy', async () => {
 
   await coordinator.initializeCritical();
 
-  assert.deepEqual(calls, ['auth', 'privacy']);
+  assert.deepEqual(calls, ['privacy', 'auth']);
 });
 
-test('critical startup initializes auth and privacy concurrently after storage migration', async () => {
+test('critical startup initializes privacy before auth', async () => {
   const calls: string[] = [];
-  let releaseAuth: () => void = () => {};
+  let privacyReady = false;
 
   const coordinator = createStartupCoordinator({
-    migrateStorage: async () => {
-      calls.push('migration');
-    },
     initializeAuth: async () => {
-      calls.push('auth:start');
-      await new Promise<void>((resolve) => {
-        releaseAuth = resolve;
-      });
-      calls.push('auth:end');
+      assert.equal(privacyReady, true);
+      calls.push('auth');
     },
     initializePrivacy: async () => {
       calls.push('privacy');
+      privacyReady = true;
     },
+    isPrivacyInitialized: () => privacyReady,
     preloadBibleData: async () => {
       calls.push('bible');
     },
   });
 
-  const initialization = coordinator.initializeCritical();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await coordinator.initializeCritical();
 
-  assert.deepEqual(calls, ['migration', 'auth:start', 'privacy']);
+  assert.deepEqual(calls, ['privacy', 'auth']);
+});
 
-  releaseAuth();
-  await initialization;
+test('auth initialization rehydrates persisted state before running auth initialization', async () => {
+  const calls: string[] = [];
 
-  assert.deepEqual(calls, ['migration', 'auth:start', 'privacy', 'auth:end']);
+  const initializeAuth = createAuthInitializer({
+    rehydrateAuth: async () => {
+      calls.push('rehydrate');
+    },
+    initializeAuth: async () => {
+      calls.push('initialize');
+    },
+  });
+
+  await initializeAuth();
+
+  assert.deepEqual(calls, ['rehydrate', 'initialize']);
+});
+
+test('critical startup never initializes auth when privacy is not ready', async () => {
+  const calls: string[] = [];
+
+  const coordinator = createStartupCoordinator({
+    initializeAuth: async () => {
+      calls.push('auth');
+    },
+    initializePrivacy: async () => {
+      calls.push('privacy');
+    },
+    isPrivacyInitialized: () => false,
+    preloadBibleData: async () => {},
+  });
+
+  await coordinator.initializeCritical();
+
+  assert.deepEqual(calls, ['privacy']);
+});
+
+test('critical startup initializes auth after privacy becomes ready', async () => {
+  const calls: string[] = [];
+  let privacyReady = false;
+
+  const coordinator = createStartupCoordinator({
+    initializePrivacy: async () => {
+      calls.push('privacy');
+      privacyReady = true;
+    },
+    isPrivacyInitialized: () => privacyReady,
+    initializeAuth: async () => {
+      calls.push('auth');
+    },
+    preloadBibleData: async () => {},
+  });
+
+  await coordinator.initializeCritical();
+
+  assert.deepEqual(calls, ['privacy', 'auth']);
+});
+
+test('privacy retry initializes auth only after privacy becomes ready', async () => {
+  const calls: string[] = [];
+  let privacyReady = false;
+
+  const retry = createPrivacyRetryInitializer({
+    retryPrivacy: async () => {
+      calls.push('privacy:retry');
+      privacyReady = true;
+    },
+    isPrivacyInitialized: () => privacyReady,
+    initializeAuth: async () => {
+      calls.push('auth');
+    },
+  });
+
+  await retry();
+
+  assert.deepEqual(calls, ['privacy:retry', 'auth']);
+});
+
+test('privacy retry keeps auth gated when privacy is still unavailable', async () => {
+  const calls: string[] = [];
+
+  const retry = createPrivacyRetryInitializer({
+    retryPrivacy: async () => {
+      calls.push('privacy:retry');
+    },
+    isPrivacyInitialized: () => false,
+    initializeAuth: async () => {
+      calls.push('auth');
+    },
+  });
+
+  await retry();
+
+  assert.deepEqual(calls, ['privacy:retry']);
 });
 
 test('deferred warmup schedules bible preload after launch and swallows warmup failures', async () => {
@@ -68,6 +171,7 @@ test('deferred warmup schedules bible preload after launch and swallows warmup f
     initializePrivacy: async () => {
       calls.push('privacy');
     },
+    isPrivacyInitialized: () => true,
     preloadBibleData: async () => {
       calls.push('bible');
       throw new Error('warmup failed');
@@ -108,6 +212,7 @@ test('critical startup continues when auth initialization stalls', async () => {
     initializePrivacy: async () => {
       calls.push('privacy');
     },
+    isPrivacyInitialized: () => true,
     preloadBibleData: async () => {
       calls.push('bible');
     },
@@ -125,39 +230,5 @@ test('critical startup continues when auth initialization stalls', async () => {
   ]);
 
   assert.equal(outcome, 'resolved');
-  assert.deepEqual(calls, ['auth', 'privacy', 'timeout:auth']);
-});
-
-test('critical startup continues when storage migration stalls', async () => {
-  const calls: string[] = [];
-
-  const coordinator = createStartupCoordinator({
-    migrateStorage: async () => {
-      calls.push('migration');
-      await new Promise<void>(() => {});
-    },
-    initializeAuth: async () => {
-      calls.push('auth');
-    },
-    initializePrivacy: async () => {
-      calls.push('privacy');
-    },
-    preloadBibleData: async () => {
-      calls.push('bible');
-    },
-    migrateStorageTimeoutMs: 10,
-    onCriticalTimeout: (taskName: string) => {
-      calls.push(`timeout:${taskName}`);
-    },
-  });
-
-  const outcome = await Promise.race([
-    coordinator.initializeCritical().then(() => 'resolved'),
-    new Promise<'deadline'>((resolve) => {
-      setTimeout(() => resolve('deadline'), 75);
-    }),
-  ]);
-
-  assert.equal(outcome, 'resolved');
-  assert.deepEqual(calls, ['migration', 'timeout:migrateStorage', 'auth', 'privacy']);
+  assert.deepEqual(calls, ['privacy', 'auth', 'timeout:auth']);
 });

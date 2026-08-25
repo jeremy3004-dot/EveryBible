@@ -9,6 +9,7 @@ import {
   verifyPrivacyPin,
 } from '../services/privacy';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
+import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
 
 interface SavePrivacyConfigurationInput {
   mode: PrivacyAppIconMode;
@@ -46,9 +47,17 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     }
 
     const generation = ++initializationGeneration;
-    set({ isLoading: true, initializationError: null, isLocked: true });
+    const previousInitializationError = get().initializationError;
+    set({
+      isLoading: true,
+      initializationError: previousInitializationError,
+      isLocked: true,
+    });
 
-    const result = await initializePrivacyWithTimeout(loadPrivacySettings);
+    const result = await initializePrivacyWithTimeout(async () => {
+      await initializePrivacyInstallationOnStartup();
+      return loadPrivacySettings();
+    });
     if (generation !== initializationGeneration) {
       return;
     }
@@ -102,7 +111,6 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
       set({
         isInitialized: false,
         isLoading: false,
-        initializationError: null,
         isLocked: true,
       });
       await initialize();
