@@ -40,19 +40,21 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /const getCollapsingTabBarStyle = useCallback\(\s*\(collapseProgress: number, useReaderTheme = false\) => \(\{/,
+    /const getCollapsingTabBarStyle = useCallback\(\s*\(collapseProgress: number\) => \(\{/,
     'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
   );
 
+  // The capsule must travel far enough to clear the gap beneath it too,
+  // otherwise a sliver stays visible when the reader hides the bar.
   assert.match(
     source,
-    /position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*paddingBottom:\s*tabBarBottomPadding \+ spacing\.xs,[\s\S]*height:\s*tabBarHeight,[\s\S]*transform:\s*\[\{\s*translateY:\s*tabBarHeight \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
-    'TabNavigator should move the entire bar downward as one overlay piece so the background slab and icon row stay locked together without reserving a dead layout strip'
+    /transform:\s*\[\{\s*translateY:\s*\(tabBarBarHeight \+ tabBarBottomPadding\) \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
+    'the collapsing capsule should slide clear of the screen, gap included'
   );
 
   assert.match(
     source,
-    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress, isBibleReader\)[\s\S]*:\s*isBibleReader[\s\S]*\?\s*readerTabBarStyle[\s\S]*:\s*defaultTabBarStyle/s,
+    /tabBarCollapseProgress > 0\s*\?\s*getCollapsingTabBarStyle\(tabBarCollapseProgress\)[\s\S]*:\s*isBibleReader[\s\S]*\?\s*readerTabBarStyle[\s\S]*:\s*defaultTabBarStyle/s,
     'TabNavigator should choose between the normal and collapsing tab-bar styles from the reader progress signal'
   );
 });
@@ -78,8 +80,8 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
 
   assert.match(
     source,
-    /const \{\s*bottomPadding:\s*tabBarBottomPadding,\s*height:\s*tabBarHeight\s*\} = useTabBarHeight\(\);/,
-    'TabNavigator should derive its bottom gutter from the shared useTabBarHeight hook so it grows with the device safe area instead of a fixed gutter'
+    /bottomPadding:\s*tabBarBottomPadding,[\s\S]*barHeight:\s*tabBarBarHeight,[\s\S]*sideInset:\s*tabBarSideInset,[\s\S]*\} = useTabBarHeight\(\);/,
+    'TabNavigator should take its capsule geometry from the shared useTabBarHeight hook'
   );
 
   assert.equal(
@@ -88,10 +90,18 @@ test('TabNavigator keeps the tab bar padding compact instead of turning the bott
     'TabNavigator should not add extra padding above the tab icons because that pushes the content lower'
   );
 
+  // The capsule centres each tab's icon+label inside the selection pill rather
+  // than nudging the row with item padding, so the item must fill the capsule
+  // and contribute no padding of its own.
   assert.match(
     source,
-    /tabBarItemStyle:\s*\{\s*paddingBottom:\s*spacing\.xs,\s*\}/s,
-    'TabNavigator should place the extra item padding below the icons so the row sits a little higher'
+    /tabBarItemStyle: styles\.tabItem,/,
+    'tab items should use the shared style that fills the capsule'
+  );
+  assert.match(
+    source,
+    /tabItem:\s*\{\s*height: '100%',\s*paddingTop: 0,\s*paddingBottom: 0,\s*\}/s,
+    'tab items should fill the capsule height and add no padding of their own'
   );
 });
 
@@ -116,7 +126,7 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
 
   assert.match(
     source,
-    /import \{ useTabBarHeight \} from '\.\.\/hooks';/,
+    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks';/,
     'TabNavigator should source its bar height from the shared useTabBarHeight hook'
   );
 
@@ -146,10 +156,17 @@ test('TabNavigator blends the bar into the screen background instead of a separa
 test('TabNavigator uses Bible reader colors while the reader is focused', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
+  // The capsule geometry is shared; only the material behind it retints, via
+  // the tabBarBackground component.
   assert.match(
     source,
-    /const readerTabBarStyle = useMemo\(\s*\(\) =>\s*\(\{[\s\S]*backgroundColor: colors\.bibleBackground,[\s\S]*borderTopColor: colors\.bibleDivider,/s,
-    'TabNavigator should provide a reader-themed tab bar style for the Bible reader'
+    /fill=\{isBibleReader \? readerCapsuleFill : capsuleFill\}/,
+    'TabNavigator should tint the capsule off the reading surface while the reader is focused'
+  );
+  assert.match(
+    source,
+    /stroke=\{isBibleReader \? colors\.bibleDivider : colors\.cardBorder\}/,
+    'the capsule edge should follow the reader divider while the reader is focused'
   );
 
   assert.match(
@@ -166,25 +183,42 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
 
   assert.match(
     source,
-    /getCollapsingTabBarStyle\(tabBarCollapseProgress, isBibleReader\)/,
+    /getCollapsingTabBarStyle\(tabBarCollapseProgress\)/,
     'TabNavigator should keep the reader theme while the reader-driven tab bar collapses'
   );
 });
 
-test('TabNavigator keeps Home in the normal tab bar instead of floating it over the screen', () => {
+test('TabNavigator renders the tab bar as a floating glass capsule', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.match(
-    source,
-    /route\.name === 'Home'/,
-    'TabNavigator should keep the Home tab in the standard bar configuration'
-  );
-
-  assert.equal(source.includes("backgroundColor: 'transparent'"), false);
+  // Home stays on the standard (non-collapsing) style — only the reader drives
+  // the collapse.
   assert.match(
     source,
     /route\.name === 'Home'[\s\S]*return defaultTabBarStyle;/,
     'TabNavigator should keep Home on the standard tab-bar style instead of the collapsing overlay style'
+  );
+
+  // The capsule floats: inset from the edges, lifted off the bottom, and
+  // transparent so the blurred background component provides the material.
+  assert.match(
+    source,
+    /backgroundColor: 'transparent',[\s\S]*left: tabBarSideInset,[\s\S]*right: tabBarSideInset,[\s\S]*bottom: tabBarBottomPadding,[\s\S]*height: tabBarBarHeight,/s,
+    'the tab bar should be an inset, lifted, transparent capsule'
+  );
+  assert.match(source, /<BlurView/, 'the capsule should use a real blur material');
+
+  // React Navigation v7 hands tabBarButton `aria-selected`; reading
+  // `accessibilityState.selected` yields undefined and the pill never appears.
+  assert.match(
+    source,
+    /focused=\{props\['aria-selected'\] \?\? false\}/,
+    "the selected tab must be read from `aria-selected`, not accessibilityState"
+  );
+  assert.match(
+    source,
+    /borderRadius: TAB_BAR_CAPSULE_RADIUS/,
+    'the capsule should be fully rounded'
   );
 });
 

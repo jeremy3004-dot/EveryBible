@@ -17,6 +17,7 @@ export const colors = {
   accentPrimary: '#35A7E9',
   accentSecondary: '#ADDCFF',
   accentTertiary: '#B0A99B',
+  accentSurface: '#10384C',
 
   // Named aliases kept for backward compatibility
   tibetanMaroon: '#35A7E9',

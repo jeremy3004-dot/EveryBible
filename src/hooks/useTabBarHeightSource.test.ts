@@ -16,21 +16,26 @@ test('useTabBarHeight derives the bottom gutter from the device safe area instea
     'useTabBarHeight should read the real device safe-area insets'
   );
 
+  // The bar is a floating capsule, so the gutter is the gap BENEATH it. On a
+  // device with a home indicator the capsule tucks into the safe area (the
+  // indicator is a hairline); without one it falls back to the design gutter.
   assert.match(
     source,
-    /const bottomPadding = Math\.max\(insets\.bottom, spacing\.lg\);/,
-    'useTabBarHeight should use whichever is larger: the real bottom inset (e.g. Android 3-button nav) or the default design gutter'
+    /const bottomPadding = insets\.bottom > 0 \? 21 : spacing\.lg;/,
+    'useTabBarHeight should derive the capsule gap from the real bottom inset, not a fixed constant'
+  );
+
+  // `height` must stay "space content has to clear" — every docked surface
+  // (reader transport, audio return tab, settings scroll) depends on that.
+  assert.match(
+    source,
+    /height: bottomPadding \+ TAB_BAR_CAPSULE_HEIGHT,/,
+    'height should remain the total space the tab bar occupies, so docked content still clears it'
   );
 
   assert.match(
     source,
-    /const height = layout\.tabBarBaseHeight \+ bottomPadding;/,
-    'useTabBarHeight should derive the full bar height from the base token plus the safe-area-aware bottom padding'
-  );
-
-  assert.match(
-    source,
-    /return \{ bottomPadding, height \};/,
-    'useTabBarHeight should expose both the padding and the derived height so every consumer stays in sync'
+    /barHeight: TAB_BAR_CAPSULE_HEIGHT,/,
+    'the capsule height should be exposed separately from the occupied space'
   );
 });

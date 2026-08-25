@@ -26,6 +26,8 @@ export interface ThemeColors {
   accentGreen: string;
   accentTertiary: string;
   accentSoft: string;
+  /** EL `--accent`: a real selected-surface fill, not an alpha wash. */
+  accentSurface: string;
   onAccent: string;
   error: string;
   success: string;
@@ -115,6 +117,7 @@ const baseDarkColors: ThemeColors = {
   success: '#62C082', // --success 140 43% 57%
   warning: '#E9A23F', // --warning 35 79% 58%
   overlay: 'rgba(17, 17, 13, 0.62)',
+  accentSurface: '#10384C', // --accent 200 65% 18%
   tabActive: '#ADDCFF', // --accent-foreground, the active tab pill glyph
   tabInactive: '#B0A99B',
   bibleBackground: '#11110D',
@@ -145,6 +148,7 @@ const baseLightColors: ThemeColors = {
   success: '#2E8E5A', // --success 147 51% 37%
   warning: '#D27519', // --warning 30 79% 46%
   overlay: 'rgba(26, 25, 20, 0.34)',
+  accentSurface: '#D9EEFC', // --accent 204 87% 92%
   tabActive: '#005F8F', // --accent-foreground, the active tab pill glyph
   tabInactive: '#69624F',
   bibleBackground: '#F0ECE5',

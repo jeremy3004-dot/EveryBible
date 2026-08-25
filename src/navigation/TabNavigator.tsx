@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useAnimatedStyle,
@@ -19,25 +21,58 @@ import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
-import { motion, radius, spacing, typography } from '../design/system';
-import { useTabBarHeight } from '../hooks';
+import { motion, typography } from '../design/system';
+import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks';
 import { lightHaptic } from '../utils';
 
-// Bottom-tab icon on the EL accent pill. The pill carries the selected state, so
-// the icon no longer scales up on focus — instead the pill fades in. Respects
-// reduced motion.
+// Bottom-tab icon. The selected state is carried by the pill drawn in
+// TabBarButton below, so the icon itself no longer scales on focus.
 function TabBarIcon({
   name,
   size,
   color,
-  focused,
-  pillColor,
 }: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   size: number;
   color: string;
+}) {
+  return <Ionicons name={name} size={size} color={color} />;
+}
+
+// The frosted capsule behind the whole bar. expo-blur gives the real material;
+// the tint layer above it keeps the capsule legible when the blur is weak (or
+// unavailable, as on some Android builds) and carries the hairline edge.
+function TabBarBackground({ isDark, fill, stroke }: { isDark: boolean; fill: string; stroke: string }) {
+  return (
+    <View style={styles.capsule} pointerEvents="none">
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 40 : 24}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+      <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
+    </View>
+  );
+}
+
+// One tab. The accent pill wraps the icon AND the label — the reference sizes it
+// at roughly the full item width by the full capsule height less a small inset,
+// so it reads as a selected segment rather than a badge behind the glyph.
+function TabBarButton({
+  focused,
+  pillColor,
+  onPress,
+  onLongPress,
+  accessibilityLabel,
+  children,
+}: {
   focused: boolean;
   pillColor: string;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  accessibilityLabel?: string;
+  children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   const progress = useSharedValue(focused ? 1 : 0);
@@ -49,28 +84,83 @@ function TabBarIcon({
   const animatedStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   return (
-    <View style={styles.tabIconWrap}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.tabIconPill, { backgroundColor: pillColor }, animatedStyle]}
-      />
-      <Ionicons name={name} size={size} color={color} />
-    </View>
+    <Pressable
+      style={styles.tabButton}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected: focused }}
+    >
+      <View style={styles.tabPillWrap}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.tabPill, { backgroundColor: pillColor }, animatedStyle]}
+        />
+        <View style={styles.tabContent}>{children}</View>
+      </View>
+    </Pressable>
   );
 }
 
+const TAB_PILL_HEIGHT = 52;
+
+// The capsule is fully rounded, so at the pill's vertical extent its edge has
+// already curved ~14pt inward. Inset the row by that much or the first and last
+// pills breach the curve.
+const TAB_BAR_CAPSULE_ROW_INSET = 14;
+
 const styles = StyleSheet.create({
-  tabIconWrap: {
-    minWidth: 56,
-    height: 30,
+  capsule: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: TAB_BAR_CAPSULE_RADIUS,
+    overflow: 'hidden',
+  },
+  capsuleStroke: {
+    borderRadius: TAB_BAR_CAPSULE_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  tabPillWrap: {
+    alignSelf: 'stretch',
+    marginHorizontal: 2,
+    height: TAB_PILL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabIconPill: {
+  tabPill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.pill,
+    borderRadius: TAB_PILL_HEIGHT / 2,
+  },
+  tabContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  tabItem: {
+    height: '100%',
+    paddingTop: 0,
+    paddingBottom: 0,
   },
 });
+
+// Hex -> rgba, so a theme token can carry the capsule's translucency without a
+// second palette entry per scope.
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '');
+  if (value.length !== 6) {
+    return hex;
+  }
+  const red = parseInt(value.slice(0, 2), 16);
+  const green = parseInt(value.slice(2, 4), 16);
+  const blue = parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -140,9 +230,18 @@ function getBibleTabResumeState() {
 }
 
 export function TabNavigator() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useTranslation();
-  const { bottomPadding: tabBarBottomPadding, height: tabBarHeight } = useTabBarHeight();
+  const capsuleFill = useMemo(() => withAlpha(colors.cardBackground, 0.62), [colors.cardBackground]);
+  const readerCapsuleFill = useMemo(
+    () => withAlpha(colors.bibleSurface, 0.62),
+    [colors.bibleSurface]
+  );
+  const {
+    bottomPadding: tabBarBottomPadding,
+    barHeight: tabBarBarHeight,
+    sideInset: tabBarSideInset,
+  } = useTabBarHeight();
 
   // These style objects are static per theme/inset change, so build them once
   // instead of on every screenOptions invocation (fires on each nav event, and
@@ -151,51 +250,41 @@ export function TabNavigator() {
   const defaultTabBarStyle = useMemo(
     () =>
       ({
-        backgroundColor: colors.background,
-        borderTopColor: colors.cardBorder,
-        borderTopWidth: 1,
+        backgroundColor: 'transparent',
+        borderTopWidth: 0,
+        elevation: 0,
         position: 'absolute' as const,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        left: tabBarSideInset,
+        right: tabBarSideInset,
+        bottom: tabBarBottomPadding,
         paddingTop: 0,
-        paddingBottom: tabBarBottomPadding + spacing.xs,
-        height: tabBarHeight,
+        paddingBottom: 0,
+        paddingHorizontal: TAB_BAR_CAPSULE_ROW_INSET,
+        height: tabBarBarHeight,
       }) as const,
-    [colors.background, colors.cardBorder, tabBarBottomPadding, tabBarHeight]
+    [tabBarSideInset, tabBarBottomPadding, tabBarBarHeight]
   );
-  const readerTabBarStyle = useMemo(
-    () =>
-      ({
-        ...defaultTabBarStyle,
-        backgroundColor: colors.bibleBackground,
-        borderTopColor: colors.bibleDivider,
-      }) as const,
-    [defaultTabBarStyle, colors.bibleBackground, colors.bibleDivider]
-  );
+  // The reader shares the capsule geometry — only the blurred background it sits
+  // on is retinted, via tabBarBackground below.
+  const readerTabBarStyle = defaultTabBarStyle;
   const getCollapsingTabBarStyle = useCallback(
-    (collapseProgress: number, useReaderTheme = false) => ({
-      backgroundColor: useReaderTheme ? colors.bibleBackground : colors.background,
-      borderTopColor: useReaderTheme ? colors.bibleDivider : colors.cardBorder,
-      borderTopWidth: 1,
+    (collapseProgress: number) => ({
+      backgroundColor: 'transparent' as const,
+      borderTopWidth: 0,
+      elevation: 0,
       position: 'absolute' as const,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      left: tabBarSideInset,
+      right: tabBarSideInset,
+      bottom: tabBarBottomPadding,
       paddingTop: 0,
-      paddingBottom: tabBarBottomPadding + spacing.xs,
-      height: tabBarHeight,
-      transform: [{ translateY: tabBarHeight * collapseProgress }],
+      paddingBottom: 0,
+      paddingHorizontal: TAB_BAR_CAPSULE_ROW_INSET,
+      height: tabBarBarHeight,
+      // Slide the whole capsule clear of the screen, gap included.
+      transform: [{ translateY: (tabBarBarHeight + tabBarBottomPadding) * collapseProgress }],
       opacity: 1 - collapseProgress,
     }),
-    [
-      colors.bibleBackground,
-      colors.background,
-      colors.bibleDivider,
-      colors.cardBorder,
-      tabBarBottomPadding,
-      tabBarHeight,
-    ]
+    [tabBarSideInset, tabBarBottomPadding, tabBarBarHeight]
   );
 
   return (
@@ -228,7 +317,7 @@ export function TabNavigator() {
             : routeCollapseProgress;
 
           return tabBarCollapseProgress > 0
-            ? getCollapsingTabBarStyle(tabBarCollapseProgress, isBibleReader)
+            ? getCollapsingTabBarStyle(tabBarCollapseProgress)
             : isBibleReader
               ? readerTabBarStyle
               : defaultTabBarStyle;
@@ -241,9 +330,30 @@ export function TabNavigator() {
           tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.tabInactive,
           tabBarStyle,
           tabBarLabelStyle: typography.tabLabel,
-          tabBarItemStyle: {
-            paddingBottom: spacing.xs,
-          },
+          tabBarItemStyle: styles.tabItem,
+          // The frosted capsule. In the reader it tints off the reading surface
+          // so the bar sits on the same material as the page behind it.
+          tabBarBackground: () => (
+            <TabBarBackground
+              isDark={isDark}
+              fill={isBibleReader ? readerCapsuleFill : capsuleFill}
+              stroke={isBibleReader ? colors.bibleDivider : colors.cardBorder}
+            />
+          ),
+          // React Navigation v7 reports selection as `aria-selected`, not
+          // `accessibilityState.selected` — reading the latter leaves the pill
+          // permanently at opacity 0.
+          tabBarButton: (props: BottomTabBarButtonProps) => (
+            <TabBarButton
+              focused={props['aria-selected'] ?? false}
+              pillColor={colors.accentSurface}
+              onPress={props.onPress as (() => void) | undefined}
+              onLongPress={props.onLongPress as (() => void) | undefined}
+              accessibilityLabel={props['aria-label']}
+            >
+              {props.children}
+            </TabBarButton>
+          ),
           tabBarIcon: ({ focused, color, size }) => {
             const tab = rootTabManifest.find((entry) => entry.name === route.name);
             const iconName = focused ? tab?.focusedIcon : tab?.unfocusedIcon;
@@ -252,15 +362,7 @@ export function TabNavigator() {
               return null;
             }
 
-            return (
-              <TabBarIcon
-                name={iconName}
-                size={size}
-                color={color}
-                focused={focused}
-                pillColor={colors.accentSoft}
-              />
-            );
+            return <TabBarIcon name={iconName} size={size} color={color} />;
           },
         };
       }}

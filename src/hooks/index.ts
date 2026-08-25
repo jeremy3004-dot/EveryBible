@@ -7,4 +7,10 @@ export { useI18n } from './useI18n';
 export { useDisplayFont, type DisplayFontOverrides } from './useDisplayFont';
 export { useKeyboardBottomInset } from './useKeyboardBottomInset';
 export { usePrivacyLock } from './usePrivacyLock';
-export { useTabBarHeight, type TabBarHeightMetrics } from './useTabBarHeight';
+export {
+  useTabBarHeight,
+  TAB_BAR_CAPSULE_HEIGHT,
+  TAB_BAR_CAPSULE_SIDE_INSET,
+  TAB_BAR_CAPSULE_RADIUS,
+  type TabBarHeightMetrics,
+} from './useTabBarHeight';
