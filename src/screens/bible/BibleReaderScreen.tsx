@@ -1893,7 +1893,11 @@ export function BibleReaderScreen() {
     ],
   }));
 
-  const readerDockBaseBottom = layout.tabBarBaseHeight + spacing.xxl;
+  // Measure the dock off the ACTUAL tab bar, not the 52pt base. The tab bar is
+  // `tabBarBaseHeight + max(insets.bottom, spacing.lg)` — 86pt on a Dynamic
+  // Island iPhone — so the old `tabBarBaseHeight + spacing.xxl` (84pt) put the
+  // dock 2pt *inside* the bar and clipped the bottom of the play button.
+  const readerDockBaseBottom = rootTabBarHeight + spacing.lg;
   const readerDockCollapsedTranslateY =
     readerDockBaseBottom - (safeInsets.bottom + spacing.xl) + spacing.xs;
   const bottomDockAnimatedStyle = useAnimatedStyle(() => ({

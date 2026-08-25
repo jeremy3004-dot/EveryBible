@@ -1394,3 +1394,35 @@ test('chapter session resets close the live transcript because readable chapters
     'BibleReaderScreen should no longer preserve a listen transcript for readable chapters'
   );
 });
+
+test('the reader dock clears the real tab bar, not the 52pt base height', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  // layout.tabBarBaseHeight is only the base; the rendered tab bar is
+  // `tabBarBaseHeight + max(insets.bottom, spacing.lg)`. Measuring the dock off
+  // the base put it 2pt inside the bar on any Dynamic Island iPhone and clipped
+  // the bottom of the play button.
+  assert.match(
+    source,
+    /const readerDockBaseBottom = rootTabBarHeight \+ spacing\.lg;/,
+    'the dock must be measured off the shared useTabBarHeight() value'
+  );
+  assert.doesNotMatch(
+    source,
+    /readerDockBaseBottom = layout\.tabBarBaseHeight/,
+    'the dock must not assume the 52pt base tab bar height'
+  );
+});
+
+test('the reader transport row shares a bottom baseline', () => {
+  const dockSource = readRelativeSource('../../components/audio/ReaderPlaybackDock.tsx');
+
+  // The play button is larger than the chapter chevrons, so a centred row makes
+  // it overhang below them and duck under the tab bar.
+  const container = dockSource.slice(
+    dockSource.indexOf('  container: {'),
+    dockSource.indexOf('  sideTransportWrap: {')
+  );
+  assert.ok(container.length > 0, 'dock container style should be locatable');
+  assert.match(container, /alignItems: 'flex-end'/, 'transport row should be bottom-aligned');
+});
