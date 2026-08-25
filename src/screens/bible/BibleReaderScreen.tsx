@@ -58,6 +58,7 @@ import { layout, radius, shadows, spacing, typography } from '../../design/syste
 import { getReadingFontFamily } from '../../design/fonts';
 import { readerThemePreviews } from '../../design/readerThemePreviews';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
@@ -760,7 +761,12 @@ export function BibleReaderScreen() {
   const readerRevealTabBarOnUpScrollRef = useRef(false);
   const readerBottomChromeProgressShared = useSharedValue(0);
   const rootTabBarVisibleRef = useRef<boolean | null>(null);
-  const { bottomPadding: rootTabBarBottomPadding, height: rootTabBarHeight } = useTabBarHeight();
+  const {
+    bottomPadding: rootTabBarBottomPadding,
+    barHeight: rootTabBarBarHeight,
+    sideInset: rootTabBarSideInset,
+    height: rootTabBarHeight,
+  } = useTabBarHeight();
   const shouldForceHideRootTabBar =
     Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
   const premiumReaderBaseBottomPadding =
@@ -777,22 +783,19 @@ export function BibleReaderScreen() {
       null
     );
   }, [navigation]);
+  // The reader drives a scroll-linked collapse of the ROOT tab bar, so it has to
+  // rebuild that bar's style. It must be the same capsule the navigator draws —
+  // this used to be a second, full-width copy, which made the bar visibly change
+  // shape on entering and leaving the reader.
   const getRootTabBarStyle = useCallback(
-    (collapseProgress: number) => ({
-      backgroundColor: colors.bibleBackground,
-      borderTopColor: colors.bibleDivider,
-      borderTopWidth: 1,
-      position: 'absolute' as const,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      paddingTop: 0,
-      paddingBottom: rootTabBarBottomPadding + spacing.sm,
-      height: rootTabBarHeight,
-      transform: [{ translateY: rootTabBarHeight * collapseProgress }],
-      opacity: 1 - collapseProgress,
-    }),
-    [colors.bibleBackground, colors.bibleDivider, rootTabBarBottomPadding, rootTabBarHeight]
+    (collapseProgress: number) =>
+      buildTabBarCapsuleStyle({
+        sideInset: rootTabBarSideInset,
+        bottomPadding: rootTabBarBottomPadding,
+        barHeight: rootTabBarBarHeight,
+        collapseProgress,
+      }),
+    [rootTabBarSideInset, rootTabBarBottomPadding, rootTabBarBarHeight]
   );
   const rootTabBarStyleBuilderRef = useRef(getRootTabBarStyle);
   rootTabBarStyleBuilderRef.current = getRootTabBarStyle;

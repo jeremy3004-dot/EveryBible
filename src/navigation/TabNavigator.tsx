@@ -21,6 +21,7 @@ import { MoreStack } from './MoreStack';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
+import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
 import { motion, typography } from '../design/system';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks';
 import { lightHaptic } from '../utils';
@@ -104,11 +105,6 @@ function TabBarButton({
 }
 
 const TAB_PILL_HEIGHT = 52;
-
-// The capsule is fully rounded, so at the pill's vertical extent its edge has
-// already curved ~14pt inward. Inset the row by that much or the first and last
-// pills breach the curve.
-const TAB_BAR_CAPSULE_ROW_INSET = 14;
 
 const styles = StyleSheet.create({
   capsule: {
@@ -249,41 +245,24 @@ export function TabNavigator() {
   // positioning, spacing.xs bottom padding) come from the polish pass.
   const defaultTabBarStyle = useMemo(
     () =>
-      ({
-        backgroundColor: 'transparent',
-        borderTopWidth: 0,
-        elevation: 0,
-        position: 'absolute' as const,
-        left: tabBarSideInset,
-        right: tabBarSideInset,
-        bottom: tabBarBottomPadding,
-        paddingTop: 0,
-        paddingBottom: 0,
-        paddingHorizontal: TAB_BAR_CAPSULE_ROW_INSET,
-        height: tabBarBarHeight,
-      }) as const,
+      buildTabBarCapsuleStyle({
+        sideInset: tabBarSideInset,
+        bottomPadding: tabBarBottomPadding,
+        barHeight: tabBarBarHeight,
+      }),
     [tabBarSideInset, tabBarBottomPadding, tabBarBarHeight]
   );
   // The reader shares the capsule geometry — only the blurred background it sits
   // on is retinted, via tabBarBackground below.
   const readerTabBarStyle = defaultTabBarStyle;
   const getCollapsingTabBarStyle = useCallback(
-    (collapseProgress: number) => ({
-      backgroundColor: 'transparent' as const,
-      borderTopWidth: 0,
-      elevation: 0,
-      position: 'absolute' as const,
-      left: tabBarSideInset,
-      right: tabBarSideInset,
-      bottom: tabBarBottomPadding,
-      paddingTop: 0,
-      paddingBottom: 0,
-      paddingHorizontal: TAB_BAR_CAPSULE_ROW_INSET,
-      height: tabBarBarHeight,
-      // Slide the whole capsule clear of the screen, gap included.
-      transform: [{ translateY: (tabBarBarHeight + tabBarBottomPadding) * collapseProgress }],
-      opacity: 1 - collapseProgress,
-    }),
+    (collapseProgress: number) =>
+      buildTabBarCapsuleStyle({
+        sideInset: tabBarSideInset,
+        bottomPadding: tabBarBottomPadding,
+        barHeight: tabBarBarHeight,
+        collapseProgress,
+      }),
     [tabBarSideInset, tabBarBottomPadding, tabBarBarHeight]
   );
 
@@ -326,7 +305,11 @@ export function TabNavigator() {
         return {
           headerShown: false,
           freezeOnBlur: true,
-          tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.tabActive,
+          // The selected tab always sits on the accent surface, so its glyph is
+          // always the accent foreground. Tinting it with the reader's text
+          // colour (the rule from when the reader retinted the whole bar) made
+          // the Bible tab render near-black on the pale-blue pill in vellum.
+          tabBarActiveTintColor: colors.tabActive,
           tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.tabInactive,
           tabBarStyle,
           tabBarLabelStyle: typography.tabLabel,

@@ -40,15 +40,18 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
 
   assert.match(
     source,
-    /const getCollapsingTabBarStyle = useCallback\(\s*\(collapseProgress: number\) => \(\{/,
+    /const getCollapsingTabBarStyle = useCallback\(\s*\(collapseProgress: number\) =>\s*buildTabBarCapsuleStyle\(\{/,
     'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
   );
 
-  // The capsule must travel far enough to clear the gap beneath it too,
-  // otherwise a sliver stays visible when the reader hides the bar.
+  // Geometry lives in one place — see the de-duplication guard below.
+  const capsuleSource = readFileSync(
+    fileURLToPath(new URL('./tabBarCapsuleStyle.ts', import.meta.url).href),
+    'utf8'
+  );
   assert.match(
-    source,
-    /transform:\s*\[\{\s*translateY:\s*\(tabBarBarHeight \+ tabBarBottomPadding\) \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
+    capsuleSource,
+    /transform:\s*\[\{\s*translateY:\s*\(barHeight \+ bottomPadding\) \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
     'the collapsing capsule should slide clear of the screen, gap included'
   );
 
@@ -169,10 +172,13 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
     'the capsule edge should follow the reader divider while the reader is focused'
   );
 
+  // The selected tab always sits on the accent surface, so its glyph is always
+  // the accent foreground — tinting it with the reader's ink made the Bible tab
+  // render near-black on the pale-blue pill in vellum.
   assert.match(
     source,
-    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.biblePrimaryText[\s\S]*: colors\.tabActive/s,
-    'TabNavigator should switch active tab text and icons to Bible reader text colors'
+    /tabBarActiveTintColor: colors\.tabActive,/,
+    'the selected tab glyph should always be the accent foreground'
   );
 
   assert.match(
@@ -201,10 +207,19 @@ test('TabNavigator renders the tab bar as a floating glass capsule', () => {
 
   // The capsule floats: inset from the edges, lifted off the bottom, and
   // transparent so the blurred background component provides the material.
+  const capsuleSource = readFileSync(
+    fileURLToPath(new URL('./tabBarCapsuleStyle.ts', import.meta.url).href),
+    'utf8'
+  );
+  assert.match(
+    capsuleSource,
+    /backgroundColor: 'transparent',[\s\S]*left: sideInset,[\s\S]*right: sideInset,[\s\S]*bottom: bottomPadding,[\s\S]*height: barHeight,/s,
+    'the tab bar should be an inset, lifted, transparent capsule'
+  );
   assert.match(
     source,
-    /backgroundColor: 'transparent',[\s\S]*left: tabBarSideInset,[\s\S]*right: tabBarSideInset,[\s\S]*bottom: tabBarBottomPadding,[\s\S]*height: tabBarBarHeight,/s,
-    'the tab bar should be an inset, lifted, transparent capsule'
+    /buildTabBarCapsuleStyle\(\{/,
+    'TabNavigator should build its bar from the shared capsule style'
   );
   assert.match(source, /<BlurView/, 'the capsule should use a real blur material');
 
@@ -324,4 +339,31 @@ test('TabNavigator resets the Plans tab to PlansHome when the tab is pressed dir
     /navigation\.navigate\('Plans', \{\s*screen:\s*'PlansHome'/s,
     'TabNavigator should send direct Plans-tab presses back to PlansHome instead of reopening the last plan detail'
   );
+});
+
+test('the tab bar capsule geometry is defined in exactly one place', () => {
+  // TabNavigator and BibleReaderScreen both set the root tab bar's style. They
+  // used to carry separate copies, so the bar changed shape when entering or
+  // leaving the reader. Both must go through the shared builder.
+  for (const [file, source] of [
+    ['TabNavigator.tsx', readRelativeSource('./TabNavigator.tsx')],
+    [
+      'BibleReaderScreen.tsx',
+      readFileSync(
+        fileURLToPath(new URL('../screens/bible/BibleReaderScreen.tsx', import.meta.url).href),
+        'utf8'
+      ),
+    ],
+  ] as const) {
+    assert.match(
+      source,
+      /buildTabBarCapsuleStyle\(/,
+      `${file} must build the root tab bar from the shared capsule style`
+    );
+    assert.doesNotMatch(
+      source,
+      /borderTopWidth: 1,[\s\S]{0,200}?left: 0,[\s\S]{0,200}?right: 0,[\s\S]{0,200}?bottom: 0,/,
+      `${file} must not re-inline a full-width, flush-to-bottom tab bar`
+    );
+  }
 });

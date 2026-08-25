@@ -631,16 +631,19 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
     'BibleReaderScreen should push the normalized collapse style directly to the parent navigator so the live root tab bar actually moves with the reader dock'
   );
 
+  // The reader still rebuilds the root tab bar for its scroll-linked collapse,
+  // but through the shared capsule builder — a second inline copy is what made
+  // the bar change shape when entering and leaving the reader.
   assert.match(
     source,
-    /const getRootTabBarStyle = useCallback\([\s\S]*position:\s*'absolute'[\s\S]*left:\s*0,[\s\S]*right:\s*0,[\s\S]*bottom:\s*0,[\s\S]*transform:\s*\[\{\s*translateY:\s*rootTabBarHeight \* collapseProgress\s*\}\]/s,
-    'BibleReaderScreen should treat the root tab bar as an overlay while collapsing so the drop animation does not reserve a black layout strip'
+    /const getRootTabBarStyle = useCallback\(\s*\(collapseProgress: number\) =>\s*buildTabBarCapsuleStyle\(\{[\s\S]*collapseProgress,/s,
+    'BibleReaderScreen should rebuild the root tab bar from the shared capsule style'
   );
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /const getRootTabBarStyle = useCallback\([\s\S]*backgroundColor:\s*colors\.bibleBackground,[\s\S]*borderTopColor:\s*colors\.bibleDivider/s,
-    'BibleReaderScreen should keep its live root tab-bar override on the Bible reader color tokens'
+    /const getRootTabBarStyle = useCallback\([\s\S]{0,400}?borderTopWidth: 1,/s,
+    'the reader must not re-inline its own full-width tab bar geometry'
   );
 
   assert.match(
@@ -659,8 +662,8 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
 
   assert.match(
     source,
-    /const \{\s*bottomPadding:\s*rootTabBarBottomPadding,\s*height:\s*rootTabBarHeight\s*\} = useTabBarHeight\(\);/,
-    'BibleReaderScreen should source its local root-tab-bar overlay footprint from the shared useTabBarHeight hook so it always matches the real tab bar'
+    /bottomPadding:\s*rootTabBarBottomPadding,[\s\S]*barHeight:\s*rootTabBarBarHeight,[\s\S]*sideInset:\s*rootTabBarSideInset,[\s\S]*height:\s*rootTabBarHeight,[\s\S]*\} = useTabBarHeight\(\);/,
+    'BibleReaderScreen should source its root-tab-bar geometry from the shared useTabBarHeight hook so it always matches the real tab bar'
   );
 
   assert.equal(
