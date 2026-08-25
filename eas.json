@@ -35,7 +35,8 @@
       "autoIncrement": true,
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4g",
-        "EXPO_PUBLIC_EL_MEDIA_BASE_URL": "https://lqd-media.platform-979.workers.dev"
+        "EXPO_PUBLIC_EL_MEDIA_BASE_URL": "https://lqd-media.platform-979.workers.dev",
+        "EXPO_PUBLIC_EL_MEDIA_SOURCE": "true"
       },
       "ios": {
         "resourceClass": "m-medium",
