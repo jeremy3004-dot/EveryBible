@@ -341,6 +341,18 @@ const waitForFeedbackAudioActiveAppState = async (): Promise<boolean> => {
   });
 };
 
+const restoreFeedbackAudioPlaybackMode = async (): Promise<void> => {
+  try {
+    // iOS can route playback through the earpiece while recording is allowed.
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+    });
+  } catch {
+    // Audio cleanup should not hide the recording error or block the feedback flow.
+  }
+};
+
 async function loadAudioShareDependencies() {
   const [downloadStorage, downloadService, remoteAudio, shareService, FileSystem] =
     await Promise.all([
@@ -739,7 +751,16 @@ export function BibleReaderScreen() {
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
       void translatorReviewAudioSoundRef.current?.unloadAsync();
       setTranslatorReviewPlayingFeedbackId(null);
-      void feedbackAudioRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
+      const recording = feedbackAudioRecordingRef.current;
+      void (async () => {
+        try {
+          await recording?.stopAndUnloadAsync();
+        } catch {
+          // Recording teardown can race with native screen cleanup.
+        } finally {
+          await restoreFeedbackAudioPlaybackMode();
+        }
+      })();
     };
   }, []);
   const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
@@ -3186,6 +3207,7 @@ export function BibleReaderScreen() {
     playbackUrl: string
   ): Promise<boolean> => {
     try {
+      await restoreFeedbackAudioPlaybackMode();
       const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
       translatorReviewAudioSoundRef.current = sound;
       setTranslatorReviewPlayingFeedbackId(feedbackId);
@@ -3294,6 +3316,7 @@ export function BibleReaderScreen() {
   const stopFeedbackAudioRecording = async () => {
     const recording = feedbackAudioRecordingRef.current;
     if (!recording) {
+      await restoreFeedbackAudioPlaybackMode();
       return;
     }
 
@@ -3327,6 +3350,8 @@ export function BibleReaderScreen() {
           ? recordingError.message
           : t('bible.chapterFeedbackAudioStopError')
       );
+    } finally {
+      await restoreFeedbackAudioPlaybackMode();
     }
   };
 
@@ -3383,6 +3408,7 @@ export function BibleReaderScreen() {
       }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
     } catch {
       clearFeedbackAudioTimer();
+      await restoreFeedbackAudioPlaybackMode();
       setFeedbackAudioState('error');
       setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
     }
@@ -3394,6 +3420,7 @@ export function BibleReaderScreen() {
     }
 
     await stopFeedbackAudioPreview();
+    await restoreFeedbackAudioPlaybackMode();
     const { sound } = await Audio.Sound.createAsync(
       { uri: feedbackAudioDraft.uri },
       { shouldPlay: true }

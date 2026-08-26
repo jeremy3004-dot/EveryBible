@@ -159,6 +159,53 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
   );
 });
 
+test('BibleReaderScreen restores speaker playback mode after feedback recording and before feedback audio playback', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const stopRecordingBlock =
+    source.match(/const stopFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+  const startRecordingBlock =
+    source.match(/const startFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+  const previewBlock =
+    source.match(/const playFeedbackAudioPreview = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+  const translatorPlaybackBlock =
+    source.match(/const startTranslatorAudioPlayback = async \([\s\S]*?\n {2}\};/)?.[0] ?? '';
+  const unmountCleanupBlock =
+    source.match(
+      /const recording = feedbackAudioRecordingRef\.current;[\s\S]*?void \(async \(\) => \{[\s\S]*?\n {6}\}\)\(\);/
+    )?.[0] ?? '';
+
+  assert.match(
+    source,
+    /const restoreFeedbackAudioPlaybackMode = async \(\)\s*(?::\s*Promise<void>)?\s*=>\s*\{[\s\S]*?allowsRecordingIOS:\s*false/,
+    'Feedback playback should explicitly disable iOS recording mode so audio uses the speaker route'
+  );
+  assert.match(
+    stopRecordingBlock,
+    /finally\s*\{[\s\S]*restoreFeedbackAudioPlaybackMode\(\)/,
+    'Stopping feedback recording should restore playback mode even when recording finalization exits early or throws'
+  );
+  assert.match(
+    startRecordingBlock,
+    /catch\s*\{[\s\S]*restoreFeedbackAudioPlaybackMode\(\)/,
+    'Feedback recording startup errors should restore playback mode after enabling microphone recording'
+  );
+  assert.match(
+    previewBlock,
+    /restoreFeedbackAudioPlaybackMode\(\)/,
+    'Feedback preview should restore speaker playback mode before loading the preview sound'
+  );
+  assert.match(
+    translatorPlaybackBlock,
+    /restoreFeedbackAudioPlaybackMode\(\)/,
+    'Translator review playback should restore speaker playback mode before loading reviewer audio'
+  );
+  assert.match(
+    unmountCleanupBlock,
+    /try\s*\{[\s\S]*?await recording\?\.stopAndUnloadAsync\(\);[\s\S]*?\}\s*catch\s*\{[\s\S]*?\}\s*finally\s*\{[\s\S]*?await restoreFeedbackAudioPlaybackMode\(\)/,
+    'Unmount cleanup should contain recording-stop failures while still restoring playback mode'
+  );
+});
+
 test('BibleReaderScreen uses the saved reviewer name and role but does not depend on a manual ID-number preference', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
