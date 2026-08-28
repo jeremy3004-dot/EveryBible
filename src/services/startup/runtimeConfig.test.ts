@@ -131,8 +131,10 @@ test('app config allowlist matches the public runtime config keys', () => {
 
 // Gap closed 2026-08-17: release builds get the EL media base URL from eas.json, and the
 // el_media_source flag is opted in per profile. Production stays inert until EL's launch
-// cutover, so an accidental "EXPO_PUBLIC_EL_MEDIA_SOURCE" there must fail this test.
-test('eas build profiles carry the EL media base URL and gate the flag off in production', () => {
+// cutover. 2026-08-25: production deliberately opted in (bcd589ea) — the old R2 catalog is
+// temporarily disconnected and Every Language is the live media source, so production must now
+// carry the flag; this test pins the deliberate state in every profile either way.
+test('eas build profiles carry the EL media base URL and enable the flag in production', () => {
   const easConfig = JSON.parse(readRootFile('eas.json')) as {
     build: Record<string, { env?: Record<string, string> }>;
   };
@@ -147,7 +149,7 @@ test('eas build profiles carry the EL media base URL and gate the flag off in pr
 
   assert.equal(easConfig.build.development.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
   assert.equal(easConfig.build.preview.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
-  assert.equal(easConfig.build.production.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, undefined);
+  assert.equal(easConfig.build.production.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
 });
 
 test('app config derives the iOS Google URL scheme for the Expo config plugin', () => {

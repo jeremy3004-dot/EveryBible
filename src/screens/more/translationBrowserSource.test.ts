@@ -50,3 +50,35 @@ test('translation browser screen removes legacy reading-preference rows and uses
     'TranslationBrowserScreen should not keep the old preference picker flow once the shared picker is in place'
   );
 });
+
+test('translation browser screen refreshes the catalog through the shared runtime refresh helper', () => {
+  const source = readRelativeSource('./TranslationBrowserScreen.tsx');
+
+  assert.match(
+    source,
+    /import \{ refreshRuntimeCatalog \} from '\.\.\/\.\.\/services\/translations\/runtimeCatalogRefresh';/,
+    'TranslationBrowserScreen should reuse the shared refresh so Every Language stays applied'
+  );
+
+  assert.match(
+    source,
+    /await refreshRuntimeCatalog\(\);/,
+    'TranslationBrowserScreen should await the shared refresh instead of mapping the catalog itself'
+  );
+});
+
+test('translation browser screen never applies a Supabase-only runtime catalog', () => {
+  const source = readRelativeSource('./TranslationBrowserScreen.tsx');
+
+  assert.equal(
+    source.includes('applyRuntimeCatalog'),
+    false,
+    'A Supabase-only applyRuntimeCatalog call from this screen wipes the additively applied Every Language translations'
+  );
+
+  assert.equal(
+    source.includes('listAvailableTranslations'),
+    false,
+    'Catalog fetching and mapping belong to the shared refresh helper, not the screen'
+  );
+});

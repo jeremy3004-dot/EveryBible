@@ -7,13 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
-import {
-  listAvailableTranslations,
-  mapCatalogEntryToBibleTranslation,
-} from '../../services/translations/translationService';
-import { normalizeCatalogTranslationId } from '../../services/translations/translationCatalogModel';
+import { refreshRuntimeCatalog } from '../../services/translations/runtimeCatalogRefresh';
 import type { MoreStackParamList } from '../../navigation/types';
-import { useBibleStore } from '../../stores/bibleStore';
 import { TranslationPickerList } from '../bible/TranslationPickerList';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'TranslationBrowser'>;
@@ -28,21 +23,10 @@ export function TranslationBrowserScreen() {
     setIsLoading(true);
 
     try {
-      const catalogResult = await listAvailableTranslations();
-
-      if (catalogResult.success && catalogResult.data && catalogResult.data.length > 0) {
-        const currentStoreTranslations = useBibleStore.getState().translations;
-        const runtimeTranslations = catalogResult.data.map((entry) =>
-          mapCatalogEntryToBibleTranslation(
-            entry,
-            currentStoreTranslations.find(
-              (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
-            )
-          )
-        );
-
-        useBibleStore.getState().applyRuntimeCatalog(runtimeTranslations);
-      }
+      // Shared refresh so this screen re-applies Every Language additively. Mapping the
+      // Supabase catalog and applying it here directly would prune the EL runtime rows, which
+      // are remote audio-only and therefore dropped by the runtime-catalog merge.
+      await refreshRuntimeCatalog();
     } finally {
       setIsLoading(false);
     }
