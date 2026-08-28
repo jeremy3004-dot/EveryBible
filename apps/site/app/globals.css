@@ -679,6 +679,91 @@ img { display: block; max-width: 100%; }
   font-variant-numeric: tabular-nums;
 }
 
+/* ── App Store screenshot showcase ─────────────────────────────── */
+
+.app-showcase {
+  padding: 96px 0 112px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.app-showcase__header {
+  max-width: 620px;
+  margin-bottom: 44px;
+}
+
+.app-showcase__eyebrow {
+  display: block;
+  margin: 0 0 12px;
+  color: hsl(var(--primary-deep));
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.app-showcase__title {
+  max-width: 18ch;
+  margin: 0 0 16px;
+  color: hsl(var(--foreground));
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.02;
+}
+
+.app-showcase__sub {
+  max-width: 48ch;
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: var(--text-body);
+  line-height: 1.6;
+}
+
+.app-showcase__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.app-showcase__card { margin: 0; }
+
+.app-showcase__image-shell {
+  overflow: hidden;
+  border: 1px solid hsl(var(--card-border));
+  border-radius: 22px;
+  background: hsl(var(--popover));
+  box-shadow: var(--edge-light), var(--shadow-md);
+  transition:
+    transform var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+.app-showcase__image-shell:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--edge-light), var(--shadow-lg);
+}
+
+.app-showcase__image-shell img {
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 980px) {
+  .app-showcase__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .app-showcase { padding: 72px 0 80px; }
+  .app-showcase__header { margin-bottom: 32px; }
+  .app-showcase__grid { gap: 10px; }
+  .app-showcase__image-shell { border-radius: 16px; }
+}
+
 /* ── Features ───────────────────────────────────────────────────── */
 
 .features { padding: 96px 0; }

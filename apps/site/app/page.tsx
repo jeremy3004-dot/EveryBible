@@ -1,5 +1,6 @@
 import Image from 'next/image';
 
+import { AppStoreScreenshotShowcase } from '../components/AppStoreScreenshotShowcase';
 import { HeroDeviceStack } from '../components/HeroDeviceStack';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
@@ -141,6 +142,8 @@ export default async function Home() {
           </div>
         </div>
       </div>
+
+      <AppStoreScreenshotShowcase />
 
       {/* ── Features ── */}
       <section className="features" id="mission" aria-labelledby="features-title">

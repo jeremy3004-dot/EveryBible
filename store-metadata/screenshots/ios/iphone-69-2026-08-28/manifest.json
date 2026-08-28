@@ -1,0 +1,58 @@
+{
+  "generatedOn": "2026-08-28",
+  "status": "candidate",
+  "store": "Apple App Store",
+  "displayClass": "iPhone 6.9-inch",
+  "dimensions": {
+    "width": 1320,
+    "height": 2868
+  },
+  "format": "PNG",
+  "colorMode": "sRGB",
+  "alpha": false,
+  "production": {
+    "backgroundTool": "Built-in Image 2.0 workflow",
+    "compositionTool": "ImageMagick",
+    "uiPreservation": "Exact supplied screenshots composited after background generation",
+    "backgroundPrompts": [
+      "Warm ivory and parchment editorial paper with a restrained sky-blue glow, quiet center, clean top headline space, and subtle blue edge marks; background only, no text, device, logo, cross, or people.",
+      "Deep ink-navy tactile paper with a muted-azure center halo, clean dark headline space, and delicate ivory edge arcs; background only, no text, device, logo, cross, or people.",
+      "Warm linen and ivory paper with a translucent watercolor-blue arch, quiet center, clean top headline space, and subtle blue contour lines; background only, no text, device, logo, cross, or people.",
+      "Powder-blue and ivory editorial paper collage with warm parchment light, quiet center, clean top headline space, and restrained navy edge lines; background only, no text, device, logo, cross, or people."
+    ]
+  },
+  "slides": [
+    {
+      "order": 1,
+      "output": "01-home.png",
+      "headline": "Start each day in Scripture",
+      "source": "source/screens/01-home.png",
+      "sourceSha256": "c6984d785dc93daeb9d412b4859f6040c42c2ea3544285a3fadf52af39c92301",
+      "outputSha256": "dbcc9eb0586a2dff667340c67172717d1c7e1039865ca9538b7bed2fdbe2cb11"
+    },
+    {
+      "order": 2,
+      "output": "02-bible.png",
+      "headline": "Read without distraction",
+      "source": "source/screens/02-bible.png",
+      "sourceSha256": "23e9818cf3d290ff18715a0255821adab255b4f5640c0ef4194555c1af45b7f0",
+      "outputSha256": "8fd6b80645702dc0fc92f6bb356d2589f18c6a82158e16177ae84de6f0d9a4a8"
+    },
+    {
+      "order": 3,
+      "output": "03-gather.png",
+      "headline": "Grow as a disciple",
+      "source": "source/screens/03-gather.png",
+      "sourceSha256": "b82a1e2b8322221a88dfd310d615fa2f2094b74e182ae8d18e9fa2d00595e01d",
+      "outputSha256": "d39ee3d42159c8968a3b0d74f8732f7b15f592247a847779044af08829035bda"
+    },
+    {
+      "order": 4,
+      "output": "04-plans.png",
+      "headline": "Build a daily rhythm",
+      "source": "source/screens/04-plans.png",
+      "sourceSha256": "3c910627c7d45789a0a0a8315478458a2e1756a50071774d27b868bcf4efd4d3",
+      "outputSha256": "f829204b80602630a63d8ac09cc5044f07bae0fa24d70bd7f241adab2dded88e"
+    }
+  ]
+}

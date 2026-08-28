@@ -31,6 +31,11 @@ export interface HeroContent {
   };
 }
 
+export interface AppStoreScreenshot {
+  src: string;
+  alt: string;
+}
+
 export interface FeatureCard {
   title: string;
   description: string;
@@ -78,9 +83,29 @@ export interface HomepageContent {
 }
 
 export const siteNavigation: SiteNavigationItem[] = [
+  { label: 'Screenshots', href: '#screenshots' },
   { label: 'Mission', href: '#mission' },
   { label: 'Verse of the day', href: '#verse-of-the-day' },
   { label: 'Support', href: '/support' },
+];
+
+export const appStoreScreenshots: AppStoreScreenshot[] = [
+  {
+    src: '/everybible/app-store-screenshots/01-home.png',
+    alt: 'EveryBible home screen with a daily Scripture, reading progress, and Foundations pathway.',
+  },
+  {
+    src: '/everybible/app-store-screenshots/02-bible.png',
+    alt: 'EveryBible Bible reader showing Psalm 19 with audio, search, and reading controls.',
+  },
+  {
+    src: '/everybible/app-store-screenshots/03-gather.png',
+    alt: 'EveryBible Gather screen showing Foundations discipleship pathways.',
+  },
+  {
+    src: '/everybible/app-store-screenshots/04-plans.png',
+    alt: 'EveryBible Reading Plans screen showing daily rhythms and chronological plans.',
+  },
 ];
 
 export const heroContent: HeroContent = {
