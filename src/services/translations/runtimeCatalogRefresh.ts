@@ -41,6 +41,10 @@ interface RuntimeCatalogStoreBridge {
   applyRuntimeCatalog: (translations: BibleTranslation[]) => void;
 }
 
+function isElRuntimeTranslation(translation: BibleTranslation): boolean {
+  return translation.source === 'runtime' && translation.catalog?.audio?.strategy === 'el-manifest';
+}
+
 // Resolves the store accessors, lazily importing bibleStore only when a caller has not injected
 // its own. Keeping the store out of this module's static import chain is what lets the Node test
 // runner load it, and keeps flag-off refreshes from pulling the store in before they need it.
@@ -106,6 +110,9 @@ export async function refreshRuntimeCatalog(
     const { getStoreTranslations, applyRuntimeCatalog } = await resolveStoreBridge(deps);
 
     const currentStoreTranslations = getStoreTranslations();
+    const existingElTranslations = isElActive
+      ? currentStoreTranslations.filter(isElRuntimeTranslation)
+      : [];
     runtimeTranslations = catalogResult.data.map((entry) =>
       mapCatalogEntryToBibleTranslation(
         entry,
@@ -114,7 +121,10 @@ export async function refreshRuntimeCatalog(
         )
       )
     );
-    applyRuntimeCatalog(runtimeTranslations);
+    // Keep the last verified EL rows in the same destructive catalog apply. A successful EL
+    // refresh below replaces them; a transient failure leaves them available instead of wiping
+    // working audio translations from the picker.
+    applyRuntimeCatalog([...runtimeTranslations, ...existingElTranslations]);
   }
 
   // Additive EL merge. Re-applies the COMBINED [Supabase, EL] list so both sets survive under
