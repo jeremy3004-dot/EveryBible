@@ -2,7 +2,7 @@ import type { BibleTranslation } from '../../types';
 import { useBibleStore } from '../../stores/bibleStore';
 import { getUserTranslationPreferences } from './translationService';
 import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
-import { refreshRuntimeCatalog } from './runtimeCatalogRefresh';
+import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
 
 let runtimeCatalogHydrationPromise: Promise<void> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
@@ -33,11 +33,13 @@ function isReadableLocally(translation: {
 export async function bootstrapRuntimeTranslations(): Promise<void> {
   // Shared refresh path (also used by TranslationBrowserScreen): it applies the Supabase
   // catalog and then re-applies the combined [Supabase, EL] list, so neither set prunes the
-  // other. When neither source produced anything the launch stays un-hydrated so a later
-  // attempt can still populate the catalog.
-  const { appliedSupabaseCatalog, isElActive } = await refreshRuntimeCatalog();
+  // other. When the refresh did not actually produce the rows this build needs, the launch
+  // stays un-hydrated so a later attempt (the next time the translation picker opens) can
+  // still populate the catalog — see shouldMarkRuntimeCatalogHydrated for why an EL-active
+  // build must not latch on the feature flag alone.
+  const result = await refreshRuntimeCatalog();
 
-  if (!appliedSupabaseCatalog && !isElActive) {
+  if (!shouldMarkRuntimeCatalogHydrated(result)) {
     return;
   }
 

@@ -149,3 +149,42 @@ test('EL step returning an empty list performs no re-apply (nothing to add)', as
 
   assert.equal(applyCount, 0);
 });
+
+test('applyElRuntimeCatalog reports whether EL rows actually reached the store', async () => {
+  const base = [makeSupabaseRuntime('bsb')];
+  const el = makeElRuntime('el-lqdtest');
+
+  const applied = await applyElRuntimeCatalog(base, {
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => [el],
+    applyRuntimeCatalog: () => {},
+  });
+  assert.equal(applied, true, 'a successful EL merge must report success');
+
+  const failed = await applyElRuntimeCatalog(base, {
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => {
+      throw new Error('network down');
+    },
+    applyRuntimeCatalog: () => {},
+  });
+  assert.equal(
+    failed,
+    false,
+    'a thrown EL step must report failure instead of swallowing silently'
+  );
+
+  const empty = await applyElRuntimeCatalog(base, {
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => [],
+    applyRuntimeCatalog: () => {},
+  });
+  assert.equal(empty, false, 'an EL step that yields no rows must not count as an applied merge');
+
+  const inert = await applyElRuntimeCatalog(base, {
+    resolveUrl: () => null,
+    elStep: async () => [el],
+    applyRuntimeCatalog: () => {},
+  });
+  assert.equal(inert, false, 'an inert (flag-off) EL path applies nothing');
+});

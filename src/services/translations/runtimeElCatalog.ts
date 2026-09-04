@@ -49,16 +49,23 @@ const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
  * The whole EL path is guarded: a null resolver (flag off / unconfigured) short-circuits
  * BEFORE the heavy step loads, and any EL failure is swallowed so the existing (Supabase)
  * flow is never affected.
+ *
+ * Returns true only when EL rows were actually merged into the store. A failure stays
+ * non-fatal (it is still swallowed here), but callers MUST be able to tell "EL produced
+ * rows" from "EL was configured": EL rows are not restored from persistence
+ * (`sanitizeRuntimeTranslation` rejects their `totalBooks: 0`), so every launch depends on
+ * this step succeeding, and a caller that treats "configured" as "done" strands the device
+ * without EL translations for the rest of the launch.
  */
 export async function applyElRuntimeCatalog(
   baseTranslations: BibleTranslation[],
   deps: ApplyElRuntimeCatalogDeps = {}
-): Promise<void> {
+): Promise<boolean> {
   const resolveUrl = deps.resolveUrl ?? resolveElCatalogUrl;
   const catalogUrl = resolveUrl();
   if (!catalogUrl) {
     // Flag off or unconfigured: zero EL work, zero startup cost. The heavy step never loads.
-    return;
+    return false;
   }
 
   const elStep = deps.elStep ?? defaultElStep;
@@ -66,7 +73,7 @@ export async function applyElRuntimeCatalog(
   try {
     const elTranslations = await elStep(catalogUrl);
     if (elTranslations.length === 0) {
-      return;
+      return false;
     }
     // Resolve the store apply lazily so this module has no import-time dependency on the
     // React Native store graph (keeps it loadable under the Node test runner, and keeps the
@@ -75,11 +82,13 @@ export async function applyElRuntimeCatalog(
       deps.applyRuntimeCatalog ??
       (await import('../../stores/bibleStore')).useBibleStore.getState().applyRuntimeCatalog;
     applyRuntimeCatalog([...baseTranslations, ...elTranslations]);
+    return true;
   } catch (error) {
     // EL is strictly additive and best-effort: any failure must never disturb the existing
     // (Supabase) runtime catalog that was already applied.
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.warn('[Bible] EL runtime catalog merge failed (ignored):', error);
     }
+    return false;
   }
 }

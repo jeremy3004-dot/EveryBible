@@ -30,8 +30,13 @@ export interface RefreshRuntimeCatalogDeps {
 export interface RefreshRuntimeCatalogResult {
   // True when the Supabase catalog returned rows and they were applied to the store.
   appliedSupabaseCatalog: boolean;
-  // True when the EL feature flag resolved a catalog URL for this build.
+  // True when the EL feature flag resolved a catalog URL for this build. This says only that
+  // EL was ATTEMPTED — never that it produced rows. Use appliedElCatalog for that.
   isElActive: boolean;
+  // True when EL rows were fetched, verified, mapped AND merged into the store by this
+  // refresh. False for a flag-off build and for every EL failure (network, verification,
+  // empty catalog), which are all swallowed inside applyElRuntimeCatalog.
+  appliedElCatalog: boolean;
   // The mapped Supabase runtime rows applied by this refresh (empty when there were none).
   translations: BibleTranslation[];
 }
@@ -97,7 +102,12 @@ export async function refreshRuntimeCatalog(
   const isElActive = resolveUrl() !== null;
 
   if (!hasSupabaseCatalog && !isElActive) {
-    return { appliedSupabaseCatalog: false, isElActive: false, translations: [] };
+    return {
+      appliedSupabaseCatalog: false,
+      isElActive: false,
+      appliedElCatalog: false,
+      translations: [],
+    };
   }
 
   // Map + apply the Supabase runtime catalog (if any) first — the fast, established path.
@@ -120,8 +130,9 @@ export async function refreshRuntimeCatalog(
   // Additive EL merge. Re-applies the COMBINED [Supabase, EL] list so both sets survive under
   // either ordering (EL ids are `el-`/`lq`-prefixed and collision-proof); any EL failure is
   // swallowed inside applyElRuntimeCatalog and never affects the Supabase flow above.
+  let appliedElCatalog = false;
   if (isElActive) {
-    await applyElRuntimeCatalog(runtimeTranslations, {
+    appliedElCatalog = await applyElRuntimeCatalog(runtimeTranslations, {
       resolveUrl,
       elStep: deps.elStep,
       applyRuntimeCatalog: deps.applyRuntimeCatalog,
@@ -131,6 +142,34 @@ export async function refreshRuntimeCatalog(
   return {
     appliedSupabaseCatalog: hasSupabaseCatalog,
     isElActive,
+    appliedElCatalog,
     translations: runtimeTranslations,
   };
+}
+
+/**
+ * Whether a refresh result may latch the caller's per-launch "already hydrated" flag.
+ *
+ * EL runtime rows exist ONLY in memory: `sanitizeRuntimeTranslation` rejects them when the
+ * store rehydrates (their `totalBooks` is 0, and the guard requires > 0), so a launch shows EL
+ * translations only if THIS launch's EL step succeeded. Latching on `isElActive` — which just
+ * means the feature flag resolved a catalog URL — therefore turned one transient EL failure
+ * into "no Every Language rows until the app is force-quit and relaunched", with every retry
+ * path (re-opening the translation picker) short-circuiting on the latched flag. Two devices on
+ * the same build diverged permanently on nothing but the outcome of a single fetch.
+ *
+ * So: an EL-active refresh counts as hydrated only once EL rows actually landed. When EL is
+ * inert (flag off / unconfigured) the Supabase catalog alone still hydrates the launch, exactly
+ * as before.
+ */
+export function shouldMarkRuntimeCatalogHydrated({
+  appliedSupabaseCatalog,
+  isElActive,
+  appliedElCatalog,
+}: RefreshRuntimeCatalogResult): boolean {
+  if (isElActive) {
+    return appliedElCatalog;
+  }
+
+  return appliedSupabaseCatalog;
 }

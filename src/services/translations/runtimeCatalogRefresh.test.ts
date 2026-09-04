@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry } from '../supabase/types';
 import { mergeRuntimeCatalogTranslations } from '../../stores/bibleStoreModel';
-import { refreshRuntimeCatalog } from './runtimeCatalogRefresh';
+import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
 import type { ElBootstrapStep } from './runtimeElCatalog';
 
 function makeCatalogEntry(translationId: string): TranslationCatalogEntry {
@@ -214,4 +214,89 @@ test('flag-off builds still apply the Supabase catalog without touching the EL p
     ['bsb']
   );
   assert.equal(result.appliedSupabaseCatalog, true);
+});
+
+// ── Regression: a failed EL fetch must not be mistaken for a hydrated launch ──────────────
+//
+// v1.0.7 field report: two devices on the SAME build, one showing the full Every Language
+// language list and one showing only the bundled languages. EL rows live ONLY in memory —
+// `sanitizeRuntimeTranslation` rejects them on rehydration (totalBooks: 0 fails its
+// `totalBooks <= 0` guard), so every launch depends on the EL step succeeding again. The
+// bootstrap latched its per-launch hydration flag off `isElActive`, which only means "the
+// flag resolved a catalog URL", so a single transient EL failure latched the launch as
+// hydrated and every later retry (re-opening the picker) short-circuited.
+
+test('an EL failure is reported so the launch is not treated as hydrated', async () => {
+  const store = makeFakeStore([]);
+
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: [makeCatalogEntry('bsb')] }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => {
+      throw new Error('network down');
+    },
+  });
+
+  assert.equal(result.isElActive, true, 'the EL flag resolved a catalog URL for this build');
+  assert.equal(
+    result.appliedElCatalog,
+    false,
+    'a failed EL step must report that no EL rows were applied'
+  );
+  assert.equal(
+    shouldMarkRuntimeCatalogHydrated(result),
+    false,
+    'an active-but-failed EL refresh must leave the launch un-hydrated so the next picker open retries'
+  );
+});
+
+test('a successful EL refresh marks the launch hydrated', async () => {
+  const el = makeElRuntime('el-lqdtest');
+  const store = makeFakeStore([]);
+
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: [makeCatalogEntry('bsb')] }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => [el],
+  });
+
+  assert.equal(result.appliedElCatalog, true);
+  assert.equal(shouldMarkRuntimeCatalogHydrated(result), true);
+});
+
+test('a flag-off build stays hydrated on the Supabase catalog alone', async () => {
+  const store = makeFakeStore([]);
+
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: [makeCatalogEntry('bsb')] }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => null,
+    elStep: async () => [],
+  });
+
+  assert.equal(result.appliedElCatalog, false);
+  assert.equal(
+    shouldMarkRuntimeCatalogHydrated(result),
+    true,
+    'EL being inert must not stop the Supabase-only flow from counting as hydrated'
+  );
+});
+
+test('a refresh that applied nothing at all is never hydrated', async () => {
+  const store = makeFakeStore([]);
+
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: false, error: 'offline' }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => null,
+    elStep: async () => [],
+  });
+
+  assert.equal(shouldMarkRuntimeCatalogHydrated(result), false);
 });

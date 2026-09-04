@@ -35,6 +35,22 @@ test('ensureRuntimeCatalogLoaded refreshes once per launch instead of stopping a
   );
 });
 
+test('a launch is only latched as hydrated once the refresh actually produced rows', () => {
+  const source = readRelativeSource('./runtimeTranslationBootstrap.ts');
+
+  assert.equal(
+    source.includes('shouldMarkRuntimeCatalogHydrated(result)'),
+    true,
+    'bootstrapRuntimeTranslations must decide hydration from the refresh outcome, not from the EL feature flag'
+  );
+
+  assert.equal(
+    /if \(!appliedSupabaseCatalog && !isElActive\)/.test(source),
+    false,
+    'latching on isElActive treats "EL is configured" as "EL loaded", stranding a device whose single EL fetch failed'
+  );
+});
+
 test('primary translation reconciliation installs remote text packs before falling back to BSB', () => {
   const source = readRelativeSource('./runtimeTranslationBootstrap.ts');
 
