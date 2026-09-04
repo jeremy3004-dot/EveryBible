@@ -133,6 +133,26 @@ test('refreshing the catalog re-applies EL additively so EL survives a Supabase 
   assert.equal(result.isElActive, true);
 });
 
+test('a transient EL refresh error does not remove the previously loaded EL catalog', async () => {
+  const existingEl = makeElRuntime('el-lqdtest');
+  const store = makeFakeStore([existingEl]);
+
+  await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: [makeCatalogEntry('bsb')] }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => {
+      throw new Error('temporary EL outage');
+    },
+  });
+
+  assert.deepEqual(store.translations.map((translation) => translation.id).sort(), [
+    'bsb',
+    'el-lqdtest',
+  ]);
+});
+
 test('an empty Supabase catalog never wipes EL runtime rows', async () => {
   const el = makeElRuntime('el-lqdtest');
   const store = makeFakeStore([el]);
