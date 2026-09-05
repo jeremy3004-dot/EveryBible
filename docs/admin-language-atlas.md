@@ -45,6 +45,8 @@ ROLV match is verified.
 - Individual dots are the default. **Clustered** groups nearby points; Map and
   Globe change projection while retaining the current view. Zoom, Fit results,
   and Reset view stay above the mobile sheet and clear of the desktop inspector.
+  The initial and Reset views use zoom 2.75 centered at 65°E, 25°N, filling the
+  map with the closer Africa–Europe–Asia view requested in the reference screenshot.
 - Colors match the Every Language reference: Full Bible `#10b981`, New Testament
   `#eab308`, Portions `#eb6a38`, and No Scripture `#ef4444`. Started and needed
   records share the No Scripture display category; their exact progress remains
