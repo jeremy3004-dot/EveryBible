@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Calendar } from 'react-native-calendars';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { buildCalendarLocale, formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -36,8 +37,8 @@ const getMonthSelectionKey = (
   return monthDays[0]?.dateKey ?? null;
 };
 
-const formatLongDate = (dateKey: string): string => {
-  return parseLocalDateKey(dateKey).toLocaleDateString(undefined, {
+const formatLongDate = (dateKey: string, language: string): string => {
+  return parseLocalDateKey(dateKey).toLocaleDateString(language, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -45,24 +46,29 @@ const formatLongDate = (dateKey: string): string => {
   });
 };
 
-const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString(undefined, {
+const formatTime = (timestamp: number, language: string): string => {
+  return new Date(timestamp).toLocaleTimeString(language, {
     hour: 'numeric',
     minute: '2-digit',
   });
 };
 
-const formatListeningTime = (minutes: number): string => {
-  if (minutes < 60) return `${minutes}m`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-};
-
 export function ReadingActivityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const calendarLocale = useMemo(
+    () => buildCalendarLocale(i18n.language, t('home.today')),
+    [i18n.language, t]
+  );
+  const [calendarLanguage, setCalendarLanguage] = useState<string | null>(null);
+  useEffect(() => {
+    LocaleConfig.locales[i18n.language] = calendarLocale;
+    LocaleConfig.defaultLocale = i18n.language;
+    // Calendar reads this external registry only when it mounts; wait for registration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCalendarLanguage(i18n.language);
+  }, [calendarLocale, i18n.language]);
   const styles = createStyles(colors);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const streakDays = useProgressStore((state) => state.streakDays);
@@ -125,7 +131,7 @@ export function ReadingActivityScreen() {
   };
 
   const selectedDayLabel = monthView.selectedDay
-    ? formatLongDate(monthView.selectedDay.dateKey)
+    ? formatLongDate(monthView.selectedDay.dateKey, i18n.language)
     : t('profile.noReadingActivityTitle');
 
   return (
@@ -160,7 +166,7 @@ export function ReadingActivityScreen() {
               <View style={styles.engagementChip}>
                 <Ionicons name="headset-outline" size={14} color={colors.accentPrimary} />
                 <Text style={styles.engagementChipValue}>
-                  {formatListeningTime(engagement.total_listening_minutes)}
+                  {formatListeningTime(engagement.total_listening_minutes, t)}
                 </Text>
                 <Text style={styles.engagementChipLabel}>{t('engagement.totalListening')}</Text>
               </View>
@@ -191,33 +197,37 @@ export function ReadingActivityScreen() {
         </View>
 
         <View style={styles.calendarCard}>
-          <Calendar
-            current={`${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-01`}
-            markedDates={markedDates}
-            onDayPress={(day) => handleDayPress(day.dateString)}
-            onMonthChange={(month: { year: number; month: number }) => {
-              setSelectedDateKey(null);
-              setViewDate(new Date(month.year, month.month - 1, 1));
-            }}
-            hideExtraDays={false}
-            enableSwipeMonths
-            theme={{
-              backgroundColor: colors.cardBackground,
-              calendarBackground: colors.cardBackground,
-              textSectionTitleColor: colors.secondaryText,
-              dayTextColor: colors.primaryText,
-              monthTextColor: colors.primaryText,
-              textDayFontWeight: '600',
-              textMonthFontWeight: '700',
-              textDayHeaderFontWeight: '600',
-              selectedDayBackgroundColor: colors.accentPrimary,
-              selectedDayTextColor: colors.onAccent,
-              todayTextColor: colors.accentPrimary,
-              arrowColor: colors.primaryText,
-              dotColor: colors.accentPrimary,
-              textDisabledColor: hexWithAlpha(colors.secondaryText, 0.33),
-            }}
-          />
+          {calendarLanguage === i18n.language && (
+            <Calendar
+              key={i18n.language}
+              testID="reading-activity-calendar"
+              current={`${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-01`}
+              markedDates={markedDates}
+              onDayPress={(day) => handleDayPress(day.dateString)}
+              onMonthChange={(month: { year: number; month: number }) => {
+                setSelectedDateKey(null);
+                setViewDate(new Date(month.year, month.month - 1, 1));
+              }}
+              hideExtraDays={false}
+              enableSwipeMonths
+              theme={{
+                backgroundColor: colors.cardBackground,
+                calendarBackground: colors.cardBackground,
+                textSectionTitleColor: colors.secondaryText,
+                dayTextColor: colors.primaryText,
+                monthTextColor: colors.primaryText,
+                textDayFontWeight: '600',
+                textMonthFontWeight: '700',
+                textDayHeaderFontWeight: '600',
+                selectedDayBackgroundColor: colors.accentPrimary,
+                selectedDayTextColor: colors.onAccent,
+                todayTextColor: colors.accentPrimary,
+                arrowColor: colors.primaryText,
+                dotColor: colors.accentPrimary,
+                textDisabledColor: hexWithAlpha(colors.secondaryText, 0.33),
+              }}
+            />
+          )}
         </View>
 
         <View style={styles.detailCard}>
@@ -241,12 +251,12 @@ export function ReadingActivityScreen() {
               </Text>
               <Text style={styles.detailMeta}>
                 {t('profile.firstReadAt', {
-                  time: formatTime(monthView.selectedDay.firstReadAt),
+                  time: formatTime(monthView.selectedDay.firstReadAt, i18n.language),
                 })}
               </Text>
               <Text style={styles.detailMeta}>
                 {t('profile.lastReadAt', {
-                  time: formatTime(monthView.selectedDay.lastReadAt),
+                  time: formatTime(monthView.selectedDay.lastReadAt, i18n.language),
                 })}
               </Text>
             </View>

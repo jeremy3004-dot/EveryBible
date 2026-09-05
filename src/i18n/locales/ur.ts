@@ -1,23 +1,299 @@
 export const ur = {
+  interface: {
+    "close": "بند کریں",
+    "share": "شیئر کریں",
+    "minutesShort": "{{count}} منٹ",
+    "hoursShort": "{{count}} گھنٹے",
+    "daysShort": "{{count}} دن",
+    "hoursMinutes": "{{hours}} گھنٹے {{minutes}} منٹ",
+    "justNow": "ابھی",
+    "minutesAgo": "{{count}} منٹ پہلے",
+    "hoursAgo": "{{count}} گھنٹے پہلے",
+    "daysAgo": "{{count}} دن پہلے",
+    "activePrayerCount": "{{count}} جاری",
+    "groupShareMessage": "EveryBible میں میرے شاگرد سازی کے گروپ «{{name}}» میں شامل ہوں!\n\nشمولیت کا کوڈ: {{code}}",
+    "groupAboutTitle": "گروپ کی نشستوں کے بارے میں",
+    "groupAboutBody": "گروپ کی نشستیں دنیا بھر کی شاگرد سازی کی تحریکوں میں استعمال ہونے والے تین حصوں کے طریقے پر چلتی ہیں:",
+    "groupLookBack": "آپ نے کیسے فرمانبرداری کی؟ کس کے ساتھ پیغام بانٹا؟",
+    "groupLookUp": "مل کر کلامِ مقدس پڑھیں اور گفتگو کریں",
+    "groupLookForward": "آپ کیسے فرمانبرداری کریں گے؟ کس کو بتائیں گے؟",
+    "backgroundMusicLabel": "پس منظر کی موسیقی: {{name}}",
+    "backgroundMusicHint": "پس منظر کی موسیقی کا انتخاب کھولتا ہے",
+    "repeatHint": "تکرار بند، باب کی تکرار اور کتاب کی تکرار کے درمیان بدلتا ہے",
+    "shareAudioHint": "اس باب کی آڈیو شیئر کرنے کے اختیارات کھولتا ہے",
+    "playChapterAudio": "باب کی آڈیو چلائیں",
+    "pauseChapterAudio": "باب کی آڈیو موقوف کریں",
+    "previousChapterHint": "پچھلے باب پر جاتا ہے",
+    "chapterRange": "ابواب {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} کتابیں ({{percent}}%)",
+    "currentPlanDay": "منصوبے کا موجودہ دن {{day}}",
+    "planDay": "دن {{day}}",
+    "planSessionForDay": "دن {{day}} کی {{session}}",
+    "music": {
+      "off": {
+        "label": "بند",
+        "description": "کلامِ مقدس کو شامل شدہ پس منظر کی موسیقی کے بغیر چلائیں۔"
+      },
+      "ambient": {
+        "label": "پُرسکون دُھن",
+        "description": "تلاوت کے پس منظر میں پانی کے اندر جیسی نرم دُھن اور گھنٹیوں کی مسلسل آواز۔"
+      },
+      "piano": {
+        "label": "پیانو",
+        "description": "ہلکے پس منظر کے ساتھ نرم پیانو کی دُھن۔"
+      },
+      "soft-guitar": {
+        "label": "نرم گٹار",
+        "description": "نائلون تاروں والے گٹار کی نرم، مسلسل دُھن جو توجہ نہیں ہٹاتی۔"
+      },
+      "harp": {
+        "label": "ہارپ",
+        "description": "نرم عبادتی احساس کے ساتھ ہارپ کی ہلکی سولو دُھن۔"
+      },
+      "flute": {
+        "label": "بانسری",
+        "description": "نرم خواب ناک ماحول کے ساتھ بانسری کی مختصر دُھن بار بار چلتی ہے۔"
+      },
+      "sitar": {
+        "label": "ستار",
+        "description": "طویل سماعت کے لیے صحرائی انداز میں ستار کی گرم دُھن۔"
+      },
+      "ocean-waves": {
+        "label": "سمندر کی لہریں",
+        "description": "زیادہ پُرسکون پس منظر کے لیے ساحل کی لہروں کی مسلسل آواز۔"
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "کیتھولک صبح کی دعا",
+        "description": "صبح کی عبادت کے انداز میں حمد، مناجات اور انجیل کی برکت سے دن کا آغاز۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "اوقات کی عبادت"
+      },
+      "catholic-daytime-prayer": {
+        "title": "کیتھولک دن کی دعا",
+        "description": "مختصر زبور اور خدا کی طرف مسلسل رجوع پر مبنی دوپہر کی مختصر عبادت۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "اوقات کی عبادت"
+      },
+      "catholic-evening-prayer": {
+        "title": "کیتھولک شام کی دعا",
+        "description": "شام کی عبادت سے متاثر ہو کر زبور، شکرگزاری اور مریم کی حمد کے ساتھ دن کا اختتام۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "اوقات کی عبادت"
+      },
+      "catholic-night-prayer": {
+        "title": "کیتھولک رات کی دعا",
+        "description": "سونے سے پہلے بھروسے، حفاظت اور پُرسکون سپردگی کی دعا کا معمول۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "سونے سے پہلے کی دعا"
+      },
+      "catholic-lectio-divina": {
+        "title": "کیتھولک مقدس مطالعہ",
+        "description": "غور، دعا اور متن پر ٹھہرنے کے لیے آہستہ مطالعے کا معمول۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "مقدس مطالعہ"
+      },
+      "ignatian-daily-examen": {
+        "title": "اگناتی روزانہ محاسبہ",
+        "description": "شکرگزاری، جائزے اور توبہ پر مبنی دن کے اختتام کا غوروفکر۔",
+        "tradition": "کیتھولک",
+        "historicRoots": "اگناتی روحانیت"
+      },
+      "anglican-morning-prayer": {
+        "title": "اینگلیکن صبح کی دعا",
+        "description": "آنے والے دن کے لیے زبور اور انجیل کی تعلیم پر مبنی صبح کی مقررہ عبادت۔",
+        "tradition": "اینگلیکن",
+        "historicRoots": "مشترکہ دعا کی کتاب"
+      },
+      "anglican-noonday-prayer": {
+        "title": "اینگلیکن دوپہر کی دعا",
+        "description": "مدد کے زبور اور زندگی کی روٹی کی امید کے ساتھ دوپہر کی مختصر دعا۔",
+        "tradition": "اینگلیکن",
+        "historicRoots": "روزانہ دعا"
+      },
+      "anglican-evening-prayer": {
+        "title": "اینگلیکن شام کی دعا",
+        "description": "شام کے زبور اور مریم کی حمد کے ساتھ روایتی شام کی عبادت۔",
+        "tradition": "اینگلیکن",
+        "historicRoots": "مشترکہ دعا کی کتاب"
+      },
+      "anglican-compline": {
+        "title": "اینگلیکن سونے سے پہلے کی دعا",
+        "description": "اقرارِ گناہ، بھروسے اور آرام کے لیے رات کی پُرسکون عبادت۔",
+        "tradition": "اینگلیکن",
+        "historicRoots": "مشترکہ دعا کی کتاب"
+      },
+      "orthodox-morning-rule": {
+        "title": "آرتھوڈوکس صبح کی دعا کا قاعدہ",
+        "description": "توبہ، رحم اور یسوع کی سکھائی ہوئی دعا پر مبنی سحر کی دعا کا قاعدہ۔",
+        "tradition": "آرتھوڈوکس",
+        "historicRoots": "صبح کی دعائیں"
+      },
+      "orthodox-sixth-hour": {
+        "title": "آرتھوڈوکس چھٹے گھنٹے کی دعا",
+        "description": "مسیح کے دکھ اور بیداری کو یاد رکھنے کے لیے دوپہر کی مقررہ دعا کا وقفہ۔",
+        "tradition": "آرتھوڈوکس",
+        "historicRoots": "دعا کے اوقات"
+      },
+      "orthodox-vespers": {
+        "title": "آرتھوڈوکس شام کی دعا",
+        "description": "تخلیق کی حمد، چراغ کی روشنی کے زبور اور کلام کے ساتھ شام کی عبادت۔",
+        "tradition": "آرتھوڈوکس",
+        "historicRoots": "روزانہ شام کی دعا"
+      },
+      "orthodox-small-compline": {
+        "title": "آرتھوڈوکس مختصر شب کی دعا",
+        "description": "رحم، پناہ اور نیند سے پہلے کی آخری دعاؤں کے لیے رات کی خاموش عبادت۔",
+        "tradition": "آرتھوڈوکس",
+        "historicRoots": "سونے سے پہلے کی دعا"
+      },
+      "benedictine-sacred-reading": {
+        "title": "بینیڈکٹائن مقدس مطالعہ",
+        "description": "مقدس مطالعے کے مقررہ اوقات اور پُرسکون توجہ سے متاثر مطالعے کا معمول۔",
+        "tradition": "بینیڈکٹائن",
+        "historicRoots": "مقدس بینیڈکٹ کا قاعدہ"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "بینیڈکٹائن زبور اور کام",
+        "description": "دن بھر دعا، کام اور خاموش فرمانبرداری کا عملی سلسلہ۔",
+        "tradition": "بینیڈکٹائن",
+        "historicRoots": "دعا اور محنت"
+      },
+      "taize-evening-prayer": {
+        "title": "تیزے شام کی دعا",
+        "description": "زبور، مطالعے اور سکون پر مبنی گیت اور خاموشی کی شام۔",
+        "tradition": "تیزے",
+        "historicRoots": "تیزے میں مشترکہ دعا"
+      },
+      "lutheran-morning-devotion": {
+        "title": "لوتھری صبح کی عبادت",
+        "description": "کلام، یاد کرنے اور باقاعدہ دعا کے خواہش مند گھرانوں کے لیے صبح کا معمول۔",
+        "tradition": "لوتھری",
+        "historicRoots": "خاندانوں کے لیے روزانہ عبادت"
+      },
+      "lutheran-close-of-day": {
+        "title": "لوتھری دن کے اختتام کی دعا",
+        "description": "اقرارِ گناہ، پناہ اور مسیح کی حفاظت کے لیے سادہ شب کی عبادت۔",
+        "tradition": "لوتھری",
+        "historicRoots": "خاندانوں کے لیے روزانہ عبادت"
+      },
+      "puritan-family-worship": {
+        "title": "پیوریٹن خاندانی عبادت",
+        "description": "دعا، حمد، کلام اور خدا پرستانہ گفتگو پر مبنی خاندانی شام۔",
+        "tradition": "پیوریٹن",
+        "historicRoots": "خاندانی عبادت کی رہنما کتاب"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "روحانی غوروفکر",
+        "description": "یسوع کی تعلیم کے قریب رہنے والے مختصر تأملات۔"
+      },
+      "mat-devotional-beatitudes": {
+        "title": "دنیا کے معیار بدلنے والی بادشاہی میں مبارک",
+        "summary": "مبارک بادیوں پر غور کریں اور دیکھیں کہ یسوع ہماری خواہشات کو کیسے بدلتا ہے۔",
+        "actionLabel": "باب پڑھیں"
+      },
+      "mat-plans": {
+        "title": "منصوبے",
+        "description": "متی کو بامقصد پڑھنے کے آسان راستے۔"
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "متی میں بادشاہی کا معمول",
+        "summary": "شناخت، دعا، رحم، مشن اور قیامت کی امید پر سات دن۔",
+        "actionLabel": "پہلا باب کھولیں"
+      },
+      "jhn-playlists": {
+        "title": "پلے لسٹیں",
+        "description": "یوحنا کے اہم حصوں میں سے سننے کے منتخب راستے۔"
+      },
+      "jhn-playlist-signs": {
+        "title": "یسوع کے نشان",
+        "summary": "مسیح کی شناخت ظاہر کرنے والے نشانوں کے ذریعے رہنمائی کا راستہ۔",
+        "actionLabel": "پلے لسٹ شروع کریں"
+      },
+      "gal-devotionals": {
+        "title": "روحانی غوروفکر",
+        "description": "دعا کے ساتھ گلتیوں پڑھنے کے مختصر تأملات۔"
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "اب غلام نہیں",
+        "summary": "فرزند بنائے جانے، میراث اور باپ کی قبولیت پر ٹھہریں۔",
+        "actionLabel": "باب پڑھیں"
+      },
+      "gal-plans": {
+        "title": "منصوبے",
+        "description": "اس خط کو پڑھنے کے مختصر اور منظم راستے۔"
+      },
+      "gal-plan-six-days": {
+        "title": "روزانہ ایک باب: گلتیوں",
+        "summary": "روزانہ ایک باب پڑھیں اور جلدی کیے بغیر پولس کی دلیل کو سمجھیں۔",
+        "actionLabel": "پہلا باب کھولیں"
+      },
+      "psa-playlists": {
+        "title": "پلے لسٹیں",
+        "description": "مختلف جذباتی موسموں کے لیے دعائیہ راستے۔"
+      },
+      "psa-playlist-morning": {
+        "title": "صبح کی پناہ",
+        "summary": "دن کے آغاز کے لیے بھروسے کے زبور کا مختصر راستہ۔",
+        "actionLabel": "پلے لسٹ شروع کریں"
+      },
+      "psa-playlist-repentance": {
+        "title": "توبہ کے زبور",
+        "summary": "سچائی، اقرارِ گناہ اور بحالی کے ساتھ دعا کریں۔",
+        "actionLabel": "پلے لسٹ شروع کریں"
+      },
+      "psa-devotionals": {
+        "title": "روحانی غوروفکر",
+        "description": "آہستگی سے زبور کے ساتھ دعا کرنے کے پُرسکون تأملات۔"
+      },
+      "psa-devotional-shepherd": {
+        "title": "بحال کرنے والا چرواہا",
+        "summary": "زبور ۲۳ پر ٹھہریں جب تک وہ نعرے کے بجائے دعا نہ بن جائے۔",
+        "actionLabel": "زبور پڑھیں"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "عوامی ملکیت کا بیریئن متن، براہِ راست CC0 باب آڈیو کے ساتھ",
+      "web": "EveryBible لائبریری سے عوامی ملکیت کا برطانوی ایڈیشن اور باب آڈیو",
+      "kjv": "۱۶۱۱ کا منظور شدہ کنگ جیمز ترجمہ",
+      "asv": "۱۹۰۱ میں شائع شدہ کنگ جیمز ترجمے کی نظرِ ثانی، متن پہلے سے نصب ہے",
+      "bbe": "آسان مطالعے کے لیے محدود ذخیرۂ الفاظ استعمال کرتا ہے",
+      "sparv1909": "کلاسیکی ہسپانوی بائبل — عوامی ملکیت کا متن",
+      "hincv": "ہندی معاصر ترجمہ — عوامی ملکیت",
+      "npiulb": "آزاد لفظی بائبل — عوامی ملکیت"
+    },
+    "audioUnavailableTranslation": "اس ترجمے کے لیے آڈیو دستیاب نہیں۔",
+    "audioUnavailableChapter": "اس باب کے لیے آڈیو دستیاب نہیں۔",
+    "audioPlayFailed": "ہم یہ آڈیو نہیں چلا سکے۔ دوبارہ کوشش کریں۔",
+    nativePermissions: {
+      "NSCameraUsageDescription": "اگر آپ پروفائل تصویر لینا چاہیں تو Every Bible کو اپنے کیمرے تک رسائی کی اجازت دیں۔",
+      "NSMicrophoneUsageDescription": "Every Bible کو ابواب کی آراء کے لیے صوتی جوابات ریکارڈ کرنے کی اجازت دیں۔",
+      "NSPhotoLibraryUsageDescription": "پروفائل تصویر منتخب کرنے کے لیے Every Bible کو اپنی تصاویر تک رسائی کی اجازت دیں۔",
+      "NSFaceIDUsageDescription": "اپنے محفوظ سائن اِن کی حفاظت کے لیے Every Bible کو Face ID استعمال کرنے کی اجازت دیں۔"
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "آراء کی فہرست",
+    subtitle: "جائزے کے لیے آراء والے ابواب",
+    empty: "تمام آراء کا جائزہ لے لیا گیا ہے۔ کوئی رائے زیرِ انتظار نہیں۔",
+    pendingCount: "{{count}} ابواب کا جائزہ باقی ہے",
+    chapterCounts: "{{down}} درست کرنے کے لیے · {{up}} تصدیق کے لیے",
+    openLabel: "{{reference}} کھولیں",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "میری آراء",
+    settingsRow: "میری آراء",
+    settingsRowSummary: "دیکھیں کہ ترجمے کی ٹیم نے آپ کی آراء پر کیا کارروائی کی",
+    subtitle: "آپ کی ابواب سے متعلق آراء پر ترجمے کی ٹیم کی کارروائی",
+    empty: "آپ نے ابھی تک کسی باب پر رائے نہیں بھیجی۔",
+    signInRequired: "اپنی بھیجی ہوئی آراء دیکھنے کے لیے سائن اِن کریں۔",
+    audioLabel: "صوتی پیغام منسلک ہے",
+    statusReceived: "موصول ہو گئی",
+    statusFixed: "درست کر دیا گیا",
+    statusNoChange: "جائزہ مکمل — تبدیلی کی ضرورت نہیں",
   },
   "common": {
     "cancel": "منسوخ کریں۔",
@@ -27,10 +303,10 @@ export const ur = {
     "retry": "دوبارہ کوشش کریں۔",
     "loading": "لوڈ ہو رہا ہے...",
     "continue": "جاری رکھیں",
-    "save": "محفوظ کریں۔",
+    "save": "محفوظ کریں",
     "delete": "حذف کریں۔",
     "edit": "ترمیم کریں۔",
-    "back": "پیچھے",
+    "back": "واپس",
     "next": "اگلا",
     "previous": "پچھلا",
     "search": "تلاش کریں۔",
@@ -62,12 +338,12 @@ export const ur = {
     "welcome": "Every Bible میں خوش آمدید",
     "beginToday": "آج شروع کریں",
     "todaysScripture": "آج کا کلام",
-    "verseOfTheDay": "دن کی آیت",
+    "verseOfTheDay": "آج کی آیت",
     "sectionOfTheDay": "دن کا سیکشن",
     "sectionOfTheDayBody": "آج کا انتخاب اس باب کے لیے آڈیو کے طور پر دستیاب ہے، یہاں تک کہ جہاں تحریری متن ابھی تک شامل نہیں کیا گیا ہے۔",
     "verseAudioBody": "آج کی آیت فی الحال آڈیو فارم میں دستیاب ہے، لہذا آپ تحریری متن کو شامل کرنے سے پہلے ہی سن سکتے ہیں۔",
     "playSectionOfTheDay": "دن کا سیکشن کھیلیں",
-    "playVerseOfTheDay": "دن کی آیت کھیلیں",
+    "playVerseOfTheDay": "آج کی آیت سنیں",
     "continueReading": "پڑھنا جاری رکھیں",
     "sharePrompt": "روشنی بانٹیں۔ آج کسی کی حوصلہ افزائی کریں۔",
     "plan": "منصوبہ",
@@ -75,7 +351,7 @@ export const ur = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "فیلڈ {{number}}",
     "notificationSettings": "اطلاع کی ترتیبات",
-    "chaptersRead": "ابواب پڑھیں",
+    "chaptersRead": "پڑھے گئے ابواب",
     "today": "آج",
     "week": "ہفتہ",
     "month": "مہینہ",
@@ -119,9 +395,9 @@ export const ur = {
     "finish": "سیٹ اپ مکمل کریں۔"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "یہ آڈیو نہیں چل سکی۔ دوبارہ کوشش کریں۔",
+    chapterFeedbackSuccessTitle: "رائے بھیج دی گئی",
+    readerFontsAndSettings: "فونٹ اور ترتیبات",
     "title": "بائبل",
     "oldTestament": "عہد نامہ قدیم",
     "fontsAndSettings": "فونٹس اور ترتیبات",
@@ -147,11 +423,11 @@ export const ur = {
     "searchUnavailable": "اس ترجمے کے لیے مکمل متن کی تلاش ابھی تک دستیاب نہیں ہے۔",
     "noVersesAvailable": "{{book}} {{chapter}} کے پاس ابھی تک کوئی تحریری متن موجود نہیں ہے۔",
     "fullBibleComingSoon": "یہ باب ابھی متن میں دستیاب نہیں ہے۔ اگر آڈیو دستیاب ہے تو اس کی بجائے Every Bible سننے کا تجربہ کھول دے گا۔",
-    "audioOnlyTitle": "آڈیو پہلا باب",
+    "audioOnlyTitle": "صوتی مطالعے والا باب",
     "audioOnlyBody": "{{translation}} فی الحال اس باب کے لیے آڈیو کے طور پر دستیاب ہے جبکہ تحریری متن ابھی تیار کیا جا رہا ہے۔",
     "verseCount_one": "{{count}} آیت",
     "verseCount_other": "{{count}} آیات",
-    "listen": "سنو",
+    "listen": "سنیں",
     "read": "پڑھیں",
     "removeFromFavorites": "پسندیدہ سے ہٹا دیں۔",
     "addToFavorites": "پسندیدہ میں شامل کریں۔",
@@ -167,114 +443,114 @@ export const ur = {
       "GEN": "پیدائش",
       "EXO": "خروج",
       "LEV": "احبار",
-      "NUM": "نمبرز",
-      "DEU": "استثنیٰ",
-      "JOS": "جوشوا",
-      "JDG": "ججز",
-      "RUT": "روتھ",
-      "1SA": "1 سیموئیل",
-      "2SA": "2 سیموئیل",
-      "1KI": "1 کنگز",
-      "2KI": "2 کنگز",
-      "1CH": "1 تواریخ",
-      "2CH": "2 تواریخ",
-      "EZR": "عذرا",
+      "NUM": "گنتی",
+      "DEU": "استثنا",
+      "JOS": "یشوع",
+      "JDG": "قضاۃ",
+      "RUT": "روت",
+      "1SA": "۱ سموئیل",
+      "2SA": "۲ سموئیل",
+      "1KI": "۱ سلاطین",
+      "2KI": "۲ سلاطین",
+      "1CH": "۱ تواریخ",
+      "2CH": "۲ تواریخ",
+      "EZR": "عزرا",
       "NEH": "نحمیاہ",
-      "EST": "ایستھر",
-      "JOB": "جاب",
+      "EST": "آستر",
+      "JOB": "ایوب",
       "PSA": "زبور",
-      "PRO": "کہاوتیں",
+      "PRO": "امثال",
       "ECC": "واعظ",
-      "SNG": "سلیمان کا گانا",
+      "SNG": "غزل الغزلات",
       "ISA": "یسعیاہ",
       "JER": "یرمیاہ",
       "LAM": "نوحہ",
       "EZK": "حزقی ایل",
-      "DAN": "ڈینیئل",
+      "DAN": "دانی ایل",
       "HOS": "ہوسیع",
-      "JOL": "جوئل",
+      "JOL": "یوایل",
       "AMO": "عاموس",
-      "OBA": "عوبدیاہ",
-      "JON": "یونا",
+      "OBA": "عبدیاہ",
+      "JON": "یوناہ",
       "MIC": "میکاہ",
-      "NAM": "نہم",
-      "HAB": "حبقوک",
+      "NAM": "ناحوم",
+      "HAB": "حبقوق",
       "ZEP": "صفنیاہ",
       "HAG": "حجی",
-      "ZEC": "زکریا",
+      "ZEC": "زکریاہ",
       "MAL": "ملاکی",
-      "MAT": "میتھیو",
+      "MAT": "متی",
       "MRK": "مرقس",
-      "LUK": "لیوک",
-      "JHN": "جان",
+      "LUK": "لوقا",
+      "JHN": "یوحنا",
       "ACT": "اعمال",
-      "ROM": "رومی",
-      "1CO": "1 کرنتھیوں",
-      "2CO": "2 کرنتھیوں",
+      "ROM": "رومیوں",
+      "1CO": "۱ کرنتھیوں",
+      "2CO": "۲ کرنتھیوں",
       "GAL": "گلتیوں",
       "EPH": "افسیوں",
-      "PHP": "فلپیین",
+      "PHP": "فلپیوں",
       "COL": "کلسیوں",
-      "1TH": "1 تھیسالونیکی",
-      "2TH": "2 تھیسالونیکی",
-      "1TI": "1 تیموتھی",
-      "2TI": "2 تیموتھی",
+      "1TH": "۱ تھسلنیکیوں",
+      "2TH": "۲ تھسلنیکیوں",
+      "1TI": "۱ تیمتھیس",
+      "2TI": "۲ تیمتھیس",
       "TIT": "ططس",
       "PHM": "فلیمون",
-      "HEB": "عبرانی",
-      "JAS": "جیمز",
-      "1PE": "1 پیٹر",
-      "2PE": "2 پیٹر",
-      "1JN": "1 جان",
-      "2JN": "2 جان",
-      "3JN": "3 جان",
-      "JUD": "جوڈ",
+      "HEB": "عبرانیوں",
+      "JAS": "یعقوب",
+      "1PE": "۱ پطرس",
+      "2PE": "۲ پطرس",
+      "1JN": "۱ یوحنا",
+      "2JN": "۲ یوحنا",
+      "3JN": "۳ یوحنا",
+      "JUD": "یہوداہ",
       "REV": "مکاشفہ"
     },
     "chapterFeedback": "باب کی رائے",
-    "chapterFeedbackTitle": "اس باب کے بارے میں تاثرات شیئر کریں۔",
+    "chapterFeedbackTitle": "اس حصے کا جائزہ لیں",
     "chapterFeedbackBody": "ہمیں بتائیں کہ کیا یہ باب مددگار تھا یا کیا بہتر کیا جا سکتا ہے۔ تبصرے اختیاری ہیں۔",
     "chapterFeedbackThumbsUp": "مددگار",
     "chapterFeedbackThumbsDown": "کام کی ضرورت ہے۔",
     "chapterFeedbackPlaceholder": "اس باب کے بارے میں اختیاری تبصرہ",
     "chapterFeedbackSelectionHint": "اختیاری نوٹ شامل کرنے کے لیے انگوٹھا اوپر یا انگوٹھا نیچے کو تھپتھپائیں۔",
     "chapterFeedbackSubmit": "رائے بھیجیں۔",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "اس کے بجائے صوتی جواب ریکارڈ کریں",
+    "chapterFeedbackAudioRecording": "ریکارڈنگ جاری ہے {{duration}}",
+    "chapterFeedbackAudioReady": "صوتی جواب تیار ہے: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A، زیادہ سے زیادہ ۱ منٹ",
+    "chapterFeedbackAudioRecord": "آڈیو ریکارڈ کریں",
+    "chapterFeedbackAudioStop": "روکیں",
+    "chapterFeedbackAudioPreview": "صوتی جواب سنیں",
+    "chapterFeedbackAudioRerecord": "صوتی جواب دوبارہ ریکارڈ کریں",
+    "chapterFeedbackAudioUploading": "آڈیو اپ لوڈ ہو رہی ہے…",
+    "chapterFeedbackAudioPermissionDenied": "مائیکروفون کی اجازت بند ہے۔ آپ پھر بھی جواب لکھ سکتے ہیں۔",
+    "chapterFeedbackAudioPermissionHelp": "صوتی رائے بھیجنے کے لیے نظام کی ترتیبات میں مائیکروفون کی اجازت دیں۔",
+    "chapterFeedbackAudioStartError": "ریکارڈنگ شروع نہیں ہو سکی۔ آپ پھر بھی جواب لکھ سکتے ہیں۔",
+    "chapterFeedbackAudioStopError": "یہ ریکارڈنگ مکمل نہیں ہو سکی۔ دوبارہ کوشش کریں۔",
+    "chapterFeedbackAudioRecordingMissing": "ریکارڈنگ محفوظ نہیں ہو سکی۔ دوبارہ کوشش کریں۔",
+    "chapterFeedbackAudioUploadError": "آڈیو اپ لوڈ نہیں ہو سکی۔ آپ کی ریکارڈنگ محفوظ ہے؛ دوبارہ بھیجنے کی کوشش کریں۔",
     "chapterFeedbackSuccess": "آپ کی رائے کا شکریہ۔ آپ کی جمع آوری موصول ہو گئی ہے اور ہماری ترجمے کی ٹیمیں جلد از جلد اس کا جائزہ لیں گی۔",
     "chapterFeedbackSignInRequired": "براہ کرم باب کی رائے بھیجنے سے پہلے سائن ان کریں۔",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "درستگی کا جائزہ",
+    "translatorReviewSummary": "زیرِ انتظار فیصلے: {{count}} میں سے {{pending}}",
+    "translatorReviewSummaryComplete": "درستگی کے تمام جائزے مکمل ہو گئے",
+    "translatorReviewLoading": "آراء لوڈ ہو رہی ہیں…",
+    "translatorReviewEmpty": "اس باب پر ابھی تک کوئی رائے نہیں بھیجی گئی۔",
+    "translatorReviewUnknownUser": "نامعلوم معاون",
+    "translatorReviewUnread": "فیصلہ درکار ہے",
+    "translatorReviewSubmittedAt": "{{date}} کو بھیجی گئی",
+    "translatorReviewSubmittedBy": "{{name}} نے بھیجی",
+    "translatorReviewNoComment": "کوئی تحریری رائے نہیں۔",
+    "translatorReviewFixed": "درست کر دیا گیا",
+    "translatorReviewConfirmedAccurate": "درستگی کی تصدیق ہو گئی",
+    "translatorReviewReviewed": "تبدیلی کی ضرورت نہیں",
+    "translatorReviewConfirmAccurate": "درستگی کی تصدیق کریں",
+    "translatorReviewMarkFixed": "درست شدہ نشان لگائیں",
+    "translatorReviewNoActionNeeded": "کسی کارروائی کی ضرورت نہیں",
+    "translatorReviewReopen": "دوبارہ کھولیں",
+    "translatorReviewListened": "سن لیا گیا",
+    "translatorReviewListen": "سنیں",
     "translatorReviewPause": "توقف",
     "nextChapterHint": "اگلے باب میں جاتا ہے۔",
     "openBookAndChapterPickerHint": "کتاب اور باب چننے والا کھولتا ہے۔",
@@ -387,16 +663,16 @@ export const ur = {
     "chapterFeedback": "باب کی رائے",
     "chapterFeedbackSummaryOn": "اختیاری باب فیڈ بیک آن ہے۔",
     "chapterFeedbackSummaryOff": "اختیاری باب فیڈ بیک آف ہے۔",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "مترجم کی رسائی",
+    "translatorAccessTitle": "مترجم کی رسائی",
+    "translatorAccessBody": "اس آلے پر ابواب کی آراء کا جائزہ لینے کے لیے مترجم کا پاس کوڈ درج کریں۔",
+    "translatorAccessPlaceholder": "پاس کوڈ",
+    "translatorAccessUnlock": "کھولیں",
+    "translatorAccessIncorrect": "مترجم کا پاس کوڈ درست نہیں۔",
+    "translatorAccessEnabled": "مترجم کا جائزہ موڈ فعال ہو گیا",
+    "translatorAccessEnabledBody": "اب باب کے صفحات پر مترجم کے لیے آراء کا جائزہ لینے کے اوزار نظر آئیں گے۔",
+    "translatorAccessSummaryOn": "مترجم کے جائزے کے اوزار فعال ہیں",
+    "translatorAccessSummaryOff": "جائزے کے اوزار فعال کرنے کے لیے پاس کوڈ درج کریں",
   },
   "notifications": {
     "channelDailyReminder": "روزانہ پڑھنے کی یاد دہانی",
@@ -480,8 +756,8 @@ export const ur = {
     "readingActivity": "پڑھنے کی سرگرمی",
     "readingActivitySubtitle": "ایک نظر میں اپنے پڑھنے کے دن اور اسٹریک دیکھیں۔",
     "readingDays": "پڑھنے کے دن",
-    "chaptersRead": "ابواب پڑھیں",
-    "chapterRead": "باب پڑھا۔",
+    "chaptersRead": "پڑھے گئے ابواب",
+    "chapterRead": "پڑھا گیا باب",
     "selectedDay": "منتخب دن",
     "tapDayHint": "تفصیلات دیکھنے کے لیے نشان زد دن کو تھپتھپائیں۔",
     "noReadingActivityTitle": "ابھی تک پڑھنے کی کوئی سرگرمی نہیں ہے۔",
@@ -549,7 +825,7 @@ export const ur = {
     "allLessonsComplete": "تمام اسباق مکمل",
     "allLessonsCompleteBody": "آپ نے موجودہ تربیتی راستہ مکمل کر لیا ہے۔ کسی بھی شعبے کو دوبارہ دیکھیں، مشق کرتے رہیں، اور کسی اور کو سکھائیں۔",
     "fieldProgress": "{{progress}}% مکمل",
-    "keyVerse": "کلیدی آیت",
+    "keyVerse": "مرکزی آیت",
     "practiceActivity": "سرگرمی کی مشق کریں۔",
     "discussionLabel": "بحث",
     "prayerLabel": "دعا",
@@ -656,7 +932,7 @@ export const ur = {
     "noPlans": "پڑھنے کا کوئی منصوبہ دستیاب نہیں ہے۔",
     "noActivePlans": "آپ نے ابھی تک کوئی منصوبہ شروع نہیں کیا ہے۔",
     "findPlans": "منصوبے تلاش کریں۔",
-    "saved": "محفوظ کیا گیا۔",
+    "saved": "محفوظ ہو گیا",
     "completions": "{{count}} تکمیلات",
     "saveForLater": "بعد کے لیے محفوظ کریں۔",
     "unsave": "غیر محفوظ شدہ",
@@ -674,7 +950,7 @@ export const ur = {
     "dayLabel": "دن {{day}}",
     "chapterProgress": "{{total}} میں سے {{current}}",
     "nextChapterCta": "اگلا باب",
-    "completeDayCta": "پورا دن",
+    "completeDayCta": "آج کا مطالعہ مکمل کریں",
     "listenChapterCounted": "آج کے پلان کے لیے {{reference}} شمار کیے گئے۔",
     "dailyTargetCompleteTitle": "روزانہ پڑھنا مکمل",
     "dailyTargetCompleteBody": "آپ نے آج کا پلان پڑھنا ختم کر دیا۔ ہم آپ کو آپ کے پلان پر واپس لے جائیں گے تاکہ آپ اپنی پیشرفت دیکھ سکیں۔",
@@ -695,19 +971,19 @@ export const ur = {
       "description": "دو مہینوں میں متی، مارک، لوقا اور یوحنا کے ذریعے چلیں۔"
     },
     "proverbs31": {
-      "title": "31 دنوں میں کہاوتیں۔",
-      "description": "حکمت کے مہینے کے لیے ہر روز امثال کا ایک باب۔"
+      "title": "امثال کا روزانہ باب",
+      "description": "آج کی تاریخ کے مطابق امثال کا باب پڑھیں اور ہر مہینے دہرائیں۔"
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "ہر ہفتے کے دن کے لیے مقرر کردہ صبح اور شام کے Kathismata پڑھیں، ہر ہفتے دہراتے ہوئے۔"
+      "description": "ہفتے کے ہر کام کے دن صبح اور شام زبور کے مقررہ حصے پڑھیں، اور ہر ہفتے دہرائیں۔"
     },
     "chronological": {
       "title": "تاریخی بائبل",
       "description": "بائبل کو اس ترتیب میں پڑھیں جس میں واقعات پیش آئے، پیدائش سے مکاشفہ تک۔"
     },
     "epistles30": {
-      "title": "30 دنوں میں خطوط",
+      "title": "۳۰ دن میں خطوط کا مطالعہ",
       "description": "پولس، پیٹر، جیمز اور یوحنا کے خطوط کو ایک مہینے میں پڑھیں۔"
     },
     "sermonMount7": {
@@ -733,19 +1009,19 @@ export const ur = {
     "rhythmNamePlaceholder": "خودکار نام کے لیے خالی چھوڑ دیں۔",
     "rhythmPlanCount": "{{count}} منصوبے",
     "rhythmItemCount": "{{count}} آئٹمز",
-    "includedPlans": "شامل منصوبے",
+    "includedPlans": "شامل مطالعاتی منصوبے",
     "includedItems": "شامل اشیاء",
-    "availablePlans": "دستیاب منصوبے",
+    "availablePlans": "دستیاب مطالعاتی منصوبے",
     "rhythmsIntro": "اپنی مرضی کے مطابق صحیفے کے حصئوں کے ساتھ منصوبہ کی پیشرفت کو ملا کر صبح، دوپہر، یا شام کے بہاؤ کو دہرانے کے قابل بنائیں۔",
     "rhythmSlotPrompt": "اس قسم کے بہاؤ کا انتخاب کریں جسے آپ پہلے بنانا چاہتے ہیں۔",
     "rhythmSlotActive": "{{name}} منتخب کیا گیا۔",
     "selected": "منتخب",
     "continueRhythm": "تال جاری رکھیں",
     "nextUp": "اگلا: {{value}}",
-    "openRhythm": "تال کھولیں۔",
+    "openRhythm": "معمول کھولیں",
     "deleteRhythm": "ردھم کو حذف کریں۔",
-    "emptyRhythmPlans": "اس تال کو بچانے کے لیے کم از کم ایک منصوبہ شامل کریں۔",
-    "emptyRhythmItems": "اس تال کو بچانے کے لیے کم از کم ایک منصوبہ یا راستہ شامل کریں۔",
+    "emptyRhythmPlans": "یہ معمول محفوظ کرنے کے لیے کم از کم ایک منصوبہ شامل کریں۔",
+    "emptyRhythmItems": "یہ معمول محفوظ کرنے کے لیے کم از کم ایک منصوبہ یا کلام کا حصہ شامل کریں۔",
     "alreadyInAnotherRhythm": "یہ منصوبہ پہلے سے ہی ایک اور تال میں ہے۔",
     "planUnavailableForRhythm": "صرف اندراج شدہ، فعال منصوبوں کو تال میں شامل کیا جا سکتا ہے۔",
     "rhythmDaySummary": "موجودہ دن: {{day}}",
@@ -753,17 +1029,17 @@ export const ur = {
     "rhythmPlanSource": "{{count}} دن کا منصوبہ",
     "rhythmPassageLabel": "{{count}} ابواب",
     "planItemLabel": "منصوبہ",
-    "passageItemLabel": "گزرنا",
+    "passageItemLabel": "کلام کا حصہ",
     "addPassage": "صحیفے کا حوالہ شامل کریں۔",
-    "addPassageToRhythm": "تال میں گزرنے کو شامل کریں۔",
-    "repeatablePassage": "دہرائے جانے والا گزرنا",
+    "addPassageToRhythm": "معمول میں کلام کا حصہ شامل کریں",
+    "repeatablePassage": "دہرایا جانے والا کلام کا حصہ",
     "startChapterLabel": "باب شروع کریں۔",
     "endChapterLabel": "باب کا اختتام",
     "maxChapterHint": "{{count}} ابواب دستیاب ہیں۔",
     "chooseBook": "پہلے کتاب کا انتخاب کریں۔",
     "chapterCount": "{{count}} ابواب",
     "deleteRhythmConfirmTitle": "اس تال کو حذف کریں؟",
-    "deleteRhythmConfirmBody": "شامل کیے گئے منصوبے My Plans میں رہیں گے، لیکن اس تال کو ہٹا دیا جائے گا۔",
+    "deleteRhythmConfirmBody": "شامل منصوبے میرے منصوبوں میں موجود رہیں گے، لیکن یہ معمول حذف ہو جائے گا۔",
     "foundationsOfTheGospel": {
       "title": "انجیل کی بنیادیں",
       "description": "14 دنوں میں تخلیق سے نئی تخلیق تک نجات کی کہانی کا سراغ لگائیں۔"
@@ -831,7 +1107,7 @@ export const ur = {
     },
     "ntIn6Months": {
       "title": "6 ماہ میں نیا عہد نامہ",
-      "description": "180 دنوں میں تمام 27 NT کتابوں کے ذریعے ایک نرم رفتار، تقریباً 1-2 ابواب فی دن۔"
+      "description": "۱۸۰ دن میں عہدِ جدید کی تمام ۲۷ کتابیں آرام سے پڑھیں، روزانہ تقریباً ۱–۲ ابواب۔"
     },
     "gospels7Days": {
       "title": "7 دنوں میں انجیل",
@@ -859,7 +1135,7 @@ export const ur = {
     },
     "otIn90Days": {
       "title": "پرانا عہد نامہ 90 دنوں میں",
-      "description": "90 دنوں میں تمام 929 OT ابواب — تقریباً 10 ابواب فی دن۔ ایک سنجیدہ عزم۔"
+      "description": "۹۰ دن میں عہدِ عتیق کے تمام ۹۲۹ ابواب، روزانہ تقریباً ۱۰ ابواب۔ ایک سنجیدہ عزم۔"
     },
     "pentateuch30Days": {
       "title": "پینٹاٹیک 30 دنوں میں",
@@ -878,7 +1154,7 @@ export const ur = {
       "description": "پولس کے تمام 13 خطوط — رومیوں کے ذریعے فلیمون — ایک مہینے میں پڑھیں۔"
     },
     "acts28Days": {
-      "title": "28 دنوں میں کام کرتا ہے۔",
+      "title": "۲۸ دن میں اعمال کا مطالعہ",
       "description": "روزانہ اعمال کا ایک باب — یروشلم سے روم تک ابتدائی چرچ کی پیروی کریں۔"
     },
     "revelation22Days": {
@@ -895,15 +1171,15 @@ export const ur = {
     "sessionUpcoming": "آنے والا",
     "morningAndEveningPrayer": {
       "title": "صبح اور شام کی دعا",
-      "description": "سات دن تک ہر دن کا آغاز اور اختتام صبح اور شام کی دعائیہ تلاوت سے کریں۔"
+      "description": "ہر دن زبور، انجیل کے مطالعے اور شام کے کلام سے شروع اور ختم کریں۔"
     },
     "prayerOfTheHours": {
       "title": "اوقات کی دعا",
-      "description": "سات دن تک صبح، دوپہر اور شام کی دعائیہ تلاوت سے اپنے دن کی ترتیب بنائیں۔"
+      "description": "زبور، اناجیل اور خطوط پر مبنی صبح، دوپہر اور شام کے مطالعے میں آگے بڑھیں۔"
     }
   },
   "annotations": {
-    "title": "میرے نوٹس اور ہائی لائٹس",
+    "title": "میرے نوٹس اور نمایاں آیات",
     "bookmarks": "بک مارکس",
     "highlights": "جھلکیاں",
     "notes": "نوٹس",
@@ -917,7 +1193,7 @@ export const ur = {
     "noHighlights": "ابھی تک کوئی جھلکیاں نہیں ہیں۔",
     "noNotes": "ابھی تک کوئی نوٹس نہیں ہے۔",
     "noteHint": "اپنے خیالات لکھیں...",
-    "saved": "محفوظ کیا گیا۔",
+    "saved": "محفوظ ہو گیا",
     "colors": {
       "yellow": "پیلا",
       "green": "سبز",
@@ -1016,18 +1292,18 @@ export const ur = {
   },
   "engagement": {
     "title": "آپ کا سفر",
-    "chaptersRead": "ابواب پڑھیں",
+    "chaptersRead": "پڑھے گئے ابواب",
     "listeningTime": "سننے کا وقت",
     "currentStreak": "موجودہ اسٹریک",
     "longestStreak": "سب سے لمبی اسٹریک",
     "plansCompleted": "منصوبے مکمل",
     "engagementScore": "منگنی کا سکور",
-    "annotationsCreated": "نوٹس اور جھلکیاں",
+    "annotationsCreated": "نوٹس اور نمایاں آیات",
     "minutes": "منٹ",
     "hours": "گھنٹے",
     "days": "دن",
     "totalChapters": "کل ابواب",
-    "totalListening": "مکمل سننا"
+    "totalListening": "سننے کا کُل وقت"
   },
   "translations": {
     "title": "بائبل کے تراجم",
@@ -1043,7 +1319,7 @@ export const ur = {
     "publicDomain": "عوامی ڈومین",
     "cloudLibrary": "کلاؤڈ لائبریری",
     "downloading": "ڈاؤن لوڈ ہو رہا ہے...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "آف لائن مطالعے کے لیے {{name}} کا تحریری متن (تقریباً {{size}} ایم بی) ڈاؤن لوڈ کریں؟",
     "deleteConfirmTitle": "ترجمہ حذف کریں۔",
     "deleteConfirmMessage": "{{name}} کے لیے ڈاؤن لوڈ کردہ ڈیٹا کو ہٹائیں؟ آپ اسے کسی بھی وقت دوبارہ ڈاؤن لوڈ کر سکتے ہیں۔",
     "cancelDownload": "ڈاؤن لوڈ منسوخ کریں",

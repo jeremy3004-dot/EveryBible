@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "اسمح لتطبيق Every Bible بالوصول إلى الكاميرا إذا اخترت التقاط صورة لملفك الشخصي.";
+NSMicrophoneUsageDescription = "اسمح لتطبيق Every Bible بتسجيل ردود صوتية للملاحظات على الإصحاحات.";
+NSPhotoLibraryUsageDescription = "اسمح لتطبيق Every Bible بالوصول إلى مكتبة الصور لاختيار صورة لملفك الشخصي.";
+NSFaceIDUsageDescription = "اسمح لتطبيق Every Bible باستخدام Face ID لحماية بيانات تسجيل الدخول المحفوظة.";

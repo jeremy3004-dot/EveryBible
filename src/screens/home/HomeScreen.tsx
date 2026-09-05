@@ -82,7 +82,7 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, isDark } = useTheme();
   const displayFont = useDisplayFont();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
   // Top-to-bottom entrance choreography on first mount; opacity-only when the
   // system asks for reduced motion.
@@ -97,6 +97,7 @@ export function HomeScreen() {
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
+  const verseRequestIdRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -175,12 +176,12 @@ export function HomeScreen() {
   });
   const todayLabel = useMemo(
     () =>
-      new Intl.DateTimeFormat(undefined, {
+      new Intl.DateTimeFormat(i18n.language, {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
       }).format(new Date()),
-    []
+    [i18n.language]
   );
 
   const loadVerseOfDay = useCallback(
@@ -191,12 +192,14 @@ export function HomeScreen() {
       allowInitialization?: boolean;
       silent?: boolean;
     } = {}) => {
+      const requestId = ++verseRequestIdRef.current;
       if (!silent) {
         setIsLoadingVerse(true);
       }
 
       try {
         const override = await getLiveVerseOfDayOverride();
+        if (requestId !== verseRequestIdRef.current) return;
         setRemoteVerseOverride(override);
 
         if (override) {
@@ -214,12 +217,17 @@ export function HomeScreen() {
         const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
           allowInitialization,
         });
-        setDailyScripture(scripture);
+        if (requestId === verseRequestIdRef.current) {
+          setDailyScripture(scripture);
+        }
       } catch (error) {
-        console.error('Error loading verse of the day:', error);
-        setRemoteVerseOverride(null);
+        if (requestId === verseRequestIdRef.current) {
+          console.error('Error loading verse of the day:', error);
+          setRemoteVerseOverride(null);
+        }
       } finally {
-        if (!silent) {
+        // A silent retry may supersede the initial load, so it must also settle its spinner.
+        if (requestId === verseRequestIdRef.current) {
           setIsLoadingVerse(false);
         }
       }
@@ -263,6 +271,7 @@ export function HomeScreen() {
     scheduleMidnightRefresh();
 
     return () => {
+      verseRequestIdRef.current += 1;
       interactionHandle.cancel();
       subscription.remove();
 

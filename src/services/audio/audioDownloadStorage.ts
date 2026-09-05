@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { downloadAndValidateAudioFile } from './audioDownloadService';
+import { createPersistentAudioDownloadJobStore as createJobStore } from './audioDownloadJobStore';
 import type {
-  AudioDownloadJobRecord,
   AudioDownloadJobStore,
   AudioFileSystemAdapter,
   AudioDownloadTransport,
@@ -13,9 +13,8 @@ export const AUDIO_DOWNLOAD_ROOT_URI = `${
 
 export const AUDIO_DOWNLOAD_JOB_REGISTRY_FILENAME = 'download-jobs.json';
 
-export const getAudioDownloadJobRegistryUri = (
-  rootUri: string = AUDIO_DOWNLOAD_ROOT_URI
-): string => `${rootUri}${AUDIO_DOWNLOAD_JOB_REGISTRY_FILENAME}`;
+export const getAudioDownloadJobRegistryUri = (rootUri: string = AUDIO_DOWNLOAD_ROOT_URI): string =>
+  `${rootUri}${AUDIO_DOWNLOAD_JOB_REGISTRY_FILENAME}`;
 
 export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
   ensureDirectory: async (directoryUri) => {
@@ -61,11 +60,9 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
 // URLSession download tasks that are designed to survive navigation away from any screen.
 export async function createBackgroundAudioDownloadTransport(): Promise<AudioDownloadTransport> {
   try {
-    const backgroundDownloader = await import(
-      '@kesha-antonov/react-native-background-downloader'
-    );
+    const backgroundDownloader = await import('@kesha-antonov/react-native-background-downloader');
 
-  return {
+    return {
       downloadFile: async (from, to, options) => {
         const jobId = options?.jobId;
         const taskId = options?.taskId ?? jobId;
@@ -82,18 +79,20 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
 
         try {
           await new Promise<void>((resolve, reject) => {
-            const task = backgroundDownloader.createDownloadTask({
-              id: taskId,
-              url: from,
-              destination: to,
-              metadata: {
-                translationId: options?.translationId ?? '',
-                bookId: options?.bookId ?? '',
-                chapter: String(options?.chapter ?? ''),
-              },
-            }).progress(({ bytesDownloaded, bytesTotal }) => {
-              options?.onProgress?.({ bytesDownloaded, bytesTotal });
-            });
+            const task = backgroundDownloader
+              .createDownloadTask({
+                id: taskId,
+                url: from,
+                destination: to,
+                metadata: {
+                  translationId: options?.translationId ?? '',
+                  bookId: options?.bookId ?? '',
+                  chapter: String(options?.chapter ?? ''),
+                },
+              })
+              .progress(({ bytesDownloaded, bytesTotal }) => {
+                options?.onProgress?.({ bytesDownloaded, bytesTotal });
+              });
 
             let settled = false;
             const settle = (run: () => void) => {
@@ -170,9 +169,7 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
 
 export async function ensureBackgroundAudioDownloadsRunning(): Promise<void> {
   try {
-    const backgroundDownloader = await import(
-      '@kesha-antonov/react-native-background-downloader'
-    );
+    const backgroundDownloader = await import('@kesha-antonov/react-native-background-downloader');
     const ensureDownloadsAreRunning = (
       backgroundDownloader as {
         ensureDownloadsAreRunning?: () => Promise<void>;
@@ -187,65 +184,6 @@ export async function ensureBackgroundAudioDownloadsRunning(): Promise<void> {
   }
 }
 
-const isAudioDownloadJobRecord = (value: unknown): value is AudioDownloadJobRecord => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.id === 'string' &&
-    typeof record.translationId === 'string' &&
-    (record.scope === 'book' || record.scope === 'translation') &&
-    (record.status === 'queued' ||
-      record.status === 'downloading' ||
-      record.status === 'completed' ||
-      record.status === 'failed') &&
-    typeof record.createdAt === 'number' &&
-    typeof record.updatedAt === 'number' &&
-    typeof record.attemptCount === 'number'
-  );
-};
-
-const readJobRegistry = async (
-  fileSystem: AudioFileSystemAdapter,
-  rootUri: string
-): Promise<AudioDownloadJobRecord[]> => {
-  const registryUri = getAudioDownloadJobRegistryUri(rootUri);
-  const raw = fileSystem.readTextFile ? await fileSystem.readTextFile(registryUri) : null;
-
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as { jobs?: unknown };
-    if (!Array.isArray(parsed.jobs)) {
-      return [];
-    }
-
-    return parsed.jobs.filter(isAudioDownloadJobRecord);
-  } catch {
-    return [];
-  }
-};
-
-const writeJobRegistry = async (
-  fileSystem: AudioFileSystemAdapter,
-  rootUri: string,
-  jobs: AudioDownloadJobRecord[]
-): Promise<void> => {
-  if (!fileSystem.writeTextFile) {
-    return;
-  }
-
-  await fileSystem.ensureDirectory(rootUri);
-  await fileSystem.writeTextFile(
-    getAudioDownloadJobRegistryUri(rootUri),
-    JSON.stringify({ version: 1, jobs }, null, 2)
-  );
-};
-
 export function createPersistentAudioDownloadJobStore({
   fileSystem,
   rootUri = AUDIO_DOWNLOAD_ROOT_URI,
@@ -253,44 +191,5 @@ export function createPersistentAudioDownloadJobStore({
   fileSystem: AudioFileSystemAdapter;
   rootUri?: string;
 }): AudioDownloadJobStore {
-  const memoryJobs = new Map<string, AudioDownloadJobRecord>();
-
-  const readJobs = async (): Promise<AudioDownloadJobRecord[]> => {
-    const persistedJobs = fileSystem.readTextFile ? await readJobRegistry(fileSystem, rootUri) : [];
-    const jobsById = new Map<string, AudioDownloadJobRecord>();
-
-    persistedJobs.forEach((job) => {
-      jobsById.set(job.id, job);
-    });
-
-    memoryJobs.forEach((job, jobId) => {
-      jobsById.set(jobId, job);
-    });
-
-    return Array.from(jobsById.values());
-  };
-
-  const writeJobs = async (jobs: AudioDownloadJobRecord[]): Promise<void> => {
-    memoryJobs.clear();
-    jobs.forEach((job) => {
-      memoryJobs.set(job.id, job);
-    });
-
-    await writeJobRegistry(fileSystem, rootUri, jobs);
-  };
-
-  return {
-    listJobs: async () => readJobs(),
-    getJob: async (jobId) => (await readJobs()).find((job) => job.id === jobId) ?? null,
-    upsertJob: async (job) => {
-      const jobs = await readJobs();
-      const nextJobs = jobs.filter((entry) => entry.id !== job.id);
-      nextJobs.push(job);
-      await writeJobs(nextJobs);
-    },
-    removeJob: async (jobId) => {
-      const jobs = await readJobs();
-      await writeJobs(jobs.filter((job) => job.id !== jobId));
-    },
-  };
+  return createJobStore({ fileSystem, rootUri });
 }

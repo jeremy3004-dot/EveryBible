@@ -40,7 +40,7 @@ export function GroupDetailScreen() {
   const route = useRoute<ScreenRouteProp>();
   const { groupId } = route.params;
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -53,7 +53,7 @@ export function GroupDetailScreen() {
   const localGroup = groups.find((candidate) => candidate.id === groupId) ?? null;
   const localSnapshot = buildGroupDetailSnapshot({
     localGroup,
-    localProgress: localGroup ? groupProgress[groupId] ?? null : null,
+    localProgress: localGroup ? (groupProgress[groupId] ?? null) : null,
     syncedGroup: null,
     currentUserId: userId,
   });
@@ -99,7 +99,7 @@ export function GroupDetailScreen() {
           });
         }
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (cancelled) {
           return;
         }
@@ -107,22 +107,14 @@ export function GroupDetailScreen() {
         setRemoteGroupState({
           key: remoteRequestKey,
           group: null,
-          error: error instanceof Error ? error.message : t('groups.unableToLoadGroup'),
+          error: t('groups.unableToLoadGroup'),
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    backendConfigured,
-    groupId,
-    isSignedIn,
-    remoteRequestKey,
-    syncFeatureEnabled,
-    t,
-    userId,
-  ]);
+  }, [backendConfigured, groupId, isSignedIn, remoteRequestKey, syncFeatureEnabled, t, userId]);
 
   const group =
     localSnapshot ??
@@ -137,7 +129,8 @@ export function GroupDetailScreen() {
     remoteRequestKey !== null && remoteGroupState.key === remoteRequestKey
       ? remoteGroupState.error
       : null;
-  const isLoading = localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
+  const isLoading =
+    localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
 
   const [prayerPreview, setPrayerPreview] = useState<{
     count: number;
@@ -171,10 +164,19 @@ export function GroupDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.errorContainer}>
-          <ActivityIndicator size="large" color={colors.accentPrimary} style={styles.loadingIndicator} />
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{t('groups.loadingGroup')}</Text>
+          <ActivityIndicator
+            size="large"
+            color={colors.accentPrimary}
+            style={styles.loadingIndicator}
+          />
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>
+            {t('groups.loadingGroup')}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -182,11 +184,18 @@ export function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.secondaryText }]}>{loadError ?? t('groups.groupNotFound')}</Text>
+          <Text style={[styles.errorText, { color: colors.secondaryText }]}>
+            {loadError ?? t('groups.groupNotFound')}
+          </Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>{t('groups.goBack')}</Text>
+            <Text style={[styles.errorLink, { color: colors.accentGreen }]}>
+              {t('groups.goBack')}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -197,13 +206,15 @@ export function GroupDetailScreen() {
   const canStartSession =
     isLocalGroup || (group.source === 'synced' && syncedServiceAvailability === 'ready');
   const currentCourse = fourFieldsCourses.find((course) => course.id === group.currentCourseId);
-  const currentLesson = currentCourse?.lessons.find((lesson) => lesson.id === group.currentLessonId);
+  const currentLesson = currentCourse?.lessons.find(
+    (lesson) => lesson.id === group.currentLessonId
+  );
   const currentFieldInfo = currentCourse ? fieldInfo[currentCourse.field] : null;
 
   const handleShareCode = async () => {
     try {
       await Share.share({
-        message: `Join my discipleship group "${group.name}" in EveryBible!\n\nJoin code: ${group.joinCode}`,
+        message: t('interface.groupShareMessage', { name: group.name, code: group.joinCode }),
       });
     } catch {
       // User cancelled
@@ -222,9 +233,7 @@ export function GroupDetailScreen() {
     warningHaptic();
     Alert.alert(
       t('groups.leaveGroup'),
-      group.isLeader
-        ? t('groups.leaveGroupLeaderMessage')
-        : t('groups.leaveGroupMemberMessage'),
+      group.isLeader ? t('groups.leaveGroupLeaderMessage') : t('groups.leaveGroupMemberMessage'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -242,7 +251,10 @@ export function GroupDetailScreen() {
   const completedCount = group.completedLessonCount;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
@@ -273,12 +285,16 @@ export function GroupDetailScreen() {
           onPress={handleShareCode}
         >
           <View style={styles.codeCardLeft}>
-            <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>{t('groups.joinCode')}</Text>
+            <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>
+              {t('groups.joinCode')}
+            </Text>
             <Text style={[styles.codeValue, { color: colors.primaryText }]}>{group.joinCode}</Text>
           </View>
           <View style={styles.codeCardRight}>
             <Ionicons name="share-social-outline" size={20} color={colors.accentGreen} />
-            <Text style={[styles.shareText, { color: colors.accentGreen }]}>{t('groups.share')}</Text>
+            <Text style={[styles.shareText, { color: colors.accentGreen }]}>
+              {t('groups.share')}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -286,15 +302,8 @@ export function GroupDetailScreen() {
         {currentCourse && currentLesson && currentFieldInfo && (
           <View style={[styles.currentCard, { backgroundColor: colors.cardBackground }]}>
             <View style={styles.currentCardHeader}>
-              <View
-                style={[
-                  styles.fieldBadge,
-                  { backgroundColor: currentFieldInfo.color + '20' },
-                ]}
-              >
-                <Text
-                  style={[styles.fieldBadgeText, { color: currentFieldInfo.color }]}
-                >
+              <View style={[styles.fieldBadge, { backgroundColor: currentFieldInfo.color + '20' }]}>
+                <Text style={[styles.fieldBadgeText, { color: currentFieldInfo.color }]}>
                   {t(FIELD_TITLE_KEYS[currentCourse.field])}
                 </Text>
               </View>
@@ -304,7 +313,9 @@ export function GroupDetailScreen() {
                   : t('groups.lessonsCompleted', { count: completedCount })}
               </Text>
             </View>
-            <Text style={[styles.currentTitle, { color: colors.primaryText }]}>{currentCourse.title}</Text>
+            <Text style={[styles.currentTitle, { color: colors.primaryText }]}>
+              {currentCourse.title}
+            </Text>
             <Text style={[styles.currentLesson, { color: colors.secondaryText }]}>
               {t('groups.nextLesson', { title: currentLesson.title })}
             </Text>
@@ -322,7 +333,9 @@ export function GroupDetailScreen() {
               <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
                 <View style={styles.readOnlyHeader}>
                   <Ionicons name="lock-closed-outline" size={18} color={colors.accentGreen} />
-                  <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>{t('groups.syncedGroupPreview')}</Text>
+                  <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>
+                    {t('groups.syncedGroupPreview')}
+                  </Text>
                 </View>
                 <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
                   {t('groups.syncedGroupPreviewBody')}
@@ -341,7 +354,10 @@ export function GroupDetailScreen() {
             const isCurrentUser = member.id === userId;
 
             return (
-              <View key={member.id} style={[styles.memberCard, { backgroundColor: colors.cardBackground }]}>
+              <View
+                key={member.id}
+                style={[styles.memberCard, { backgroundColor: colors.cardBackground }]}
+              >
                 <View style={[styles.memberAvatar, { backgroundColor: colors.accentGreen + '30' }]}>
                   <Text style={[styles.memberInitial, { color: colors.accentGreen }]}>
                     {(member.name ?? '?').charAt(0).toUpperCase()}
@@ -354,15 +370,21 @@ export function GroupDetailScreen() {
                       {isCurrentUser && t('groups.you')}
                     </Text>
                     {member.role === 'leader' && (
-                      <View style={[styles.leaderBadge, { backgroundColor: colors.accentGreen + '30' }]}>
-                        <Text style={[styles.leaderBadgeText, { color: colors.accentGreen }]}>{t('groups.leader')}</Text>
+                      <View
+                        style={[styles.leaderBadge, { backgroundColor: colors.accentGreen + '30' }]}
+                      >
+                        <Text style={[styles.leaderBadgeText, { color: colors.accentGreen }]}>
+                          {t('groups.leader')}
+                        </Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.memberJoined, { color: colors.secondaryText }]}>
                     {member.joinedAt == null
                       ? t('groups.joinedRecently')
-                      : t('groups.joinedDate', { date: new Date(member.joinedAt).toLocaleDateString() })}
+                      : t('groups.joinedDate', {
+                          date: new Date(member.joinedAt).toLocaleDateString(i18n.language),
+                        })}
                   </Text>
                 </View>
               </View>
@@ -372,7 +394,9 @@ export function GroupDetailScreen() {
           <View style={[styles.readOnlyCard, { backgroundColor: colors.background }]}>
             <View style={styles.readOnlyHeader}>
               <Ionicons name="people-outline" size={18} color={colors.accentGreen} />
-              <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>{t('groups.readOnlySyncedMembership')}</Text>
+              <Text style={[styles.readOnlyTitle, { color: colors.primaryText }]}>
+                {t('groups.readOnlySyncedMembership')}
+              </Text>
             </View>
             <Text style={[styles.readOnlyBody, { color: colors.secondaryText }]}>
               {t('groups.readOnlySyncedMembershipBody')}
@@ -384,9 +408,7 @@ export function GroupDetailScreen() {
         {!isLocalGroup && prayerPreview !== null && (
           <TouchableOpacity
             style={[styles.prayerCard, { backgroundColor: colors.cardBackground }]}
-            onPress={() =>
-              navigation.navigate('PrayerWall', { groupId, groupName: group.name })
-            }
+            onPress={() => navigation.navigate('PrayerWall', { groupId, groupName: group.name })}
             activeOpacity={0.75}
             accessibilityRole="button"
           >
@@ -399,9 +421,14 @@ export function GroupDetailScreen() {
               </View>
               <View style={styles.prayerCardRight}>
                 {prayerPreview.count > 0 && (
-                  <View style={[styles.prayerCountBadge, { backgroundColor: colors.accentGreen + '20' }]}>
+                  <View
+                    style={[
+                      styles.prayerCountBadge,
+                      { backgroundColor: colors.accentGreen + '20' },
+                    ]}
+                  >
                     <Text style={[styles.prayerCountText, { color: colors.accentGreen }]}>
-                      {prayerPreview.count} active
+                      {t('interface.activePrayerCount', { count: prayerPreview.count })}
                     </Text>
                   </View>
                 )}
@@ -427,32 +454,45 @@ export function GroupDetailScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.cardBackground }]}>
           <View style={styles.infoHeader}>
             <Ionicons name="information-circle-outline" size={20} color={colors.accentGreen} />
-            <Text style={[styles.infoTitle, { color: colors.primaryText }]}>About Group Sessions</Text>
+            <Text style={[styles.infoTitle, { color: colors.primaryText }]}>
+              {t('interface.groupAboutTitle')}
+            </Text>
           </View>
           <Text style={[styles.infoText, { color: colors.secondaryText }]}>
-            Group sessions use the 3/3rds format used in disciple-making movements worldwide:
+            {t('interface.groupAboutBody')}
           </Text>
           <View style={styles.infoList}>
             <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
-              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>1. Look Back</Text> - How did you obey? Who did you share with?
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>
+                1. {t('groups.session.lookBack')}
+              </Text>
+              {' - '}
+              {t('interface.groupLookBack')}
             </Text>
             <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
-              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>2. Look Up</Text> - Read Scripture together and discuss
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>
+                2. {t('groups.session.lookUp')}
+              </Text>
+              {' - '}
+              {t('interface.groupLookUp')}
             </Text>
             <Text style={[styles.infoItem, { color: colors.secondaryText }]}>
-              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>3. Look Forward</Text> - How will you obey? Who will you tell?
+              <Text style={[styles.infoItemBold, { color: colors.primaryText }]}>
+                3. {t('groups.session.lookForward')}
+              </Text>
+              {' - '}
+              {t('interface.groupLookForward')}
             </Text>
           </View>
         </View>
 
         {/* Leave Group */}
         {isLocalGroup && userId ? (
-          <TouchableOpacity
-            style={styles.leaveButton}
-            onPress={handleLeaveGroup}
-          >
+          <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
             <Ionicons name="exit-outline" size={20} color={colors.error} />
-            <Text style={[styles.leaveButtonText, { color: colors.error }]}>{t('groups.leaveGroup')}</Text>
+            <Text style={[styles.leaveButtonText, { color: colors.error }]}>
+              {t('groups.leaveGroup')}
+            </Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>

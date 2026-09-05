@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "Profil fotoğrafı çekmeyi seçerseniz Every Bible’ın kameranıza erişmesine izin verin.";
+NSMicrophoneUsageDescription = "Every Bible’ın bölümler hakkındaki geri bildirimler için sesli yanıtlar kaydetmesine izin verin.";
+NSPhotoLibraryUsageDescription = "Profil fotoğrafı seçebilmek için Every Bible’ın fotoğraf arşivinize erişmesine izin verin.";
+NSFaceIDUsageDescription = "Every Bible’ın kayıtlı oturum açma bilgilerinizi korumak için Face ID kullanmasına izin verin.";

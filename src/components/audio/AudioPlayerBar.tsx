@@ -1,8 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer, useAudioPosition } from '../../hooks';
-import { getBookById } from '../../constants';
+import { getBookById, getTranslatedBookName } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { formatPlaybackTime } from '../../utils';
 import { AudioProgressScrubber } from './AudioProgressScrubber';
@@ -16,6 +17,7 @@ interface AudioPlayerBarProps {
 
 export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayerBarProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const {
@@ -105,7 +107,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
       ? chapter < book.chapters
       : false;
 
-  const displayBookName = currentBook?.name || book?.name || '';
+  const displayBookName = getTranslatedBookName(currentBook?.id ?? book?.id ?? bookId, t);
   const displayChapter = currentChapter || chapter;
 
   return (

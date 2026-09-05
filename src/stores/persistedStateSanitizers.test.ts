@@ -1,5 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
+import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
+import { refreshRuntimeCatalog } from '../services/translations/runtimeCatalogRefresh';
+import { mapElCatalogToBibleTranslations } from '../services/elMedia/elTranslationMapping';
+import type { BibleTranslation } from '../types';
 import { APPEARANCE_PALETTE_IDS } from '../constants/appearancePalettes';
 import {
   defaultAuthPreferences,
@@ -800,3 +808,198 @@ test('sanitizePersistedLibraryState keeps only valid favorites, playlists, and h
     { id: 'GAL:1', bookId: 'GAL', chapter: 1, listenedAt: 10, progress: 0.3 },
   ]);
 });
+
+function makeMappedElTranslation(): BibleTranslation {
+  return mapElCatalogToBibleTranslations({
+    schemaVersion: 'lqd-catalog/v1',
+    sequence: 1,
+    generatedAt: '2026-09-05T00:00:00.000Z',
+    baseUrl: 'https://media.example.com',
+    translations: [
+      {
+        translationId: 'el-persistence',
+        languageIso6393: 'eng',
+        languageName: 'English',
+        translationName: 'Persistence Audio',
+        abbreviation: 'PA',
+        source: 'langquest',
+        copyright: 'CC0-1.0',
+        deliveryMode: 'chapter',
+        hasAudio: true,
+        currentAudioVersion: 'v1',
+        manifestUrl: '/manifest.json',
+        manifestSha256: 'a'.repeat(64),
+      },
+    ],
+  })[0];
+}
+
+test('mapped EL audio-only translation preserves selection and downloads through restart', () => {
+  const translation = { ...makeMappedElTranslation(), downloadedAudioBooks: ['GEN', 'JHN'] };
+  const restored = sanitizePersistedBibleState(
+    JSON.parse(
+      JSON.stringify({
+        currentTranslation: translation.id,
+        translations: [translation],
+      })
+    )
+  );
+  assert.equal(restored.currentTranslation, translation.id);
+  const el = restored.translations.find(({ id }) => id === translation.id);
+  assert.ok(el);
+  assert.equal(el.totalBooks, 0);
+  assert.equal(el.catalog?.updatedAt, '2026-09-05T00:00:00.000Z');
+  assert.deepEqual(el.downloadedAudioBooks, ['GEN', 'JHN']);
+});
+
+test('legacy blank timestamp EL rows migrate without losing selection or downloads', () => {
+  const translation = makeMappedElTranslation();
+  const legacy = {
+    ...translation,
+    catalog: { ...translation.catalog!, updatedAt: '' },
+    downloadedAudioBooks: ['JHN'],
+  };
+  const restored = sanitizePersistedBibleState({
+    currentTranslation: legacy.id,
+    translations: [legacy],
+  });
+  assert.equal(restored.currentTranslation, legacy.id);
+  const el = restored.translations.find(({ id }) => id === legacy.id);
+  assert.ok(el);
+  assert.equal(el.catalog?.updatedAt, '1970-01-01T00:00:00.000Z');
+  assert.deepEqual(el.downloadedAudioBooks, ['JHN']);
+  const secondRestart = sanitizePersistedBibleState(JSON.parse(JSON.stringify(restored)));
+  assert.equal(secondRestart.currentTranslation, legacy.id);
+  assert.deepEqual(
+    secondRestart.translations.find(({ id }) => id === legacy.id),
+    el
+  );
+});
+
+test('zero-book and legacy timestamp exceptions reject corrupt or unrelated runtime rows', () => {
+  const valid = makeMappedElTranslation();
+  const legacy = { ...valid, catalog: { ...valid.catalog!, updatedAt: '' } };
+  const invalid = [
+    { ...valid, totalBooks: -1 },
+    { ...valid, totalBooks: 0.5 },
+    { ...valid, hasAudio: false },
+    { ...valid, hasText: true },
+    { ...valid, catalog: { ...valid.catalog!, updatedAt: 'invalid' } },
+    { ...valid, catalog: { ...valid.catalog!, updatedAt: null } },
+    { ...valid, catalog: { ...valid.catalog!, updatedAt: ' ' } },
+    {
+      ...valid,
+      catalog: {
+        ...valid.catalog!,
+        audio: {
+          strategy: 'stream-template',
+          baseUrl: 'https://audio.example.com',
+          chapterPathTemplate: '{bookId}/{chapter}.mp3',
+        },
+      },
+    },
+    { ...legacy, id: 'unrelated' },
+    { ...legacy, totalBooks: 66 },
+    { ...legacy, catalog: { ...legacy.catalog, version: 'different' } },
+    {
+      ...legacy,
+      catalog: { ...legacy.catalog, audio: { ...legacy.catalog.audio!, manifestUrl: '' } },
+    },
+    {
+      ...legacy,
+      catalog: {
+        ...legacy.catalog,
+        audio: { ...legacy.catalog.audio!, catalogBaseUrl: 'ftp://invalid' },
+      },
+    },
+  ];
+  for (const translation of invalid) {
+    const result = sanitizePersistedBibleState({ translations: [translation] });
+    assert.equal(
+      result.translations.some(({ id }) => id === translation.id),
+      false,
+      JSON.stringify(translation)
+    );
+  }
+});
+
+// Execute the real store action with only its native side effects stubbed. Importing the
+// whole store under Node loads React Native; extracting this property with TypeScript keeps
+// the persistence/download assertions tied to production code instead of a copied reducer.
+function makeCatalogActionStore(initial: ReturnType<typeof sanitizePersistedBibleState>) {
+  let state = initial;
+  const source = ts.createSourceFile(
+    'bibleStore.ts',
+    readFileSync(fileURLToPath(new URL('./bibleStore.ts', import.meta.url).href), 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  );
+  let actionSource: string | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isPropertyAssignment(node) && node.name.getText(source) === 'applyRuntimeCatalog') {
+      actionSource = node.initializer.getText(source);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert.ok(actionSource, 'production applyRuntimeCatalog action must exist');
+  const script = ts.transpileModule(`const action = ${actionSource}; action;`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const applyRuntimeCatalog = runInNewContext(script, {
+    set: (update: (current: typeof state) => Partial<typeof state>) => {
+      state = { ...state, ...update(state) };
+    },
+    mergeRuntimeCatalogTranslations,
+    syncRemoteAudioMetadataResolverWithTranslations: () => {},
+    syncVerseTimestampMetadata: () => {},
+  }) as (translations: BibleTranslation[]) => void;
+  return {
+    get state() {
+      return state;
+    },
+    getStoreTranslations: () => state.translations,
+    applyRuntimeCatalog,
+  };
+}
+
+for (const legacy of [false, true]) {
+  test(`EL selection and audio downloads survive restart and actual catalog apply (legacy=${legacy})`, async () => {
+    const mapped = makeMappedElTranslation();
+    const persisted = {
+      ...mapped,
+      downloadedAudioBooks: ['GEN', 'JHN'],
+      catalog: { ...mapped.catalog!, updatedAt: legacy ? '' : mapped.catalog!.updatedAt },
+    };
+    const restored = sanitizePersistedBibleState(
+      JSON.parse(
+        JSON.stringify({
+          currentTranslation: persisted.id,
+          translations: [persisted],
+        })
+      )
+    );
+    const store = makeCatalogActionStore(restored);
+    const refreshed = {
+      ...makeMappedElTranslation(),
+      name: 'Updated audio catalog',
+      catalog: { ...mapped.catalog!, updatedAt: '2026-09-06T00:00:00.000Z' },
+    };
+    await refreshRuntimeCatalog({
+      listTranslations: async () => ({ success: false, error: 'offline' }),
+      getStoreTranslations: store.getStoreTranslations,
+      applyRuntimeCatalog: store.applyRuntimeCatalog,
+      resolveUrl: () => 'https://media.example.com/catalog.json',
+      elStep: async () => [refreshed],
+    });
+    const secondRestart = sanitizePersistedBibleState(JSON.parse(JSON.stringify(store.state)));
+    assert.equal(secondRestart.currentTranslation, persisted.id);
+    const el = secondRestart.translations.find(({ id }) => id === persisted.id);
+    assert.ok(el);
+    assert.equal(el.name, 'Updated audio catalog');
+    assert.equal(el.catalog?.updatedAt, '2026-09-06T00:00:00.000Z');
+    assert.deepEqual(el.downloadedAudioBooks, ['GEN', 'JHN']);
+    assert.equal(el.hasText, false);
+    assert.equal(el.totalBooks, 0);
+  });
+}

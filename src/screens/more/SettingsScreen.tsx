@@ -221,7 +221,7 @@ export function SettingsScreen() {
 
       const result = await syncPreferences();
       if (!result.success) {
-        setChapterFeedbackIdentityError(result.error ?? t('common.unexpectedError'));
+        setChapterFeedbackIdentityError(t('common.unexpectedError'));
         return;
       }
 
@@ -295,7 +295,7 @@ export function SettingsScreen() {
         setTranslatorAccessError(
           result.error === 'Translator access denied'
             ? t('settings.translatorAccessIncorrect')
-            : (result.error ?? t('settings.translatorAccessIncorrect'))
+            : t('common.unexpectedError')
         );
         return;
       }
@@ -387,7 +387,7 @@ export function SettingsScreen() {
       const result = await deleteCurrentAccount();
 
       if (!result.success) {
-        Alert.alert(t('common.error'), result.error || t('settings.deleteAccountError'));
+        Alert.alert(t('common.error'), t('settings.deleteAccountError'));
         return;
       }
 

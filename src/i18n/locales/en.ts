@@ -1,4 +1,294 @@
 export const en = {
+  interface: {
+    nativePermissions: {
+      NSCameraUsageDescription:
+        'Allow Every Bible to access your camera if you choose to take a profile photo.',
+      NSMicrophoneUsageDescription:
+        'Allow Every Bible to record audio responses for chapter feedback.',
+      NSPhotoLibraryUsageDescription:
+        'Allow Every Bible to access your photo library so you can choose a profile photo.',
+      NSFaceIDUsageDescription: 'Allow Every Bible to use Face ID to protect your saved sign-in.',
+    },
+    audioUnavailableTranslation: 'Audio is not available for this translation.',
+    audioUnavailableChapter: 'Audio is not available for this chapter.',
+    audioPlayFailed: 'We could not play this audio. Please try again.',
+    close: 'Close',
+    share: 'Share',
+    minutesShort: '{{count}} min',
+    hoursShort: '{{count}} hr',
+    daysShort: '{{count}} d',
+    hoursMinutes: '{{hours}} hr {{minutes}} min',
+    justNow: 'Just now',
+    minutesAgo: '{{count}} min ago',
+    hoursAgo: '{{count}} hr ago',
+    daysAgo: '{{count}} d ago',
+    activePrayerCount: '{{count}} active',
+    groupShareMessage:
+      'Join my discipleship group "{{name}}" in EveryBible!\n\nJoin code: {{code}}',
+    groupAboutTitle: 'About Group Sessions',
+    groupAboutBody:
+      'Group sessions use the 3/3rds format used in disciple-making movements worldwide:',
+    groupLookBack: 'How did you obey? Who did you share with?',
+    groupLookUp: 'Read Scripture together and discuss',
+    groupLookForward: 'How will you obey? Who will you tell?',
+    backgroundMusicLabel: 'Background music: {{name}}',
+    backgroundMusicHint: 'Opens the background music picker',
+    repeatHint: 'Cycles repeat off, repeat chapter, and repeat book',
+    shareAudioHint: 'Opens the audio sharing options for this chapter',
+    playChapterAudio: 'Play chapter audio',
+    pauseChapterAudio: 'Pause chapter audio',
+    previousChapterHint: 'Goes to the previous chapter',
+    chapterRange: 'Chapters {{start}}–{{end}}',
+    bookDownloadProgress: '{{completed}}/{{total}} books ({{percent}}%)',
+    currentPlanDay: 'Current plan day {{day}}',
+    planDay: 'Day {{day}}',
+    planSessionForDay: '{{session}} for day {{day}}',
+    music: {
+      off: {
+        label: 'Off',
+        description: 'Play scripture without a bundled background layer.',
+      },
+      ambient: {
+        label: 'Ambient',
+        description: 'Looped underwater pads and bells underneath narration.',
+      },
+      piano: {
+        label: 'Piano',
+        description: 'Gentle piano melody with light pads.',
+      },
+      'soft-guitar': {
+        label: 'Soft guitar',
+        description: 'Looping nylon guitar bed that stays out of the way.',
+      },
+      harp: {
+        label: 'Harp',
+        description: 'Light solo harp theme with a gentle devotional feel.',
+      },
+      flute: {
+        label: 'Flute',
+        description: 'Short flute-forward loop with soft fantasy ambience.',
+      },
+      sitar: {
+        label: 'Sitar',
+        description: 'Warm desert-style sitar texture for longer listening sessions.',
+      },
+      'ocean-waves': {
+        label: 'Ocean waves',
+        description: 'Looped shoreline wash for a calmer sound bed.',
+      },
+    },
+    rhythmPresets: {
+      'catholic-morning-prayer': {
+        title: 'Catholic Morning Prayer',
+        description: 'A Lauds-shaped start with praise, canticle, and Gospel blessing.',
+        tradition: 'Catholic',
+        historicRoots: 'Liturgy of the Hours',
+      },
+      'catholic-daytime-prayer': {
+        title: 'Catholic Daytime Prayer',
+        description:
+          'A compact midday office built around short psalmody and a steady return to God.',
+        tradition: 'Catholic',
+        historicRoots: 'Liturgy of the Hours',
+      },
+      'catholic-evening-prayer': {
+        title: 'Catholic Evening Prayer',
+        description:
+          'A Vespers-inspired close to the day with psalms, thanksgiving, and the Magnificat.',
+        tradition: 'Catholic',
+        historicRoots: 'Liturgy of the Hours',
+      },
+      'catholic-night-prayer': {
+        title: 'Catholic Night Prayer',
+        description: 'A bedtime rhythm for trust, protection, and peaceful surrender.',
+        tradition: 'Catholic',
+        historicRoots: 'Compline',
+      },
+      'catholic-lectio-divina': {
+        title: 'Catholic Lectio Divina',
+        description:
+          'A slower reading rhythm meant for meditation, prayer, and lingering in the text.',
+        tradition: 'Catholic',
+        historicRoots: 'Lectio Divina',
+      },
+      'ignatian-daily-examen': {
+        title: 'Ignatian Daily Examen',
+        description:
+          'A reflective end-of-day sequence built around gratitude, review, and repentance.',
+        tradition: 'Catholic',
+        historicRoots: 'Ignatian spirituality',
+      },
+      'anglican-morning-prayer': {
+        title: 'Anglican Morning Prayer',
+        description:
+          'An office-shaped morning with psalmody and Gospel teaching for the day ahead.',
+        tradition: 'Anglican',
+        historicRoots: 'Book of Common Prayer',
+      },
+      'anglican-noonday-prayer': {
+        title: 'Anglican Noonday Prayer',
+        description:
+          'A short prayer break for the middle of the day with psalms of help and bread-of-life hope.',
+        tradition: 'Anglican',
+        historicRoots: 'Daily Prayer',
+      },
+      'anglican-evening-prayer': {
+        title: 'Anglican Evening Prayer',
+        description: 'A classic Evensong-shaped flow with evening psalms and the song of Mary.',
+        tradition: 'Anglican',
+        historicRoots: 'Book of Common Prayer',
+      },
+      'anglican-compline': {
+        title: 'Anglican Compline',
+        description: 'A gentle night office for confession, trust, and rest.',
+        tradition: 'Anglican',
+        historicRoots: 'Book of Common Prayer',
+      },
+      'orthodox-morning-rule': {
+        title: 'Orthodox Morning Rule',
+        description: 'A dawn prayer rule shaped by repentance, mercy, and the prayer Jesus taught.',
+        tradition: 'Orthodox',
+        historicRoots: 'Morning prayers',
+      },
+      'orthodox-sixth-hour': {
+        title: 'Orthodox Sixth Hour',
+        description: 'A midday office-style pause that keeps the Passion and vigilance in view.',
+        tradition: 'Orthodox',
+        historicRoots: 'Hours of prayer',
+      },
+      'orthodox-vespers': {
+        title: 'Orthodox Vespers',
+        description: 'An evening offering with creation praise, lamp-light psalmody, and the Word.',
+        tradition: 'Orthodox',
+        historicRoots: 'Daily Vespers',
+      },
+      'orthodox-small-compline': {
+        title: 'Orthodox Small Compline',
+        description: 'A quiet night office for mercy, refuge, and the final prayers before sleep.',
+        tradition: 'Orthodox',
+        historicRoots: 'Compline',
+      },
+      'benedictine-sacred-reading': {
+        title: 'Benedictine Sacred Reading',
+        description:
+          'A reading-forward rhythm inspired by fixed hours of lectio and calm attention.',
+        tradition: 'Benedictine',
+        historicRoots: 'Rule of Saint Benedict',
+      },
+      'benedictine-psalm-and-work': {
+        title: 'Benedictine Psalm and Work',
+        description: 'A practical sequence for prayer, work, and quiet obedience through the day.',
+        tradition: 'Benedictine',
+        historicRoots: 'Ora et labora',
+      },
+      'taize-evening-prayer': {
+        title: 'Taize Evening Prayer',
+        description: 'A song-and-silence evening built around psalm, reading, and stillness.',
+        tradition: 'Taize',
+        historicRoots: 'Common prayer at Taize',
+      },
+      'lutheran-morning-devotion': {
+        title: 'Lutheran Morning Devotion',
+        description:
+          'A rise-and-go rhythm for homes that want Scripture, memory, and steady prayer.',
+        tradition: 'Lutheran',
+        historicRoots: 'Daily devotions for families',
+      },
+      'lutheran-close-of-day': {
+        title: 'Lutheran Close of Day',
+        description: 'A simple night devotion for confession, refuge, and the keeping of Christ.',
+        tradition: 'Lutheran',
+        historicRoots: 'Daily devotions for families',
+      },
+      'puritan-family-worship': {
+        title: 'Puritan Family Worship',
+        description:
+          'A home-centered evening with prayer, praise, Scripture, and godly conversation.',
+        tradition: 'Puritan',
+        historicRoots: 'Directory for Family Worship',
+      },
+    },
+    companions: {
+      'mat-devotionals': {
+        title: 'Devotionals',
+        description: 'Short reflections that stay close to Jesus’ teaching.',
+      },
+      'mat-devotional-beatitudes': {
+        title: 'Blessed in the upside-down kingdom',
+        summary: 'Sit with the Beatitudes and notice where Jesus reforms our desires.',
+        actionLabel: 'Read chapter',
+      },
+      'mat-plans': {
+        title: 'Plans',
+        description: 'Simple pathways for moving through Matthew on purpose.',
+      },
+      'mat-plan-kingdom-rhythm': {
+        title: 'Kingdom rhythm in Matthew',
+        summary: 'Seven days through identity, prayer, mercy, mission, and resurrection hope.',
+        actionLabel: 'Open first chapter',
+      },
+      'jhn-playlists': {
+        title: 'Playlists',
+        description: 'Curated listening routes through John’s major movements.',
+      },
+      'jhn-playlist-signs': {
+        title: 'The signs of Jesus',
+        summary: 'A guided path through the signs that reveal Christ’s identity.',
+        actionLabel: 'Start playlist',
+      },
+      'gal-devotionals': {
+        title: 'Devotionals',
+        description: 'Brief reflections for reading Galatians prayerfully.',
+      },
+      'gal-devotional-no-longer-slaves': {
+        title: 'No longer slaves',
+        summary: 'Pause over adoption, inheritance, and the Father’s welcome.',
+        actionLabel: 'Read chapter',
+      },
+      'gal-plans': {
+        title: 'Plans',
+        description: 'Short structured routes through the letter.',
+      },
+      'gal-plan-six-days': {
+        title: 'A chapter a day: Galatians',
+        summary: 'Read one chapter each day and trace Paul’s argument without rushing it.',
+        actionLabel: 'Open first chapter',
+      },
+      'psa-playlists': {
+        title: 'Playlists',
+        description: 'Prayerful pathways for different emotional seasons.',
+      },
+      'psa-playlist-morning': {
+        title: 'Morning refuge',
+        summary: 'A short path through Psalms of trust for the start of the day.',
+        actionLabel: 'Start playlist',
+      },
+      'psa-playlist-repentance': {
+        title: 'Psalms of repentance',
+        summary: 'Pray with honesty, confession, and restoration.',
+        actionLabel: 'Start playlist',
+      },
+      'psa-devotionals': {
+        title: 'Devotionals',
+        description: 'Quiet reflections for praying the Psalms slowly.',
+      },
+      'psa-devotional-shepherd': {
+        title: 'The Shepherd who restores',
+        summary: 'Stay with Psalm 23 until it becomes a prayer instead of a slogan.',
+        actionLabel: 'Read psalm',
+      },
+    },
+    translationDescriptions: {
+      bsb: 'Public-domain Berean text with direct CC0 chapter audio',
+      web: 'Public-domain British-edition text and chapter audio from the EveryBible library',
+      kjv: 'The authorized King James Version of 1611',
+      asv: 'A revision of the KJV published in 1901, pre-installed text',
+      bbe: 'Uses a limited vocabulary for easy reading',
+      sparv1909: 'The classic Spanish Bible — public-domain text',
+      hincv: 'Hindi Contemporary Version — public domain',
+      npiulb: 'Unlocked Literal Bible — public domain',
+    },
+  },
   translatorQueue: {
     title: 'Feedback queue',
     subtitle: 'Chapters with feedback to review',
@@ -156,8 +446,7 @@ export const en = {
     failedToLoad: 'We could not load this chapter right now.',
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
-    fullBibleComingSoon:
-      "This chapter isn't available as text or audio in this translation yet.",
+    fullBibleComingSoon: "This chapter isn't available as text or audio in this translation yet.",
     audioOnlyTitle: 'Audio-first chapter',
     audioOnlyBody:
       '{{translation}} is currently available as audio for this chapter while written text is still being prepared.',
@@ -193,7 +482,8 @@ export const en = {
     chapterFeedbackAudioPreview: 'Preview audio response',
     chapterFeedbackAudioRerecord: 'Re-record audio response',
     chapterFeedbackAudioUploading: 'Uploading audio...',
-    chapterFeedbackAudioPermissionDenied: 'Microphone access is off. You can still type a response.',
+    chapterFeedbackAudioPermissionDenied:
+      'Microphone access is off. You can still type a response.',
     chapterFeedbackAudioPermissionHelp:
       'Turn on microphone access in system settings to submit audio feedback.',
     chapterFeedbackAudioStartError: 'Unable to start recording. You can still type a response.',
@@ -369,7 +659,8 @@ export const en = {
     chapterFeedbackSummaryOff: 'Optional chapter feedback is off',
     translatorAccess: 'Translator Access',
     translatorAccessTitle: 'Translator access',
-    translatorAccessBody: 'Enter the translator passcode to review chapter feedback on this device.',
+    translatorAccessBody:
+      'Enter the translator passcode to review chapter feedback on this device.',
     translatorAccessPlaceholder: 'Passcode',
     translatorAccessUnlock: 'Unlock',
     translatorAccessIncorrect: 'That translator passcode is not correct.',
@@ -495,7 +786,8 @@ export const en = {
     resetPasswordSubmit: 'Update Password',
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
-    resetPasswordInvalidSession: 'This reset link is invalid or has expired. Please request a new one.',
+    resetPasswordInvalidSession:
+      'This reset link is invalid or has expired. Please request a new one.',
   },
   profile: {
     streak: 'Day Streak',
@@ -772,7 +1064,8 @@ export const en = {
     chooseBook: 'Choose a book first.',
     chapterCount: '{{count}} chapters',
     deleteRhythmConfirmTitle: 'Delete this rhythm?',
-    deleteRhythmConfirmBody: 'The included plans will stay in My Plans, but this rhythm will be removed.',
+    deleteRhythmConfirmBody:
+      'The included plans will stay in My Plans, but this rhythm will be removed.',
     bibleIn1Year: {
       title: 'Bible in One Year',
       description:
@@ -792,7 +1085,8 @@ export const en = {
     },
     proverbs31: {
       title: 'Daily Proverbs Chapter',
-      description: 'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
+      description:
+        'Read the Proverbs chapter that matches today’s day of the month, repeating every month.',
     },
     kathisma: {
       title: 'Kathisma',
@@ -817,7 +1111,8 @@ export const en = {
     },
     prayerOfTheHours: {
       title: 'Prayer of the Hours',
-      description: 'Move through morning, midday, and evening readings shaped by psalms, gospels, and letters.',
+      description:
+        'Move through morning, midday, and evening readings shaped by psalms, gospels, and letters.',
     },
     foundationsOfTheGospel: {
       title: 'Foundations of the Gospel',
@@ -833,7 +1128,7 @@ export const en = {
     },
     kingdomOfGod: {
       title: 'The Kingdom of God',
-      description: 'Explore Jesus\' kingdom teaching across the Gospels and the early church.',
+      description: "Explore Jesus' kingdom teaching across the Gospels and the early church.",
     },
     spiritualWarfare: {
       title: 'Spiritual Warfare',
@@ -849,7 +1144,8 @@ export const en = {
     },
     faithAndObedience: {
       title: 'Faith & Obedience',
-      description: 'Strengthen trust and obedience through stories and teachings of faithful response.',
+      description:
+        'Strengthen trust and obedience through stories and teachings of faithful response.',
     },
     hearingGodsVoice: {
       title: 'Hearing God’s Voice',
@@ -862,7 +1158,8 @@ export const en = {
     timedChallenges: 'Reading Challenges',
     bibleIn30Days: {
       title: 'Full Bible in 30 Days',
-      description: 'Read the entire Bible in one month — about 40 chapters per day. The ultimate Scripture sprint.',
+      description:
+        'Read the entire Bible in one month — about 40 chapters per day. The ultimate Scripture sprint.',
     },
     bibleIn90Days: {
       title: 'Full Bible in 90 Days',
@@ -870,11 +1167,13 @@ export const en = {
     },
     bibleIn6Months: {
       title: 'Full Bible in 6 Months',
-      description: 'A disciplined pace through the entire Bible in 180 days, about 7 chapters per day.',
+      description:
+        'A disciplined pace through the entire Bible in 180 days, about 7 chapters per day.',
     },
     ntIn7Days: {
       title: 'New Testament in 7 Days',
-      description: 'All 260 chapters of the New Testament in one week — roughly 37 chapters per day. For the bold.',
+      description:
+        'All 260 chapters of the New Testament in one week — roughly 37 chapters per day. For the bold.',
     },
     ntIn14Days: {
       title: 'New Testament in 2 Weeks',
@@ -890,7 +1189,8 @@ export const en = {
     },
     gospels7Days: {
       title: 'Gospels in 7 Days',
-      description: 'Read Matthew, Mark, Luke, and John in a single week — about 13 chapters per day.',
+      description:
+        'Read Matthew, Mark, Luke, and John in a single week — about 13 chapters per day.',
     },
     gospels14Days: {
       title: 'Gospels in 2 Weeks',
@@ -898,11 +1198,13 @@ export const en = {
     },
     gospels30Days: {
       title: 'Gospels in 30 Days',
-      description: 'A comfortable month-long journey through all four Gospels, about 3 chapters per day.',
+      description:
+        'A comfortable month-long journey through all four Gospels, about 3 chapters per day.',
     },
     psalms7Days: {
       title: 'Psalms in 7 Days',
-      description: 'All 150 Psalms in one intense week — about 21 psalms per day of worship and prayer.',
+      description:
+        'All 150 Psalms in one intense week — about 21 psalms per day of worship and prayer.',
     },
     psalms90Days: {
       title: 'Psalms in 90 Days',
@@ -910,11 +1212,13 @@ export const en = {
     },
     otInYear: {
       title: 'Old Testament in a Year',
-      description: 'Read all 929 chapters of the Old Testament in 365 days, about 2–3 chapters per day.',
+      description:
+        'Read all 929 chapters of the Old Testament in 365 days, about 2–3 chapters per day.',
     },
     otIn90Days: {
       title: 'Old Testament in 90 Days',
-      description: 'All 929 OT chapters in 90 days — about 10 chapters per day. A serious commitment.',
+      description:
+        'All 929 OT chapters in 90 days — about 10 chapters per day. A serious commitment.',
     },
     pentateuch30Days: {
       title: 'Pentateuch in 30 Days',
@@ -922,7 +1226,8 @@ export const en = {
     },
     wisdom30Days: {
       title: 'Wisdom Literature in 30 Days',
-      description: 'Job, Psalms, Proverbs, Ecclesiastes, and Song of Solomon in 30 days of reflection.',
+      description:
+        'Job, Psalms, Proverbs, Ecclesiastes, and Song of Solomon in 30 days of reflection.',
     },
     prophets90Days: {
       title: 'Prophets in 90 Days',
@@ -938,7 +1243,8 @@ export const en = {
     },
     revelation22Days: {
       title: 'Revelation in 22 Days',
-      description: 'One chapter of Revelation per day — unpack the final book of Scripture at a steady pace.',
+      description:
+        'One chapter of Revelation per day — unpack the final book of Scripture at a steady pace.',
     },
   },
   annotations: {
@@ -1091,7 +1397,8 @@ export const en = {
     downloading: 'Downloading...',
     downloadPrompt: 'Download written text for {{name}} (~{{size}} MB) for offline reading?',
     deleteConfirmTitle: 'Delete Translation',
-    deleteConfirmMessage: 'Remove the downloaded data for {{name}}? You can re-download it any time.',
+    deleteConfirmMessage:
+      'Remove the downloaded data for {{name}}? You can re-download it any time.',
     delete: 'Delete',
     cancelDownload: 'Cancel download',
   },
@@ -1570,8 +1877,7 @@ export const en = {
   },
   plans: {
     rhythmComposer: {
-      subtitle:
-        'Curated rhythm library, twenty historic starting points you can add in one tap.',
+      subtitle: 'Curated rhythm library, twenty historic starting points you can add in one tap.',
       heroEyebrow: 'Historic rhythms',
       heroTitle: 'Start from a real tradition, not a blank form',
       heroBody:

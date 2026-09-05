@@ -759,7 +759,9 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
           ) : null}
           <View style={styles.planCardMeta}>
             <View style={styles.durationBadge}>
-              <Text style={styles.durationBadgeText}>{plan.duration_days}d</Text>
+              <Text style={styles.durationBadgeText}>
+                {t('interface.daysShort', { count: plan.duration_days })}
+              </Text>
             </View>
             <View
               style={[
@@ -992,7 +994,7 @@ function CompletedPlansSection({
   onDeletePlan,
   colors,
 }: CompletedPlansSectionProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const styles = createCompletedStyles(colors);
 
   if (completedPlans.length === 0) {
@@ -1008,7 +1010,7 @@ function CompletedPlansSection({
     <View style={styles.content}>
       {completedPlans.map((item) => {
         const completedDate = item.completed_at
-          ? new Date(item.completed_at).toLocaleDateString(undefined, {
+          ? new Date(item.completed_at).toLocaleDateString(i18n.language, {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
@@ -1173,7 +1175,7 @@ export function PlansHomeScreen() {
     async (planId: string) => {
       const result = await unenrollFromPlan(planId);
       if (!result.success && result.error) {
-        Alert.alert(t('common.error'), result.error);
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
         return;
       }
       successHaptic();

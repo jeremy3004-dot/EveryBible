@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../stores/audioStore';
@@ -28,6 +29,7 @@ import {
 } from '../stores/audioPlaybackSequenceModel';
 
 export function useAudioPlayer(translationId: string = 'bsb') {
+  const { t } = useTranslation();
   const AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS = 30000;
   const AUDIO_POSITION_INTERPOLATION_INTERVAL_MS = 250;
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -294,7 +296,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       options?: { startPositionMs?: number | null }
     ) => {
       if (!isAudioAvailable(targetTranslationId)) {
-        setError('Audio not available for this translation');
+        setError(t('interface.audioUnavailableTranslation'));
         void clearBibleNowPlaying();
         return;
       }
@@ -312,7 +314,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       if (currentBookId && currentChapter && durationBeforeSwitch > 0) {
         useLibraryStore
           .getState()
-          .recordHistory(currentBookId, currentChapter, positionBeforeSwitch / durationBeforeSwitch);
+          .recordHistory(
+            currentBookId,
+            currentChapter,
+            positionBeforeSwitch / durationBeforeSwitch
+          );
       }
 
       await audioPlayer.stop();
@@ -336,9 +342,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         }
 
         if (!audioData) {
-          setError('Audio not available for this chapter');
+          setError(t('interface.audioUnavailableChapter'));
           void clearBibleNowPlaying();
-          setStatus('error');
           return;
         }
 
@@ -403,15 +408,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         // Prefetch next chapters
         prefetchChapterAudio(targetTranslationId, bookId, chapter + 1, 2);
-      } catch (err) {
+      } catch {
         if (playRequestId !== playRequestIdRef.current) {
           return;
         }
 
-        const message = err instanceof Error ? err.message : 'Failed to play audio';
+        const message = t('interface.audioPlayFailed');
         setError(message);
         void clearBibleNowPlaying();
-        setStatus('error');
       }
     },
     [
@@ -427,6 +431,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       playbackSequence,
       clearPlaybackSequence,
       syncCurrentNowPlaying,
+      t,
     ]
   );
 
@@ -665,7 +670,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     audioPlayer.setCallbacks({
       onStatusUpdate: handleStatusUpdate,
       onPlaybackFinished: handlePlaybackFinished,
-      onError: setError,
+      onError: () => setError(t('interface.audioPlayFailed')),
     });
 
     return () => {
@@ -677,7 +682,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       // Clean up telemetry timer when hook unmounts
       stopAudioProgressTelemetryTimer();
     };
-  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer]);
+  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer, t]);
 
   useEffect(() => {
     if (status === 'playing') {

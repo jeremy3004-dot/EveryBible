@@ -16,8 +16,12 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+
   build-android:
     name: Build Android app bundle
+    needs: verify
     runs-on: ubuntu-latest
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -30,8 +34,11 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+
+      - name: Use repository npm version
+        run: npm install --global npm@11.11.0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -57,7 +64,12 @@ jobs:
           set -euo pipefail
           rm -f build-*.aab
           npx -y eas-cli build --platform android --profile production --local --non-interactive
-          AAB_PATH="$(ls -t "$PWD"/build-*.aab | head -n 1)"
+          AAB_FILES=("$PWD"/build-*.aab)
+          if [[ ${#AAB_FILES[@]} -ne 1 || ! -f "${AAB_FILES[0]}" ]]; then
+            echo "Expected exactly one newly built Android app bundle" >&2
+            exit 1
+          fi
+          AAB_PATH="${AAB_FILES[0]}"
           echo "aab_path=$AAB_PATH" >> "$GITHUB_OUTPUT"
           echo "Built AAB: $AAB_PATH"
 

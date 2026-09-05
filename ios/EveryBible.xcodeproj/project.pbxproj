@@ -19,6 +19,27 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		E32ABEF1BEED1903ECDCC71D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DDAF5C60B8FCDE3C52D246C /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		C356B614930844DC9C09A40D /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DF3DE59CAE25422DB213064F /* InfoPlist.strings */; };
+		A707CB98AB81463A9E387FEA /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = E24B5D555A4440E5BEC2A9D0 /* InfoPlist.strings */; };
+		08717C359D2046D0BB40F293 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2DB6F100AA6A4DE1B0A080F8 /* InfoPlist.strings */; };
+		02A46155AC3D4D9ABA901CF4 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 4AF623D3DCFE4A9FBDCA7194 /* InfoPlist.strings */; };
+		1FD0731F4CCF46B6B5B0569F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B169939049404C10AD9F86CD /* InfoPlist.strings */; };
+		CAEDD3C288544826B4016044 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 99B1B0FEA91D43348D06E244 /* InfoPlist.strings */; };
+		BF97A582FF8942DEACA92FE3 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B1160DE788C94D2DA36A3C32 /* InfoPlist.strings */; };
+		E1D62E8EEC0A4999A6B713FD /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7294001599844CC89351A381 /* InfoPlist.strings */; };
+		D8D4E705304146E9A3CFA1A0 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 19DBC18001CB492FAAE922CD /* InfoPlist.strings */; };
+		026E4D5716194DAEAF314A1F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B6B8E03D22E14E9E80B7C12B /* InfoPlist.strings */; };
+		A6412C00940F4D92A5EDCAD8 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB75ED6A5AEC4559BD74AA66 /* InfoPlist.strings */; };
+		3334DD91F45243BDBB0601DA /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9692A66FE605491699EB4B54 /* InfoPlist.strings */; };
+		1CB0C076DEFC4C8990ADCF1F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = FFA186B90AA84415B4A0B2EF /* InfoPlist.strings */; };
+		FA9DFDE730D742CB9C450374 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9DA461948E9E49D8984DCB39 /* InfoPlist.strings */; };
+		648ADF6CF74247A0859C5120 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 5CA2141E7B4B4594B55DC34B /* InfoPlist.strings */; };
+		9500B0BA0B484DCF9E5E7E86 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 1397695D262B497C9B06BC59 /* InfoPlist.strings */; };
+		E389F8CB27214E568F3E544F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = F9B10B0B19B141079B738173 /* InfoPlist.strings */; };
+		23171530E3764C3EAF029713 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 45E058C47C514E48A5E23762 /* InfoPlist.strings */; };
+		855008FC2F35480A9CA50E90 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DE453345518F4310A1520A8E /* InfoPlist.strings */; };
+		0258C8988CF14587B05D8F3C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DF757E238F564473B95C1AF4 /* InfoPlist.strings */; };
+		01CCA2B0C8EF458FBBBDA67C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2FB7CE21CE8C4894ACC64123 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +64,27 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = EveryBible/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* EveryBible-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "EveryBible-Bridging-Header.h"; path = "EveryBible/EveryBible-Bridging-Header.h"; sourceTree = "<group>"; };
+		DF3DE59CAE25422DB213064F /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "en.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		E24B5D555A4440E5BEC2A9D0 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		2DB6F100AA6A4DE1B0A080F8 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "hi.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		4AF623D3DCFE4A9FBDCA7194 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "es.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		B169939049404C10AD9F86CD /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ar.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		99B1B0FEA91D43348D06E244 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "fr.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		B1160DE788C94D2DA36A3C32 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "bn.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		7294001599844CC89351A381 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "pt.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		19DBC18001CB492FAAE922CD /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ru.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		B6B8E03D22E14E9E80B7C12B /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ur.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		CB75ED6A5AEC4559BD74AA66 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "id.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		9692A66FE605491699EB4B54 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "de.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		FFA186B90AA84415B4A0B2EF /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ja.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		9DA461948E9E49D8984DCB39 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "pa.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		5CA2141E7B4B4594B55DC34B /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "mr.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		1397695D262B497C9B06BC59 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "te.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		F9B10B0B19B141079B738173 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "tr.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		45E058C47C514E48A5E23762 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ta.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		DE453345518F4310A1520A8E /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "vi.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		DF757E238F564473B95C1AF4 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ko.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
+		2FB7CE21CE8C4894ACC64123 /* InfoPlist.strings */ = {isa = PBXFileReference; name = "InfoPlist.strings"; path = "ne.lproj/InfoPlist.strings"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.strings; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +190,27 @@
 			isa = PBXGroup;
 			children = (
 				BB2F792C24A3F905000567C9 /* Expo.plist */,
+				18B274D5DF57445D886106E3 /* en.lproj */,
+				83CE97092B8E45A99B599BC8 /* zh-Hans.lproj */,
+				C1685122C21B4DACB9E5DFEC /* hi.lproj */,
+				9BD3EA59AC4A4A168D05DA59 /* es.lproj */,
+				4305D23EDB5649F5BA21EEE7 /* ar.lproj */,
+				D4F919893F9444029F594D76 /* fr.lproj */,
+				CACFA7CA1EC540E98B4C13D5 /* bn.lproj */,
+				1A190FE829F5475EB5B368AA /* pt.lproj */,
+				B7E0E33092A24A498F485B2C /* ru.lproj */,
+				E068AC4514BE4D92B2229958 /* ur.lproj */,
+				C06579DCFAAB4668B7969194 /* id.lproj */,
+				C8CBCA4D35BD4258A6011713 /* de.lproj */,
+				4809143EB5104F8DB2F5E753 /* ja.lproj */,
+				34D5D2E11FA646D8BCF25812 /* pa.lproj */,
+				4F46705B8B614E329AAC46DB /* mr.lproj */,
+				2C6FA586029C4D7893DD1E0F /* te.lproj */,
+				89B47320FF6C4259B1E03880 /* tr.lproj */,
+				CA56239FF71F42A8BBCD5101 /* ta.lproj */,
+				77AB11E2A2D6498688950CD8 /* vi.lproj */,
+				E182AD7E952B4461BE226C4E /* ko.lproj */,
+				DA8BF59110544750915CF367 /* ne.lproj */,
 			);
 			name = Supporting;
 			path = EveryBible/Supporting;
@@ -161,6 +224,195 @@
 			name = Resources;
 			path = "";
 			sourceTree = "<group>";
+		};
+		18B274D5DF57445D886106E3 /* en.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				DF3DE59CAE25422DB213064F /* InfoPlist.strings */,
+			);
+			name = en.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		83CE97092B8E45A99B599BC8 /* zh-Hans.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				E24B5D555A4440E5BEC2A9D0 /* InfoPlist.strings */,
+			);
+			name = zh-Hans.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		C1685122C21B4DACB9E5DFEC /* hi.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				2DB6F100AA6A4DE1B0A080F8 /* InfoPlist.strings */,
+			);
+			name = hi.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		9BD3EA59AC4A4A168D05DA59 /* es.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				4AF623D3DCFE4A9FBDCA7194 /* InfoPlist.strings */,
+			);
+			name = es.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		4305D23EDB5649F5BA21EEE7 /* ar.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				B169939049404C10AD9F86CD /* InfoPlist.strings */,
+			);
+			name = ar.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		D4F919893F9444029F594D76 /* fr.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				99B1B0FEA91D43348D06E244 /* InfoPlist.strings */,
+			);
+			name = fr.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		CACFA7CA1EC540E98B4C13D5 /* bn.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				B1160DE788C94D2DA36A3C32 /* InfoPlist.strings */,
+			);
+			name = bn.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		1A190FE829F5475EB5B368AA /* pt.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				7294001599844CC89351A381 /* InfoPlist.strings */,
+			);
+			name = pt.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		B7E0E33092A24A498F485B2C /* ru.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				19DBC18001CB492FAAE922CD /* InfoPlist.strings */,
+			);
+			name = ru.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		E068AC4514BE4D92B2229958 /* ur.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				B6B8E03D22E14E9E80B7C12B /* InfoPlist.strings */,
+			);
+			name = ur.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		C06579DCFAAB4668B7969194 /* id.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				CB75ED6A5AEC4559BD74AA66 /* InfoPlist.strings */,
+			);
+			name = id.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		C8CBCA4D35BD4258A6011713 /* de.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				9692A66FE605491699EB4B54 /* InfoPlist.strings */,
+			);
+			name = de.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		4809143EB5104F8DB2F5E753 /* ja.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				FFA186B90AA84415B4A0B2EF /* InfoPlist.strings */,
+			);
+			name = ja.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		34D5D2E11FA646D8BCF25812 /* pa.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				9DA461948E9E49D8984DCB39 /* InfoPlist.strings */,
+			);
+			name = pa.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		4F46705B8B614E329AAC46DB /* mr.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				5CA2141E7B4B4594B55DC34B /* InfoPlist.strings */,
+			);
+			name = mr.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		2C6FA586029C4D7893DD1E0F /* te.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				1397695D262B497C9B06BC59 /* InfoPlist.strings */,
+			);
+			name = te.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		89B47320FF6C4259B1E03880 /* tr.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				F9B10B0B19B141079B738173 /* InfoPlist.strings */,
+			);
+			name = tr.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		CA56239FF71F42A8BBCD5101 /* ta.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				45E058C47C514E48A5E23762 /* InfoPlist.strings */,
+			);
+			name = ta.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		77AB11E2A2D6498688950CD8 /* vi.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				DE453345518F4310A1520A8E /* InfoPlist.strings */,
+			);
+			name = vi.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		E182AD7E952B4461BE226C4E /* ko.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				DF757E238F564473B95C1AF4 /* InfoPlist.strings */,
+			);
+			name = ko.lproj;
+			sourceTree = "<group>";
+			path = "";
+		};
+		DA8BF59110544750915CF367 /* ne.lproj */ = {
+			isa = "PBXGroup";
+			children = (
+				2FB7CE21CE8C4894ACC64123 /* InfoPlist.strings */,
+			);
+			name = ne.lproj;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -230,6 +482,27 @@
 				3E461D99554A48A4959DE609 /* EveryBibleLaunchScreen.storyboard in Resources */,
 				13B9648EC37BCFE93DE0C96C /* PrivacyInfo.xcprivacy in Resources */,
 				2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */,
+				C356B614930844DC9C09A40D /* InfoPlist.strings in Resources */,
+				A707CB98AB81463A9E387FEA /* InfoPlist.strings in Resources */,
+				08717C359D2046D0BB40F293 /* InfoPlist.strings in Resources */,
+				02A46155AC3D4D9ABA901CF4 /* InfoPlist.strings in Resources */,
+				1FD0731F4CCF46B6B5B0569F /* InfoPlist.strings in Resources */,
+				CAEDD3C288544826B4016044 /* InfoPlist.strings in Resources */,
+				BF97A582FF8942DEACA92FE3 /* InfoPlist.strings in Resources */,
+				E1D62E8EEC0A4999A6B713FD /* InfoPlist.strings in Resources */,
+				D8D4E705304146E9A3CFA1A0 /* InfoPlist.strings in Resources */,
+				026E4D5716194DAEAF314A1F /* InfoPlist.strings in Resources */,
+				A6412C00940F4D92A5EDCAD8 /* InfoPlist.strings in Resources */,
+				3334DD91F45243BDBB0601DA /* InfoPlist.strings in Resources */,
+				1CB0C076DEFC4C8990ADCF1F /* InfoPlist.strings in Resources */,
+				FA9DFDE730D742CB9C450374 /* InfoPlist.strings in Resources */,
+				648ADF6CF74247A0859C5120 /* InfoPlist.strings in Resources */,
+				9500B0BA0B484DCF9E5E7E86 /* InfoPlist.strings in Resources */,
+				E389F8CB27214E568F3E544F /* InfoPlist.strings in Resources */,
+				23171530E3764C3EAF029713 /* InfoPlist.strings in Resources */,
+				855008FC2F35480A9CA50E90 /* InfoPlist.strings in Resources */,
+				0258C8988CF14587B05D8F3C /* InfoPlist.strings in Resources */,
+				01CCA2B0C8EF458FBBBDA67C /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -422,7 +695,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 417;
+				CURRENT_PROJECT_VERSION = 422;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -462,7 +735,7 @@
 				CODE_SIGN_ENTITLEMENTS = EveryBible/EveryBible.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 417;
+				CURRENT_PROJECT_VERSION = 422;
 				DEVELOPMENT_TEAM = NVC9N47PRH;
 				INFOPLIST_FILE = EveryBible/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

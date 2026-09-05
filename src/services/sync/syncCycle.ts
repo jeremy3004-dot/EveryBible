@@ -19,6 +19,52 @@ export interface SyncCycleSubsyncResult {
 
 export type SyncCycleRetry = (run: () => Promise<SyncCycleResult>) => Promise<SyncCycleResult>;
 
+/** Serialize each account's writes, retaining at most one requested follow-up. */
+export function createSyncOperationQueue() {
+  type Run = () => Promise<SyncCycleResult>;
+  type Pending = {
+    run: Run;
+    promise: Promise<SyncCycleResult>;
+    resolve: (result: SyncCycleResult) => void;
+    reject: (error: unknown) => void;
+  };
+  const entries = new Map<string, { pending?: Pending }>();
+
+  const start = (key: string, entry: { pending?: Pending }, run: Run): Promise<SyncCycleResult> =>
+    Promise.resolve()
+      .then(run)
+      .finally(() => {
+        const pending = entry.pending;
+        if (!pending) {
+          entries.delete(key);
+          return;
+        }
+        entry.pending = undefined;
+        void start(key, entry, pending.run).then(pending.resolve, pending.reject);
+      });
+
+  return (key: string, run: Run): Promise<SyncCycleResult> => {
+    const entry = entries.get(key);
+    if (entry) {
+      if (!entry.pending) {
+        let resolve!: Pending['resolve'];
+        let reject!: Pending['reject'];
+        const promise = new Promise<SyncCycleResult>((done, fail) => {
+          resolve = done;
+          reject = fail;
+        });
+        entry.pending = { run, promise, resolve, reject };
+      } else {
+        entry.pending.run = run;
+      }
+      return entry.pending.promise;
+    }
+    const next = {};
+    entries.set(key, next);
+    return start(key, next, run);
+  };
+}
+
 const normalizeSyncCycleError = (error: unknown): string =>
   error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown sync error';
 

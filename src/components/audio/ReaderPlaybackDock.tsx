@@ -80,7 +80,9 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
           ? 'pause'
           : 'play';
   const playButtonAccessibilityLabel =
-    playButtonIconName === 'pause' ? 'Pause chapter audio' : 'Play chapter audio';
+    playButtonIconName === 'pause'
+      ? t('interface.pauseChapterAudio')
+      : t('interface.playChapterAudio');
   const showPlayButton = hidePlayButton !== true;
 
   const leftTransportAnimatedStyle = useAnimatedStyle(() => ({

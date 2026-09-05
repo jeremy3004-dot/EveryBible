@@ -1,42 +1,318 @@
 export const ru = {
+  interface: {
+    nativePermissions: {
+      "NSCameraUsageDescription": "Разрешите Every Bible доступ к камере, если вы решите сделать фото профиля.",
+      "NSMicrophoneUsageDescription": "Разрешите Every Bible записывать аудиоответы для отзывов о главах.",
+      "NSPhotoLibraryUsageDescription": "Разрешите Every Bible доступ к медиатеке, чтобы выбрать фото профиля.",
+      "NSFaceIDUsageDescription": "Разрешите Every Bible использовать Face ID для защиты сохранённого входа в аккаунт."
+    },
+    "close": "Закрыть",
+    "share": "Поделиться",
+    "minutesShort": "{{count}} мин",
+    "hoursShort": "{{count}} ч",
+    "daysShort": "{{count}} дн.",
+    "hoursMinutes": "{{hours}} ч {{minutes}} мин",
+    "justNow": "Только что",
+    "minutesAgo": "{{count}} мин назад",
+    "hoursAgo": "{{count}} ч назад",
+    "daysAgo": "{{count}} дн. назад",
+    "activePrayerCount": "Активных: {{count}}",
+    "groupShareMessage": "Присоединяйтесь к моей группе ученичества «{{name}}» в EveryBible!\n\nКод для вступления: {{code}}",
+    "groupAboutTitle": "О групповых встречах",
+    "groupAboutBody": "Встречи проходят по формату «трёх третей», принятому в движениях ученичества по всему миру:",
+    "groupLookBack": "Как вы проявили послушание? С кем поделились?",
+    "groupLookUp": "Читайте Писание вместе и обсуждайте",
+    "groupLookForward": "Как вы проявите послушание? Кому расскажете?",
+    "backgroundMusicLabel": "Фоновая музыка: {{name}}",
+    "backgroundMusicHint": "Открывает выбор фоновой музыки",
+    "repeatHint": "Переключает режимы: без повтора, повтор главы и повтор книги",
+    "shareAudioHint": "Открывает варианты отправки аудио этой главы",
+    "playChapterAudio": "Воспроизвести аудио главы",
+    "pauseChapterAudio": "Приостановить аудио главы",
+    "previousChapterHint": "Переходит к предыдущей главе",
+    "chapterRange": "Главы {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} книг ({{percent}} %)",
+    "currentPlanDay": "Текущий день плана: {{day}}",
+    "planDay": "День {{day}}",
+    "planSessionForDay": "{{session}} на день {{day}}",
+    "music": {
+      "off": {
+        "label": "Выключена",
+        "description": "Слушайте Писание без встроенной фоновой музыки."
+      },
+      "ambient": {
+        "label": "Атмосферная",
+        "description": "Повторяющиеся подводные звуковые слои и колокольчики под чтением."
+      },
+      "piano": {
+        "label": "Фортепиано",
+        "description": "Нежная мелодия фортепиано с лёгким звуковым фоном."
+      },
+      "soft-guitar": {
+        "label": "Мягкая гитара",
+        "description": "Ненавязчивый повторяющийся аккомпанемент гитары с нейлоновыми струнами."
+      },
+      "harp": {
+        "label": "Арфа",
+        "description": "Лёгкая сольная мелодия арфы с тихим молитвенным настроением."
+      },
+      "flute": {
+        "label": "Флейта",
+        "description": "Короткий повторяющийся мотив флейты с мягкой сказочной атмосферой."
+      },
+      "sitar": {
+        "label": "Ситар",
+        "description": "Тёплое звучание ситара с атмосферой пустыни для долгого прослушивания."
+      },
+      "ocean-waves": {
+        "label": "Морские волны",
+        "description": "Повторяющийся шум прибоя для спокойного звукового фона."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "Католическая утренняя молитва",
+        "description": "Начало дня по образцу лауд: хвала, песнопение и евангельское благословение.",
+        "tradition": "Католическая",
+        "historicRoots": "Литургия часов"
+      },
+      "catholic-daytime-prayer": {
+        "title": "Католическая дневная молитва",
+        "description": "Краткая полуденная служба с псалмами и постоянным обращением к Богу.",
+        "tradition": "Католическая",
+        "historicRoots": "Литургия часов"
+      },
+      "catholic-evening-prayer": {
+        "title": "Католическая вечерняя молитва",
+        "description": "Завершение дня по образцу вечерни: псалмы, благодарение и Магнификат.",
+        "tradition": "Католическая",
+        "historicRoots": "Литургия часов"
+      },
+      "catholic-night-prayer": {
+        "title": "Католическая молитва перед сном",
+        "description": "Молитвенный ритм перед сном: доверие, защита и мирное предание себя Богу.",
+        "tradition": "Католическая",
+        "historicRoots": "Повечерие"
+      },
+      "catholic-lectio-divina": {
+        "title": "Католическая лектио дивина",
+        "description": "Неспешное чтение для размышления, молитвы и внимательного пребывания в тексте.",
+        "tradition": "Католическая",
+        "historicRoots": "Лектио дивина"
+      },
+      "ignatian-daily-examen": {
+        "title": "Игнатианское ежедневное испытание совести",
+        "description": "Размышление в конце дня: благодарность, обзор прожитого и покаяние.",
+        "tradition": "Католическая",
+        "historicRoots": "Игнатианская духовность"
+      },
+      "anglican-morning-prayer": {
+        "title": "Англиканская утренняя молитва",
+        "description": "Утренняя служба с псалмами и евангельским учением на предстоящий день.",
+        "tradition": "Англиканская",
+        "historicRoots": "Книга общих молитв"
+      },
+      "anglican-noonday-prayer": {
+        "title": "Англиканская полуденная молитва",
+        "description": "Краткая молитва в середине дня с псалмами о помощи и надеждой на хлеб жизни.",
+        "tradition": "Англиканская",
+        "historicRoots": "Ежедневная молитва"
+      },
+      "anglican-evening-prayer": {
+        "title": "Англиканская вечерняя молитва",
+        "description": "Классическая вечерняя служба с вечерними псалмами и песнью Марии.",
+        "tradition": "Англиканская",
+        "historicRoots": "Книга общих молитв"
+      },
+      "anglican-compline": {
+        "title": "Англиканское повечерие",
+        "description": "Тихая вечерняя служба для исповедания, доверия и покоя.",
+        "tradition": "Англиканская",
+        "historicRoots": "Книга общих молитв"
+      },
+      "orthodox-morning-rule": {
+        "title": "Православное утреннее правило",
+        "description": "Утреннее молитвенное правило: покаяние, милость и молитва, которой научил Иисус.",
+        "tradition": "Православная",
+        "historicRoots": "Утренние молитвы"
+      },
+      "orthodox-sixth-hour": {
+        "title": "Православный шестой час",
+        "description": "Полуденная молитвенная остановка с памятью о Страстях Христовых и бодрствовании.",
+        "tradition": "Православная",
+        "historicRoots": "Молитвенные часы"
+      },
+      "orthodox-vespers": {
+        "title": "Православная вечерня",
+        "description": "Вечернее приношение с хвалой за творение, псалмами при свете лампад и Словом.",
+        "tradition": "Православная",
+        "historicRoots": "Ежедневная вечерня"
+      },
+      "orthodox-small-compline": {
+        "title": "Православное малое повечерие",
+        "description": "Тихая ночная служба с просьбами о милости и защите и последними молитвами перед сном.",
+        "tradition": "Православная",
+        "historicRoots": "Повечерие"
+      },
+      "benedictine-sacred-reading": {
+        "title": "Бенедиктинское священное чтение",
+        "description": "Ритм, сосредоточенный на чтении в установленные часы и спокойном внимании.",
+        "tradition": "Бенедиктинская",
+        "historicRoots": "Устав святого Бенедикта"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "Бенедиктинские псалмы и труд",
+        "description": "Практический порядок молитвы, труда и тихого послушания в течение дня.",
+        "tradition": "Бенедиктинская",
+        "historicRoots": "Молись и трудись"
+      },
+      "taize-evening-prayer": {
+        "title": "Вечерняя молитва Тэзе",
+        "description": "Вечер пения и молчания с псалмом, чтением и тишиной.",
+        "tradition": "Тэзе",
+        "historicRoots": "Общая молитва в Тэзе"
+      },
+      "lutheran-morning-devotion": {
+        "title": "Лютеранское утреннее молитвенное чтение",
+        "description": "Начало дня в семье с Писанием, заучиванием и постоянной молитвой.",
+        "tradition": "Лютеранская",
+        "historicRoots": "Ежедневные семейные молитвы"
+      },
+      "lutheran-close-of-day": {
+        "title": "Лютеранское завершение дня",
+        "description": "Простая вечерняя молитва с исповеданием, поиском убежища и упованием на защиту Христа.",
+        "tradition": "Лютеранская",
+        "historicRoots": "Ежедневные семейные молитвы"
+      },
+      "puritan-family-worship": {
+        "title": "Пуританское семейное богослужение",
+        "description": "Семейный вечер с молитвой, хвалой, Писанием и благочестивой беседой.",
+        "tradition": "Пуританская",
+        "historicRoots": "Руководство по семейному богослужению"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "Размышления",
+        "description": "Краткие размышления, основанные на учении Иисуса."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "Блаженны в Царстве, меняющем всё",
+        "summary": "Размышляйте над заповедями блаженства и замечайте, как Иисус меняет наши желания.",
+        "actionLabel": "Читать главу"
+      },
+      "mat-plans": {
+        "title": "Планы",
+        "description": "Простые пути для осмысленного чтения Евангелия от Матфея."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "Ритм Царства в Евангелии от Матфея",
+        "summary": "Семь дней об идентичности, молитве, милости, миссии и надежде воскресения.",
+        "actionLabel": "Открыть первую главу"
+      },
+      "jhn-playlists": {
+        "title": "Списки воспроизведения",
+        "description": "Подборки для прослушивания ключевых частей Евангелия от Иоанна."
+      },
+      "jhn-playlist-signs": {
+        "title": "Знамения Иисуса",
+        "summary": "Путь по знамениям, раскрывающим, кто такой Христос.",
+        "actionLabel": "Включить список"
+      },
+      "gal-devotionals": {
+        "title": "Размышления",
+        "description": "Краткие размышления для молитвенного чтения Послания к Галатам."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "Уже не рабы",
+        "summary": "Поразмышляйте об усыновлении, наследии и принятии Отцом.",
+        "actionLabel": "Читать главу"
+      },
+      "gal-plans": {
+        "title": "Планы",
+        "description": "Короткие последовательные маршруты по посланию."
+      },
+      "gal-plan-six-days": {
+        "title": "По главе в день: Галатам",
+        "summary": "Читайте по главе в день и не спеша следите за рассуждением Павла.",
+        "actionLabel": "Открыть первую главу"
+      },
+      "psa-playlists": {
+        "title": "Списки воспроизведения",
+        "description": "Молитвенные пути для разных душевных состояний."
+      },
+      "psa-playlist-morning": {
+        "title": "Утреннее прибежище",
+        "summary": "Краткий путь по псалмам доверия для начала дня.",
+        "actionLabel": "Включить список"
+      },
+      "psa-playlist-repentance": {
+        "title": "Покаянные псалмы",
+        "summary": "Молитесь искренне, исповедуя грехи и ища восстановления.",
+        "actionLabel": "Включить список"
+      },
+      "psa-devotionals": {
+        "title": "Размышления",
+        "description": "Тихие размышления для неспешной молитвы псалмами."
+      },
+      "psa-devotional-shepherd": {
+        "title": "Пастырь, Который восстанавливает",
+        "summary": "Останьтесь с Псалмом 23, пока он не станет молитвой, а не лозунгом.",
+        "actionLabel": "Читать псалом"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "Текст Берейской Библии в общественном достоянии с прямым доступом к аудио глав по CC0",
+      "web": "Текст британского издания и аудио глав в общественном достоянии из библиотеки EveryBible",
+      "kjv": "Авторизованный перевод короля Якова 1611 года",
+      "asv": "Редакция KJV, изданная в 1901 году; текст предустановлен",
+      "bbe": "Ограниченный словарный запас для удобного чтения",
+      "sparv1909": "Классическая испанская Библия — текст в общественном достоянии",
+      "hincv": "Современная версия на хинди — общественное достояние",
+      "npiulb": "Открытая буквальная Библия — общественное достояние"
+    },
+    "audioUnavailableTranslation": "Для этого перевода аудио недоступно.",
+    "audioUnavailableChapter": "Для этой главы аудио недоступно.",
+    "audioPlayFailed": "Не удалось воспроизвести аудио. Попробуйте ещё раз."
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "Отзывы на проверку",
+    subtitle: "Главы с отзывами для проверки",
+    empty: "Всё проверено. Нет отзывов, ожидающих проверки.",
+    pendingCount: "Глав для проверки: {{count}}",
+    chapterCounts: "Исправить: {{down}} · Подтвердить: {{up}}",
+    openLabel: "Открыть {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "Мои отзывы",
+    settingsRow: "Мои отзывы",
+    settingsRowSummary: "Узнайте, как команда переводчиков обработала ваши замечания",
+    subtitle: "Как команда переводчиков обработала ваши отзывы о главах",
+    empty: "Вы ещё не отправляли отзывы о главах.",
+    signInRequired: "Войдите, чтобы увидеть отправленные отзывы.",
+    audioLabel: "Прикреплено голосовое сообщение",
+    statusReceived: "Получено",
+    statusFixed: "Исправлено",
+    statusNoChange: "Проверено — без изменений",
   },
   "common": {
     "cancel": "Отмена",
-    "ok": "ХОРОШО",
-    "done": "Сделанный",
+    "ok": "ОК",
+    "done": "Готово",
     "error": "Ошибка",
-    "retry": "Повторить попытку",
+    "retry": "Повторить",
     "loading": "Загрузка...",
-    "continue": "Продолжать",
-    "save": "Сохранять",
+    "continue": "Продолжить",
+    "save": "Сохранить",
     "delete": "Удалить",
-    "edit": "Редактировать",
+    "edit": "Изменить",
     "back": "Назад",
-    "next": "Следующий",
-    "previous": "Предыдущий",
+    "next": "Далее",
+    "previous": "Назад",
     "search": "Поиск",
     "settings": "Настройки",
-    "comingSoon": "Вскоре",
-    "available": "Доступный",
+    "comingSoon": "Скоро",
+    "available": "Доступно",
     "notSet": "Не установлено",
     "or": "или",
     "unexpectedError": "Извините, произошло что-то непредвиденное. Пожалуйста, попробуйте еще раз.",
@@ -46,12 +322,12 @@ export const ru = {
     "all": "Все"
   },
   "tabs": {
-    "home": "Дом",
+    "home": "Главная",
     "bible": "Библия",
     "harvest": "Урожай",
     "gather": "Собирайтесь",
     "plans": "Планы",
-    "more": "Более"
+    "more": "Ещё"
   },
   "home": {
     "goodMorning": "Доброе утро",
@@ -66,8 +342,8 @@ export const ru = {
     "sectionOfTheDay": "Раздел дня",
     "sectionOfTheDayBody": "Сегодняшняя подборка доступна в виде аудио для этой главы, даже если письменный текст еще не добавлен.",
     "verseAudioBody": "Сегодняшний стих в настоящее время доступен в аудиоформате, поэтому вы можете его прослушать еще до того, как будет добавлен письменный текст.",
-    "playSectionOfTheDay": "Игровой раздел дня",
-    "playVerseOfTheDay": "Воспроизвести Стих дня",
+    "playSectionOfTheDay": "Слушать отрывок дня",
+    "playVerseOfTheDay": "Слушать стих дня",
     "continueReading": "Продолжить чтение",
     "sharePrompt": "Делитесь светом. Поддержите кого-нибудь сегодня.",
     "plan": "План",
@@ -93,9 +369,9 @@ export const ru = {
     "interfaceLanguageBody": "Сначала выберите язык меню, кнопок и настроек. Вы можете изменить его позже.",
     "interfaceLanguageSearchPlaceholder": "Поиск языка интерфейса",
     "availableInterfaceLanguages": "Доступные языки интерфейса",
-    "countryTitle": "Выберите свою нацию",
+    "countryTitle": "Выберите свою страну",
     "countryBody": "Мы используем вашу страну, чтобы в первую очередь рекомендовать ближайшие языки, при этом позволяя вам осуществлять поиск по всему миру.",
-    "countrySearchPlaceholder": "Найдите свою нацию",
+    "countrySearchPlaceholder": "Найдите свою страну",
     "languageTitle": "Выберите язык Библии",
     "languageBody": "Мы рекомендуем библейские языки, на которых говорят в {{country}}, но вы по-прежнему можете искать любой язык за границей.",
     "languageSearchPlaceholder": "Найдите или введите свой язык",
@@ -105,7 +381,7 @@ export const ru = {
     "noLanguagesFoundBody": "Попробуйте другое написание или выполните поиск на английском или местном языке. Нечеткий поиск включен.",
     "recommendedBadge": "Рекомендуется",
     "interfaceAvailable": "Доступен интерфейс",
-    "privacyTitle": "Выберите свой стиль конфиденциальности",
+    "privacyTitle": "Выберите значок",
     "privacyBody": "Выберите стиль значков для этого устройства. В дискретном режиме также добавляется локальная кодовая блокировка всякий раз, когда вы выходите из приложения.",
     "standardIconTitle": "Стандартный значок",
     "standardIconBody": "Используйте обычный значок Every Bible и откройте приложение напрямую.",
@@ -119,9 +395,9 @@ export const ru = {
     "finish": "Завершить настройку"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "Не удалось воспроизвести аудио. Попробуйте ещё раз.",
+    chapterFeedbackSuccessTitle: "Отзыв отправлен",
+    readerFontsAndSettings: "Шрифты и настройки",
     "title": "Библия",
     "oldTestament": "Ветхий Завет",
     "fontsAndSettings": "Шрифты и настройки",
@@ -145,11 +421,13 @@ export const ru = {
     "translationComingSoon": "{{name}} будет доступен для загрузки в будущем обновлении.",
     "failedToLoad": "Не удалось загрузить эту главу прямо сейчас.",
     "searchUnavailable": "Полнотекстовый поиск пока недоступен для этого перевода.",
-    "noVersesAvailable": "{{book}} {{chapter}} еще не написал текст.",
+    "noVersesAvailable": "Для {{book}} {{chapter}} пока нет письменного текста.",
     "fullBibleComingSoon": "Эта глава сейчас недоступна в текстовом виде. Если звук доступен, Every Bible вместо этого откроет режим прослушивания.",
-    "audioOnlyTitle": "Аудио-первая глава",
+    "audioOnlyTitle": "Глава с акцентом на аудио",
     "audioOnlyBody": "{{translation}} в настоящее время доступен в виде аудио для этой главы, а письменный текст все еще находится в стадии подготовки.",
     "verseCount_one": "{{count}} стих",
+    "verseCount_few": "{{count}} стиха",
+    "verseCount_many": "{{count}} стихов",
     "verseCount_other": "{{count}} стиха",
     "listen": "Слушать",
     "read": "Читать",
@@ -171,42 +449,42 @@ export const ru = {
     "chapterFeedbackPlaceholder": "Необязательный комментарий об этой главе",
     "chapterFeedbackSelectionHint": "Нажмите большой палец вверх или вниз, чтобы добавить необязательную заметку.",
     "chapterFeedbackSubmit": "Отправить отзыв",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "Вместо текста записать голосовой ответ",
+    "chapterFeedbackAudioRecording": "Запись: {{duration}}",
+    "chapterFeedbackAudioReady": "Голосовой ответ готов: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, не более 1 мин",
+    "chapterFeedbackAudioRecord": "Записать аудио",
+    "chapterFeedbackAudioStop": "Остановить",
+    "chapterFeedbackAudioPreview": "Прослушать голосовой ответ",
+    "chapterFeedbackAudioRerecord": "Перезаписать голосовой ответ",
+    "chapterFeedbackAudioUploading": "Загрузка аудио…",
+    "chapterFeedbackAudioPermissionDenied": "Доступ к микрофону отключён. Вы можете написать ответ.",
+    "chapterFeedbackAudioPermissionHelp": "Разрешите доступ к микрофону в настройках устройства, чтобы отправить голосовой отзыв.",
+    "chapterFeedbackAudioStartError": "Не удалось начать запись. Вы можете написать ответ.",
+    "chapterFeedbackAudioStopError": "Не удалось завершить запись. Попробуйте ещё раз.",
+    "chapterFeedbackAudioRecordingMissing": "Не удалось сохранить запись. Попробуйте ещё раз.",
+    "chapterFeedbackAudioUploadError": "Не удалось загрузить аудио. Запись сохранена; попробуйте отправить её ещё раз.",
     "chapterFeedbackSuccess": "Спасибо за ваш отзыв. Мы получили его и как можно скорее передадим нашим переводческим командам на рассмотрение.",
     "chapterFeedbackSignInRequired": "Пожалуйста, войдите в систему перед отправкой отзыва о главе.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "Проверка отзывов о переводе",
+    "translatorReviewSummary": "Ожидают проверки: {{pending}} из {{count}} отзывов",
+    "translatorReviewSummaryComplete": "Все проверки точности завершены",
+    "translatorReviewLoading": "Загрузка отзывов…",
+    "translatorReviewEmpty": "На эту главу ещё не отправляли отзывов.",
+    "translatorReviewUnknownUser": "Неизвестный участник",
+    "translatorReviewUnread": "Требует проверки",
+    "translatorReviewSubmittedAt": "Отправлено: {{date}}",
+    "translatorReviewSubmittedBy": "Отправитель: {{name}}",
+    "translatorReviewNoComment": "Нет письменного отзыва.",
+    "translatorReviewFixed": "Исправлено",
+    "translatorReviewConfirmedAccurate": "Точность подтверждена",
+    "translatorReviewReviewed": "Проверено",
+    "translatorReviewConfirmAccurate": "Подтвердить точность",
+    "translatorReviewMarkFixed": "Отметить как исправленное",
+    "translatorReviewNoActionNeeded": "Действий не требуется",
+    "translatorReviewReopen": "Открыть повторно",
+    "translatorReviewListened": "Прослушано",
+    "translatorReviewListen": "Прослушать",
     "translatorReviewPause": "Пауза",
     "nextChapterHint": "Переходит к следующей главе",
     "openBookAndChapterPickerHint": "Открывает выбор книги и главы",
@@ -284,7 +562,7 @@ export const ru = {
   "audio": {
     "playbackSpeed": "Скорость воспроизведения",
     "sleepTimer": "Таймер сна",
-    "nowPlaying": "Сейчас играет",
+    "nowPlaying": "Сейчас воспроизводится",
     "readyToResume": "Готово к продолжению",
     "repeatChapter": "Повтор главы",
     "repeatBook": "Повтор книги",
@@ -302,7 +580,7 @@ export const ru = {
     "pinPlaceholder": "Нажмите на свой код",
     "pinLengthHint": "Используйте свой код из 4–6 символов.",
     "unlock": "Разблокировать Библию",
-    "clearKey": "Прозрачный",
+    "clearKey": "Очистить",
     "deleteKey": "Удалить",
     "pinTooShort": "Ваш безопасный код должен состоять как минимум из 4 символов.",
     "pinTooLong": "Ваш безопасный код не может содержать более 6 символов.",
@@ -322,14 +600,14 @@ export const ru = {
     "chapterFeedbackIdentityRequired": "Пожалуйста, введите свое имя и роль.",
     "chapterFeedbackIdentitySummaryOff": "Данные для отзыва пока не сохранены",
     "language": "Язык интерфейса",
-    "nationAndLanguage": "Нация и библейский язык",
+    "nationAndLanguage": "Страна и язык Библии",
     "fontSize": "Размер шрифта",
     "fontSizeSmall": "Маленький",
-    "fontSizeMedium": "Середина",
+    "fontSizeMedium": "Средний",
     "fontSizeLarge": "Большой",
     "darkMode": "Темный режим",
     "themeMode": "Тема",
-    "themeDark": "Темная",
+    "themeDark": "Тёмная",
     "themeLight": "Светлая",
     "themeLowLight": "Приглушенная",
     "themeParchment": "Пергамент",
@@ -350,23 +628,23 @@ export const ru = {
     "chapterFeedback": "Отзыв о главе",
     "chapterFeedbackSummaryOn": "Необязательные отзывы о главах включены",
     "chapterFeedbackSummaryOff": "Необязательные отзывы о главах выключены",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "Доступ переводчика",
+    "translatorAccessTitle": "Доступ переводчика",
+    "translatorAccessBody": "Введите код переводчика, чтобы проверять отзывы о главах на этом устройстве.",
+    "translatorAccessPlaceholder": "Код доступа",
+    "translatorAccessUnlock": "Разблокировать",
+    "translatorAccessIncorrect": "Неверный код переводчика.",
+    "translatorAccessEnabled": "Режим проверки перевода включён",
+    "translatorAccessEnabledBody": "На экранах глав появятся инструменты проверки отзывов о переводе.",
+    "translatorAccessSummaryOn": "Инструменты проверки перевода включены",
+    "translatorAccessSummaryOff": "Введите код, чтобы включить инструменты проверки",
     "notSet": "Не установлено",
     "data": "Данные",
     "downloadOffline": "Скачать для оффлайн",
     "downloadForOffline": "Скачать для оффлайн",
     "clearCache": "Очистить кэш",
     "clearCacheConfirm": "Это очистит кэшированные данные. Ваш прогресс чтения будет сохранен.",
-    "clear": "Прозрачный",
+    "clear": "Очистить",
     "cacheClearedSuccess": "Кэш успешно очищен",
     "cacheClearError": "Ошибка очистки кэша",
     "setReminderTime": "Установить время напоминания",
@@ -523,7 +801,7 @@ export const ru = {
     "journeyDescription": "Целенаправленный подход к достижению недостигнутого",
     "fourFieldsJourney": "Путешествие по четырем полям",
     "fourFieldsDescription": "Воспроизводимый путь воспитания учеников, которые воспитывают учеников",
-    "lessonsCompleted": "{{completed}} из уроков {{total}}",
+    "lessonsCompleted": "{{completed}} из {{total}} уроков",
     "fieldsComplete": "{{count}} из 5 завершено",
     "startJourney": "Начать путешествие",
     "continueJourney": "Продолжить путешествие",
@@ -592,10 +870,10 @@ export const ru = {
     "studies": "Исследования",
     "chapters": "Главы",
     "nowReading": "Теперь открыто во вкладке Библия",
-    "openAndPlay": "Открыть и включить",
+    "openAndPlay": "Открыть и слушать",
     "chapterStudiesSubtitle": "Тематические исследования глав, созданные для чтения и прослушивания Библии в полном контексте.",
     "chapterStudiesBody": "Каждое исследование открывает полные главы, чтобы аудио и чтение оставались надежными и контекстными на всех устройствах.",
-    "playChapterSubtitle": "Открыть и включить",
+    "playChapterSubtitle": "Открыть и слушать",
     "lessons": {
       "entry1": "Молитва о жатве",
       "entry2": "Ваша карта ойкоса",
@@ -733,59 +1011,59 @@ export const ru = {
     "timedChallenges": "Челленджи чтения",
     "bibleIn30Days": {
       "title": "Библия за 30 дней",
-      "description": "Получите широкий обзор всей Библии за один месяц с помощью выбранных чтений из Ветхого и Нового Завета."
+      "description": "Прочитайте всю Библию за один месяц, примерно по 40 глав в день. Настоящий библейский спринт."
     },
     "bibleIn90Days": {
       "title": "Библия за 90 дней",
-      "description": "Прочитайте всю Библию за три месяца в быстром, но сбалансированном темпе."
+      "description": "Прочитайте все 1189 глав Библии за 90 дней, примерно по 13 глав в день."
     },
     "bibleIn6Months": {
       "title": "Библия за 6 месяцев",
-      "description": "Следуйте устойчивому ежедневному ритму, чтобы пройти всю Библию за полгода."
+      "description": "Пройдите всю Библию за 180 дней в размеренном темпе, примерно по 7 глав в день."
     },
     "ntIn7Days": {
       "title": "Новый Завет за 7 дней",
-      "description": "Прочитайте весь Новый Завет за одну насыщенную неделю."
+      "description": "Все 260 глав Нового Завета за одну неделю, примерно по 37 глав в день. Для смелых."
     },
     "ntIn14Days": {
       "title": "Новый Завет за 14 дней",
-      "description": "Пройдите Новый Завет за две недели сосредоточенного чтения."
+      "description": "Прочитайте весь Новый Завет за 14 дней, примерно по 19 глав в день."
     },
     "ntIn30Days": {
       "title": "Новый Завет за 30 дней",
-      "description": "Завершите Евангелия, Деяния, послания и Откровение за один месяц."
+      "description": "Прочитайте весь Новый Завет за месяц, примерно по 9 глав в день."
     },
     "ntIn6Months": {
       "title": "Новый Завет за 6 месяцев",
-      "description": "Читайте Новый Завет медленно и вдумчиво в течение шести месяцев."
+      "description": "Читайте все 27 книг Нового Завета за 180 дней в спокойном темпе, примерно по 1–2 главы в день."
     },
     "gospels7Days": {
       "title": "Евангелия за 7 дней",
-      "description": "За одну неделю быстро пройдите Матфея, Марка, Луку и Иоанна."
+      "description": "Прочитайте Матфея, Марка, Луку и Иоанна за одну неделю, примерно по 13 глав в день."
     },
     "gospels14Days": {
       "title": "Евангелия за 14 дней",
-      "description": "За две недели проследите жизнь Иисуса через все четыре Евангелия."
+      "description": "Прочитайте все четыре Евангелия за 14 дней, примерно по 6 глав в день."
     },
     "gospels30Days": {
       "title": "Евангелия за 30 дней",
-      "description": "В течение месяца размышляйте о служении, учении, смерти и воскресении Иисуса."
+      "description": "Пройдите все четыре Евангелия за месяц в удобном темпе, примерно по 3 главы в день."
     },
     "psalms7Days": {
       "title": "Псалмы за 7 дней",
-      "description": "Быстро пройдите всю Псалтирь за одну неделю с помощью сгруппированных чтений."
+      "description": "Все 150 псалмов за одну насыщенную неделю, примерно по 21 псалму в день для поклонения и молитвы."
     },
     "psalms90Days": {
       "title": "Псалмы за 90 дней",
-      "description": "Читайте все 150 псалмов размеренно и регулярно в течение трех месяцев."
+      "description": "Вдумчиво прочитайте все 150 псалмов за 90 дней, менее 2 псалмов в день."
     },
     "otInYear": {
       "title": "Ветхий Завет за год",
-      "description": "Пройдите весь Ветхий Завет за 365 дней, читая повествование, поэзию и пророчества."
+      "description": "Прочитайте все 929 глав Ветхого Завета за 365 дней, примерно по 2–3 главы в день."
     },
     "otIn90Days": {
       "title": "Ветхий Завет за 90 дней",
-      "description": "Прочитайте основную историю Ветхого Завета за три интенсивных месяца."
+      "description": "Все 929 глав Ветхого Завета за 90 дней, примерно по 10 глав в день. Серьёзное обязательство."
     },
     "pentateuch30Days": {
       "title": "Пятикнижие за 30 дней",
@@ -793,11 +1071,11 @@ export const ru = {
     },
     "wisdom30Days": {
       "title": "Книги мудрости за 30 дней",
-      "description": "Ежедневно черпайте мудрость из Иова, Псалмов, Притчей, Екклесиаста и Песни песней."
+      "description": "Иов, Псалмы, Притчи, Екклесиаст и Песнь песней за 30 дней размышлений."
     },
     "prophets90Days": {
       "title": "Пророки за 90 дней",
-      "description": "Прочитайте книги больших и малых пророков за три месяца."
+      "description": "Все 17 пророческих книг, от Исаии до Малахии, за 90 дней сосредоточенного чтения."
     },
     "paulsLetters30Days": {
       "title": "Послания Павла за 30 дней",
@@ -809,7 +1087,7 @@ export const ru = {
     },
     "revelation22Days": {
       "title": "Откровение за 22 дня",
-      "description": "Осмыслите последнюю книгу Писания, читая по одной главе в день в устойчивом ритме."
+      "description": "Читайте по главе Откровения в день и постепенно осмысляйте последнюю книгу Писания."
     },
     "bibleIn1Year": {
       "title": "Библия за один год",
@@ -828,11 +1106,11 @@ export const ru = {
       "description": "Пройдите Матфея, Марка, Луку и Иоанна за два месяца."
     },
     "proverbs31": {
-      "title": "Притчи за 31 день",
-      "description": "По одной главе Притч каждый день в течение месяца мудрости."
+      "title": "Ежедневная глава Притч",
+      "description": "Читайте главу Притч, соответствующую сегодняшнему числу месяца, повторяя каждый месяц."
     },
     "kathisma": {
-      "title": "Kathisma",
+      "title": "Кафизма",
       "description": "Читайте назначенные утренние и вечерние кафизмы для каждого буднего дня, повторяя каждую неделю."
     },
     "chronological": {
@@ -871,7 +1149,7 @@ export const ru = {
     },
     "holinessAndSanctification": {
       "title": "Святость и освящение",
-      "description": "Стремитесь к жизни, отделенной отрывками о святости, послушании и росте."
+      "description": "Стремитесь к жизни, посвящённой Богу, читая отрывки о святости, послушании и духовном росте."
     },
     "greatCommissionAndMission": {
       "title": "Великое поручение и миссия",
@@ -886,7 +1164,7 @@ export const ru = {
       "description": "Слушайте Бога через Пророков, псалмы, Иисуса и раннюю церковь."
     },
     "completeSessionCta": "Завершить сессию",
-    "completeSessionHint": "Отметить это молитвенное время как завершённое",
+    "completeSessionHint": "Отмечает это молитвенное время как завершённое и переходит к следующему",
     "searchPlansPlaceholder": "Найти планы",
     "noPlanSearchResults": "Подходящие планы не найдены",
     "middayLabel": "Полдень",
@@ -895,11 +1173,11 @@ export const ru = {
     "sessionUpcoming": "скоро",
     "morningAndEveningPrayer": {
       "title": "Утренняя и вечерняя молитва",
-      "description": "Семь дней начинайте и завершайте каждый день утренними и вечерними молитвенными чтениями."
+      "description": "Начинайте и завершайте каждый день псалмами, чтением Евангелия и вечерними отрывками Писания."
     },
     "prayerOfTheHours": {
       "title": "Молитва часов",
-      "description": "В течение семи дней выстраивайте ритм дня утренними, полуденными и вечерними молитвенными чтениями."
+      "description": "Читайте утром, в полдень и вечером отрывки из псалмов, Евангелий и посланий."
     }
   },
   "annotations": {
@@ -936,10 +1214,12 @@ export const ru = {
     "groupNotFound": "Группа не найдена",
     "unableToLoadGroup": "Не удалось загрузить группу.",
     "goBack": "Назад",
-    "joinCode": "Код присоединения",
+    "joinCode": "Код для вступления",
     "share": "Поделиться",
     "syncedProgress": "Синхронизированный прогресс появится после включения развертывания сессий.",
     "lessonsCompleted_one": "{{count}} урок завершен",
+    "lessonsCompleted_few": "{{count}} урока завершено",
+    "lessonsCompleted_many": "{{count}} уроков завершено",
     "lessonsCompleted_other": "{{count}} урока завершено",
     "nextLesson": "Далее: {{title}}",
     "startGroupSession": "Начать групповую сессию",
@@ -950,22 +1230,22 @@ export const ru = {
     "readOnlySyncedMembershipBody": "Эта синхронизированная группа пришла из вашей учетной записи. Имена участников и история синхронизированных уроков будут появляться здесь по мере развертывания.",
     "members": "Участники ({{count}})",
     "you": " (вы)",
-    "leader": "Лидер",
+    "leader": "Руководитель",
     "joinedRecently": "Недавно присоединился",
     "joinedDate": "Присоединился {{date}}",
     "leaveGroup": "Покинуть группу",
-    "leaveGroupLeaderMessage": "Если лидер выходит, руководство перейдет следующему самому старшему участнику. Вы уверены?",
+    "leaveGroupLeaderMessage": "Если вы выйдете из группы как руководитель, руководство перейдёт следующему участнику с наибольшим стажем в группе. Вы уверены?",
     "leaveGroupMemberMessage": "Вы уверены, что хотите покинуть эту группу?",
     "leave": "Выйти",
     "session": {
       "title": "Групповая сессия",
       "lookBack": "Оглянуться назад",
-      "lookUp": "Посмотреть вверх",
-      "lookForward": "Смотреть вперед",
+      "lookUp": "Обратиться к Богу",
+      "lookForward": "Смотреть вперёд",
       "duration5min": "~5 минут",
       "duration10min": "~10 минут",
-      "saving": "Сохранение...",
-      "completeSession": "Завершить сессию",
+      "saving": "Сохранение…",
+      "completeSession": "Завершить встречу",
       "syncedNotice": "Завершение этой сессии сохранит синхронизированную запись для вашей группы, в которую вы вошли.",
       "lookBackDescription": "Начните с того, чтобы проверить, как каждый применил урок прошлой недели. Это укрепляет ответственность и помогает радоваться послушанию.",
       "lookBackQ1": "Как вы исполнили то, что узнали в прошлый раз?",
@@ -999,15 +1279,15 @@ export const ru = {
   "prayer": {
     "title": "Стена молитвы",
     "submitRequest": "Поделиться молитвенной нуждой",
-    "requestPlaceholder": "О чем вы хотите попросить молитвы?",
+    "requestPlaceholder": "О чём вы хотите попросить молитвы?",
     "prayed": "Помолились",
     "encouraged": "Поддержали",
     "answered": "Получен ответ",
     "markAnswered": "Отметить как отвеченное",
     "noPrayers": "Молитвенных нужд пока нет",
     "beFirst": "Станьте первым, кто поделится молитвенной нуждой со своей группой.",
-    "prayedCount": "{{count}} помолились",
-    "encouragedCount": "{{count}} поддержали",
+    "prayedCount": "Помолились: {{count}}",
+    "encouragedCount": "Поддержали: {{count}}",
     "ownerLongPressHint": "Нажмите и удерживайте, чтобы изменить или удалить",
     "you": "Вы",
     "groupMember": "Участник группы",
@@ -1043,7 +1323,7 @@ export const ru = {
     "publicDomain": "Общественное достояние",
     "cloudLibrary": "Облачная библиотека",
     "downloading": "Загрузка...",
-    "downloadPrompt": "Скачать {{name}} (~{{size}} МБ) для чтения офлайн?",
+    "downloadPrompt": "Скачать текст {{name}} (~{{size}} МБ) для чтения офлайн?",
     "deleteConfirmTitle": "Удалить перевод",
     "deleteConfirmMessage": "Удалить загруженные данные для {{name}}? Вы сможете скачать их снова в любое время.",
     "cancelDownload": "Отменить загрузку",
@@ -1101,9 +1381,9 @@ export const ru = {
     "foundation5Title": "Жизнь в общине Иисуса",
     "foundation5Desc": "Принадлежать вместе, служить вместе, поклоняться вместе",
     "foundation6Title": "Жизнь лидера",
-    "foundation6Desc": "Воспроизводить учеников и вести других",
+    "foundation6Desc": "Воспитывать новых учеников и вести других",
     "foundation7Title": "Делиться Благой Вестью",
-    "foundation7Desc": "Нести Евангелие окружающим",
+    "foundation7Desc": "Нести Евангелие другим",
     "lessons": {
       "f101": "Бог создаёт мир",
       "f102": "Человечество впадает в грех",
@@ -1271,7 +1551,7 @@ export const ru = {
         "l3": "Зависть и ярость Саула к Давиду",
         "l4": "Гнев Ионы на милосердие Бога",
         "l5": "Иисус изгоняет торговцев из храма",
-        "l6": "Медленно гневайся",
+        "l6": "Не спеши гневаться",
         "l7": "Не давай гневу продолжаться до захода солнца",
         "l8": "Благословляйте тех, кто проклинает вас"
       },
@@ -1421,7 +1701,7 @@ export const ru = {
         "l3": "Добродетельная жена",
         "l4": "Песнь хвалы Марии",
         "l5": "Мария Вифанская выбирает лучшее",
-        "l6": "Женщины у воскресения",
+        "l6": "Женщины при воскресении Иисуса",
         "l7": "Прискилла наставляет Аполлоса",
         "l8": "Женщины, одарённые и исполненные Духом"
       },

@@ -74,8 +74,8 @@ test('PlaybackControls supports icon-only text and share utilities for the chapt
 
   assert.match(
     source,
-    /showTextUtility \? \([\s\S]*accessibilityLabel=\{showTextLabel \?\? 'Show text'\}[\s\S]*accessibilityHint=\{t\('audio\.showTextHint'\)\}[\s\S]*renderTextUtilityIcon\(\)/s,
-    'PlaybackControls should render the Dwell-inspired text utility as an icon-only button'
+    /showTextUtility \? \([\s\S]*accessibilityLabel=\{showTextLabel \?\? t\('audio\.showText'\)\}[\s\S]*accessibilityHint=\{t\('audio\.showTextHint'\)\}\s*>\s*\{renderTextUtilityIcon\(\)\}\s*<\/TouchableOpacity>/s,
+    'PlaybackControls should render the text utility as an icon-only button with a localized fallback label and hint'
   );
 
   assert.match(

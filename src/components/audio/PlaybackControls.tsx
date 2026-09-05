@@ -275,7 +275,7 @@ export function PlaybackControls({
               />
               {sleepTimerRemaining ? (
                 <Text style={[styles.utilityText, { color: colors.bibleAccent }]}>
-                  {`${sleepTimerRemaining}m`}
+                  {t('interface.minutesShort', { count: sleepTimerRemaining })}
                 </Text>
               ) : null}
             </TouchableOpacity>
@@ -289,8 +289,10 @@ export function PlaybackControls({
               onPress={() => setShowBackgroundMusicModal(true)}
               hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
-              accessibilityLabel={`Background music: ${selectedBackgroundMusic.label}`}
-              accessibilityHint="Opens the bundled background music picker"
+              accessibilityLabel={t('interface.backgroundMusicLabel', {
+                name: t(`interface.music.${selectedBackgroundMusic.id}.label`),
+              })}
+              accessibilityHint={t('interface.backgroundMusicHint')}
             >
               <Ionicons
                 name={backgroundMusicChoice === 'off' ? 'musical-notes-outline' : 'musical-notes'}
@@ -309,7 +311,7 @@ export function PlaybackControls({
               hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
               accessibilityLabel={repeatAccessibilityLabel}
-              accessibilityHint="Cycles repeat off, repeat chapter, and repeat book"
+              accessibilityHint={t('interface.repeatHint')}
             >
               {renderRepeatModeIcon()}
             </TouchableOpacity>
@@ -339,7 +341,7 @@ export function PlaybackControls({
                 onPress={onShowText}
                 hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel={showTextLabel ?? 'Show text'}
+                accessibilityLabel={showTextLabel ?? t('audio.showText')}
                 accessibilityHint={t('audio.showTextHint')}
               >
                 {renderTextUtilityIcon()}
@@ -357,7 +359,7 @@ export function PlaybackControls({
                 hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('bible.shareChapterAudio')}
-                accessibilityHint="Opens the audio sharing options for this chapter"
+                accessibilityHint={t('interface.shareAudioHint')}
               >
                 <Ionicons name="share-outline" size={18} color={colors.biblePrimaryText} />
               </TouchableOpacity>
@@ -374,7 +376,10 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowBackgroundMusicModal(false)}
       >
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowBackgroundMusicModal(false)}>
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setShowBackgroundMusicModal(false)}
+        >
           <View
             style={[
               styles.modalContent,
@@ -417,7 +422,7 @@ export function PlaybackControls({
                         },
                       ]}
                     >
-                      {option.label}
+                      {t(`interface.music.${option.id}.label`)}
                     </Text>
                     <Text
                       style={[
@@ -425,7 +430,7 @@ export function PlaybackControls({
                         { color: colors.bibleSecondaryText },
                       ]}
                     >
-                      {option.description}
+                      {t(`interface.music.${option.id}.description`)}
                     </Text>
                   </View>
                   {isSelected ? (
@@ -444,7 +449,10 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowSpeedModal(false)}
       >
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowSpeedModal(false)}>
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setShowSpeedModal(false)}
+        >
           <View
             style={[
               styles.modalContent,
@@ -493,7 +501,10 @@ export function PlaybackControls({
         animationType="fade"
         onRequestClose={() => setShowTimerModal(false)}
       >
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowTimerModal(false)}>
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setShowTimerModal(false)}
+        >
           <View
             style={[
               styles.modalContent,
@@ -505,7 +516,7 @@ export function PlaybackControls({
             </Text>
             {SLEEP_TIMER_OPTIONS.map((option) => (
               <TouchableOpacity
-                key={option.label}
+                key={option.value ?? 'off'}
                 style={styles.modalOption}
                 onPress={() => {
                   onSetSleepTimer(option.value);
@@ -513,7 +524,9 @@ export function PlaybackControls({
                 }}
               >
                 <Text style={[styles.modalOptionText, { color: colors.biblePrimaryText }]}>
-                  {option.label}
+                  {option.value == null
+                    ? t('interface.music.off.label')
+                    : t('interface.minutesShort', { count: option.value })}
                 </Text>
               </TouchableOpacity>
             ))}

@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "प्रोफाइल फोटो खिच्न चाहनुहुन्छ भने Every Bible लाई क्यामेरा प्रयोग गर्ने अनुमति दिनुहोस्।";
+NSMicrophoneUsageDescription = "अध्यायसम्बन्धी प्रतिक्रिया आवाजमा रेकर्ड गर्न Every Bible लाई अनुमति दिनुहोस्।";
+NSPhotoLibraryUsageDescription = "प्रोफाइल फोटो छान्नका लागि Every Bible लाई तपाईंका फोटोहरू हेर्ने अनुमति दिनुहोस्।";
+NSFaceIDUsageDescription = "सुरक्षित राखिएको साइन-इन जोगाउन Every Bible लाई Face ID प्रयोग गर्ने अनुमति दिनुहोस्।";

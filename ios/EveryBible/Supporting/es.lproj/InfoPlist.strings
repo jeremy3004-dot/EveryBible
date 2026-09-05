@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "Permite que Every Bible acceda a tu cámara si decides tomar una foto de perfil.";
+NSMicrophoneUsageDescription = "Permite que Every Bible grabe respuestas de audio para enviar comentarios sobre los capítulos.";
+NSPhotoLibraryUsageDescription = "Permite que Every Bible acceda a tu fototeca para que puedas elegir una foto de perfil.";
+NSFaceIDUsageDescription = "Permite que Every Bible use Face ID para proteger tu inicio de sesión guardado.";

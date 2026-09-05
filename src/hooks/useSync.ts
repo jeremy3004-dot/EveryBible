@@ -92,13 +92,21 @@ export const useSync = () => {
   // Sync on network reconnect (skip the initial state callback from NetInfo)
   useEffect(() => {
     let isFirstCallback = true;
+    let wasOnline = false;
     const unsubscribe = NetInfo.addEventListener((state) => {
+      const isOnline = state.isConnected === true && state.isInternetReachable === true;
       if (isFirstCallback) {
         isFirstCallback = false;
+        wasOnline = isOnline;
         return;
       }
-      if (state.isConnected && state.isInternetReachable) {
-        performSync();
+      if (isOnline) {
+        const reconnected = !wasOnline;
+        wasOnline = true;
+        if (reconnected) performSync();
+      } else if (state.isConnected === false || state.isInternetReachable === false) {
+        // Details changes and an unknown reachability probe are not disconnects.
+        wasOnline = false;
       }
     });
 

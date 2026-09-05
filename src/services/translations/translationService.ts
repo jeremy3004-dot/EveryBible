@@ -205,11 +205,15 @@ export const setUserTranslationPreferences = async (
 
   try {
     // Fetch current row so we can merge – upsert requires all non-nullable cols.
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from('user_translation_preferences')
       .select('*')
       .eq('user_id', userId)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      return { success: false, error: fetchError.message };
+    }
 
     const current = existing as UserTranslationPreferences | null;
 

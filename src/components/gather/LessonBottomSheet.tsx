@@ -1,3 +1,5 @@
+import { FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
+import { WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,12 +30,14 @@ export function LessonBottomSheet({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const titleKey = FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? WISDOM_LESSON_TITLE_KEYS[lesson.id];
+  const lessonTitle = titleKey ? t(titleKey) : lesson.title;
   const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
   const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
 
   const handleShareAudio = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
+      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -42,7 +46,7 @@ export function LessonBottomSheet({
 
   const handleShareText = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
+      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -51,7 +55,7 @@ export function LessonBottomSheet({
 
   const handleShareLink = async () => {
     try {
-      await Share.share({ message: lesson.title + ' - ' + referenceLabel });
+      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
     } catch {
       // Ignore share errors
     }
@@ -95,9 +99,7 @@ export function LessonBottomSheet({
               <Ionicons name="book-outline" size={20} color={colors.accentPrimary} />
             </View>
             <View style={styles.headerTextColumn}>
-              <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>
-                {lesson.title}
-              </Text>
+              <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
               <Text style={[styles.lessonReference, { color: colors.secondaryText }]}>
                 {referenceLabel}
               </Text>

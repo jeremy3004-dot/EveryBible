@@ -16,6 +16,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '../../i18n/interfaceFormatting';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
@@ -33,21 +34,6 @@ type NavigationProp = NativeStackNavigationProp<LearnStackParamList, 'PrayerWall
 interface LocalInteractions {
   prayed: Set<string>;
   encouraged: Set<string>;
-}
-
-// TODO(i18n): relative-time strings ('just now', '{{count}}m ago', etc.) are still
-// English. Extracting them needs new plural-aware keys (prayer.justNow / minutesAgo /
-// hoursAgo / daysAgo) added across all 26 locales, so it is deferred to the copy pass.
-// Do NOT switch to Intl.RelativeTimeFormat here — this runs per-render on a hot path.
-function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 const MAX_CHARS = 500;
@@ -121,7 +107,7 @@ export function PrayerWallScreen() {
       inputRef.current?.blur();
       successHaptic();
     } else {
-      Alert.alert(t('common.error'), result.error ?? t('common.retry'));
+      Alert.alert(t('common.error'), t('common.retry'));
     }
 
     setIsSubmitting(false);
@@ -201,19 +187,15 @@ export function PrayerWallScreen() {
       } else {
         // Android has no Alert.prompt, so Edit is omitted rather than shipped as a
         // no-op option.
-        Alert.alert(
-          t('prayer.title'),
-          undefined,
-          [
-            { text: t('prayer.markAnswered'), onPress: () => handleMarkAnswered(request.id) },
-            {
-              text: t('common.delete'),
-              style: 'destructive',
-              onPress: () => handleDelete(request.id),
-            },
-            { text: t('common.cancel'), style: 'cancel' },
-          ]
-        );
+        Alert.alert(t('prayer.title'), undefined, [
+          { text: t('prayer.markAnswered'), onPress: () => handleMarkAnswered(request.id) },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: () => handleDelete(request.id),
+          },
+          { text: t('common.cancel'), style: 'cancel' },
+        ]);
       }
     },
     // handleEdit/handleMarkAnswered/handleDelete defined below; deps added via useCallback chain
@@ -242,41 +224,34 @@ export function PrayerWallScreen() {
     [t]
   );
 
-  const handleMarkAnswered = useCallback(
-    async (requestId: string) => {
-      const result = await prayerService.markPrayerAnswered(requestId);
-      if (result.success && result.data) {
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === requestId
-              ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
-              : r
-          )
-        );
-      }
-    },
-    []
-  );
+  const handleMarkAnswered = useCallback(async (requestId: string) => {
+    const result = await prayerService.markPrayerAnswered(requestId);
+    if (result.success && result.data) {
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === requestId
+            ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
+            : r
+        )
+      );
+    }
+  }, []);
 
   const handleDelete = useCallback(
     (requestId: string) => {
-      Alert.alert(
-        t('common.delete'),
-        undefined,
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: async () => {
-              const result = await prayerService.deletePrayerRequest(requestId);
-              if (result.success) {
-                setRequests((prev) => prev.filter((r) => r.id !== requestId));
-              }
-            },
+      Alert.alert(t('common.delete'), undefined, [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            const result = await prayerService.deletePrayerRequest(requestId);
+            if (result.success) {
+              setRequests((prev) => prev.filter((r) => r.id !== requestId));
+            }
           },
-        ]
-      );
+        },
+      ]);
     },
     [t]
   );
@@ -287,7 +262,7 @@ export function PrayerWallScreen() {
       const hasPrayed = localInteractions.prayed.has(item.id);
       const hasEncouraged = localInteractions.encouraged.has(item.id);
       const displayName = isOwner
-        ? user?.displayName ?? t('prayer.you')
+        ? (user?.displayName ?? t('prayer.you'))
         : t('prayer.groupMember');
       // Derive the avatar initial from the displayed name, never from the raw
       // user_id (a UUID whose first char is a meaningless hex digit).
@@ -310,11 +285,9 @@ export function PrayerWallScreen() {
               </Text>
             </View>
             <View style={styles.cardMeta}>
-              <Text style={[styles.displayName, { color: colors.primaryText }]}>
-                {displayName}
-              </Text>
+              <Text style={[styles.displayName, { color: colors.primaryText }]}>{displayName}</Text>
               <Text style={[styles.timestamp, { color: colors.secondaryText }]}>
-                {formatRelativeTime(item.created_at)}
+                {formatRelativeTime(item.created_at, t)}
               </Text>
             </View>
             {item.is_answered && (
@@ -386,7 +359,8 @@ export function PrayerWallScreen() {
                   { color: hasEncouraged ? colors.accentPrimary : colors.secondaryText },
                 ]}
               >
-                {t('prayer.encouraged')} {item.encouraged_count > 0 ? `(${item.encouraged_count})` : ''}
+                {t('prayer.encouraged')}{' '}
+                {item.encouraged_count > 0 ? `(${item.encouraged_count})` : ''}
               </Text>
             </TouchableOpacity>
           </View>
@@ -427,7 +401,10 @@ export function PrayerWallScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
@@ -479,10 +456,18 @@ export function PrayerWallScreen() {
       ) : null}
 
       {/* Submit bar */}
-      <View style={[styles.submitBar, { backgroundColor: colors.cardBackground, borderBottomColor: colors.cardBorder }]}>
+      <View
+        style={[
+          styles.submitBar,
+          { backgroundColor: colors.cardBackground, borderBottomColor: colors.cardBorder },
+        ]}
+      >
         <TextInput
           ref={inputRef}
-          style={[styles.textInput, { color: colors.primaryText, backgroundColor: colors.background }]}
+          style={[
+            styles.textInput,
+            { color: colors.primaryText, backgroundColor: colors.background },
+          ]}
           placeholder={t('prayer.requestPlaceholder')}
           placeholderTextColor={colors.secondaryText}
           value={submitText}
@@ -495,7 +480,9 @@ export function PrayerWallScreen() {
           accessibilityLabel={t('prayer.requestPlaceholder')}
         />
         <View style={styles.submitRow}>
-          <Text style={[styles.charCount, styles.charCountTabular, { color: colors.secondaryText }]}>
+          <Text
+            style={[styles.charCount, styles.charCountTabular, { color: colors.secondaryText }]}
+          >
             {submitText.length}/{MAX_CHARS}
           </Text>
           <TouchableOpacity
@@ -517,9 +504,7 @@ export function PrayerWallScreen() {
               name="send"
               size={16}
               color={
-                isSignedIn && submitText.trim().length > 0
-                  ? colors.onAccent
-                  : colors.secondaryText
+                isSignedIn && submitText.trim().length > 0 ? colors.onAccent : colors.secondaryText
               }
             />
             <Text
@@ -594,209 +579,209 @@ export function PrayerWallScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-    },
-    backButton: {
-      padding: spacing.xs,
-      minWidth: layout.minTouchTarget,
-      minHeight: layout.minTouchTarget,
-      justifyContent: 'center',
-    },
-    headerTitleWrapper: {
-      flex: 1,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      ...typography.cardTitle,
-    },
-    headerSubtitle: {
-      ...typography.micro,
-      marginTop: 1,
-    },
-    headerRight: {
-      minWidth: layout.minTouchTarget,
-    },
-    submitBar: {
-      paddingHorizontal: layout.screenPadding,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-      borderBottomWidth: 1,
-    },
-    signInPromptCard: {
-      paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      gap: spacing.md,
-    },
-    signInPromptCopy: {
-      gap: spacing.xs,
-    },
-    signInPromptTitle: {
-      ...typography.bodyStrong,
-    },
-    signInPromptBody: {
-      ...typography.body,
-    },
-    signInInlineButton: {
-      alignSelf: 'flex-start',
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-    },
-    signInInlineButtonText: {
-      ...typography.button,
-    },
-    textInput: {
-      ...typography.body,
-      borderRadius: radius.lg,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      minHeight: 72,
-      maxHeight: 140,
-      textAlignVertical: 'top',
-    },
-    submitRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginTop: spacing.sm,
-    },
-    charCount: {
-      ...typography.micro,
-    },
-    submitButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.lg,
-    },
-    submitButtonText: {
-      ...typography.label,
-    },
-    listContent: {
-      padding: layout.screenPadding,
-      gap: spacing.md,
-    },
-    listContentEmpty: {
-      flex: 1,
-    },
-    card: {
-      borderRadius: radius.lg,
-      padding: layout.denseCardPadding,
-      gap: spacing.md,
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-    },
-    avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.pill,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    avatarInitial: {
-      ...typography.label,
-    },
-    cardMeta: {
-      flex: 1,
-    },
-    displayName: {
-      ...typography.bodyStrong,
-      fontSize: 14,
-      lineHeight: 18,
-    },
-    timestamp: {
-      ...typography.micro,
-    },
-    answeredBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
-      borderRadius: radius.lg,
-    },
-    answeredText: {
-      ...typography.micro,
-      fontWeight: '600',
-    },
-    content: {
-      ...typography.body,
-      lineHeight: 22,
-    },
-    actionRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-    },
-    actionPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs + 2,
-      borderRadius: radius.lg,
-    },
-    pillText: {
-      ...typography.micro,
-      fontWeight: '600',
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingHorizontal: layout.screenPadding,
-    },
-    emptyTitle: {
-      ...typography.cardTitle,
-      textAlign: 'center',
-    },
-    emptyBody: {
-      ...typography.body,
-      textAlign: 'center',
-    },
-    signInPromptButton: {
-      marginTop: spacing.lg,
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.md,
-    },
-    signInPromptButtonText: {
-      ...typography.button,
-    },
-    charCountTabular: {
-      fontVariant: ['tabular-nums'],
-    },
-    pillTextTabular: {
-      fontVariant: ['tabular-nums'],
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingHorizontal: layout.screenPadding,
-    },
-    errorRetryButton: {
-      marginTop: spacing.lg,
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.md,
-    },
-    errorRetryButtonText: {
-      ...typography.button,
-    },
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: layout.screenPadding,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: spacing.xs,
+    minWidth: layout.minTouchTarget,
+    minHeight: layout.minTouchTarget,
+    justifyContent: 'center',
+  },
+  headerTitleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    ...typography.cardTitle,
+  },
+  headerSubtitle: {
+    ...typography.micro,
+    marginTop: 1,
+  },
+  headerRight: {
+    minWidth: layout.minTouchTarget,
+  },
+  submitBar: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  signInPromptCard: {
+    paddingHorizontal: layout.screenPadding,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    gap: spacing.md,
+  },
+  signInPromptCopy: {
+    gap: spacing.xs,
+  },
+  signInPromptTitle: {
+    ...typography.bodyStrong,
+  },
+  signInPromptBody: {
+    ...typography.body,
+  },
+  signInInlineButton: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  signInInlineButtonText: {
+    ...typography.button,
+  },
+  textInput: {
+    ...typography.body,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 72,
+    maxHeight: 140,
+    textAlignVertical: 'top',
+  },
+  submitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  charCount: {
+    ...typography.micro,
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+  },
+  submitButtonText: {
+    ...typography.label,
+  },
+  listContent: {
+    padding: layout.screenPadding,
+    gap: spacing.md,
+  },
+  listContentEmpty: {
+    flex: 1,
+  },
+  card: {
+    borderRadius: radius.lg,
+    padding: layout.denseCardPadding,
+    gap: spacing.md,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    ...typography.label,
+  },
+  cardMeta: {
+    flex: 1,
+  },
+  displayName: {
+    ...typography.bodyStrong,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  timestamp: {
+    ...typography.micro,
+  },
+  answeredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.lg,
+  },
+  answeredText: {
+    ...typography.micro,
+    fontWeight: '600',
+  },
+  content: {
+    ...typography.body,
+    lineHeight: 22,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.lg,
+  },
+  pillText: {
+    ...typography.micro,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: layout.screenPadding,
+  },
+  emptyTitle: {
+    ...typography.cardTitle,
+    textAlign: 'center',
+  },
+  emptyBody: {
+    ...typography.body,
+    textAlign: 'center',
+  },
+  signInPromptButton: {
+    marginTop: spacing.lg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  signInPromptButtonText: {
+    ...typography.button,
+  },
+  charCountTabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  pillTextTabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: layout.screenPadding,
+  },
+  errorRetryButton: {
+    marginTop: spacing.lg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  errorRetryButtonText: {
+    ...typography.button,
+  },
 });

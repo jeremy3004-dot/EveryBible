@@ -45,8 +45,9 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
     'AboutScreen should link to the EveryBible website through the canonical constant'
   );
 
-  assert.ok(
-    source.includes("defaultValue: ABOUT_WEBSITE_LABEL"),
+  assert.match(
+    source,
+    /<Text\b[^>]*>\s*\{ABOUT_WEBSITE_LABEL\}\s*<\/Text>/,
     'AboutScreen should show the EveryBible website label instead of a raw key'
   );
 
@@ -55,8 +56,9 @@ test('AboutScreen uses the EveryBible website and support contact details', () =
     'AboutScreen should open the hello@everybible.app support inbox'
   );
 
-  assert.ok(
-    source.includes("defaultValue: EVERYBIBLE_SUPPORT_EMAIL"),
+  assert.match(
+    source,
+    /<Text\b[^>]*>\s*\{EVERYBIBLE_SUPPORT_EMAIL\}\s*<\/Text>/,
     'AboutScreen should show the support email instead of a raw key'
   );
 

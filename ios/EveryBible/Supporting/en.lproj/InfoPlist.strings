@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "Allow Every Bible to access your camera if you choose to take a profile photo.";
+NSMicrophoneUsageDescription = "Allow Every Bible to record audio responses for chapter feedback.";
+NSPhotoLibraryUsageDescription = "Allow Every Bible to access your photo library so you can choose a profile photo.";
+NSFaceIDUsageDescription = "Allow Every Bible to use Face ID to protect your saved sign-in.";

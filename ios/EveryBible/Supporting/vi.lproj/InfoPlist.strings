@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "Cho phép Every Bible truy cập máy ảnh nếu bạn chọn chụp ảnh hồ sơ.";
+NSMicrophoneUsageDescription = "Cho phép Every Bible ghi âm câu trả lời để phản hồi về các chương.";
+NSPhotoLibraryUsageDescription = "Cho phép Every Bible truy cập thư viện ảnh để bạn chọn ảnh hồ sơ.";
+NSFaceIDUsageDescription = "Cho phép Every Bible sử dụng Face ID để bảo vệ thông tin đăng nhập đã lưu.";

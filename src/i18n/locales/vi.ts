@@ -1,23 +1,299 @@
 export const vi = {
+  interface: {
+    "close": "Đóng",
+    "share": "Chia sẻ",
+    "minutesShort": "{{count}} phút",
+    "hoursShort": "{{count}} giờ",
+    "daysShort": "{{count}} ngày",
+    "hoursMinutes": "{{hours}} giờ {{minutes}} phút",
+    "justNow": "Vừa xong",
+    "minutesAgo": "{{count}} phút trước",
+    "hoursAgo": "{{count}} giờ trước",
+    "daysAgo": "{{count}} ngày trước",
+    "activePrayerCount": "{{count}} đang hoạt động",
+    "groupShareMessage": "Tham gia nhóm môn đồ hóa \"{{name}}\" của tôi trên EveryBible!\n\nMã tham gia: {{code}}",
+    "groupAboutTitle": "Về các buổi nhóm",
+    "groupAboutBody": "Các buổi nhóm sử dụng mô hình ba phần (3/3) được dùng trong các phong trào môn đồ hóa trên thế giới:",
+    "groupLookBack": "Bạn đã vâng lời như thế nào? Bạn đã chia sẻ với ai?",
+    "groupLookUp": "Cùng đọc và thảo luận Kinh Thánh",
+    "groupLookForward": "Bạn sẽ vâng lời như thế nào? Bạn sẽ chia sẻ với ai?",
+    "backgroundMusicLabel": "Nhạc nền: {{name}}",
+    "backgroundMusicHint": "Mở trình chọn nhạc nền",
+    "repeatHint": "Chuyển giữa tắt lặp, lặp chương và lặp sách",
+    "shareAudioHint": "Mở tùy chọn chia sẻ âm thanh cho chương này",
+    "playChapterAudio": "Phát âm thanh chương",
+    "pauseChapterAudio": "Tạm dừng âm thanh chương",
+    "previousChapterHint": "Chuyển đến chương trước",
+    "chapterRange": "Chương {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} sách ({{percent}}%)",
+    "currentPlanDay": "Ngày hiện tại của kế hoạch: {{day}}",
+    "planDay": "Ngày {{day}}",
+    "planSessionForDay": "{{session}} cho ngày {{day}}",
+    "music": {
+      "off": {
+        "label": "Tắt",
+        "description": "Phát Kinh Thánh không kèm nhạc nền tích hợp."
+      },
+      "ambient": {
+        "label": "Nhạc không gian",
+        "description": "Âm nền và tiếng chuông mang cảm giác dưới nước lặp lại dưới lời đọc."
+      },
+      "piano": {
+        "label": "Đàn piano",
+        "description": "Giai điệu piano nhẹ nhàng cùng âm nền êm dịu."
+      },
+      "soft-guitar": {
+        "label": "Ghi-ta nhẹ nhàng",
+        "description": "Âm nền ghi-ta dây nylon lặp lại, không gây xao nhãng."
+      },
+      "harp": {
+        "label": "Đàn hạc",
+        "description": "Giai điệu đàn hạc độc tấu nhẹ nhàng, gợi không khí tĩnh nguyện."
+      },
+      "flute": {
+        "label": "Sáo",
+        "description": "Đoạn sáo ngắn lặp lại với không gian mơ màng, dịu nhẹ."
+      },
+      "sitar": {
+        "label": "Đàn sitar",
+        "description": "Âm sắc sitar ấm áp mang phong cách sa mạc cho buổi nghe dài."
+      },
+      "ocean-waves": {
+        "label": "Sóng biển",
+        "description": "Tiếng sóng vỗ bờ lặp lại tạo âm nền yên bình hơn."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "Kinh sáng Công giáo",
+        "description": "Khởi đầu theo giờ Kinh Sáng với lời ca ngợi, thánh ca và lời chúc lành Tin Mừng.",
+        "tradition": "Công giáo",
+        "historicRoots": "Các Giờ Kinh Phụng Vụ"
+      },
+      "catholic-daytime-prayer": {
+        "title": "Kinh ban ngày Công giáo",
+        "description": "Giờ kinh trưa ngắn với các thánh vịnh và lòng luôn hướng về Thiên Chúa.",
+        "tradition": "Công giáo",
+        "historicRoots": "Các Giờ Kinh Phụng Vụ"
+      },
+      "catholic-evening-prayer": {
+        "title": "Kinh chiều Công giáo",
+        "description": "Khép lại ngày theo Kinh Chiều với thánh vịnh, tạ ơn và bài ca Magnificat.",
+        "tradition": "Công giáo",
+        "historicRoots": "Các Giờ Kinh Phụng Vụ"
+      },
+      "catholic-night-prayer": {
+        "title": "Kinh tối Công giáo",
+        "description": "Nhịp cầu nguyện trước khi ngủ để tín thác, xin che chở và phó dâng trong bình an.",
+        "tradition": "Công giáo",
+        "historicRoots": "Kinh Tối"
+      },
+      "catholic-lectio-divina": {
+        "title": "Đọc Lời Chúa Công giáo",
+        "description": "Nhịp đọc chậm để suy niệm, cầu nguyện và lưu lại trong bản văn.",
+        "tradition": "Công giáo",
+        "historicRoots": "Đọc Lời Chúa trong cầu nguyện"
+      },
+      "ignatian-daily-examen": {
+        "title": "Xét mình hằng ngày theo thánh Inhaxiô",
+        "description": "Trình tự suy xét cuối ngày với lòng biết ơn, nhìn lại và sám hối.",
+        "tradition": "Công giáo",
+        "historicRoots": "Linh đạo Inhaxiô"
+      },
+      "anglican-morning-prayer": {
+        "title": "Cầu nguyện sáng Anh giáo",
+        "description": "Giờ cầu nguyện sáng với thánh vịnh và giáo huấn Tin Mừng cho ngày mới.",
+        "tradition": "Anh giáo",
+        "historicRoots": "Sách Cầu Nguyện Chung"
+      },
+      "anglican-noonday-prayer": {
+        "title": "Cầu nguyện trưa Anh giáo",
+        "description": "Khoảng cầu nguyện ngắn giữa ngày với thánh vịnh xin giúp đỡ và niềm hy vọng nơi bánh sự sống.",
+        "tradition": "Anh giáo",
+        "historicRoots": "Cầu nguyện hằng ngày"
+      },
+      "anglican-evening-prayer": {
+        "title": "Cầu nguyện chiều Anh giáo",
+        "description": "Trình tự kinh chiều truyền thống với thánh vịnh buổi tối và bài ca Đức Maria.",
+        "tradition": "Anh giáo",
+        "historicRoots": "Sách Cầu Nguyện Chung"
+      },
+      "anglican-compline": {
+        "title": "Kinh tối Anh giáo",
+        "description": "Giờ kinh tối dịu dàng để xưng thú, tín thác và nghỉ ngơi.",
+        "tradition": "Anh giáo",
+        "historicRoots": "Sách Cầu Nguyện Chung"
+      },
+      "orthodox-morning-rule": {
+        "title": "Quy tắc cầu nguyện sáng Chính Thống",
+        "description": "Quy tắc cầu nguyện lúc bình minh với sám hối, lòng thương xót và lời cầu nguyện Chúa Giêsu dạy.",
+        "tradition": "Chính Thống giáo",
+        "historicRoots": "Các kinh sáng"
+      },
+      "orthodox-sixth-hour": {
+        "title": "Kinh giờ thứ sáu Chính Thống",
+        "description": "Khoảng dừng giữa trưa theo giờ kinh, tưởng nhớ cuộc Thương Khó và tỉnh thức.",
+        "tradition": "Chính Thống giáo",
+        "historicRoots": "Các giờ cầu nguyện"
+      },
+      "orthodox-vespers": {
+        "title": "Kinh chiều Chính Thống",
+        "description": "Lời dâng buổi chiều với lời ca ngợi công trình tạo dựng, thánh vịnh thắp đèn và Lời Chúa.",
+        "tradition": "Chính Thống giáo",
+        "historicRoots": "Kinh chiều hằng ngày"
+      },
+      "orthodox-small-compline": {
+        "title": "Kinh tối ngắn Chính Thống",
+        "description": "Giờ kinh tối yên lặng xin lòng thương xót, nơi nương náu và lời cầu nguyện cuối trước khi ngủ.",
+        "tradition": "Chính Thống giáo",
+        "historicRoots": "Kinh Tối"
+      },
+      "benedictine-sacred-reading": {
+        "title": "Đọc sách thánh theo Biển Đức",
+        "description": "Nhịp chú trọng đọc sách, lấy cảm hứng từ giờ đọc Lời Chúa cố định và sự chú tâm tĩnh lặng.",
+        "tradition": "Biển Đức",
+        "historicRoots": "Tu luật thánh Biển Đức"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "Thánh vịnh và lao động theo Biển Đức",
+        "description": "Trình tự thiết thực cho cầu nguyện, lao động và vâng phục âm thầm suốt ngày.",
+        "tradition": "Biển Đức",
+        "historicRoots": "Cầu nguyện và lao động"
+      },
+      "taize-evening-prayer": {
+        "title": "Cầu nguyện tối Taizé",
+        "description": "Buổi tối với lời ca và thinh lặng, xoay quanh thánh vịnh, bài đọc và sự tĩnh lặng.",
+        "tradition": "Taizé",
+        "historicRoots": "Cầu nguyện chung tại Taizé"
+      },
+      "lutheran-morning-devotion": {
+        "title": "Tĩnh nguyện sáng Luther",
+        "description": "Nhịp buổi sáng cho gia đình muốn đọc Kinh Thánh, ghi nhớ và kiên trì cầu nguyện.",
+        "tradition": "Luther",
+        "historicRoots": "Tĩnh nguyện hằng ngày cho gia đình"
+      },
+      "lutheran-close-of-day": {
+        "title": "Khép lại ngày theo truyền thống Luther",
+        "description": "Tĩnh nguyện tối đơn giản để xưng thú, nương náu và ở trong sự gìn giữ của Đấng Christ.",
+        "tradition": "Luther",
+        "historicRoots": "Tĩnh nguyện hằng ngày cho gia đình"
+      },
+      "puritan-family-worship": {
+        "title": "Thờ phượng gia đình Thanh giáo",
+        "description": "Buổi tối tại gia với cầu nguyện, ngợi khen, Kinh Thánh và trò chuyện tin kính.",
+        "tradition": "Thanh giáo",
+        "historicRoots": "Hướng dẫn thờ phượng gia đình"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "Tĩnh nguyện",
+        "description": "Những suy ngẫm ngắn bám sát lời dạy của Chúa Giê-su."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "Phước lành trong vương quốc đảo ngược giá trị thế gian",
+        "summary": "Suy ngẫm các phước lành và nhận ra cách Chúa Giê-su đổi mới những khao khát của chúng ta.",
+        "actionLabel": "Đọc chương"
+      },
+      "mat-plans": {
+        "title": "Kế hoạch",
+        "description": "Những lộ trình đơn giản để đọc Ma-thi-ơ có mục đích."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "Nhịp sống vương quốc trong Ma-thi-ơ",
+        "summary": "Bảy ngày qua căn tính, cầu nguyện, lòng thương xót, sứ mạng và hy vọng phục sinh.",
+        "actionLabel": "Mở chương đầu tiên"
+      },
+      "jhn-playlists": {
+        "title": "Danh sách phát",
+        "description": "Các lộ trình nghe được tuyển chọn qua những phần chính của Giăng."
+      },
+      "jhn-playlist-signs": {
+        "title": "Các dấu lạ của Chúa Giê-su",
+        "summary": "Lộ trình có hướng dẫn qua những dấu lạ bày tỏ căn tính của Đấng Christ.",
+        "actionLabel": "Bắt đầu danh sách phát"
+      },
+      "gal-devotionals": {
+        "title": "Tĩnh nguyện",
+        "description": "Những suy ngẫm ngắn để đọc Ga-la-ti trong sự cầu nguyện."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "Không còn là nô lệ",
+        "summary": "Dừng lại suy ngẫm về việc được nhận làm con, cơ nghiệp và sự đón nhận của Cha.",
+        "actionLabel": "Đọc chương"
+      },
+      "gal-plans": {
+        "title": "Kế hoạch",
+        "description": "Các lộ trình ngắn có cấu trúc xuyên suốt thư tín."
+      },
+      "gal-plan-six-days": {
+        "title": "Mỗi ngày một chương: Ga-la-ti",
+        "summary": "Đọc một chương mỗi ngày và theo dõi lập luận của Phao-lô mà không vội vàng.",
+        "actionLabel": "Mở chương đầu tiên"
+      },
+      "psa-playlists": {
+        "title": "Danh sách phát",
+        "description": "Những lộ trình cầu nguyện cho các giai đoạn cảm xúc khác nhau."
+      },
+      "psa-playlist-morning": {
+        "title": "Nơi nương náu buổi sáng",
+        "summary": "Lộ trình ngắn qua các Thi thiên về lòng tin cậy để bắt đầu ngày mới.",
+        "actionLabel": "Bắt đầu danh sách phát"
+      },
+      "psa-playlist-repentance": {
+        "title": "Thi thiên ăn năn",
+        "summary": "Cầu nguyện với lòng chân thật, xưng tội và sự phục hồi.",
+        "actionLabel": "Bắt đầu danh sách phát"
+      },
+      "psa-devotionals": {
+        "title": "Tĩnh nguyện",
+        "description": "Những suy ngẫm tĩnh lặng để cầu nguyện chậm rãi với Thi thiên."
+      },
+      "psa-devotional-shepherd": {
+        "title": "Đấng Chăn Chiên phục hồi",
+        "summary": "Ở lại với Thi thiên 23 cho đến khi lời ấy trở thành lời cầu nguyện, không chỉ là khẩu hiệu.",
+        "actionLabel": "Đọc Thi thiên"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "Bản văn Berean thuộc phạm vi công cộng với âm thanh chương trực tiếp theo giấy phép CC0",
+      "web": "Bản văn phiên bản Anh và âm thanh chương thuộc phạm vi công cộng từ thư viện EveryBible",
+      "kjv": "Bản dịch King James được chuẩn nhận năm 1611",
+      "asv": "Bản hiệu đính KJV xuất bản năm 1901, văn bản được cài sẵn",
+      "bbe": "Sử dụng vốn từ giới hạn để dễ đọc",
+      "sparv1909": "Kinh Thánh tiếng Tây Ban Nha cổ điển — bản văn thuộc phạm vi công cộng",
+      "hincv": "Bản dịch tiếng Hindi đương đại — thuộc phạm vi công cộng",
+      "npiulb": "Kinh Thánh dịch sát nghĩa mở — thuộc phạm vi công cộng"
+    },
+    "audioUnavailableTranslation": "Chưa có âm thanh cho bản dịch này.",
+    "audioUnavailableChapter": "Chưa có âm thanh cho chương này.",
+    "audioPlayFailed": "Không thể phát âm thanh này. Vui lòng thử lại.",
+    nativePermissions: {
+      "NSCameraUsageDescription": "Cho phép Every Bible truy cập máy ảnh nếu bạn chọn chụp ảnh hồ sơ.",
+      "NSMicrophoneUsageDescription": "Cho phép Every Bible ghi âm câu trả lời để phản hồi về các chương.",
+      "NSPhotoLibraryUsageDescription": "Cho phép Every Bible truy cập thư viện ảnh để bạn chọn ảnh hồ sơ.",
+      "NSFaceIDUsageDescription": "Cho phép Every Bible sử dụng Face ID để bảo vệ thông tin đăng nhập đã lưu."
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "Danh sách phản hồi",
+    subtitle: "Các chương có phản hồi cần xem xét",
+    empty: "Bạn đã xem xét hết. Không còn phản hồi đang chờ.",
+    pendingCount: "{{count}} chương cần xem xét",
+    chapterCounts: "{{down}} cần sửa · {{up}} cần xác nhận",
+    openLabel: "Mở {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "Phản hồi của tôi",
+    settingsRow: "Phản hồi của tôi",
+    settingsRowSummary: "Theo dõi cách nhóm dịch xử lý góp ý của bạn",
+    subtitle: "Cách nhóm dịch xử lý phản hồi của bạn về các chương",
+    empty: "Bạn chưa gửi phản hồi nào về các chương.",
+    signInRequired: "Đăng nhập để xem phản hồi bạn đã gửi.",
+    audioLabel: "Đã đính kèm ghi âm",
+    statusReceived: "Đã nhận",
+    statusFixed: "Đã sửa",
+    statusNoChange: "Đã xem xét — không thay đổi",
   },
   "common": {
     "cancel": "Hủy bỏ",
@@ -27,10 +303,10 @@ export const vi = {
     "retry": "Thử lại",
     "loading": "Đang tải...",
     "continue": "Tiếp tục",
-    "save": "Cứu",
+    "save": "Lưu",
     "delete": "Xóa bỏ",
     "edit": "Biên tập",
-    "back": "Mặt sau",
+    "back": "Quay lại",
     "next": "Kế tiếp",
     "previous": "Trước",
     "search": "Tìm kiếm",
@@ -62,12 +338,12 @@ export const vi = {
     "welcome": "Chào mừng đến với Every Bible",
     "beginToday": "Bắt đầu hôm nay",
     "todaysScripture": "Kinh Thánh hôm nay",
-    "verseOfTheDay": "Câu thơ trong ngày",
+    "verseOfTheDay": "Câu Kinh Thánh hôm nay",
     "sectionOfTheDay": "Phần trong ngày",
     "sectionOfTheDayBody": "Lựa chọn của ngày hôm nay có sẵn dưới dạng âm thanh cho chương này, ngay cả khi văn bản chưa được thêm vào.",
     "verseAudioBody": "Câu thơ hôm nay hiện có sẵn ở dạng âm thanh, vì vậy bạn có thể nghe ngay cả trước khi thêm văn bản viết vào.",
     "playSectionOfTheDay": "Phần chơi trong ngày",
-    "playVerseOfTheDay": "Chơi bài thơ trong ngày",
+    "playVerseOfTheDay": "Phát câu Kinh Thánh hôm nay",
     "continueReading": "Tiếp tục đọc",
     "sharePrompt": "Chia sẻ ánh sáng. Khích lệ ai đó hôm nay.",
     "plan": "Kế hoạch",
@@ -75,7 +351,7 @@ export const vi = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "Trường {{number}}",
     "notificationSettings": "Cài đặt thông báo",
-    "chaptersRead": "Chương đã đọc",
+    "chaptersRead": "Các chương đã đọc",
     "today": "Hôm nay",
     "week": "Tuần",
     "month": "Tháng",
@@ -119,9 +395,9 @@ export const vi = {
     "finish": "Hoàn tất thiết lập"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "Không thể phát âm thanh này. Vui lòng thử lại.",
+    chapterFeedbackSuccessTitle: "Đã gửi phản hồi",
+    readerFontsAndSettings: "Phông chữ và cài đặt",
     "title": "Kinh Thánh",
     "oldTestament": "Cựu Ước",
     "fontsAndSettings": "Phông chữ & Cài đặt",
@@ -134,7 +410,7 @@ export const vi = {
     "byBook": "Theo sách",
     "chapters": "chương",
     "chapter": "Chương",
-    "verse": "Thơ",
+    "verse": "Câu Kinh Thánh",
     "selectTranslation": "Chọn bản dịch",
     "manageAudio": "Quản lý âm thanh",
     "audioDownloads": "Tải xuống âm thanh",
@@ -147,10 +423,10 @@ export const vi = {
     "searchUnavailable": "Tính năng tìm kiếm toàn văn chưa có sẵn cho bản dịch này.",
     "noVersesAvailable": "{{book}} {{chapter}} chưa có văn bản nào được viết.",
     "fullBibleComingSoon": "Chương này hiện không có sẵn trong văn bản. Nếu có âm thanh, Every Bible sẽ mở trải nghiệm nghe thay thế.",
-    "audioOnlyTitle": "Chương đầu tiên có âm thanh",
+    "audioOnlyTitle": "Chương ưu tiên âm thanh",
     "audioOnlyBody": "{{translation}} hiện có sẵn dưới dạng âm thanh cho chương này trong khi văn bản viết vẫn đang được chuẩn bị.",
-    "verseCount_one": "{{count}} câu thơ",
-    "verseCount_other": "{{count}} câu thơ",
+    "verseCount_one": "{{count}} câu Kinh Thánh",
+    "verseCount_other": "{{count}} câu Kinh Thánh",
     "listen": "Nghe",
     "read": "Đọc",
     "removeFromFavorites": "Xóa khỏi mục yêu thích",
@@ -164,32 +440,32 @@ export const vi = {
     "shareVerseImage": "Hình ảnh",
     "chooseVerseImageBackground": "Chọn một nền",
     "books": {
-      "GEN": "Sáng Thế",
-      "EXO": "Cuộc di cư",
+      "GEN": "Sáng Thế Ký",
+      "EXO": "Xuất Ê-díp-tô Ký",
       "LEV": "Lê-vi Ký",
-      "NUM": "Số",
+      "NUM": "Dân Số Ký",
       "DEU": "Phục Truyền Luật Lệ Ký",
       "JOS": "Giô-suê",
-      "JDG": "Thẩm phán",
+      "JDG": "Các Quan Xét",
       "RUT": "Ru-tơ",
       "1SA": "1 Sa-mu-ên",
       "2SA": "2 Sa-mu-ên",
-      "1KI": "1 vị vua",
-      "2KI": "2 vị vua",
-      "1CH": "1 Sử ký",
-      "2CH": "2 Sử ký",
+      "1KI": "1 Các Vua",
+      "2KI": "2 Các Vua",
+      "1CH": "1 Sử Ký",
+      "2CH": "2 Sử Ký",
       "EZR": "E-xơ-ra",
       "NEH": "Nê-hê-mi",
       "EST": "Ê-xơ-tê",
-      "JOB": "Việc làm",
-      "PSA": "Thánh vịnh",
-      "PRO": "Tục ngữ",
-      "ECC": "Truyền đạo",
-      "SNG": "Bài hát của Solomon",
+      "JOB": "Gióp",
+      "PSA": "Thi Thiên",
+      "PRO": "Châm Ngôn",
+      "ECC": "Truyền Đạo",
+      "SNG": "Nhã Ca",
       "ISA": "Ê-sai",
       "JER": "Giê-rê-mi",
-      "LAM": "Những lời than thở",
-      "EZK": "Ê-xê-chi-ên __CTX_KINH THÁNH_BOOK__",
+      "LAM": "Ca Thương",
+      "EZK": "Ê-xê-chi-ên",
       "DAN": "Đa-ni-ên",
       "HOS": "Ô-sê",
       "JOL": "Giô-ên",
@@ -207,7 +483,7 @@ export const vi = {
       "MRK": "Mác",
       "LUK": "Lu-ca",
       "JHN": "Giăng",
-      "ACT": "Công vụ",
+      "ACT": "Công Vụ Các Sứ Đồ",
       "ROM": "Rô-ma",
       "1CO": "1 Cô-rinh-tô",
       "2CO": "2 Cô-rinh-tô",
@@ -232,49 +508,49 @@ export const vi = {
       "REV": "Khải Huyền"
     },
     "chapterFeedback": "Phản hồi chương",
-    "chapterFeedbackTitle": "Chia sẻ phản hồi về chương này",
+    "chapterFeedbackTitle": "Đánh giá phân đoạn này",
     "chapterFeedbackBody": "Hãy cho chúng tôi biết chương này có hữu ích hay điều gì có thể được cải thiện. Bình luận là tùy chọn.",
     "chapterFeedbackThumbsUp": "Hữu ích",
     "chapterFeedbackThumbsDown": "Cần công việc",
     "chapterFeedbackPlaceholder": "Nhận xét tùy chọn về chương này",
     "chapterFeedbackSelectionHint": "Nhấn vào biểu tượng thích hoặc không thích để thêm ghi chú tùy chọn.",
     "chapterFeedbackSubmit": "Gửi phản hồi",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "Hoặc ghi âm câu trả lời",
+    "chapterFeedbackAudioRecording": "Đang ghi âm {{duration}}",
+    "chapterFeedbackAudioReady": "Câu trả lời bằng âm thanh đã sẵn sàng: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, tối đa 1 phút",
+    "chapterFeedbackAudioRecord": "Ghi âm",
+    "chapterFeedbackAudioStop": "Dừng",
+    "chapterFeedbackAudioPreview": "Nghe thử câu trả lời",
+    "chapterFeedbackAudioRerecord": "Ghi âm lại câu trả lời",
+    "chapterFeedbackAudioUploading": "Đang tải âm thanh lên…",
+    "chapterFeedbackAudioPermissionDenied": "Quyền truy cập micrô đang tắt. Bạn vẫn có thể nhập câu trả lời.",
+    "chapterFeedbackAudioPermissionHelp": "Bật quyền truy cập micrô trong cài đặt hệ thống để gửi phản hồi bằng âm thanh.",
+    "chapterFeedbackAudioStartError": "Không thể bắt đầu ghi âm. Bạn vẫn có thể nhập câu trả lời.",
+    "chapterFeedbackAudioStopError": "Không thể hoàn tất bản ghi âm này. Vui lòng thử lại.",
+    "chapterFeedbackAudioRecordingMissing": "Không thể lưu bản ghi âm. Vui lòng thử lại.",
+    "chapterFeedbackAudioUploadError": "Tải âm thanh lên thất bại. Bản ghi âm vẫn còn; vui lòng gửi lại.",
     "chapterFeedbackSuccess": "Cảm ơn bạn đã phản hồi của bạn. Nội dung gửi của bạn đã được nhận và sẽ được nhóm dịch thuật của chúng tôi xem xét trong thời gian sớm nhất có thể.",
     "chapterFeedbackSignInRequired": "Vui lòng đăng nhập trước khi gửi phản hồi về chương.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "Đánh giá độ chính xác",
+    "translatorReviewSummary": "Quyết định đang chờ: {{pending}} trên {{count}}",
+    "translatorReviewSummaryComplete": "Đã xử lý tất cả các đánh giá độ chính xác",
+    "translatorReviewLoading": "Đang tải phản hồi…",
+    "translatorReviewEmpty": "Chưa có phản hồi nào cho chương này.",
+    "translatorReviewUnknownUser": "Người đóng góp không xác định",
+    "translatorReviewUnread": "Cần quyết định",
+    "translatorReviewSubmittedAt": "Đã gửi vào {{date}}",
+    "translatorReviewSubmittedBy": "Được gửi bởi {{name}}",
+    "translatorReviewNoComment": "Không có phản hồi bằng văn bản.",
+    "translatorReviewFixed": "Đã sửa",
+    "translatorReviewConfirmedAccurate": "Đã xác nhận chính xác",
+    "translatorReviewReviewed": "Không cần thay đổi",
+    "translatorReviewConfirmAccurate": "Xác nhận chính xác",
+    "translatorReviewMarkFixed": "Đánh dấu đã sửa",
+    "translatorReviewNoActionNeeded": "Không cần xử lý",
+    "translatorReviewReopen": "Mở lại",
+    "translatorReviewListened": "Đã nghe",
+    "translatorReviewListen": "Nghe",
     "translatorReviewPause": "Tạm dừng",
     "nextChapterHint": "Chuyển sang chương tiếp theo",
     "openBookAndChapterPickerHint": "Mở bộ chọn sách và chương",
@@ -387,16 +663,16 @@ export const vi = {
     "chapterFeedback": "Phản hồi chương",
     "chapterFeedbackSummaryOn": "Phản hồi chương tùy chọn đang bật",
     "chapterFeedbackSummaryOff": "Phản hồi chương tùy chọn đã tắt",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "Quyền truy cập của người dịch",
+    "translatorAccessTitle": "Quyền truy cập của người dịch",
+    "translatorAccessBody": "Nhập mã truy cập của người dịch để xem xét phản hồi về các chương trên thiết bị này.",
+    "translatorAccessPlaceholder": "Mã truy cập",
+    "translatorAccessUnlock": "Mở khóa",
+    "translatorAccessIncorrect": "Mã truy cập của người dịch không đúng.",
+    "translatorAccessEnabled": "Đã bật chế độ xem xét của người dịch",
+    "translatorAccessEnabledBody": "Màn hình chương sẽ hiển thị công cụ xem xét phản hồi dành cho người dịch.",
+    "translatorAccessSummaryOn": "Công cụ xem xét của người dịch đang bật",
+    "translatorAccessSummaryOff": "Nhập mã truy cập để bật công cụ xem xét",
   },
   "notifications": {
     "channelDailyReminder": "Nhắc nhở đọc hàng ngày",
@@ -480,8 +756,8 @@ export const vi = {
     "readingActivity": "Hoạt động đọc",
     "readingActivitySubtitle": "Xem nhanh số ngày đọc và chuỗi của bạn.",
     "readingDays": "Ngày đọc sách",
-    "chaptersRead": "Chương đã đọc",
-    "chapterRead": "Đọc chương",
+    "chaptersRead": "Các chương đã đọc",
+    "chapterRead": "Chương đã đọc",
     "selectedDay": "Ngày đã chọn",
     "tapDayHint": "Nhấn vào một ngày được đánh dấu để xem chi tiết.",
     "noReadingActivityTitle": "Chưa có hoạt động đọc nào",
@@ -499,7 +775,7 @@ export const vi = {
     "entryDesc": "Tìm kiếm những người hòa bình và chuẩn bị tâm hồn bằng lời cầu nguyện",
     "gospelTitle": "Tin Mừng",
     "gospelSubtitle": "Cánh đồng gieo hạt",
-    "gospelDesc": "Chia sẻ tin mừng theo những cách đơn giản và dễ áp ​​dụng",
+    "gospelDesc": "Chia sẻ tin mừng theo những cách đơn giản và dễ áp dụng",
     "discipleshipTitle": "làm môn đệ",
     "discipleshipSubtitle": "Cánh đồng trồng trọt",
     "discipleshipDesc": "7 Điều răn của Chúa Kitô dành cho người mới tin Chúa",
@@ -549,7 +825,7 @@ export const vi = {
     "allLessonsComplete": "Tất cả các bài học hoàn thành",
     "allLessonsCompleteBody": "Bạn đã hoàn thành lộ trình đào tạo hiện tại. Xem lại bất kỳ lĩnh vực nào, tiếp tục thực hành và dạy người khác.",
     "fieldProgress": "{{progress}}% đã hoàn thành",
-    "keyVerse": "Câu chính",
+    "keyVerse": "Câu Kinh Thánh trọng tâm",
     "practiceActivity": "Hoạt động thực hành",
     "discussionLabel": "Cuộc thảo luận",
     "prayerLabel": "cầu nguyện",
@@ -651,8 +927,8 @@ export const vi = {
     "enrolled": "Đã đăng ký",
     "dayOf": "Ngày {{current}} trong số {{total}}",
     "markComplete": "Đánh dấu hoàn thành",
-    "completed": "Hoàn thành",
-    "progress": "Tiến triển",
+    "completed": "Đã hoàn thành",
+    "progress": "Tiến độ",
     "noPlans": "Không có sẵn kế hoạch đọc",
     "noActivePlans": "Bạn chưa bắt đầu bất kỳ kế hoạch nào",
     "findPlans": "Tìm kế hoạch",
@@ -674,7 +950,7 @@ export const vi = {
     "dayLabel": "Ngày {{day}}",
     "chapterProgress": "{{current}} trên {{total}}",
     "nextChapterCta": "Chương tiếp theo",
-    "completeDayCta": "Ngày trọn vẹn",
+    "completeDayCta": "Hoàn thành bài đọc hôm nay",
     "listenChapterCounted": "Đã tính {{reference}} cho gói hôm nay",
     "dailyTargetCompleteTitle": "Đọc hàng ngày hoàn thành",
     "dailyTargetCompleteBody": "Bạn đã đọc xong kế hoạch ngày hôm nay. Chúng tôi sẽ đưa bạn trở lại kế hoạch của mình để bạn có thể thấy tiến trình của mình.",
@@ -695,19 +971,19 @@ export const vi = {
       "description": "Đi qua Matthew, Mark, Luke và John trong hai tháng."
     },
     "proverbs31": {
-      "title": "Tục ngữ trong 31 ngày",
-      "description": "Một chương Châm ngôn mỗi ngày cho một tháng khôn ngoan."
+      "title": "Châm Ngôn hằng ngày",
+      "description": "Đọc chương Châm Ngôn tương ứng với ngày trong tháng và lặp lại mỗi tháng."
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "Đọc các kathismata buổi sáng và buổi tối được chỉ định cho mỗi ngày trong tuần, lặp lại hàng tuần."
+      "description": "Đọc các phần Thi thiên được chỉ định vào sáng và tối mỗi ngày trong tuần, lặp lại hằng tuần."
     },
     "chronological": {
       "title": "Kinh Thánh theo niên đại",
       "description": "Đọc Kinh thánh theo thứ tự các sự kiện xảy ra, từ Sáng thế ký đến Khải huyền."
     },
     "epistles30": {
-      "title": "Thư tín trong 30 ngày",
+      "title": "Các thư tín trong 30 ngày",
       "description": "Đọc thư của Phao-lô, Phi-e-rơ, Gia-cơ và Giăng trong một tháng."
     },
     "sermonMount7": {
@@ -733,19 +1009,19 @@ export const vi = {
     "rhythmNamePlaceholder": "Để trống cho một tên tự động",
     "rhythmPlanCount": "gói {{count}}",
     "rhythmItemCount": "{{count}} mục",
-    "includedPlans": "Các gói đi kèm",
+    "includedPlans": "Các kế hoạch đọc được bao gồm",
     "includedItems": "Các mục đi kèm",
-    "availablePlans": "Các gói có sẵn",
+    "availablePlans": "Các kế hoạch đọc có sẵn",
     "rhythmsIntro": "Xây dựng một lịch trình có thể lặp lại vào buổi sáng, buổi chiều hoặc buổi tối bằng cách kết hợp tiến trình của kế hoạch với các đoạn thánh thư tùy chỉnh.",
     "rhythmSlotPrompt": "Trước tiên, hãy chọn loại luồng bạn muốn xây dựng.",
     "rhythmSlotActive": "Đã chọn {{name}}",
     "selected": "Đã chọn",
     "continueRhythm": "Tiếp tục nhịp điệu",
     "nextUp": "Tiếp theo: {{value}}",
-    "openRhythm": "Nhịp điệu mở",
+    "openRhythm": "Mở nhịp đọc",
     "deleteRhythm": "Xóa nhịp điệu",
-    "emptyRhythmPlans": "Thêm ít nhất một kế hoạch để lưu nhịp điệu này.",
-    "emptyRhythmItems": "Thêm ít nhất một kế hoạch hoặc đoạn văn để lưu nhịp điệu này.",
+    "emptyRhythmPlans": "Thêm ít nhất một kế hoạch để lưu nhịp đọc này.",
+    "emptyRhythmItems": "Thêm ít nhất một kế hoạch hoặc phân đoạn Kinh Thánh để lưu nhịp đọc này.",
     "alreadyInAnotherRhythm": "Kế hoạch này đã có nhịp điệu khác rồi.",
     "planUnavailableForRhythm": "Chỉ các kế hoạch đã đăng ký, đang hoạt động mới có thể được thêm vào nhịp điệu.",
     "rhythmDaySummary": "Ngày hiện tại: {{day}}",
@@ -753,10 +1029,10 @@ export const vi = {
     "rhythmPlanSource": "Kế hoạch {{count}} ngày",
     "rhythmPassageLabel": "{{count}} chương",
     "planItemLabel": "Kế hoạch",
-    "passageItemLabel": "Đoạn văn",
+    "passageItemLabel": "Phân đoạn Kinh Thánh",
     "addPassage": "Thêm đoạn kinh thánh",
-    "addPassageToRhythm": "Thêm đoạn văn vào nhịp điệu",
-    "repeatablePassage": "Đoạn lặp lại",
+    "addPassageToRhythm": "Thêm phân đoạn vào nhịp đọc",
+    "repeatablePassage": "Phân đoạn Kinh Thánh có thể đọc lại",
     "startChapterLabel": "Bắt đầu chương",
     "endChapterLabel": "Kết thúc chương",
     "maxChapterHint": "{{count}} chương có sẵn",
@@ -859,7 +1135,7 @@ export const vi = {
     },
     "otIn90Days": {
       "title": "Cựu Ước trong 90 ngày",
-      "description": "Tất cả 929 chương Cựu Ước trong 90 ngày - khoảng 10 chương mỗi ngày. Một cam kết nghiêm túc."
+      "description": "Đọc cả 929 chương Cựu Ước trong 90 ngày, khoảng 10 chương mỗi ngày. Một cam kết nghiêm túc."
     },
     "pentateuch30Days": {
       "title": "Ngũ Kinh trong 30 ngày",
@@ -878,7 +1154,7 @@ export const vi = {
       "description": "Đọc tất cả 13 thư của Phao-lô - Rô-ma đến Phi-lê-môn - trong một tháng."
     },
     "acts28Days": {
-      "title": "Hành động trong 28 ngày",
+      "title": "Công Vụ Các Sứ Đồ trong 28 ngày",
       "description": "Một chương Công vụ mỗi ngày - theo chân hội thánh đầu tiên từ Giê-ru-sa-lem đến Rô-ma."
     },
     "revelation22Days": {
@@ -895,15 +1171,15 @@ export const vi = {
     "sessionUpcoming": "sắp tới",
     "morningAndEveningPrayer": {
       "title": "Cầu nguyện sáng và tối",
-      "description": "Trong bảy ngày, hãy bắt đầu và kết thúc mỗi ngày với các bài đọc cầu nguyện buổi sáng và buổi tối."
+      "description": "Bắt đầu và kết thúc mỗi ngày bằng Thi thiên, bài đọc Phúc Âm và Kinh Thánh buổi tối."
     },
     "prayerOfTheHours": {
       "title": "Cầu nguyện theo giờ",
-      "description": "Trong bảy ngày, hãy sắp xếp nhịp ngày của bạn với các bài đọc cầu nguyện buổi sáng, giữa trưa và buổi tối."
+      "description": "Đọc vào sáng, trưa và tối theo các phần Thi thiên, Phúc Âm và thư tín."
     }
   },
   "annotations": {
-    "title": "Ghi chú & Điểm nổi bật của tôi",
+    "title": "Ghi chú và phần tô sáng của tôi",
     "bookmarks": "Dấu trang",
     "highlights": "Điểm nổi bật",
     "notes": "Ghi chú",
@@ -927,7 +1203,7 @@ export const vi = {
       "red": "Đỏ"
     },
     "selected": "Đã chọn",
-    "note": "Lưu ý",
+    "note": "Ghi chú",
     "copy": "Sao chép",
     "removeHighlight": "Xóa phần đánh dấu"
   },
@@ -962,8 +1238,8 @@ export const vi = {
       "lookBack": "Nhìn lại",
       "lookUp": "tra cứu",
       "lookForward": "Nhìn về phía trước",
-      "duration5min": "~5 phút __CTX_DUration_LABEL__",
-      "duration10min": "~10 phút __CTX_DUration_LABEL__",
+      "duration5min": "~5 phút",
+      "duration10min": "~10 phút",
       "saving": "Đang lưu...",
       "completeSession": "Phiên hoàn chỉnh",
       "syncedNotice": "Việc hoàn thành phiên này sẽ lưu bản ghi đã đồng bộ hóa cho nhóm đã đăng nhập của bạn.",
@@ -1016,18 +1292,18 @@ export const vi = {
   },
   "engagement": {
     "title": "Hành trình của bạn",
-    "chaptersRead": "Chương đã đọc",
+    "chaptersRead": "Các chương đã đọc",
     "listeningTime": "Thời gian nghe",
     "currentStreak": "Chuỗi hiện tại",
     "longestStreak": "Vệt dài nhất",
     "plansCompleted": "Kế hoạch đã hoàn thành",
     "engagementScore": "Điểm tương tác",
-    "annotationsCreated": "Ghi chú & Điểm nổi bật",
+    "annotationsCreated": "Ghi chú và phần tô sáng",
     "minutes": "phút",
     "hours": "giờ",
     "days": "ngày",
     "totalChapters": "Tổng số chương",
-    "totalListening": "Tổng số lượt nghe"
+    "totalListening": "Tổng thời gian nghe"
   },
   "translations": {
     "title": "Bản dịch Kinh Thánh",
@@ -1043,7 +1319,7 @@ export const vi = {
     "publicDomain": "Miền công cộng",
     "cloudLibrary": "Thư viện đám mây",
     "downloading": "Đang tải xuống...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "Tải văn bản {{name}} (khoảng {{size}} MB) để đọc ngoại tuyến?",
     "deleteConfirmTitle": "Xóa bản dịch",
     "deleteConfirmMessage": "Xóa dữ liệu đã tải xuống cho {{name}}? Bạn có thể tải lại nó bất cứ lúc nào.",
     "cancelDownload": "Hủy tải xuống",

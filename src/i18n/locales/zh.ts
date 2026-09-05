@@ -1,38 +1,314 @@
 export const zh = {
+  interface: {
+    "close": "关闭",
+    "share": "分享",
+    "minutesShort": "{{count}} 分钟",
+    "hoursShort": "{{count}} 小时",
+    "daysShort": "{{count}} 天",
+    "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前",
+    "activePrayerCount": "{{count}} 项进行中",
+    "groupShareMessage": "欢迎加入我在 EveryBible 的门徒训练小组“{{name}}”！\n\n加入代码：{{code}}",
+    "groupAboutTitle": "关于小组聚会",
+    "groupAboutBody": "小组聚会采用全球门徒训练运动使用的三段式（3/3）模式：",
+    "groupLookBack": "你如何顺服了神？与谁分享了？",
+    "groupLookUp": "一起阅读并讨论经文",
+    "groupLookForward": "你将如何顺服？要告诉谁？",
+    "backgroundMusicLabel": "背景音乐：{{name}}",
+    "backgroundMusicHint": "打开背景音乐选择器",
+    "repeatHint": "在关闭重复、重复本章和重复本卷之间切换",
+    "shareAudioHint": "打开本章的音频分享选项",
+    "playChapterAudio": "播放本章音频",
+    "pauseChapterAudio": "暂停本章音频",
+    "previousChapterHint": "前往上一章",
+    "chapterRange": "第 {{start}}–{{end}} 章",
+    "bookDownloadProgress": "{{completed}}/{{total}} 卷（{{percent}}%）",
+    "currentPlanDay": "当前计划第 {{day}} 天",
+    "planDay": "第 {{day}} 天",
+    "planSessionForDay": "第 {{day}} 天：{{session}}",
+    "music": {
+      "off": {
+        "label": "关闭",
+        "description": "播放经文，不添加内置背景音乐。"
+      },
+      "ambient": {
+        "label": "氛围音乐",
+        "description": "以循环播放的水下氛围音与铃声衬托朗读。"
+      },
+      "piano": {
+        "label": "钢琴",
+        "description": "柔和的钢琴旋律，配以轻盈的背景音。"
+      },
+      "soft-guitar": {
+        "label": "轻柔吉他",
+        "description": "不喧宾夺主的尼龙弦吉他循环伴奏。"
+      },
+      "harp": {
+        "label": "竖琴",
+        "description": "轻盈的竖琴独奏，营造温柔的灵修氛围。"
+      },
+      "flute": {
+        "label": "长笛",
+        "description": "以长笛为主的短循环乐段，带有柔和梦幻的氛围。"
+      },
+      "sitar": {
+        "label": "西塔琴",
+        "description": "温暖的沙漠风格西塔琴音色，适合长时间聆听。"
+      },
+      "ocean-waves": {
+        "label": "海浪",
+        "description": "循环播放海岸浪声，营造更宁静的背景。"
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "天主教晨祷",
+        "description": "以晨祷的形式，在赞美、圣歌与福音祝福中开始一天。",
+        "tradition": "天主教",
+        "historicRoots": "时辰礼仪"
+      },
+      "catholic-daytime-prayer": {
+        "title": "天主教日间祷告",
+        "description": "以简短的圣咏构成午间日课，让心持续归向神。",
+        "tradition": "天主教",
+        "historicRoots": "时辰礼仪"
+      },
+      "catholic-evening-prayer": {
+        "title": "天主教晚祷",
+        "description": "借鉴晚祷，以圣咏、感恩与《尊主颂》结束一天。",
+        "tradition": "天主教",
+        "historicRoots": "时辰礼仪"
+      },
+      "catholic-night-prayer": {
+        "title": "天主教夜祷",
+        "description": "睡前的祷告节奏，带领您信靠神、寻求保护并安然交托。",
+        "tradition": "天主教",
+        "historicRoots": "寝前祷告"
+      },
+      "catholic-lectio-divina": {
+        "title": "天主教圣言诵读",
+        "description": "放慢阅读节奏，在经文中默想、祷告并停留。",
+        "tradition": "天主教",
+        "historicRoots": "圣言诵读"
+      },
+      "ignatian-daily-examen": {
+        "title": "依纳爵每日省察",
+        "description": "以感恩、回顾和悔改组成一天结束时的反思祷告。",
+        "tradition": "天主教",
+        "historicRoots": "依纳爵灵修"
+      },
+      "anglican-morning-prayer": {
+        "title": "圣公会晨祷",
+        "description": "以日课的形式，用圣咏和福音教导预备新的一天。",
+        "tradition": "圣公会",
+        "historicRoots": "公祷书"
+      },
+      "anglican-noonday-prayer": {
+        "title": "圣公会午祷",
+        "description": "在午间短暂祷告，以求助的诗篇和生命之粮的盼望重新得力。",
+        "tradition": "圣公会",
+        "historicRoots": "每日祷告"
+      },
+      "anglican-evening-prayer": {
+        "title": "圣公会晚祷",
+        "description": "经典的晚祷顺序，包含晚间诗篇和马利亚的颂歌。",
+        "tradition": "圣公会",
+        "historicRoots": "公祷书"
+      },
+      "anglican-compline": {
+        "title": "圣公会寝前祷告",
+        "description": "以认罪、信靠和安息组成温柔的夜间日课。",
+        "tradition": "圣公会",
+        "historicRoots": "公祷书"
+      },
+      "orthodox-morning-rule": {
+        "title": "东正教晨祷规则",
+        "description": "清晨按次序祷告，以悔改、怜悯和耶稣所教的祷告为核心。",
+        "tradition": "东正教",
+        "historicRoots": "晨祷"
+      },
+      "orthodox-sixth-hour": {
+        "title": "东正教第六时辰祷告",
+        "description": "在午间依照日课停下来祷告，记念基督受难并保持警醒。",
+        "tradition": "东正教",
+        "historicRoots": "定时祷告"
+      },
+      "orthodox-vespers": {
+        "title": "东正教晚祷",
+        "description": "在傍晚献上祷告，赞美创造，以灯光中的圣咏聆听圣言。",
+        "tradition": "东正教",
+        "historicRoots": "每日晚祷"
+      },
+      "orthodox-small-compline": {
+        "title": "东正教小寝前祷告",
+        "description": "安静的夜间日课，在睡前最后的祷告中寻求怜悯和庇护。",
+        "tradition": "东正教",
+        "historicRoots": "寝前祷告"
+      },
+      "benedictine-sacred-reading": {
+        "title": "本笃会圣言阅读",
+        "description": "受固定诵读时辰启发，以安静专注的阅读为核心。",
+        "tradition": "本笃会",
+        "historicRoots": "圣本笃会规"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "本笃会圣咏与劳作",
+        "description": "让祷告、工作和安静的顺服贯穿一天的实用次序。",
+        "tradition": "本笃会",
+        "historicRoots": "祈祷与劳作"
+      },
+      "taize-evening-prayer": {
+        "title": "泰泽晚祷",
+        "description": "以诗篇、读经和安静构成歌唱与静默交织的夜晚。",
+        "tradition": "泰泽",
+        "historicRoots": "泰泽共同祷告"
+      },
+      "lutheran-morning-devotion": {
+        "title": "路德宗晨间灵修",
+        "description": "适合家庭的清晨灵修，以经文、背诵和恒常祷告开启一天。",
+        "tradition": "路德宗",
+        "historicRoots": "家庭每日灵修"
+      },
+      "lutheran-close-of-day": {
+        "title": "路德宗晚间灵修",
+        "description": "简朴的夜间灵修，在认罪中寻求基督的庇护和保守。",
+        "tradition": "路德宗",
+        "historicRoots": "家庭每日灵修"
+      },
+      "puritan-family-worship": {
+        "title": "清教徒家庭敬拜",
+        "description": "以家庭为中心的夜晚，在祷告、赞美、经文和敬虔的交谈中度过。",
+        "tradition": "清教徒",
+        "historicRoots": "家庭敬拜指南"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "灵修",
+        "description": "紧扣耶稣教导的简短默想。"
+      },
+      "mat-devotional-beatitudes": {
+        "title": "在颠覆世俗价值的国度中蒙福",
+        "summary": "默想八福，留意耶稣如何重塑我们的渴望。",
+        "actionLabel": "阅读本章"
+      },
+      "mat-plans": {
+        "title": "计划",
+        "description": "有目的地通读马太福音的简明路径。"
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "马太福音中的天国节奏",
+        "summary": "七天走过身份、祷告、怜悯、使命和复活的盼望。",
+        "actionLabel": "打开第一章"
+      },
+      "jhn-playlists": {
+        "title": "播放列表",
+        "description": "精心编排的聆听路径，走过约翰福音的主要段落。"
+      },
+      "jhn-playlist-signs": {
+        "title": "耶稣的神迹",
+        "summary": "沿着显明基督身份的神迹，跟随引导阅读。",
+        "actionLabel": "开始播放列表"
+      },
+      "gal-devotionals": {
+        "title": "灵修",
+        "description": "带着祷告阅读加拉太书的简短默想。"
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "不再为奴",
+        "summary": "静思成为神的儿女、承受产业与天父的接纳。",
+        "actionLabel": "阅读本章"
+      },
+      "gal-plans": {
+        "title": "计划",
+        "description": "以简短有序的路径通读这封书信。"
+      },
+      "gal-plan-six-days": {
+        "title": "每日一章：加拉太书",
+        "summary": "每天读一章，不急不躁地理解保罗的论述。",
+        "actionLabel": "打开第一章"
+      },
+      "psa-playlists": {
+        "title": "播放列表",
+        "description": "适合不同心境的祷告路径。"
+      },
+      "psa-playlist-morning": {
+        "title": "清晨的避难所",
+        "summary": "以信靠的诗篇开启一天的简短路径。",
+        "actionLabel": "开始播放列表"
+      },
+      "psa-playlist-repentance": {
+        "title": "悔改的诗篇",
+        "summary": "以诚实、认罪与更新来祷告。",
+        "actionLabel": "开始播放列表"
+      },
+      "psa-devotionals": {
+        "title": "灵修",
+        "description": "放慢脚步，以诗篇祷告的安静默想。"
+      },
+      "psa-devotional-shepherd": {
+        "title": "使人复苏的牧者",
+        "summary": "在诗篇23篇中停留，直到它成为祷告，而不只是口号。",
+        "actionLabel": "阅读诗篇"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "公版《庇哩亚标准圣经》文本，附可直接播放的 CC0 章节音频",
+      "web": "公版英国版文本与章节音频，来自 EveryBible 资料库",
+      "kjv": "1611年钦定《英王詹姆斯译本》",
+      "asv": "1901年出版的《钦定版》修订本，文本已预装",
+      "bbe": "使用有限的词汇，便于阅读",
+      "sparv1909": "经典西班牙语圣经，公版文本",
+      "hincv": "印地语当代译本，属公版",
+      "npiulb": "开放直译圣经，属公版"
+    },
+    "audioUnavailableTranslation": "此译本暂无音频。",
+    "audioUnavailableChapter": "此章节暂无音频。",
+    "audioPlayFailed": "无法播放此音频，请重试。",
+    nativePermissions: {
+      "NSCameraUsageDescription": "如果您选择拍摄个人资料照片，请允许 Every Bible 使用相机。",
+      "NSMicrophoneUsageDescription": "允许 Every Bible 录制语音回复，用于章节反馈。",
+      "NSPhotoLibraryUsageDescription": "允许 Every Bible 访问您的照片图库，以便选择个人资料照片。",
+      "NSFaceIDUsageDescription": "允许 Every Bible 使用 Face ID 保护您保存的登录信息。"
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "反馈待办",
+    subtitle: "有反馈待审核的章节",
+    empty: "全部处理完毕，暂无待审核的反馈。",
+    pendingCount: "{{count}} 章待审核",
+    chapterCounts: "{{down}} 项待修正 · {{up}} 项待确认",
+    openLabel: "打开 {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "我的反馈",
+    settingsRow: "我的反馈",
+    settingsRowSummary: "查看翻译团队如何处理您的意见",
+    subtitle: "翻译团队对您的章节反馈的处理情况",
+    empty: "您还没有提交过章节反馈。",
+    signInRequired: "登录以查看您提交的反馈。",
+    audioLabel: "已附上语音留言",
+    statusReceived: "已收到",
+    statusFixed: "已修正",
+    statusNoChange: "已审核，无需修改",
   },
   "common": {
     "cancel": "取消",
     "ok": "好的",
-    "done": "完毕",
+    "done": "完成",
     "error": "错误",
     "retry": "重试",
     "loading": "加载中...",
     "continue": "继续",
-    "save": "节省",
+    "save": "保存",
     "delete": "删除",
     "edit": "编辑",
-    "back": "后退",
+    "back": "返回",
     "next": "下一个",
-    "previous": "以前的",
+    "previous": "上一个",
     "search": "搜索",
     "settings": "设置",
     "comingSoon": "即将推出",
@@ -62,12 +338,12 @@ export const zh = {
     "welcome": "欢迎来到Every Bible",
     "beginToday": "今天开始",
     "todaysScripture": "今日经文",
-    "verseOfTheDay": "每日诗句",
+    "verseOfTheDay": "每日经文",
     "sectionOfTheDay": "当日部分",
     "sectionOfTheDayBody": "即使尚未添加书面文本，今天的选择也可以作为本章的音频提供。",
     "verseAudioBody": "今天的经文目前以音频形式提供，因此您甚至可以在添加书面文本之前收听。",
     "playSectionOfTheDay": "当日播放部分",
-    "playVerseOfTheDay": "播放每日诗歌",
+    "playVerseOfTheDay": "播放每日经文",
     "continueReading": "继续阅读",
     "sharePrompt": "分享光亮。今天鼓励一个人。",
     "plan": "计划",
@@ -75,7 +351,7 @@ export const zh = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "字段 {{number}}",
     "notificationSettings": "通知设置",
-    "chaptersRead": "阅读章节",
+    "chaptersRead": "已读章节",
     "today": "今天",
     "week": "星期",
     "month": "月",
@@ -119,9 +395,9 @@ export const zh = {
     "finish": "完成设置"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "无法播放此音频，请重试。",
+    chapterFeedbackSuccessTitle: "反馈已发送",
+    readerFontsAndSettings: "字体与设置",
     "title": "圣经",
     "oldTestament": "旧约",
     "fontsAndSettings": "字体与设置",
@@ -134,7 +410,7 @@ export const zh = {
     "byBook": "按卷",
     "chapters": "章节",
     "chapter": "章",
-    "verse": "诗",
+    "verse": "节经文",
     "selectTranslation": "选择翻译",
     "manageAudio": "管理音频",
     "audioDownloads": "音频下载",
@@ -147,12 +423,12 @@ export const zh = {
     "searchUnavailable": "此翻译尚不支持全文搜索。",
     "noVersesAvailable": "{{book}} {{chapter}} 还没有文字。",
     "fullBibleComingSoon": "本章目前没有文本版本。如果音频可用，Every Bible 将打开聆听体验。",
-    "audioOnlyTitle": "音频第一章",
+    "audioOnlyTitle": "以音频为主的章节",
     "audioOnlyBody": "{{translation}} 目前可作为本章的音频提供，而书面文本仍在准备中。",
-    "verseCount_one": "{{count}} 诗句",
-    "verseCount_other": "{{count}} 节",
-    "listen": "听",
-    "read": "读",
+    "verseCount_one": "{{count}} 节经文",
+    "verseCount_other": "{{count}} 节经文",
+    "listen": "收听",
+    "read": "阅读",
     "removeFromFavorites": "从收藏夹中删除",
     "addToFavorites": "添加到收藏夹",
     "addToSavedPlaylist": "添加到已保存的播放列表",
@@ -164,117 +440,117 @@ export const zh = {
     "shareVerseImage": "图像",
     "chooseVerseImageBackground": "选择背景",
     "books": {
-      "GEN": "创世纪",
+      "GEN": "创世记",
       "EXO": "出埃及记",
       "LEV": "利未记",
-      "NUM": "数字",
+      "NUM": "民数记",
       "DEU": "申命记",
-      "JOS": "约书亚",
-      "JDG": "法官",
-      "RUT": "露丝",
-      "1SA": "1 撒母耳",
-      "2SA": "2 撒母耳",
-      "1KI": "1 国王",
-      "2KI": "2 国王",
-      "1CH": "1 编年史",
-      "2CH": "2 编年史",
-      "EZR": "以斯拉",
+      "JOS": "约书亚记",
+      "JDG": "士师记",
+      "RUT": "路得记",
+      "1SA": "撒母耳记上",
+      "2SA": "撒母耳记下",
+      "1KI": "列王纪上",
+      "2KI": "列王纪下",
+      "1CH": "历代志上",
+      "2CH": "历代志下",
+      "EZR": "以斯拉记",
       "NEH": "尼希米记",
-      "EST": "以斯帖",
-      "JOB": "工作",
+      "EST": "以斯帖记",
+      "JOB": "约伯记",
       "PSA": "诗篇",
       "PRO": "箴言",
       "ECC": "传道书",
-      "SNG": "所罗门之歌",
-      "ISA": "以赛亚",
-      "JER": "耶利米",
-      "LAM": "哀歌",
-      "EZK": "以西结",
-      "DAN": "丹尼尔",
-      "HOS": "何西阿",
-      "JOL": "乔尔",
-      "AMO": "阿莫斯",
-      "OBA": "俄巴底亚",
-      "JON": "约拿",
-      "MIC": "弥迦",
-      "NAM": "那厄姆",
-      "HAB": "哈巴谷",
-      "ZEP": "西番雅",
-      "HAG": "哈该",
+      "SNG": "雅歌",
+      "ISA": "以赛亚书",
+      "JER": "耶利米书",
+      "LAM": "耶利米哀歌",
+      "EZK": "以西结书",
+      "DAN": "但以理书",
+      "HOS": "何西阿书",
+      "JOL": "约珥书",
+      "AMO": "阿摩司书",
+      "OBA": "俄巴底亚书",
+      "JON": "约拿书",
+      "MIC": "弥迦书",
+      "NAM": "那鸿书",
+      "HAB": "哈巴谷书",
+      "ZEP": "西番雅书",
+      "HAG": "哈该书",
       "ZEC": "撒迦利亚书",
-      "MAL": "玛拉基",
+      "MAL": "玛拉基书",
       "MAT": "马太福音",
       "MRK": "马可福音",
       "LUK": "路加福音",
-      "JHN": "约翰",
+      "JHN": "约翰福音",
       "ACT": "使徒行传",
       "ROM": "罗马书",
-      "1CO": "1 哥林多前书",
-      "2CO": "2 哥林多前书",
+      "1CO": "哥林多前书",
+      "2CO": "哥林多后书",
       "GAL": "加拉太书",
       "EPH": "以弗所书",
       "PHP": "腓立比书",
       "COL": "歌罗西书",
-      "1TH": "1 帖撒罗尼迦前书",
+      "1TH": "帖撒罗尼迦前书",
       "2TH": "帖撒罗尼迦后书",
-      "1TI": "1 提摩太",
-      "2TI": "2 提摩太",
-      "TIT": "提图斯",
-      "PHM": "腓利门",
+      "1TI": "提摩太前书",
+      "2TI": "提摩太后书",
+      "TIT": "提多书",
+      "PHM": "腓利门书",
       "HEB": "希伯来书",
       "JAS": "雅各书",
-      "1PE": "1 彼得",
-      "2PE": "2 彼得",
+      "1PE": "彼得前书",
+      "2PE": "彼得后书",
       "1JN": "约翰一书",
       "2JN": "约翰二书",
       "3JN": "约翰三书",
       "JUD": "犹大书",
-      "REV": "启示"
+      "REV": "启示录"
     },
     "chapterFeedback": "章节反馈",
-    "chapterFeedbackTitle": "分享有关本章的反馈",
+    "chapterFeedbackTitle": "审核这段经文",
     "chapterFeedbackBody": "请告诉我们本章是否有帮助或者哪些方面可以改进。评论是可选的。",
     "chapterFeedbackThumbsUp": "有帮助",
     "chapterFeedbackThumbsDown": "需要工作",
     "chapterFeedbackPlaceholder": "关于本章的可选评论",
     "chapterFeedbackSelectionHint": "点击“大拇指向上”或“大拇指向下”以添加可选注释。",
     "chapterFeedbackSubmit": "发送反馈",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "也可以录音回复",
+    "chapterFeedbackAudioRecording": "录音中 {{duration}}",
+    "chapterFeedbackAudioReady": "语音回复已就绪：{{duration}}",
+    "chapterFeedbackAudioLimit": "M4A 格式，最长 1 分钟",
+    "chapterFeedbackAudioRecord": "录音",
+    "chapterFeedbackAudioStop": "停止",
+    "chapterFeedbackAudioPreview": "试听语音回复",
+    "chapterFeedbackAudioRerecord": "重新录制语音回复",
+    "chapterFeedbackAudioUploading": "正在上传音频…",
+    "chapterFeedbackAudioPermissionDenied": "麦克风权限已关闭，您仍可输入文字回复。",
+    "chapterFeedbackAudioPermissionHelp": "请在系统设置中开启麦克风权限，以提交语音反馈。",
+    "chapterFeedbackAudioStartError": "无法开始录音，您仍可输入文字回复。",
+    "chapterFeedbackAudioStopError": "无法完成此次录音，请重试。",
+    "chapterFeedbackAudioRecordingMissing": "无法保存录音，请重试。",
+    "chapterFeedbackAudioUploadError": "音频上传失败。录音仍然保留，请重新提交。",
     "chapterFeedbackSuccess": "感谢您的反馈。您提交的内容已收到，我们的翻译团队将尽快进行审核。",
     "chapterFeedbackSignInRequired": "请先登录，然后再发送章节反馈。",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "准确性审核",
+    "translatorReviewSummary": "待处理：{{pending}} 项，共 {{count}} 项",
+    "translatorReviewSummaryComplete": "所有准确性审核均已处理",
+    "translatorReviewLoading": "正在加载反馈…",
+    "translatorReviewEmpty": "此章节尚未收到反馈。",
+    "translatorReviewUnknownUser": "未知贡献者",
+    "translatorReviewUnread": "待决定",
+    "translatorReviewSubmittedAt": "提交于 {{date}}",
+    "translatorReviewSubmittedBy": "由 {{name}} 提交",
+    "translatorReviewNoComment": "没有文字反馈。",
+    "translatorReviewFixed": "已修正",
+    "translatorReviewConfirmedAccurate": "已确认准确",
+    "translatorReviewReviewed": "无需修改",
+    "translatorReviewConfirmAccurate": "确认准确",
+    "translatorReviewMarkFixed": "标记为已修正",
+    "translatorReviewNoActionNeeded": "无需处理",
+    "translatorReviewReopen": "重新开启",
+    "translatorReviewListened": "已听取",
+    "translatorReviewListen": "收听",
     "translatorReviewPause": "暂停",
     "nextChapterHint": "进入下一章",
     "openBookAndChapterPickerHint": "打开书籍和章节选择器",
@@ -387,16 +663,16 @@ export const zh = {
     "chapterFeedback": "章节反馈",
     "chapterFeedbackSummaryOn": "可选章节反馈已开启",
     "chapterFeedbackSummaryOff": "可选章节反馈已关闭",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "译者权限",
+    "translatorAccessTitle": "译者权限",
+    "translatorAccessBody": "输入译者密码，即可在此设备上审核章节反馈。",
+    "translatorAccessPlaceholder": "密码",
+    "translatorAccessUnlock": "解锁",
+    "translatorAccessIncorrect": "译者密码不正确。",
+    "translatorAccessEnabled": "已启用译者审核模式",
+    "translatorAccessEnabledBody": "章节页面现在将显示译者反馈审核工具。",
+    "translatorAccessSummaryOn": "译者审核工具已启用",
+    "translatorAccessSummaryOff": "输入密码以启用审核工具",
   },
   "notifications": {
     "channelDailyReminder": "每日读书提醒",
@@ -423,7 +699,7 @@ export const zh = {
     "signInSubtitle": "登录以跨设备同步您的阅读进度",
     "signUpSubtitle": "创建一个帐户来同步您的进度",
     "email": "电子邮件",
-    "emailPlaceholder": "你@example.com",
+    "emailPlaceholder": "you@example.com",
     "emailRequired": "电子邮件为必填项",
     "emailInvalid": "请输入有效的电子邮件",
     "emailRequiredForReset": "请先输入您的电子邮件地址",
@@ -480,8 +756,8 @@ export const zh = {
     "readingActivity": "阅读活动",
     "readingActivitySubtitle": "一目了然地查看您的阅读天数和连读次数。",
     "readingDays": "读书日",
-    "chaptersRead": "阅读章节",
-    "chapterRead": "章节阅读",
+    "chaptersRead": "已读章节",
+    "chapterRead": "已读章节",
     "selectedDay": "选定日期",
     "tapDayHint": "点击标记的日期即可查看详细信息。",
     "noReadingActivityTitle": "还没有阅读活动",
@@ -549,7 +825,7 @@ export const zh = {
     "allLessonsComplete": "所有课程已完成",
     "allLessonsCompleteBody": "您已完成当前的训练路径。重新审视任何领域，继续练习，并教别人。",
     "fieldProgress": "{{progress}} 完成%",
-    "keyVerse": "关键经文",
+    "keyVerse": "核心经文",
     "practiceActivity": "实践活动",
     "discussionLabel": "讨论",
     "prayerLabel": "祷告",
@@ -651,8 +927,8 @@ export const zh = {
     "enrolled": "已注册",
     "dayOf": "第 {{current}} 天（共 {{total}} 天）",
     "markComplete": "标记完成",
-    "completed": "完全的",
-    "progress": "进步",
+    "completed": "已完成",
+    "progress": "进度",
     "noPlans": "没有可用的阅读计划",
     "noActivePlans": "你还没有开始任何计划",
     "findPlans": "查找计划",
@@ -674,7 +950,7 @@ export const zh = {
     "dayLabel": "第 {{day}} 天",
     "chapterProgress": "第 {{current}} 个，共 {{total}} 个",
     "nextChapterCta": "下一章",
-    "completeDayCta": "完整的一天",
+    "completeDayCta": "完成今日阅读",
     "completeSessionCta": "完成本时段",
     "listenChapterCounted": "{{reference}} 计入今天的计划",
     "dailyTargetCompleteTitle": "每日阅读完成",
@@ -696,19 +972,19 @@ export const zh = {
       "description": "用两个月的时间读完马太福音、马可福音、路加福音和约翰福音。"
     },
     "proverbs31": {
-      "title": "31天的谚语",
-      "description": "每天一章箴言，收获一个月的智慧。"
+      "title": "每日箴言",
+      "description": "按今天的日期阅读对应的箴言章节，每月重复。"
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "阅读每周平日早晚指定的 Kathismata，每周重复。"
+      "description": "阅读每个工作日早晚指定的诗篇分组，每周重复。"
     },
     "chronological": {
       "title": "按时间顺序排列的圣经",
       "description": "按照事件发生的顺序阅读圣经，从创世记到启示录。"
     },
     "epistles30": {
-      "title": "30天内写出书信",
+      "title": "30天读完书信",
       "description": "用一个月的时间读完保罗、彼得、雅各和约翰的书信。"
     },
     "sermonMount7": {
@@ -741,19 +1017,19 @@ export const zh = {
     "rhythmNamePlaceholder": "将自动名称留空",
     "rhythmPlanCount": "{{count}} 个计划",
     "rhythmItemCount": "{{count}} 项",
-    "includedPlans": "包含的计划",
+    "includedPlans": "包含的读经计划",
     "includedItems": "包含项目",
-    "availablePlans": "可用计划",
+    "availablePlans": "可用的读经计划",
     "rhythmsIntro": "通过将计划进度与自定义经文段落混合起来，构建可重复的早晨、下午或晚上的流程。",
     "rhythmSlotPrompt": "先选择你要构建的流程类型。",
     "rhythmSlotActive": "已选择 {{name}}",
     "selected": "已选择",
     "continueRhythm": "继续节奏",
     "nextUp": "下一项：{{value}}",
-    "openRhythm": "开放节奏",
+    "openRhythm": "打开节奏",
     "deleteRhythm": "删除节奏",
-    "emptyRhythmPlans": "至少添加一个计划来挽救这一节奏。",
-    "emptyRhythmItems": "至少添加一个计划或段落来保存这一节奏。",
+    "emptyRhythmPlans": "至少添加一个计划才能保存此节奏。",
+    "emptyRhythmItems": "至少添加一个计划或经文段落才能保存此节奏。",
     "alreadyInAnotherRhythm": "这个计划已经是另一种节奏了。",
     "planUnavailableForRhythm": "只有注册的、活动的计划才能添加到节奏中。",
     "rhythmDaySummary": "当前日期：{{day}}",
@@ -761,10 +1037,10 @@ export const zh = {
     "rhythmPlanSource": "{{count}} 天计划",
     "rhythmPassageLabel": "{{count}} 章",
     "planItemLabel": "计划",
-    "passageItemLabel": "通道",
+    "passageItemLabel": "经文段落",
     "addPassage": "添加经文段落",
-    "addPassageToRhythm": "添加节奏段落",
-    "repeatablePassage": "可重复的通道",
+    "addPassageToRhythm": "将经文加入节奏",
+    "repeatablePassage": "可重复阅读的经文",
     "startChapterLabel": "开始章节",
     "endChapterLabel": "结束章节",
     "maxChapterHint": "已提供 {{count}} 个章节",
@@ -777,16 +1053,16 @@ export const zh = {
       "description": "在 14 天内追溯从创造到新创造的救赎故事。"
     },
     "prayerIntimacyWithGod": {
-      "title": "祷告与与神的亲密关系",
+      "title": "祷告与亲近神",
       "description": "为期 7 天的祷告、敬拜和与主亲密交通的旅程。"
     },
     "morningAndEveningPrayer": {
       "title": "晨祷与晚祷",
-      "description": "连续七天以早晨和傍晚的经文祷告来开始与结束每一天。"
+      "description": "以诗篇、福音书和晚间经文开始与结束每一天。"
     },
     "prayerOfTheHours": {
       "title": "按时祷告",
-      "description": "连续七天以晨间、午间和傍晚三段经文祷告来安排一天的节奏。"
+      "description": "以诗篇、福音书和书信构成早晨、午间及晚间的阅读。"
     },
     "identityInChrist": {
       "title": "在基督里的身份",
@@ -794,7 +1070,7 @@ export const zh = {
     },
     "kingdomOfGod": {
       "title": "神的国度",
-      "description": "探索福音书和早期教会中耶稣的​​国度教导。"
+      "description": "探索福音书和早期教会中耶稣关于神国度的教导。"
     },
     "spiritualWarfare": {
       "title": "属灵争战",
@@ -875,7 +1151,7 @@ export const zh = {
     },
     "otIn90Days": {
       "title": "90 天读懂旧约",
-      "description": "90 天读完所有 929 章 OT 章节——每天大约 10 章。一个严肃的承诺。"
+      "description": "90天读完旧约全部929章，每天约10章，需要坚定的投入。"
     },
     "pentateuch30Days": {
       "title": "30 天读完摩西五经",
@@ -887,14 +1163,14 @@ export const zh = {
     },
     "prophets90Days": {
       "title": "90天内的先知",
-      "description": "所有 17 本书——以赛亚书到玛拉基书——在 90 天的集中时间内完成。"
+      "description": "用90天专注阅读全部17卷先知书，从以赛亚书到玛拉基书。"
     },
     "paulsLetters30Days": {
       "title": "保罗三十天内的书信",
       "description": "在一个月内读完保罗的全部 13 封书信——罗马书到腓利门书。"
     },
     "acts28Days": {
-      "title": "28天内见效",
+      "title": "28天读完使徒行传",
       "description": "每天一章使徒行传——跟随早期教会从耶路撒冷到罗马。"
     },
     "revelation22Days": {
@@ -903,7 +1179,7 @@ export const zh = {
     }
   },
   "annotations": {
-    "title": "我的笔记和亮点",
+    "title": "我的笔记与经文标记",
     "bookmarks": "书签",
     "highlights": "亮点",
     "notes": "笔记",
@@ -1016,18 +1292,18 @@ export const zh = {
   },
   "engagement": {
     "title": "你的旅程",
-    "chaptersRead": "阅读章节",
+    "chaptersRead": "已读章节",
     "listeningTime": "聆听时间",
     "currentStreak": "当前连胜",
     "longestStreak": "最长连续纪录",
     "plansCompleted": "计划已完成",
     "engagementScore": "参与度分数",
-    "annotationsCreated": "注释和亮点",
+    "annotationsCreated": "笔记与经文标记",
     "minutes": "分钟",
     "hours": "小时",
     "days": "天",
     "totalChapters": "总章节数",
-    "totalListening": "全面听力"
+    "totalListening": "总收听时长"
   },
   "translations": {
     "title": "圣经翻译",
@@ -1043,7 +1319,7 @@ export const zh = {
     "publicDomain": "公共领域",
     "cloudLibrary": "云图书馆",
     "downloading": "正在下载...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "下载 {{name}} 的经文文本（约 {{size}} MB），以便离线阅读？",
     "deleteConfirmTitle": "删除翻译",
     "deleteConfirmMessage": "删除 {{name}} 的下载数据吗？您可以随时重新下载。",
     "cancelDownload": "取消下载",

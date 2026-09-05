@@ -1,5 +1,7 @@
 # Android Performance Notes
 
+The [September 5 app review](app-optimization-review-2026-09-05.md) records further catalog/picker, audio-registry, and sync work reductions with regression coverage. Its counts are deterministic measurements, separate from the older emulator timings below.
+
 ## Startup Assumptions
 
 - The first usable screen should not require opening the bundled Bible SQLite database.

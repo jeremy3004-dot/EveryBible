@@ -1,3 +1,7 @@
+import {
+  getLocalizedRhythmTitle,
+  getLocalizedPassageTitle,
+} from '../../services/plans/rhythmLocalization';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,15 +15,22 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { getTranslatedBookName } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
-import { useBibleStore, useLibraryStore, useProgressStore, useReadingPlansStore } from '../../stores';
-import { buildRhythmReaderSession, getCurrentPlanDaySummary } from '../../services/plans/readingPlanActivity';
+import {
+  useBibleStore,
+  useLibraryStore,
+  useProgressStore,
+  useReadingPlansStore,
+} from '../../stores';
+import {
+  buildRhythmReaderSession,
+  getCurrentPlanDaySummary,
+} from '../../services/plans/readingPlanActivity';
 import { getPlanEntries, listReadingPlans } from '../../services/plans/readingPlanService';
 import type {
   ReadingPlan,
@@ -48,7 +59,11 @@ function StatusPill({
   variant?: 'neutral' | 'accent' | 'success';
 }) {
   const backgroundColor =
-    variant === 'accent' ? colors.accentPrimary : variant === 'success' ? colors.success : colors.background;
+    variant === 'accent'
+      ? colors.accentPrimary
+      : variant === 'success'
+        ? colors.success
+        : colors.background;
   const textColor =
     variant === 'accent' || variant === 'success' ? colors.onAccent : colors.secondaryText;
   const borderColor = variant === 'neutral' ? colors.cardBorder : 'transparent';
@@ -88,7 +103,12 @@ function SegmentCard({
         });
 
   return (
-    <View style={[styles.segmentCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+    <View
+      style={[
+        styles.segmentCard,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
+    >
       <View style={styles.segmentHeader}>
         <View style={[styles.segmentBadge, { backgroundColor: colors.background }]}>
           <Ionicons name="book-outline" size={18} color={colors.accentPrimary} />
@@ -113,7 +133,9 @@ function SegmentCard({
               : t('common.next', { defaultValue: 'Next' })
           }
           colors={colors}
-          variant={item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'}
+          variant={
+            item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'
+          }
         />
       </View>
 
@@ -138,14 +160,12 @@ function SegmentCard({
         </Text>
       ) : item.segment.type === 'passage' ? (
         <Text style={[styles.segmentBody, { color: colors.secondaryText }]}>
-          {t('readingPlans.passageRangeSummary', {
-            start: item.segment.startChapter ?? 1,
-            end: item.segment.endChapter ?? item.segment.startChapter ?? 1,
-            defaultValue:
-              item.segment.startChapter === item.segment.endChapter
-                ? `Chapter ${item.segment.startChapter ?? 1}`
-                : `Chapters ${item.segment.startChapter ?? 1}-${item.segment.endChapter ?? item.segment.startChapter ?? 1}`,
-          })}
+          {item.segment.startChapter === item.segment.endChapter
+            ? `${t('bible.chapter')} ${item.segment.startChapter ?? 1}`
+            : t('interface.chapterRange', {
+                start: item.segment.startChapter ?? 1,
+                end: item.segment.endChapter ?? item.segment.startChapter ?? 1,
+              })}
         </Text>
       ) : null}
     </View>
@@ -174,7 +194,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
   const relevantPlanIds = useMemo(
     () =>
       rhythm?.items
-        .filter((item): item is Extract<(typeof rhythm.items)[number], { type: 'plan' }> => item.type === 'plan')
+        .filter(
+          (item): item is Extract<(typeof rhythm.items)[number], { type: 'plan' }> =>
+            item.type === 'plan'
+        )
         .map((item) => item.planId) ?? [],
     [rhythm]
   );
@@ -192,7 +215,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       }
 
       if (!plansResult.success || !plansResult.data) {
-        setError(plansResult.error ?? t('common.error', { defaultValue: 'Error' }));
+        setError(t('common.error', { defaultValue: 'Error' }));
         setLoading(false);
         return;
       }
@@ -251,9 +274,11 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     }
 
     return session.sessionContext.segments.map((segment) => {
-      const entries = segment.planId ? planEntriesById[segment.planId] ?? [] : [];
-      const progress = segment.planId ? progressByPlanId[segment.planId] ?? null : null;
-      const segmentPlan = segment.planId ? allPlans.find((plan) => plan.id === segment.planId) ?? null : null;
+      const entries = segment.planId ? (planEntriesById[segment.planId] ?? []) : [];
+      const progress = segment.planId ? (progressByPlanId[segment.planId] ?? null) : null;
+      const segmentPlan = segment.planId
+        ? (allPlans.find((plan) => plan.id === segment.planId) ?? null)
+        : null;
       const currentDaySummary = progress
         ? getCurrentPlanDaySummary({
             plan: segmentPlan,
@@ -273,22 +298,42 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         currentDaySummary,
         title:
           segment.type === 'plan'
-            ? planTitleById[segment.planId ?? ''] ?? segment.title
-            : segment.title ||
-              (segment.bookId
-                ? segment.startChapter === segment.endChapter
-                  ? `${getTranslatedBookName(segment.bookId, t)} ${segment.startChapter}`
-                  : `${getTranslatedBookName(segment.bookId, t)} ${segment.startChapter}-${segment.endChapter}`
-                : ''),
+            ? (planTitleById[segment.planId ?? ''] ?? segment.title)
+            : segment.bookId
+              ? getLocalizedPassageTitle(
+                  segment.title,
+                  segment.bookId,
+                  segment.startChapter ?? 1,
+                  segment.endChapter ?? segment.startChapter ?? 1,
+                  t
+                )
+              : segment.title,
       };
     });
-  }, [allPlans, chaptersRead, listeningHistory, planEntriesById, planTitleById, progressByPlanId, rhythm, session, t]);
+  }, [
+    allPlans,
+    chaptersRead,
+    listeningHistory,
+    planEntriesById,
+    planTitleById,
+    progressByPlanId,
+    rhythm,
+    session,
+    t,
+  ]);
 
   const rhythmPlanIds = relevantPlanIds;
-  const completedPlanCount = rhythmPlanIds.filter((planId) => progressByPlanId[planId]?.is_completed).length;
+  const completedPlanCount = rhythmPlanIds.filter(
+    (planId) => progressByPlanId[planId]?.is_completed
+  ).length;
   const totalPlanCount = rhythmPlanIds.length;
   const totalItemCount = rhythm?.items.length ?? 0;
-  const hasActiveSegments = Boolean(session && session.playbackSequenceEntries.length > 0 && session.startEntry && session.startSegment);
+  const hasActiveSegments = Boolean(
+    session &&
+    session.playbackSequenceEntries.length > 0 &&
+    session.startEntry &&
+    session.startSegment
+  );
   const slotPresentation = useMemo(() => {
     const slot = rhythm?.slot ?? inferRhythmSlotFromTitle(rhythm?.title);
     return slot ? RHYTHM_SLOT_META[slot] : null;
@@ -324,7 +369,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
@@ -334,7 +382,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
   if (error || !rhythm) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.errorContainer}>
           <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
             {t('readingPlans.rhythms')}
@@ -359,23 +410,36 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+      >
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            style={[styles.backButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+            style={[
+              styles.backButton,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
           >
             <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]} numberOfLines={2}>
-              {rhythm.title}
+            <Text
+              style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
+              numberOfLines={2}
+            >
+              {getLocalizedRhythmTitle(rhythm.title, t)}
             </Text>
             {slotPresentation ? (
-              <View style={[styles.slotBadge, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}>
+              <View
+                style={[
+                  styles.slotBadge,
+                  { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+                ]}
+              >
                 <Ionicons name={slotPresentation.iconName} size={14} color={colors.accentPrimary} />
                 <Text style={[styles.slotBadgeLabel, { color: colors.primaryText }]}>
                   {t(slotPresentation.labelKey)}
@@ -394,22 +458,34 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('readingPlans.editRhythm')}
-            style={[styles.editButton, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+            style={[
+              styles.editButton,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
           >
             <Ionicons name="create-outline" size={18} color={colors.primaryText} />
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.summaryCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+        <View
+          style={[
+            styles.summaryCard,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+        >
           <View style={styles.summaryRow}>
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>{totalItemCount}</Text>
+              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>
+                {totalItemCount}
+              </Text>
               <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
                 {t('readingPlans.includedItems', { defaultValue: 'Included items' })}
               </Text>
             </View>
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>{completedPlanCount}</Text>
+              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>
+                {completedPlanCount}
+              </Text>
               <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
                 {t('readingPlans.completed')}
               </Text>
@@ -425,9 +501,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           </View>
 
           <Text style={[styles.summaryBody, { color: colors.secondaryText }]}>
-            {hasActiveSegments
-              ? t('readingPlans.continueRhythm')
-              : t('readingPlans.noRhythmsBody')}
+            {hasActiveSegments ? t('readingPlans.continueRhythm') : t('readingPlans.noRhythmsBody')}
           </Text>
           {segmentViewModels[0] ? (
             <Text style={[styles.summaryNext, { color: colors.accentPrimary }]}>
@@ -468,7 +542,12 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         </View>
 
         {segmentViewModels.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.emptyState,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
             <Ionicons name="checkmark-circle-outline" size={28} color={colors.success} />
             <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
               {t('readingPlans.completed')}

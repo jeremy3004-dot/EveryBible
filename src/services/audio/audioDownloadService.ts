@@ -109,7 +109,7 @@ export function createAudioDownloadJobId({
   scope: AudioDownloadJobScope;
   bookId?: string;
 }): string {
-  return `audio-download:${translationId}:${scope}:${scope === 'book' ? bookId ?? 'unknown' : 'all'}`;
+  return `audio-download:${translationId}:${scope}:${scope === 'book' ? (bookId ?? 'unknown') : 'all'}`;
 }
 
 // Keyed by job id so a caller holding only the id (e.g. bibleStore's cancelDownload) can
@@ -165,7 +165,7 @@ interface FailJobParams extends DownloadContext {
 }
 
 const loadJobStoreFactory = async () => {
-  const { createPersistentAudioDownloadJobStore } = await import('./audioDownloadStorage');
+  const { createPersistentAudioDownloadJobStore } = await import('./audioDownloadJobStore');
   return createPersistentAudioDownloadJobStore;
 };
 
@@ -312,7 +312,13 @@ export async function reattachAudioDownloadJob({
 
   const reattached = await upsertJob(
     activeJobStore,
-    createJobRecord(existing.translationId, existing.scope, existing.bookId, 'downloading', existing)
+    createJobRecord(
+      existing.translationId,
+      existing.scope,
+      existing.bookId,
+      'downloading',
+      existing
+    )
   );
   hooks?.onReattach?.(reattached);
   return reattached;
@@ -398,12 +404,12 @@ export async function getDownloadedChapterAudioUri(
   rootUri?: string
 ): Promise<string | null> {
   const fileUri = getChapterAudioFileUri(translationId, bookId, chapter, rootUri);
-  if (await fileSystem.fileExists(fileUri)) {
+  if (await isValidDownloadedAudioFile(fileSystem, fileUri)) {
     return fileUri;
   }
 
   const legacyFileUri = getLegacyChapterAudioFileUri(translationId, bookId, chapter, rootUri);
-  if (legacyFileUri !== fileUri && (await fileSystem.fileExists(legacyFileUri))) {
+  if (legacyFileUri !== fileUri && (await isValidDownloadedAudioFile(fileSystem, legacyFileUri))) {
     return legacyFileUri;
   }
 
@@ -414,28 +420,24 @@ function createAudioDownloadTaskId(jobId: string, bookId: string, chapter: numbe
   return `${jobId}:${bookId}:${chapter}`;
 }
 
-// Guards the fileExists short-circuit that decides whether a chapter is already
-// downloaded. Adapters that can report file size (see expoAudioFileSystemAdapter)
-// let this self-heal a previously corrupted download instead of treating it as
-// permanently complete; adapters without getFileSize fall back to existence only.
+// Size metadata establishes existence too, avoiding two native filesystem reads.
+// Playback lookup must not delete a partial file an active download is writing.
+// The download worker opts into cleanup before retrying a corrupted cached file.
 async function isValidDownloadedAudioFile(
   fileSystem: AudioFileSystemAdapter,
-  fileUri: string
+  fileUri: string,
+  deleteInvalid = false
 ): Promise<boolean> {
-  if (!(await fileSystem.fileExists(fileUri))) {
-    return false;
-  }
-
   if (!fileSystem.getFileSize) {
-    return true;
+    return fileSystem.fileExists(fileUri);
   }
 
   const size = await fileSystem.getFileSize(fileUri);
-  if (size != null && size >= AUDIO_DOWNLOAD_MIN_VALID_BYTES) {
+  if (size != null && Number.isFinite(size) && size >= AUDIO_DOWNLOAD_MIN_VALID_BYTES) {
     return true;
   }
 
-  await fileSystem.deleteFile?.(fileUri);
+  if (deleteInvalid && size != null) await fileSystem.deleteFile?.(fileUri);
   return false;
 }
 
@@ -740,7 +742,7 @@ export async function downloadAudioBook({
           target.chapter,
           resolvedRootUri
         );
-        if (await isValidDownloadedAudioFile(fileSystem, fileUri)) {
+        if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
           chapterProgressByNumber.set(target.chapter, 100);
           emitBookProgress(target.chapter);
           return;

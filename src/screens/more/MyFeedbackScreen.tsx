@@ -25,7 +25,7 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'MyFeedback'
 
 export function MyFeedbackScreen() {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -131,7 +131,7 @@ export function MyFeedbackScreen() {
             <View />
           )}
           <Text style={[styles.date, { color: colors.secondaryText }]}>
-            {new Date(item.createdAt).toLocaleDateString()}
+            {new Date(item.createdAt).toLocaleDateString(i18n.language)}
           </Text>
         </View>
       </View>
@@ -202,7 +202,9 @@ export function MyFeedbackScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

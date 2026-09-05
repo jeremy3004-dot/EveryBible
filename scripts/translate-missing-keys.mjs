@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = path.join(__dirname, '../src/i18n/locales');
-const GEMINI_API_KEY = 'AIzaSyAUg684_NuyiI7v0AqmZNXeNhSlWZCDZVc';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const LANGUAGE_NAMES = {
@@ -58,6 +58,7 @@ const MISSING_KEYS = [
 ];
 
 async function callGemini(prompt) {
+  if (!GEMINI_API_KEY) throw new Error('Set GEMINI_API_KEY before running translations.');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   const body = {
     contents: [{ parts: [{ text: prompt }] }],

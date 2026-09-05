@@ -14,12 +14,7 @@ import {
   type TextInput as TextInputType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  type RouteProp,
-} from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
@@ -272,22 +267,21 @@ export function BibleBrowserScreen() {
 
     if (!result.success) {
       setTranslatorFeedbackSummaries([]);
-      setTranslatorSummaryError(result.error ?? t('common.unexpectedError'));
+      setTranslatorSummaryError(t('common.unexpectedError'));
       return;
     }
 
     setTranslatorFeedbackSummaries(result.chapters);
   }, [currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
 
-  useEffect(() => {
-    void loadTranslatorFeedbackSummaries();
-  }, [loadTranslatorFeedbackSummaries]);
-
-  // Refresh badge counts when returning to the browser so resolutions made in the reader
-  // (or by another translator) are reflected without a full remount (F6).
+  // Focus effects also run on a focused mount and dependency changes, so one owner covers
+  // initial loading, translation changes, and updated badges when returning from the reader.
   useFocusEffect(
     useCallback(() => {
       void loadTranslatorFeedbackSummaries();
+      return () => {
+        translatorFeedbackSummaryRequestIdRef.current += 1;
+      };
     }, [loadTranslatorFeedbackSummaries])
   );
 
@@ -312,9 +306,7 @@ export function BibleBrowserScreen() {
         accessible
         accessibilityRole="image"
         accessibilityLabel={
-          isPending
-            ? t('translatorQueue.title')
-            : t('bible.translatorReviewConfirmedAccurate')
+          isPending ? t('translatorQueue.title') : t('bible.translatorReviewConfirmedAccurate')
         }
         style={[
           styles.translatorFeedbackBadge,

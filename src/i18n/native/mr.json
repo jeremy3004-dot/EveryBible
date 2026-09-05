@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "प्रोफाइलचा फोटो काढायचा असल्यास Every Bible ला कॅमेरा वापरण्याची परवानगी द्या.",
+    "NSMicrophoneUsageDescription": "अध्यायावरील अभिप्राय आवाजात रेकॉर्ड करण्यासाठी Every Bible ला परवानगी द्या.",
+    "NSPhotoLibraryUsageDescription": "प्रोफाइलचा फोटो निवडण्यासाठी Every Bible ला तुमच्या फोटो संग्रहात प्रवेशाची परवानगी द्या.",
+    "NSFaceIDUsageDescription": "जतन केलेले साइन-इन सुरक्षित ठेवण्यासाठी Every Bible ला Face ID वापरण्याची परवानगी द्या."
+  }
+}

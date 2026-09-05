@@ -731,7 +731,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               style={[styles.sheetIconCloseButton, { backgroundColor: colors.background }]}
               onPress={() => setShowSettings(false)}
               accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
+              accessibilityLabel={t('interface.close')}
             >
               <Ionicons name="close" size={18} color={colors.secondaryText} />
             </TouchableOpacity>

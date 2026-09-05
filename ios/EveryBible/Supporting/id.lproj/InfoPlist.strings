@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "Izinkan Every Bible mengakses kamera jika Anda memilih mengambil foto profil.";
+NSMicrophoneUsageDescription = "Izinkan Every Bible merekam tanggapan suara untuk masukan pasal.";
+NSPhotoLibraryUsageDescription = "Izinkan Every Bible mengakses perpustakaan foto agar Anda dapat memilih foto profil.";
+NSFaceIDUsageDescription = "Izinkan Every Bible menggunakan Face ID untuk melindungi data masuk yang tersimpan.";

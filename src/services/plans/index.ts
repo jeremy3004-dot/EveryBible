@@ -28,3 +28,9 @@ export type {
   UserReadingPlanProgress,
   UserSavedPlan,
 } from './types';
+
+export {
+  localizeRhythmPreset,
+  getLocalizedRhythmTitle,
+  getLocalizedPassageTitle,
+} from './rhythmLocalization';

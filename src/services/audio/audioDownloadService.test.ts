@@ -321,6 +321,57 @@ test('getDownloadedChapterAudioUri returns a local file when it has been downloa
   assert.equal(localUri, fileUri);
 });
 
+test('offline lookup rejects truncated files without deleting an active partial download', async () => {
+  const { fileSystem, files } = createFileSystemDouble();
+  const uri = getChapterAudioFileUri('bsb', 'JHN', 3);
+  files.add(uri);
+  let existsChecks = 0;
+  let sizeChecks = 0;
+  let deletes = 0;
+  fileSystem.fileExists = async () => {
+    existsChecks++;
+    return true;
+  };
+  fileSystem.getFileSize = async () => {
+    sizeChecks++;
+    return 12;
+  };
+  fileSystem.deleteFile = async () => {
+    deletes++;
+  };
+  assert.equal(await getDownloadedChapterAudioUri('bsb', 'JHN', 3, fileSystem), null);
+  assert.equal(existsChecks, 0, 'size metadata already establishes existence');
+  assert.equal(sizeChecks, 2, 'both the configured file and legacy MP3 must be validated');
+  assert.equal(deletes, 0);
+});
+
+test('offline lookup uses one metadata read for a valid configured audio file', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  let existsChecks = 0;
+  let sizeChecks = 0;
+  fileSystem.fileExists = async () => {
+    existsChecks++;
+    return true;
+  };
+  fileSystem.getFileSize = async () => {
+    sizeChecks++;
+    return 5000;
+  };
+  assert.equal(
+    await getDownloadedChapterAudioUri('bsb', 'JHN', 3, fileSystem),
+    getChapterAudioFileUri('bsb', 'JHN', 3)
+  );
+  assert.equal(existsChecks, 0);
+  assert.equal(sizeChecks, 1);
+});
+
+test('offline lookup falls back to a valid legacy file when configured audio is truncated', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const legacyUri = 'file:///everybible-audio/bsb/JHN/3.mp3';
+  fileSystem.getFileSize = async (uri) => (uri === legacyUri ? 5000 : 12);
+  assert.equal(await getDownloadedChapterAudioUri('bsb', 'JHN', 3, fileSystem), legacyUri);
+});
+
 test('getChapterAudioFileUri uses the configured remote audio file extension', () => {
   setRemoteAudioMetadataResolver((translationId) => {
     if (translationId !== 'bsb') {

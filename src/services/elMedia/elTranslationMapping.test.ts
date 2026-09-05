@@ -55,6 +55,8 @@ test('maps the real fixture catalog to one BibleTranslation with every field', a
 
   // catalog.audio carries the 'el-manifest' strategy payload.
   assert.ok(t.catalog);
+  assert.equal(t.totalBooks, 0, 'audio-only entries do not advertise a text book count');
+  assert.equal(t.catalog.updatedAt, catalog.generatedAt);
   assert.ok(t.catalog.audio);
   assert.equal(t.catalog.audio.strategy, 'el-manifest');
   assert.equal(t.catalog.audio.manifestUrl, '/manifests/audio/lqdtest/v2026-07-20-1.json');

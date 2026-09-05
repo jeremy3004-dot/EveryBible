@@ -52,10 +52,8 @@ const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
  *
  * Returns true only when EL rows were actually merged into the store. A failure stays
  * non-fatal (it is still swallowed here), but callers MUST be able to tell "EL produced
- * rows" from "EL was configured": EL rows are not restored from persistence
- * (`sanitizeRuntimeTranslation` rejects their `totalBooks: 0`), so every launch depends on
- * this step succeeding, and a caller that treats "configured" as "done" strands the device
- * without EL translations for the rest of the launch.
+ * rows" from "EL was configured". Persisted rows keep previously loaded audio available,
+ * but a failed refresh must allow a later attempt to discover new catalog entries.
  */
 export async function applyElRuntimeCatalog(
   baseTranslations: BibleTranslation[],

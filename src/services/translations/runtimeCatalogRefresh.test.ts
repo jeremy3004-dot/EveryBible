@@ -5,6 +5,7 @@ import type { TranslationCatalogEntry } from '../supabase/types';
 import { mergeRuntimeCatalogTranslations } from '../../stores/bibleStoreModel';
 import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
 import type { ElBootstrapStep } from './runtimeElCatalog';
+import { mapCatalogEntryToBibleTranslation } from './translationCatalogModel';
 
 function makeCatalogEntry(translationId: string): TranslationCatalogEntry {
   return {
@@ -60,7 +61,7 @@ function makeElRuntime(id: string): BibleTranslation {
     installState: 'remote-only',
     catalog: {
       version: 'v1',
-      updatedAt: '',
+      updatedAt: '2026-09-05T00:00:00.000Z',
       audio: {
         strategy: 'el-manifest',
         manifestUrl: '/m.json',
@@ -93,6 +94,40 @@ function makeFakeStore(initialTranslations: BibleTranslation[]) {
     },
   };
 }
+
+test('refreshing a large catalog preserves download state with linear existing-row lookups', async (t) => {
+  const rowCount = 1000;
+  const entries = Array.from({ length: rowCount }, (_, index) =>
+    makeCatalogEntry(`runtime-${index}`)
+  );
+  let idReads = 0;
+  const initial = entries.map((entry) => {
+    const translation = mapCatalogEntryToBibleTranslation(entry);
+    translation.downloadedAudioBooks = ['JHN'];
+    Object.defineProperty(translation, 'id', {
+      enumerable: true,
+      get: () => {
+        idReads += 1;
+        return entry.translation_id;
+      },
+    });
+    return translation;
+  });
+  const store = makeFakeStore(initial);
+  await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: entries }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => null,
+  });
+  assert.equal(store.translations.length, rowCount);
+  assert.ok(store.translations.every((row) => row.downloadedAudioBooks.includes('JHN')));
+  assert.ok(
+    idReads <= rowCount * 4,
+    `Catalog lookup performed ${idReads} ID reads for ${rowCount} rows`
+  );
+  t.diagnostic(`Catalog lookup: ${idReads} ID reads for ${rowCount} rows`);
+});
 
 test('a Supabase-only apply prunes EL runtime rows (the by-design model behaviour being guarded against)', () => {
   const store = makeFakeStore([makeElRuntime('el-lqdtest')]);
@@ -238,13 +273,8 @@ test('flag-off builds still apply the Supabase catalog without touching the EL p
 
 // ── Regression: a failed EL fetch must not be mistaken for a hydrated launch ──────────────
 //
-// v1.0.7 field report: two devices on the SAME build, one showing the full Every Language
-// language list and one showing only the bundled languages. EL rows live ONLY in memory —
-// `sanitizeRuntimeTranslation` rejects them on rehydration (totalBooks: 0 fails its
-// `totalBooks <= 0` guard), so every launch depends on the EL step succeeding again. The
-// bootstrap latched its per-launch hydration flag off `isElActive`, which only means "the
-// flag resolved a catalog URL", so a single transient EL failure latched the launch as
-// hydrated and every later retry (re-opening the picker) short-circuited.
+// A transient failure must leave retry enabled even when persisted rows are available.
+// A configured source is not evidence that this launch loaded its current catalog.
 
 test('an EL failure is reported so the launch is not treated as hydrated', async () => {
   const store = makeFakeStore([]);
@@ -318,5 +348,60 @@ test('a refresh that applied nothing at all is never hydrated', async () => {
     elStep: async () => [],
   });
 
+  assert.equal(shouldMarkRuntimeCatalogHydrated(result), false);
+});
+
+for (const outcome of ['failure', 'empty', 'throw'] as const) {
+  test(`a ${outcome} Supabase response preserves its last-good rows and permits recovery`, async () => {
+    const previous = mapCatalogEntryToBibleTranslation(makeCatalogEntry('previous'));
+    const oldEl = makeElRuntime('el-old');
+    const newEl = makeElRuntime('el-new');
+    const store = makeFakeStore([previous, oldEl]);
+    const deps = {
+      getStoreTranslations: store.getStoreTranslations,
+      applyRuntimeCatalog: store.applyRuntimeCatalog,
+      resolveUrl: () => 'https://lqd-media.example.com/catalog.json',
+      elStep: async () => [newEl],
+    };
+    const result = await refreshRuntimeCatalog({
+      ...deps,
+      listTranslations: async () => {
+        if (outcome === 'throw') throw new Error('network down');
+        return outcome === 'empty'
+          ? { success: true, data: [] }
+          : { success: false, error: 'network down' };
+      },
+    });
+
+    assert.deepEqual(store.translations.map(({ id }) => id).sort(), ['el-new', 'previous']);
+    assert.equal(result.appliedSupabaseCatalog, false);
+    assert.equal(result.appliedElCatalog, true);
+    assert.equal(shouldMarkRuntimeCatalogHydrated(result), false);
+
+    const recovered = await refreshRuntimeCatalog({
+      ...deps,
+      listTranslations: async () => ({ success: true, data: [makeCatalogEntry('replacement')] }),
+    });
+    assert.deepEqual(store.translations.map(({ id }) => id).sort(), ['el-new', 'replacement']);
+    assert.equal(shouldMarkRuntimeCatalogHydrated(recovered), true);
+  });
+}
+
+test('both failed sources retain all last-good rows without marking hydration complete', async () => {
+  const previous = mapCatalogEntryToBibleTranslation(makeCatalogEntry('previous'));
+  const oldEl = makeElRuntime('el-old');
+  const store = makeFakeStore([previous, oldEl]);
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => {
+      throw new Error('Supabase offline');
+    },
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.json',
+    elStep: async () => {
+      throw new Error('EL offline');
+    },
+  });
+  assert.deepEqual(store.translations, [previous, oldEl]);
   assert.equal(shouldMarkRuntimeCatalogHydrated(result), false);
 });

@@ -59,9 +59,7 @@ export function AboutScreen() {
 
         {/* Description */}
         <View style={styles.descriptionCard}>
-          <Text style={styles.description}>
-            {t('about.description')}
-          </Text>
+          <Text style={styles.description}>{t('about.description')}</Text>
         </View>
         {/* Links */}
         <Text style={styles.sectionTitle}>{t('about.resources')}</Text>
@@ -72,9 +70,7 @@ export function AboutScreen() {
             accessibilityRole="link"
           >
             <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>
-              {t('about.bereanWebsite', { defaultValue: ABOUT_WEBSITE_LABEL })}
-            </Text>
+            <Text style={styles.linkText}>{ABOUT_WEBSITE_LABEL}</Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 
@@ -84,9 +80,7 @@ export function AboutScreen() {
             accessibilityRole="link"
           >
             <Ionicons name="mail-outline" size={24} color={colors.secondaryText} />
-            <Text style={styles.linkText}>
-              {t('about.contactSupport', { defaultValue: EVERYBIBLE_SUPPORT_EMAIL })}
-            </Text>
+            <Text style={styles.linkText}>{EVERYBIBLE_SUPPORT_EMAIL}</Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
 

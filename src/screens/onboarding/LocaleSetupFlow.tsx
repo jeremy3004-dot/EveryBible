@@ -677,7 +677,7 @@ export function LocaleSetupFlow({
             .getState()
             .translations.find((candidate) => candidate.id === translation.id) ?? translation;
         await completeInitialSetup(installedTranslation);
-      } catch (error) {
+      } catch {
         const fallbackTranslation = resolveRegionalFallbackTranslation(
           useBibleStore.getState().translations,
           translation,
@@ -688,11 +688,7 @@ export function LocaleSetupFlow({
           return;
         }
 
-        Alert.alert(
-          t('common.error'),
-          error instanceof Error ? error.message : t('bible.failedToLoad'),
-          [{ text: t('common.ok') }]
-        );
+        Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
       } finally {
         setInstallingTranslationId(null);
       }

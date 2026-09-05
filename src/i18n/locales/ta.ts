@@ -1,23 +1,23 @@
 export const ta = {
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "கருத்துப் பட்டியல்",
+    subtitle: "கருத்துகளை மதிப்பாய்வு செய்ய வேண்டிய அத்தியாயங்கள்",
+    empty: "எல்லாக் கருத்துகளும் பார்க்கப்பட்டன. நிலுவையில் எதுவும் இல்லை.",
+    pendingCount: "மதிப்பாய்வு செய்ய வேண்டிய {{count}} அத்தியாயங்கள்",
+    chapterCounts: "{{down}} திருத்த வேண்டும் · {{up}} உறுதிசெய்ய வேண்டும்",
+    openLabel: "{{reference}} திற",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "எனது கருத்துகள்",
+    settingsRow: "எனது கருத்துகள்",
+    settingsRowSummary: "உங்கள் ஆலோசனைகளின்படி மொழிபெயர்ப்புக் குழு செய்ததைப் பாருங்கள்",
+    subtitle: "அத்தியாயங்கள் பற்றிய உங்கள் கருத்துகளின் அடிப்படையில் மொழிபெயர்ப்புக் குழு செய்தவை",
+    empty: "நீங்கள் இதுவரை எந்த அத்தியாயத்திற்கும் கருத்து அனுப்பவில்லை.",
+    signInRequired: "நீங்கள் அனுப்பிய கருத்துகளைக் காண உள்நுழையுங்கள்.",
+    audioLabel: "குரல் செய்தி இணைக்கப்பட்டுள்ளது",
+    statusReceived: "பெறப்பட்டது",
+    statusFixed: "திருத்தப்பட்டது",
+    statusNoChange: "மதிப்பாய்வு செய்யப்பட்டது — மாற்றம் இல்லை",
   },
   "common": {
     "cancel": "ரத்து செய்",
@@ -30,7 +30,7 @@ export const ta = {
     "save": "சேமிக்கவும்",
     "delete": "நீக்கு",
     "edit": "திருத்தவும்",
-    "back": "மீண்டும்",
+    "back": "பின்செல்",
     "next": "அடுத்து",
     "previous": "முந்தைய",
     "search": "தேடு",
@@ -46,10 +46,10 @@ export const ta = {
     "all": "அனைத்து"
   },
   "tabs": {
-    "home": "வீடு",
+    "home": "முகப்பு",
     "bible": "பைபிள்",
     "harvest": "அறுவடை",
-    "gather": "சேகரிக்கவும்",
+    "gather": "ஐக்கியம்",
     "more": "மேலும்",
     "plans": "திட்டங்கள்"
   },
@@ -75,7 +75,7 @@ export const ta = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "புலம் {{number}}",
     "notificationSettings": "அறிவிப்பு அமைப்புகள்",
-    "chaptersRead": "அத்தியாயங்கள் படித்தது",
+    "chaptersRead": "வாசித்த அத்தியாயங்கள்",
     "today": "இன்று",
     "week": "வாரம்",
     "month": "மாதம்",
@@ -106,10 +106,10 @@ export const ta = {
     "recommendedBadge": "பரிந்துரைக்கப்படுகிறது",
     "interfaceAvailable": "இடைமுகம் கிடைக்கிறது",
     "privacyTitle": "உங்கள் தனியுரிமை பாணியைத் தேர்வு செய்யவும்",
-    "privacyBody": "இந்தச் சாதனத்திற்கான ஐகான் பாணியைத் தேர்ந்தெடுக்கவும். நீங்கள் பயன்பாட்டை விட்டு வெளியேறும் போதெல்லாம் டிஸ்க்ரீட் பயன்முறை உள்ளூர் குறியீடு பூட்டையும் சேர்க்கிறது.",
+    "privacyBody": "இந்தச் சாதனத்தின் சின்னப் பாணியைத் தேர்ந்தெடுங்கள். மறைமுறையில் செயலியை விட்டு வெளியேறும்போது சாதனக் குறியீட்டுப் பூட்டும் செயல்படும்.",
     "standardIconTitle": "நிலையான ஐகான்",
     "standardIconBody": "சாதாரண Every Bible ஐகானைப் பயன்படுத்தி, பயன்பாட்டை நேரடியாகத் திறக்கவும்.",
-    "discreetIconTitle": "விவேகமான ஐகான்",
+    "discreetIconTitle": "மறைமுறைச் சின்னம்",
     "discreetIconBody": "இந்தச் சாதனத்தில் குறைந்த சுயவிவர ஐகானைப் பயன்படுத்தி, கால்குலேட்டர் பாணி குறியீட்டைக் கொண்டு அணுகலைப் பாதுகாக்கவும்.",
     "pinTitle": "உங்கள் பாதுகாப்பான குறியீட்டை உருவாக்கவும்",
     "pinBody": "எண்கள் மற்றும் +, -, x, அல்லது / போன்ற குறியீடுகளைப் பயன்படுத்தி 4 முதல் 6 எழுத்துகளைத் தேர்ந்தெடுக்கவும். நீங்கள் பயன்பாட்டிற்குத் திரும்பும் ஒவ்வொரு முறையும் இந்தக் குறியீட்டை உள்ளிடுவீர்கள்.",
@@ -119,9 +119,9 @@ export const ta = {
     "finish": "அமைவை முடிக்கவும்"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "இந்த ஒலியை இயக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    chapterFeedbackSuccessTitle: "கருத்து அனுப்பப்பட்டது",
+    readerFontsAndSettings: "எழுத்துருக்கள் மற்றும் அமைப்புகள்",
     "title": "பைபிள்",
     "oldTestament": "பழைய ஏற்பாடு",
     "fontsAndSettings": "எழுத்துருக்கள் & அமைப்புகள்",
@@ -166,22 +166,22 @@ export const ta = {
     "books": {
       "GEN": "ஆதியாகமம்",
       "EXO": "யாத்திராகமம்",
-      "LEV": "லேவிடிகஸ்",
-      "NUM": "எண்கள்",
+      "LEV": "லேவியராகமம்",
+      "NUM": "எண்ணாகமம்",
       "DEU": "உபாகமம்",
       "JOS": "ஜோசுவா",
-      "JDG": "நீதிபதிகள்",
+      "JDG": "நியாயாதிபதிகள்",
       "RUT": "ரூத்",
       "1SA": "1 சாமுவேல்",
       "2SA": "2 சாமுவேல்",
-      "1KI": "1 கிங்ஸ்",
-      "2KI": "2 கிங்ஸ்",
+      "1KI": "1 இராஜாக்கள்",
+      "2KI": "2 இராஜாக்கள்",
       "1CH": "1 நாளாகமம்",
       "2CH": "2 நாளாகமம்",
       "EZR": "எஸ்ரா",
       "NEH": "நெகேமியா",
       "EST": "எஸ்தர்",
-      "JOB": "வேலை",
+      "JOB": "யோபு",
       "PSA": "சங்கீதம்",
       "PRO": "பழமொழிகள்",
       "ECC": "பிரசங்கிகள்",
@@ -206,8 +206,8 @@ export const ta = {
       "MAT": "மத்தேயு",
       "MRK": "மார்க்",
       "LUK": "லூக்கா",
-      "JHN": "ஜான்",
-      "ACT": "சட்டங்கள்",
+      "JHN": "யோவான்",
+      "ACT": "அப்போஸ்தலர் நடபடிகள்",
       "ROM": "ரோமர்கள்",
       "1CO": "1 கொரிந்தியர்",
       "2CO": "2 கொரிந்தியர்",
@@ -222,12 +222,12 @@ export const ta = {
       "TIT": "டைட்டஸ்",
       "PHM": "ஃபிலிமோன்",
       "HEB": "எபிரேயர்கள்",
-      "JAS": "ஜேம்ஸ்",
-      "1PE": "1 பீட்டர்",
-      "2PE": "2 பீட்டர்",
-      "1JN": "1 ஜான்",
-      "2JN": "2 ஜான்",
-      "3JN": "3 ஜான்",
+      "JAS": "யாக்கோபு",
+      "1PE": "1 பேதுரு",
+      "2PE": "2 பேதுரு",
+      "1JN": "1 யோவான்",
+      "2JN": "2 யோவான்",
+      "3JN": "3 யோவான்",
       "JUD": "ஜூட்",
       "REV": "வெளிப்படுத்துதல்"
     },
@@ -239,42 +239,42 @@ export const ta = {
     "chapterFeedbackPlaceholder": "இந்த அத்தியாயத்தைப் பற்றிய விருப்ப கருத்து",
     "chapterFeedbackSelectionHint": "விருப்பக் குறிப்பைச் சேர்க்க, கட்டைவிரல் மேல் அல்லது கட்டைவிரலைத் தட்டவும்.",
     "chapterFeedbackSubmit": "கருத்தை அனுப்பவும்",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "அதற்குப் பதிலாகப் பேசி உங்கள் கருத்தைப் பதிவு செய்யுங்கள்",
+    "chapterFeedbackAudioRecording": "பதிவாகிறது {{duration}}",
+    "chapterFeedbackAudioReady": "குரல் கருத்து தயார்: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, அதிகபட்சம் 1 நிமிடம்",
+    "chapterFeedbackAudioRecord": "குரலைப் பதிவு செய்யுங்கள்",
+    "chapterFeedbackAudioStop": "நிறுத்து",
+    "chapterFeedbackAudioPreview": "பதிவு செய்த கருத்தைக் கேளுங்கள்",
+    "chapterFeedbackAudioRerecord": "கருத்தை மீண்டும் பதிவு செய்யுங்கள்",
+    "chapterFeedbackAudioUploading": "ஒலி பதிவேற்றப்படுகிறது...",
+    "chapterFeedbackAudioPermissionDenied": "ஒலிவாங்கி அனுமதி முடக்கப்பட்டுள்ளது. நீங்கள் இன்னும் கருத்தை எழுதலாம்.",
+    "chapterFeedbackAudioPermissionHelp": "குரல் கருத்தை அனுப்ப சாதன அமைப்புகளில் ஒலிவாங்கி அனுமதியை வழங்குங்கள்.",
+    "chapterFeedbackAudioStartError": "பதிவைத் தொடங்க முடியவில்லை. நீங்கள் கருத்தை எழுதலாம்.",
+    "chapterFeedbackAudioStopError": "பதிவை முடிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    "chapterFeedbackAudioRecordingMissing": "பதிவைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    "chapterFeedbackAudioUploadError": "ஒலியைப் பதிவேற்ற முடியவில்லை. உங்கள் பதிவு பாதுகாப்பாக உள்ளது; மீண்டும் அனுப்பவும்.",
     "chapterFeedbackSuccess": "உங்கள் கருத்துக்கு நன்றி. உங்கள் சமர்ப்பிப்பு பெறப்பட்டது, விரைவில் எங்கள் மொழிபெயர்ப்புக் குழுக்களால் மதிப்பாய்வு செய்யப்படும்.",
     "chapterFeedbackSignInRequired": "அத்தியாயத்தின் கருத்தை அனுப்பும் முன் உள்நுழையவும்.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "துல்லிய மதிப்பாய்வு",
+    "translatorReviewSummary": "நிலுவை முடிவுகள்: {{count}} இல் {{pending}}",
+    "translatorReviewSummaryComplete": "துல்லியம் குறித்த அனைத்து மதிப்பாய்வுகளும் முடிந்தன",
+    "translatorReviewLoading": "கருத்துகள் ஏற்றப்படுகின்றன...",
+    "translatorReviewEmpty": "இந்த அத்தியாயத்திற்கு இதுவரை கருத்து எதுவும் அனுப்பப்படவில்லை.",
+    "translatorReviewUnknownUser": "பெயர் தெரியாத பங்களிப்பாளர்",
+    "translatorReviewUnread": "முடிவு தேவை",
+    "translatorReviewSubmittedAt": "{{date}} அன்று அனுப்பப்பட்டது",
+    "translatorReviewSubmittedBy": "{{name}} அனுப்பியுள்ளார்",
+    "translatorReviewNoComment": "எழுத்துப்பூர்வமான கருத்து இல்லை.",
+    "translatorReviewFixed": "திருத்தப்பட்டது",
+    "translatorReviewConfirmedAccurate": "துல்லியமானது என உறுதிசெய்யப்பட்டது",
+    "translatorReviewReviewed": "மாற்றம் தேவையில்லை",
+    "translatorReviewConfirmAccurate": "துல்லியமானது என உறுதிசெய்",
+    "translatorReviewMarkFixed": "திருத்தப்பட்டதாகக் குறி",
+    "translatorReviewNoActionNeeded": "நடவடிக்கை தேவையில்லை",
+    "translatorReviewReopen": "மீண்டும் திற",
+    "translatorReviewListened": "கேட்கப்பட்டது",
+    "translatorReviewListen": "கேள்",
     "translatorReviewPause": "இடைநிறுத்து",
     "nextChapterHint": "அடுத்த அத்தியாயத்திற்கு செல்கிறது",
     "openBookAndChapterPickerHint": "புத்தகம் மற்றும் அத்தியாயத் தேர்வியைத் திறக்கிறது",
@@ -298,7 +298,7 @@ export const ta = {
   },
   "privacy": {
     "lockTitle": "உங்கள் பாதுகாப்பான குறியீட்டை உள்ளிடவும்",
-    "lockBody": "இந்த சாதனம் விவேகமான முறையில் உள்ளது. தொடர Every Bibleஐத் திறக்கவும்.",
+    "lockBody": "இந்தச் சாதனம் மறைமுறையில் உள்ளது. தொடர Every Bible பூட்டைத் திறக்கவும்.",
     "pinPlaceholder": "உங்கள் குறியீட்டைத் தட்டவும்",
     "pinLengthHint": "உங்கள் 4 முதல் 6 எழுத்துக் குறியீட்டைப் பயன்படுத்தவும்.",
     "unlock": "பைபிளைத் திறக்கவும்",
@@ -387,16 +387,16 @@ export const ta = {
     "chapterFeedback": "அத்தியாயத்தின் கருத்து",
     "chapterFeedbackSummaryOn": "விருப்ப அத்தியாய கருத்து இயக்கத்தில் உள்ளது",
     "chapterFeedbackSummaryOff": "விருப்பமான அத்தியாயம் பின்னூட்டம் முடக்கப்பட்டுள்ளது",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "மொழிபெயர்ப்பாளர் அணுகல்",
+    "translatorAccessTitle": "மொழிபெயர்ப்பாளர் அணுகல்",
+    "translatorAccessBody": "இந்தச் சாதனத்தில் அத்தியாயக் கருத்துகளை மதிப்பாய்வு செய்ய மொழிபெயர்ப்பாளர் அணுகல் குறியீட்டை உள்ளிடுங்கள்.",
+    "translatorAccessPlaceholder": "அணுகல் குறியீடு",
+    "translatorAccessUnlock": "திற",
+    "translatorAccessIncorrect": "மொழிபெயர்ப்பாளர் அணுகல் குறியீடு தவறானது.",
+    "translatorAccessEnabled": "மொழிபெயர்ப்பாளர் மதிப்பாய்வு முறை இயக்கப்பட்டது",
+    "translatorAccessEnabledBody": "இனி அத்தியாயத் திரைகளில் கருத்து மதிப்பாய்வுக் கருவிகள் தோன்றும்.",
+    "translatorAccessSummaryOn": "மொழிபெயர்ப்பாளர் மதிப்பாய்வுக் கருவிகள் இயக்கத்தில் உள்ளன",
+    "translatorAccessSummaryOff": "மதிப்பாய்வுக் கருவிகளை இயக்க அணுகல் குறியீட்டை உள்ளிடுங்கள்",
   },
   "notifications": {
     "channelDailyReminder": "தினசரி வாசிப்பு நினைவூட்டல்",
@@ -574,7 +574,7 @@ export const ta = {
     "localOnly": "உள்ளூர் மட்டும்",
     "noLocalGroups": "இந்தச் சாதனத்தில் இதுவரை உள்ளூர் குழுக்கள் எதுவும் சேமிக்கப்படவில்லை.",
     "syncedGroupsTitle": "ஒத்திசைக்கப்பட்ட குழுக்கள்",
-    "syncedGroupsDescription": "இந்த கட்டமைப்பிற்கு பாதுகாப்பான ஒத்திசைவு இயக்கப்பட்டிருக்கும் போது, ​​இந்தக் குழுக்கள் நீங்கள் உள்நுழைந்துள்ள கணக்கிலிருந்து வரும்.",
+    "syncedGroupsDescription": "இந்த கட்டமைப்பிற்கு பாதுகாப்பான ஒத்திசைவு இயக்கப்பட்டிருக்கும் போது, இந்தக் குழுக்கள் நீங்கள் உள்நுழைந்துள்ள கணக்கிலிருந்து வரும்.",
     "syncedGroupsSignin": "உங்கள் கணக்கில் இணைக்கப்பட்ட ஒத்திசைக்கப்பட்ட குழுக்களைப் பார்க்க உள்நுழையவும்.",
     "noSyncedGroups": "இந்தக் கணக்கிற்கு இதுவரை ஒத்திசைக்கப்பட்ட குழுக்கள் எதுவும் கிடைக்கவில்லை.",
     "syncedLabel": "ஒத்திசைக்கப்பட்டது",
@@ -598,7 +598,7 @@ export const ta = {
     "playChapterSubtitle": "திறந்து விளையாடு",
     "lessons": {
       "entry1": "அறுவடைக்கான பிரார்த்தனை",
-      "entry2": "உங்கள் Oikos வரைபடம்",
+      "entry2": "உங்கள் உறவுகளின் வரைபடம்",
       "entry3": "அமைதியான மக்களைக் கண்டறிதல்",
       "entry4": "உங்கள் கதை முக்கியமானது",
       "gospel1": "எளிய நற்செய்தி",
@@ -618,7 +618,7 @@ export const ta = {
       "church3": "அனைவரும் பங்கேற்கின்றனர்",
       "church4": "தலைவர்களை நியமித்தல்",
       "mult1": "பெருக்கல் மனநிலை",
-      "mult2": "பயிற்சி vs கற்பித்தல்",
+      "mult2": "வழிகாட்டுதலும் கற்பித்தலும்: வேறுபாடு",
       "mult3": "அனுப்புதல் & ஆதரித்தல்",
       "mult4": "4வது தலைமுறைக்கான பார்வை"
     }
@@ -626,7 +626,7 @@ export const ta = {
   "about": {
     "title": "பற்றி",
     "version": "பதிப்பு {{version}}",
-    "description": "Every Bible என்பது கடவுளுடைய வார்த்தையைப் படிக்கவும் படிக்கவும் ஒரு எளிய, அழகான வழியாகும்.",
+    "description": "EveryBible என்பது தேவனுடைய வார்த்தையை வாசிக்கவும் ஆராயவும் உதவும் எளிய, அழகான வழி.",
     "bibleTranslation": "பைபிள் மொழிபெயர்ப்பு",
     "bereanBible": "பெரியன் நிலையான பைபிள்",
     "privacyPolicy": "தனியுரிமைக் கொள்கை",
@@ -659,7 +659,7 @@ export const ta = {
     "saved": "சேமிக்கப்பட்டது",
     "completions": "{{count}} நிறைவுகள்",
     "saveForLater": "பின்னர் சேமிக்கவும்",
-    "unsave": "சேமிக்கப்படவில்லை",
+    "unsave": "சேமித்த பட்டியலிலிருந்து அகற்று",
     "sample": "மாதிரி",
     "featuredPlan": "சிறப்புத் திட்டம்",
     "relatedPlans": "தொடர்புடைய திட்டங்கள்",
@@ -699,8 +699,8 @@ export const ta = {
       "description": "ஒரு மாத ஞானத்திற்காக ஒவ்வொரு நாளும் நீதிமொழிகளின் ஒரு அத்தியாயம்."
     },
     "kathisma": {
-      "title": "Kathisma",
-      "description": "ஒவ்வொரு வாரமும் மீண்டும் மீண்டும் வரும் ஒவ்வொரு வாரநாளும் நியமிக்கப்பட்ட காலை மற்றும் மாலை Kathismata-வை வாசிக்கவும்."
+      "title": "காத்திஸ்மா",
+      "description": "ஒவ்வொரு வாரமும் அதே ஒழுங்கில், வேலைநாட்களின் காலைக்கும் மாலைக்கும் ஒதுக்கப்பட்ட சங்கீதப் பகுதிகளை வாசியுங்கள்."
     },
     "chronological": {
       "title": "காலவரிசை பைபிள்",
@@ -757,7 +757,7 @@ export const ta = {
     "addPassage": "வேதப் பகுதியைச் சேர்க்கவும்",
     "addPassageToRhythm": "தாளத்திற்கு பத்தியைச் சேர்க்கவும்",
     "repeatablePassage": "திரும்பத் திரும்பச் செல்லும் பாதை",
-    "startChapterLabel": "அத்தியாயத்தைத் தொடங்குங்கள்",
+    "startChapterLabel": "தொடக்க அத்தியாயம்",
     "endChapterLabel": "இறுதி அத்தியாயம்",
     "maxChapterHint": "{{count}} அத்தியாயங்கள் உள்ளன",
     "chooseBook": "முதலில் ஒரு புத்தகத்தைத் தேர்ந்தெடுங்கள்.",
@@ -774,7 +774,7 @@ export const ta = {
     },
     "identityInChrist": {
       "title": "கிறிஸ்துவில் அடையாளம்",
-      "description": "உங்கள் அடையாளம், பாதுகாப்பு மற்றும் இயேசுவை அழைக்கும் வேதாகமத்தை வாசியுங்கள்."
+      "description": "உங்கள் அடையாளம், பாதுகாப்பு, அழைப்பு ஆகியவற்றை இயேசுவில் நிலைநிறுத்தும் வேதப்பகுதிகளை வாசியுங்கள்."
     },
     "kingdomOfGod": {
       "title": "கடவுளின் ராஜ்யம்",
@@ -789,7 +789,7 @@ export const ta = {
       "description": "புனிதம், கீழ்ப்படிதல் மற்றும் வளர்ச்சி பற்றிய பத்திகளின் மூலம் தனித்தனியாக அமைக்கப்பட்ட வாழ்க்கையைத் தொடரவும்."
     },
     "greatCommissionAndMission": {
-      "title": "தி கிரேட் கமிஷன் & மிஷன்",
+      "title": "மகா கட்டளையும் நற்செய்திப் பணியும்",
       "description": "ஆபிரகாமுக்கு அளித்த வாக்குறுதியிலிருந்து பூமியின் கடைசி வரை கடவுளின் பணியைப் பின்பற்றுங்கள்."
     },
     "faithAndObedience": {
@@ -831,7 +831,7 @@ export const ta = {
     },
     "ntIn6Months": {
       "title": "6 மாதங்களில் புதிய ஏற்பாடு",
-      "description": "180 நாட்களில் அனைத்து 27 NT புத்தகங்களிலும் ஒரு மென்மையான வேகம், ஒரு நாளைக்கு சுமார் 1-2 அத்தியாயங்கள்."
+      "description": "180 நாட்களில் அனைத்து 27 புதிய ஏற்பாட்டு புத்தகங்களிலும் ஒரு மென்மையான வேகம், ஒரு நாளைக்கு சுமார் 1-2 அத்தியாயங்கள்."
     },
     "gospels7Days": {
       "title": "7 நாட்களில் சுவிசேஷங்கள்",
@@ -859,15 +859,15 @@ export const ta = {
     },
     "otIn90Days": {
       "title": "90 நாட்களில் பழைய ஏற்பாடு",
-      "description": "அனைத்து 929 OT அத்தியாயங்களும் 90 நாட்களில் — ஒரு நாளைக்கு சுமார் 10 அத்தியாயங்கள். ஒரு தீவிர அர்ப்பணிப்பு."
+      "description": "அனைத்து 929 பழைய ஏற்பாட்டு அத்தியாயங்களும் 90 நாட்களில் — ஒரு நாளைக்கு சுமார் 10 அத்தியாயங்கள். ஒரு தீவிர அர்ப்பணிப்பு."
     },
     "pentateuch30Days": {
-      "title": "30 நாட்களில் பெண்டாட்டி",
+      "title": "30 நாட்களில் மோசேயின் ஐந்து நூல்கள்",
       "description": "உபாகமம் மூலம் ஆதியாகமம் - மோசேயின் முதல் ஐந்து புத்தகங்கள் - ஒரு மாதத்தில்."
     },
     "wisdom30Days": {
       "title": "30 நாட்களில் ஞான இலக்கியம்",
-      "description": "வேலை, சங்கீதங்கள், நீதிமொழிகள், பிரசங்கிகள் மற்றும் சாலமன் பாடல் 30 நாட்களில் சிந்தனை."
+      "description": "30 நாட்களில் யோபு, சங்கீதம், நீதிமொழிகள், பிரசங்கி மற்றும் உன்னதப்பாட்டு நூல்களைத் தியானியுங்கள்."
     },
     "prophets90Days": {
       "title": "90 நாட்களில் தீர்க்கதரிசிகள்",
@@ -878,8 +878,8 @@ export const ta = {
       "description": "பவுலின் 13 நிருபங்களையும் - ரோமர்கள் முதல் பிலேமோன் வரை - ஒரு மாதத்தில் படிக்கவும்."
     },
     "acts28Days": {
-      "title": "28 நாட்களில் செயல்படும்",
-      "description": "நாளொன்றுக்கு சட்டங்களின் ஒரு அத்தியாயம் - ஜெருசலேமிலிருந்து ரோம் வரையிலான ஆரம்பகால தேவாலயத்தைப் பின்பற்றவும்."
+      "title": "28 நாட்களில் அப்போஸ்தலர் நடபடிகள்",
+      "description": "தினமும் அப்போஸ்தலர் நடபடிகளில் ஓர் அத்தியாயத்தை வாசித்து, எருசலேமிலிருந்து ரோம் வரை தொடக்கத் திருச்சபையின் பயணத்தை அறியுங்கள்."
     },
     "revelation22Days": {
       "title": "22 நாட்களில் வெளிப்பாடு",
@@ -1043,7 +1043,7 @@ export const ta = {
     "publicDomain": "பொது டொமைன்",
     "cloudLibrary": "கிளவுட் நூலகம்",
     "downloading": "பதிவிறக்குகிறது...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "இணையமின்றிப் படிக்க {{name}} இன் எழுத்து வடிவப் பகுதியை (~{{size}} MB) பதிவிறக்கவா?",
     "deleteConfirmTitle": "மொழிபெயர்ப்பை நீக்கு",
     "deleteConfirmMessage": "{{name}} க்கான பதிவிறக்கம் செய்யப்பட்ட தரவை அகற்றவா? நீங்கள் எப்போது வேண்டுமானாலும் மீண்டும் பதிவிறக்கம் செய்யலாம்.",
     "cancelDownload": "பதிவிறக்கத்தை ரத்துசெய்",
@@ -1530,6 +1530,282 @@ export const ta = {
       "errorEmptyItems": "இந்த லயத்தை உருவாக்க குறைந்தது ஒரு உருப்படியைத் தேர்ந்தெடுக்கவும்.",
       "errorPlanInAnotherRhythm": "இந்தத் திட்டம் ஏற்கனவே மற்றொரு லயத்திற்கு உரியது.",
       "errorRhythmNotFound": "அந்த லயத்தைக் கண்டறிய முடியவில்லை.",
+    }
+  },
+  "interface": {
+    "close": "மூடு",
+    "share": "பகிர்",
+    "minutesShort": "{{count}} நிமி.",
+    "hoursShort": "{{count}} மணி",
+    "daysShort": "{{count}} நாள்",
+    "hoursMinutes": "{{hours}} மணி {{minutes}} நிமி.",
+    "justNow": "இப்போதுதான்",
+    "minutesAgo": "{{count}} நிமிடங்களுக்கு முன்",
+    "hoursAgo": "{{count}} மணிநேரங்களுக்கு முன்",
+    "daysAgo": "{{count}} நாட்களுக்கு முன்",
+    "activePrayerCount": "{{count}} செயலில்",
+    "groupShareMessage": "EveryBible இல் எனது \"{{name}}\" சீடத்துவக் குழுவில் இணையுங்கள்!\n\nஇணைவதற்கான குறியீடு: {{code}}",
+    "groupAboutTitle": "குழு அமர்வுகள் பற்றி",
+    "groupAboutBody": "உலகெங்கும் சீடர்களை உருவாக்கும் இயக்கங்களில் பயன்படும் மூன்று சம பகுதிகள் கொண்ட முறையைக் குழு அமர்வுகள் பின்பற்றுகின்றன:",
+    "groupLookBack": "எப்படி கீழ்ப்படிந்தீர்கள்? யாருடன் பகிர்ந்தீர்கள்?",
+    "groupLookUp": "ஒன்றாக வேதத்தை வாசித்து விவாதியுங்கள்",
+    "groupLookForward": "எப்படி கீழ்ப்படிவீர்கள்? யாரிடம் சொல்வீர்கள்?",
+    "backgroundMusicLabel": "பின்னணி இசை: {{name}}",
+    "backgroundMusicHint": "பின்னணி இசைத் தேர்வைத் திறக்கிறது",
+    "repeatHint": "மீண்டும் இயக்குவதை நிறுத்துதல், அத்தியாயத்தை மீண்டும் இயக்குதல், நூலை மீண்டும் இயக்குதல் ஆகியவற்றை மாற்றுகிறது",
+    "shareAudioHint": "இந்த அத்தியாயத்தின் ஒலியைப் பகிரும் விருப்பங்களைத் திறக்கிறது",
+    "playChapterAudio": "அத்தியாய ஒலியை இயக்கு",
+    "pauseChapterAudio": "அத்தியாய ஒலியை இடைநிறுத்து",
+    "previousChapterHint": "முந்தைய அத்தியாயத்திற்குச் செல்கிறது",
+    "chapterRange": "அத்தியாயங்கள் {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} நூல்கள் ({{percent}}%)",
+    "currentPlanDay": "திட்டத்தின் தற்போதைய நாள் {{day}}",
+    "planDay": "நாள் {{day}}",
+    "planSessionForDay": "நாள் {{day}}க்கான {{session}}",
+    "music": {
+      "off": {
+        "label": "நிறுத்தப்பட்டது",
+        "description": "பின்னணி இசையின்றி வேதத்தைக் கேளுங்கள்."
+      },
+      "ambient": {
+        "label": "சூழல் இசை",
+        "description": "வாசிப்பின் பின்னால் நீருக்கடியிலிருப்பது போன்ற மென்மையான சுரங்களும் மணியோசைகளும் மீண்டும் ஒலிக்கும்."
+      },
+      "piano": {
+        "label": "பியானோ",
+        "description": "மெல்லிய பின்னணிச் சுரங்களுடன் மென்மையான பியானோ இசை."
+      },
+      "soft-guitar": {
+        "label": "மென்மையான கித்தார்",
+        "description": "வாசிப்பை மறைக்காமல் மீண்டும் ஒலிக்கும் நைலான் நரம்புக் கித்தார் இசை."
+      },
+      "harp": {
+        "label": "ஹார்ப்",
+        "description": "பக்தி உணர்வைத் தரும் மென்மையான தனி ஹார்ப் இசை."
+      },
+      "flute": {
+        "label": "புல்லாங்குழல்",
+        "description": "மென்மையான கற்பனைச் சூழலில் மீண்டும் ஒலிக்கும் குறுகிய புல்லாங்குழல் இசை."
+      },
+      "sitar": {
+        "label": "சித்தார்",
+        "description": "நீண்ட நேரம் கேட்பதற்கு இதமான பாலைவனப் பாணிச் சித்தார் இசை."
+      },
+      "ocean-waves": {
+        "label": "கடல் அலைகள்",
+        "description": "அமைதியான பின்னணிக்காக மீண்டும் ஒலிக்கும் கரையோர அலைகள்."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "கத்தோலிக்க காலை ஜெபம்",
+        "description": "துதி, பாடல், நற்செய்தி ஆசீர்வாதத்துடன் காலைத் துதிவழிபாட்டை ஒட்டிய தொடக்கம்.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "நேரவழிபாட்டு முறை"
+      },
+      "catholic-daytime-prayer": {
+        "title": "கத்தோலிக்க பகல் ஜெபம்",
+        "description": "சிறிய சங்கீதங்களுடனும் தேவனை நோக்கித் திரும்புவதுடனும் கூடிய சுருக்கமான நண்பகல் ஜெபம்.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "நேரவழிபாட்டு முறை"
+      },
+      "catholic-evening-prayer": {
+        "title": "கத்தோலிக்க மாலை ஜெபம்",
+        "description": "சங்கீதங்கள், நன்றி, மரியாளின் துதிப்பாடலுடன் மாலை வழிபாட்டை ஒட்டிய நாள் நிறைவு.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "நேரவழிபாட்டு முறை"
+      },
+      "catholic-night-prayer": {
+        "title": "கத்தோலிக்க இரவு ஜெபம்",
+        "description": "நம்பிக்கை, பாதுகாப்பு, அமைதியான ஒப்புக்கொடுத்தலுக்கான உறங்குமுன் ஜெப ஒழுங்கு.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "உறங்குமுன் ஜெபம்"
+      },
+      "catholic-lectio-divina": {
+        "title": "கத்தோலிக்க தியான வேதவாசிப்பு",
+        "description": "தியானம், ஜெபம், வசனத்தில் நிலைத்திருக்க உதவும் மெதுவான வாசிப்பு ஒழுங்கு.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "தியான வேதவாசிப்பு"
+      },
+      "ignatian-daily-examen": {
+        "title": "இக்னேஷிய தினசரி தற்சோதனை",
+        "description": "நன்றி, தற்சோதனை, மனந்திரும்புதல் ஆகியவற்றுடன் நாளை முடிக்கும் தியானம்.",
+        "tradition": "கத்தோலிக்க",
+        "historicRoots": "இக்னேஷிய ஆன்மீகம்"
+      },
+      "anglican-morning-prayer": {
+        "title": "ஆங்கிலிக்கன் காலை ஜெபம்",
+        "description": "வரும் நாளுக்குச் சங்கீதங்களும் நற்செய்திப் போதனையும் தரும் ஒழுங்கான காலை ஜெபம்.",
+        "tradition": "ஆங்கிலிக்கன்",
+        "historicRoots": "பொது ஜெபப் புத்தகம்"
+      },
+      "anglican-noonday-prayer": {
+        "title": "ஆங்கிலிக்கன் நண்பகல் ஜெபம்",
+        "description": "உதவி நாடும் சங்கீதங்களுடனும் ஜீவ அப்பத்தின் நம்பிக்கையுடனும் சிறிய நண்பகல் ஜெப இடைவேளை.",
+        "tradition": "ஆங்கிலிக்கன்",
+        "historicRoots": "தினசரி ஜெபம்"
+      },
+      "anglican-evening-prayer": {
+        "title": "ஆங்கிலிக்கன் மாலை ஜெபம்",
+        "description": "மாலைச் சங்கீதங்களும் மரியாளின் பாடலும் கொண்ட பாரம்பரிய மாலை ஜெப ஒழுங்கு.",
+        "tradition": "ஆங்கிலிக்கன்",
+        "historicRoots": "பொது ஜெபப் புத்தகம்"
+      },
+      "anglican-compline": {
+        "title": "ஆங்கிலிக்கன் உறங்குமுன் ஜெபம்",
+        "description": "பாவ அறிக்கை, நம்பிக்கை, ஓய்வுக்கான மென்மையான இரவு ஜெபம்.",
+        "tradition": "ஆங்கிலிக்கன்",
+        "historicRoots": "பொது ஜெபப் புத்தகம்"
+      },
+      "orthodox-morning-rule": {
+        "title": "ஆர்த்தடாக்ஸ் காலை ஜெப ஒழுங்கு",
+        "description": "மனந்திரும்புதல், இரக்கம், இயேசு கற்பித்த ஜெபம் ஆகியவற்றை மையமாகக் கொண்ட விடியல் ஜெபம்.",
+        "tradition": "ஆர்த்தடாக்ஸ்",
+        "historicRoots": "காலை ஜெபங்கள்"
+      },
+      "orthodox-sixth-hour": {
+        "title": "ஆர்த்தடாக்ஸ் ஆறாம் மணி ஜெபம்",
+        "description": "கிறிஸ்துவின் பாடுகளையும் விழிப்புணர்வையும் நினைவில் கொள்ளும் நண்பகல் ஜெப இடைவேளை.",
+        "tradition": "ஆர்த்தடாக்ஸ்",
+        "historicRoots": "ஜெப நேரங்கள்"
+      },
+      "orthodox-vespers": {
+        "title": "ஆர்த்தடாக்ஸ் மாலை ஜெபம்",
+        "description": "படைப்பின் துதி, விளக்கேற்றும் சங்கீதங்கள், வசனத்துடன் மாலை அர்ப்பணம்.",
+        "tradition": "ஆர்த்தடாக்ஸ்",
+        "historicRoots": "தினசரி மாலை ஜெபம்"
+      },
+      "orthodox-small-compline": {
+        "title": "ஆர்த்தடாக்ஸ் சுருக்கமான உறங்குமுன் ஜெபம்",
+        "description": "இரக்கம், அடைக்கலம், உறங்குமுன் இறுதி வேண்டுதல்களுக்கான அமைதியான இரவு ஜெபம்.",
+        "tradition": "ஆர்த்தடாக்ஸ்",
+        "historicRoots": "உறங்குமுன் ஜெபம்"
+      },
+      "benedictine-sacred-reading": {
+        "title": "பெனடிக்டின் புனித வாசிப்பு",
+        "description": "குறித்த நேரங்களில் வாசிப்பதாலும் அமைதியான கவனத்தாலும் உருவான வாசிப்பு ஒழுங்கு.",
+        "tradition": "பெனடிக்டின்",
+        "historicRoots": "புனித பெனடிக்டின் ஒழுங்கு"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "பெனடிக்டின் சங்கீதமும் உழைப்பும்",
+        "description": "நாள்முழுவதும் ஜெபம், உழைப்பு, அமைதியான கீழ்ப்படிதலுக்கான நடைமுறை ஒழுங்கு.",
+        "tradition": "பெனடிக்டின்",
+        "historicRoots": "ஜெபமும் உழைப்பும்"
+      },
+      "taize-evening-prayer": {
+        "title": "தேஸே மாலை ஜெபம்",
+        "description": "சங்கீதம், வாசிப்பு, அமைதி ஆகியவற்றுடன் பாடலும் மௌனமும் கொண்ட மாலை.",
+        "tradition": "தேஸே",
+        "historicRoots": "தேஸேயின் பொது ஜெபம்"
+      },
+      "lutheran-morning-devotion": {
+        "title": "லூத்தரன் காலை பக்தி",
+        "description": "வேதம், மனப்பாடம், ஒழுங்கான ஜெபம் விரும்பும் குடும்பங்களின் நாள் தொடக்கம்.",
+        "tradition": "லூத்தரன்",
+        "historicRoots": "குடும்பங்களுக்கான தினசரி பக்தி"
+      },
+      "lutheran-close-of-day": {
+        "title": "லூத்தரன் நாள் நிறைவு",
+        "description": "பாவ அறிக்கை, அடைக்கலம், கிறிஸ்துவின் பாதுகாப்புக்கான எளிய இரவு பக்தி.",
+        "tradition": "லூத்தரன்",
+        "historicRoots": "குடும்பங்களுக்கான தினசரி பக்தி"
+      },
+      "puritan-family-worship": {
+        "title": "பியூரிட்டன் குடும்ப ஆராதனை",
+        "description": "ஜெபம், துதி, வேதம், பக்தியுள்ள உரையாடலுடன் வீட்டில் கழிக்கும் மாலை.",
+        "tradition": "பியூரிட்டன்",
+        "historicRoots": "குடும்ப ஆராதனை வழிகாட்டி"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "பக்தித் தியானங்கள்",
+        "description": "இயேசுவின் போதனைகளை ஒட்டிய சிறிய தியானங்கள்."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "உலகின் முறையைத் தலைகீழாக்கும் ராஜ்யத்தில் பாக்கியவான்கள்",
+        "summary": "பாக்கியவசனங்களைத் தியானித்து இயேசு நமது விருப்பங்களை எவ்வாறு மாற்றுகிறார் என்பதைக் கவனியுங்கள்.",
+        "actionLabel": "அத்தியாயம் வாசி"
+      },
+      "mat-plans": {
+        "title": "திட்டங்கள்",
+        "description": "மத்தேயுவை நோக்கத்துடன் வாசிக்க எளிய வழிகள்."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "மத்தேயுவில் ராஜ்யத்தின் வாழ்வொழுங்கு",
+        "summary": "அடையாளம், ஜெபம், இரக்கம், நற்செய்திப் பணி, உயிர்த்தெழுதலின் நம்பிக்கை பற்றிய ஏழு நாட்கள்.",
+        "actionLabel": "முதல் அத்தியாயத்தைத் திற"
+      },
+      "jhn-playlists": {
+        "title": "கேட்கும் பட்டியல்கள்",
+        "description": "யோவானின் முக்கியப் பகுதிகளைக் கேட்கத் தேர்ந்தெடுக்கப்பட்ட வழிகள்."
+      },
+      "jhn-playlist-signs": {
+        "title": "இயேசுவின் அடையாளங்கள்",
+        "summary": "கிறிஸ்துவின் அடையாளத்தை வெளிப்படுத்தும் அற்புதங்களை அறியும் வழிகாட்டப்பட்ட பாதை.",
+        "actionLabel": "கேட்கும் பட்டியலைத் தொடங்கு"
+      },
+      "gal-devotionals": {
+        "title": "பக்தித் தியானங்கள்",
+        "description": "கலாத்தியரை ஜெபத்துடன் வாசிக்கச் சிறிய தியானங்கள்."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "இனி அடிமைகள் அல்ல",
+        "summary": "பிள்ளைகளாக ஏற்றுக்கொள்ளப்படுதல், சுதந்தரம், பிதாவின் வரவேற்பு ஆகியவற்றைத் தியானியுங்கள்.",
+        "actionLabel": "அத்தியாயம் வாசி"
+      },
+      "gal-plans": {
+        "title": "திட்டங்கள்",
+        "description": "நிருபத்தை வாசிக்கச் சிறிய ஒழுங்கான வழிகள்."
+      },
+      "gal-plan-six-days": {
+        "title": "நாளுக்கு ஓர் அத்தியாயம்: கலாத்தியர்",
+        "summary": "தினமும் ஓர் அத்தியாயத்தை வாசித்து, அவசரமின்றிப் பவுலின் வாதத்தைப் புரிந்துகொள்ளுங்கள்.",
+        "actionLabel": "முதல் அத்தியாயத்தைத் திற"
+      },
+      "psa-playlists": {
+        "title": "கேட்கும் பட்டியல்கள்",
+        "description": "வெவ்வேறு உணர்ச்சி நிலைகளுக்கான ஜெபப் பாதைகள்."
+      },
+      "psa-playlist-morning": {
+        "title": "காலை அடைக்கலம்",
+        "summary": "நாளைத் தொடங்க நம்பிக்கையின் சங்கீதங்கள் வழியாகச் சிறிய பயணம்.",
+        "actionLabel": "கேட்கும் பட்டியலைத் தொடங்கு"
+      },
+      "psa-playlist-repentance": {
+        "title": "மனந்திரும்புதலின் சங்கீதங்கள்",
+        "summary": "நேர்மை, பாவ அறிக்கை, புதுப்பித்தலின் விருப்பத்துடன் ஜெபியுங்கள்.",
+        "actionLabel": "கேட்கும் பட்டியலைத் தொடங்கு"
+      },
+      "psa-devotionals": {
+        "title": "பக்தித் தியானங்கள்",
+        "description": "சங்கீதங்களைக் கொண்டு மெதுவாக ஜெபிக்க அமைதியான தியானங்கள்."
+      },
+      "psa-devotional-shepherd": {
+        "title": "புதுப்பிக்கும் மேய்ப்பர்",
+        "summary": "சங்கீதம் 23 வெறும் முழக்கமாக இல்லாமல் ஜெபமாக மாறும்வரை அதைத் தியானியுங்கள்.",
+        "actionLabel": "சங்கீதம் வாசி"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "பொதுப் பயன்பாட்டிலுள்ள பெரேயன் உரையும் நேரடி CC0 அத்தியாய ஒலியும்",
+      "web": "EveryBible நூலகத்தின் பொதுப் பயன்பாட்டிலுள்ள பிரிட்டிஷ் பதிப்பு உரையும் அத்தியாய ஒலியும்",
+      "kjv": "1611 ஆம் ஆண்டின் அங்கீகரிக்கப்பட்ட கிங் ஜேம்ஸ் பதிப்பு",
+      "asv": "1901 இல் வெளியான KJV திருத்தம், முன்பே நிறுவப்பட்ட உரை",
+      "bbe": "எளிதாக வாசிக்க வரையறுக்கப்பட்ட சொற்களஞ்சியத்தைப் பயன்படுத்துகிறது",
+      "sparv1909": "பாரம்பரிய ஸ்பானிஷ் வேதாகமம் — பொதுப் பயன்பாட்டிலுள்ள உரை",
+      "hincv": "இந்தி சமகாலப் பதிப்பு — பொதுப் பயன்பாடு",
+      "npiulb": "அன்லாக்டு லிட்டரல் பைபிள் — பொதுப் பயன்பாடு"
+    },
+    "audioUnavailableTranslation": "இந்த மொழிபெயர்ப்பின் ஒலி கிடைக்கவில்லை.",
+    "audioUnavailableChapter": "இந்த அத்தியாயத்தின் ஒலி கிடைக்கவில்லை.",
+    "audioPlayFailed": "இந்த ஒலியை இயக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    "nativePermissions": {
+      "NSCameraUsageDescription": "சுயவிவரப் புகைப்படம் எடுக்க விரும்பினால், கேமராவைப் பயன்படுத்த Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+      "NSMicrophoneUsageDescription": "அத்தியாயக் கருத்துகளைக் குரலில் பதிவு செய்ய Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+      "NSPhotoLibraryUsageDescription": "சுயவிவரப் புகைப்படத்தைத் தேர்ந்தெடுக்க உங்கள் புகைப்படத் தொகுப்பை அணுக Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+      "NSFaceIDUsageDescription": "சேமித்த உள்நுழைவைப் பாதுகாக்க Face IDஐப் பயன்படுத்த Every Bibleக்கு அனுமதி வழங்குங்கள்."
     }
   }
 } as const;

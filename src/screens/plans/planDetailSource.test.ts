@@ -192,7 +192,12 @@ test('PlanDetailScreen exposes a stable selector for the active current-day row'
   );
   assert.match(
     source,
-    /Current plan day \$\{dayNumber\}/,
-    'PlanDetailScreen should give the current-day row a deterministic accessibility label'
+    /const accessibilityLabel = isCurrent\s*\? `\$\{t\('interface\.currentPlanDay', \{ day: dayNumber \}\)\}/,
+    'PlanDetailScreen should localize the current-day label while retaining its day number'
+  );
+  assert.match(
+    source,
+    /testID=\{isCurrent \? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined\}[^<]*accessibilityLabel=\{accessibilityLabel\}/,
+    'PlanDetailScreen should apply the localized accessibility label to the row with the stable testID'
   );
 });

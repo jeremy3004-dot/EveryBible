@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "프로필 사진을 촬영하려면 Every Bible의 카메라 접근을 허용하세요.",
+    "NSMicrophoneUsageDescription": "장별 피드백의 음성 답변을 녹음하도록 Every Bible에 허용하세요.",
+    "NSPhotoLibraryUsageDescription": "프로필 사진을 선택할 수 있도록 Every Bible의 사진 보관함 접근을 허용하세요.",
+    "NSFaceIDUsageDescription": "저장된 로그인 정보를 보호하도록 Every Bible의 Face ID 사용을 허용하세요."
+  }
+}

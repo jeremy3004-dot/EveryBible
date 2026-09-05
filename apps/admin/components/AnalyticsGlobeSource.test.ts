@@ -11,35 +11,29 @@ test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async
     path.join(repoRoot, 'apps/admin/components/AnalyticsGlobe.tsx'),
     'utf8'
   );
-  const layoutSource = await readFile(
-    path.join(repoRoot, 'apps/admin/app/layout.tsx'),
-    'utf8'
-  );
-  const packageSource = await readFile(
-    path.join(repoRoot, 'apps/admin/package.json'),
-    'utf8'
-  );
+  const layoutSource = await readFile(path.join(repoRoot, 'apps/admin/app/layout.tsx'), 'utf8');
+  const packageSource = await readFile(path.join(repoRoot, 'apps/admin/package.json'), 'utf8');
 
   assert.match(componentSource, /from 'maplibre-gl'/);
   assert.doesNotMatch(componentSource, /cesium/i);
   assert.match(componentSource, /useState<string \| null>\(null\)/);
   assert.doesNotMatch(componentSource, /metrics\[0\]\?\.code \?\? null/);
   assert.match(componentSource, /const INITIAL_ZOOM = 3\.3;/);
-  assert.match(componentSource, /const WORLD_BOUNDS: \[\[number, number\], \[number, number\]\] = \[\s*\[-170, -58\],\s*\[180, 82\],\s*\];/m);
+  assert.match(
+    componentSource,
+    /const WORLD_BOUNDS: \[\[number, number\], \[number, number\]\] = \[\s*\[-170, -58\],\s*\[180, 82\],\s*\];/m
+  );
   assert.match(componentSource, /setProjection\(\{\s*type:\s*'globe'\s*\}\)/s);
-  assert.match(
-    componentSource,
-    /basemaps\.cartocdn\.com\/gl\/positron-gl-style\/style\.json/
-  );
-  assert.match(
-    componentSource,
-    /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json/
-  );
+  assert.match(componentSource, /basemaps\.cartocdn\.com\/gl\/positron-gl-style\/style\.json/);
+  assert.match(componentSource, /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json/);
   assert.match(componentSource, /MutationObserver/);
   assert.match(componentSource, /globe-card__back-link/);
   assert.match(componentSource, /globe-card__summary/);
   assert.match(componentSource, /globe-card__explore/);
-  assert.match(componentSource, /const \[mode, setMode\] = useState<MapMetricMode>\('listeningMinutes'\);/);
+  assert.match(
+    componentSource,
+    /const \[mode, setMode\] = useState<MapMetricMode>\('listeningMinutes'\);/
+  );
   assert.match(componentSource, /modeRef\.current = mode;/);
   assert.match(componentSource, /aria-label="Select globe metric"/);
   assert.match(componentSource, /onClick=\{\(\) => setMode\('listeningMinutes'\)\}/);
@@ -49,13 +43,13 @@ test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async
   assert.match(componentSource, /aria-label="Select translation heatmap"/);
   assert.match(componentSource, /translation-chip--active/);
   assert.match(componentSource, /is the only active translation in this window/);
-  assert.match(componentSource, /globe is reusing the overall map while the per-translation geo rows catch up/);
+  assert.match(
+    componentSource,
+    /globe is reusing the overall map while the per-translation geo rows catch up/
+  );
   assert.match(componentSource, /Click a country bubble to open the detailed country card/);
-  // Ember heat ramp (brand-unified): parchment → amber → ember → deep.
-  assert.match(componentSource, /#d0c2af/);
-  assert.match(componentSource, /#d0a35a/);
-  assert.match(componentSource, /#D96C57/);
-  assert.match(componentSource, /#B85441/);
+  // Magnitude uses the EL intensity ramp; brandTokens.test.ts checks its contract.
+  assert.match(componentSource, /const heat = GLOBE_HEAT\[scope\];/);
   assert.doesNotMatch(componentSource, /globe-card__toplist/);
   assert.doesNotMatch(componentSource, /openfreemap/i);
   assert.match(layoutSource, /maplibre-gl\/dist\/maplibre-gl\.css/);

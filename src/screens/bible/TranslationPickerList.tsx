@@ -186,14 +186,17 @@ export function TranslationPickerList({
     () => filterTranslationLanguagesBySearchQuery(visibleTranslations, searchQuery),
     [searchQuery, visibleTranslations]
   );
-  const languageOptions = useMemo(
-    () =>
-      languageFilters.map((filter) => ({
-        ...filter,
-        count: filterTranslationsByLanguage(visibleTranslations, filter.value).length,
-      })),
-    [languageFilters, visibleTranslations]
-  );
+  const languageOptions = useMemo(() => {
+    const countsByLanguage = new Map<string, number>();
+    for (const translation of visibleTranslations) {
+      const language = normalizeTranslationLanguage(translation.language);
+      countsByLanguage.set(language, (countsByLanguage.get(language) ?? 0) + 1);
+    }
+    return languageFilters.map((filter) => ({
+      ...filter,
+      count: countsByLanguage.get(filter.value) ?? 0,
+    }));
+  }, [languageFilters, visibleTranslations]);
 
   useEffect(() => {
     if (resolvedPreferredLanguage && preferredTranslationLanguage !== resolvedPreferredLanguage) {
@@ -210,13 +213,8 @@ export function TranslationPickerList({
   useEffect(() => {
     let isMounted = true;
 
-    if (hasHydratedRuntimeCatalog) {
-      setIsHydratingRuntimeCatalog(false);
-      return () => {
-        isMounted = false;
-      };
-    }
-
+    // Cached rows can belong to only one source. Let the shared per-launch gate decide
+    // whether a refresh is needed so reopening the picker retries partial failures.
     setIsHydratingRuntimeCatalog(true);
     void ensureRuntimeCatalogLoaded()
       .catch((error) => {
@@ -231,7 +229,7 @@ export function TranslationPickerList({
     return () => {
       isMounted = false;
     };
-  }, [hasHydratedRuntimeCatalog]);
+  }, []);
 
   const handleTranslationSelect = async (translation: BibleTranslation) => {
     let nextTranslation = translation;
@@ -363,8 +361,8 @@ export function TranslationPickerList({
       } else {
         await downloadAudioForTranslation(audioManagerTranslation.id);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('bible.audioDownloadFailed');
+    } catch {
+      const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
       setActiveAudioDownloadKey(null);
@@ -386,12 +384,8 @@ export function TranslationPickerList({
           .getState()
           .translations.find((candidate) => candidate.id === translation.id) ?? translation
       );
-    } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : t('bible.failedToLoad'),
-        [{ text: t('common.ok') }]
-      );
+    } catch {
+      Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
     }
   };
 
@@ -404,8 +398,8 @@ export function TranslationPickerList({
 
     try {
       await downloadAudioForBook(audioManagerTranslation.id, bookId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('bible.audioDownloadFailed');
+    } catch {
+      const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
       setActiveAudioDownloadKey(null);
@@ -667,7 +661,9 @@ export function TranslationPickerList({
               </Text>
             </View>
             <Text style={[styles.translationDescription, { color: colors.bibleSecondaryText }]}>
-              {translation.description}
+              {t(`interface.translationDescriptions.${translation.id}`, {
+                defaultValue: translation.description,
+              })}
             </Text>
             {availabilitySummary ? (
               <Text
@@ -1066,22 +1062,22 @@ export function TranslationPickerList({
                           <Text
                             style={[styles.downloadAllDescription, { color: colors.bibleAccent }]}
                           >
-                            {
-                              audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                                audioManagerBooks.some((book) => book.id === bookId)
-                              ).length
-                            }
-                            /{audioManagerBooks.length} books (
-                            {audioManagerBooks.length > 0
-                              ? Math.round(
-                                  (audioManagerTranslation.downloadedAudioBooks.filter((bookId) =>
-                                    audioManagerBooks.some((book) => book.id === bookId)
-                                  ).length /
-                                    audioManagerBooks.length) *
-                                    100
-                                )
-                              : 0}
-                            %)
+                            {t('interface.bookDownloadProgress', {
+                              completed: audioManagerTranslation.downloadedAudioBooks.filter((id) =>
+                                audioManagerBooks.some((book) => book.id === id)
+                              ).length,
+                              total: audioManagerBooks.length,
+                              percent:
+                                audioManagerBooks.length > 0
+                                  ? Math.round(
+                                      (audioManagerTranslation.downloadedAudioBooks.filter((id) =>
+                                        audioManagerBooks.some((book) => book.id === id)
+                                      ).length /
+                                        audioManagerBooks.length) *
+                                        100
+                                    )
+                                  : 0,
+                            })}
                           </Text>
                           <View
                             style={[

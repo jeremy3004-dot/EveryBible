@@ -1,23 +1,23 @@
 export const mr = {
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "अभिप्राय सूची",
+    subtitle: "अभिप्राय तपासायचे अध्याय",
+    empty: "सर्व अभिप्राय तपासले आहेत. कोणताही अभिप्राय प्रलंबित नाही.",
+    pendingCount: "पुनरावलोकनासाठी {{count}} अध्याय",
+    chapterCounts: "{{down}} दुरुस्त करायचे · {{up}} निश्चित करायचे",
+    openLabel: "{{reference}} उघडा",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "माझा अभिप्राय",
+    settingsRow: "माझा अभिप्राय",
+    settingsRowSummary: "अनुवाद पथकाने तुमच्या सूचनांवर काय केले ते पाहा",
+    subtitle: "तुमच्या अध्यायांवरील अभिप्रायाबाबत अनुवाद पथकाने केलेले काम",
+    empty: "तुम्ही अद्याप कोणत्याही अध्यायाबद्दल अभिप्राय पाठवलेला नाही.",
+    signInRequired: "तुम्ही पाठवलेला अभिप्राय पाहण्यासाठी साइन इन करा.",
+    audioLabel: "ध्वनी संदेश जोडलेला आहे",
+    statusReceived: "प्राप्त झाला",
+    statusFixed: "दुरुस्त केले",
+    statusNoChange: "पुनरावलोकन केले — बदल नाही",
   },
   "common": {
     "cancel": "रद्द करा",
@@ -46,10 +46,10 @@ export const mr = {
     "all": "सर्व"
   },
   "tabs": {
-    "home": "घर",
+    "home": "मुख्यपृष्ठ",
     "bible": "बायबल",
     "harvest": "कापणी",
-    "gather": "गोळा करा",
+    "gather": "संगती",
     "more": "अधिक",
     "plans": "योजना"
   },
@@ -75,7 +75,7 @@ export const mr = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "फील्ड {{number}}",
     "notificationSettings": "सूचना सेटिंग्ज",
-    "chaptersRead": "अध्याय वाचले",
+    "chaptersRead": "वाचलेले अध्याय",
     "today": "आज",
     "week": "आठवडा",
     "month": "महिना",
@@ -106,10 +106,10 @@ export const mr = {
     "recommendedBadge": "शिफारस केली",
     "interfaceAvailable": "इंटरफेस उपलब्ध",
     "privacyTitle": "तुमची गोपनीयता शैली निवडा",
-    "privacyBody": "या डिव्हाइससाठी चिन्ह शैली निवडा. जेव्हा तुम्ही ॲप सोडता तेव्हा विवेकी मोड स्थानिक कोड लॉक देखील जोडतो.",
+    "privacyBody": "या उपकरणासाठी चिन्हाची शैली निवडा. गोपनीय मोडमध्ये ॲपमधून बाहेर पडल्यावर स्थानिक कोडने ॲप लॉक होते.",
     "standardIconTitle": "मानक चिन्ह",
     "standardIconBody": "सामान्य Every Bible चिन्ह वापरा आणि ॲप थेट उघडा.",
-    "discreetIconTitle": "विवेकी चिन्ह",
+    "discreetIconTitle": "गोपनीय चिन्ह",
     "discreetIconBody": "या डिव्हाइसवर लो-प्रोफाइल चिन्ह वापरा आणि कॅल्क्युलेटर-शैली कोडसह प्रवेश संरक्षित करा.",
     "pinTitle": "तुमचा सुरक्षित कोड तयार करा",
     "pinBody": "+, -, x, किंवा / सारख्या संख्या आणि चिन्हे वापरून 4 ते 6 वर्ण निवडा. तुम्ही ॲपवर परत येताना प्रत्येक वेळी तुम्ही हा कोड टाकाल.",
@@ -119,9 +119,9 @@ export const mr = {
     "finish": "सेटअप पूर्ण करा"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "हा ध्वनी वाजवता आला नाही. पुन्हा प्रयत्न करा.",
+    chapterFeedbackSuccessTitle: "अभिप्राय पाठवला",
+    readerFontsAndSettings: "अक्षररचना आणि सेटिंग्ज",
     "title": "बायबल",
     "oldTestament": "जुना करार",
     "fontsAndSettings": "फॉन्ट आणि सेटिंग्ज",
@@ -166,8 +166,8 @@ export const mr = {
     "books": {
       "GEN": "उत्पत्ति",
       "EXO": "निर्गमन",
-      "LEV": "लेव्हीटिकस",
-      "NUM": "क्रमांक",
+      "LEV": "लेवीय",
+      "NUM": "गणना",
       "DEU": "व्यवस्था",
       "JOS": "जोशुआ",
       "JDG": "न्यायाधीश",
@@ -181,7 +181,7 @@ export const mr = {
       "EZR": "एज्रा",
       "NEH": "नेहेम्या",
       "EST": "एस्थर",
-      "JOB": "नोकरी",
+      "JOB": "ईयोब",
       "PSA": "स्तोत्र",
       "PRO": "नीतिसूत्रे",
       "ECC": "उपदेशक",
@@ -200,21 +200,21 @@ export const mr = {
       "NAM": "नहूम",
       "HAB": "हबक्कुक",
       "ZEP": "सफन्या",
-      "HAG": "हाग्गई __ CTX_BIBLE_BOOK __",
+      "HAG": "हाग्गय",
       "ZEC": "जखरिया",
       "MAL": "मलाची",
-      "MAT": "मॅथ्यू",
+      "MAT": "मत्तय",
       "MRK": "मार्क",
       "LUK": "ल्यूक",
-      "JHN": "जॉन",
-      "ACT": "कृत्ये",
+      "JHN": "योहान",
+      "ACT": "प्रेषितांची कृत्ये",
       "ROM": "रोमन्स",
       "1CO": "1 करिंथियन्स",
       "2CO": "2 करिंथियन",
       "GAL": "गॅलेशियन",
       "EPH": "इफिशियन्स",
-      "PHP": "फिलिपिन्स",
-      "COL": "कलस्सैकर __ CTX_BIBLE_BOOK __",
+      "PHP": "फिलिप्पैकर",
+      "COL": "कलस्सैकर",
       "1TH": "1 थेस्सलनीकाकर",
       "2TH": "2 थेस्सलनीका",
       "1TI": "1 टिमोथी",
@@ -222,12 +222,12 @@ export const mr = {
       "TIT": "टायटस",
       "PHM": "फिलेमोन",
       "HEB": "हिब्रू",
-      "JAS": "जेम्स",
-      "1PE": "1 पीटर",
-      "2PE": "2 पीटर",
-      "1JN": "1 जॉन",
-      "2JN": "२ जॉन",
-      "3JN": "3 जॉन",
+      "JAS": "याकोब",
+      "1PE": "१ पेत्र",
+      "2PE": "२ पेत्र",
+      "1JN": "१ योहान",
+      "2JN": "२ योहान",
+      "3JN": "३ योहान",
       "JUD": "ज्यूड",
       "REV": "प्रकटीकरण"
     },
@@ -239,42 +239,42 @@ export const mr = {
     "chapterFeedbackPlaceholder": "या प्रकरणाबद्दल पर्यायी टिप्पणी",
     "chapterFeedbackSelectionHint": "पर्यायी टीप जोडण्यासाठी थंब्स अप किंवा थंब्स डाउन वर टॅप करा.",
     "chapterFeedbackSubmit": "अभिप्राय पाठवा",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "त्याऐवजी बोलून अभिप्राय रेकॉर्ड करा",
+    "chapterFeedbackAudioRecording": "रेकॉर्डिंग सुरू आहे {{duration}}",
+    "chapterFeedbackAudioReady": "ध्वनी अभिप्राय तयार आहे: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, जास्तीत जास्त 1 मिनिट",
+    "chapterFeedbackAudioRecord": "आवाज रेकॉर्ड करा",
+    "chapterFeedbackAudioStop": "थांबवा",
+    "chapterFeedbackAudioPreview": "रेकॉर्ड केलेला अभिप्राय ऐका",
+    "chapterFeedbackAudioRerecord": "अभिप्राय पुन्हा रेकॉर्ड करा",
+    "chapterFeedbackAudioUploading": "ध्वनी अपलोड होत आहे...",
+    "chapterFeedbackAudioPermissionDenied": "मायक्रोफोनची परवानगी बंद आहे. तुम्ही अजूनही अभिप्राय लिहू शकता.",
+    "chapterFeedbackAudioPermissionHelp": "ध्वनी अभिप्राय पाठवण्यासाठी उपकरणाच्या सेटिंग्जमध्ये मायक्रोफोनची परवानगी द्या.",
+    "chapterFeedbackAudioStartError": "रेकॉर्डिंग सुरू करता आले नाही. तुम्ही अभिप्राय लिहू शकता.",
+    "chapterFeedbackAudioStopError": "रेकॉर्डिंग पूर्ण करता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+    "chapterFeedbackAudioRecordingMissing": "रेकॉर्डिंग जतन करता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+    "chapterFeedbackAudioUploadError": "ध्वनी अपलोड झाला नाही. तुमचे रेकॉर्डिंग जतन केले आहे; पुन्हा पाठवा.",
     "chapterFeedbackSuccess": "तुमच्या अभिप्रायाबद्दल धन्यवाद. तुमचे सबमिशन प्राप्त झाले आहे आणि आमच्या अनुवाद कार्यसंघाद्वारे शक्य तितक्या लवकर त्याचे पुनरावलोकन केले जाईल.",
     "chapterFeedbackSignInRequired": "कृपया धडा फीडबॅक पाठवण्यापूर्वी साइन इन करा.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "अचूकतेचे पुनरावलोकन",
+    "translatorReviewSummary": "प्रलंबित निर्णय: {{count}} पैकी {{pending}}",
+    "translatorReviewSummaryComplete": "अचूकतेची सर्व पुनरावलोकने पूर्ण झाली",
+    "translatorReviewLoading": "अभिप्राय लोड होत आहे...",
+    "translatorReviewEmpty": "या अध्यायासाठी अद्याप कोणताही अभिप्राय आलेला नाही.",
+    "translatorReviewUnknownUser": "अज्ञात योगदानकर्ता",
+    "translatorReviewUnread": "निर्णय आवश्यक आहे",
+    "translatorReviewSubmittedAt": "{{date}} रोजी पाठवले",
+    "translatorReviewSubmittedBy": "{{name}} यांनी पाठवले",
+    "translatorReviewNoComment": "लेखी अभिप्राय नाही.",
+    "translatorReviewFixed": "दुरुस्त केले",
+    "translatorReviewConfirmedAccurate": "अचूक असल्याची खात्री केली",
+    "translatorReviewReviewed": "बदलाची गरज नाही",
+    "translatorReviewConfirmAccurate": "अचूक असल्याची खात्री करा",
+    "translatorReviewMarkFixed": "दुरुस्त केल्याची खूण करा",
+    "translatorReviewNoActionNeeded": "कृतीची गरज नाही",
+    "translatorReviewReopen": "पुन्हा उघडा",
+    "translatorReviewListened": "ऐकले",
+    "translatorReviewListen": "ऐका",
     "translatorReviewPause": "थांबा",
     "nextChapterHint": "पुढच्या अध्यायात जातो",
     "openBookAndChapterPickerHint": "पुस्तक आणि अध्याय निवडक उघडते",
@@ -298,7 +298,7 @@ export const mr = {
   },
   "privacy": {
     "lockTitle": "तुमचा सुरक्षित कोड एंटर करा",
-    "lockBody": "हे उपकरण सुज्ञ मोडमध्ये आहे. सुरू ठेवण्यासाठी Every Bible अनलॉक करा.",
+    "lockBody": "हे उपकरण गोपनीय मोडमध्ये आहे. पुढे जाण्यासाठी Every Bible चे लॉक उघडा.",
     "pinPlaceholder": "तुमचा कोड टॅप करा",
     "pinLengthHint": "तुमचा 4 ते 6 वर्ण कोड वापरा.",
     "unlock": "बायबल अनलॉक करा",
@@ -387,16 +387,16 @@ export const mr = {
     "chapterFeedback": "धडा अभिप्राय",
     "chapterFeedbackSummaryOn": "पर्यायी धडा फीडबॅक चालू आहे",
     "chapterFeedbackSummaryOff": "पर्यायी धडा फीडबॅक बंद आहे",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "अनुवादक प्रवेश",
+    "translatorAccessTitle": "अनुवादक प्रवेश",
+    "translatorAccessBody": "या उपकरणावर अध्यायांवरील अभिप्राय तपासण्यासाठी अनुवादकाचा प्रवेश कोड टाका.",
+    "translatorAccessPlaceholder": "प्रवेश कोड",
+    "translatorAccessUnlock": "उघडा",
+    "translatorAccessIncorrect": "अनुवादकाचा प्रवेश कोड चुकीचा आहे.",
+    "translatorAccessEnabled": "अनुवादक पुनरावलोकन मोड सुरू झाला",
+    "translatorAccessEnabledBody": "अध्यायांच्या पडद्यावर आता अभिप्राय तपासण्याची साधने दिसतील.",
+    "translatorAccessSummaryOn": "अनुवादक पुनरावलोकनाची साधने सुरू आहेत",
+    "translatorAccessSummaryOff": "पुनरावलोकनाची साधने सुरू करण्यासाठी प्रवेश कोड टाका",
   },
   "notifications": {
     "channelDailyReminder": "दैनिक वाचन स्मरणपत्र",
@@ -598,7 +598,7 @@ export const mr = {
     "playChapterSubtitle": "उघडा आणि खेळा",
     "lessons": {
       "entry1": "कापणीसाठी प्रार्थना",
-      "entry2": "तुमचा Oikos नकाशा",
+      "entry2": "तुमच्या नातेसंबंधांचा नकाशा",
       "entry3": "शांततेचे लोक शोधणे",
       "entry4": "तुमची कथा महत्त्वाची आहे",
       "gospel1": "साधे गॉस्पेल",
@@ -659,7 +659,7 @@ export const mr = {
     "saved": "जतन केले",
     "completions": "{{count}} पूर्ण",
     "saveForLater": "नंतरसाठी जतन करा",
-    "unsave": "जतन न केलेले",
+    "unsave": "जतन केलेल्या यादीतून काढा",
     "sample": "नमुना",
     "featuredPlan": "वैशिष्ट्यीकृत योजना",
     "relatedPlans": "संबंधित योजना",
@@ -699,8 +699,8 @@ export const mr = {
       "description": "शहाणपणाच्या महिन्यासाठी दररोज नीतिसूत्रेचा एक अध्याय."
     },
     "kathisma": {
-      "title": "Kathisma",
-      "description": "प्रत्येक आठवड्यात सकाळी आणि संध्याकाळी नियुक्त केलेले Kathismata वाचा, दर आठवड्याला पुनरावृत्ती करा."
+      "title": "काथिस्मा",
+      "description": "दर आठवड्याला तोच क्रम पाळून, कामकाजाच्या दिवसांसाठी नेमलेले सकाळचे व संध्याकाळचे स्तोत्रांचे भाग वाचा."
     },
     "chronological": {
       "title": "कालक्रमानुसार बायबल",
@@ -757,7 +757,7 @@ export const mr = {
     "addPassage": "शास्त्र परिच्छेद जोडा",
     "addPassageToRhythm": "लयीत उतारा जोडा",
     "repeatablePassage": "पुनरावृत्ती करण्यायोग्य रस्ता",
-    "startChapterLabel": "धडा सुरू करा",
+    "startChapterLabel": "सुरुवातीचा अध्याय",
     "endChapterLabel": "अध्याय समाप्त",
     "maxChapterHint": "{{count}} अध्याय उपलब्ध",
     "chooseBook": "प्रथम एक पुस्तक निवडा.",
@@ -774,7 +774,7 @@ export const mr = {
     },
     "identityInChrist": {
       "title": "ख्रिस्तामध्ये ओळख",
-      "description": "तुमची ओळख, सुरक्षितता आणि येशूमध्ये बोलावणे हे पवित्र शास्त्र वाचा."
+      "description": "तुमची ओळख, सुरक्षितता आणि पाचारण येशूमध्ये दृढ करणारे शास्त्रभाग वाचा."
     },
     "kingdomOfGod": {
       "title": "देवाचे राज्य",
@@ -789,7 +789,7 @@ export const mr = {
       "description": "पवित्रता, आज्ञाधारकता आणि वाढ या मार्गांद्वारे वेगळे जीवन जगा."
     },
     "greatCommissionAndMission": {
-      "title": "ग्रेट कमिशन आणि मिशन",
+      "title": "महान आज्ञा आणि सुवार्तेचे कार्य",
       "description": "अब्राहमला दिलेल्या अभिवचनांपासून पृथ्वीच्या शेवटापर्यंत देवाच्या मिशनचे अनुसरण करा."
     },
     "faithAndObedience": {
@@ -831,7 +831,7 @@ export const mr = {
     },
     "ntIn6Months": {
       "title": "6 महिन्यांत नवीन करार",
-      "description": "180 दिवसांत सर्व 27 NT पुस्तकांमधून हळूवार गती, दररोज सुमारे 1-2 अध्याय."
+      "description": "180 दिवसांत सर्व 27 नव्या करारातील पुस्तकांमधून हळूवार गती, दररोज सुमारे 1-2 अध्याय."
     },
     "gospels7Days": {
       "title": "7 दिवसात शुभवर्तमान",
@@ -859,15 +859,15 @@ export const mr = {
     },
     "otIn90Days": {
       "title": "90 दिवसांत जुना करार",
-      "description": "सर्व 929 OT अध्याय 90 दिवसांत — दररोज सुमारे 10 अध्याय. एक गंभीर वचनबद्धता."
+      "description": "सर्व 929 जुन्या करारातील अध्याय 90 दिवसांत — दररोज सुमारे 10 अध्याय. एक गंभीर वचनबद्धता."
     },
     "pentateuch30Days": {
-      "title": "30 दिवसांत पेंटाटेक",
+      "title": "30 दिवसांत मोशेची पाच पुस्तके",
       "description": "जेनेसिस थ्रू डीयूटरोनॉमी - मोशेची पहिली पाच पुस्तके - एका महिन्यात."
     },
     "wisdom30Days": {
       "title": "30 दिवसांत ज्ञान साहित्य",
-      "description": "जॉब, स्तोत्रे, नीतिसूत्रे, उपदेशक आणि सॉलोमनचे गाणे 30 दिवसांच्या प्रतिबिंबात."
+      "description": "30 दिवस ईयोब, स्तोत्रसंहिता, नीतिसूत्रे, उपदेशक व गीतरत्न यांवर मनन करा."
     },
     "prophets90Days": {
       "title": "९० दिवसात पैगंबर",
@@ -878,8 +878,8 @@ export const mr = {
       "description": "पॉलची सर्व १३ पत्रे वाचा — रोमन्स थ्रू फिलेमोन — एका महिन्यात."
     },
     "acts28Days": {
-      "title": "28 दिवसात कार्य करते",
-      "description": "दररोज कृत्यांचा एक अध्याय — जेरुसलेम ते रोम पर्यंतच्या सुरुवातीच्या चर्चचे अनुसरण करा."
+      "title": "28 दिवसांत प्रेषितांची कृत्ये",
+      "description": "दररोज प्रेषितांची कृत्ये या पुस्तकातील एक अध्याय वाचा आणि यरुशलेमपासून रोमपर्यंत आरंभीच्या मंडळीचा प्रवास पाहा."
     },
     "revelation22Days": {
       "title": "22 दिवसांत प्रकटीकरण",
@@ -1043,7 +1043,7 @@ export const mr = {
     "publicDomain": "सार्वजनिक डोमेन",
     "cloudLibrary": "क्लाउड लायब्ररी",
     "downloading": "डाउनलोड करत आहे...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "ऑफलाइन वाचण्यासाठी {{name}} चा लिखित मजकूर (~{{size}} MB) डाउनलोड करायचा?",
     "deleteConfirmTitle": "भाषांतर हटवा",
     "deleteConfirmMessage": "{{name}} साठी डाउनलोड केलेला डेटा काढायचा? तुम्ही ते कधीही पुन्हा डाउनलोड करू शकता.",
     "cancelDownload": "डाउनलोड रद्द करा",
@@ -1530,6 +1530,282 @@ export const mr = {
       "errorEmptyItems": "ही लय तयार करण्यासाठी किमान एक घटक निवडा.",
       "errorPlanInAnotherRhythm": "ही योजना आधीच दुसऱ्या लयशी संबंधित आहे.",
       "errorRhythmNotFound": "ती लय सापडली नाही.",
+    }
+  },
+  "interface": {
+    "close": "बंद करा",
+    "share": "सामायिक करा",
+    "minutesShort": "{{count}} मि.",
+    "hoursShort": "{{count}} ता.",
+    "daysShort": "{{count}} दिवस",
+    "hoursMinutes": "{{hours}} ता. {{minutes}} मि.",
+    "justNow": "आत्ताच",
+    "minutesAgo": "{{count}} मिनिटांपूर्वी",
+    "hoursAgo": "{{count}} तासांपूर्वी",
+    "daysAgo": "{{count}} दिवसांपूर्वी",
+    "activePrayerCount": "{{count}} सक्रिय",
+    "groupShareMessage": "EveryBible वरील माझ्या \"{{name}}\" शिष्यत्व गटात सहभागी व्हा!\n\nसहभागाचा कोड: {{code}}",
+    "groupAboutTitle": "गट सत्रांबद्दल",
+    "groupAboutBody": "गट सत्रे जगभरच्या शिष्य घडवणाऱ्या चळवळींमध्ये प्रचलित तीन समान भागांची पद्धत वापरतात:",
+    "groupLookBack": "तुम्ही कसे आज्ञापालन केले? कोणाला सांगितले?",
+    "groupLookUp": "एकत्र पवित्र शास्त्र वाचा आणि चर्चा करा",
+    "groupLookForward": "तुम्ही कसे आज्ञापालन कराल? कोणाला सांगाल?",
+    "backgroundMusicLabel": "पार्श्वसंगीत: {{name}}",
+    "backgroundMusicHint": "पार्श्वसंगीत निवडण्याची यादी उघडते",
+    "repeatHint": "पुनरावृत्ती बंद, अध्यायाची पुनरावृत्ती आणि पुस्तकाची पुनरावृत्ती हे पर्याय बदलते",
+    "shareAudioHint": "या अध्यायाचा ध्वनी सामायिक करण्याचे पर्याय उघडते",
+    "playChapterAudio": "अध्यायाचा ध्वनी वाजवा",
+    "pauseChapterAudio": "अध्यायाचा ध्वनी थांबवा",
+    "previousChapterHint": "मागील अध्यायाकडे जाते",
+    "chapterRange": "अध्याय {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} पुस्तके ({{percent}}%)",
+    "currentPlanDay": "योजनेचा सध्याचा दिवस {{day}}",
+    "planDay": "दिवस {{day}}",
+    "planSessionForDay": "दिवस {{day}} साठी {{session}}",
+    "music": {
+      "off": {
+        "label": "बंद",
+        "description": "पार्श्वसंगीताशिवाय पवित्र शास्त्र ऐका."
+      },
+      "ambient": {
+        "label": "वातावरणीय",
+        "description": "निवेदनामागे पाण्याखालचा आभास देणारे मंद स्वर आणि घंटानाद पुन्हा वाजतात."
+      },
+      "piano": {
+        "label": "पियानो",
+        "description": "मंद पार्श्वस्वरांसोबत हळुवार पियानोची धून."
+      },
+      "soft-guitar": {
+        "label": "मधुर गिटार",
+        "description": "निवेदनात अडथळा न आणणारी, पुन्हा वाजणारी नायलॉन तारांची गिटारधून."
+      },
+      "harp": {
+        "label": "हार्प",
+        "description": "भक्तिभाव देणारी हलकी एकल हार्पधून."
+      },
+      "flute": {
+        "label": "बासरी",
+        "description": "कोमल कल्पनारम्य वातावरणातील छोट्या बासरीधुनीची पुनरावृत्ती."
+      },
+      "sitar": {
+        "label": "सतार",
+        "description": "दीर्घ श्रवणासाठी उबदार वाळवंटी शैलीतील सतारीचे स्वर."
+      },
+      "ocean-waves": {
+        "label": "समुद्राच्या लाटा",
+        "description": "शांत पार्श्वभूमीसाठी किनाऱ्यावरील लाटांच्या आवाजाची पुनरावृत्ती."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "कॅथलिक सकाळची प्रार्थना",
+        "description": "स्तुती, स्तुतिगीत आणि सुवार्तेच्या आशीर्वादासह प्रभातस्तवनावर आधारित सुरुवात.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "नियत वेळांची प्रार्थनाविधी"
+      },
+      "catholic-daytime-prayer": {
+        "title": "कॅथलिक दिवसाची प्रार्थना",
+        "description": "छोटी स्तोत्रे आणि देवाकडे सतत परतणे यांवर आधारित संक्षिप्त मध्यान्ह प्रार्थना.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "नियत वेळांची प्रार्थनाविधी"
+      },
+      "catholic-evening-prayer": {
+        "title": "कॅथलिक संध्याकाळची प्रार्थना",
+        "description": "स्तोत्रे, आभार आणि मरीयेच्या स्तुतिगीतासह संध्याप्रार्थनेतून प्रेरित दिवसाचा शेवट.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "नियत वेळांची प्रार्थनाविधी"
+      },
+      "catholic-night-prayer": {
+        "title": "कॅथलिक रात्रीची प्रार्थना",
+        "description": "विश्वास, संरक्षण आणि शांत समर्पणासाठी झोपण्यापूर्वीचा प्रार्थनाक्रम.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "निद्रापूर्व प्रार्थना"
+      },
+      "catholic-lectio-divina": {
+        "title": "कॅथलिक ध्यानमय वचनवाचन",
+        "description": "मनन, प्रार्थना आणि वचनात थांबण्यासाठी सावकाश वाचनाचा क्रम.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "ध्यानमय वचनवाचन"
+      },
+      "ignatian-daily-examen": {
+        "title": "इग्नेशियन दैनिक आत्मपरीक्षण",
+        "description": "कृतज्ञता, आत्मपरीक्षण आणि पश्चात्तापाने दिवसाचा शेवट करणारा क्रम.",
+        "tradition": "कॅथलिक",
+        "historicRoots": "इग्नेशियन आध्यात्मिकता"
+      },
+      "anglican-morning-prayer": {
+        "title": "अँग्लिकन सकाळची प्रार्थना",
+        "description": "पुढील दिवसासाठी स्तोत्रे आणि सुवार्तेची शिकवण असलेली नियमित सकाळची प्रार्थना.",
+        "tradition": "अँग्लिकन",
+        "historicRoots": "सामूहिक प्रार्थनेचे पुस्तक"
+      },
+      "anglican-noonday-prayer": {
+        "title": "अँग्लिकन मध्यान्ह प्रार्थना",
+        "description": "साहाय्याची स्तोत्रे आणि जीवनाच्या भाकरीची आशा घेऊन दुपारचा छोटा प्रार्थनाविराम.",
+        "tradition": "अँग्लिकन",
+        "historicRoots": "दैनिक प्रार्थना"
+      },
+      "anglican-evening-prayer": {
+        "title": "अँग्लिकन संध्याकाळची प्रार्थना",
+        "description": "संध्याकाळची स्तोत्रे आणि मरीयेच्या गीतासह पारंपरिक संध्याप्रार्थना.",
+        "tradition": "अँग्लिकन",
+        "historicRoots": "सामूहिक प्रार्थनेचे पुस्तक"
+      },
+      "anglican-compline": {
+        "title": "अँग्लिकन निद्रापूर्व प्रार्थना",
+        "description": "पापस्वीकार, विश्वास आणि विश्रांतीसाठी हळुवार रात्रप्रार्थना.",
+        "tradition": "अँग्लिकन",
+        "historicRoots": "सामूहिक प्रार्थनेचे पुस्तक"
+      },
+      "orthodox-morning-rule": {
+        "title": "ऑर्थोडॉक्स सकाळचा प्रार्थनानियम",
+        "description": "पश्चात्ताप, दया आणि येशूने शिकवलेल्या प्रार्थनेवर आधारित पहाटेचा क्रम.",
+        "tradition": "ऑर्थोडॉक्स",
+        "historicRoots": "सकाळच्या प्रार्थना"
+      },
+      "orthodox-sixth-hour": {
+        "title": "ऑर्थोडॉक्स सहाव्या प्रहराची प्रार्थना",
+        "description": "ख्रिस्ताचे दुःखसहन आणि जागरूकता लक्षात ठेवणारा मध्यान्ह प्रार्थनाविराम.",
+        "tradition": "ऑर्थोडॉक्स",
+        "historicRoots": "प्रार्थनेचे प्रहर"
+      },
+      "orthodox-vespers": {
+        "title": "ऑर्थोडॉक्स संध्याप्रार्थना",
+        "description": "सृष्टीची स्तुती, दिवेलागणीची स्तोत्रे आणि वचनासह संध्याकाळचे अर्पण.",
+        "tradition": "ऑर्थोडॉक्स",
+        "historicRoots": "दैनिक संध्याप्रार्थना"
+      },
+      "orthodox-small-compline": {
+        "title": "ऑर्थोडॉक्स संक्षिप्त निद्रापूर्व प्रार्थना",
+        "description": "दया, आश्रय आणि झोपण्यापूर्वीच्या अंतिम विनंत्यांसाठी शांत रात्रप्रार्थना.",
+        "tradition": "ऑर्थोडॉक्स",
+        "historicRoots": "निद्रापूर्व प्रार्थना"
+      },
+      "benedictine-sacred-reading": {
+        "title": "बेनेडिक्टिन पवित्र वाचन",
+        "description": "वाचनाची निश्चित वेळ आणि शांत एकाग्रतेतून प्रेरित वाचनप्रधान क्रम.",
+        "tradition": "बेनेडिक्टिन",
+        "historicRoots": "संत बेनेडिक्टचा नियम"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "बेनेडिक्टिन स्तोत्र आणि काम",
+        "description": "दिवसभर प्रार्थना, काम आणि शांत आज्ञापालनासाठी व्यावहारिक क्रम.",
+        "tradition": "बेनेडिक्टिन",
+        "historicRoots": "प्रार्थना आणि श्रम"
+      },
+      "taize-evening-prayer": {
+        "title": "तेझे संध्याकाळची प्रार्थना",
+        "description": "स्तोत्र, वाचन आणि स्थिरतेवर आधारित गीत व मौनाची संध्याकाळ.",
+        "tradition": "तेझे",
+        "historicRoots": "तेझे येथील सामूहिक प्रार्थना"
+      },
+      "lutheran-morning-devotion": {
+        "title": "लुथरन सकाळची भक्ती",
+        "description": "शास्त्रवाचन, पाठांतर आणि नियमित प्रार्थना करणाऱ्या कुटुंबांचा दिवस सुरू करण्याचा क्रम.",
+        "tradition": "लुथरन",
+        "historicRoots": "कुटुंबांसाठी दैनिक भक्ती"
+      },
+      "lutheran-close-of-day": {
+        "title": "लुथरन दिवसाचा शेवट",
+        "description": "पापस्वीकार, आश्रय आणि ख्रिस्ताच्या संरक्षणासाठी साधी रात्रीची भक्ती.",
+        "tradition": "लुथरन",
+        "historicRoots": "कुटुंबांसाठी दैनिक भक्ती"
+      },
+      "puritan-family-worship": {
+        "title": "प्युरिटन कौटुंबिक उपासना",
+        "description": "प्रार्थना, स्तुती, शास्त्रवाचन आणि भक्तिपूर्ण संवादाची घरातील संध्याकाळ.",
+        "tradition": "प्युरिटन",
+        "historicRoots": "कौटुंबिक उपासनेची मार्गदर्शिका"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "भक्तिपर मनन",
+        "description": "येशूच्या शिकवणीवर केंद्रित छोटी मनने."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "जगाची रीत उलटवणाऱ्या राज्यात धन्य",
+        "summary": "धन्यवचनांवर मनन करून येशू आपल्या इच्छा कशा बदलतो ते पाहा.",
+        "actionLabel": "अध्याय वाचा"
+      },
+      "mat-plans": {
+        "title": "योजना",
+        "description": "मत्तय उद्देशपूर्वक वाचण्यासाठी सोपे मार्ग."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "मत्तयमधील राज्याचा जीवनक्रम",
+        "summary": "ओळख, प्रार्थना, दया, सुवार्ताकार्य आणि पुनरुत्थानाची आशा यांतील सात दिवस.",
+        "actionLabel": "पहिला अध्याय उघडा"
+      },
+      "jhn-playlists": {
+        "title": "श्रवण याद्या",
+        "description": "योहानच्या प्रमुख भागांतून ऐकण्याचे निवडक क्रम."
+      },
+      "jhn-playlist-signs": {
+        "title": "येशूची चिन्हे",
+        "summary": "ख्रिस्ताची ओळख प्रकट करणारी चिन्हे समजून घेण्याचा मार्ग.",
+        "actionLabel": "श्रवण यादी सुरू करा"
+      },
+      "gal-devotionals": {
+        "title": "भक्तिपर मनन",
+        "description": "गलतीकरांना पत्र प्रार्थनापूर्वक वाचण्यासाठी छोटी मनने."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "आता गुलाम नाही",
+        "summary": "पुत्रत्व, वारसा आणि पित्याच्या स्वागतावर मनन करा.",
+        "actionLabel": "अध्याय वाचा"
+      },
+      "gal-plans": {
+        "title": "योजना",
+        "description": "पत्रातून जाणारे छोटे नियोजित मार्ग."
+      },
+      "gal-plan-six-days": {
+        "title": "दररोज एक अध्याय: गलतीकरांस",
+        "summary": "दररोज एक अध्याय वाचा आणि घाई न करता पौलाचा विचार समजून घ्या.",
+        "actionLabel": "पहिला अध्याय उघडा"
+      },
+      "psa-playlists": {
+        "title": "श्रवण याद्या",
+        "description": "वेगवेगळ्या भावनिक काळांसाठी प्रार्थनेचे मार्ग."
+      },
+      "psa-playlist-morning": {
+        "title": "सकाळचा आश्रय",
+        "summary": "दिवसाच्या सुरुवातीला विश्वासाच्या स्तोत्रांचा छोटा क्रम.",
+        "actionLabel": "श्रवण यादी सुरू करा"
+      },
+      "psa-playlist-repentance": {
+        "title": "पश्चात्तापाची स्तोत्रे",
+        "summary": "प्रामाणिकपणा, पापस्वीकार आणि पुनर्स्थापनेच्या इच्छेने प्रार्थना करा.",
+        "actionLabel": "श्रवण यादी सुरू करा"
+      },
+      "psa-devotionals": {
+        "title": "भक्तिपर मनन",
+        "description": "स्तोत्रांवर सावकाश प्रार्थना करण्यासाठी शांत मनने."
+      },
+      "psa-devotional-shepherd": {
+        "title": "पुनर्स्थापना करणारा मेंढपाळ",
+        "summary": "स्तोत्र 23 हे घोषवाक्य न राहता प्रार्थना होईपर्यंत त्यावर मनन करा.",
+        "actionLabel": "स्तोत्र वाचा"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "सार्वजनिक मालकीचा बेरियन मजकूर आणि थेट CC0 अध्याय ध्वनी",
+      "web": "EveryBible संग्रहातील सार्वजनिक मालकीचा ब्रिटिश आवृत्तीचा मजकूर आणि अध्याय ध्वनी",
+      "kjv": "1611 ची अधिकृत किंग जेम्स आवृत्ती",
+      "asv": "1901 मध्ये प्रसिद्ध झालेले KJV चे पुनरीक्षण, आधीच स्थापित मजकूर",
+      "bbe": "सोप्या वाचनासाठी मर्यादित शब्दसंग्रह वापरते",
+      "sparv1909": "पारंपरिक स्पॅनिश बायबल — सार्वजनिक मालकीचा मजकूर",
+      "hincv": "हिंदी समकालीन आवृत्ती — सार्वजनिक मालकी",
+      "npiulb": "अनलॉक्ड लिटरल बायबल — सार्वजनिक मालकी"
+    },
+    "audioUnavailableTranslation": "या अनुवादाचा ध्वनी उपलब्ध नाही.",
+    "audioUnavailableChapter": "या अध्यायाचा ध्वनी उपलब्ध नाही.",
+    "audioPlayFailed": "हा ध्वनी वाजवता आला नाही. कृपया पुन्हा प्रयत्न करा.",
+    "nativePermissions": {
+      "NSCameraUsageDescription": "प्रोफाइलचा फोटो काढायचा असल्यास Every Bible ला कॅमेरा वापरण्याची परवानगी द्या.",
+      "NSMicrophoneUsageDescription": "अध्यायावरील अभिप्राय आवाजात रेकॉर्ड करण्यासाठी Every Bible ला परवानगी द्या.",
+      "NSPhotoLibraryUsageDescription": "प्रोफाइलचा फोटो निवडण्यासाठी Every Bible ला तुमच्या फोटो संग्रहात प्रवेशाची परवानगी द्या.",
+      "NSFaceIDUsageDescription": "जतन केलेले साइन-इन सुरक्षित ठेवण्यासाठी Every Bible ला Face ID वापरण्याची परवानगी द्या."
     }
   }
 } as const;

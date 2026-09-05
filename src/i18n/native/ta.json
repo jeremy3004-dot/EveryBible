@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "சுயவிவரப் புகைப்படம் எடுக்க விரும்பினால், கேமராவைப் பயன்படுத்த Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+    "NSMicrophoneUsageDescription": "அத்தியாயக் கருத்துகளைக் குரலில் பதிவு செய்ய Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+    "NSPhotoLibraryUsageDescription": "சுயவிவரப் புகைப்படத்தைத் தேர்ந்தெடுக்க உங்கள் புகைப்படத் தொகுப்பை அணுக Every Bibleக்கு அனுமதி வழங்குங்கள்.",
+    "NSFaceIDUsageDescription": "சேமித்த உள்நுழைவைப் பாதுகாக்க Face IDஐப் பயன்படுத்த Every Bibleக்கு அனுமதி வழங்குங்கள்."
+  }
+}

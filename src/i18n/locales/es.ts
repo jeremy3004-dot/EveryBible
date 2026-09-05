@@ -1,37 +1,313 @@
 export const es = {
+  interface: {
+    nativePermissions: {
+      "NSCameraUsageDescription": "Permite que Every Bible acceda a tu cámara si decides tomar una foto de perfil.",
+      "NSMicrophoneUsageDescription": "Permite que Every Bible grabe respuestas de audio para enviar comentarios sobre los capítulos.",
+      "NSPhotoLibraryUsageDescription": "Permite que Every Bible acceda a tu fototeca para que puedas elegir una foto de perfil.",
+      "NSFaceIDUsageDescription": "Permite que Every Bible use Face ID para proteger tu inicio de sesión guardado."
+    },
+    "close": "Cerrar",
+    "share": "Compartir",
+    "minutesShort": "{{count}} min",
+    "hoursShort": "{{count}} h",
+    "daysShort": "{{count}} d",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "justNow": "Ahora mismo",
+    "minutesAgo": "Hace {{count}} min",
+    "hoursAgo": "Hace {{count}} h",
+    "daysAgo": "Hace {{count}} d",
+    "activePrayerCount": "Activas: {{count}}",
+    "groupShareMessage": "¡Únete a mi grupo de discipulado «{{name}}» en EveryBible!\n\nCódigo de acceso: {{code}}",
+    "groupAboutTitle": "Acerca de las reuniones de grupo",
+    "groupAboutBody": "Las reuniones siguen el formato de tres tercios usado por movimientos de discipulado en todo el mundo:",
+    "groupLookBack": "¿Cómo obedeciste? ¿Con quién compartiste?",
+    "groupLookUp": "Lean las Escrituras juntos y conversen",
+    "groupLookForward": "¿Cómo obedecerás? ¿A quién se lo contarás?",
+    "backgroundMusicLabel": "Música de fondo: {{name}}",
+    "backgroundMusicHint": "Abre el selector de música de fondo",
+    "repeatHint": "Alterna entre no repetir, repetir capítulo y repetir libro",
+    "shareAudioHint": "Abre las opciones para compartir el audio de este capítulo",
+    "playChapterAudio": "Reproducir audio del capítulo",
+    "pauseChapterAudio": "Pausar audio del capítulo",
+    "previousChapterHint": "Va al capítulo anterior",
+    "chapterRange": "Capítulos {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} libros ({{percent}}%)",
+    "currentPlanDay": "Día actual del plan: {{day}}",
+    "planDay": "Día {{day}}",
+    "planSessionForDay": "{{session}} del día {{day}}",
+    "music": {
+      "off": {
+        "label": "Desactivada",
+        "description": "Escucha las Escrituras sin música de fondo incluida."
+      },
+      "ambient": {
+        "label": "Ambiental",
+        "description": "Texturas submarinas y campanas en bucle bajo la narración."
+      },
+      "piano": {
+        "label": "Piano",
+        "description": "Melodía suave de piano con ligeras texturas ambientales."
+      },
+      "soft-guitar": {
+        "label": "Guitarra suave",
+        "description": "Guitarra de cuerdas de nailon en un bucle discreto."
+      },
+      "harp": {
+        "label": "Arpa",
+        "description": "Tema ligero de arpa solista con un suave ambiente de oración."
+      },
+      "flute": {
+        "label": "Flauta",
+        "description": "Breve bucle de flauta con un suave ambiente de fantasía."
+      },
+      "sitar": {
+        "label": "Sitar",
+        "description": "Cálida textura de sitar con aire desértico para escuchas prolongadas."
+      },
+      "ocean-waves": {
+        "label": "Olas del mar",
+        "description": "Suave oleaje de la costa en bucle para un fondo más tranquilo."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "Oración católica de la mañana",
+        "description": "Un inicio inspirado en las laudes, con alabanza, cántico y bendición evangélica.",
+        "tradition": "Católica",
+        "historicRoots": "Liturgia de las Horas"
+      },
+      "catholic-daytime-prayer": {
+        "title": "Oración católica del mediodía",
+        "description": "Un breve oficio del mediodía con salmos cortos y un retorno constante a Dios.",
+        "tradition": "Católica",
+        "historicRoots": "Liturgia de las Horas"
+      },
+      "catholic-evening-prayer": {
+        "title": "Oración católica de la tarde",
+        "description": "Un cierre del día inspirado en las vísperas, con salmos, gratitud y el Magníficat.",
+        "tradition": "Católica",
+        "historicRoots": "Liturgia de las Horas"
+      },
+      "catholic-night-prayer": {
+        "title": "Oración católica de la noche",
+        "description": "Un ritmo antes de dormir para confiar, buscar protección y entregarse en paz.",
+        "tradition": "Católica",
+        "historicRoots": "Completas"
+      },
+      "catholic-lectio-divina": {
+        "title": "Lectio Divina católica",
+        "description": "Un ritmo de lectura pausado para meditar, orar y permanecer en el texto.",
+        "tradition": "Católica",
+        "historicRoots": "Lectio Divina"
+      },
+      "ignatian-daily-examen": {
+        "title": "Examen diario ignaciano",
+        "description": "Una reflexión al final del día centrada en gratitud, revisión y arrepentimiento.",
+        "tradition": "Católica",
+        "historicRoots": "Espiritualidad ignaciana"
+      },
+      "anglican-morning-prayer": {
+        "title": "Oración anglicana de la mañana",
+        "description": "Un oficio matutino con salmos y enseñanza del Evangelio para el día que comienza.",
+        "tradition": "Anglicana",
+        "historicRoots": "Libro de Oración Común"
+      },
+      "anglican-noonday-prayer": {
+        "title": "Oración anglicana del mediodía",
+        "description": "Una breve pausa de oración al mediodía con salmos de auxilio y esperanza en el pan de vida.",
+        "tradition": "Anglicana",
+        "historicRoots": "Oración diaria"
+      },
+      "anglican-evening-prayer": {
+        "title": "Oración anglicana de la tarde",
+        "description": "Un oficio clásico inspirado en el canto vespertino, con salmos de la tarde y el cántico de María.",
+        "tradition": "Anglicana",
+        "historicRoots": "Libro de Oración Común"
+      },
+      "anglican-compline": {
+        "title": "Completas anglicanas",
+        "description": "Un tranquilo oficio nocturno de confesión, confianza y descanso.",
+        "tradition": "Anglicana",
+        "historicRoots": "Libro de Oración Común"
+      },
+      "orthodox-morning-rule": {
+        "title": "Regla ortodoxa de oración matutina",
+        "description": "Una regla de oración al amanecer centrada en el arrepentimiento, la misericordia y la oración que enseñó Jesús.",
+        "tradition": "Ortodoxa",
+        "historicRoots": "Oraciones de la mañana"
+      },
+      "orthodox-sixth-hour": {
+        "title": "Hora sexta ortodoxa",
+        "description": "Una pausa de oración al mediodía que mantiene presentes la Pasión y la vigilancia.",
+        "tradition": "Ortodoxa",
+        "historicRoots": "Horas de oración"
+      },
+      "orthodox-vespers": {
+        "title": "Vísperas ortodoxas",
+        "description": "Una ofrenda vespertina con alabanza por la creación, salmos a la luz de las lámparas y la Palabra.",
+        "tradition": "Ortodoxa",
+        "historicRoots": "Vísperas diarias"
+      },
+      "orthodox-small-compline": {
+        "title": "Pequeñas completas ortodoxas",
+        "description": "Un oficio nocturno sereno para pedir misericordia y refugio antes de dormir.",
+        "tradition": "Ortodoxa",
+        "historicRoots": "Completas"
+      },
+      "benedictine-sacred-reading": {
+        "title": "Lectura sagrada benedictina",
+        "description": "Un ritmo centrado en la lectura, inspirado en horarios fijos de lectio y atención serena.",
+        "tradition": "Benedictina",
+        "historicRoots": "Regla de san Benito"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "Salmo y trabajo benedictinos",
+        "description": "Una secuencia práctica de oración, trabajo y obediencia serena durante el día.",
+        "tradition": "Benedictina",
+        "historicRoots": "Ora et labora"
+      },
+      "taize-evening-prayer": {
+        "title": "Oración vespertina de Taizé",
+        "description": "Una tarde de canto y silencio en torno a un salmo, una lectura y la quietud.",
+        "tradition": "Taizé",
+        "historicRoots": "Oración común en Taizé"
+      },
+      "lutheran-morning-devotion": {
+        "title": "Devoción luterana de la mañana",
+        "description": "Un ritmo para empezar el día en familia con Escritura, memorización y oración constante.",
+        "tradition": "Luterana",
+        "historicRoots": "Devociones diarias para familias"
+      },
+      "lutheran-close-of-day": {
+        "title": "Cierre luterano del día",
+        "description": "Una sencilla devoción nocturna de confesión, refugio y protección en Cristo.",
+        "tradition": "Luterana",
+        "historicRoots": "Devociones diarias para familias"
+      },
+      "puritan-family-worship": {
+        "title": "Culto familiar puritano",
+        "description": "Una tarde en familia con oración, alabanza, Escritura y conversación centrada en Dios.",
+        "tradition": "Puritana",
+        "historicRoots": "Directorio para el culto familiar"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "Devocionales",
+        "description": "Reflexiones breves centradas en las enseñanzas de Jesús."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "Bienaventurados en el reino que cambia todo",
+        "summary": "Medita en las bienaventuranzas y observa cómo Jesús transforma nuestros deseos.",
+        "actionLabel": "Leer capítulo"
+      },
+      "mat-plans": {
+        "title": "Planes",
+        "description": "Rutas sencillas para recorrer Mateo con propósito."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "El ritmo del reino en Mateo",
+        "summary": "Siete días de identidad, oración, misericordia, misión y esperanza en la resurrección.",
+        "actionLabel": "Abrir primer capítulo"
+      },
+      "jhn-playlists": {
+        "title": "Listas de reproducción",
+        "description": "Recorridos de escucha seleccionados por las grandes etapas de Juan."
+      },
+      "jhn-playlist-signs": {
+        "title": "Las señales de Jesús",
+        "summary": "Un recorrido guiado por las señales que revelan quién es Cristo.",
+        "actionLabel": "Iniciar lista"
+      },
+      "gal-devotionals": {
+        "title": "Devocionales",
+        "description": "Reflexiones breves para leer Gálatas con oración."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "Ya no somos esclavos",
+        "summary": "Medita en la adopción, la herencia y la acogida del Padre.",
+        "actionLabel": "Leer capítulo"
+      },
+      "gal-plans": {
+        "title": "Planes",
+        "description": "Recorridos breves y estructurados por la carta."
+      },
+      "gal-plan-six-days": {
+        "title": "Un capítulo al día: Gálatas",
+        "summary": "Lee un capítulo cada día y sigue el argumento de Pablo sin prisa.",
+        "actionLabel": "Abrir primer capítulo"
+      },
+      "psa-playlists": {
+        "title": "Listas de reproducción",
+        "description": "Recorridos de oración para distintos momentos emocionales."
+      },
+      "psa-playlist-morning": {
+        "title": "Refugio al amanecer",
+        "summary": "Un breve recorrido por salmos de confianza para comenzar el día.",
+        "actionLabel": "Iniciar lista"
+      },
+      "psa-playlist-repentance": {
+        "title": "Salmos de arrepentimiento",
+        "summary": "Ora con sinceridad, confesión y deseo de restauración.",
+        "actionLabel": "Iniciar lista"
+      },
+      "psa-devotionals": {
+        "title": "Devocionales",
+        "description": "Reflexiones serenas para orar los salmos sin prisa."
+      },
+      "psa-devotional-shepherd": {
+        "title": "El Pastor que restaura",
+        "summary": "Permanece en el Salmo 23 hasta que sea una oración y no solo una frase.",
+        "actionLabel": "Leer salmo"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "Texto de la Biblia Bereana de dominio público con audio de capítulos bajo CC0",
+      "web": "Texto y audio de capítulos de la edición británica, de dominio público, de la biblioteca de EveryBible",
+      "kjv": "La versión autorizada del rey Jacobo de 1611",
+      "asv": "Revisión de la KJV publicada en 1901, con texto preinstalado",
+      "bbe": "Usa un vocabulario limitado para facilitar la lectura",
+      "sparv1909": "La Biblia clásica en español, con texto de dominio público",
+      "hincv": "Versión contemporánea en hindi, de dominio público",
+      "npiulb": "Biblia Literal Abierta, de dominio público"
+    },
+    "audioUnavailableTranslation": "El audio no está disponible para esta traducción.",
+    "audioUnavailableChapter": "El audio no está disponible para este capítulo.",
+    "audioPlayFailed": "No pudimos reproducir este audio. Inténtalo de nuevo."
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "Comentarios pendientes",
+    subtitle: "Capítulos con comentarios por revisar",
+    empty: "Todo está al día. No hay comentarios pendientes.",
+    pendingCount: "{{count}} capítulos por revisar",
+    chapterCounts: "{{down}} por corregir · {{up}} por confirmar",
+    openLabel: "Abrir {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "Mis comentarios",
+    settingsRow: "Mis comentarios",
+    settingsRowSummary: "Consulta cómo respondió el equipo de traducción a tus notas",
+    subtitle: "Cómo respondió el equipo de traducción a tus comentarios sobre los capítulos",
+    empty: "Aún no has enviado comentarios sobre ningún capítulo.",
+    signInRequired: "Inicia sesión para ver los comentarios que has enviado.",
+    audioLabel: "Nota de voz adjunta",
+    statusReceived: "Recibido",
+    statusFixed: "Corregido",
+    statusNoChange: "Revisado, sin cambios",
   },
   "common": {
     "cancel": "Cancelar",
-    "ok": "DE ACUERDO",
-    "done": "Hecho",
+    "ok": "Aceptar",
+    "done": "Listo",
     "error": "Fallo",
-    "retry": "Rever",
+    "retry": "Reintentar",
     "loading": "Cargando...",
     "continue": "Continuar",
-    "save": "Ahorrar",
-    "delete": "Borrar",
+    "save": "Guardar",
+    "delete": "Eliminar",
     "edit": "Editar",
     "back": "Atrás",
-    "next": "Próximo",
+    "next": "Siguiente",
     "previous": "Anterior",
     "search": "Buscar",
     "settings": "Ajustes",
@@ -46,7 +322,7 @@ export const es = {
     "all": "Todos"
   },
   "tabs": {
-    "home": "Hogar",
+    "home": "Inicio",
     "bible": "Biblia",
     "harvest": "Cosecha",
     "gather": "Reunir",
@@ -62,12 +338,12 @@ export const es = {
     "welcome": "Bienvenido a Every Bible",
     "beginToday": "Comenzar hoy",
     "todaysScripture": "Escritura de hoy",
-    "verseOfTheDay": "Verso del dia",
+    "verseOfTheDay": "Versículo del día",
     "sectionOfTheDay": "Sección del día",
     "sectionOfTheDayBody": "La selección de hoy está disponible como audio para este capítulo, incluso cuando aún no se ha agregado texto escrito.",
     "verseAudioBody": "El versículo de hoy está actualmente disponible en formato de audio, por lo que puedes escucharlo incluso antes de agregar el texto escrito.",
-    "playSectionOfTheDay": "Sección de juego del día",
-    "playVerseOfTheDay": "Reproducir versículo del día",
+    "playSectionOfTheDay": "Escuchar la sección del día",
+    "playVerseOfTheDay": "Escuchar el versículo del día",
     "continueReading": "Continuar leyendo",
     "sharePrompt": "Comparte luz. Anima a alguien hoy.",
     "plan": "Plan",
@@ -81,7 +357,7 @@ export const es = {
     "month": "Mes",
     "year": "Año",
     "defaultVerse": "Empiece a leer o escuchar para descubrir las Escrituras de hoy.",
-    "defaultReference": "abre la biblia"
+    "defaultReference": "Abrir la Biblia"
   },
   "onboarding": {
     "title": "Configure su experiencia bíblica",
@@ -91,11 +367,11 @@ export const es = {
     "stepPrivacy": "Paso 3 de 3",
     "interfaceLanguageTitle": "Elija el idioma de su interfaz",
     "interfaceLanguageBody": "Primero elija el idioma para los menús, botones y configuraciones. Puedes volver a cambiarlo más tarde.",
-    "interfaceLanguageSearchPlaceholder": "Idioma de la interfaz de búsqueda",
+    "interfaceLanguageSearchPlaceholder": "Buscar idioma de la interfaz",
     "availableInterfaceLanguages": "Idiomas de interfaz disponibles",
-    "countryTitle": "Elige tu nación",
+    "countryTitle": "Elige tu país",
     "countryBody": "Usamos su país para recomendar idiomas cercanos primero y, al mismo tiempo, le permitimos realizar búsquedas en todo el mundo.",
-    "countrySearchPlaceholder": "Busca tu nación",
+    "countrySearchPlaceholder": "Busca tu país",
     "languageTitle": "Elige tu idioma bíblico",
     "languageBody": "Recomendamos los idiomas bíblicos hablados en {{country}}, pero aún puede buscar cualquier idioma a través de fronteras.",
     "languageSearchPlaceholder": "Busca o escribe tu idioma",
@@ -105,7 +381,7 @@ export const es = {
     "noLanguagesFoundBody": "Pruebe con otra ortografía o busque en inglés o en la escritura local. La búsqueda difusa está habilitada.",
     "recommendedBadge": "Recomendado",
     "interfaceAvailable": "Interfaz disponible",
-    "privacyTitle": "Elige tu estilo de privacidad",
+    "privacyTitle": "Elige un icono",
     "privacyBody": "Elija el estilo de icono para este dispositivo. El modo discreto también agrega un bloqueo de código local cada vez que sales de la aplicación.",
     "standardIconTitle": "Icono estándar",
     "standardIconBody": "Utilice el icono normal Every Bible y abra la aplicación directamente.",
@@ -119,9 +395,9 @@ export const es = {
     "finish": "Finalizar la configuración"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "No se pudo reproducir este audio. Inténtalo de nuevo.",
+    chapterFeedbackSuccessTitle: "Comentarios enviados",
+    readerFontsAndSettings: "Fuentes y ajustes",
     "title": "Biblia",
     "oldTestament": "Antiguo Testamento",
     "fontsAndSettings": "Fuentes y ajustes",
@@ -147,9 +423,10 @@ export const es = {
     "searchUnavailable": "La búsqueda de texto completo aún no está disponible para esta traducción.",
     "noVersesAvailable": "{{book}} {{chapter}} aún no tiene texto escrito.",
     "fullBibleComingSoon": "Este capítulo no está disponible en texto en este momento. Si hay audio disponible, Every Bible abrirá la experiencia auditiva.",
-    "audioOnlyTitle": "Audio-primer capítulo",
+    "audioOnlyTitle": "Capítulo disponible en audio",
     "audioOnlyBody": "{{translation}} está actualmente disponible como audio para este capítulo mientras aún se prepara el texto escrito.",
     "verseCount_one": "{{count}} Versículo",
+    "verseCount_many": "{{count}} versículos",
     "verseCount_other": "{{count}} Versículos",
     "listen": "Escuchar",
     "read": "Leer",
@@ -170,42 +447,42 @@ export const es = {
     "chapterFeedbackThumbsDown": "Necesita mejoras",
     "chapterFeedbackPlaceholder": "Comentario opcional sobre este capítulo",
     "chapterFeedbackSubmit": "Enviar comentario",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "Grabar una respuesta de audio en su lugar",
+    "chapterFeedbackAudioRecording": "Grabando {{duration}}",
+    "chapterFeedbackAudioReady": "Respuesta de audio lista: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, máx. 1 min",
+    "chapterFeedbackAudioRecord": "Grabar audio",
+    "chapterFeedbackAudioStop": "Detener",
+    "chapterFeedbackAudioPreview": "Escuchar la respuesta de audio",
+    "chapterFeedbackAudioRerecord": "Volver a grabar la respuesta de audio",
+    "chapterFeedbackAudioUploading": "Subiendo audio...",
+    "chapterFeedbackAudioPermissionDenied": "El acceso al micrófono está desactivado. Puedes escribir una respuesta.",
+    "chapterFeedbackAudioPermissionHelp": "Activa el acceso al micrófono en los ajustes del sistema para enviar comentarios de audio.",
+    "chapterFeedbackAudioStartError": "No se pudo iniciar la grabación. Puedes escribir una respuesta.",
+    "chapterFeedbackAudioStopError": "No se pudo finalizar esta grabación. Inténtalo de nuevo.",
+    "chapterFeedbackAudioRecordingMissing": "No se pudo guardar la grabación. Inténtalo de nuevo.",
+    "chapterFeedbackAudioUploadError": "No se pudo subir el audio. Tu grabación sigue aquí; intenta enviarla de nuevo.",
     "chapterFeedbackSuccess": "Gracias. Tus comentarios se enviaron.",
     "chapterFeedbackSignInRequired": "Inicia sesión antes de enviar comentarios sobre el capítulo.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "Revisión de comentarios de traducción",
+    "translatorReviewSummary": "{{pending}} pendientes de {{count}} comentarios",
+    "translatorReviewSummaryComplete": "Todas las revisiones de precisión procesadas",
+    "translatorReviewLoading": "Cargando comentarios...",
+    "translatorReviewEmpty": "Aún no se han enviado comentarios sobre este capítulo.",
+    "translatorReviewUnknownUser": "Colaborador desconocido",
+    "translatorReviewUnread": "Por revisar",
+    "translatorReviewSubmittedAt": "Enviado el {{date}}",
+    "translatorReviewSubmittedBy": "Enviado por {{name}}",
+    "translatorReviewNoComment": "Sin comentarios escritos.",
+    "translatorReviewFixed": "Corregido",
+    "translatorReviewConfirmedAccurate": "Precisión confirmada",
+    "translatorReviewReviewed": "Revisado",
+    "translatorReviewConfirmAccurate": "Confirmar precisión",
+    "translatorReviewMarkFixed": "Marcar como corregido",
+    "translatorReviewNoActionNeeded": "No se requiere ninguna acción",
+    "translatorReviewReopen": "Reabrir",
+    "translatorReviewListened": "Escuchado",
+    "translatorReviewListen": "Escuchar",
     "translatorReviewPause": "Pausar",
     "nextChapterHint": "Va al siguiente capítulo",
     "openBookAndChapterPickerHint": "Abre el selector de libro y capítulo",
@@ -220,8 +497,8 @@ export const es = {
       "JOS": "Josué",
       "JDG": "Jueces",
       "RUT": "Rut",
-      "1SA": "Primer libro de Samuel",
-      "2SA": "Segundo libro de Samuel",
+      "1SA": "1 Samuel",
+      "2SA": "2 Samuel",
       "1KI": "1 Reyes",
       "2KI": "2 Reyes",
       "1CH": "1 Crónicas",
@@ -229,7 +506,7 @@ export const es = {
       "EZR": "Esdras",
       "NEH": "Nehemías",
       "EST": "Ester",
-      "JOB": "Trabajo",
+      "JOB": "Job",
       "PSA": "Salmos",
       "PRO": "Proverbios",
       "ECC": "Eclesiastés",
@@ -238,9 +515,9 @@ export const es = {
       "JER": "Jeremías",
       "LAM": "Lamentaciones",
       "EZK": "Ezequiel",
-      "DAN": "Libro de Daniel",
+      "DAN": "Daniel",
       "HOS": "Oseas",
-      "JOL": "Libro de Joel",
+      "JOL": "Joel",
       "AMO": "Amós",
       "OBA": "Abdías",
       "JON": "Jonás",
@@ -284,7 +561,7 @@ export const es = {
   "audio": {
     "playbackSpeed": "Velocidad de reproducción",
     "sleepTimer": "Temporizador de apagado",
-    "nowPlaying": "Reproduciendo ahora",
+    "nowPlaying": "Reproduciendo",
     "readyToResume": "Listo para reanudar",
     "repeatChapter": "Repetir capítulo",
     "repeatBook": "Repetir libro",
@@ -302,7 +579,7 @@ export const es = {
     "pinPlaceholder": "Toca tu código",
     "pinLengthHint": "Utilice su código de 4 a 6 caracteres.",
     "unlock": "Desbloquear la Biblia",
-    "clearKey": "Claro",
+    "clearKey": "Borrar",
     "deleteKey": "Borrar",
     "pinTooShort": "Su código seguro debe tener al menos 4 caracteres.",
     "pinTooLong": "Su código seguro no puede tener más de 6 caracteres.",
@@ -315,10 +592,10 @@ export const es = {
     "reading": "Lectura",
     "hidePlayButtonFromReadingTab": "Ocultar botón de reproducción de la pestaña de lectura",
     "language": "Idioma de la interfaz",
-    "nationAndLanguage": "Nación y lenguaje bíblico",
+    "nationAndLanguage": "País e idioma de la Biblia",
     "fontSize": "Tamaño de fuente",
     "fontSizeSmall": "Pequeño",
-    "fontSizeMedium": "Medio",
+    "fontSizeMedium": "Mediano",
     "fontSizeLarge": "Grande",
     "darkMode": "Modo oscuro",
     "themeMode": "Tema",
@@ -330,12 +607,12 @@ export const es = {
     "appearance": "Apariencia",
     "appearanceBody": "Elija la paleta de acentos utilizada en la aplicación.",
     "appearanceEmberTitle": "Ascua",
-    "appearanceEmberBody": "Cálido, conectado a tierra y más cercano al aspecto actual.",
+    "appearanceEmberBody": "Cálido y sereno, el más cercano al aspecto actual.",
     "appearanceSapphireTitle": "Zafiro",
     "appearanceSapphireBody": "Azul tranquilo con fuerte contraste y una sensación nítida.",
     "appearanceTealTitle": "verde azulado",
     "appearanceTealBody": "Equilibrado y claro sin sensación demasiado fría.",
-    "appearanceOliveTitle": "Aceituna",
+    "appearanceOliveTitle": "Verde oliva",
     "appearanceOliveBody": "Terroso y tranquilo con un tono suave y libresco.",
     "notifications": "Notificaciones",
     "dailyReminder": "Recordatorio diario",
@@ -343,23 +620,23 @@ export const es = {
     "chapterFeedback": "Comentarios del capítulo",
     "chapterFeedbackSummaryOn": "Los comentarios opcionales del capítulo están activados",
     "chapterFeedbackSummaryOff": "Los comentarios opcionales del capítulo están desactivados",
-    "translatorAccess": "Acceso del traductor",
-    "translatorAccessTitle": "Acceso del traductor",
-    "translatorAccessBody": "Ingresa el código de acceso del traductor para revisar los comentarios de capítulos en este dispositivo.",
+    "translatorAccess": "Acceso para traductores",
+    "translatorAccessTitle": "Acceso para traductores",
+    "translatorAccessBody": "Introduce el código de traductor para revisar los comentarios sobre los capítulos en este dispositivo.",
     "translatorAccessPlaceholder": "Código de acceso",
     "translatorAccessUnlock": "Desbloquear",
-    "translatorAccessIncorrect": "Ese código de acceso del traductor no es correcto.",
-    "translatorAccessEnabled": "Modo de revisión del traductor activado",
-    "translatorAccessEnabledBody": "Las pantallas de capítulos ahora mostrarán las herramientas de revisión de comentarios del traductor.",
-    "translatorAccessSummaryOn": "Las herramientas de revisión del traductor están activadas",
-    "translatorAccessSummaryOff": "Ingresa el código de acceso para activar las herramientas de revisión",
+    "translatorAccessIncorrect": "El código de traductor no es correcto.",
+    "translatorAccessEnabled": "Modo de revisión de traducción activado",
+    "translatorAccessEnabledBody": "Las pantallas de los capítulos ahora mostrarán herramientas para revisar los comentarios de traducción.",
+    "translatorAccessSummaryOn": "Las herramientas de revisión de traducción están activadas",
+    "translatorAccessSummaryOff": "Introduce el código para activar las herramientas de revisión",
     "notSet": "No establecido",
     "data": "Datos",
     "downloadOffline": "Descargar sin conexión",
     "downloadForOffline": "Descargar sin conexión",
     "clearCache": "Borrar caché",
     "clearCacheConfirm": "Esto borrará los datos almacenados en caché. Se conservará su progreso de lectura.",
-    "clear": "Claro",
+    "clear": "Borrar",
     "cacheClearedSuccess": "Caché borrado exitosamente",
     "cacheClearError": "Error al borrar caché",
     "setReminderTime": "Establecer hora del recordatorio",
@@ -432,7 +709,7 @@ export const es = {
     "passwordRequired": "Se requiere contraseña",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres.",
     "passwordHint": "Al menos 6 caracteres",
-    "confirmPassword": "confirmar Contraseña",
+    "confirmPassword": "Confirmar contraseña",
     "confirmPasswordPlaceholder": "Vuelva a ingresar su contraseña",
     "passwordsDoNotMatch": "Las contraseñas no coinciden",
     "name": "Nombre",
@@ -523,7 +800,7 @@ export const es = {
     "journeyDescription": "Un enfoque centrado en llegar a los no alcanzados",
     "fourFieldsJourney": "Viaje de los cuatro campos",
     "fourFieldsDescription": "Un camino reproducible para hacer discípulos que hacen discípulos",
-    "lessonsCompleted": "Lecciones {{completed}} de {{total}}",
+    "lessonsCompleted": "{{completed}} de {{total}} lecciones",
     "fieldsComplete": "{{count}} de 5 completos",
     "startJourney": "Iniciar viaje",
     "continueJourney": "Continuar viaje",
@@ -592,10 +869,10 @@ export const es = {
     "studies": "Estudios",
     "chapters": "Capítulos",
     "nowReading": "Abierto en la pestaña Biblia",
-    "openAndPlay": "Abrir y reproducir",
+    "openAndPlay": "Abrir y escuchar",
     "chapterStudiesSubtitle": "Estudios temáticos de capítulos diseñados para lectura y escucha en contexto completo.",
     "chapterStudiesBody": "Cada estudio abre capítulos completos para que la reproducción de audio y la lectura sean confiables y en contexto.",
-    "playChapterSubtitle": "Abrir y reproducir",
+    "playChapterSubtitle": "Abrir y escuchar",
     "lessons": {
       "entry1": "Oración por la cosecha",
       "entry2": "Tu mapa de oikos",
@@ -649,8 +926,8 @@ export const es = {
     "longestStreak": "Racha más larga",
     "plansCompleted": "Planes completados",
     "engagementScore": "Puntuación",
-    "annotationsCreated": "Notas y destacados",
-    "minutes": "mínimo",
+    "annotationsCreated": "Notas y resaltados",
+    "minutes": "min",
     "hours": "horas",
     "days": "días",
     "totalChapters": "Total de capítulos",
@@ -708,9 +985,9 @@ export const es = {
     "foundation5Title": "Vida como comunidad de Jesús",
     "foundation5Desc": "Pertenecer juntos, servir juntos, adorar juntos",
     "foundation6Title": "Vida como líder",
-    "foundation6Desc": "Reproducir discípulos y liderar a otros",
+    "foundation6Desc": "Formar nuevos discípulos y guiar a otros",
     "foundation7Title": "Compartiendo las buenas noticias",
-    "foundation7Desc": "Alcanzando con el evangelio",
+    "foundation7Desc": "Compartir el evangelio con otros",
     "lessons": {
       "f101": "Dios crea el mundo",
       "f102": "La humanidad cae en pecado",
@@ -1119,7 +1396,7 @@ export const es = {
     "findPlans": "Buscar Planes",
     "saved": "Guardados",
     "completions": "{{count}} completados",
-    "saveForLater": "Guardar para Despues",
+    "saveForLater": "Guardar para después",
     "unsave": "No Guardado",
     "sample": "Vista Previa",
     "featuredPlan": "Plan Destacado",
@@ -1175,7 +1452,7 @@ export const es = {
     "rhythmSequence": "Secuencia del ritmo",
     "rhythmPlanSource": "Plan de {{count}} días",
     "rhythmPassageLabel": "{{count}} capítulos",
-    "planItemLabel": "Plan de Pensiones",
+    "planItemLabel": "Plan",
     "passageItemLabel": "Pasaje",
     "addPassage": "Añadir pasaje bíblico",
     "addPassageToRhythm": "Añadir pasaje al ritmo",
@@ -1204,8 +1481,8 @@ export const es = {
       "description": "Recorre Mateo, Marcos, Lucas y Juan en dos meses."
     },
     "proverbs31": {
-      "title": "Proverbios en 31 días",
-      "description": "Un capítulo de Proverbios cada día durante un mes de sabiduría."
+      "title": "Capítulo diario de Proverbios",
+      "description": "Lee el capítulo de Proverbios que coincide con el día del mes y repite cada mes."
     },
     "kathisma": {
       "title": "Kathisma",
@@ -1339,15 +1616,15 @@ export const es = {
       "description": "Lea las 13 epístolas de Pablo (desde Romanos hasta Filemón) en un mes."
     },
     "acts28Days": {
-      "title": "Actos en 28 días",
+      "title": "Hechos en 28 días",
       "description": "Un capítulo de Hechos por día: sigue a la iglesia primitiva desde Jerusalén hasta Roma."
     },
     "revelation22Days": {
-      "title": "Revelación en 22 días",
-      "description": "Un capítulo de Apocalipsis por día: descomprima el último libro de las Escrituras a un ritmo constante."
+      "title": "Apocalipsis en 22 días",
+      "description": "Lee un capítulo de Apocalipsis al día y explora el último libro de las Escrituras a un ritmo constante."
     },
     "completeSessionCta": "Completar sesión",
-    "completeSessionHint": "Marcar este tiempo de oración como completado",
+    "completeSessionHint": "Marca este tiempo de oración como completado y pasa al siguiente",
     "searchPlansPlaceholder": "Buscar planes",
     "noPlanSearchResults": "No se encontraron planes",
     "middayLabel": "Mediodía",
@@ -1356,26 +1633,26 @@ export const es = {
     "sessionUpcoming": "próximo",
     "morningAndEveningPrayer": {
       "title": "Oración de la mañana y de la tarde",
-      "description": "Comienza y termina cada día durante siete días con lecturas de oración por la mañana y por la tarde."
+      "description": "Comienza y termina cada día con salmos, lecturas del evangelio y pasajes bíblicos por la tarde."
     },
     "prayerOfTheHours": {
       "title": "Oración de las horas",
-      "description": "Ordena cada día durante siete días con lecturas de oración por la mañana, al mediodía y por la tarde."
+      "description": "Sigue lecturas de mañana, mediodía y tarde basadas en los salmos, los evangelios y las epístolas."
     }
   },
   "annotations": {
-    "title": "Mis notas y destacados",
+    "title": "Mis notas y resaltados",
     "bookmarks": "Marcadores",
-    "highlights": "Destacados",
+    "highlights": "Resaltados",
     "notes": "Notas",
     "addNote": "Añadir nota",
     "addBookmark": "Marcador",
-    "highlight": "Destacar",
+    "highlight": "Resaltar",
     "editNote": "Editar nota",
     "deleteAnnotation": "Eliminar",
     "noAnnotations": "Aún no hay anotaciones",
     "noBookmarks": "Aún no hay marcadores",
-    "noHighlights": "Aún no hay destacados",
+    "noHighlights": "Aún no hay resaltados",
     "noNotes": "Aún no hay notas",
     "noteHint": "Escribe tus pensamientos...",
     "saved": "Guardado",
@@ -1398,14 +1675,14 @@ export const es = {
     "requestPlaceholder": "¿Por qué te gustaría que oraran?",
     "signInTitle": "Inicia sesión para orar con este grupo",
     "signInBody": "Inicia sesión para compartir peticiones, orar con otros y mantener este grupo sincronizado.",
-    "prayed": "Oré",
+    "prayed": "He orado",
     "encouraged": "Animado",
     "answered": "Respondida",
     "markAnswered": "Marcar como respondida",
     "noPrayers": "Aún no hay peticiones de oración",
     "beFirst": "Sé el primero en compartir una petición de oración con tu grupo.",
-    "prayedCount": "{{count}} oraron",
-    "encouragedCount": "{{count}} animaron",
+    "prayedCount": "Han orado: {{count}}",
+    "encouragedCount": "Han animado: {{count}}",
     "ownerLongPressHint": "Mantén pulsado para editar o eliminar",
     "you": "Tú",
     "groupMember": "Miembro del grupo"
@@ -1419,6 +1696,7 @@ export const es = {
     "share": "Compartir",
     "syncedProgress": "El progreso sincronizado aparecerá después de que se habilite el lanzamiento de sesiones.",
     "lessonsCompleted_one": "{{count}} lección completada",
+    "lessonsCompleted_many": "{{count}} lecciones completadas",
     "lessonsCompleted_other": "{{count}} lecciones completadas",
     "nextLesson": "Siguiente: {{title}}",
     "startGroupSession": "Iniciar sesión de grupo",
@@ -1433,18 +1711,18 @@ export const es = {
     "joinedRecently": "Se unió recientemente",
     "joinedDate": "Se unió el {{date}}",
     "leaveGroup": "Salir del grupo",
-    "leaveGroupLeaderMessage": "Como líder, salir transferirá el liderazgo al miembro más antiguo. ¿Estás seguro?",
+    "leaveGroupLeaderMessage": "Si sales como líder, el liderazgo pasará al siguiente miembro con más antigüedad. ¿Estás seguro?",
     "leaveGroupMemberMessage": "¿Estás seguro de que quieres salir de este grupo?",
     "leave": "Salir",
     "session": {
       "title": "Sesión de grupo",
       "lookBack": "Mirar atrás",
-      "lookUp": "Mirar arriba",
+      "lookUp": "Mirar hacia Dios",
       "lookForward": "Mirar adelante",
       "duration5min": "~5 minutos",
       "duration10min": "~10 minutos",
       "saving": "Guardando...",
-      "completeSession": "Completar sesión",
+      "completeSession": "Completar reunión",
       "syncedNotice": "Completar esta sesión guardará un registro sincronizado para tu grupo con sesión iniciada.",
       "lookBackDescription": "Comienza verificando cómo todos aplicaron la lección de la semana pasada. Esto genera responsabilidad y celebra la obediencia.",
       "lookBackQ1": "¿Cómo obedeciste lo que aprendiste la última vez?",
@@ -1465,7 +1743,7 @@ export const es = {
       "commitTogether": "Comprométanse juntos:",
       "lookForwardQ1": "\"Lo haré...\" - ¿Cómo obedecerás esta enseñanza?",
       "lookForwardQ2": "\"Lo compartiré con...\" - ¿A quién le enseñarás esto?",
-      "closingPrayer": "Cierren en oración. Pide a Dios que ayude a cada persona a obedecer y compartir lo que aprendió. Ora por las personas con las que compartirán."
+      "closingPrayer": "Terminen con una oración. Pidan a Dios que ayude a cada persona a obedecer y compartir lo aprendido. Oren por las personas con quienes compartirán."
     },
     "syncSession": {
       "unavailableTitle": "Sesión sincronizada no disponible",
@@ -1489,7 +1767,7 @@ export const es = {
     "publicDomain": "Dominio público",
     "cloudLibrary": "Biblioteca en la nube",
     "downloading": "Descargando...",
-    "downloadPrompt": "¿Descargar {{name}} (~{{size}} MB) para leer sin conexión?",
+    "downloadPrompt": "¿Descargar el texto de {{name}} (~{{size}} MB) para leer sin conexión?",
     "deleteConfirmTitle": "Eliminar traducción",
     "deleteConfirmMessage": "¿Eliminar los datos descargados de {{name}}? Puedes volver a descargarla cuando quieras.",
     "cancelDownload": "Cancelar descarga",

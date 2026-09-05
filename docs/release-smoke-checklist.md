@@ -10,7 +10,13 @@ Run:
 npm run release:verify
 ```
 
-This release gate runs lint, typecheck, release metadata contracts, and the focused `test:release` suite that covers the highest-signal startup, auth, sync, reading, audio, and group logic checks.
+This release gate runs `npm run verify:workspace` (mobile, admin, and site lint/typecheck plus all maintained workspace tests), followed by Expo config validation. Release metadata and signing contracts are part of the workspace test suite.
+
+`npm test` discovers `*.test.ts`, `*.test.tsx`, `*.test.js`, `*.test.mjs`, and `*.test.cjs` under `src`, `apps/admin`, `apps/site`, `packages`, `supabase/functions`, and `scripts`. Generated output and dependency directories are excluded. Operational scripts without the `.test.*` suffix are never executed. Run this command from the repository root; `npm run test:release` remains available as a faster focused regression suite.
+
+The workspace runner enables Node's experimental module mocking so behavioral tests that isolate native dependencies execute instead of skipping. Use Node 22, matching CI.
+
+Pull requests run the reusable **Verify Workspace** workflow. Main pushes and manual Android releases call that same workflow before the Android build job can start. CI uses Node 22 and the repository's npm 11.11.0 version. A failed gate blocks the build; repository branch protection must separately require the verification check to block merges.
 
 ## Manual Device Gates
 
@@ -23,6 +29,7 @@ This release gate runs lint, typecheck, release metadata contracts, and the focu
 - Stream audio, pause/seek, and confirm offline download playback still works after reconnects and app backgrounding.
 - Open the Harvest tab, confirm local groups remain visible, and verify synced-group session completion only appears when backend and sign-in prerequisites are satisfied.
 - Reconnect from offline to online and confirm sync resumes without duplicate progress or broken preference state.
+- Select an Every Language audio translation, download a book, fully quit, and relaunch offline. Confirm the selection and download markers remain. Reconnect with one catalog source unavailable and confirm the other source's cached entries remain visible; retry when the source recovers.
 
 ## Distribution Gates
 

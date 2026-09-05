@@ -465,7 +465,28 @@ const sanitizeRuntimeTranslation = (value: unknown): BibleTranslation | null => 
   const copyright = sanitizeRequiredString(value.copyright);
   const totalBooks = sanitizeOptionalFiniteNumber(value.totalBooks);
   const sizeInMB = sanitizeOptionalFiniteNumber(value.sizeInMB);
-  const catalog = sanitizeTranslationCatalog(value.catalog);
+  const rawCatalog = value.catalog;
+  // Older EL builds persisted zero text books and a blank catalog timestamp. Migrate only
+  // that known shape; epoch explicitly means unknown legacy time until a verified catalog
+  // refresh supplies generatedAt. All other timestamp and audio validation stays intact.
+  const isLegacyElCatalog =
+    Boolean(normalizedId && /^(el-|lq)[a-z0-9][a-z0-9-]*$/.test(normalizedId)) &&
+    totalBooks === 0 &&
+    value.hasText === false &&
+    value.hasAudio === true &&
+    isRecord(rawCatalog) &&
+    rawCatalog.updatedAt === '' &&
+    rawCatalog.text == null &&
+    isRecord(rawCatalog.audio) &&
+    rawCatalog.audio.strategy === 'el-manifest' &&
+    rawCatalog.version === rawCatalog.audio.audioVersion;
+  const catalog = sanitizeTranslationCatalog(
+    isLegacyElCatalog ? { ...rawCatalog, updatedAt: '1970-01-01T00:00:00.000Z' } : rawCatalog
+  );
+  const isElAudioOnly =
+    value.hasText === false &&
+    value.hasAudio === true &&
+    catalog?.audio?.strategy === 'el-manifest';
 
   if (
     !normalizedId ||
@@ -477,7 +498,8 @@ const sanitizeRuntimeTranslation = (value: unknown): BibleTranslation | null => 
     !copyright ||
     totalBooks === null ||
     !Number.isInteger(totalBooks) ||
-    totalBooks <= 0 ||
+    totalBooks < 0 ||
+    (totalBooks === 0 && !isElAudioOnly) ||
     sizeInMB === null ||
     sizeInMB < 0 ||
     typeof value.hasText !== 'boolean' ||

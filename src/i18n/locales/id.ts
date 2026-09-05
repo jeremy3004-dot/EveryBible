@@ -1,23 +1,299 @@
 export const id = {
+  interface: {
+    "close": "Tutup",
+    "share": "Bagikan",
+    "minutesShort": "{{count}} mnt",
+    "hoursShort": "{{count}} jam",
+    "daysShort": "{{count}} hr",
+    "hoursMinutes": "{{hours}} jam {{minutes}} mnt",
+    "justNow": "Baru saja",
+    "minutesAgo": "{{count}} mnt lalu",
+    "hoursAgo": "{{count}} jam lalu",
+    "daysAgo": "{{count}} hari lalu",
+    "activePrayerCount": "{{count}} aktif",
+    "groupShareMessage": "Bergabunglah dengan kelompok pemuridan saya \"{{name}}\" di EveryBible!\n\nKode bergabung: {{code}}",
+    "groupAboutTitle": "Tentang pertemuan kelompok",
+    "groupAboutBody": "Pertemuan kelompok memakai pola tiga bagian (3/3) yang digunakan dalam gerakan pemuridan di seluruh dunia:",
+    "groupLookBack": "Bagaimana Anda taat? Kepada siapa Anda berbagi?",
+    "groupLookUp": "Baca dan diskusikan firman Tuhan bersama",
+    "groupLookForward": "Bagaimana Anda akan taat? Kepada siapa Anda akan bercerita?",
+    "backgroundMusicLabel": "Musik latar: {{name}}",
+    "backgroundMusicHint": "Membuka pilihan musik latar",
+    "repeatHint": "Beralih antara tanpa pengulangan, ulangi pasal, dan ulangi kitab",
+    "shareAudioHint": "Membuka pilihan berbagi audio untuk pasal ini",
+    "playChapterAudio": "Putar audio pasal",
+    "pauseChapterAudio": "Jeda audio pasal",
+    "previousChapterHint": "Buka pasal sebelumnya",
+    "chapterRange": "Pasal {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} kitab ({{percent}}%)",
+    "currentPlanDay": "Hari rencana saat ini: {{day}}",
+    "planDay": "Hari {{day}}",
+    "planSessionForDay": "{{session}} untuk hari {{day}}",
+    "music": {
+      "off": {
+        "label": "Nonaktif",
+        "description": "Putar firman Tuhan tanpa musik latar bawaan."
+      },
+      "ambient": {
+        "label": "Suasana",
+        "description": "Lapisan nada dan lonceng bernuansa bawah air berulang mengiringi narasi."
+      },
+      "piano": {
+        "label": "Piano",
+        "description": "Melodi piano lembut dengan lapisan nada ringan."
+      },
+      "soft-guitar": {
+        "label": "Gitar lembut",
+        "description": "Iringan gitar nilon berulang yang tidak mengganggu."
+      },
+      "harp": {
+        "label": "Harpa",
+        "description": "Tema harpa solo ringan dengan nuansa renungan yang lembut."
+      },
+      "flute": {
+        "label": "Seruling",
+        "description": "Putaran pendek seruling dengan suasana fantasi yang lembut."
+      },
+      "sitar": {
+        "label": "Sitar",
+        "description": "Tekstur sitar hangat bernuansa gurun untuk mendengarkan lebih lama."
+      },
+      "ocean-waves": {
+        "label": "Ombak laut",
+        "description": "Deburan ombak pantai berulang untuk latar yang lebih tenang."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "Doa pagi Katolik",
+        "description": "Awali hari mengikuti ibadat pagi dengan pujian, kidung, dan berkat Injil.",
+        "tradition": "Katolik",
+        "historicRoots": "Ibadat harian"
+      },
+      "catholic-daytime-prayer": {
+        "title": "Doa siang Katolik",
+        "description": "Ibadat tengah hari singkat dengan mazmur pendek dan kembali terarah kepada Allah.",
+        "tradition": "Katolik",
+        "historicRoots": "Ibadat harian"
+      },
+      "catholic-evening-prayer": {
+        "title": "Doa sore Katolik",
+        "description": "Akhiri hari mengikuti ibadat sore dengan mazmur, syukur, dan Kidung Maria.",
+        "tradition": "Katolik",
+        "historicRoots": "Ibadat harian"
+      },
+      "catholic-night-prayer": {
+        "title": "Doa malam Katolik",
+        "description": "Ritme doa sebelum tidur untuk percaya, memohon perlindungan, dan berserah dengan damai.",
+        "tradition": "Katolik",
+        "historicRoots": "Ibadat penutup"
+      },
+      "catholic-lectio-divina": {
+        "title": "Lectio Divina Katolik",
+        "description": "Ritme membaca perlahan untuk merenung, berdoa, dan berdiam dalam teks.",
+        "tradition": "Katolik",
+        "historicRoots": "Lectio Divina"
+      },
+      "ignatian-daily-examen": {
+        "title": "Pemeriksaan batin harian Ignasian",
+        "description": "Urutan refleksi akhir hari melalui syukur, tinjauan, dan pertobatan.",
+        "tradition": "Katolik",
+        "historicRoots": "Spiritualitas Ignasian"
+      },
+      "anglican-morning-prayer": {
+        "title": "Doa pagi Anglikan",
+        "description": "Doa pagi berbentuk ibadat harian dengan mazmur dan ajaran Injil untuk menyambut hari.",
+        "tradition": "Anglikan",
+        "historicRoots": "Buku Doa Umum"
+      },
+      "anglican-noonday-prayer": {
+        "title": "Doa tengah hari Anglikan",
+        "description": "Jeda doa singkat di tengah hari dengan mazmur pertolongan dan pengharapan akan roti hidup.",
+        "tradition": "Anglikan",
+        "historicRoots": "Doa harian"
+      },
+      "anglican-evening-prayer": {
+        "title": "Doa sore Anglikan",
+        "description": "Alur klasik ibadat sore dengan mazmur petang dan Kidung Maria.",
+        "tradition": "Anglikan",
+        "historicRoots": "Buku Doa Umum"
+      },
+      "anglican-compline": {
+        "title": "Ibadat penutup Anglikan",
+        "description": "Ibadat malam yang lembut untuk pengakuan dosa, kepercayaan, dan istirahat.",
+        "tradition": "Anglikan",
+        "historicRoots": "Buku Doa Umum"
+      },
+      "orthodox-morning-rule": {
+        "title": "Aturan doa pagi Ortodoks",
+        "description": "Aturan doa fajar dengan pertobatan, belas kasih, dan doa yang Yesus ajarkan.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Doa-doa pagi"
+      },
+      "orthodox-sixth-hour": {
+        "title": "Doa jam keenam Ortodoks",
+        "description": "Jeda ibadat tengah hari untuk mengingat sengsara Kristus dan berjaga-jaga.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Jam-jam doa"
+      },
+      "orthodox-vespers": {
+        "title": "Ibadat sore Ortodoks",
+        "description": "Persembahan sore dengan pujian atas ciptaan, mazmur saat pelita dinyalakan, dan firman.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Ibadat sore harian"
+      },
+      "orthodox-small-compline": {
+        "title": "Ibadat penutup singkat Ortodoks",
+        "description": "Ibadat malam hening untuk belas kasih, perlindungan, dan doa terakhir sebelum tidur.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Ibadat penutup"
+      },
+      "benedictine-sacred-reading": {
+        "title": "Pembacaan suci Benediktin",
+        "description": "Ritme yang berfokus pada bacaan, terinspirasi waktu lectio tetap dan perhatian yang tenang.",
+        "tradition": "Benediktin",
+        "historicRoots": "Peraturan Santo Benediktus"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "Mazmur dan kerja Benediktin",
+        "description": "Urutan praktis untuk doa, kerja, dan ketaatan yang tenang sepanjang hari.",
+        "tradition": "Benediktin",
+        "historicRoots": "Berdoa dan bekerja"
+      },
+      "taize-evening-prayer": {
+        "title": "Doa sore Taizé",
+        "description": "Malam dengan nyanyian dan keheningan melalui mazmur, bacaan, dan ketenangan.",
+        "tradition": "Taizé",
+        "historicRoots": "Doa bersama di Taizé"
+      },
+      "lutheran-morning-devotion": {
+        "title": "Renungan pagi Lutheran",
+        "description": "Ritme pagi keluarga melalui firman, hafalan, dan doa yang tekun.",
+        "tradition": "Lutheran",
+        "historicRoots": "Renungan harian keluarga"
+      },
+      "lutheran-close-of-day": {
+        "title": "Penutup hari Lutheran",
+        "description": "Renungan malam sederhana untuk pengakuan dosa, perlindungan, dan pemeliharaan Kristus.",
+        "tradition": "Lutheran",
+        "historicRoots": "Renungan harian keluarga"
+      },
+      "puritan-family-worship": {
+        "title": "Ibadah keluarga Puritan",
+        "description": "Malam yang berpusat pada keluarga dengan doa, pujian, firman, dan percakapan yang saleh.",
+        "tradition": "Puritan",
+        "historicRoots": "Pedoman Ibadah Keluarga"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "Renungan",
+        "description": "Renungan singkat yang berfokus pada ajaran Yesus."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "Diberkati dalam kerajaan yang menjungkirbalikkan nilai dunia",
+        "summary": "Renungkan ucapan bahagia dan perhatikan bagaimana Yesus membentuk kembali keinginan kita.",
+        "actionLabel": "Baca pasal"
+      },
+      "mat-plans": {
+        "title": "Rencana",
+        "description": "Jalur sederhana untuk membaca Matius dengan tujuan yang jelas."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "Ritme kerajaan dalam Matius",
+        "summary": "Tujuh hari melalui identitas, doa, belas kasih, misi, dan pengharapan kebangkitan.",
+        "actionLabel": "Buka pasal pertama"
+      },
+      "jhn-playlists": {
+        "title": "Daftar putar",
+        "description": "Jalur mendengarkan pilihan melalui bagian-bagian utama Yohanes."
+      },
+      "jhn-playlist-signs": {
+        "title": "Tanda-tanda Yesus",
+        "summary": "Jalur terpandu melalui tanda-tanda yang menyatakan identitas Kristus.",
+        "actionLabel": "Mulai daftar putar"
+      },
+      "gal-devotionals": {
+        "title": "Renungan",
+        "description": "Renungan singkat untuk membaca Galatia dengan sikap berdoa."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "Bukan lagi hamba",
+        "summary": "Renungkan pengangkatan sebagai anak, warisan, dan sambutan Bapa.",
+        "actionLabel": "Baca pasal"
+      },
+      "gal-plans": {
+        "title": "Rencana",
+        "description": "Jalur singkat dan terstruktur melalui surat ini."
+      },
+      "gal-plan-six-days": {
+        "title": "Satu pasal sehari: Galatia",
+        "summary": "Baca satu pasal setiap hari dan ikuti uraian Paulus tanpa terburu-buru.",
+        "actionLabel": "Buka pasal pertama"
+      },
+      "psa-playlists": {
+        "title": "Daftar putar",
+        "description": "Jalur doa untuk beragam keadaan emosi."
+      },
+      "psa-playlist-morning": {
+        "title": "Perlindungan pagi",
+        "summary": "Jalur singkat melalui mazmur kepercayaan untuk memulai hari.",
+        "actionLabel": "Mulai daftar putar"
+      },
+      "psa-playlist-repentance": {
+        "title": "Mazmur pertobatan",
+        "summary": "Berdoa dengan kejujuran, pengakuan dosa, dan pemulihan.",
+        "actionLabel": "Mulai daftar putar"
+      },
+      "psa-devotionals": {
+        "title": "Renungan",
+        "description": "Renungan hening untuk berdoa dengan Mazmur secara perlahan."
+      },
+      "psa-devotional-shepherd": {
+        "title": "Gembala yang memulihkan",
+        "summary": "Berdiam dalam Mazmur 23 sampai menjadi doa, bukan sekadar slogan.",
+        "actionLabel": "Baca mazmur"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "Teks Berean domain publik dengan audio pasal langsung berlisensi CC0",
+      "web": "Teks edisi Britania dan audio pasal domain publik dari pustaka EveryBible",
+      "kjv": "Terjemahan King James resmi tahun 1611",
+      "asv": "Revisi KJV terbitan 1901, teks sudah terpasang",
+      "bbe": "Menggunakan kosakata terbatas agar mudah dibaca",
+      "sparv1909": "Alkitab Spanyol klasik — teks domain publik",
+      "hincv": "Terjemahan Hindi Kontemporer — domain publik",
+      "npiulb": "Alkitab terjemahan harfiah terbuka — domain publik"
+    },
+    "audioUnavailableTranslation": "Audio tidak tersedia untuk terjemahan ini.",
+    "audioUnavailableChapter": "Audio tidak tersedia untuk pasal ini.",
+    "audioPlayFailed": "Audio ini tidak dapat diputar. Silakan coba lagi.",
+    nativePermissions: {
+      "NSCameraUsageDescription": "Izinkan Every Bible mengakses kamera jika Anda memilih mengambil foto profil.",
+      "NSMicrophoneUsageDescription": "Izinkan Every Bible merekam tanggapan suara untuk masukan pasal.",
+      "NSPhotoLibraryUsageDescription": "Izinkan Every Bible mengakses perpustakaan foto agar Anda dapat memilih foto profil.",
+      "NSFaceIDUsageDescription": "Izinkan Every Bible menggunakan Face ID untuk melindungi data masuk yang tersimpan."
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "Antrean masukan",
+    subtitle: "Pasal dengan masukan untuk ditinjau",
+    empty: "Semua sudah ditinjau. Tidak ada masukan yang menunggu.",
+    pendingCount: "{{count}} pasal perlu ditinjau",
+    chapterCounts: "{{down}} perlu diperbaiki · {{up}} perlu dikonfirmasi",
+    openLabel: "Buka {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "Masukan saya",
+    settingsRow: "Masukan saya",
+    settingsRowSummary: "Lihat tindak lanjut tim penerjemah atas catatan Anda",
+    subtitle: "Tindak lanjut tim penerjemah atas masukan pasal Anda",
+    empty: "Anda belum mengirim masukan tentang pasal.",
+    signInRequired: "Masuk untuk melihat masukan yang telah Anda kirim.",
+    audioLabel: "Catatan suara terlampir",
+    statusReceived: "Diterima",
+    statusFixed: "Diperbaiki",
+    statusNoChange: "Ditinjau — tanpa perubahan",
   },
   "common": {
     "cancel": "Membatalkan",
@@ -27,7 +303,7 @@ export const id = {
     "retry": "Mencoba kembali",
     "loading": "Memuat...",
     "continue": "Melanjutkan",
-    "save": "Menyimpan",
+    "save": "Simpan",
     "delete": "Menghapus",
     "edit": "Sunting",
     "back": "Kembali",
@@ -62,12 +338,12 @@ export const id = {
     "welcome": "Selamat datang di Every Bible",
     "beginToday": "Mulai hari ini",
     "todaysScripture": "Bacaan Hari Ini",
-    "verseOfTheDay": "Ayat Hari Ini",
+    "verseOfTheDay": "Ayat hari ini",
     "sectionOfTheDay": "Bagian Hari Ini",
     "sectionOfTheDayBody": "Pilihan hari ini tersedia sebagai audio untuk bab ini, meskipun teks tertulis belum ditambahkan.",
     "verseAudioBody": "Ayat hari ini tersedia dalam bentuk audio, sehingga Anda dapat mendengarkannya bahkan sebelum teks tertulis ditambahkan.",
     "playSectionOfTheDay": "Mainkan Bagian Hari Ini",
-    "playVerseOfTheDay": "Mainkan Ayat Hari Ini",
+    "playVerseOfTheDay": "Putar ayat hari ini",
     "continueReading": "Lanjutkan Membaca",
     "sharePrompt": "Bagikan terang. Semangati seseorang hari ini.",
     "plan": "Rencana",
@@ -75,7 +351,7 @@ export const id = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "Bidang {{number}}",
     "notificationSettings": "Pengaturan notifikasi",
-    "chaptersRead": "Bab Baca",
+    "chaptersRead": "Pasal yang dibaca",
     "today": "Hari ini",
     "week": "Pekan",
     "month": "Bulan",
@@ -119,9 +395,9 @@ export const id = {
     "finish": "Selesaikan penyiapan"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "Audio ini tidak dapat diputar. Coba lagi.",
+    chapterFeedbackSuccessTitle: "Masukan terkirim",
+    readerFontsAndSettings: "Font dan pengaturan",
     "title": "Alkitab",
     "oldTestament": "Perjanjian Lama",
     "fontsAndSettings": "Font & Pengaturan",
@@ -147,12 +423,12 @@ export const id = {
     "searchUnavailable": "Penelusuran teks lengkap belum tersedia untuk terjemahan ini.",
     "noVersesAvailable": "{{book}} {{chapter}} belum memiliki teks tertulis.",
     "fullBibleComingSoon": "Bab ini tidak tersedia dalam bentuk teks saat ini. Jika audio tersedia, Every Bible akan membuka pengalaman mendengarkan.",
-    "audioOnlyTitle": "Bab audio pertama",
+    "audioOnlyTitle": "Pasal dengan audio sebagai pilihan utama",
     "audioOnlyBody": "{{translation}} saat ini tersedia sebagai audio untuk bab ini sementara teks tertulis masih disiapkan.",
-    "verseCount_one": "{{count}} Ayat",
-    "verseCount_other": "{{count}} Ayat",
-    "listen": "Mendengarkan",
-    "read": "Membaca",
+    "verseCount_one": "{{count}} ayat",
+    "verseCount_other": "{{count}} ayat",
+    "listen": "Dengarkan",
+    "read": "Baca",
     "removeFromFavorites": "Hapus dari favorit",
     "addToFavorites": "Tambahkan ke favorit",
     "addToSavedPlaylist": "Tambahkan ke daftar putar yang disimpan",
@@ -167,21 +443,21 @@ export const id = {
       "GEN": "Kejadian",
       "EXO": "Keluaran",
       "LEV": "Imamat",
-      "NUM": "Nomor",
+      "NUM": "Bilangan",
       "DEU": "Ulangan",
       "JOS": "Yosua",
-      "JDG": "Juri",
+      "JDG": "Hakim-hakim",
       "RUT": "Rut",
-      "1SA": "1 Samuel __ CTX_Bible_book __",
-      "2SA": "2 Samuel __ CTX_Bible_book __",
-      "1KI": "1 Raja",
-      "2KI": "2 Raja",
+      "1SA": "1 Samuel",
+      "2SA": "2 Samuel",
+      "1KI": "1 Raja-raja",
+      "2KI": "2 Raja-raja",
       "1CH": "1 Tawarikh",
       "2CH": "2 Tawarikh",
-      "EZR": "Ezra __ CTX_Bible_book __",
+      "EZR": "Ezra",
       "NEH": "Nehemia",
       "EST": "Ester",
-      "JOB": "Pekerjaan",
+      "JOB": "Ayub",
       "PSA": "Mazmur",
       "PRO": "Amsal",
       "ECC": "Pengkhotbah",
@@ -190,24 +466,24 @@ export const id = {
       "JER": "Yeremia",
       "LAM": "Ratapan",
       "EZK": "Yehezkiel",
-      "DAN": "Daniel __ CTX_Bible_book __",
-      "HOS": "Hosea __ CTX_Bible_book __",
-      "JOL": "Joel __ CTX_Bible_book __",
-      "AMO": "Amos __ CTX_Bible_book __",
+      "DAN": "Daniel",
+      "HOS": "Hosea",
+      "JOL": "Yoel",
+      "AMO": "Amos",
       "OBA": "Obaja",
       "JON": "Yunus",
       "MIC": "Mikha",
-      "NAM": "Nahum __ CTX_Bible_book __",
+      "NAM": "Nahum",
       "HAB": "Habakuk",
       "ZEP": "Zefanya",
       "HAG": "Hagai",
       "ZEC": "Zakharia",
       "MAL": "Maleakhi",
       "MAT": "Matius",
-      "MRK": "Tandai",
+      "MRK": "Markus",
       "LUK": "Lukas",
       "JHN": "Yohanes",
-      "ACT": "Kisah",
+      "ACT": "Kisah Para Rasul",
       "ROM": "Roma",
       "1CO": "1 Korintus",
       "2CO": "2 Korintus",
@@ -219,7 +495,7 @@ export const id = {
       "2TH": "2 Tesalonika",
       "1TI": "1 Timotius",
       "2TI": "2 Timotius",
-      "TIT": "Titus __ CTX_Bible_book __",
+      "TIT": "Titus",
       "PHM": "Filemon",
       "HEB": "Ibrani",
       "JAS": "Yakobus",
@@ -232,49 +508,49 @@ export const id = {
       "REV": "Wahyu"
     },
     "chapterFeedback": "Umpan balik bab",
-    "chapterFeedbackTitle": "Bagikan masukan tentang bab ini",
+    "chapterFeedbackTitle": "Tinjau bagian ini",
     "chapterFeedbackBody": "Beri tahu kami apakah bab ini bermanfaat atau ada yang bisa diperbaiki. Komentar bersifat opsional.",
     "chapterFeedbackThumbsUp": "Bermanfaat",
     "chapterFeedbackThumbsDown": "Perlu pekerjaan",
     "chapterFeedbackPlaceholder": "Komentar opsional tentang bab ini",
     "chapterFeedbackSelectionHint": "Ketuk yang disukai atau yang tidak disukai untuk menambahkan catatan opsional.",
     "chapterFeedbackSubmit": "Kirim masukan",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "Rekam tanggapan suara sebagai gantinya",
+    "chapterFeedbackAudioRecording": "Merekam {{duration}}",
+    "chapterFeedbackAudioReady": "Tanggapan suara siap: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, maksimal 1 menit",
+    "chapterFeedbackAudioRecord": "Rekam suara",
+    "chapterFeedbackAudioStop": "Hentikan",
+    "chapterFeedbackAudioPreview": "Dengarkan tanggapan suara",
+    "chapterFeedbackAudioRerecord": "Rekam ulang tanggapan suara",
+    "chapterFeedbackAudioUploading": "Mengunggah audio...",
+    "chapterFeedbackAudioPermissionDenied": "Akses mikrofon dinonaktifkan. Anda masih dapat mengetik tanggapan.",
+    "chapterFeedbackAudioPermissionHelp": "Aktifkan akses mikrofon di pengaturan sistem untuk mengirim masukan suara.",
+    "chapterFeedbackAudioStartError": "Tidak dapat memulai rekaman. Anda masih dapat mengetik tanggapan.",
+    "chapterFeedbackAudioStopError": "Tidak dapat menyelesaikan rekaman ini. Coba lagi.",
+    "chapterFeedbackAudioRecordingMissing": "Rekaman tidak dapat disimpan. Coba lagi.",
+    "chapterFeedbackAudioUploadError": "Unggahan audio gagal. Rekaman Anda masih tersimpan; coba kirim lagi.",
     "chapterFeedbackSuccess": "Terima kasih atas tanggapan Anda. Kiriman Anda telah diterima dan akan ditinjau oleh tim terjemahan kami sesegera mungkin.",
     "chapterFeedbackSignInRequired": "Silakan masuk sebelum mengirim umpan balik bab.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "Tinjauan keakuratan",
+    "translatorReviewSummary": "Keputusan tertunda: {{pending}} dari {{count}}",
+    "translatorReviewSummaryComplete": "Semua tinjauan keakuratan telah diproses",
+    "translatorReviewLoading": "Memuat masukan...",
+    "translatorReviewEmpty": "Belum ada masukan untuk pasal ini.",
+    "translatorReviewUnknownUser": "Kontributor tidak dikenal",
+    "translatorReviewUnread": "Perlu keputusan",
+    "translatorReviewSubmittedAt": "Dikirim {{date}}",
+    "translatorReviewSubmittedBy": "Dikirim oleh {{name}}",
+    "translatorReviewNoComment": "Tidak ada masukan tertulis.",
+    "translatorReviewFixed": "Diperbaiki",
+    "translatorReviewConfirmedAccurate": "Dikonfirmasi akurat",
+    "translatorReviewReviewed": "Tidak perlu perubahan",
+    "translatorReviewConfirmAccurate": "Konfirmasi keakuratan",
+    "translatorReviewMarkFixed": "Tandai sudah diperbaiki",
+    "translatorReviewNoActionNeeded": "Tidak perlu tindakan",
+    "translatorReviewReopen": "Buka kembali",
+    "translatorReviewListened": "Sudah didengarkan",
+    "translatorReviewListen": "Dengarkan",
     "translatorReviewPause": "Jeda",
     "nextChapterHint": "Lanjut ke bab berikutnya",
     "openBookAndChapterPickerHint": "Membuka pemilih buku dan bab",
@@ -387,16 +663,16 @@ export const id = {
     "chapterFeedback": "Umpan balik bab",
     "chapterFeedbackSummaryOn": "Masukan bab opsional aktif",
     "chapterFeedbackSummaryOff": "Masukan bab opsional tidak aktif",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "Akses penerjemah",
+    "translatorAccessTitle": "Akses penerjemah",
+    "translatorAccessBody": "Masukkan kode sandi penerjemah untuk meninjau masukan pasal di perangkat ini.",
+    "translatorAccessPlaceholder": "Kode sandi",
+    "translatorAccessUnlock": "Buka akses",
+    "translatorAccessIncorrect": "Kode sandi penerjemah tidak benar.",
+    "translatorAccessEnabled": "Mode tinjauan penerjemah diaktifkan",
+    "translatorAccessEnabledBody": "Halaman pasal kini menampilkan alat tinjauan masukan penerjemah.",
+    "translatorAccessSummaryOn": "Alat tinjauan penerjemah aktif",
+    "translatorAccessSummaryOff": "Masukkan kode sandi untuk mengaktifkan alat tinjauan",
   },
   "notifications": {
     "channelDailyReminder": "Pengingat Bacaan Harian",
@@ -480,8 +756,8 @@ export const id = {
     "readingActivity": "Aktivitas Membaca",
     "readingActivitySubtitle": "Lihat hari-hari membaca Anda dan lihat sekilas.",
     "readingDays": "Hari Membaca",
-    "chaptersRead": "Bab Baca",
-    "chapterRead": "Bab Baca",
+    "chaptersRead": "Pasal yang dibaca",
+    "chapterRead": "Pasal yang dibaca",
     "selectedDay": "Hari yang Dipilih",
     "tapDayHint": "Ketuk hari yang ditandai untuk melihat detailnya.",
     "noReadingActivityTitle": "Belum ada aktivitas membaca",
@@ -652,11 +928,11 @@ export const id = {
     "dayOf": "Hari {{current}} dari {{total}}",
     "markComplete": "Tandai Selesai",
     "completed": "Selesai",
-    "progress": "Kemajuan",
+    "progress": "Progres",
     "noPlans": "Tidak ada rencana membaca yang tersedia",
     "noActivePlans": "Anda belum memulai rencana apa pun",
     "findPlans": "Temukan Rencana",
-    "saved": "Disimpan",
+    "saved": "Tersimpan",
     "completions": "{{count}} selesai",
     "saveForLater": "Simpan Untuk Nanti",
     "unsave": "Belum disimpan",
@@ -674,7 +950,7 @@ export const id = {
     "dayLabel": "Hari {{day}}",
     "chapterProgress": "{{current}} dari {{total}}",
     "nextChapterCta": "Bab selanjutnya",
-    "completeDayCta": "Selesaikan hari",
+    "completeDayCta": "Selesaikan bacaan hari ini",
     "listenChapterCounted": "{{reference}} dihitung untuk paket hari ini",
     "dailyTargetCompleteTitle": "Bacaan harian selesai",
     "dailyTargetCompleteBody": "Anda telah menyelesaikan pembacaan rencana hari ini. Kami akan membawa Anda kembali ke rencana Anda sehingga Anda dapat melihat kemajuan Anda.",
@@ -695,19 +971,19 @@ export const id = {
       "description": "Telusuri Matius, Markus, Lukas, dan Yohanes dalam dua bulan."
     },
     "proverbs31": {
-      "title": "Amsal dalam 31 Hari",
-      "description": "Satu pasal Amsal setiap hari selama satu bulan penuh hikmah."
+      "title": "Pasal Amsal harian",
+      "description": "Baca pasal Amsal sesuai tanggal hari ini, diulang setiap bulan."
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "Baca kathismata pagi dan malam yang ditentukan untuk setiap hari kerja, berulang setiap minggu."
+      "description": "Baca bagian Mazmur yang ditetapkan setiap pagi dan sore pada hari kerja, diulang setiap minggu."
     },
     "chronological": {
       "title": "Alkitab Kronologis",
       "description": "Bacalah Alkitab sesuai urutan terjadinya peristiwa, dari Kejadian hingga Wahyu."
     },
     "epistles30": {
-      "title": "Surat dalam 30 Hari",
+      "title": "Surat-surat rasuli dalam 30 hari",
       "description": "Bacalah surat Paulus, Petrus, Yakobus, dan Yohanes dalam satu bulan."
     },
     "sermonMount7": {
@@ -733,19 +1009,19 @@ export const id = {
     "rhythmNamePlaceholder": "Biarkan kosong untuk nama otomatis",
     "rhythmPlanCount": "{{count}} rencana",
     "rhythmItemCount": "{{count}} item",
-    "includedPlans": "Paket Termasuk",
+    "includedPlans": "Rencana bacaan yang disertakan",
     "includedItems": "Item yang disertakan",
-    "availablePlans": "Paket yang Tersedia",
+    "availablePlans": "Rencana bacaan tersedia",
     "rhythmsIntro": "Bangun alur pagi, siang, atau malam yang berulang dengan memadukan kemajuan rencana dengan petikan tulisan suci khusus.",
     "rhythmSlotPrompt": "Pilih jenis aliran yang ingin Anda bangun terlebih dahulu.",
     "rhythmSlotActive": "{{name}} dipilih",
     "selected": "Terpilih",
     "continueRhythm": "Lanjutkan Irama",
     "nextUp": "Selanjutnya: {{value}}",
-    "openRhythm": "Buka Irama",
+    "openRhythm": "Buka ritme",
     "deleteRhythm": "Hapus Irama",
-    "emptyRhythmPlans": "Tambahkan setidaknya satu rencana untuk mempertahankan ritme ini.",
-    "emptyRhythmItems": "Tambahkan setidaknya satu rencana atau bagian untuk mempertahankan ritme ini.",
+    "emptyRhythmPlans": "Tambahkan setidaknya satu rencana untuk menyimpan ritme ini.",
+    "emptyRhythmItems": "Tambahkan setidaknya satu rencana atau bagian Alkitab untuk menyimpan ritme ini.",
     "alreadyInAnotherRhythm": "Rencana ini sudah berada dalam ritme yang berbeda.",
     "planUnavailableForRhythm": "Hanya terdaftar, rencana aktif dapat ditambahkan ke ritme.",
     "rhythmDaySummary": "Hari ini: {{day}}",
@@ -753,10 +1029,10 @@ export const id = {
     "rhythmPlanSource": "Paket {{count}} hari",
     "rhythmPassageLabel": "{{count}} bab",
     "planItemLabel": "Rencana",
-    "passageItemLabel": "Jalan",
+    "passageItemLabel": "Bagian Alkitab",
     "addPassage": "Tambahkan petikan tulisan suci",
-    "addPassageToRhythm": "Tambahkan bagian ke ritme",
-    "repeatablePassage": "Bagian yang berulang",
+    "addPassageToRhythm": "Tambahkan bagian Alkitab ke ritme",
+    "repeatablePassage": "Bagian Alkitab yang dapat diulang",
     "startChapterLabel": "Mulai bab",
     "endChapterLabel": "Akhir bab",
     "maxChapterHint": "{{count}} bab tersedia",
@@ -859,7 +1135,7 @@ export const id = {
     },
     "otIn90Days": {
       "title": "Perjanjian Lama dalam 90 Hari",
-      "description": "Seluruh 929 pasal PL dalam 90 hari — sekitar 10 pasal per hari. Komitmen yang serius."
+      "description": "Baca seluruh 929 pasal Perjanjian Lama dalam 90 hari, sekitar 10 pasal per hari. Komitmen yang sungguh-sungguh."
     },
     "pentateuch30Days": {
       "title": "Pentateukh dalam 30 Hari",
@@ -878,7 +1154,7 @@ export const id = {
       "description": "Bacalah ke-13 surat Paulus — Roma sampai Filemon — dalam satu bulan."
     },
     "acts28Days": {
-      "title": "Bertindak dalam 28 Hari",
+      "title": "Kisah Para Rasul dalam 28 hari",
       "description": "Satu pasal Kisah Para Rasul per hari — ikuti perkembangan gereja mula-mula dari Yerusalem ke Roma."
     },
     "revelation22Days": {
@@ -895,15 +1171,15 @@ export const id = {
     "sessionUpcoming": "akan datang",
     "morningAndEveningPrayer": {
       "title": "Doa pagi dan malam",
-      "description": "Mulai dan akhiri setiap hari selama tujuh hari dengan bacaan doa pagi dan malam."
+      "description": "Awali dan akhiri setiap hari dengan mazmur, bacaan Injil, dan ayat malam."
     },
     "prayerOfTheHours": {
       "title": "Doa pada jam-jam tertentu",
-      "description": "Atur ritme harimu selama tujuh hari dengan bacaan doa pagi, tengah hari, dan malam."
+      "description": "Jalani bacaan pagi, tengah hari, dan malam yang dibentuk oleh mazmur, Injil, dan surat-surat rasuli."
     }
   },
   "annotations": {
-    "title": "Catatan & Sorotan Saya",
+    "title": "Catatan dan sorotan saya",
     "bookmarks": "Bookmark",
     "highlights": "Highlight",
     "notes": "Catatan",
@@ -917,7 +1193,7 @@ export const id = {
     "noHighlights": "Belum ada sorotan",
     "noNotes": "Belum ada catatan",
     "noteHint": "Tuliskan pemikiran Anda...",
-    "saved": "Disimpan",
+    "saved": "Tersimpan",
     "colors": {
       "yellow": "Kuning",
       "green": "Hijau",
@@ -1016,18 +1292,18 @@ export const id = {
   },
   "engagement": {
     "title": "Perjalanan Anda",
-    "chaptersRead": "Bab Baca",
+    "chaptersRead": "Pasal yang dibaca",
     "listeningTime": "Waktu Mendengarkan",
     "currentStreak": "Garis Saat Ini",
     "longestStreak": "Garis Terpanjang",
     "plansCompleted": "Rencana Selesai",
     "engagementScore": "Skor Keterlibatan",
-    "annotationsCreated": "Catatan & Sorotan",
-    "minutes": "min __ CTX_UI_LABEL __",
+    "annotationsCreated": "Catatan dan sorotan",
+    "minutes": "mnt",
     "hours": "jam",
     "days": "hari",
     "totalChapters": "Jumlah Bab",
-    "totalListening": "Mendengarkan Total"
+    "totalListening": "Total waktu mendengarkan"
   },
   "translations": {
     "title": "Terjemahan Alkitab",
@@ -1043,7 +1319,7 @@ export const id = {
     "publicDomain": "Domain Publik",
     "cloudLibrary": "Perpustakaan Awan",
     "downloading": "Mengunduh...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "Unduh teks tertulis {{name}} (sekitar {{size}} MB) untuk dibaca tanpa internet?",
     "deleteConfirmTitle": "Hapus Terjemahan",
     "deleteConfirmMessage": "Hapus data yang diunduh untuk {{name}}? Anda dapat mengunduh ulang kapan saja.",
     "cancelDownload": "Batalkan unduhan",

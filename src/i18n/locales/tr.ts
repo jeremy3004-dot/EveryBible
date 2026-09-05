@@ -1,39 +1,315 @@
 export const tr = {
+  interface: {
+    nativePermissions: {
+      "NSCameraUsageDescription": "Profil fotoğrafı çekmeyi seçerseniz Every Bible’ın kameranıza erişmesine izin verin.",
+      "NSMicrophoneUsageDescription": "Every Bible’ın bölümler hakkındaki geri bildirimler için sesli yanıtlar kaydetmesine izin verin.",
+      "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçebilmek için Every Bible’ın fotoğraf arşivinize erişmesine izin verin.",
+      "NSFaceIDUsageDescription": "Every Bible’ın kayıtlı oturum açma bilgilerinizi korumak için Face ID kullanmasına izin verin."
+    },
+    "close": "Kapat",
+    "share": "Paylaş",
+    "minutesShort": "{{count}} dk",
+    "hoursShort": "{{count}} sa",
+    "daysShort": "{{count}} gün",
+    "hoursMinutes": "{{hours}} sa {{minutes}} dk",
+    "justNow": "Az önce",
+    "minutesAgo": "{{count}} dk önce",
+    "hoursAgo": "{{count}} sa önce",
+    "daysAgo": "{{count}} gün önce",
+    "activePrayerCount": "Etkin: {{count}}",
+    "groupShareMessage": "EveryBible’da «{{name}}» adlı öğrencilik grubuma katılın!\n\nKatılım kodu: {{code}}",
+    "groupAboutTitle": "Grup buluşmaları hakkında",
+    "groupAboutBody": "Grup buluşmalarında, dünya genelindeki öğrenci yetiştirme hareketlerinde kullanılan üçte üç biçimi uygulanır:",
+    "groupLookBack": "Nasıl itaat ettiniz? Kiminle paylaştınız?",
+    "groupLookUp": "Kutsal Yazıları birlikte okuyun ve üzerinde konuşun",
+    "groupLookForward": "Nasıl itaat edeceksiniz? Kime anlatacaksınız?",
+    "backgroundMusicLabel": "Arka plan müziği: {{name}}",
+    "backgroundMusicHint": "Arka plan müziği seçimini açar",
+    "repeatHint": "Tekrar kapalı, bölümü tekrarla ve kitabı tekrarla seçenekleri arasında geçiş yapar",
+    "shareAudioHint": "Bu bölümün sesini paylaşma seçeneklerini açar",
+    "playChapterAudio": "Bölümün sesini oynat",
+    "pauseChapterAudio": "Bölümün sesini duraklat",
+    "previousChapterHint": "Önceki bölüme gider",
+    "chapterRange": "Bölümler {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} kitap (%{{percent}})",
+    "currentPlanDay": "Planın şu anki günü: {{day}}",
+    "planDay": "{{day}}. gün",
+    "planSessionForDay": "{{day}}. gün için {{session}}",
+    "music": {
+      "off": {
+        "label": "Kapalı",
+        "description": "Kutsal Yazıları uygulamadaki arka plan müziği olmadan dinleyin."
+      },
+      "ambient": {
+        "label": "Atmosferik",
+        "description": "Anlatımın altında döngüye giren su altı tınıları ve çan sesleri."
+      },
+      "piano": {
+        "label": "Piyano",
+        "description": "Hafif atmosferik seslerle yumuşak bir piyano melodisi."
+      },
+      "soft-guitar": {
+        "label": "Yumuşak gitar",
+        "description": "Dikkati dağıtmayan, döngüye giren naylon telli gitar eşliği."
+      },
+      "harp": {
+        "label": "Arp",
+        "description": "Yumuşak bir dua atmosferi oluşturan hafif solo arp melodisi."
+      },
+      "flute": {
+        "label": "Flüt",
+        "description": "Yumuşak, masalsı bir atmosfer oluşturan kısa flüt döngüsü."
+      },
+      "sitar": {
+        "label": "Sitar",
+        "description": "Uzun dinleme süreleri için çölü çağrıştıran sıcak sitar tınıları."
+      },
+      "ocean-waves": {
+        "label": "Okyanus dalgaları",
+        "description": "Daha sakin bir ses ortamı için döngüye giren kıyı dalgaları."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "Katolik sabah duası",
+        "description": "Övgü, ilahi ve Müjde bereketiyle laudes örneğinde bir başlangıç.",
+        "tradition": "Katolik",
+        "historicRoots": "Saatler Litürjisi"
+      },
+      "catholic-daytime-prayer": {
+        "title": "Katolik gündüz duası",
+        "description": "Kısa mezmurlarla ve Tanrı’ya düzenli yönelişle şekillenen kısa bir öğle duası.",
+        "tradition": "Katolik",
+        "historicRoots": "Saatler Litürjisi"
+      },
+      "catholic-evening-prayer": {
+        "title": "Katolik akşam duası",
+        "description": "Mezmurlar, şükran ve Magnificat ile akşam ibadetinden esinlenen bir gün sonu.",
+        "tradition": "Katolik",
+        "historicRoots": "Saatler Litürjisi"
+      },
+      "catholic-night-prayer": {
+        "title": "Katolik gece duası",
+        "description": "Uyumadan önce güven, korunma ve huzurlu teslimiyet için bir düzen.",
+        "tradition": "Katolik",
+        "historicRoots": "Gece duası"
+      },
+      "catholic-lectio-divina": {
+        "title": "Katolik Lectio Divina",
+        "description": "Derin düşünme, dua ve metin üzerinde kalmak için daha yavaş bir okuma düzeni.",
+        "tradition": "Katolik",
+        "historicRoots": "Lectio Divina"
+      },
+      "ignatian-daily-examen": {
+        "title": "İgnatiusçu günlük vicdan muhasebesi",
+        "description": "Şükran, günü değerlendirme ve tövbe etrafında şekillenen gün sonu tefekkürü.",
+        "tradition": "Katolik",
+        "historicRoots": "İgnatiusçu maneviyat"
+      },
+      "anglican-morning-prayer": {
+        "title": "Anglikan sabah duası",
+        "description": "Önümüzdeki gün için mezmurlar ve Müjde öğretisiyle şekillenen sabah ibadeti.",
+        "tradition": "Anglikan",
+        "historicRoots": "Ortak Dua Kitabı"
+      },
+      "anglican-noonday-prayer": {
+        "title": "Anglikan öğle duası",
+        "description": "Yardım isteyen mezmurlar ve yaşam ekmeğine duyulan umutla gün ortasında kısa bir dua molası.",
+        "tradition": "Anglikan",
+        "historicRoots": "Günlük dua"
+      },
+      "anglican-evening-prayer": {
+        "title": "Anglikan akşam duası",
+        "description": "Akşam mezmurları ve Meryem’in ilahisiyle klasik akşam duası düzeni.",
+        "tradition": "Anglikan",
+        "historicRoots": "Ortak Dua Kitabı"
+      },
+      "anglican-compline": {
+        "title": "Anglikan gece duası",
+        "description": "İtiraf, güven ve dinlenme için sakin bir gece ibadeti.",
+        "tradition": "Anglikan",
+        "historicRoots": "Ortak Dua Kitabı"
+      },
+      "orthodox-morning-rule": {
+        "title": "Ortodoks sabah dua düzeni",
+        "description": "Tövbe, merhamet ve İsa’nın öğrettiği duayla şekillenen şafak dua düzeni.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Sabah duaları"
+      },
+      "orthodox-sixth-hour": {
+        "title": "Ortodoks altıncı saat duası",
+        "description": "Mesih’in çektiği acıları ve uyanıklığı hatırlatan öğle ibadeti molası.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Dua saatleri"
+      },
+      "orthodox-vespers": {
+        "title": "Ortodoks akşam duası",
+        "description": "Yaratılışa övgü, kandil ışığında mezmurlar ve Tanrı’nın Sözü ile bir akşam sunusu.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Günlük akşam duası"
+      },
+      "orthodox-small-compline": {
+        "title": "Ortodoks küçük gece duası",
+        "description": "Merhamet, sığınak ve uyku öncesi son dualar için sakin bir gece ibadeti.",
+        "tradition": "Ortodoks",
+        "historicRoots": "Gece duası"
+      },
+      "benedictine-sacred-reading": {
+        "title": "Benedikten kutsal okuma",
+        "description": "Sabit kutsal okuma saatlerinden ve sakin dikkatten esinlenen bir okuma düzeni.",
+        "tradition": "Benedikten",
+        "historicRoots": "Aziz Benedikt’in Kuralı"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "Benedikten mezmur ve çalışma",
+        "description": "Gün boyunca dua, çalışma ve sakin itaat için uygulanabilir bir sıra.",
+        "tradition": "Benedikten",
+        "historicRoots": "Dua et ve çalış"
+      },
+      "taize-evening-prayer": {
+        "title": "Taizé akşam duası",
+        "description": "Mezmur, okuma ve dinginlik etrafında ilahi ve sessizlikle geçen bir akşam.",
+        "tradition": "Taizé",
+        "historicRoots": "Taizé’de ortak dua"
+      },
+      "lutheran-morning-devotion": {
+        "title": "Lutherci sabah ibadeti",
+        "description": "Kutsal Yazılar, ezber ve düzenli dua isteyen aileler için güne başlama düzeni.",
+        "tradition": "Lutherci",
+        "historicRoots": "Aileler için günlük ibadet"
+      },
+      "lutheran-close-of-day": {
+        "title": "Lutherci gün sonu ibadeti",
+        "description": "İtiraf, sığınak ve Mesih’in koruması için sade bir gece ibadeti.",
+        "tradition": "Lutherci",
+        "historicRoots": "Aileler için günlük ibadet"
+      },
+      "puritan-family-worship": {
+        "title": "Püriten aile ibadeti",
+        "description": "Dua, övgü, Kutsal Yazılar ve Tanrı’ya yönelen sohbetle evde geçirilen bir akşam.",
+        "tradition": "Püriten",
+        "historicRoots": "Aile İbadeti Rehberi"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "Günlük ruhsal okumalar",
+        "description": "İsa’nın öğretisine bağlı kısa düşünceler."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "Değerleri altüst eden egemenlikte ne mutlu olanlar",
+        "summary": "Mutluluk sözleri üzerinde durun ve İsa’nın arzularımızı nasıl değiştirdiğini fark edin.",
+        "actionLabel": "Bölümü oku"
+      },
+      "mat-plans": {
+        "title": "Planlar",
+        "description": "Matta’yı belirli bir amaçla okumak için sade yollar."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "Matta’da egemenlik düzeni",
+        "summary": "Kimlik, dua, merhamet, görev ve diriliş umudu üzerine yedi gün.",
+        "actionLabel": "İlk bölümü aç"
+      },
+      "jhn-playlists": {
+        "title": "Çalma listeleri",
+        "description": "Yuhanna’nın ana bölümlerinden özenle seçilmiş dinleme yolları."
+      },
+      "jhn-playlist-signs": {
+        "title": "İsa’nın belirtileri",
+        "summary": "Mesih’in kimliğini açığa çıkaran belirtiler boyunca rehberli bir yol.",
+        "actionLabel": "Çalma listesini başlat"
+      },
+      "gal-devotionals": {
+        "title": "Günlük ruhsal okumalar",
+        "description": "Galatyalılar’ı dua ederek okumak için kısa düşünceler."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "Artık köle değiliz",
+        "summary": "Evlat edinilme, miras ve Baba’nın kabulü üzerinde durun.",
+        "actionLabel": "Bölümü oku"
+      },
+      "gal-plans": {
+        "title": "Planlar",
+        "description": "Mektup boyunca kısa ve düzenli okuma yolları."
+      },
+      "gal-plan-six-days": {
+        "title": "Günde bir bölüm: Galatyalılar",
+        "summary": "Her gün bir bölüm okuyun ve Pavlus’un düşüncelerini acele etmeden izleyin.",
+        "actionLabel": "İlk bölümü aç"
+      },
+      "psa-playlists": {
+        "title": "Çalma listeleri",
+        "description": "Farklı duygu dönemleri için dua yolları."
+      },
+      "psa-playlist-morning": {
+        "title": "Sabah sığınağı",
+        "summary": "Güne başlamak için güven mezmurlarından geçen kısa bir yol.",
+        "actionLabel": "Çalma listesini başlat"
+      },
+      "psa-playlist-repentance": {
+        "title": "Tövbe mezmurları",
+        "summary": "Dürüstlükle, itirafla ve yenilenme isteğiyle dua edin.",
+        "actionLabel": "Çalma listesini başlat"
+      },
+      "psa-devotionals": {
+        "title": "Günlük ruhsal okumalar",
+        "description": "Mezmurlarla yavaşça dua etmek için sakin düşünceler."
+      },
+      "psa-devotional-shepherd": {
+        "title": "Yenileyen Çoban",
+        "summary": "23. Mezmur bir slogan değil, bir dua olana kadar onun üzerinde durun.",
+        "actionLabel": "Mezmuru oku"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "Kamu malı Berean metni ve doğrudan CC0 bölüm sesleri",
+      "web": "EveryBible kitaplığından kamu malı Britanya baskısı metni ve bölüm sesleri",
+      "kjv": "1611 tarihli yetkili Kral James Çevirisi",
+      "asv": "KJV’nin 1901’de yayımlanan gözden geçirilmiş sürümü; metin önceden yüklüdür",
+      "bbe": "Kolay okuma için sınırlı bir sözcük dağarcığı kullanır",
+      "sparv1909": "Klasik İspanyolca Kutsal Kitap — kamu malı metin",
+      "hincv": "Çağdaş Hintçe Çeviri — kamu malı",
+      "npiulb": "Açık Sözcüğü Sözcüğüne Kutsal Kitap — kamu malı"
+    },
+    "audioUnavailableTranslation": "Bu çeviri için ses mevcut değil.",
+    "audioUnavailableChapter": "Bu bölüm için ses mevcut değil.",
+    "audioPlayFailed": "Bu sesi oynatamadık. Lütfen tekrar deneyin."
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "İncelenecek geri bildirimler",
+    subtitle: "Geri bildirim bekleyen bölümler",
+    empty: "Her şey güncel. Bekleyen geri bildirim yok.",
+    pendingCount: "İncelenecek bölüm: {{count}}",
+    chapterCounts: "Düzeltilecek: {{down}} · Onaylanacak: {{up}}",
+    openLabel: "{{reference}} aç",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "Geri bildirimlerim",
+    settingsRow: "Geri bildirimlerim",
+    settingsRowSummary: "Çeviri ekibinin notlarınızı nasıl değerlendirdiğini görün",
+    subtitle: "Çeviri ekibinin bölüm geri bildirimlerinizi nasıl değerlendirdiği",
+    empty: "Henüz hiçbir bölüm için geri bildirim göndermediniz.",
+    signInRequired: "Gönderdiğiniz geri bildirimleri görmek için giriş yapın.",
+    audioLabel: "Sesli not eklendi",
+    statusReceived: "Alındı",
+    statusFixed: "Düzeltildi",
+    statusNoChange: "İncelendi — değişiklik yapılmadı",
   },
   "common": {
-    "cancel": "İptal etmek",
-    "ok": "TAMAM",
-    "done": "Tamamlamak",
+    "cancel": "İptal",
+    "ok": "Tamam",
+    "done": "Tamam",
     "error": "Hata",
     "retry": "Yeniden dene",
     "loading": "Yükleniyor...",
-    "continue": "Devam etmek",
-    "save": "Kaydetmek",
-    "delete": "Silmek",
-    "edit": "Düzenlemek",
+    "continue": "Devam et",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "edit": "Düzenle",
     "back": "Geri",
     "next": "Sonraki",
-    "previous": "Öncesi",
-    "search": "Aramak",
+    "previous": "Önceki",
+    "search": "Ara",
     "settings": "Ayarlar",
     "comingSoon": "Yakında gelecek",
     "available": "Mevcut",
@@ -46,11 +322,11 @@ export const tr = {
     "all": "Tüm"
   },
   "tabs": {
-    "home": "Ev",
-    "bible": "İncil",
+    "home": "Ana sayfa",
+    "bible": "Kutsal Kitap",
     "harvest": "Hasat",
-    "gather": "Toplamak",
-    "more": "Daha",
+    "gather": "Buluşma",
+    "more": "Diğer",
     "plans": "Planlar"
   },
   "home": {
@@ -66,8 +342,8 @@ export const tr = {
     "sectionOfTheDay": "Günün Bölümü",
     "sectionOfTheDayBody": "Bugünün seçkisi, yazılı metin henüz eklenmemiş olsa bile, bu bölüm için sesli olarak mevcuttur.",
     "verseAudioBody": "Bugünün ayeti şu anda sesli olarak mevcuttur, böylece yazılı metin eklenmeden önce bile dinleyebilirsiniz.",
-    "playSectionOfTheDay": "Günün Oyun Bölümü",
-    "playVerseOfTheDay": "Günün Ayeti oyna",
+    "playSectionOfTheDay": "Günün bölümünü dinle",
+    "playVerseOfTheDay": "Günün ayetini dinle",
     "continueReading": "Okumaya Devam Et",
     "sharePrompt": "Işık paylaş. Bugün birini teşvik et.",
     "plan": "Plan",
@@ -81,21 +357,21 @@ export const tr = {
     "month": "Ay",
     "year": "Yıl",
     "defaultVerse": "Günümüzün Kutsal Yazılarını keşfetmek için okumaya veya dinlemeye başlayın.",
-    "defaultReference": "İncil'i aç"
+    "defaultReference": "Kutsal Kitap’ı aç"
   },
   "onboarding": {
     "title": "Kutsal Kitap Deneyiminizi Kurun",
-    "stepProgress": "{{count}}'in {{current}} Adımı",
-    "stepCountry": "{{count}}'in 1. Adımı",
-    "stepLanguage": "{{count}}'in 2. Adımı",
+    "stepProgress": "Adım {{current}} / {{count}}",
+    "stepCountry": "Adım 1 / {{count}}",
+    "stepLanguage": "Adım 2 / {{count}}",
     "stepPrivacy": "Adım 3/3",
     "interfaceLanguageTitle": "Arayüz dilinizi seçin",
     "interfaceLanguageBody": "Önce menüler, düğmeler ve ayarlar için dili seçin. Daha sonra tekrar değiştirebilirsiniz.",
-    "interfaceLanguageSearchPlaceholder": "Arama arayüzü dili",
+    "interfaceLanguageSearchPlaceholder": "Arayüz dili ara",
     "availableInterfaceLanguages": "Mevcut arayüz dilleri",
-    "countryTitle": "Milletinizi seçin",
+    "countryTitle": "Ülkenizi seçin",
     "countryBody": "Yakınınızdaki dilleri tavsiye etmek için önce ülkenizi kullanırız, bir yandan da dünya çapında arama yapmanıza izin veririz.",
-    "countrySearchPlaceholder": "Milletinizi arayın",
+    "countrySearchPlaceholder": "Ülkenizi arayın",
     "languageTitle": "Kutsal Kitap dilinizi seçin",
     "languageBody": "{{country}}'te konuşulan Kutsal Kitap dillerini öneriyoruz, ancak yine de sınırların ötesinde herhangi bir dili arayabilirsiniz.",
     "languageSearchPlaceholder": "Dilinizi arayın veya yazın",
@@ -105,7 +381,7 @@ export const tr = {
     "noLanguagesFoundBody": "Başka bir yazım deneyin veya İngilizce veya yerel alfabeyle arama yapın. Bulanık arama etkinleştirildi.",
     "recommendedBadge": "Tavsiye edilen",
     "interfaceAvailable": "Arayüz mevcut",
-    "privacyTitle": "Gizlilik stilinizi seçin",
+    "privacyTitle": "Simge seçin",
     "privacyBody": "Bu cihaz için simge stilini seçin. Gizli mod ayrıca uygulamadan çıktığınızda yerel bir kod kilidi de ekler.",
     "standardIconTitle": "Standart simge",
     "standardIconBody": "Normal Every Bible simgesini kullanın ve uygulamayı doğrudan açın.",
@@ -119,10 +395,10 @@ export const tr = {
     "finish": "Kurulumu bitir"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
-    "title": "İncil",
+    translatorReviewAudioError: "Bu ses oynatılamadı. Tekrar deneyin.",
+    chapterFeedbackSuccessTitle: "Geri bildirim gönderildi",
+    readerFontsAndSettings: "Yazı tipleri ve ayarlar",
+    "title": "Kutsal Kitap",
     "oldTestament": "Eski Ahit",
     "fontsAndSettings": "Yazı Tipleri ve Ayarlar",
     "allSettings": "Tüm Ayarlar",
@@ -147,12 +423,12 @@ export const tr = {
     "searchUnavailable": "Bu çeviri için henüz tam metin araması mevcut değil.",
     "noVersesAvailable": "{{book}} {{chapter}}'in henüz yazılı metni yok.",
     "fullBibleComingSoon": "Bu bölüm şu anda metin olarak mevcut değil. Ses mevcutsa Every Bible bunun yerine dinleme deneyimini açacaktır.",
-    "audioOnlyTitle": "Sesli ilk bölüm",
+    "audioOnlyTitle": "Öncelikle sesli bölüm",
     "audioOnlyBody": "{{translation}} şu anda bu bölüm için ses olarak mevcuttur ve yazılı metin henüz hazırlanma aşamasındadır.",
-    "verseCount_one": "{{count}} Ayet",
-    "verseCount_other": "{{count}} Ayetler",
-    "listen": "Dinlemek",
-    "read": "Okumak",
+    "verseCount_one": "{{count}} ayet",
+    "verseCount_other": "{{count}} ayet",
+    "listen": "Dinle",
+    "read": "Oku",
     "removeFromFavorites": "Favorilerden kaldır",
     "addToFavorites": "Favorilere ekle",
     "addToSavedPlaylist": "Kaydedilen oynatma listesine ekle",
@@ -168,45 +444,45 @@ export const tr = {
       "EXO": "Çıkış",
       "LEV": "Levililer",
       "NUM": "Sayılar",
-      "DEU": "Tesniye",
-      "JOS": "Joshua __ CTX_BIBLE_BOOK __",
+      "DEU": "Yasa’nın Tekrarı",
+      "JOS": "Yeşu",
       "JDG": "Yargıçlar",
-      "RUT": "Ruth __ CTX_BIBLE_BOOK __",
-      "1SA": "1 Samuel __ CTX_BIBLE_BOOK __",
-      "2SA": "2 Samuel __ CTX_BIBLE_BOOK __",
-      "1KI": "1 Kral",
-      "2KI": "2 Kral",
+      "RUT": "Rut",
+      "1SA": "1 Samuel",
+      "2SA": "2 Samuel",
+      "1KI": "1 Krallar",
+      "2KI": "2 Krallar",
       "1CH": "1 Tarihler",
       "2CH": "2 Tarihler",
-      "EZR": "Ezra __ CTX_BIBLE_BOOK __",
+      "EZR": "Ezra",
       "NEH": "Nehemya",
-      "EST": "Esther __ CTX_BIBLE_BOOK __",
-      "JOB": "İş",
+      "EST": "Ester",
+      "JOB": "Eyüp",
       "PSA": "Mezmurlar",
-      "PRO": "Atasözleri",
-      "ECC": "Vaizler",
-      "SNG": "Süleyman'ın Şarkısı",
-      "ISA": "İşaya",
+      "PRO": "Süleyman’ın Özdeyişleri",
+      "ECC": "Vaiz",
+      "SNG": "Ezgiler Ezgisi",
+      "ISA": "Yeşaya",
       "JER": "Yeremya",
       "LAM": "Ağıtlar",
       "EZK": "Hezekiel",
-      "DAN": "Daniel __ CTX_BIBLE_BOOK __",
+      "DAN": "Daniel",
       "HOS": "Hoşea",
-      "JOL": "Joel __ CTX_BIBLE_BOOK __",
-      "AMO": "Amos __ CTX_BIBLE_BOOK __",
-      "OBA": "Obadiah __ CTX_BIBLE_BOOK __",
+      "JOL": "Yoel",
+      "AMO": "Amos",
+      "OBA": "Ovadya",
       "JON": "Yunus",
-      "MIC": "Micah __ CTX_BIBLE_BOOK __",
-      "NAM": "Nahum __ CTX_BIBLE_BOOK __",
-      "HAB": "Habakkuk __ CTX_BIBLE_BOOK __",
+      "MIC": "Mika",
+      "NAM": "Nahum",
+      "HAB": "Habakkuk",
       "ZEP": "Zefanya",
-      "HAG": "Haggai __ CTX_BIBLE_BOOK __",
+      "HAG": "Hagay",
       "ZEC": "Zekeriya",
       "MAL": "Malaki",
       "MAT": "Matta",
-      "MRK": "'u işaretleyin",
+      "MRK": "Markos",
       "LUK": "Luka",
-      "JHN": "John __ CTX_BIBLE_BOOK __",
+      "JHN": "Yuhanna",
       "ACT": "Elçilerin İşleri",
       "ROM": "Romalılar",
       "1CO": "1 Korintliler",
@@ -219,16 +495,16 @@ export const tr = {
       "2TH": "2 Selanikliler",
       "1TI": "1 Timoteos",
       "2TI": "2 Timoteos",
-      "TIT": "Titus __ CTX_BIBLE_BOOK __",
-      "PHM": "Philemon __ CTX_BIBLE_BOOK __",
+      "TIT": "Titus",
+      "PHM": "Filimon",
       "HEB": "İbraniler",
-      "JAS": "James __ CTX_BIBLE_BOOK __",
-      "1PE": "1 Peter __ CTX_BIBLE_BOOK __",
-      "2PE": "2 Peter __ CTX_BIBLE_BOOK __",
-      "1JN": "1 John __ CTX_BIBLE_BOOK __",
-      "2JN": "2 John __ CTX_BIBLE_BOOK __",
-      "3JN": "3 John __ CTX_BIBLE_BOOK __",
-      "JUD": "Jude __ CTX_BIBLE_BOOK __",
+      "JAS": "Yakup",
+      "1PE": "1 Petrus",
+      "2PE": "2 Petrus",
+      "1JN": "1 Yuhanna",
+      "2JN": "2 Yuhanna",
+      "3JN": "3 Yuhanna",
+      "JUD": "Yahuda",
       "REV": "Vahiy"
     },
     "chapterFeedback": "Bölüm geri bildirimi",
@@ -239,42 +515,42 @@ export const tr = {
     "chapterFeedbackPlaceholder": "Bu bölüm hakkında isteğe bağlı yorum",
     "chapterFeedbackSelectionHint": "İsteğe bağlı bir not eklemek için beğenilenlere veya beğenilmeyenlere dokunun.",
     "chapterFeedbackSubmit": "Geri bildirim gönder",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
-    "chapterFeedbackSuccess": "Geri bildiriminiz için teşekkür ederiz. Gönderiminiz alındı ​​ve en kısa sürede çeviri ekiplerimiz tarafından incelenecek.",
+    "chapterFeedbackAudioIdle": "Bunun yerine sesli yanıt kaydet",
+    "chapterFeedbackAudioRecording": "Kaydediliyor: {{duration}}",
+    "chapterFeedbackAudioReady": "Sesli yanıt hazır: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, en fazla 1 dk",
+    "chapterFeedbackAudioRecord": "Ses kaydet",
+    "chapterFeedbackAudioStop": "Durdur",
+    "chapterFeedbackAudioPreview": "Sesli yanıtı dinle",
+    "chapterFeedbackAudioRerecord": "Sesli yanıtı yeniden kaydet",
+    "chapterFeedbackAudioUploading": "Ses yükleniyor...",
+    "chapterFeedbackAudioPermissionDenied": "Mikrofon erişimi kapalı. Yine de yazılı yanıt verebilirsiniz.",
+    "chapterFeedbackAudioPermissionHelp": "Sesli geri bildirim göndermek için sistem ayarlarından mikrofon erişimini açın.",
+    "chapterFeedbackAudioStartError": "Kayıt başlatılamadı. Yine de yazılı yanıt verebilirsiniz.",
+    "chapterFeedbackAudioStopError": "Bu kayıt tamamlanamadı. Lütfen tekrar deneyin.",
+    "chapterFeedbackAudioRecordingMissing": "Kayıt kaydedilemedi. Lütfen tekrar deneyin.",
+    "chapterFeedbackAudioUploadError": "Ses yüklenemedi. Kaydınız hâlâ burada; yeniden göndermeyi deneyin.",
+    "chapterFeedbackSuccess": "Geri bildiriminiz için teşekkür ederiz. Gönderiminiz alındı ve en kısa sürede çeviri ekiplerimiz tarafından incelenecek.",
     "chapterFeedbackSignInRequired": "Bölüm geri bildirimi göndermeden önce lütfen oturum açın.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "Çeviri geri bildirimlerini inceleme",
+    "translatorReviewSummary": "{{count}} geri bildirimin {{pending}} tanesi bekliyor",
+    "translatorReviewSummaryComplete": "Tüm doğruluk incelemeleri tamamlandı",
+    "translatorReviewLoading": "Geri bildirimler yükleniyor...",
+    "translatorReviewEmpty": "Bu bölüm için henüz geri bildirim gönderilmedi.",
+    "translatorReviewUnknownUser": "Bilinmeyen katkıda bulunan",
+    "translatorReviewUnread": "İncelenmeli",
+    "translatorReviewSubmittedAt": "Gönderildi: {{date}}",
+    "translatorReviewSubmittedBy": "Gönderen: {{name}}",
+    "translatorReviewNoComment": "Yazılı geri bildirim yok.",
+    "translatorReviewFixed": "Düzeltildi",
+    "translatorReviewConfirmedAccurate": "Doğruluğu onaylandı",
+    "translatorReviewReviewed": "İncelendi",
+    "translatorReviewConfirmAccurate": "Doğruluğunu onayla",
+    "translatorReviewMarkFixed": "Düzeltildi olarak işaretle",
+    "translatorReviewNoActionNeeded": "İşlem gerekmiyor",
+    "translatorReviewReopen": "Yeniden aç",
+    "translatorReviewListened": "Dinlendi",
+    "translatorReviewListen": "Dinle",
     "translatorReviewPause": "Duraklat",
     "nextChapterHint": "Bir sonraki bölüme gider",
     "openBookAndChapterPickerHint": "Kitabı ve bölüm seçiciyi açar",
@@ -288,7 +564,7 @@ export const tr = {
     "readyToResume": "Devam etmeye hazır",
     "repeatChapter": "Bölümü tekrarla",
     "repeatBook": "Kitabı tekrarla",
-    "repeatOff": "Tekrarla",
+    "repeatOff": "Tekrar kapalı",
     "showText": "Metin",
     "showTextHint": "Şu anda oynatılan bölümün Kutsal Kitap metnini açar",
     "musicAndSounds": "Müzik ve sesler",
@@ -301,9 +577,9 @@ export const tr = {
     "lockBody": "Bu cihaz gizli moddadır. Devam etmek için Every Bible'in kilidini açın.",
     "pinPlaceholder": "Kodunuza dokunun",
     "pinLengthHint": "4 ila 6 karakterlik kodunuzu kullanın.",
-    "unlock": "İncil'in kilidini aç",
-    "clearKey": "Temizlemek",
-    "deleteKey": "Silmek",
+    "unlock": "Kutsal Kitap’ın kilidini aç",
+    "clearKey": "Temizle",
+    "deleteKey": "Sil",
     "pinTooShort": "Güvenli kodunuz en az 4 karakter olmalıdır.",
     "pinTooLong": "Güvenli kodunuz 6 karakterden uzun olamaz.",
     "pinInvalidCharacters": "Yalnızca sayılara ve hesap makinesi simgelerine izin verilir.",
@@ -315,15 +591,15 @@ export const tr = {
     "reading": "Okuma",
     "hidePlayButtonFromReadingTab": "Okuma sekmesinden oynat düğmesini gizle",
     "language": "Arayüz dili",
-    "nationAndLanguage": "Ulus ve İncil dili",
+    "nationAndLanguage": "Ülke ve Kutsal Kitap dili",
     "fontSize": "Yazı Tipi Boyutu",
     "fontSizeSmall": "Küçük",
     "fontSizeMedium": "Orta",
     "fontSizeLarge": "Büyük",
     "darkMode": "Karanlık Mod",
     "themeMode": "Tema",
-    "themeDark": "Karanlık",
-    "themeLight": "Işık",
+    "themeDark": "Koyu",
+    "themeLight": "Açık",
     "themeLowLight": "Düşük ışık",
     "themeParchment": "Parşömen",
     "themeMidnight": "Gece yarısı",
@@ -335,8 +611,8 @@ export const tr = {
     "appearanceSapphireBody": "Güçlü kontrast ve canlılık hissi veren sakin mavi.",
     "appearanceTealTitle": "turkuaz",
     "appearanceTealBody": "Çok soğuk hissetmeden dengeli ve net.",
-    "appearanceOliveTitle": "Zeytin",
-    "appearanceOliveBody": "Yumuşak, kitapsı bir tonla dünyevi ve sessiz.",
+    "appearanceOliveTitle": "Zeytin yeşili",
+    "appearanceOliveBody": "Yumuşak, okumaya uygun bir tonda doğal ve sakin.",
     "notifications": "Bildirimler",
     "dailyReminder": "Günlük Hatırlatma",
     "reminderTime": "Hatırlatma Zamanı",
@@ -346,7 +622,7 @@ export const tr = {
     "downloadForOffline": "Çevrimdışı İndir",
     "clearCache": "Önbelleği Temizle",
     "clearCacheConfirm": "Bu, önbelleğe alınmış verileri temizleyecektir. Okuma ilerlemeniz korunacaktır.",
-    "clear": "Temizlemek",
+    "clear": "Temizle",
     "cacheClearedSuccess": "Önbellek başarıyla temizlendi",
     "cacheClearError": "Önbellek temizlenirken hata oluştu",
     "setReminderTime": "Hatırlatma Zamanını Ayarla",
@@ -354,8 +630,8 @@ export const tr = {
     "permissionRequired": "İzin Gerekli",
     "enableNotifications": "Günlük hatırlatıcılar almak için lütfen cihaz ayarlarınızda bildirimleri etkinleştirin.",
     "enableNotificationsMessage": "Günlük hatırlatıcılar almak için lütfen cihaz ayarlarınızda bildirimleri etkinleştirin.",
-    "notificationTitle": "Günlük İncil Okuması",
-    "notificationBody": "Günlük İncil okuma zamanı!",
+    "notificationTitle": "Günlük Kutsal Kitap okuması",
+    "notificationBody": "Günlük Kutsal Kitap okuma zamanı!",
     "selectLanguage": "Arayüz dilini seçin",
     "deleteAccount": "Hesabı Sil",
     "deleteAccountWarning": "Bu, hesabınızı ve okuma ilerleme durumu, tercihler ve senkronize edilen içerik dahil tüm ilişkili verileri kalıcı olarak silecektir. Bu eylem geri alınamaz.",
@@ -376,7 +652,7 @@ export const tr = {
       "exportHeader": "EveryBible tanılama raporu",
       "exportError": "Tanılama raporu paylaşılamadı.",
     },
-    "delete": "Silmek",
+    "delete": "Sil",
     "chapterFeedbackIdentity": "Geri bildirim kimliği",
     "chapterFeedbackIdentityTitle": "Bu geri bildirim kimden gelmeli?",
     "chapterFeedbackIdentityBody": "Her bölüm derecelendirmesinin Google E-Tablosunda doğru şekilde ilişkilendirilmesi için adınızı ve rolünüzü ekleyin.",
@@ -387,16 +663,16 @@ export const tr = {
     "chapterFeedback": "Bölüm geri bildirimi",
     "chapterFeedbackSummaryOn": "İsteğe bağlı bölüm geri bildirimi açık",
     "chapterFeedbackSummaryOff": "İsteğe bağlı bölüm geri bildirimi kapalı",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "Çevirmen erişimi",
+    "translatorAccessTitle": "Çevirmen erişimi",
+    "translatorAccessBody": "Bu cihazda bölüm geri bildirimlerini incelemek için çevirmen erişim kodunu girin.",
+    "translatorAccessPlaceholder": "Erişim kodu",
+    "translatorAccessUnlock": "Kilidi aç",
+    "translatorAccessIncorrect": "Çevirmen erişim kodu yanlış.",
+    "translatorAccessEnabled": "Çeviri inceleme modu etkinleştirildi",
+    "translatorAccessEnabledBody": "Bölüm ekranlarında artık çeviri geri bildirimlerini inceleme araçları gösterilecek.",
+    "translatorAccessSummaryOn": "Çeviri inceleme araçları açık",
+    "translatorAccessSummaryOff": "İnceleme araçlarını etkinleştirmek için erişim kodunu girin",
   },
   "notifications": {
     "channelDailyReminder": "Günlük Okuma Hatırlatıcısı",
@@ -439,8 +715,8 @@ export const tr = {
     "namePlaceholder": "Adınız",
     "nameRequired": "Ad gerekli",
     "signIn": "Oturum aç",
-    "signUp": "Üye olmak",
-    "createAccount": "Hesap oluşturmak",
+    "signUp": "Kayıt ol",
+    "createAccount": "Hesap oluştur",
     "forgotPassword": "Parolanızı mı unuttunuz?",
     "noAccount": "Hesabınız yok mu?",
     "dontHaveAccount": "Hesabınız yok mu?",
@@ -523,7 +799,7 @@ export const tr = {
     "journeyDescription": "Ulaşılmayanlara ulaşmaya odaklı bir yaklaşım",
     "fourFieldsJourney": "Dört Alan Yolculuğu",
     "fourFieldsDescription": "Öğrenci yetiştiren öğrenci yetiştirmek için tekrarlanabilir bir yol",
-    "lessonsCompleted": "{{total}} derslerinin {{completed}}'i",
+    "lessonsCompleted": "{{total}} dersin {{completed}} tanesi",
     "fieldsComplete": "{{count}}/5 tamamlandı",
     "startJourney": "Yolculuğa Başla",
     "continueJourney": "Yolculuğa Devam Et",
@@ -588,14 +864,14 @@ export const tr = {
     "fieldNotFound": "Alan bulunamadı",
     "goBack": "Geri gitmek",
     "completeAndContinue": "Tamamla ve Devam Et",
-    "completeLesson": "Dersi Tamamla",
+    "completeLesson": "Dersi tamamla",
     "studies": "Çalışmalar",
     "chapters": "Bölümler",
     "nowReading": "Şimdi İncil sekmesinde aç",
-    "openAndPlay": "Aç ve oyna",
+    "openAndPlay": "Aç ve dinle",
     "chapterStudiesSubtitle": "İncil'i tam bağlamla okumak ve dinlemek için tasarlanmış güncel bölüm çalışmaları.",
     "chapterStudiesBody": "Her çalışma tam bölümleri açarak ses çalma ve okumanın cihazlar arasında güvenilir ve bağlam içinde kalmasını sağlar.",
-    "playChapterSubtitle": "Aç ve oyna",
+    "playChapterSubtitle": "Aç ve dinle",
     "lessons": {
       "entry1": "Hasat için Dua",
       "entry2": "Oikos Haritanız",
@@ -651,8 +927,8 @@ export const tr = {
     "enrolled": "Kayıtlı",
     "dayOf": "{{total}} gününün {{current}}. günü",
     "markComplete": "Tamamlandı Olarak İşaretle",
-    "completed": "Tamamlanmış",
-    "progress": "İlerlemek",
+    "completed": "Tamamlandı",
+    "progress": "İlerleme",
     "noPlans": "Okuma planı yok",
     "noActivePlans": "Henüz herhangi bir plan başlatmadınız",
     "findPlans": "Plan Bul",
@@ -679,8 +955,8 @@ export const tr = {
     "dailyTargetCompleteTitle": "Günlük okuma tamamlandı",
     "dailyTargetCompleteBody": "Bugünün plan okumasını tamamladınız. İlerlemenizi görebilmeniz için sizi planınıza geri götüreceğiz.",
     "bibleIn1Year": {
-      "title": "Bir Yılda İncil",
-      "description": "Günlük Eski ve Yeni Ahit okumalarıyla İncil'in tamamını 365 gün içinde okuyun."
+      "title": "Bir Yılda Kutsal Kitap",
+      "description": "Günlük Eski ve Yeni Ahit okumalarıyla Kutsal Kitap’ın tamamını 365 gün içinde okuyun."
     },
     "newTestament90": {
       "title": "90 Günde Yeni Ahit",
@@ -692,18 +968,18 @@ export const tr = {
     },
     "gospels60": {
       "title": "60 Günde İnciller",
-      "description": "İki ay içinde Matta, Markos, Luka ve Yuhanna'yı yürüyün."
+      "description": "Matta, Markos, Luka ve Yuhanna’yı iki ayda okuyun."
     },
     "proverbs31": {
-      "title": "31 Günde Atasözleri",
-      "description": "Bir bilgelik ayı boyunca her gün Atasözleri'nden bir bölüm."
+      "title": "Özdeyişler’den Günlük Bölüm",
+      "description": "Özdeyişler’in bugünün ay içindeki tarihine karşılık gelen bölümünü okuyun ve her ay tekrarlayın."
     },
     "kathisma": {
       "title": "Kathisma",
       "description": "Her hafta tekrarlayarak, her hafta içi için belirlenen sabah ve akşam kathismata'larını okuyun."
     },
     "chronological": {
-      "title": "Kronolojik İncil",
+      "title": "Kronolojik Kutsal Kitap",
       "description": "Kutsal Kitabı Yaratılış'tan Vahiy'e kadar olayların meydana gelme sırasına göre okuyun."
     },
     "epistles30": {
@@ -718,7 +994,7 @@ export const tr = {
     "addFirstPlan": "İlk planınızı ekleyin",
     "completeDayHint": "Bugünkü okuma planının tamamlandığını işaretler",
     "rhythms": "Ritimler",
-    "createRhythm": "Ritim Yaratın",
+    "createRhythm": "Ritim oluştur",
     "editRhythm": "Ritmi Düzenle",
     "manageRhythm": "Ritmi Yönet",
     "morningRhythm": "Sabah Ritmi",
@@ -742,7 +1018,7 @@ export const tr = {
     "selected": "Seçildi",
     "continueRhythm": "Ritime Devam Et",
     "nextUp": "Sıradaki: {{value}}",
-    "openRhythm": "Açık Ritim",
+    "openRhythm": "Ritmi aç",
     "deleteRhythm": "Ritim Sil",
     "emptyRhythmPlans": "Bu ritmi kaydetmek için en az bir plan ekleyin.",
     "emptyRhythmItems": "Bu ritmi kaydetmek için en az bir plan veya pasaj ekleyin.",
@@ -752,13 +1028,13 @@ export const tr = {
     "rhythmSequence": "Ritim dizisi",
     "rhythmPlanSource": "{{count}} günlük plan",
     "rhythmPassageLabel": "{{count}} bölüm",
-    "planItemLabel": "Planı",
-    "passageItemLabel": "Geçit",
+    "planItemLabel": "Plan",
+    "passageItemLabel": "Pasaj",
     "addPassage": "Kutsal metin pasajı ekle",
     "addPassageToRhythm": "Ritme pasaj ekleyin",
-    "repeatablePassage": "Tekrarlanabilir geçiş",
-    "startChapterLabel": "Bölümü başlat",
-    "endChapterLabel": "Bölümü sonlandır",
+    "repeatablePassage": "Tekrarlanabilir pasaj",
+    "startChapterLabel": "Başlangıç bölümü",
+    "endChapterLabel": "Bitiş bölümü",
     "maxChapterHint": "{{count}} bölüm mevcut",
     "chooseBook": "Önce bir kitap seçin.",
     "chapterCount": "{{count}} bölüm",
@@ -789,7 +1065,7 @@ export const tr = {
       "description": "Kutsallık, itaat ve büyümeyle ilgili pasajlarla ayrılmış bir yaşamın peşinden gidin."
     },
     "greatCommissionAndMission": {
-      "title": "Büyük Komisyon ve Misyon",
+      "title": "Büyük Görev ve Müjdeleme",
       "description": "İbrahim'e verilen sözlerden dünyanın dört bir yanına kadar Tanrı'nın misyonunu takip edin."
     },
     "faithAndObedience": {
@@ -798,7 +1074,7 @@ export const tr = {
     },
     "hearingGodsVoice": {
       "title": "Tanrının Sesini Duymak",
-      "description": "Tanrı'yı ​​peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin."
+      "description": "Tanrı'yı peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin."
     },
     "categoryChronological": "Kronolojik",
     "categoryBookStudy": "Kitap çalışması",
@@ -806,16 +1082,16 @@ export const tr = {
     "categoryDevotional": "Adanmışlık",
     "timedChallenges": "Okuma Zorlukları",
     "bibleIn30Days": {
-      "title": "30 Günde Tam İncil",
-      "description": "Bir ay içinde İncil'in tamamını okuyun; günde yaklaşık 40 bölüm. Kutsal Yazılar'ın nihai sprint'i."
+      "title": "30 Günde Tam Kutsal Kitap",
+      "description": "Bir ay içinde Kutsal Kitap’ın tamamını okuyun; günde yaklaşık 40 bölüm. Kutsal Yazılar'ın nihai sprint'i."
     },
     "bibleIn90Days": {
-      "title": "90 Günde Tam İncil",
-      "description": "İncil'in 1.189 bölümünün tamamını, günde yaklaşık 13 bölüm olmak üzere 90 günde tamamlayın."
+      "title": "90 Günde Tam Kutsal Kitap",
+      "description": "Kutsal Kitap’ın 1.189 bölümünün tamamını, günde yaklaşık 13 bölüm olmak üzere 90 günde tamamlayın."
     },
     "bibleIn6Months": {
-      "title": "6 Ayda Tam İncil",
-      "description": "Günde yaklaşık 7 bölüm olmak üzere 180 günde tüm İncil'i disiplinli bir şekilde okuyarak."
+      "title": "6 Ayda Tam Kutsal Kitap",
+      "description": "Günde yaklaşık 7 bölüm olmak üzere 180 günde tüm Kutsal Kitap’ı disiplinli bir şekilde okuyarak."
     },
     "ntIn7Days": {
       "title": "7 Günde Yeni Ahit",
@@ -831,7 +1107,7 @@ export const tr = {
     },
     "ntIn6Months": {
       "title": "6 Ayda Yeni Ahit",
-      "description": "27 NT kitabının tamamını 180 gün içinde, günde yaklaşık 1-2 bölüm olacak şekilde, hafif bir tempoyla okuyun."
+      "description": "Yeni Antlaşma’nın 27 kitabının tamamını 180 günde, günde yaklaşık 1–2 bölüm okuyarak sakin bir tempoyla bitirin."
     },
     "gospels7Days": {
       "title": "7 Günde İnciller",
@@ -839,7 +1115,7 @@ export const tr = {
     },
     "gospels14Days": {
       "title": "2 Haftada İnciller",
-      "description": "Dört İncil'in tümünü 14 gün içinde, günde yaklaşık 6 bölüm boyunca yürüyün."
+      "description": "Dört İncil’in tamamını 14 günde, günde yaklaşık 6 bölüm okuyarak bitirin."
     },
     "gospels30Days": {
       "title": "30 Günde İnciller",
@@ -859,34 +1135,34 @@ export const tr = {
     },
     "otIn90Days": {
       "title": "90 Günde Eski Ahit",
-      "description": "929 OT bölümünün tamamı 90 günde - günde yaklaşık 10 bölüm. Ciddi bir taahhüt."
+      "description": "Eski Antlaşma’nın 929 bölümünün tamamı 90 günde; günde yaklaşık 10 bölüm. Ciddi bir bağlılık gerektirir."
     },
     "pentateuch30Days": {
-      "title": "30 Günde Pentateuch",
+      "title": "30 Günde Musa’nın Beş Kitabı",
       "description": "Yaratılış'tan Tesniye'ye kadar Musa'nın ilk beş kitabı bir ay içinde."
     },
     "wisdom30Days": {
       "title": "30 Günde Bilgelik Edebiyatı",
-      "description": "Eyüp, Mezmurlar, Atasözleri, Vaizler ve Süleyman'ın Şarkısı 30 günlük düşünme süresinde."
+      "description": "Eyüp, Mezmurlar, Süleyman’ın Özdeyişleri, Vaiz ve Ezgiler Ezgisi üzerine 30 günlük düşünme."
     },
     "prophets90Days": {
       "title": "90 Günde Peygamberler",
-      "description": "17 kehanet kitabının tamamı - Isaiah'tan Malachi'ye - odaklanılmış 90 günde."
+      "description": "Yeşaya’dan Malaki’ye kadar 17 peygamberlik kitabının tamamı, odaklanmış 90 günde."
     },
     "paulsLetters30Days": {
       "title": "Pavlus'un 30 Günde Mektupları",
       "description": "Pavlus'un Romalılardan Filimon'a kadar olan 13 mektubunun tamamını bir ay içinde okuyun."
     },
     "acts28Days": {
-      "title": "28 Gün İçinde Eyleme Geçer",
+      "title": "28 Günde Elçilerin İşleri",
       "description": "Her gün Elçilerin İşleri'nin bir bölümü — Kudüs'ten Roma'ya kadar ilk kiliseyi takip edin."
     },
     "revelation22Days": {
       "title": "22 Günde Vahiy",
-      "description": "Her gün bir Vahiy bölümü — Kutsal Yazıların son kitabını sabit bir hızla paketinden çıkarın."
+      "description": "Her gün Vahiy’den bir bölüm okuyarak Kutsal Yazıların son kitabını düzenli bir hızla keşfedin."
     },
     "completeSessionCta": "Oturumu tamamla",
-    "completeSessionHint": "Bu dua oturumunu tamamlandı olarak işaretle",
+    "completeSessionHint": "Bu dua oturumunu tamamlandı olarak işaretler ve bir sonrakine geçer",
     "searchPlansPlaceholder": "Plan ara",
     "noPlanSearchResults": "Eşleşen plan bulunamadı",
     "middayLabel": "Öğle",
@@ -895,26 +1171,26 @@ export const tr = {
     "sessionUpcoming": "yakında",
     "morningAndEveningPrayer": {
       "title": "Sabah ve akşam duası",
-      "description": "Yedi gün boyunca her günü sabah ve akşam dua okumalarıyla başlatıp bitirin."
+      "description": "Her güne mezmurlar, İncil okumaları ve akşam Kutsal Yazı okumalarıyla başlayıp günü bunlarla bitirin."
     },
     "prayerOfTheHours": {
       "title": "Saatlerin duası",
-      "description": "Yedi gün boyunca sabah, öğle ve akşam dua okumalarıyla gününüze ritim kazandırın."
+      "description": "Sabah, öğle ve akşam mezmurlar, İnciller ve mektuplardan oluşan okumaları izleyin."
     }
   },
   "annotations": {
-    "title": "Notlarım ve Öne Çıkanlar",
+    "title": "Notlarım ve vurgulamalarım",
     "bookmarks": "Yer imleri",
-    "highlights": "Öne Çıkanlar",
+    "highlights": "Vurgulamalar",
     "notes": "Notlar",
     "addNote": "Not Ekle",
     "addBookmark": "Yer imi",
     "highlight": "Vurgula",
     "editNote": "Notu Düzenle",
-    "deleteAnnotation": "Silmek",
+    "deleteAnnotation": "Sil",
     "noAnnotations": "Henüz ek açıklama yok",
     "noBookmarks": "Henüz yer işareti yok",
-    "noHighlights": "Henüz öne çıkan bir şey yok",
+    "noHighlights": "Henüz vurgulama yok",
     "noNotes": "Henüz not yok",
     "noteHint": "Düşüncelerinizi yazın...",
     "saved": "Kaydedildi",
@@ -935,9 +1211,9 @@ export const tr = {
     "loadingGroup": "Grup yükleniyor...",
     "groupNotFound": "Grup bulunamadı",
     "unableToLoadGroup": "Grup yüklenemiyor.",
-    "goBack": "Geri gitmek",
-    "joinCode": "Kodu Katıl",
-    "share": "Paylaşmak",
+    "goBack": "Geri dön",
+    "joinCode": "Katılım kodu",
+    "share": "Paylaş",
     "syncedProgress": "Oturumun kullanıma sunulması etkinleştirildikten sonra senkronize ilerleme görünecektir.",
     "lessonsCompleted_one": "{{count}} ders tamamlandı",
     "lessonsCompleted_other": "{{count}} ders tamamlandı",
@@ -954,25 +1230,25 @@ export const tr = {
     "joinedRecently": "Yakın zamanda katıldı",
     "joinedDate": "{{date}}'a katıldı",
     "leaveGroup": "Gruptan Ayrıl",
-    "leaveGroupLeaderMessage": "Lider olarak ayrılmak, liderliği bir sonraki en yaşlı üyeye devredecektir. Emin misin?",
+    "leaveGroupLeaderMessage": "Lider olarak ayrılırsanız liderlik, gruba en uzun süredir üye olan sıradaki kişiye geçer. Emin misiniz?",
     "leaveGroupMemberMessage": "Bu gruptan ayrılmak istediğinizden emin misiniz?",
-    "leave": "Ayrılmak",
+    "leave": "Ayrıl",
     "session": {
       "title": "Grup Oturumu",
       "lookBack": "Geriye Bak",
-      "lookUp": "Bakmak",
-      "lookForward": "Geleceğe bak",
+      "lookUp": "Tanrı’ya bak",
+      "lookForward": "İleriye bak",
       "duration5min": "~5 dakika",
       "duration10min": "~10 dakika",
       "saving": "Kaydediliyor...",
-      "completeSession": "Oturumu Tamamla",
+      "completeSession": "Buluşmayı tamamla",
       "syncedNotice": "Bu oturumu tamamladığınızda, oturum açtığınız grubunuz için senkronize edilmiş bir kayıt kaydedilecektir.",
       "lookBackDescription": "Herkesin geçen haftaki dersi nasıl uyguladığını kontrol ederek başlayın. Bu sorumluluk duygusu yaratır ve itaati kutlar.",
       "lookBackQ1": "Geçen sefer öğrendiklerine nasıl uydun?",
       "lookBackQ2": "Kiminle paylaştın? Ne oldu?",
       "lookBackQ3": "Hangi zorluklarla karşılaştınız?",
       "discussTogether": "Birlikte Tartışın:",
-      "lookBackTip": "Zaferleri kutlayın! İtaat edenleri teşvik edin. Bu hafta tekrar denemeyenleri nazikçe cesaretlendirin.",
+      "lookBackTip": "Başarıları kutlayın! İtaat edenleri teşvik edin. Uygulayamayanları bu hafta yeniden denemeleri için nazikçe cesaretlendirin.",
       "lookUpDescription": "Kutsal Yazıları birlikte okuyun ve Tanrı'nın ne öğrettiğini keşfedin.",
       "discoveryQuestions": "Keşif Soruları:",
       "lookUpQ1": "Bu pasaj Tanrı hakkında ne öğretiyor?",
@@ -986,7 +1262,7 @@ export const tr = {
       "commitTogether": "Birlikte Taahhüt Edin:",
       "lookForwardQ1": "\"Yapacağım...\" - Bu öğretiye nasıl itaat edeceksiniz?",
       "lookForwardQ2": "\"Şunlarla paylaşacağım...\" - Bunu kime öğreteceksin?",
-      "closingPrayer": "Dua ederek kapatın. Tanrı'dan herkesin itaat etmesine ve öğrendiklerini paylaşmasına yardım etmesini isteyin. Paylaşacakları insanlar için dua edin."
+      "closingPrayer": "Dua ederek bitirin. Tanrı’dan herkesin öğrendiklerine itaat etmesine ve bunları paylaşmasına yardım etmesini isteyin. Paylaşacakları kişiler için dua edin."
     },
     "syncSession": {
       "unavailableTitle": "Senkronize oturum kullanılamıyor",
@@ -999,15 +1275,15 @@ export const tr = {
   "prayer": {
     "title": "Dua Duvarı",
     "submitRequest": "Dua İsteğini Paylaş",
-    "requestPlaceholder": "Ne için dua etmek istersiniz?",
+    "requestPlaceholder": "Hangi konuda dua edilmesini istersiniz?",
     "prayed": "Dua ettim",
     "encouraged": "Teşvik edildi",
     "answered": "Yanıtlandı",
     "markAnswered": "Yanıtlandı olarak işaretle",
     "noPrayers": "Henüz dua isteği yok",
     "beFirst": "Grubunuzla bir dua isteğini paylaşan ilk kişi olun.",
-    "prayedCount": "{{count}} dua etti",
-    "encouragedCount": "{{count}} teşvik edildi",
+    "prayedCount": "Dua eden: {{count}}",
+    "encouragedCount": "Teşvik eden: {{count}}",
     "you": "Sen",
     "groupMember": "Grup üyesi",
     "signInTitle": "Bu grupla dua etmek için oturum açın",
@@ -1022,7 +1298,7 @@ export const tr = {
     "longestStreak": "En Uzun Seri",
     "plansCompleted": "Tamamlanan Planlar",
     "engagementScore": "Etkileşim Puanı",
-    "annotationsCreated": "Notlar ve Öne Çıkanlar",
+    "annotationsCreated": "Notlar ve Vurgulamalar",
     "minutes": "dk",
     "hours": "saat",
     "days": "günler",
@@ -1030,7 +1306,7 @@ export const tr = {
     "totalListening": "Toplam Dinleme"
   },
   "translations": {
-    "title": "İncil Çevirileri",
+    "title": "Kutsal Kitap Çevirileri",
     "languagePreference": "Dil Tercihi",
     "myTranslations": "Çevirilerim",
     "primary": "Birincil Çeviri",
@@ -1038,16 +1314,16 @@ export const tr = {
     "audioPreference": "Sesli Çeviri",
     "installed": "Yüklendi",
     "available": "Mevcut",
-    "bundled": "Paketlenmiş",
-    "download": "'yi indirin",
-    "publicDomain": "Kamu Alanı",
+    "bundled": "Uygulamaya dâhil",
+    "download": "İndir",
+    "publicDomain": "Kamu malı",
     "cloudLibrary": "Bulut Kitaplığı",
     "downloading": "İndiriliyor...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "Çevrimdışı okumak için {{name}} metni (~{{size}} MB) indirilsin mi?",
     "deleteConfirmTitle": "Çeviriyi Sil",
     "deleteConfirmMessage": "{{name}} için indirilen veriler kaldırılsın mı? İstediğiniz zaman yeniden indirebilirsiniz.",
     "cancelDownload": "İndirmeyi iptal et",
-    "delete": "Silmek"
+    "delete": "Sil"
   },
   "gather": {
     "title": "Toplanma",
@@ -1085,7 +1361,7 @@ export const tr = {
     "applicationQ1": "Şimdi, birinin bu pasajı kendi sözleriyle, sanki hiç duymamış bir arkadaşına anlatıyormuş gibi yeniden anlattıralım. Bir şey atlayıp atlamadığını veya yanlışlıkla bir şey ekleyip eklemediğini kontrol edelim. Böyle bir durumda sormak için \"Bunu hikayede nerede buluyorsun?\" diyebiliriz.",
     "applicationQ2": "Bu hikaye bize Tanrı, O'nun karakteri ve ne yaptığı hakkında ne öğretiyor?",
     "applicationQ3": "Bu hikayeden kendimiz dahil insanlar hakkında ne öğreniyoruz?",
-    "applicationQ4": "Bu hafta bu hikaydeki Tanrı'nın gerçeğini hayatınıza nasıl uygulayacaksınız? Yapacağınız spesifik bir eylem veya şey nedir?",
+    "applicationQ4": "Bu hafta bu hikâyedeki Tanrı'nın gerçeğini hayatınıza nasıl uygulayacaksınız? Yapacağınız spesifik bir eylem veya şey nedir?",
     "applicationQ5": "Bir dahaki buluşmamızdan önce bu hikayeden bir gerçeği kiminle paylaşacaksınız? Bizim yaptığımız gibi bu uygulamada Tanrı'nın sözünü keşfetmek isteyecek başkaları var mı?",
     "applicationQ6": "Buluşmamız sona ererken, ne zaman tekrar buluşacağımıza ve bir sonraki buluşmamızı kimin yöneteceğine karar verelim.",
     "applicationQ7": "Yapacağınızı söylediğiniz şeyi not etmenizi ve bir sonraki buluşmamızdan önceki günlerde bu hikayeyi yeniden okumanızı teşvik ediyoruz. Eğitmen, hikayeye sahip olmayanlar için hikaye metnini veya sesini paylaşabilir. İlerledikçe, Rab'den bize yardım etmesini dileyelim.",
@@ -1100,9 +1376,9 @@ export const tr = {
     "foundation5Title": "İsa Topluluğu Olarak Yaşam",
     "foundation5Desc": "Birlikte ait olmak, birlikte hizmet etmek, birlikte ibadet etmek",
     "foundation6Title": "Lider Olarak Yaşam",
-    "foundation6Desc": "Öğrencileri yeniden üretmek ve başkalarını yönetmek",
+    "foundation6Desc": "Yeni öğrenciler yetiştirmek ve başkalarına rehberlik etmek",
     "foundation7Title": "Müjdeyi Paylaşmak",
-    "foundation7Desc": "İncil ile ulaşmak",
+    "foundation7Desc": "Müjde’yi başkalarına ulaştırmak",
     "lessons": {
       "f101": "Tanrı dünyayı yaratır",
       "f102": "İnsanlık günaha düşer",
@@ -1272,7 +1548,7 @@ export const tr = {
         "l5": "İsa para değiştiricileri tapınaktan kovalar",
         "l6": "Öfkede yavaş ol",
         "l7": "Öfkenizin üzerine güneş batmasın",
-        "l8": "Size lanet edenlere lanet okuyun"
+        "l8": "Size lanet edenleri kutsayın"
       },
       "crisis": {
         "l1": "Eyüp her şeyini kaybeder",
@@ -1311,8 +1587,8 @@ export const tr = {
         "l4": "Merhametsiz hizmetkar",
         "l5": "Evine dönen kayıp oğul",
         "l6": "Tanrı bizi Mesih aracılığıyla kendisiyle barıştırdı",
-        "l7": "Birbirinize karşı nazik olun ve birbirinizi affedein",
-        "l8": "Rab sizi affettiği gibi affedein"
+        "l7": "Birbirinize karşı iyi yürekli olun ve birbirinizi affedin",
+        "l8": "Rab sizi affettiği gibi affedin"
       },
       "selfEsteem": {
         "l1": "Tanrı insanları kendi suretinde yarattı",
@@ -1326,11 +1602,11 @@ export const tr = {
       },
       "stress": {
         "l1": "Yarın için endişelenmeyin",
-        "l2": "Hepiniz yorgunlar bana gelin",
+        "l2": "Ey bütün yorgunlar, bana gelin",
         "l3": "Tanrı çölde İlyas'ı besler",
         "l4": "Tam bir huzur içinde koruyacaksın",
         "l5": "Tanrı sığınağımdır",
-        "l6": "Bütün kalbinle Rab'be güvenin",
+        "l6": "Bütün yüreğinle Rab’be güven",
         "l7": "Her anlayışı aşan barış",
         "l8": "Her kaygınızı O'na bırakın"
       },
@@ -1340,7 +1616,7 @@ export const tr = {
         "l3": "Zengin genç adam",
         "l4": "Kanaatkarlıkla birlikte tanrı korkusu büyük kazançtır",
         "l5": "Zenginlere uyarı",
-        "l6": "Yer yüzü ve içindekiler Rab'bindir",
+        "l6": "Yeryüzü Rab’bindir",
         "l7": "Zenginlik belirsizdir",
         "l8": "Servet kurtaramaz"
       },

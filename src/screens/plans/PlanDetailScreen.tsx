@@ -55,7 +55,7 @@ import type {
   UserReadingPlanProgress,
 } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
-import { getBookById } from '../../constants';
+import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { lightHaptic, successHaptic } from '../../utils';
 
@@ -63,9 +63,11 @@ import { lightHaptic, successHaptic } from '../../utils';
 // Helpers (self-contained to avoid cross-screen dep)
 // ---------------------------------------------------------------------------
 
-function formatChapterRef(entry: ReadingPlanEntry): string {
-  const book = getBookById(entry.book);
-  const bookName = book?.name ?? entry.book;
+function formatChapterRef(
+  entry: ReadingPlanEntry,
+  t: ReturnType<typeof useTranslation>['t']
+): string {
+  const bookName = getTranslatedBookName(entry.book, t);
   if (entry.chapter_end && entry.chapter_end !== entry.chapter_start) {
     return `${bookName} ${entry.chapter_start}–${entry.chapter_end}`;
   }
@@ -298,9 +300,7 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
           {completionBadgeLabel ? (
             <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={12} color={colors.onAccent} />
-              <Text
-                style={[progressCardStyles.completeBadgeText, { color: colors.onAccent }]}
-              >
+              <Text style={[progressCardStyles.completeBadgeText, { color: colors.onAccent }]}>
                 {completionBadgeLabel}
               </Text>
             </View>
@@ -401,10 +401,11 @@ const DayRow = React.memo(function DayRow({
 }: DayRowProps) {
   const { colors } = useTheme();
 
-  const refs = entries.map(formatChapterRef).join(', ');
+  const { t } = useTranslation();
+  const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
   const accessibilityLabel = isCurrent
-    ? `Current plan day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
-    : `Day ${dayNumber}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
+    ? `${t('interface.currentPlanDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
+    : `${t('interface.planDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
   const surfaceStyle = {
     backgroundColor: colors.cardBackground,
     borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
@@ -533,7 +534,10 @@ const DayRow = React.memo(function DayRow({
                 onPress={() => onPress(dayNumber, action.sessionKey)}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={`${action.label} for day ${dayNumber}`}
+                accessibilityLabel={t('interface.planSessionForDay', {
+                  session: action.label,
+                  day: dayNumber,
+                })}
                 style={[
                   dayRowStyles.sessionActionButton,
                   {
@@ -726,7 +730,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
       setPlan(foundPlan);
     } else {
-      setError(plansResult.error ?? t('common.error'));
+      setError(t('common.error'));
     }
 
     if (entriesResult.success) {
@@ -736,7 +740,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       // previously loaded rows visible on a transient refresh failure.
       setEntries((prev) => {
         if (prev.length === 0) {
-          setError(entriesResult.error ?? t('common.error'));
+          setError(t('common.error'));
         }
         return prev;
       });

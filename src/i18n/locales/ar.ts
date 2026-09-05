@@ -1,38 +1,314 @@
 export const ar = {
+  interface: {
+    "close": "إغلاق",
+    "share": "مشاركة",
+    "minutesShort": "{{count}} د",
+    "hoursShort": "{{count}} س",
+    "daysShort": "{{count}} يوم",
+    "hoursMinutes": "{{hours}} س {{minutes}} د",
+    "justNow": "الآن",
+    "minutesAgo": "قبل {{count}} د",
+    "hoursAgo": "قبل {{count}} س",
+    "daysAgo": "قبل {{count}} يوم",
+    "activePrayerCount": "{{count}} نشطة",
+    "groupShareMessage": "انضم إلى مجموعة التلمذة «{{name}}» معي في EveryBible!\n\nرمز الانضمام: {{code}}",
+    "groupAboutTitle": "عن لقاءات المجموعة",
+    "groupAboutBody": "تتبع لقاءات المجموعة نموذج الأثلاث الثلاثة المستخدم في حركات التلمذة حول العالم:",
+    "groupLookBack": "كيف أطعت؟ ومع من شاركت؟",
+    "groupLookUp": "اقرأوا الكتاب المقدس معًا وناقشوه",
+    "groupLookForward": "كيف ستطيع؟ ومن ستخبر؟",
+    "backgroundMusicLabel": "موسيقى الخلفية: {{name}}",
+    "backgroundMusicHint": "يفتح اختيار موسيقى الخلفية",
+    "repeatHint": "التبديل بين إيقاف التكرار وتكرار الإصحاح وتكرار السفر",
+    "shareAudioHint": "يفتح خيارات مشاركة صوت هذا الإصحاح",
+    "playChapterAudio": "تشغيل صوت الإصحاح",
+    "pauseChapterAudio": "إيقاف صوت الإصحاح مؤقتًا",
+    "previousChapterHint": "الانتقال إلى الإصحاح السابق",
+    "chapterRange": "الإصحاحات {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} سفر ({{percent}}%)",
+    "currentPlanDay": "اليوم الحالي في الخطة: {{day}}",
+    "planDay": "اليوم {{day}}",
+    "planSessionForDay": "{{session}} لليوم {{day}}",
+    "music": {
+      "off": {
+        "label": "إيقاف",
+        "description": "تشغيل الكتاب المقدس دون موسيقى خلفية مرفقة."
+      },
+      "ambient": {
+        "label": "موسيقى هادئة",
+        "description": "أصوات ممتدة وأجراس بأجواء تحت الماء تتكرر خلف التلاوة."
+      },
+      "piano": {
+        "label": "بيانو",
+        "description": "لحن بيانو لطيف مع خلفية ناعمة."
+      },
+      "soft-guitar": {
+        "label": "غيتار هادئ",
+        "description": "خلفية غيتار بأوتار نايلون تتكرر بهدوء دون تشتيت."
+      },
+      "harp": {
+        "label": "هارب",
+        "description": "لحن هارب منفرد خفيف بأجواء تأملية لطيفة."
+      },
+      "flute": {
+        "label": "فلوت",
+        "description": "مقطع فلوت قصير متكرر بأجواء خيالية ناعمة."
+      },
+      "sitar": {
+        "label": "سيتار",
+        "description": "نغمات سيتار دافئة بطابع صحراوي للاستماع الطويل."
+      },
+      "ocean-waves": {
+        "label": "أمواج البحر",
+        "description": "صوت أمواج الشاطئ المتكرر لخلفية أكثر هدوءًا."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "صلاة الصبح الكاثوليكية",
+        "description": "بداية على نهج صلاة التسابيح، مع الحمد والنشيد وبركة الإنجيل.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "ليتورجيا الساعات"
+      },
+      "catholic-daytime-prayer": {
+        "title": "صلاة النهار الكاثوليكية",
+        "description": "صلاة ظهر موجزة تتمحور حول مزامير قصيرة والعودة المستمرة إلى الله.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "ليتورجيا الساعات"
+      },
+      "catholic-evening-prayer": {
+        "title": "صلاة الغروب الكاثوليكية",
+        "description": "ختام لليوم مستوحى من صلاة الغروب، بالمزامير والشكر ونشيد مريم.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "ليتورجيا الساعات"
+      },
+      "catholic-night-prayer": {
+        "title": "صلاة النوم الكاثوليكية",
+        "description": "إيقاع صلاة قبل النوم للثقة والحماية والتسليم بسلام.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "صلاة النوم"
+      },
+      "catholic-lectio-divina": {
+        "title": "القراءة الإلهية الكاثوليكية",
+        "description": "قراءة متأنية للتأمل والصلاة والمكوث مع النص.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "القراءة الإلهية"
+      },
+      "ignatian-daily-examen": {
+        "title": "فحص الضمير اليومي الإغناطي",
+        "description": "تأمل في نهاية اليوم يقوم على الشكر والمراجعة والتوبة.",
+        "tradition": "كاثوليكية",
+        "historicRoots": "الروحانية الإغناطية"
+      },
+      "anglican-morning-prayer": {
+        "title": "صلاة الصبح الأنجليكانية",
+        "description": "صلاة صباح على نهج الساعات، بالمزامير وتعليم الإنجيل لليوم المقبل.",
+        "tradition": "أنجليكانية",
+        "historicRoots": "كتاب الصلاة العامة"
+      },
+      "anglican-noonday-prayer": {
+        "title": "صلاة الظهر الأنجليكانية",
+        "description": "وقفة صلاة قصيرة في منتصف اليوم بمزامير المعونة ورجاء خبز الحياة.",
+        "tradition": "أنجليكانية",
+        "historicRoots": "الصلاة اليومية"
+      },
+      "anglican-evening-prayer": {
+        "title": "صلاة المساء الأنجليكانية",
+        "description": "صلاة تقليدية على نهج تسبيح المساء بمزامير الغروب ونشيد مريم.",
+        "tradition": "أنجليكانية",
+        "historicRoots": "كتاب الصلاة العامة"
+      },
+      "anglican-compline": {
+        "title": "صلاة النوم الأنجليكانية",
+        "description": "صلاة ليلية هادئة للاعتراف والثقة والراحة.",
+        "tradition": "أنجليكانية",
+        "historicRoots": "كتاب الصلاة العامة"
+      },
+      "orthodox-morning-rule": {
+        "title": "قانون الصلاة الصباحية الأرثوذكسي",
+        "description": "قانون صلاة عند الفجر يقوم على التوبة والرحمة والصلاة التي علّمها يسوع.",
+        "tradition": "أرثوذكسية",
+        "historicRoots": "صلوات الصباح"
+      },
+      "orthodox-sixth-hour": {
+        "title": "صلاة الساعة السادسة الأرثوذكسية",
+        "description": "وقفة صلاة ظهيرة على نهج الساعات، تستحضر الآلام والسهر الروحي.",
+        "tradition": "أرثوذكسية",
+        "historicRoots": "ساعات الصلاة"
+      },
+      "orthodox-vespers": {
+        "title": "صلاة الغروب الأرثوذكسية",
+        "description": "تقدمة مسائية بتسبيح الخليقة ومزامير إضاءة السراج والكلمة.",
+        "tradition": "أرثوذكسية",
+        "historicRoots": "صلاة الغروب اليومية"
+      },
+      "orthodox-small-compline": {
+        "title": "صلاة النوم الصغرى الأرثوذكسية",
+        "description": "صلاة ليلية هادئة للرحمة والملجأ وآخر الصلوات قبل النوم.",
+        "tradition": "أرثوذكسية",
+        "historicRoots": "صلاة النوم"
+      },
+      "benedictine-sacred-reading": {
+        "title": "القراءة المقدسة البندكتية",
+        "description": "إيقاع يركز على القراءة، مستوحى من أوقات القراءة المقدسة الثابتة والانتباه الهادئ.",
+        "tradition": "بندكتية",
+        "historicRoots": "قانون القديس بندكتس"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "المزامير والعمل البندكتي",
+        "description": "ترتيب عملي للصلاة والعمل والطاعة الهادئة خلال اليوم.",
+        "tradition": "بندكتية",
+        "historicRoots": "صلِّ واعمل"
+      },
+      "taize-evening-prayer": {
+        "title": "صلاة المساء في تيزيه",
+        "description": "مساء من الترتيل والصمت حول المزمور والقراءة والسكون.",
+        "tradition": "تيزيه",
+        "historicRoots": "الصلاة المشتركة في تيزيه"
+      },
+      "lutheran-morning-devotion": {
+        "title": "التأمل الصباحي اللوثري",
+        "description": "إيقاع صباحي للعائلات يجمع الكتاب المقدس والحفظ والصلاة المنتظمة.",
+        "tradition": "لوثرية",
+        "historicRoots": "التأملات اليومية للعائلات"
+      },
+      "lutheran-close-of-day": {
+        "title": "ختام اليوم اللوثري",
+        "description": "تأمل ليلي بسيط للاعتراف والاحتماء بعناية المسيح.",
+        "tradition": "لوثرية",
+        "historicRoots": "التأملات اليومية للعائلات"
+      },
+      "puritan-family-worship": {
+        "title": "العبادة العائلية البيوريتانية",
+        "description": "أمسية عائلية للصلاة والتسبيح والكتاب المقدس والحديث التقوي.",
+        "tradition": "بيوريتانية",
+        "historicRoots": "دليل العبادة العائلية"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "تأملات",
+        "description": "تأملات قصيرة تلتزم بتعليم يسوع."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "البركة في الملكوت الذي يقلب الموازين",
+        "summary": "تأمل التطويبات ولاحظ كيف يعيد يسوع تشكيل رغباتنا.",
+        "actionLabel": "قراءة الإصحاح"
+      },
+      "mat-plans": {
+        "title": "خطط",
+        "description": "مسارات بسيطة لقراءة متى بقصد واضح."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "إيقاع الملكوت في متى",
+        "summary": "سبعة أيام عبر الهوية والصلاة والرحمة والإرسالية ورجاء القيامة.",
+        "actionLabel": "فتح الإصحاح الأول"
+      },
+      "jhn-playlists": {
+        "title": "قوائم الاستماع",
+        "description": "مسارات استماع مختارة عبر الأقسام الرئيسية في يوحنا."
+      },
+      "jhn-playlist-signs": {
+        "title": "آيات يسوع",
+        "summary": "مسار إرشادي عبر الآيات التي تكشف هوية المسيح.",
+        "actionLabel": "بدء قائمة الاستماع"
+      },
+      "gal-devotionals": {
+        "title": "تأملات",
+        "description": "تأملات موجزة لقراءة غلاطية بروح الصلاة."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "لستم عبيدًا بعد",
+        "summary": "تأمل التبنّي والميراث وترحيب الآب.",
+        "actionLabel": "قراءة الإصحاح"
+      },
+      "gal-plans": {
+        "title": "خطط",
+        "description": "مسارات قصيرة ومنظمة عبر الرسالة."
+      },
+      "gal-plan-six-days": {
+        "title": "إصحاح كل يوم: غلاطية",
+        "summary": "اقرأ إصحاحًا كل يوم وتتبع حجة بولس دون استعجال.",
+        "actionLabel": "فتح الإصحاح الأول"
+      },
+      "psa-playlists": {
+        "title": "قوائم الاستماع",
+        "description": "مسارات صلاة لمختلف المواسم النفسية."
+      },
+      "psa-playlist-morning": {
+        "title": "ملجأ الصباح",
+        "summary": "مسار قصير عبر مزامير الثقة لبدء اليوم.",
+        "actionLabel": "بدء قائمة الاستماع"
+      },
+      "psa-playlist-repentance": {
+        "title": "مزامير التوبة",
+        "summary": "صلِّ بصدق واعتراف وتجديد.",
+        "actionLabel": "بدء قائمة الاستماع"
+      },
+      "psa-devotionals": {
+        "title": "تأملات",
+        "description": "تأملات هادئة للصلاة بالمزامير بتأنٍّ."
+      },
+      "psa-devotional-shepherd": {
+        "title": "الراعي الذي يرد النفس",
+        "summary": "امكث مع المزمور 23 حتى يصير صلاة لا مجرد شعار.",
+        "actionLabel": "قراءة المزمور"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "نص بيريان ضمن الملك العام مع صوت مباشر للإصحاحات بترخيص CC0",
+      "web": "نص الطبعة البريطانية وصوت الإصحاحات ضمن الملك العام من مكتبة EveryBible",
+      "kjv": "ترجمة الملك جيمس المعتمدة لعام 1611",
+      "asv": "مراجعة لترجمة الملك جيمس نُشرت عام 1901، والنص مثبّت مسبقًا",
+      "bbe": "يستخدم مفردات محدودة لتسهيل القراءة",
+      "sparv1909": "الكتاب المقدس الإسباني الكلاسيكي — نص ضمن الملك العام",
+      "hincv": "الترجمة الهندية المعاصرة — ضمن الملك العام",
+      "npiulb": "الكتاب المقدس بالترجمة الحرفية المفتوحة — ضمن الملك العام"
+    },
+    "audioUnavailableTranslation": "لا يتوفر صوت لهذه الترجمة.",
+    "audioUnavailableChapter": "لا يتوفر صوت لهذا الإصحاح.",
+    "audioPlayFailed": "تعذّر تشغيل هذا الصوت. حاول مجددًا.",
+    nativePermissions: {
+      "NSCameraUsageDescription": "اسمح لتطبيق Every Bible بالوصول إلى الكاميرا إذا اخترت التقاط صورة لملفك الشخصي.",
+      "NSMicrophoneUsageDescription": "اسمح لتطبيق Every Bible بتسجيل ردود صوتية للملاحظات على الإصحاحات.",
+      "NSPhotoLibraryUsageDescription": "اسمح لتطبيق Every Bible بالوصول إلى مكتبة الصور لاختيار صورة لملفك الشخصي.",
+      "NSFaceIDUsageDescription": "اسمح لتطبيق Every Bible باستخدام Face ID لحماية بيانات تسجيل الدخول المحفوظة."
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "قائمة الملاحظات",
+    subtitle: "إصحاحات تتضمن ملاحظات للمراجعة",
+    empty: "تمت مراجعة كل الملاحظات. لا توجد ملاحظات معلّقة.",
+    pendingCount: "{{count}} إصحاحًا للمراجعة",
+    chapterCounts: "{{down}} للتصحيح · {{up}} للتأكيد",
+    openLabel: "فتح {{reference}}",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "ملاحظاتي",
+    settingsRow: "ملاحظاتي",
+    settingsRowSummary: "تابع ما فعله فريق الترجمة بملاحظاتك",
+    subtitle: "كيف تعامل فريق الترجمة مع ملاحظاتك على الإصحاحات",
+    empty: "لم ترسل أي ملاحظات على الإصحاحات بعد.",
+    signInRequired: "سجّل الدخول للاطلاع على الملاحظات التي أرسلتها.",
+    audioLabel: "ملاحظة صوتية مرفقة",
+    statusReceived: "تم الاستلام",
+    statusFixed: "تم التصحيح",
+    statusNoChange: "تمت المراجعة — لا تغيير",
   },
   "common": {
     "cancel": "يلغي",
     "ok": "نعم",
-    "done": "منتهي",
+    "done": "تم",
     "error": "خطأ",
     "retry": "أعد المحاولة",
     "loading": "تحميل...",
-    "continue": "يكمل",
-    "save": "يحفظ",
+    "continue": "متابعة",
+    "save": "حفظ",
     "delete": "يمسح",
     "edit": "يحرر",
-    "back": "خلف",
+    "back": "رجوع",
     "next": "التالي",
-    "previous": "سابق",
+    "previous": "السابق",
     "search": "يبحث",
     "settings": "إعدادات",
     "comingSoon": "قريباً",
@@ -46,11 +322,11 @@ export const ar = {
     "all": "الجميع"
   },
   "tabs": {
-    "home": "بيت",
+    "home": "الرئيسية",
     "bible": "الكتاب المقدس",
     "harvest": "محصول",
-    "gather": "يجتمع",
-    "more": "أكثر",
+    "gather": "اجتماع",
+    "more": "المزيد",
     "plans": "الخطط"
   },
   "home": {
@@ -75,7 +351,7 @@ export const ar = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "حقل {{number}}",
     "notificationSettings": "إعدادات الإشعارات",
-    "chaptersRead": "قراءة الفصول",
+    "chaptersRead": "الإصحاحات المقروءة",
     "today": "اليوم",
     "week": "أسبوع",
     "month": "شهر",
@@ -119,9 +395,9 @@ export const ar = {
     "finish": "إنهاء الإعداد"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "تعذّر تشغيل هذا المقطع الصوتي. حاول مجددًا.",
+    chapterFeedbackSuccessTitle: "تم إرسال الملاحظات",
+    readerFontsAndSettings: "الخطوط والإعدادات",
     "title": "الكتاب المقدس",
     "oldTestament": "العهد القديم",
     "fontsAndSettings": "الخطوط والإعدادات",
@@ -134,7 +410,7 @@ export const ar = {
     "byBook": "حسب السفر",
     "chapters": "فصول",
     "chapter": "الفصل",
-    "verse": "الآية",
+    "verse": "آية",
     "selectTranslation": "حدد الترجمة",
     "manageAudio": "إدارة الصوت",
     "audioDownloads": "تنزيلات الصوت",
@@ -147,12 +423,16 @@ export const ar = {
     "searchUnavailable": "البحث عن النص الكامل غير متاح لهذه الترجمة بعد.",
     "noVersesAvailable": "{{book}} {{chapter}} ليس لديه نص مكتوب بعد.",
     "fullBibleComingSoon": "هذا الفصل غير متوفر في النص الآن. إذا كان الصوت متاحًا، فسيقوم Every Bible بفتح تجربة الاستماع بدلاً من ذلك.",
-    "audioOnlyTitle": "الصوت-الفصل الأول",
+    "audioOnlyTitle": "إصحاح متاح صوتيًا أولًا",
     "audioOnlyBody": "يتوفر {{translation}} حاليًا كصوت لهذا الفصل بينما لا يزال النص المكتوب قيد الإعداد.",
-    "verseCount_one": "{{count}} الآية",
-    "verseCount_other": "{{count}} الآيات",
-    "listen": "يستمع",
-    "read": "يقرأ",
+    "verseCount_zero": "{{count}} آيات",
+    "verseCount_two": "آيتان ({{count}})",
+    "verseCount_few": "{{count}} آيات",
+    "verseCount_many": "{{count}} آية",
+    "verseCount_one": "آية واحدة ({{count}})",
+    "verseCount_other": "{{count}} آية",
+    "listen": "استماع",
+    "read": "قراءة",
     "removeFromFavorites": "إزالة من المفضلة",
     "addToFavorites": "أضف إلى المفضلة",
     "addToSavedPlaylist": "أضف إلى قائمة التشغيل المحفوظة",
@@ -164,35 +444,35 @@ export const ar = {
     "shareVerseImage": "صورة",
     "chooseVerseImageBackground": "اختر خلفية",
     "books": {
-      "GEN": "سفر التكوين",
+      "GEN": "التكوين",
       "EXO": "الخروج",
-      "LEV": "سفر اللاويين",
-      "NUM": "أرقام",
-      "DEU": "سفر التثنية",
+      "LEV": "اللاويين",
+      "NUM": "العدد",
+      "DEU": "التثنية",
       "JOS": "يشوع",
       "JDG": "القضاة",
-      "RUT": "روث",
-      "1SA": "1 صموئيل",
-      "2SA": "2 صموئيل",
-      "1KI": "1 ملوك",
-      "2KI": "2 ملوك",
-      "1CH": "1 سجلات",
-      "2CH": "2 سجلات",
+      "RUT": "راعوث",
+      "1SA": "صموئيل الأول",
+      "2SA": "صموئيل الثاني",
+      "1KI": "الملوك الأول",
+      "2KI": "الملوك الثاني",
+      "1CH": "أخبار الأيام الأول",
+      "2CH": "أخبار الأيام الثاني",
       "EZR": "عزرا",
       "NEH": "نحميا",
-      "EST": "استير",
-      "JOB": "وظيفة",
+      "EST": "أستير",
+      "JOB": "أيوب",
       "PSA": "المزامير",
       "PRO": "الأمثال",
-      "ECC": "الكهنة",
-      "SNG": "أغنية سليمان",
+      "ECC": "الجامعة",
+      "SNG": "نشيد الأنشاد",
       "ISA": "إشعياء",
       "JER": "إرميا",
-      "LAM": "رثاء",
+      "LAM": "مراثي إرميا",
       "EZK": "حزقيال",
       "DAN": "دانيال",
       "HOS": "هوشع",
-      "JOL": "جويل",
+      "JOL": "يوئيل",
       "AMO": "عاموس",
       "OBA": "عوبديا",
       "JON": "يونان",
@@ -203,78 +483,78 @@ export const ar = {
       "HAG": "حجي",
       "ZEC": "زكريا",
       "MAL": "ملاخي",
-      "MAT": "ماثيو",
+      "MAT": "متى",
       "MRK": "مرقس",
       "LUK": "لوقا",
-      "JHN": "جون",
-      "ACT": "أعمال",
-      "ROM": "الرومان",
-      "1CO": "1 كورنثوس",
-      "2CO": "2 كورنثوس",
+      "JHN": "يوحنا",
+      "ACT": "أعمال الرسل",
+      "ROM": "رومية",
+      "1CO": "كورنثوس الأولى",
+      "2CO": "كورنثوس الثانية",
       "GAL": "غلاطية",
       "EPH": "أفسس",
-      "PHP": "فيليبي",
+      "PHP": "فيلبي",
       "COL": "كولوسي",
-      "1TH": "1 تسالونيكي",
-      "2TH": "2 تسالونيكي",
-      "1TI": "1 تيموثاوس",
-      "2TI": "2 تيموثاوس",
+      "1TH": "تسالونيكي الأولى",
+      "2TH": "تسالونيكي الثانية",
+      "1TI": "تيموثاوس الأولى",
+      "2TI": "تيموثاوس الثانية",
       "TIT": "تيطس",
       "PHM": "فليمون",
       "HEB": "العبرانيين",
-      "JAS": "جيمس",
-      "1PE": "1 بطرس",
-      "2PE": "2 بطرس",
-      "1JN": "1 يوحنا",
-      "2JN": "2 يوحنا",
-      "3JN": "3 يوحنا",
-      "JUD": "جود",
-      "REV": "الوحي"
+      "JAS": "يعقوب",
+      "1PE": "بطرس الأولى",
+      "2PE": "بطرس الثانية",
+      "1JN": "يوحنا الأولى",
+      "2JN": "يوحنا الثانية",
+      "3JN": "يوحنا الثالثة",
+      "JUD": "يهوذا",
+      "REV": "رؤيا يوحنا"
     },
-    "chapterFeedback": "ردود الفعل الفصل",
-    "chapterFeedbackTitle": "شارك بتعليقاتك حول هذا الفصل",
+    "chapterFeedback": "ملاحظات الفصل",
+    "chapterFeedbackTitle": "مراجعة هذا المقطع",
     "chapterFeedbackBody": "أخبرنا إذا كان هذا الفصل مفيدًا أو ما الذي يمكن تحسينه. التعليقات اختيارية.",
     "chapterFeedbackThumbsUp": "متعاون",
     "chapterFeedbackThumbsDown": "يحتاج إلى عمل",
     "chapterFeedbackPlaceholder": "تعليق اختياري حول هذا الفصل",
     "chapterFeedbackSelectionHint": "اضغط على \"الإبهام لأعلى\" أو \"الإبهام لأسفل\" لإضافة ملاحظة اختيارية.",
     "chapterFeedbackSubmit": "إرسال ردود الفعل",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "يمكنك تسجيل رد صوتي بدلًا من الكتابة",
+    "chapterFeedbackAudioRecording": "جارٍ التسجيل {{duration}}",
+    "chapterFeedbackAudioReady": "الرد الصوتي جاهز: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A، دقيقة واحدة كحد أقصى",
+    "chapterFeedbackAudioRecord": "تسجيل صوتي",
+    "chapterFeedbackAudioStop": "إيقاف",
+    "chapterFeedbackAudioPreview": "معاينة الرد الصوتي",
+    "chapterFeedbackAudioRerecord": "إعادة تسجيل الرد الصوتي",
+    "chapterFeedbackAudioUploading": "جارٍ رفع التسجيل الصوتي...",
+    "chapterFeedbackAudioPermissionDenied": "الوصول إلى الميكروفون متوقف. لا يزال بإمكانك كتابة رد.",
+    "chapterFeedbackAudioPermissionHelp": "فعّل الوصول إلى الميكروفون في إعدادات النظام لإرسال ملاحظات صوتية.",
+    "chapterFeedbackAudioStartError": "تعذّر بدء التسجيل. لا يزال بإمكانك كتابة رد.",
+    "chapterFeedbackAudioStopError": "تعذّر إنهاء هذا التسجيل. حاول مجددًا.",
+    "chapterFeedbackAudioRecordingMissing": "تعذّر حفظ التسجيل. حاول مجددًا.",
+    "chapterFeedbackAudioUploadError": "فشل رفع الصوت. تسجيلك ما زال محفوظًا؛ حاول الإرسال مجددًا.",
     "chapterFeedbackSuccess": "شكرا لتعليقاتك. لقد تم استلام طلبك وسيتم مراجعته من قبل فرق الترجمة لدينا في أقرب وقت ممكن.",
     "chapterFeedbackSignInRequired": "الرجاء تسجيل الدخول قبل إرسال تعليقات الفصل.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "مراجعة الدقة",
+    "translatorReviewSummary": "قرارات معلّقة: {{pending}} من {{count}}",
+    "translatorReviewSummaryComplete": "تمت معالجة جميع مراجعات الدقة",
+    "translatorReviewLoading": "جارٍ تحميل الملاحظات...",
+    "translatorReviewEmpty": "لم تُرسل أي ملاحظات على هذا الإصحاح بعد.",
+    "translatorReviewUnknownUser": "مساهم غير معروف",
+    "translatorReviewUnread": "بحاجة إلى قرار",
+    "translatorReviewSubmittedAt": "أُرسلت في {{date}}",
+    "translatorReviewSubmittedBy": "أرسلها {{name}}",
+    "translatorReviewNoComment": "لا توجد ملاحظات مكتوبة.",
+    "translatorReviewFixed": "تم التصحيح",
+    "translatorReviewConfirmedAccurate": "تم تأكيد الدقة",
+    "translatorReviewReviewed": "لا حاجة إلى تغيير",
+    "translatorReviewConfirmAccurate": "تأكيد الدقة",
+    "translatorReviewMarkFixed": "وضع علامة تم التصحيح",
+    "translatorReviewNoActionNeeded": "لا يلزم اتخاذ إجراء",
+    "translatorReviewReopen": "إعادة فتح",
+    "translatorReviewListened": "تم الاستماع",
+    "translatorReviewListen": "استماع",
     "translatorReviewPause": "إيقاف مؤقت",
     "nextChapterHint": "يذهب إلى الفصل التالي",
     "openBookAndChapterPickerHint": "يفتح منتقي الكتاب والفصل",
@@ -315,15 +595,15 @@ export const ar = {
     "reading": "قراءة",
     "hidePlayButtonFromReadingTab": "إخفاء زر التشغيل من علامة تبويب القراءة",
     "language": "لغة الواجهة",
-    "nationAndLanguage": "الأمة ولغة الكتاب المقدس",
+    "nationAndLanguage": "البلد ولغة الكتاب المقدس",
     "fontSize": "حجم الخط",
     "fontSizeSmall": "صغير",
-    "fontSizeMedium": "واسطة",
+    "fontSizeMedium": "متوسط",
     "fontSizeLarge": "كبير",
     "darkMode": "الوضع المظلم",
-    "themeMode": "سمة",
-    "themeDark": "مظلم",
-    "themeLight": "ضوء",
+    "themeMode": "المظهر",
+    "themeDark": "داكن",
+    "themeLight": "فاتح",
     "themeLowLight": "الإضاءة المنخفضة",
     "themeParchment": "رَق",
     "themeMidnight": "منتصف الليل",
@@ -377,26 +657,26 @@ export const ar = {
       "exportError": "تعذّرت مشاركة تقرير التشخيصات.",
     },
     "delete": "يمسح",
-    "chapterFeedbackIdentity": "هوية ردود الفعل",
+    "chapterFeedbackIdentity": "هوية الملاحظات",
     "chapterFeedbackIdentityTitle": "من الذي يجب أن تأتي منه هذه التعليقات؟",
     "chapterFeedbackIdentityBody": "أضف اسمك ودورك حتى يتم تصنيف كل فصل بشكل صحيح في ورقة Google.",
     "chapterFeedbackIdentityRole": "دور في المشروع",
     "chapterFeedbackIdentityRolePlaceholder": "زعيم الكنيسة، المتحدث باللغة، شيخ المجتمع",
     "chapterFeedbackIdentityRequired": "الرجاء إدخال اسمك ودورك.",
     "chapterFeedbackIdentitySummaryOff": "لم يتم حفظ هوية التعليقات حتى الآن",
-    "chapterFeedback": "ردود الفعل الفصل",
+    "chapterFeedback": "ملاحظات الفصل",
     "chapterFeedbackSummaryOn": "التعليقات الاختيارية للفصل قيد التشغيل",
     "chapterFeedbackSummaryOff": "تم إيقاف التعليقات الاختيارية للفصل",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "صلاحية المترجم",
+    "translatorAccessTitle": "صلاحية المترجم",
+    "translatorAccessBody": "أدخل رمز مرور المترجم لمراجعة ملاحظات الإصحاحات على هذا الجهاز.",
+    "translatorAccessPlaceholder": "رمز المرور",
+    "translatorAccessUnlock": "فتح القفل",
+    "translatorAccessIncorrect": "رمز مرور المترجم غير صحيح.",
+    "translatorAccessEnabled": "تم تفعيل وضع مراجعة المترجم",
+    "translatorAccessEnabledBody": "ستظهر الآن أدوات مراجعة الملاحظات للمترجم في صفحات الإصحاحات.",
+    "translatorAccessSummaryOn": "أدوات مراجعة المترجم مفعّلة",
+    "translatorAccessSummaryOff": "أدخل رمز المرور لتفعيل أدوات المراجعة",
   },
   "notifications": {
     "channelDailyReminder": "تذكير القراءة اليومية",
@@ -405,7 +685,7 @@ export const ar = {
     "groupSessionBody": "تم تسجيل الجلسة في {{groupName}}"
   },
   "more": {
-    "title": "أكثر",
+    "title": "المزيد",
     "guestUser": "مستخدم ضيف",
     "signInToSync": "قم بتسجيل الدخول لمزامنة تقدمك",
     "signInOrCreate": "تسجيل الدخول أو إنشاء حساب",
@@ -480,8 +760,8 @@ export const ar = {
     "readingActivity": "نشاط القراءة",
     "readingActivitySubtitle": "شاهد أيام القراءة الخاصة بك وانطلق في لمحة.",
     "readingDays": "أيام القراءة",
-    "chaptersRead": "قراءة الفصول",
-    "chapterRead": "قراءة الفصل",
+    "chaptersRead": "الإصحاحات المقروءة",
+    "chapterRead": "إصحاح مقروء",
     "selectedDay": "اليوم المختار",
     "tapDayHint": "اضغط على يوم محدد لرؤية التفاصيل.",
     "noReadingActivityTitle": "لا يوجد نشاط القراءة بعد",
@@ -652,11 +932,11 @@ export const ar = {
     "dayOf": "اليوم {{current}} من {{total}}",
     "markComplete": "وضع علامة كاملة",
     "completed": "مكتمل",
-    "progress": "تقدم",
+    "progress": "التقدّم",
     "noPlans": "لا توجد خطط القراءة المتاحة",
     "noActivePlans": "لم تبدأ أي خطط بعد",
     "findPlans": "ابحث عن الخطط",
-    "saved": "أنقذ",
+    "saved": "تم الحفظ",
     "completions": "{{count}} عمليات الاكتمال",
     "saveForLater": "حفظ لوقت لاحق",
     "unsave": "غير محفوظ",
@@ -674,7 +954,7 @@ export const ar = {
     "dayLabel": "اليوم {{day}}",
     "chapterProgress": "{{current}} من {{total}}",
     "nextChapterCta": "الفصل التالي",
-    "completeDayCta": "يوم كامل",
+    "completeDayCta": "إكمال قراءة اليوم",
     "listenChapterCounted": "تم احتساب {{reference}} لخطة اليوم",
     "dailyTargetCompleteTitle": "القراءة اليومية كاملة",
     "dailyTargetCompleteBody": "لقد انتهيت من قراءة خطة اليوم. سنعيدك إلى خطتك حتى تتمكن من رؤية تقدمك.",
@@ -695,19 +975,19 @@ export const ar = {
       "description": "قم بالتجول في متى ومرقس ولوقا ويوحنا في شهرين."
     },
     "proverbs31": {
-      "title": "الأمثال في 31 يوما",
-      "description": "فصل واحد من سفر الأمثال كل يوم لمدة شهر من الحكمة."
+      "title": "إصحاح الأمثال اليومي",
+      "description": "اقرأ إصحاح الأمثال الموافق لرقم اليوم من الشهر، وكرّر ذلك كل شهر."
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "اقرأ الكاثيزماتا المخصصة للصباح والمساء لكل يوم من أيام الأسبوع، وتتكرر كل أسبوع."
+      "description": "اقرأ أقسام المزامير المحددة صباحًا ومساءً لكل يوم من أيام الأسبوع، مع التكرار أسبوعيًا."
     },
     "chronological": {
       "title": "الكتاب المقدس الزمني",
       "description": "اقرأ الكتاب المقدس حسب ترتيب الأحداث، من التكوين إلى الرؤيا."
     },
     "epistles30": {
-      "title": "رسائل في 30 يوما",
+      "title": "الرسائل في 30 يومًا",
       "description": "اقرأ رسائل بولس وبطرس ويعقوب ويوحنا في شهر واحد."
     },
     "sermonMount7": {
@@ -727,16 +1007,16 @@ export const ar = {
     "rhythmNamePlaceholder": "اتركه فارغًا لاسم تلقائي",
     "rhythmPlanCount": "خطط {{count}}",
     "rhythmItemCount": "{{count}} من العناصر",
-    "includedPlans": "الخطط المضمنة",
+    "includedPlans": "خطط القراءة المشمولة",
     "includedItems": "العناصر المدرجة",
-    "availablePlans": "الخطط المتاحة",
+    "availablePlans": "خطط القراءة المتاحة",
     "rhythmsIntro": "أنشئ تدفقًا متكررًا في الصباح أو بعد الظهر أو المساء من خلال مزج تقدم الخطة مع مقاطع الكتاب المقدس المخصصة.",
     "selected": "مختارة",
     "continueRhythm": "مواصلة الإيقاع",
-    "openRhythm": "افتح الإيقاع",
+    "openRhythm": "فتح الإيقاع",
     "deleteRhythm": "حذف الإيقاع",
     "emptyRhythmPlans": "أضف خطة واحدة على الأقل لحفظ هذا الإيقاع.",
-    "emptyRhythmItems": "أضف خطة أو مقطعًا واحدًا على الأقل لحفظ هذا الإيقاع.",
+    "emptyRhythmItems": "أضف خطة أو مقطعًا كتابيًا واحدًا على الأقل لحفظ هذا الإيقاع.",
     "alreadyInAnotherRhythm": "هذه الخطة بالفعل في إيقاع آخر.",
     "planUnavailableForRhythm": "المسجلين فقط، يمكن إضافة الخطط النشطة إلى الإيقاع.",
     "rhythmDaySummary": "اليوم الحالي: {{day}}",
@@ -744,10 +1024,10 @@ export const ar = {
     "rhythmPlanSource": "خطة {{count}} ليوم واحد",
     "rhythmPassageLabel": "{{count}} فصول",
     "planItemLabel": "يخطط",
-    "passageItemLabel": "ممر",
+    "passageItemLabel": "مقطع كتابي",
     "addPassage": "إضافة مقطع الكتاب المقدس",
-    "addPassageToRhythm": "إضافة مقطع إلى الإيقاع",
-    "repeatablePassage": "مرور متكرر",
+    "addPassageToRhythm": "إضافة مقطع كتابي إلى الإيقاع",
+    "repeatablePassage": "مقطع كتابي قابل للتكرار",
     "startChapterLabel": "ابدأ الفصل",
     "endChapterLabel": "نهاية الفصل",
     "maxChapterHint": "{{count}} فصول متاحة",
@@ -850,7 +1130,7 @@ export const ar = {
     },
     "otIn90Days": {
       "title": "العهد القديم في 90 يوما",
-      "description": "جميع فصول العهد القديم الـ 929 في 90 يومًا - حوالي 10 فصول يوميًا. التزام جدي."
+      "description": "اقرأ إصحاحات العهد القديم الـ929 كلها في 90 يومًا، نحو 10 إصحاحات يوميًا. التزام جاد."
     },
     "pentateuch30Days": {
       "title": "أسفار موسى الخمسة في 30 يوما",
@@ -869,7 +1149,7 @@ export const ar = {
       "description": "اقرأ رسائل بولس الثلاثة عشر كلها — من رومية إلى فليمون — في شهر واحد."
     },
     "acts28Days": {
-      "title": "يعمل في 28 يوما",
+      "title": "أعمال الرسل في 28 يومًا",
       "description": "إصحاح واحد من سفر أعمال الرسل في اليوم – اتبع الكنيسة الأولى من أورشليم إلى روما."
     },
     "revelation22Days": {
@@ -895,18 +1175,18 @@ export const ar = {
     "sessionUpcoming": "لاحقًا",
     "morningAndEveningPrayer": {
       "title": "صلاة الصباح والمساء",
-      "description": "ابدأ يومك وأنهه طوال سبعة أيام بقراءات صلاة صباحية ومسائية."
+      "description": "ابدأ كل يوم واختمه بالمزامير وقراءات الإنجيل والكتاب المقدس المسائية."
     },
     "prayerOfTheHours": {
       "title": "صلاة الساعات",
-      "description": "اتبع إيقاعًا من الصباح ومنتصف النهار والمساء لمدة سبعة أيام."
+      "description": "انتقل بين قراءات الصباح والظهر والمساء المستمدة من المزامير والأناجيل والرسائل."
     }
   },
   "annotations": {
-    "title": "ملاحظاتي ويسلط الضوء",
+    "title": "ملاحظاتي والتظليلات",
     "bookmarks": "الإشارات المرجعية",
     "highlights": "أبرز",
-    "notes": "ملحوظات",
+    "notes": "ملاحظات",
     "addNote": "أضف ملاحظة",
     "addBookmark": "إشارة مرجعية",
     "highlight": "تسليط الضوء",
@@ -917,7 +1197,7 @@ export const ar = {
     "noHighlights": "لا يوجد أبرز حتى الآن",
     "noNotes": "لا توجد ملاحظات حتى الآن",
     "noteHint": "أكتب أفكارك...",
-    "saved": "أنقذ",
+    "saved": "تم الحفظ",
     "colors": {
       "yellow": "أصفر",
       "green": "أخضر",
@@ -927,7 +1207,7 @@ export const ar = {
       "red": "أحمر"
     },
     "selected": "مختارة",
-    "note": "ملحوظة",
+    "note": "ملاحظة",
     "copy": "ينسخ",
     "removeHighlight": "إزالة التمييز"
   },
@@ -937,9 +1217,13 @@ export const ar = {
     "unableToLoadGroup": "غير قادر على تحميل المجموعة.",
     "goBack": "عُد",
     "joinCode": "رمز الانضمام",
-    "share": "يشارك",
+    "share": "مشاركة",
     "syncedProgress": "سيظهر التقدم المتزامن بعد تمكين بدء الجلسة.",
-    "lessonsCompleted_one": "اكتمل درس {{count}}",
+    "lessonsCompleted_zero": "الدروس المكتملة: {{count}}",
+    "lessonsCompleted_two": "درسان مكتملان: {{count}}",
+    "lessonsCompleted_few": "اكتمل {{count}} دروس",
+    "lessonsCompleted_many": "اكتمل {{count}} درسًا",
+    "lessonsCompleted_one": "اكتمل درس واحد ({{count}})",
     "lessonsCompleted_other": "اكتمل {{count}} من الدروس",
     "nextLesson": "التالي: {{title}}",
     "startGroupSession": "ابدأ جلسة المجموعة",
@@ -1016,18 +1300,18 @@ export const ar = {
   },
   "engagement": {
     "title": "رحلتك",
-    "chaptersRead": "قراءة الفصول",
+    "chaptersRead": "الإصحاحات المقروءة",
     "listeningTime": "وقت الاستماع",
     "currentStreak": "الخط الحالي",
     "longestStreak": "أطول خط",
     "plansCompleted": "اكتملت الخطط",
     "engagementScore": "نقاط المشاركة",
-    "annotationsCreated": "ملاحظات ويسلط الضوء",
+    "annotationsCreated": "الملاحظات والتظليلات",
     "minutes": "دقيقة",
     "hours": "ساعة",
     "days": "أيام",
     "totalChapters": "مجموع الفصول",
-    "totalListening": "إجمالي الاستماع"
+    "totalListening": "إجمالي وقت الاستماع"
   },
   "translations": {
     "title": "ترجمات الكتاب المقدس",
@@ -1043,7 +1327,7 @@ export const ar = {
     "publicDomain": "المجال العام",
     "cloudLibrary": "المكتبة السحابية",
     "downloading": "جارٍ التنزيل...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "تنزيل النص المكتوب لترجمة {{name}} (نحو {{size}} ميغابايت) للقراءة دون إنترنت؟",
     "deleteConfirmTitle": "حذف الترجمة",
     "deleteConfirmMessage": "هل تريد إزالة البيانات التي تم تنزيلها لـ {{name}}؟ ويمكنك إعادة تنزيله في أي وقت.",
     "cancelDownload": "إلغاء التنزيل",

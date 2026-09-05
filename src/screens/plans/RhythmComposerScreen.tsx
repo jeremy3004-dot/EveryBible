@@ -1,3 +1,7 @@
+import {
+  localizeRhythmPreset,
+  getLocalizedRhythmTitle,
+} from '../../services/plans/rhythmLocalization';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -76,7 +80,9 @@ function FilterChip({
         },
       ]}
     >
-      <Text style={[styles.filterChipLabel, { color: active ? colors.onAccent : colors.primaryText }]}>
+      <Text
+        style={[styles.filterChipLabel, { color: active ? colors.onAccent : colors.primaryText }]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -102,7 +108,9 @@ function MetaPill({
         },
       ]}
     >
-      <Text style={[styles.metaPillLabel, { color: accent ? colors.onAccent : colors.secondaryText }]}>
+      <Text
+        style={[styles.metaPillLabel, { color: accent ? colors.onAccent : colors.secondaryText }]}
+      >
         {label}
       </Text>
     </View>
@@ -132,8 +140,9 @@ function PresetCard({
   saving?: boolean;
   onPress: () => void;
 }) {
+  const localizedPreset = localizeRhythmPreset(preset, t);
   const slotMeta = preset.slot ? RHYTHM_SLOT_META[preset.slot] : null;
-  const itemPreview = preset.items
+  const itemPreview = localizedPreset.items
     .map((item) => ('title' in item ? item.title : item.planId))
     .join('  •  ');
 
@@ -143,7 +152,10 @@ function PresetCard({
       activeOpacity={0.85}
       accessibilityRole="button"
       disabled={saving}
-      style={[styles.presetCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+      style={[
+        styles.presetCard,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
     >
       <View style={styles.presetHeader}>
         <View
@@ -163,16 +175,16 @@ function PresetCard({
         </View>
         <View style={styles.presetHeaderCopy}>
           <Text style={[styles.presetTitle, { color: colors.primaryText }]} numberOfLines={2}>
-            {preset.title}
+            {localizedPreset.title}
           </Text>
           <Text style={[styles.presetBody, { color: colors.secondaryText }]} numberOfLines={3}>
-            {preset.description}
+            {localizedPreset.description}
           </Text>
         </View>
       </View>
 
       <View style={styles.presetMetaRow}>
-        <MetaPill label={preset.tradition} colors={colors} accent />
+        <MetaPill label={localizedPreset.tradition} colors={colors} accent />
         <MetaPill label={getSlotLabel(preset.slot, t)} colors={colors} />
         <MetaPill
           label={t('readingPlans.chapterCount', {
@@ -187,7 +199,9 @@ function PresetCard({
         <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>
           {t('plans.rhythmComposer.historicRoots')}
         </Text>
-        <Text style={[styles.sourceValue, { color: colors.primaryText }]}>{preset.historicRoots}</Text>
+        <Text style={[styles.sourceValue, { color: colors.primaryText }]}>
+          {localizedPreset.historicRoots}
+        </Text>
       </View>
 
       <View style={styles.sourceBlock}>
@@ -225,7 +239,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
   const createRhythm = useReadingPlansStore((state) => state.createRhythm);
   const updateRhythm = useReadingPlansStore((state) => state.updateRhythm);
   const deleteRhythm = useReadingPlansStore((state) => state.deleteRhythm);
-  const currentRhythm = rhythmId ? rhythmsById[rhythmId] ?? null : null;
+  const currentRhythm = rhythmId ? (rhythmsById[rhythmId] ?? null) : null;
 
   const filteredPresets = useMemo(
     () =>
@@ -299,7 +313,10 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
   if (isEditing && !currentRhythm) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
         <View style={styles.errorContainer}>
           <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
             {t('readingPlans.rhythms')}
@@ -334,7 +351,10 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            style={[styles.backButton, { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground }]}
+            style={[
+              styles.backButton,
+              { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
+            ]}
           >
             <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
           </TouchableOpacity>
@@ -348,7 +368,12 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           </View>
         </View>
 
-        <View style={[styles.heroCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+        <View
+          style={[
+            styles.heroCard,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+        >
           <Text style={[styles.heroEyebrow, { color: colors.accentPrimary }]}>
             {t('plans.rhythmComposer.heroEyebrow')}
           </Text>
@@ -381,7 +406,9 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
               {t('plans.rhythmComposer.replaceCurrentTitle')}
             </Text>
-            <Text style={[styles.currentRhythmTitle, { color: colors.primaryText }]}>{currentRhythm.title}</Text>
+            <Text style={[styles.currentRhythmTitle, { color: colors.primaryText }]}>
+              {getLocalizedRhythmTitle(currentRhythm.title, t)}
+            </Text>
             <Text style={[styles.currentRhythmBody, { color: colors.secondaryText }]}>
               {t('plans.rhythmComposer.replaceCurrentBody')}
             </Text>
@@ -402,7 +429,11 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
             {t('plans.rhythmComposer.timeOfDay')}
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
             <FilterChip
               label={t('plans.rhythmComposer.filterAll')}
               active={slotFilter === 'all'}
@@ -440,7 +471,11 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
             {t('plans.rhythmComposer.tradition')}
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
             <FilterChip
               label={t('plans.rhythmComposer.allTraditions')}
               active={traditionFilter === ALL_TRADITIONS}
@@ -450,7 +485,9 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             {RHYTHM_PRESET_TRADITIONS.map((tradition) => (
               <FilterChip
                 key={tradition}
-                label={tradition}
+                label={t(
+                  `interface.rhythmPresets.${RHYTHM_PRESET_LIBRARY.find((preset) => preset.tradition === tradition)!.id}.tradition`
+                )}
                 active={traditionFilter === tradition}
                 colors={colors}
                 onPress={() => setTraditionFilter(tradition)}
@@ -460,7 +497,12 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         </View>
 
         {filteredPresets.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.emptyState,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
             <Ionicons name="search-outline" size={24} color={colors.accentPrimary} />
             <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
               {t('plans.rhythmComposer.emptyTitle')}

@@ -30,7 +30,7 @@ function formatEntryForExport(entry: CrashLogEntry): string {
 
 export function DiagnosticsScreen() {
   const navigation = useNavigation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
@@ -50,21 +50,17 @@ export function DiagnosticsScreen() {
   }, [entries, t]);
 
   const handleClear = useCallback(() => {
-    Alert.alert(
-      t('settings.diagnostics.clearTitle'),
-      t('settings.diagnostics.clearConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('settings.diagnostics.clear'),
-          style: 'destructive',
-          onPress: () => {
-            clearCrashLogs();
-            setEntries([]);
-          },
+    Alert.alert(t('settings.diagnostics.clearTitle'), t('settings.diagnostics.clearConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.diagnostics.clear'),
+        style: 'destructive',
+        onPress: () => {
+          clearCrashLogs();
+          setEntries([]);
         },
-      ]
-    );
+      },
+    ]);
   }, [t]);
 
   const hasEntries = entries.length > 0;
@@ -97,9 +93,7 @@ export function DiagnosticsScreen() {
                       style={[
                         styles.badge,
                         {
-                          backgroundColor: entry.isFatal
-                            ? colors.error + '22'
-                            : colors.cardBorder,
+                          backgroundColor: entry.isFatal ? colors.error + '22' : colors.cardBorder,
                         },
                       ]}
                     >
@@ -115,7 +109,7 @@ export function DiagnosticsScreen() {
                       </Text>
                     </View>
                     <Text style={styles.logTimestamp}>
-                      {new Date(entry.timestamp).toLocaleString()}
+                      {new Date(entry.timestamp).toLocaleString(i18n.language)}
                     </Text>
                   </View>
                   <Text style={styles.logMessage}>{entry.message}</Text>
@@ -139,17 +133,11 @@ export function DiagnosticsScreen() {
 
       {hasEntries ? (
         <View style={styles.actionBar}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.shareButton]}
-            onPress={handleShare}
-          >
+          <TouchableOpacity style={[styles.actionButton, styles.shareButton]} onPress={handleShare}>
             <Ionicons name="share-outline" size={20} color={colors.onAccent} />
-            <Text style={styles.shareButtonText}>{t('common.share')}</Text>
+            <Text style={styles.shareButtonText}>{t('interface.share')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.clearButton]}
-            onPress={handleClear}
-          >
+          <TouchableOpacity style={[styles.actionButton, styles.clearButton]} onPress={handleClear}>
             <Ionicons name="trash-outline" size={20} color={colors.error} />
             <Text style={styles.clearButtonText}>{t('settings.diagnostics.clear')}</Text>
           </TouchableOpacity>

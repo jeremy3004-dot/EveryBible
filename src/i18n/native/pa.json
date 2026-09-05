@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "ਜੇ ਤੁਸੀਂ ਪ੍ਰੋਫ਼ਾਈਲ ਫੋਟੋ ਖਿੱਚਣੀ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ Every Bible ਨੂੰ ਕੈਮਰਾ ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।",
+    "NSMicrophoneUsageDescription": "ਅਧਿਆਇ ਬਾਰੇ ਰਾਏ ਆਵਾਜ਼ ਵਿੱਚ ਰਿਕਾਰਡ ਕਰਨ ਲਈ Every Bible ਨੂੰ ਇਜਾਜ਼ਤ ਦਿਓ।",
+    "NSPhotoLibraryUsageDescription": "ਪ੍ਰੋਫ਼ਾਈਲ ਫੋਟੋ ਚੁਣਨ ਲਈ Every Bible ਨੂੰ ਤੁਹਾਡੀਆਂ ਫੋਟੋਆਂ ਤੱਕ ਪਹੁੰਚ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।",
+    "NSFaceIDUsageDescription": "ਸੰਭਾਲੇ ਹੋਏ ਸਾਈਨ-ਇਨ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ Every Bible ਨੂੰ Face ID ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।"
+  }
+}

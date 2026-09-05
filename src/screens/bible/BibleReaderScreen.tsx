@@ -303,12 +303,7 @@ const ReaderParagraphBlock = memo(function ReaderParagraphBlock({
 }, readerParagraphBlockPropsAreEqual);
 /* eslint-enable react/prop-types */
 
-type ChapterFeedbackAudioState =
-  | 'idle'
-  | 'recording'
-  | 'preview'
-  | 'uploading'
-  | 'error';
+type ChapterFeedbackAudioState = 'idle' | 'recording' | 'preview' | 'uploading' | 'error';
 
 const waitForFeedbackAudioActiveAppState = async (): Promise<boolean> => {
   if (AppState.currentState === 'active') {
@@ -1478,7 +1473,7 @@ export function BibleReaderScreen() {
     setIsLoadingTranslatorFeedback(false);
 
     if (!result.success) {
-      setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+      setTranslatorFeedbackError(t('common.unexpectedError'));
       setTranslatorFeedbackItems([]);
       return;
     }
@@ -1529,7 +1524,7 @@ export function BibleReaderScreen() {
 
       if (!result.success) {
         applyLocalTranslatorResolution(feedbackId, priorResolution);
-        setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+        setTranslatorFeedbackError(t('common.unexpectedError'));
       }
     },
     [
@@ -1561,7 +1556,7 @@ export function BibleReaderScreen() {
 
       if (!result.success) {
         applyLocalTranslatorResolution(feedbackId, priorResolution);
-        setTranslatorFeedbackError(result.error ?? t('common.unexpectedError'));
+        setTranslatorFeedbackError(t('common.unexpectedError'));
       }
     },
     [
@@ -2841,9 +2836,8 @@ export function BibleReaderScreen() {
           ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
           : { message: chapterShareTitle, url }
       );
-    } catch (shareError) {
-      const message =
-        shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+    } catch {
+      const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
       setPendingChapterAudioShareAction(null);
@@ -2957,10 +2951,9 @@ export function BibleReaderScreen() {
       setAudioPortionStartMs(initialStartMs);
       setAudioPortionEndMs(initialEndMs);
       setPendingChapterAudioShareAction(null);
-    } catch (shareError) {
+    } catch {
       setPendingChapterAudioShareAction(null);
-      const message =
-        shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+      const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     }
   };
@@ -3114,9 +3107,8 @@ export function BibleReaderScreen() {
             : { message: chapterShareTitle, url }
         );
       }
-    } catch (shareError) {
-      const message =
-        shareError instanceof Error ? shareError.message : t('bible.audioDownloadFailed');
+    } catch {
+      const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
       setIsSharingAudioPortion(false);
@@ -3253,9 +3245,7 @@ export function BibleReaderScreen() {
 
   // Signed audio URLs expire after ~1h; if playback fails, refetch this chapter's
   // feedback to obtain fresh URLs and return the new one for this item (B2).
-  const refreshTranslatorFeedbackAudioUrl = async (
-    feedbackId: string
-  ): Promise<string | null> => {
+  const refreshTranslatorFeedbackAudioUrl = async (feedbackId: string): Promise<string | null> => {
     if (!translatorReviewPasscode) {
       return null;
     }
@@ -3310,7 +3300,7 @@ export function BibleReaderScreen() {
       return submittedAt;
     }
 
-    return parsedDate.toLocaleString();
+    return parsedDate.toLocaleString(i18n.language);
   };
 
   const stopFeedbackAudioRecording = async () => {
@@ -3489,7 +3479,7 @@ export function BibleReaderScreen() {
     if (audioUploadResult && !audioUploadResult.success) {
       setIsSubmittingFeedback(false);
       setFeedbackAudioState('error');
-      setFeedbackSubmitError(audioUploadResult.error ?? t('bible.chapterFeedbackAudioUploadError'));
+      setFeedbackSubmitError(t('bible.chapterFeedbackAudioUploadError'));
       return;
     }
 
@@ -3527,9 +3517,7 @@ export function BibleReaderScreen() {
       setFeedbackAudioState('preview');
     }
     setFeedbackSubmitError(
-      result.requiresSignIn
-        ? t('bible.chapterFeedbackSignInRequired')
-        : (result.error ?? t('common.unexpectedError'))
+      result.requiresSignIn ? t('bible.chapterFeedbackSignInRequired') : t('common.unexpectedError')
     );
   };
 
@@ -3990,7 +3978,7 @@ export function BibleReaderScreen() {
         deleted_at: null,
       });
       if (!result.success) {
-        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
         return;
       }
     }
@@ -4020,7 +4008,7 @@ export function BibleReaderScreen() {
 
       const result = await softDeleteAnnotation(existing.id);
       if (!result.success) {
-        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
         return;
       }
     }
@@ -4055,7 +4043,7 @@ export function BibleReaderScreen() {
         deleted_at: null,
       });
       if (!result.success) {
-        Alert.alert(t('common.error'), result.error ?? t('common.unexpectedError'));
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
         return;
       }
     }
@@ -4142,7 +4130,7 @@ export function BibleReaderScreen() {
                 disabled={!hasPrevChapter}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.previous')}
-                accessibilityHint="Goes to the previous chapter"
+                accessibilityHint={t('interface.previousChapterHint')}
               >
                 <Ionicons
                   name="chevron-back"
@@ -4685,8 +4673,7 @@ export function BibleReaderScreen() {
                   {
                     backgroundColor:
                       feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
-                    borderColor:
-                      feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
+                    borderColor: feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
                   },
                 ]}
                 onPress={() => {
@@ -5533,7 +5520,7 @@ export function BibleReaderScreen() {
                 style={styles.sheetCloseButton}
                 onPress={() => setShowAudioOptionsSheet(false)}
                 accessibilityRole="button"
-                accessibilityLabel={t('common.close')}
+                accessibilityLabel={t('interface.close')}
               >
                 <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
               </TouchableOpacity>
@@ -5941,9 +5928,7 @@ export function BibleReaderScreen() {
                     styles.feedbackSentimentButton,
                     {
                       backgroundColor:
-                        feedbackSentiment === 'up'
-                          ? colors.success
-                          : colors.bibleElevatedSurface,
+                        feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
                       borderColor:
                         feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
                     },

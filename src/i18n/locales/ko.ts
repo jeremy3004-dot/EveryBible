@@ -1,23 +1,299 @@
 export const ko = {
+  interface: {
+    "close": "닫기",
+    "share": "공유",
+    "minutesShort": "{{count}}분",
+    "hoursShort": "{{count}}시간",
+    "daysShort": "{{count}}일",
+    "hoursMinutes": "{{hours}}시간 {{minutes}}분",
+    "justNow": "방금",
+    "minutesAgo": "{{count}}분 전",
+    "hoursAgo": "{{count}}시간 전",
+    "daysAgo": "{{count}}일 전",
+    "activePrayerCount": "진행 중 {{count}}개",
+    "groupShareMessage": "EveryBible에서 제 제자훈련 그룹 \"{{name}}\"에 참여하세요!\n\n참여 코드: {{code}}",
+    "groupAboutTitle": "그룹 모임 소개",
+    "groupAboutBody": "그룹 모임은 전 세계 제자훈련 운동에서 사용하는 세 부분(3/3) 형식을 따릅니다:",
+    "groupLookBack": "어떻게 순종했나요? 누구와 나누었나요?",
+    "groupLookUp": "함께 성경을 읽고 나누세요",
+    "groupLookForward": "어떻게 순종할 건가요? 누구에게 전할 건가요?",
+    "backgroundMusicLabel": "배경 음악: {{name}}",
+    "backgroundMusicHint": "배경 음악 선택 화면 열기",
+    "repeatHint": "반복 끄기, 장 반복, 성경책 반복 전환",
+    "shareAudioHint": "이 장의 오디오 공유 옵션 열기",
+    "playChapterAudio": "장 오디오 재생",
+    "pauseChapterAudio": "장 오디오 일시 정지",
+    "previousChapterHint": "이전 장으로 이동",
+    "chapterRange": "{{start}}–{{end}}장",
+    "bookDownloadProgress": "{{completed}}/{{total}}권 ({{percent}}%)",
+    "currentPlanDay": "현재 계획 {{day}}일차",
+    "planDay": "{{day}}일차",
+    "planSessionForDay": "{{day}}일차 {{session}}",
+    "music": {
+      "off": {
+        "label": "끄기",
+        "description": "기본 배경 음악 없이 성경을 재생합니다."
+      },
+      "ambient": {
+        "label": "앰비언트",
+        "description": "수중 분위기의 패드와 종소리가 낭독 아래 반복됩니다."
+      },
+      "piano": {
+        "label": "피아노",
+        "description": "부드러운 피아노 선율에 잔잔한 패드가 어우러집니다."
+      },
+      "soft-guitar": {
+        "label": "잔잔한 기타",
+        "description": "낭독을 방해하지 않는 나일론 기타 반주가 반복됩니다."
+      },
+      "harp": {
+        "label": "하프",
+        "description": "경건하고 부드러운 느낌의 가벼운 하프 독주입니다."
+      },
+      "flute": {
+        "label": "플루트",
+        "description": "몽환적이고 부드러운 분위기의 짧은 플루트 선율이 반복됩니다."
+      },
+      "sitar": {
+        "label": "시타르",
+        "description": "오래 듣기에 좋은 사막풍의 따뜻한 시타르 음색입니다."
+      },
+      "ocean-waves": {
+        "label": "파도",
+        "description": "반복되는 해변 파도 소리가 차분한 배경을 만듭니다."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "가톨릭 아침 기도",
+        "description": "찬미와 성가, 복음의 축복으로 시작하는 아침 성무일도 형식입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "성무일도"
+      },
+      "catholic-daytime-prayer": {
+        "title": "가톨릭 낮 기도",
+        "description": "짧은 시편으로 하나님께 꾸준히 마음을 돌리는 간결한 낮 성무일도입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "성무일도"
+      },
+      "catholic-evening-prayer": {
+        "title": "가톨릭 저녁 기도",
+        "description": "시편과 감사, 성모 찬가로 하루를 마무리하는 저녁 성무일도 형식입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "성무일도"
+      },
+      "catholic-night-prayer": {
+        "title": "가톨릭 끝기도",
+        "description": "신뢰와 보호, 평안한 맡김을 위한 취침 전 기도입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "끝기도"
+      },
+      "catholic-lectio-divina": {
+        "title": "가톨릭 거룩한 독서",
+        "description": "말씀에 머물며 묵상하고 기도하는 느린 읽기 흐름입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "거룩한 독서"
+      },
+      "ignatian-daily-examen": {
+        "title": "이냐시오식 하루 성찰",
+        "description": "감사와 돌아봄, 회개로 하루를 성찰하는 순서입니다.",
+        "tradition": "가톨릭",
+        "historicRoots": "이냐시오 영성"
+      },
+      "anglican-morning-prayer": {
+        "title": "성공회 아침 기도",
+        "description": "시편과 복음의 가르침으로 하루를 준비하는 아침 성무일도입니다.",
+        "tradition": "성공회",
+        "historicRoots": "공동기도서"
+      },
+      "anglican-noonday-prayer": {
+        "title": "성공회 정오 기도",
+        "description": "도움을 구하는 시편과 생명의 떡에 대한 소망으로 드리는 짧은 정오 기도입니다.",
+        "tradition": "성공회",
+        "historicRoots": "매일 기도"
+      },
+      "anglican-evening-prayer": {
+        "title": "성공회 저녁 기도",
+        "description": "저녁 시편과 마리아의 찬가로 이루어진 전통적인 저녁 기도입니다.",
+        "tradition": "성공회",
+        "historicRoots": "공동기도서"
+      },
+      "anglican-compline": {
+        "title": "성공회 끝기도",
+        "description": "고백과 신뢰, 안식을 위한 잔잔한 밤 기도입니다.",
+        "tradition": "성공회",
+        "historicRoots": "공동기도서"
+      },
+      "orthodox-morning-rule": {
+        "title": "정교회 아침 기도 규칙",
+        "description": "회개와 자비, 예수님이 가르치신 기도로 이루어진 새벽 기도 규칙입니다.",
+        "tradition": "정교회",
+        "historicRoots": "아침 기도"
+      },
+      "orthodox-sixth-hour": {
+        "title": "정교회 제6시 기도",
+        "description": "그리스도의 수난과 깨어 있음을 기억하는 정오 성무일도입니다.",
+        "tradition": "정교회",
+        "historicRoots": "정시 기도"
+      },
+      "orthodox-vespers": {
+        "title": "정교회 저녁 기도",
+        "description": "창조에 대한 찬미와 등불의 시편, 말씀으로 드리는 저녁 기도입니다.",
+        "tradition": "정교회",
+        "historicRoots": "매일 저녁 기도"
+      },
+      "orthodox-small-compline": {
+        "title": "정교회 소끝기도",
+        "description": "자비와 피난처를 구하며 잠들기 전 마지막 기도를 드리는 조용한 밤 예식입니다.",
+        "tradition": "정교회",
+        "historicRoots": "끝기도"
+      },
+      "benedictine-sacred-reading": {
+        "title": "베네딕도회 거룩한 독서",
+        "description": "정해진 독서 시간과 차분한 집중에서 영감을 받은 읽기 중심의 흐름입니다.",
+        "tradition": "베네딕도회",
+        "historicRoots": "성 베네딕도 규칙서"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "베네딕도회 시편과 노동",
+        "description": "하루 동안 기도와 노동, 조용한 순종을 실천하는 순서입니다.",
+        "tradition": "베네딕도회",
+        "historicRoots": "기도하고 일하라"
+      },
+      "taize-evening-prayer": {
+        "title": "떼제 저녁 기도",
+        "description": "시편과 성경 읽기, 고요함으로 이루어진 노래와 침묵의 저녁입니다.",
+        "tradition": "떼제",
+        "historicRoots": "떼제 공동기도"
+      },
+      "lutheran-morning-devotion": {
+        "title": "루터교 아침 경건회",
+        "description": "말씀과 암송, 꾸준한 기도로 하루를 시작하려는 가정을 위한 흐름입니다.",
+        "tradition": "루터교",
+        "historicRoots": "가정의 매일 경건 시간"
+      },
+      "lutheran-close-of-day": {
+        "title": "루터교 하루 마침 기도",
+        "description": "고백과 피난처, 그리스도의 지키심을 구하는 간단한 밤 경건회입니다.",
+        "tradition": "루터교",
+        "historicRoots": "가정의 매일 경건 시간"
+      },
+      "puritan-family-worship": {
+        "title": "청교도 가정 예배",
+        "description": "기도와 찬양, 성경, 경건한 대화가 있는 가정 중심의 저녁입니다.",
+        "tradition": "청교도",
+        "historicRoots": "가정 예배 지침서"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "묵상",
+        "description": "예수님의 가르침에 가까이 머무는 짧은 묵상입니다."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "세상의 가치를 뒤집는 나라의 복",
+        "summary": "팔복에 머물며 예수님이 우리의 바람을 어떻게 새롭게 하시는지 살펴보세요.",
+        "actionLabel": "장 읽기"
+      },
+      "mat-plans": {
+        "title": "계획",
+        "description": "목적을 가지고 마태복음을 읽는 간단한 과정입니다."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "마태복음의 하나님 나라 흐름",
+        "summary": "정체성, 기도, 자비, 선교, 부활의 소망을 따라가는 7일입니다.",
+        "actionLabel": "첫 장 열기"
+      },
+      "jhn-playlists": {
+        "title": "재생 목록",
+        "description": "요한복음의 주요 흐름을 따라가는 엄선된 듣기 과정입니다."
+      },
+      "jhn-playlist-signs": {
+        "title": "예수님의 표적",
+        "summary": "그리스도가 누구신지 드러내는 표적을 따라가는 안내 과정입니다.",
+        "actionLabel": "재생 목록 시작"
+      },
+      "gal-devotionals": {
+        "title": "묵상",
+        "description": "기도하는 마음으로 갈라디아서를 읽는 짧은 묵상입니다."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "더 이상 종이 아님",
+        "summary": "자녀 됨과 유업, 아버지의 환영을 묵상하세요.",
+        "actionLabel": "장 읽기"
+      },
+      "gal-plans": {
+        "title": "계획",
+        "description": "이 서신을 따라가는 짧고 체계적인 과정입니다."
+      },
+      "gal-plan-six-days": {
+        "title": "하루 한 장: 갈라디아서",
+        "summary": "매일 한 장씩 읽으며 서두르지 않고 바울의 논증을 따라가세요.",
+        "actionLabel": "첫 장 열기"
+      },
+      "psa-playlists": {
+        "title": "재생 목록",
+        "description": "다양한 마음의 계절에 맞는 기도의 길입니다."
+      },
+      "psa-playlist-morning": {
+        "title": "아침의 피난처",
+        "summary": "하루를 시작하며 신뢰의 시편을 따라가는 짧은 과정입니다.",
+        "actionLabel": "재생 목록 시작"
+      },
+      "psa-playlist-repentance": {
+        "title": "회개의 시편",
+        "summary": "정직함과 고백, 회복으로 기도하세요.",
+        "actionLabel": "재생 목록 시작"
+      },
+      "psa-devotionals": {
+        "title": "묵상",
+        "description": "시편으로 천천히 기도하는 조용한 묵상입니다."
+      },
+      "psa-devotional-shepherd": {
+        "title": "회복시키시는 목자",
+        "summary": "시편 23편이 구호가 아니라 기도가 될 때까지 그 말씀에 머무세요.",
+        "actionLabel": "시편 읽기"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "공개 도메인 베리언 성경 본문과 바로 재생하는 CC0 장 오디오",
+      "web": "EveryBible 라이브러리의 공개 도메인 영국판 본문과 장 오디오",
+      "kjv": "1611년 공인 킹제임스 성경",
+      "asv": "1901년에 출판된 킹제임스 성경 개정판, 본문 기본 설치",
+      "bbe": "읽기 쉽도록 제한된 어휘 사용",
+      "sparv1909": "고전 스페인어 성경 · 공개 도메인 본문",
+      "hincv": "힌디어 현대어역 · 공개 도메인",
+      "npiulb": "개방형 직역 성경 · 공개 도메인"
+    },
+    "audioUnavailableTranslation": "이 번역본의 오디오를 이용할 수 없습니다.",
+    "audioUnavailableChapter": "이 장의 오디오를 이용할 수 없습니다.",
+    "audioPlayFailed": "오디오를 재생하지 못했습니다. 다시 시도하세요.",
+    nativePermissions: {
+      "NSCameraUsageDescription": "프로필 사진을 촬영하려면 Every Bible의 카메라 접근을 허용하세요.",
+      "NSMicrophoneUsageDescription": "장별 피드백의 음성 답변을 녹음하도록 Every Bible에 허용하세요.",
+      "NSPhotoLibraryUsageDescription": "프로필 사진을 선택할 수 있도록 Every Bible의 사진 보관함 접근을 허용하세요.",
+      "NSFaceIDUsageDescription": "저장된 로그인 정보를 보호하도록 Every Bible의 Face ID 사용을 허용하세요."
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "피드백 목록",
+    subtitle: "검토할 피드백이 있는 장",
+    empty: "모두 검토했습니다. 대기 중인 피드백이 없습니다.",
+    pendingCount: "검토할 장 {{count}}개",
+    chapterCounts: "수정할 항목 {{down}}개 · 확인할 항목 {{up}}개",
+    openLabel: "{{reference}} 열기",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "내 피드백",
+    settingsRow: "내 피드백",
+    settingsRowSummary: "번역팀이 내 의견을 어떻게 처리했는지 확인하세요",
+    subtitle: "장별 피드백에 대한 번역팀의 처리 결과",
+    empty: "아직 장에 대한 피드백을 보내지 않았습니다.",
+    signInRequired: "보낸 피드백을 보려면 로그인하세요.",
+    audioLabel: "음성 메모 첨부됨",
+    statusReceived: "접수됨",
+    statusFixed: "수정됨",
+    statusNoChange: "검토 완료 · 변경 없음",
   },
   "common": {
     "cancel": "취소",
@@ -27,12 +303,12 @@ export const ko = {
     "retry": "다시 해 보다",
     "loading": "로드 중...",
     "continue": "계속하다",
-    "save": "구하다",
+    "save": "저장",
     "delete": "삭제",
     "edit": "편집하다",
-    "back": "뒤쪽에",
+    "back": "뒤로",
     "next": "다음",
-    "previous": "이전의",
+    "previous": "이전",
     "search": "찾다",
     "settings": "설정",
     "comingSoon": "출시 예정",
@@ -67,7 +343,7 @@ export const ko = {
     "sectionOfTheDayBody": "오늘의 선택은 아직 서면 텍스트가 추가되지 않은 경우에도 이 장의 오디오로 제공됩니다.",
     "verseAudioBody": "오늘의 말씀은 현재 오디오 형태로 제공되기 때문에 글이 추가되기 전에도 들을 수 있습니다.",
     "playSectionOfTheDay": "오늘의 플레이 섹션",
-    "playVerseOfTheDay": "오늘의 말씀을 재생하세요",
+    "playVerseOfTheDay": "오늘의 말씀 재생",
     "continueReading": "계속 읽기",
     "sharePrompt": "빛을 나누세요. 오늘 누군가를 격려하세요.",
     "plan": "계획",
@@ -106,7 +382,7 @@ export const ko = {
     "recommendedBadge": "추천",
     "interfaceAvailable": "사용 가능한 인터페이스",
     "privacyTitle": "개인 정보 보호 스타일을 선택하세요",
-    "privacyBody": "이 장치의 아이콘 스타일을 선택하세요. 또한 Discreet 모드는 앱을 종료할 때마다 로컬 코드 잠금을 추가합니다.",
+    "privacyBody": "이 기기의 아이콘 스타일을 선택하세요. 비공개 모드는 앱을 나갈 때마다 기기 내 암호 잠금을 추가합니다.",
     "standardIconTitle": "표준 아이콘",
     "standardIconBody": "일반 Every Bible 아이콘을 사용하여 앱을 직접 엽니다.",
     "discreetIconTitle": "신중한 아이콘",
@@ -119,9 +395,9 @@ export const ko = {
     "finish": "설정 완료"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "오디오를 재생하지 못했습니다. 다시 시도하세요.",
+    chapterFeedbackSuccessTitle: "피드백 전송됨",
+    readerFontsAndSettings: "글꼴 및 설정",
     "title": "성경",
     "oldTestament": "구약 성서",
     "fontsAndSettings": "글꼴 및 설정",
@@ -147,12 +423,12 @@ export const ko = {
     "searchUnavailable": "이 번역에는 아직 전체 텍스트 검색을 사용할 수 없습니다.",
     "noVersesAvailable": "{{book}} {{chapter}}에는 아직 작성된 텍스트가 없습니다.",
     "fullBibleComingSoon": "이 장은 현재 텍스트로 제공되지 않습니다. 오디오를 사용할 수 있는 경우 Every Bible는 대신 청취 환경을 엽니다.",
-    "audioOnlyTitle": "오디오 우선 장",
+    "audioOnlyTitle": "오디오 중심의 장",
     "audioOnlyBody": "{{translation}}는 현재 이 장의 오디오로 제공되며 서면 텍스트는 아직 준비 중입니다.",
-    "verseCount_one": "{{count}} 절",
-    "verseCount_other": "{{count}} 구절",
-    "listen": "듣다",
-    "read": "읽다",
+    "verseCount_one": "{{count}}절",
+    "verseCount_other": "{{count}}절",
+    "listen": "듣기",
+    "read": "읽기",
     "removeFromFavorites": "즐겨찾기에서 제거",
     "addToFavorites": "즐겨찾기에 추가",
     "addToSavedPlaylist": "저장된 재생목록에 추가",
@@ -171,7 +447,7 @@ export const ko = {
       "DEU": "신명기",
       "JOS": "여호수아",
       "JDG": "사사기",
-      "RUT": "룻",
+      "RUT": "룻기",
       "1SA": "사무엘상",
       "2SA": "사무엘하",
       "1KI": "열왕기상",
@@ -185,14 +461,14 @@ export const ko = {
       "PSA": "시편",
       "PRO": "잠언",
       "ECC": "전도서",
-      "SNG": "솔로몬의 노래",
+      "SNG": "아가",
       "ISA": "이사야",
       "JER": "예레미야",
-      "LAM": "애가",
+      "LAM": "예레미야애가",
       "EZK": "에스겔",
       "DAN": "다니엘",
       "HOS": "호세아",
-      "JOL": "조엘",
+      "JOL": "요엘",
       "AMO": "아모스",
       "OBA": "오바댜",
       "JON": "요나",
@@ -216,7 +492,7 @@ export const ko = {
       "PHP": "빌립보서",
       "COL": "골로새서",
       "1TH": "데살로니가전서",
-      "2TH": "데살로니가 후서",
+      "2TH": "데살로니가후서",
       "1TI": "디모데전서",
       "2TI": "디모데후서",
       "TIT": "디도서",
@@ -225,56 +501,56 @@ export const ko = {
       "JAS": "야고보서",
       "1PE": "베드로전서",
       "2PE": "베드로후서",
-      "1JN": "요한 1서",
-      "2JN": "요한 2서",
-      "3JN": "요한3서",
+      "1JN": "요한일서",
+      "2JN": "요한이서",
+      "3JN": "요한삼서",
       "JUD": "유다서",
-      "REV": "계시록"
+      "REV": "요한계시록"
     },
     "chapterFeedback": "챕터 피드백",
-    "chapterFeedbackTitle": "이 장에 대한 피드백 공유",
+    "chapterFeedbackTitle": "이 본문 검토",
     "chapterFeedbackBody": "이 장이 도움이 되었는지, 개선할 점은 무엇인지 알려주십시오. 댓글은 선택사항입니다.",
     "chapterFeedbackThumbsUp": "도움이 되는",
     "chapterFeedbackThumbsDown": "작업이 필요함",
     "chapterFeedbackPlaceholder": "이 장에 대한 선택적 설명",
     "chapterFeedbackSelectionHint": "선택적 메모를 추가하려면 좋아요 또는 싫어요를 탭하세요.",
     "chapterFeedbackSubmit": "피드백 보내기",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "대신 음성으로 답변하기",
+    "chapterFeedbackAudioRecording": "녹음 중 {{duration}}",
+    "chapterFeedbackAudioReady": "음성 답변 준비됨: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, 최대 1분",
+    "chapterFeedbackAudioRecord": "녹음하기",
+    "chapterFeedbackAudioStop": "중지",
+    "chapterFeedbackAudioPreview": "음성 답변 미리 듣기",
+    "chapterFeedbackAudioRerecord": "음성 답변 다시 녹음하기",
+    "chapterFeedbackAudioUploading": "오디오 업로드 중…",
+    "chapterFeedbackAudioPermissionDenied": "마이크 접근이 꺼져 있습니다. 답변을 입력할 수 있습니다.",
+    "chapterFeedbackAudioPermissionHelp": "음성 피드백을 보내려면 시스템 설정에서 마이크 접근을 허용하세요.",
+    "chapterFeedbackAudioStartError": "녹음을 시작하지 못했습니다. 답변을 입력할 수 있습니다.",
+    "chapterFeedbackAudioStopError": "녹음을 완료하지 못했습니다. 다시 시도하세요.",
+    "chapterFeedbackAudioRecordingMissing": "녹음을 저장하지 못했습니다. 다시 시도하세요.",
+    "chapterFeedbackAudioUploadError": "오디오 업로드에 실패했습니다. 녹음은 보관되어 있으니 다시 전송하세요.",
     "chapterFeedbackSuccess": "피드백을 보내주셔서 감사합니다. 귀하의 제출물이 접수되었으며 가능한 한 빨리 번역팀이 검토할 것입니다.",
     "chapterFeedbackSignInRequired": "챕터 피드백을 보내기 전에 로그인하세요.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "정확성 검토",
+    "translatorReviewSummary": "판단 대기: {{count}}개 중 {{pending}}개",
+    "translatorReviewSummaryComplete": "모든 정확성 검토 처리 완료",
+    "translatorReviewLoading": "피드백 불러오는 중…",
+    "translatorReviewEmpty": "이 장에 제출된 피드백이 아직 없습니다.",
+    "translatorReviewUnknownUser": "알 수 없는 기여자",
+    "translatorReviewUnread": "판단 필요",
+    "translatorReviewSubmittedAt": "제출일: {{date}}",
+    "translatorReviewSubmittedBy": "제출자: {{name}}",
+    "translatorReviewNoComment": "서면 피드백이 없습니다.",
+    "translatorReviewFixed": "수정됨",
+    "translatorReviewConfirmedAccurate": "정확함 확인됨",
+    "translatorReviewReviewed": "변경 필요 없음",
+    "translatorReviewConfirmAccurate": "정확함 확인하기",
+    "translatorReviewMarkFixed": "수정됨으로 표시",
+    "translatorReviewNoActionNeeded": "조치 필요 없음",
+    "translatorReviewReopen": "다시 열기",
+    "translatorReviewListened": "청취 완료",
+    "translatorReviewListen": "듣기",
     "translatorReviewPause": "일시정지",
     "nextChapterHint": "다음 장으로 이동",
     "openBookAndChapterPickerHint": "책 및 장 선택기를 엽니다.",
@@ -387,16 +663,16 @@ export const ko = {
     "chapterFeedback": "챕터 피드백",
     "chapterFeedbackSummaryOn": "선택적 장 피드백이 켜져 있습니다.",
     "chapterFeedbackSummaryOff": "선택적 챕터 피드백이 꺼져 있습니다",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "번역자 접근",
+    "translatorAccessTitle": "번역자 접근",
+    "translatorAccessBody": "이 기기에서 장별 피드백을 검토하려면 번역자 암호를 입력하세요.",
+    "translatorAccessPlaceholder": "암호",
+    "translatorAccessUnlock": "잠금 해제",
+    "translatorAccessIncorrect": "번역자 암호가 올바르지 않습니다.",
+    "translatorAccessEnabled": "번역자 검토 모드 활성화됨",
+    "translatorAccessEnabledBody": "이제 장 화면에 번역자 피드백 검토 도구가 표시됩니다.",
+    "translatorAccessSummaryOn": "번역자 검토 도구 켜짐",
+    "translatorAccessSummaryOff": "암호를 입력하여 검토 도구 활성화",
   },
   "notifications": {
     "channelDailyReminder": "일일 독서 알림",
@@ -481,7 +757,7 @@ export const ko = {
     "readingActivitySubtitle": "독서 일수와 연속 기록을 한눈에 확인하세요.",
     "readingDays": "독서일",
     "chaptersRead": "읽은 장",
-    "chapterRead": "장 읽기",
+    "chapterRead": "읽은 장",
     "selectedDay": "선택한 날짜",
     "tapDayHint": "세부정보를 보려면 표시된 날짜를 탭하세요.",
     "noReadingActivityTitle": "아직 독서 활동이 없습니다.",
@@ -549,7 +825,7 @@ export const ko = {
     "allLessonsComplete": "모든 수업이 완료되었습니다.",
     "allLessonsCompleteBody": "현재 훈련 경로를 완료했습니다. 어떤 분야든 다시 방문하고, 계속 연습하고, 다른 사람을 가르치세요.",
     "fieldProgress": "{{progress}}% 완료",
-    "keyVerse": "주요 구절",
+    "keyVerse": "핵심 구절",
     "practiceActivity": "실습활동",
     "discussionLabel": "논의",
     "prayerLabel": "기도",
@@ -651,8 +927,8 @@ export const ko = {
     "enrolled": "등록됨",
     "dayOf": "{{total}}일 중 {{current}}일",
     "markComplete": "완료로 표시",
-    "completed": "완전한",
-    "progress": "진전",
+    "completed": "완료됨",
+    "progress": "진행 상황",
     "noPlans": "이용 가능한 독서 계획이 없습니다.",
     "noActivePlans": "아직 계획을 시작하지 않았습니다.",
     "findPlans": "계획 찾기",
@@ -674,7 +950,7 @@ export const ko = {
     "dayLabel": "{{day}}일",
     "chapterProgress": "{{total}}개 중 {{current}}개",
     "nextChapterCta": "다음 장",
-    "completeDayCta": "하루를 완료하세요",
+    "completeDayCta": "오늘 읽기 완료",
     "listenChapterCounted": "오늘 계획에는 {{reference}}이 포함되었습니다.",
     "dailyTargetCompleteTitle": "매일 읽기 완료",
     "dailyTargetCompleteBody": "오늘의 계획 읽기를 마쳤습니다. 진행 상황을 확인할 수 있도록 계획으로 다시 안내해 드리겠습니다.",
@@ -695,19 +971,19 @@ export const ko = {
       "description": "두 달 동안 마태, 마가, 누가, 요한을 살펴보세요."
     },
     "proverbs31": {
-      "title": "31일간의 잠언",
-      "description": "한 달 동안 매일 잠언 한 장씩 지혜를 얻으세요."
+      "title": "매일 잠언 한 장",
+      "description": "오늘 날짜에 해당하는 잠언의 장을 읽고 매달 반복합니다."
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "매주 반복되는 평일 아침과 저녁의 지정된 Kathismata를 읽으세요."
+      "description": "평일 아침과 저녁에 정해진 시편 구분을 읽고 매주 반복합니다."
     },
     "chronological": {
       "title": "연대순 성경",
       "description": "창세기부터 요한계시록까지 사건이 일어난 순서대로 성경을 읽어보세요."
     },
     "epistles30": {
-      "title": "30일 동안의 서신",
+      "title": "30일 서신 읽기",
       "description": "한 달 동안 바울, 베드로, 야고보, 요한의 편지를 읽어보세요."
     },
     "sermonMount7": {
@@ -733,19 +1009,19 @@ export const ko = {
     "rhythmNamePlaceholder": "자동 이름을 지정하려면 비워두세요.",
     "rhythmPlanCount": "{{count}} 계획",
     "rhythmItemCount": "{{count}}개 항목",
-    "includedPlans": "포함된 요금제",
+    "includedPlans": "포함된 읽기 계획",
     "includedItems": "포함된 항목",
-    "availablePlans": "이용 가능한 플랜",
+    "availablePlans": "이용 가능한 읽기 계획",
     "rhythmsIntro": "계획 진행 상황과 맞춤형 성구를 혼합하여 반복 가능한 아침, 오후, 저녁 흐름을 구축하세요.",
     "rhythmSlotPrompt": "먼저 구축하려는 흐름 종류를 선택하세요.",
     "rhythmSlotActive": "{{name}} 선택됨",
     "selected": "선택된",
     "continueRhythm": "리듬 계속하기",
     "nextUp": "다음: {{value}}",
-    "openRhythm": "오픈리듬",
+    "openRhythm": "읽기 흐름 열기",
     "deleteRhythm": "리듬 삭제",
-    "emptyRhythmPlans": "이 리듬을 저장하려면 하나 이상의 계획을 추가하세요.",
-    "emptyRhythmItems": "이 리듬을 저장하려면 최소한 하나의 계획이나 악절을 추가하세요.",
+    "emptyRhythmPlans": "이 읽기 흐름을 저장하려면 계획을 하나 이상 추가하세요.",
+    "emptyRhythmItems": "이 읽기 흐름을 저장하려면 계획이나 성경 본문을 하나 이상 추가하세요.",
     "alreadyInAnotherRhythm": "이 계획은 이미 다른 리듬에 있습니다.",
     "planUnavailableForRhythm": "등록된 활성 계획만 리듬에 추가할 수 있습니다.",
     "rhythmDaySummary": "현재 날짜: {{day}}",
@@ -753,10 +1029,10 @@ export const ko = {
     "rhythmPlanSource": "{{count}}일 계획",
     "rhythmPassageLabel": "{{count}}장",
     "planItemLabel": "계획",
-    "passageItemLabel": "통로",
+    "passageItemLabel": "성경 본문",
     "addPassage": "성경구절 추가",
-    "addPassageToRhythm": "리듬에 패시지 추가",
-    "repeatablePassage": "반복 가능한 통과",
+    "addPassageToRhythm": "읽기 흐름에 성경 본문 추가",
+    "repeatablePassage": "반복해서 읽는 성경 본문",
     "startChapterLabel": "장 시작",
     "endChapterLabel": "장 끝",
     "maxChapterHint": "{{count}}개의 챕터 사용 가능",
@@ -774,7 +1050,7 @@ export const ko = {
     },
     "identityInChrist": {
       "title": "그리스도 안에서의 정체성",
-      "description": "당신의 정체성, 안전, 부르심에 뿌리를 둔 성경을 읽으십시오."
+      "description": "정체성과 안전함, 부르심을 예수님 안에 뿌리내리게 하는 말씀을 읽으세요."
     },
     "kingdomOfGod": {
       "title": "하나님의 왕국",
@@ -859,7 +1135,7 @@ export const ko = {
     },
     "otIn90Days": {
       "title": "90일간의 구약성경",
-      "description": "90일 동안 929개의 OT 장을 모두 읽습니다. 하루에 약 10장입니다. 진지한 약속."
+      "description": "구약 929장을 90일 동안 읽습니다. 하루 약 10장씩 꾸준한 헌신이 필요합니다."
     },
     "pentateuch30Days": {
       "title": "30일 만의 오경",
@@ -871,14 +1147,14 @@ export const ko = {
     },
     "prophets90Days": {
       "title": "90일 간의 선지자",
-      "description": "이사야서부터 말라기서까지 총 17권의 예언서가 90일간 집중적으로 작성되었습니다."
+      "description": "이사야부터 말라기까지 예언서 17권을 90일 동안 집중해서 읽습니다."
     },
     "paulsLetters30Days": {
       "title": "30일간의 바울의 편지",
       "description": "한 달 안에 로마서부터 빌레몬서까지 바울의 서신 13권을 모두 읽으세요."
     },
     "acts28Days": {
-      "title": "28일 안에 행동",
+      "title": "28일 사도행전 읽기",
       "description": "하루에 한 장씩 사도행전 - 예루살렘에서 로마까지 초대교회를 따라가세요."
     },
     "revelation22Days": {
@@ -895,15 +1171,15 @@ export const ko = {
     "sessionUpcoming": "예정",
     "morningAndEveningPrayer": {
       "title": "아침과 저녁 기도",
-      "description": "7일 동안 아침과 저녁 기도 본문으로 하루를 시작하고 마무리하세요."
+      "description": "시편과 복음서, 저녁 성경 읽기로 하루를 시작하고 마무리하세요."
     },
     "prayerOfTheHours": {
       "title": "시간 기도",
-      "description": "7일 동안 아침, 정오, 저녁 기도 본문으로 하루의 리듬을 세우세요."
+      "description": "시편과 복음서, 서신서로 구성된 아침, 정오, 저녁 읽기를 이어 가세요."
     }
   },
   "annotations": {
-    "title": "내 메모 및 하이라이트",
+    "title": "내 메모와 하이라이트",
     "bookmarks": "북마크",
     "highlights": "하이라이트",
     "notes": "메모",
@@ -927,7 +1203,7 @@ export const ko = {
       "red": "빨간색"
     },
     "selected": "선택된",
-    "note": "참고",
+    "note": "메모",
     "copy": "복사",
     "removeHighlight": "하이라이트 제거"
   },
@@ -1022,12 +1298,12 @@ export const ko = {
     "longestStreak": "최장 연속",
     "plansCompleted": "계획 완료",
     "engagementScore": "참여 점수",
-    "annotationsCreated": "메모 및 하이라이트",
-    "minutes": "최소",
+    "annotationsCreated": "메모와 하이라이트",
+    "minutes": "분",
     "hours": "시간",
     "days": "날",
     "totalChapters": "총 장",
-    "totalListening": "전체 듣기"
+    "totalListening": "총 청취 시간"
   },
   "translations": {
     "title": "성경 번역",
@@ -1043,7 +1319,7 @@ export const ko = {
     "publicDomain": "공개 도메인",
     "cloudLibrary": "클라우드 라이브러리",
     "downloading": "다운로드 중...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "오프라인에서 읽도록 {{name}}의 본문(약 {{size}} MB)을 다운로드할까요?",
     "deleteConfirmTitle": "번역 삭제",
     "deleteConfirmMessage": "{{name}}에 다운로드된 데이터를 삭제하시겠습니까? 언제든지 다시 다운로드할 수 있습니다.",
     "cancelDownload": "다운로드 취소",

@@ -1,19 +1,14 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
 import { useAuthStore } from '../../stores/authStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
-import {
-  mergePreferences,
-  mergeReadingSnapshot,
-  type LocalPreferenceSnapshot,
-  type LocalReadingSnapshot,
-} from './syncMerge';
+import { mergePreferences, mergeReadingSnapshot, type LocalPreferenceSnapshot } from './syncMerge';
 import {
   createSyncIdentityBoundary,
   createSyncCycleCache,
   STALE_SYNC_ERROR,
   type SyncIdentityBoundary,
 } from './syncIdentity';
-import { runSyncCycleSubsyncs } from './syncCycle';
+import { createSyncOperationQueue, runSyncCycleSubsyncs } from './syncCycle';
 
 export interface SyncResult {
   success: boolean;
@@ -25,6 +20,8 @@ export interface SyncResult {
 // profile upsert without allowing account A's promise to be reused by B.
 const ensureCloudProfileCycles = createSyncCycleCache<SyncResult>();
 const activeSyncAllCycles = new Map<string, number>();
+const queueProgressSync = createSyncOperationQueue();
+const queuePreferenceSync = createSyncOperationQueue();
 
 const getSyncCycleKey = (identity: SyncIdentityBoundary): string =>
   `${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;
@@ -49,23 +46,6 @@ const withTransientRetry = async (run: () => Promise<SyncResult>): Promise<SyncR
   const delayMs = 250 + Math.floor(Math.random() * 500);
   await new Promise((resolve) => setTimeout(resolve, delayMs));
   return run();
-};
-
-const getLocalReadingSnapshot = async (): Promise<LocalReadingSnapshot> => {
-  const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
-    import('../../stores/progressStore'),
-    import('../../stores/bibleStore'),
-  ]);
-  const progressState = useProgressStore.getState();
-  const bibleState = useBibleStore.getState();
-
-  return {
-    chaptersRead: progressState.chaptersRead,
-    streakDays: progressState.streakDays,
-    lastReadDate: progressState.lastReadDate,
-    currentBook: bibleState.currentBook,
-    currentChapter: bibleState.currentChapter,
-  };
 };
 
 const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
@@ -173,27 +153,39 @@ const pullReadingPlansFromCloud = async (identity: SyncIdentityBoundary): Promis
 };
 
 const applyMergedReadingState = async (
-  mergedReading: ReturnType<typeof mergeReadingSnapshot>,
+  remoteData: UserProgress | null,
   identity: SyncIdentityBoundary
-): Promise<boolean> => {
+): Promise<ReturnType<typeof mergeReadingSnapshot> | null> => {
   const [{ useProgressStore }, { useBibleStore }] = await Promise.all([
     import('../../stores/progressStore'),
     import('../../stores/bibleStore'),
   ]);
 
   const result = await identity.runIfCurrent(() => {
-    useProgressStore.getState().applySyncedProgress(mergedReading.progress);
-    useBibleStore.getState().applySyncedReadingPosition({
-      bookId: mergedReading.readingPosition.bookId,
-      chapter: mergedReading.readingPosition.chapter,
-    });
+    // Merge and commit in one synchronous boundary so a chapter completed during
+    // the cloud request or lazy store import cannot be overwritten by a snapshot.
+    const progressState = useProgressStore.getState();
+    const bibleState = useBibleStore.getState();
+    const mergedReading = mergeReadingSnapshot(
+      {
+        chaptersRead: progressState.chaptersRead,
+        streakDays: progressState.streakDays,
+        lastReadDate: progressState.lastReadDate,
+        currentBook: bibleState.currentBook,
+        currentChapter: bibleState.currentChapter,
+      },
+      remoteData
+    );
+    if (mergedReading.changed) {
+      progressState.applySyncedProgress(mergedReading.progress);
+      bibleState.applySyncedReadingPosition({
+        bookId: mergedReading.readingPosition.bookId,
+        chapter: mergedReading.readingPosition.chapter,
+      });
+    }
+    return mergedReading;
   });
-
-  if (!result.applied) {
-    return false;
-  }
-
-  return true;
+  return result.applied ? result.value! : null;
 };
 
 const ensureCloudProfile = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
@@ -259,14 +251,17 @@ const ensureCloudProfileImpl = async (identity: SyncIdentityBoundary): Promise<S
   return { success: true };
 };
 
-const syncProgressForIdentity = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+const syncProgressForIdentity = (identity: SyncIdentityBoundary): Promise<SyncResult> =>
+  queueProgressSync(getSyncCycleKey(identity), () => syncProgressForIdentityImpl(identity));
+
+const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+  if (!(await identity.isCurrent())) return staleSyncResult();
   const userId = identity.expectedUserId;
   const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
     return profileResult;
   }
 
-  const localState = await getLocalReadingSnapshot();
   if (!(await identity.isCurrent())) {
     return staleSyncResult();
   }
@@ -283,13 +278,9 @@ const syncProgressForIdentity = async (identity: SyncIdentityBoundary): Promise<
     }
 
     const remoteData = data as UserProgress | null;
-    const mergedReading = mergeReadingSnapshot(localState, remoteData);
-
-    if (mergedReading.changed) {
-      const applied = await applyMergedReadingState(mergedReading, identity);
-      if (!applied) {
-        return staleSyncResult();
-      }
+    const mergedReading = await applyMergedReadingState(remoteData, identity);
+    if (!mergedReading) {
+      return staleSyncResult();
     }
 
     const write = await identity.runIfCurrent(() =>
@@ -342,7 +333,13 @@ export const syncProgress = async (
   return syncProgressForIdentity(identity);
 };
 
-const syncPreferencesForIdentity = async (identity: SyncIdentityBoundary): Promise<SyncResult> => {
+const syncPreferencesForIdentity = (identity: SyncIdentityBoundary): Promise<SyncResult> =>
+  queuePreferenceSync(getSyncCycleKey(identity), () => syncPreferencesForIdentityImpl(identity));
+
+const syncPreferencesForIdentityImpl = async (
+  identity: SyncIdentityBoundary
+): Promise<SyncResult> => {
+  if (!(await identity.isCurrent())) return staleSyncResult();
   const userId = identity.expectedUserId;
   const profileResult = await ensureCloudProfile(identity);
   if (!profileResult.success) {
@@ -350,7 +347,6 @@ const syncPreferencesForIdentity = async (identity: SyncIdentityBoundary): Promi
   }
 
   try {
-    const localSnapshot = getLocalPreferenceSnapshot();
     const { data, error: fetchError } = await supabase
       .from('user_preferences')
       .select('*')
@@ -361,23 +357,23 @@ const syncPreferencesForIdentity = async (identity: SyncIdentityBoundary): Promi
       return { success: false, error: fetchError.message };
     }
 
-    if (!(await identity.isCurrent())) {
-      return staleSyncResult();
-    }
-
-    const remotePreferences = data as UserPreferences | null;
-    const mergedPreferences = mergePreferences(localSnapshot, remotePreferences);
-
-    if (mergedPreferences.source === 'remote') {
-      const applied = await identity.runIfCurrent(() =>
+    const merged = await identity.runIfCurrent(() => {
+      const localSnapshot = getLocalPreferenceSnapshot();
+      const mergedPreferences = mergePreferences(localSnapshot, data as UserPreferences | null);
+      if (mergedPreferences.source === 'remote') {
         useAuthStore
           .getState()
-          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt)
-      );
-      if (!applied.applied) {
-        return staleSyncResult();
+          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
       }
+      return { localSnapshot, mergedPreferences };
+    });
+    if (!merged.applied) {
+      return staleSyncResult();
+    }
+    const remotePreferences = data as UserPreferences | null;
+    const { localSnapshot, mergedPreferences } = merged.value!;
 
+    if (mergedPreferences.source === 'remote') {
       return {
         success: true,
         merged:
@@ -423,9 +419,15 @@ const syncPreferencesForIdentity = async (identity: SyncIdentityBoundary): Promi
       return { success: false, error: upsertError.message };
     }
 
-    const applied = await identity.runIfCurrent(() =>
-      useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt)
-    );
+    const applied = await identity.runIfCurrent(() => {
+      const current = getLocalPreferenceSnapshot();
+      if (
+        current.preferences === localSnapshot.preferences &&
+        current.updatedAt === localSnapshot.updatedAt
+      ) {
+        useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt);
+      }
+    });
     if (!applied.applied) {
       return staleSyncResult();
     }
@@ -546,13 +548,8 @@ export const pullFromCloud = async (expectedUserId?: string): Promise<SyncResult
     }
 
     const progressData = progressDataRaw as UserProgress | null;
-    const localState = await getLocalReadingSnapshot();
-
     if (progressData) {
-      const applied = await applyMergedReadingState(
-        mergeReadingSnapshot(localState, progressData),
-        identity
-      );
+      const applied = await applyMergedReadingState(progressData, identity);
       if (!applied) {
         return staleSyncResult();
       }
@@ -575,12 +572,12 @@ export const pullFromCloud = async (expectedUserId?: string): Promise<SyncResult
         return staleSyncResult();
       }
 
-      const mergedPreferences = mergePreferences(getLocalPreferenceSnapshot(), prefsData);
-      const applied = await identity.runIfCurrent(() =>
+      const applied = await identity.runIfCurrent(() => {
+        const mergedPreferences = mergePreferences(getLocalPreferenceSnapshot(), prefsData);
         useAuthStore
           .getState()
-          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt)
-      );
+          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+      });
       if (!applied.applied) {
         return staleSyncResult();
       }

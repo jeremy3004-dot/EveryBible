@@ -37,7 +37,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
   /contexts       - React contexts (ThemeContext only - prefer Zustand for state)
   /data           - Static data files
   /hooks          - Custom React hooks (useAudioPlayer, useFontSize, useI18n, useSync)
-  /i18n           - Internationalization (en, ne, hi, es locales)
+  /i18n           - Internationalization (21 bundled interface locales)
   /navigation     - Navigation stacks (AuthStack, BibleStack, HomeStack, LearnStack, MoreStack, TabNavigator)
   /screens        - Screen components organized by feature (auth, bible, home, learn, more)
   /services       - Business logic (audio, auth, bible, courses, supabase, sync)
@@ -328,10 +328,7 @@ type Props = NativeStackScreenProps<BibleStackParamList, 'BibleReader'>;
 ## Internationalization (i18n)
 
 ### Supported Languages
-- English (en) - Default
-- Spanish (es)
-- Nepali (ne)
-- Hindi (hi)
+`SUPPORTED_LANGUAGES` in `src/constants/languages.ts` defines 21 interface languages: English (`en`, default), Simplified Chinese (`zh`), Hindi (`hi`), Spanish (`es`), Arabic (`ar`), French (`fr`), Bengali (`bn`), Portuguese (`pt`), Russian (`ru`), Urdu (`ur`), Indonesian (`id`), German (`de`), Japanese (`ja`), Punjabi (`pa`), Marathi (`mr`), Telugu (`te`), Turkish (`tr`), Tamil (`ta`), Vietnamese (`vi`), Korean (`ko`), and Nepali (`ne`). Bible translation availability is separate from interface language support.
 
 ### Usage
 ```typescript
@@ -345,15 +342,36 @@ const { t } = useTranslation();
 ### Translation Files
 Located in `/src/i18n/locales/`:
 - `en.ts` - English (source of truth)
-- `es.ts` - Spanish
-- `ne.ts` - Nepali
-- `hi.ts` - Hindi
+- `{code}.ts` - One exported translation object for each supported language
+
+English loads initially; the other bundled locale objects load on demand through `localeLoaders.ts`. Interface translations do not require a network request.
 
 ### Adding New Translations
 1. Add key to `en.ts` first
 2. Add translations to all language files
 3. Use dot notation for nested keys: `bible.chapter`, `settings.notifications.enabled`
 4. Always use translation keys - NEVER hardcode user-facing strings
+5. Preserve interpolation tokens exactly, including `{{count}}` and `{{name}}`. Keep every English key and add the locale's required plural variants for existing `_other` stems. Valid additional suffixes come from `Intl.PluralRules(code).resolvedOptions().pluralCategories` (for example, Russian `_few` and `_many`); unrelated extra keys are rejected.
+
+### Translation Verification
+Run the locale, source coverage, and runtime rendering checks after updating translations:
+
+```bash
+node --test --import tsx src/i18n/locales/coverage.test.ts src/i18n/locales/coreLocaleCoverage.test.ts src/i18n/interfaceCoverage.test.ts src/i18n/interfaceRendering.test.ts
+npm run typecheck
+```
+
+These checks require the full English keyset, exact interpolation tokens, all language-specific plural forms, nonblank text without translation artifacts, and no unintended English copies. Legitimate shared words and proper names need explicit exceptions in the coverage test. Source checks catch missing translation keys and hardcoded JSX/accessibility text; rendering checks exercise all bundled locales without English fallback or unresolved tokens.
+
+### Native Permission Messages
+Translate camera, microphone, photo-library, and Face ID explanations under `interface.nativePermissions` in every locale. After changing them, regenerate and check the native resources:
+
+```bash
+npm run i18n:native
+npm run i18n:native:check
+```
+
+`scripts/sync-native-localizations.mjs` updates `src/i18n/native/{code}.json`, the Expo locale configuration in `app.json`, and the iOS `InfoPlist.strings` resources/project references. Chinese uses the native locale code `zh-Hans`. Review these generated changes with the source translations. iOS chooses system permission prompt translations from the device or per-app OS language, independently of the language selected inside EveryBible. Permission-message changes require a rebuilt and installed native app; changing the in-app language or refreshing JavaScript does not replace them.
 
 ### Language Detection
 App automatically detects device language via expo-localization. Falls back to English if unsupported.

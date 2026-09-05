@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLocaleSearchEngine } from './localeSelection';
+import localeCatalog from '../../data/localeCatalog.json';
+import countryDisplayNames from '../../data/countryDisplayNames.generated.json';
+import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 
 const engine = createLocaleSearchEngine({
   countries: [
@@ -82,6 +85,29 @@ test('country search returns the full catalog when no query is provided', () => 
 test('country display names localize to the selected interface language', () => {
   assert.equal(engine.getCountryDisplayName('DE', 'es'), 'Alemania');
   assert.equal(engine.getCountryDisplayName('GB', 'es'), 'Reino Unido');
+});
+
+test('country names and search remain French when Intl.DisplayNames is unavailable', (context) => {
+  const descriptor = Object.getOwnPropertyDescriptor(Intl, 'DisplayNames')!;
+  Object.defineProperty(Intl, 'DisplayNames', { ...descriptor, value: undefined });
+  context.after(() => Object.defineProperty(Intl, 'DisplayNames', descriptor));
+  const offlineEngine = createLocaleSearchEngine(localeCatalog);
+
+  assert.equal(offlineEngine.getCountryDisplayName('US', 'fr'), 'États-Unis');
+  assert.equal(offlineEngine.searchCountries('états-unis', 'fr')[0]?.code, 'US');
+  assert.equal(offlineEngine.getCountryByCode('US')?.name, 'United States');
+  assert.equal(offlineEngine.getLanguageByCode('en')?.nativeName, 'English');
+  for (const { code } of SUPPORTED_LANGUAGES) {
+    for (const country of localeCatalog.countries) {
+      assert.equal(
+        offlineEngine.getCountryDisplayName(country.code, code),
+        (countryDisplayNames.names[code] as Record<string, string>)[country.code],
+        `${code}.${country.code} must use its offline country label`
+      );
+    }
+  }
+  assert.equal(offlineEngine.getCountryDisplayName('US', 'zh'), '美国');
+  assert.equal(offlineEngine.getCountryDisplayName('US', 'pa'), 'ਸੰਯੁਕਤ ਰਾਜ (ਅਮਰੀਕਾ)');
 });
 
 test('country search matches localized country names', () => {

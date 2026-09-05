@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "プロフィール写真を撮影する場合は、Every Bibleによるカメラへのアクセスを許可してください。";
+NSMicrophoneUsageDescription = "章へのフィードバック用の音声回答を録音できるよう、Every Bibleに許可してください。";
+NSPhotoLibraryUsageDescription = "プロフィール写真を選べるよう、Every Bibleによる写真ライブラリへのアクセスを許可してください。";
+NSFaceIDUsageDescription = "保存したログイン情報を保護するため、Every BibleによるFace IDの使用を許可してください。";

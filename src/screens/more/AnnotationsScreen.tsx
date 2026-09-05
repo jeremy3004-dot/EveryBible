@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { getBookById } from '../../constants';
+import { getTranslatedBookName } from '../../constants';
 import { fetchAnnotations } from '../../services/annotations';
 import { hexWithAlpha } from '../../utils';
 import type { UserAnnotation } from '../../services/supabase/types';
@@ -28,7 +28,7 @@ type FilterType = 'bookmark' | 'highlight' | 'note';
 
 export function AnnotationsScreen() {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
 
@@ -63,17 +63,23 @@ export function AnnotationsScreen() {
 
   const getAnnotationIcon = (type: UserAnnotation['type']): string => {
     switch (type) {
-      case 'bookmark': return 'bookmark';
-      case 'highlight': return 'color-fill';
-      case 'note': return 'document-text';
+      case 'bookmark':
+        return 'bookmark';
+      case 'highlight':
+        return 'color-fill';
+      case 'note':
+        return 'document-text';
     }
   };
 
   const getEmptyMessage = (): string => {
     switch (filter) {
-      case 'note': return t('annotations.noNotes');
-      case 'bookmark': return t('annotations.noBookmarks');
-      case 'highlight': return t('annotations.noHighlights');
+      case 'note':
+        return t('annotations.noNotes');
+      case 'bookmark':
+        return t('annotations.noBookmarks');
+      case 'highlight':
+        return t('annotations.noHighlights');
     }
 
     return t('annotations.noNotes');
@@ -86,11 +92,8 @@ export function AnnotationsScreen() {
   } as const;
 
   const formatReference = (a: UserAnnotation): string => {
-    const book = getBookById(a.book);
-    const bookName = book?.name ?? a.book;
-    const verse = a.verse_end
-      ? `${a.verse_start}-${a.verse_end}`
-      : `${a.verse_start}`;
+    const bookName = getTranslatedBookName(a.book, t);
+    const verse = a.verse_end ? `${a.verse_start}-${a.verse_end}` : `${a.verse_start}`;
     return `${bookName} ${a.chapter}:${verse}`;
   };
 
@@ -104,7 +107,10 @@ export function AnnotationsScreen() {
 
   const renderItem = ({ item }: { item: UserAnnotation }) => (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+      style={[
+        styles.card,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
       activeOpacity={0.7}
       onPress={() => navigateToBible(item)}
     >
@@ -121,14 +127,11 @@ export function AnnotationsScreen() {
           </Text>
         </View>
         <Text style={[styles.date, { color: colors.secondaryText }]}>
-          {new Date(item.created_at).toLocaleDateString()}
+          {new Date(item.created_at).toLocaleDateString(i18n.language)}
         </Text>
       </View>
       {item.content ? (
-        <Text
-          style={[styles.content, { color: colors.secondaryText }]}
-          numberOfLines={3}
-        >
+        <Text style={[styles.content, { color: colors.secondaryText }]} numberOfLines={3}>
           {item.content}
         </Text>
       ) : null}
@@ -145,7 +148,9 @@ export function AnnotationsScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -200,9 +205,7 @@ export function AnnotationsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           loading ? (
             <View style={styles.emptyState}>

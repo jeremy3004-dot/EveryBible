@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getTopCrossReferences } from '../../services/bible/crossReferenceService';
-import { getBookById } from '../../constants/books';
+import { getTranslatedBookName } from '../../constants/books';
 
 interface CrossReferencePanelProps {
   /** Book ID of the currently selected verse (e.g. 'JHN'). */
@@ -51,10 +51,7 @@ export function CrossReferencePanel({
       </Text>
 
       {refs.map((ref) => {
-        const book = getBookById(ref.toBook);
-        const label = book
-          ? `${book.name} ${ref.toChapter}:${ref.toVerse}`
-          : `${ref.toBook} ${ref.toChapter}:${ref.toVerse}`;
+        const label = `${getTranslatedBookName(ref.toBook, t)} ${ref.toChapter}:${ref.toVerse}`;
 
         return (
           <TouchableOpacity
@@ -71,9 +68,7 @@ export function CrossReferencePanel({
             disabled={!onPressReference}
             accessibilityRole="button"
           >
-            <Text style={[styles.referenceLabel, { color: colors.biblePrimaryText }]}>
-              {label}
-            </Text>
+            <Text style={[styles.referenceLabel, { color: colors.biblePrimaryText }]}>{label}</Text>
             {onPressReference ? (
               <Ionicons name="chevron-forward" size={14} color={colors.bibleSecondaryText} />
             ) : null}

@@ -5,92 +5,23 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { en } from './en';
+import { sharedTranslationValues } from './sharedTranslationValues';
 
 interface TranslationTree {
   [key: string]: string | TranslationTree;
 }
 
-const ALLOWED_ENGLISH_VALUES = new Set([
-  'auth.emailPlaceholder',
-  'gather.lessonsProgress',
-  'bible.chapterFeedbackAudioIdle',
-  'bible.chapterFeedbackAudioRecording',
-  'bible.chapterFeedbackAudioReady',
-  'bible.chapterFeedbackAudioLimit',
-  'bible.chapterFeedbackAudioRecord',
-  'bible.chapterFeedbackAudioStop',
-  'bible.chapterFeedbackAudioPreview',
-  'bible.chapterFeedbackAudioRerecord',
-  'bible.chapterFeedbackAudioUploading',
-  'bible.chapterFeedbackAudioPermissionDenied',
-  'bible.chapterFeedbackAudioPermissionHelp',
-  'bible.chapterFeedbackAudioStartError',
-  'bible.chapterFeedbackAudioStopError',
-  'bible.chapterFeedbackAudioRecordingMissing',
-  'bible.chapterFeedbackAudioUploadError',
-  'bible.translatorReviewTitle',
-  'bible.translatorReviewSummary',
-  'bible.translatorReviewSummaryComplete',
-  'bible.translatorReviewLoading',
-  'bible.translatorReviewEmpty',
-  'bible.translatorReviewUnknownUser',
-  'bible.translatorReviewUnread',
-  'bible.translatorReviewSubmittedAt',
-  'bible.translatorReviewSubmittedBy',
-  'bible.translatorReviewNoComment',
-  'bible.translatorReviewFixed',
-  'bible.translatorReviewConfirmedAccurate',
-  'bible.translatorReviewReviewed',
-  'bible.translatorReviewConfirmAccurate',
-  'bible.translatorReviewMarkFixed',
-  'bible.translatorReviewNoActionNeeded',
-  'bible.translatorReviewReopen',
-  'bible.translatorReviewListened',
-  'bible.translatorReviewListen',
-  'bible.translatorReviewAudioError',
-  'bible.chapterFeedbackSuccessTitle',
-  'bible.readerFontsAndSettings',
-  // Translator feedback queue screen (same English-only admin surface).
-  'translatorQueue.title',
-  'translatorQueue.subtitle',
-  'translatorQueue.empty',
-  'translatorQueue.pendingCount',
-  'translatorQueue.chapterCounts',
-  'translatorQueue.openLabel',
-  'settings.translatorAccess',
-  'settings.translatorAccessTitle',
-  'settings.translatorAccessBody',
-  'settings.translatorAccessPlaceholder',
-  'settings.translatorAccessUnlock',
-  'settings.translatorAccessIncorrect',
-  'settings.translatorAccessEnabled',
-  'settings.translatorAccessEnabledBody',
-  'settings.translatorAccessSummaryOn',
-  'settings.translatorAccessSummaryOff',
-  // Council "My feedback" surface — same admin-ish feedback tooling as the translator
-  // review keys above; kept English-only until the feature is localized.
-  'myFeedback.title',
-  'myFeedback.settingsRow',
-  'myFeedback.settingsRowSummary',
-  'myFeedback.subtitle',
-  'myFeedback.empty',
-  'myFeedback.signInRequired',
-  'myFeedback.audioLabel',
-  'myFeedback.statusReceived',
-  'myFeedback.statusFixed',
-  'myFeedback.statusNoChange',
-  // Pure template tokens — nothing to translate
-  'home.greetingWithName',
-  'home.percentComplete',
-  // Orthodox liturgical proper noun — intentionally kept as-is in all locales
-  'readingPlans.kathisma.title',
-  // Cross-lingual cognate: "Plan" is the correct spelling in Spanish, French, German, etc.
-  'home.plan',
-  // Cross-lingual cognate: "Tradition" is the correct spelling in German and French.
-  'plans.rhythmComposer.tradition',
-  // Cross-lingual cognate: "Error" is the correct spelling in Spanish.
-  'settings.diagnostics.badgeError',
-]);
+const pluralStem = (key: string): string => key.replace(/_(zero|one|two|few|many|other)$/, '');
+const isLocalePluralKey = (key: string, english: Set<string>, code: string): boolean => {
+  const suffix = key.match(/_(zero|one|two|few|many|other)$/)?.[1];
+  return (
+    !!suffix &&
+    new Intl.PluralRules(code)
+      .resolvedOptions()
+      .pluralCategories.includes(suffix as Intl.LDMLPluralRule) &&
+    english.has(`${pluralStem(key)}_other`)
+  );
+};
 
 const flattenEntries = (tree: TranslationTree, prefix = ''): Array<[string, string]> =>
   Object.entries(tree).flatMap(([key, value]) => {
@@ -128,7 +59,9 @@ test('every supported locale only uses keys defined by the English locale', asyn
 
     assert.ok(localeTree, `Expected locale export for ${language.code}`);
     const localeKeys = flattenKeys(localeTree).sort();
-    const unexpectedKeys = localeKeys.filter((key) => !englishKeySet.has(key));
+    const unexpectedKeys = localeKeys.filter(
+      (key) => !englishKeySet.has(key) && !isLocalePluralKey(key, englishKeySet, language.code)
+    );
 
     assert.deepEqual(unexpectedKeys, [], `Unexpected locale keys for ${language.code}`);
   }
@@ -150,7 +83,7 @@ test('every supported locale preserves the full English keyset', async () => {
     const localeKeys = flattenKeys(localeTree).sort();
 
     assert.deepEqual(
-      localeKeys,
+      localeKeys.filter((key) => englishKeys.includes(key)),
       englishKeys,
       `Missing or mismatched locale keys for ${language.code}`
     );
@@ -172,15 +105,51 @@ test('every supported locale translates user-facing English strings', async () =
     assert.ok(localeTree, `Expected locale export for ${language.code}`);
     const localeEntries = Object.fromEntries(flattenEntries(localeTree));
     const untranslated = Object.keys(englishEntries).filter((key) => {
-      if (ALLOWED_ENGLISH_VALUES.has(key)) {
+      if (sharedTranslationValues[language.code]?.[key] === englishEntries[key]) {
         return false;
       }
 
       const localeValue = localeEntries[key];
       const englishValue = englishEntries[key];
-      return localeValue === englishValue && /[A-Za-z]/.test(localeValue);
+      return (
+        localeValue === englishValue && /[A-Za-z]/.test(localeValue.replace(/\{\{[^}]+\}\}/g, ''))
+      );
     });
 
     assert.deepEqual(untranslated, [], `English strings leaked in ${language.code}`);
+  }
+});
+
+test('all locale placeholders, plural forms, and translation text are valid', async () => {
+  const english = Object.fromEntries(flattenEntries(en as TranslationTree));
+  const pluralStems = Object.keys(english)
+    .filter((key) => key.endsWith('_other'))
+    .map(pluralStem);
+  const placeholders = (value: string) => (value.match(/\{\{[^}]+\}\}/g) ?? []).sort();
+  for (const { code } of SUPPORTED_LANGUAGES) {
+    const module = await import(
+      pathToFileURL(path.join(process.cwd(), 'src/i18n/locales', `${code}.ts`)).href
+    );
+    const entries = Object.fromEntries(flattenEntries(module[code]));
+    for (const [key, value] of Object.entries(entries)) {
+      assert.ok(value.trim(), `${code}.${key} must not be blank`);
+      assert.doesNotMatch(
+        value,
+        /__CTX_|PH_\d+|EVERY_?BIBLE_APP|\u200b|\ufffd/,
+        `${code}.${key} contains a translation artifact`
+      );
+      const source = english[key] ?? english[`${pluralStem(key)}_other`];
+      assert.ok(source !== undefined, `${code}.${key} has no English source`);
+      assert.deepEqual(
+        placeholders(value),
+        placeholders(source),
+        `${code}.${key} changed interpolation tokens`
+      );
+    }
+    for (const stem of pluralStems) {
+      for (const category of new Intl.PluralRules(code).resolvedOptions().pluralCategories) {
+        assert.ok(entries[`${stem}_${category}`], `${code} is missing ${stem}_${category}`);
+      }
+    }
   }
 });

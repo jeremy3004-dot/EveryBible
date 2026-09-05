@@ -1,4 +1,10 @@
-import { getBibleBookExperienceContent, type BibleCompanionItem, type BibleCompanionModuleKind } from '../../data/bibleBookExperience';
+import type { TFunction } from 'i18next';
+import { getTranslatedBookName } from '../../constants/books';
+import {
+  getBibleBookExperienceContent,
+  type BibleCompanionItem,
+  type BibleCompanionModuleKind,
+} from '../../data/bibleBookExperience';
 
 export interface BookCompanionTarget {
   bookId: string;
@@ -36,7 +42,10 @@ const companionSectionOrder: BibleCompanionModuleKind[] = [
 ];
 const hiddenCompanionSectionKinds: BibleCompanionModuleKind[] = ['passages', 'figures'];
 
-export function buildBookCompanionSections(bookId: string): BookCompanionSectionModel[] {
+export function buildBookCompanionSections(
+  bookId: string,
+  t?: TFunction
+): BookCompanionSectionModel[] {
   const content = getBibleBookExperienceContent(bookId);
   if (!content) {
     return [];
@@ -52,36 +61,45 @@ export function buildBookCompanionSections(bookId: string): BookCompanionSection
     .map((module) => ({
       id: module.id,
       kind: module.kind,
-      title: module.title,
-      description: module.description,
+      title: t ? t(`interface.companions.${module.id}.title`) : module.title,
+      description:
+        t && module.description
+          ? t(`interface.companions.${module.id}.description`)
+          : module.description,
       layout: module.kind === 'devotionals' ? 'stack' : 'carousel',
-      items: module.items.map((item) => buildBookCompanionCard(item)),
+      items: module.items.map((item) => buildBookCompanionCard(item, t)),
     }));
 }
 
-function buildBookCompanionCard(item: BibleCompanionItem): BookCompanionCardModel {
+function buildBookCompanionCard(item: BibleCompanionItem, t?: TFunction): BookCompanionCardModel {
   return {
     id: item.id,
     kind: item.kind,
-    title: item.title,
-    summary: item.summary,
-    meta: getCompanionItemMeta(item),
+    title: t ? t(`interface.companions.${item.id}.title`) : item.title,
+    summary: t ? t(`interface.companions.${item.id}.summary`) : item.summary,
+    meta: getCompanionItemMeta(item, t),
     artworkVariant: item.artworkVariant ?? 'river',
-    actionLabel: item.actionLabel ?? 'Open chapter',
+    actionLabel: t
+      ? item.actionLabel
+        ? t(`interface.companions.${item.id}.actionLabel`)
+        : t('common.continue')
+      : (item.actionLabel ?? 'Open chapter'),
     state: item.state ?? 'ready',
     target: getCompanionItemTarget(item),
   };
 }
 
-function getCompanionItemMeta(item: BibleCompanionItem) {
+function getCompanionItemMeta(item: BibleCompanionItem, t?: TFunction) {
   switch (item.kind) {
     case 'passages':
     case 'devotionals':
-      return formatReference(item.reference);
+      return formatReference(item.reference, t);
     case 'plans':
-      return `${item.days} days`;
+      return t ? t('interface.daysShort', { count: item.days }) : `${item.days} days`;
     case 'playlists':
-      return `${item.itemCount} chapters`;
+      return t
+        ? t('readingPlans.chapterCount', { count: item.itemCount })
+        : `${item.itemCount} chapters`;
     case 'figures':
       return item.role;
     default:
@@ -120,19 +138,23 @@ function getCompanionItemTarget(item: BibleCompanionItem): BookCompanionTarget {
   }
 }
 
-function formatReference(reference: {
-  bookId: string;
-  chapter: number;
-  verseStart?: number;
-  verseEnd?: number;
-}) {
+function formatReference(
+  reference: {
+    bookId: string;
+    chapter: number;
+    verseStart?: number;
+    verseEnd?: number;
+  },
+  t?: TFunction
+) {
+  const bookName = t ? getTranslatedBookName(reference.bookId, t) : reference.bookId;
   if (!reference.verseStart) {
-    return `${reference.bookId} ${reference.chapter}`;
+    return `${bookName} ${reference.chapter}`;
   }
 
   if (!reference.verseEnd || reference.verseEnd === reference.verseStart) {
-    return `${reference.bookId} ${reference.chapter}:${reference.verseStart}`;
+    return `${bookName} ${reference.chapter}:${reference.verseStart}`;
   }
 
-  return `${reference.bookId} ${reference.chapter}:${reference.verseStart}-${reference.verseEnd}`;
+  return `${bookName} ${reference.chapter}:${reference.verseStart}-${reference.verseEnd}`;
 }

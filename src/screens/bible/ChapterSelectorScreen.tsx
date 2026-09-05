@@ -94,7 +94,7 @@ export function ChapterSelectorScreen() {
     currentBookId,
     currentChapter,
   });
-  const companionSections = buildBookCompanionSections(bookId);
+  const companionSections = buildBookCompanionSections(bookId, t);
 
   const navigateToChapter = (chapter: number) => {
     trackBookHubEvent({

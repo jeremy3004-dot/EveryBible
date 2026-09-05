@@ -37,7 +37,7 @@ export interface RefreshRuntimeCatalogResult {
   // refresh. False for a flag-off build and for every EL failure (network, verification,
   // empty catalog), which are all swallowed inside applyElRuntimeCatalog.
   appliedElCatalog: boolean;
-  // The mapped Supabase runtime rows applied by this refresh (empty when there were none).
+  // Supabase rows used by this refresh, retaining last-good rows when its fetch fails.
   translations: BibleTranslation[];
 }
 
@@ -95,7 +95,13 @@ export async function refreshRuntimeCatalog(
   const listTranslations =
     deps.listTranslations ?? (await import('./translationService')).listAvailableTranslations;
 
-  const catalogResult = await listTranslations();
+  let catalogResult: CatalogListResult;
+  try {
+    catalogResult = await listTranslations();
+  } catch {
+    // Treat thrown transport errors like returned failures so EL can still refresh.
+    catalogResult = { success: false };
+  }
   const hasSupabaseCatalog = Boolean(
     catalogResult.success && catalogResult.data && catalogResult.data.length > 0
   );
@@ -114,21 +120,24 @@ export async function refreshRuntimeCatalog(
     };
   }
 
-  // Map + apply the Supabase runtime catalog (if any) first — the fast, established path.
-  let runtimeTranslations: BibleTranslation[] = [];
+  const { getStoreTranslations, applyRuntimeCatalog } = await resolveStoreBridge(deps);
+  const currentStoreTranslations = getStoreTranslations();
+  // A failed or empty response is not authoritative. Keep that source's last-good rows
+  // in the combined apply; a later successful response may prune retired remote entries.
+  let runtimeTranslations = currentStoreTranslations.filter(
+    (translation) => translation.source === 'runtime' && !isElRuntimeTranslation(translation)
+  );
   if (hasSupabaseCatalog && catalogResult.data) {
-    const { getStoreTranslations, applyRuntimeCatalog } = await resolveStoreBridge(deps);
-
-    const currentStoreTranslations = getStoreTranslations();
+    const existingTranslationsById = new Map(
+      currentStoreTranslations.map((translation) => [translation.id, translation])
+    );
     const existingElTranslations = isElActive
       ? currentStoreTranslations.filter(isElRuntimeTranslation)
       : [];
     runtimeTranslations = catalogResult.data.map((entry) =>
       mapCatalogEntryToBibleTranslation(
         entry,
-        currentStoreTranslations.find(
-          (translation) => translation.id === normalizeCatalogTranslationId(entry.translation_id)
-        )
+        existingTranslationsById.get(normalizeCatalogTranslationId(entry.translation_id))
       )
     );
     // Keep the last verified EL rows in the same destructive catalog apply. A successful EL
@@ -145,7 +154,7 @@ export async function refreshRuntimeCatalog(
     appliedElCatalog = await applyElRuntimeCatalog(runtimeTranslations, {
       resolveUrl,
       elStep: deps.elStep,
-      applyRuntimeCatalog: deps.applyRuntimeCatalog,
+      applyRuntimeCatalog,
     });
   }
 
@@ -158,28 +167,14 @@ export async function refreshRuntimeCatalog(
 }
 
 /**
- * Whether a refresh result may latch the caller's per-launch "already hydrated" flag.
- *
- * EL runtime rows exist ONLY in memory: `sanitizeRuntimeTranslation` rejects them when the
- * store rehydrates (their `totalBooks` is 0, and the guard requires > 0), so a launch shows EL
- * translations only if THIS launch's EL step succeeded. Latching on `isElActive` — which just
- * means the feature flag resolved a catalog URL — therefore turned one transient EL failure
- * into "no Every Language rows until the app is force-quit and relaunched", with every retry
- * path (re-opening the translation picker) short-circuiting on the latched flag. Two devices on
- * the same build diverged permanently on nothing but the outcome of a single fetch.
- *
- * So: an EL-active refresh counts as hydrated only once EL rows actually landed. When EL is
- * inert (flag off / unconfigured) the Supabase catalog alone still hydrates the launch, exactly
- * as before.
+ * Keep retries enabled until every configured source has supplied usable rows. Persisted
+ * rows keep the picker available offline, but do not prove this launch refreshed either
+ * source. In particular, successful EL loading must not hide a failed Supabase refresh.
  */
 export function shouldMarkRuntimeCatalogHydrated({
   appliedSupabaseCatalog,
   isElActive,
   appliedElCatalog,
 }: RefreshRuntimeCatalogResult): boolean {
-  if (isElActive) {
-    return appliedElCatalog;
-  }
-
-  return appliedSupabaseCatalog;
+  return appliedSupabaseCatalog && (!isElActive || appliedElCatalog);
 }

@@ -1,0 +1,4 @@
+NSCameraUsageDescription = "如果您选择拍摄个人资料照片，请允许 Every Bible 使用相机。";
+NSMicrophoneUsageDescription = "允许 Every Bible 录制语音回复，用于章节反馈。";
+NSPhotoLibraryUsageDescription = "允许 Every Bible 访问您的照片图库，以便选择个人资料照片。";
+NSFaceIDUsageDescription = "允许 Every Bible 使用 Face ID 保护您保存的登录信息。";

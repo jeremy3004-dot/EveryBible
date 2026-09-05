@@ -41,7 +41,11 @@ export function mapElLanguageCode(iso6393: string): string {
 // making it clear these entries carry audio only, no text.
 const EL_COPYRIGHT = 'Public Domain audio (CC0 1.0)';
 
-function mapElTranslation(entry: ElCatalogTranslation, catalogBaseUrl: string): BibleTranslation {
+function mapElTranslation(
+  entry: ElCatalogTranslation,
+  catalogBaseUrl: string,
+  generatedAt: string
+): BibleTranslation {
   const audio: NonNullable<TranslationCatalog['audio']> = {
     strategy: 'el-manifest',
     manifestUrl: entry.manifestUrl,
@@ -52,7 +56,7 @@ function mapElTranslation(entry: ElCatalogTranslation, catalogBaseUrl: string): 
 
   const catalog: TranslationCatalog = {
     version: entry.currentAudioVersion,
-    updatedAt: '',
+    updatedAt: generatedAt,
     audio,
   };
 
@@ -93,7 +97,7 @@ export function mapElCatalogToBibleTranslations(catalog: ElCatalog): BibleTransl
     // Skip entries that advertise no audio — EL entries are audio-only, so an
     // entry without audio has nothing to offer this app.
     if (!entry.hasAudio) continue;
-    translations.push(mapElTranslation(entry, catalog.baseUrl));
+    translations.push(mapElTranslation(entry, catalog.baseUrl, catalog.generatedAt));
   }
   return translations;
 }

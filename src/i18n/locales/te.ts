@@ -1,23 +1,23 @@
 export const te = {
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "అభిప్రాయాల జాబితా",
+    subtitle: "అభిప్రాయాలను సమీక్షించాల్సిన అధ్యాయాలు",
+    empty: "అన్ని అభిప్రాయాలు పరిశీలించబడ్డాయి. పెండింగ్‌లో ఏవీ లేవు.",
+    pendingCount: "సమీక్షించాల్సిన {{count}} అధ్యాయాలు",
+    chapterCounts: "{{down}} సరిచేయాలి · {{up}} నిర్ధారించాలి",
+    openLabel: "{{reference}} తెరవండి",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "నా అభిప్రాయాలు",
+    settingsRow: "నా అభిప్రాయాలు",
+    settingsRowSummary: "మీ సూచనలపై అనువాద బృందం తీసుకున్న చర్యలను చూడండి",
+    subtitle: "అధ్యాయాలపై మీ అభిప్రాయాల విషయంలో అనువాద బృందం చేసిన పని",
+    empty: "మీరు ఇంకా ఏ అధ్యాయానికీ అభిప్రాయం పంపలేదు.",
+    signInRequired: "మీరు పంపిన అభిప్రాయాలను చూడటానికి సైన్ ఇన్ చేయండి.",
+    audioLabel: "స్వర సందేశం జతచేయబడింది",
+    statusReceived: "అందింది",
+    statusFixed: "సరిచేయబడింది",
+    statusNoChange: "సమీక్షించబడింది — మార్పు లేదు",
   },
   "common": {
     "cancel": "రద్దు చేయి",
@@ -27,7 +27,7 @@ export const te = {
     "retry": "మళ్లీ ప్రయత్నించండి",
     "loading": "లోడ్ అవుతోంది...",
     "continue": "కొనసాగించు",
-    "save": "సేవ్ చేయండి",
+    "save": "భద్రపరచండి",
     "delete": "తొలగించు",
     "edit": "సవరించు",
     "back": "వెనుకకు",
@@ -46,10 +46,10 @@ export const te = {
     "all": "అన్నీ"
   },
   "tabs": {
-    "home": "హోమ్",
+    "home": "ముఖపుట",
     "bible": "బైబిల్",
     "harvest": "హార్వెస్ట్",
-    "gather": "సేకరించండి",
+    "gather": "సహవాసం",
     "more": "మరిన్ని",
     "plans": "ప్రణాళికలు"
   },
@@ -75,7 +75,7 @@ export const te = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "ఫీల్డ్ {{number}}",
     "notificationSettings": "నోటిఫికేషన్ సెట్టింగ్‌లు",
-    "chaptersRead": "అధ్యాయాలు చదవండి",
+    "chaptersRead": "చదివిన అధ్యాయాలు",
     "today": "ఈరోజు",
     "week": "వారం",
     "month": "నెల",
@@ -106,10 +106,10 @@ export const te = {
     "recommendedBadge": "సిఫార్సు చేయబడింది",
     "interfaceAvailable": "ఇంటర్ఫేస్ అందుబాటులో ఉంది",
     "privacyTitle": "మీ గోప్యతా శైలిని ఎంచుకోండి",
-    "privacyBody": "ఈ పరికరం కోసం చిహ్న శైలిని ఎంచుకోండి. మీరు యాప్ నుండి నిష్క్రమించినప్పుడల్లా వివేకం మోడ్ స్థానిక కోడ్ లాక్‌ని కూడా జోడిస్తుంది.",
+    "privacyBody": "ఈ పరికరానికి చిహ్నం శైలిని ఎంచుకోండి. గోప్య మోడ్‌లో యాప్ నుంచి బయటకు వెళ్లినప్పుడు స్థానిక కోడ్ లాక్ కూడా అమలవుతుంది.",
     "standardIconTitle": "ప్రామాణిక చిహ్నం",
     "standardIconBody": "సాధారణ Every Bible చిహ్నాన్ని ఉపయోగించండి మరియు యాప్‌ను నేరుగా తెరవండి.",
-    "discreetIconTitle": "విచక్షణ చిహ్నం",
+    "discreetIconTitle": "గోప్య చిహ్నం",
     "discreetIconBody": "ఈ పరికరంలో తక్కువ ప్రొఫైల్ చిహ్నాన్ని ఉపయోగించండి మరియు కాలిక్యులేటర్-శైలి కోడ్‌తో యాక్సెస్‌ను రక్షించండి.",
     "pinTitle": "మీ సురక్షిత కోడ్‌ని సృష్టించండి",
     "pinBody": "+, -, x, లేదా / వంటి సంఖ్యలు మరియు చిహ్నాలను ఉపయోగించి 4 నుండి 6 అక్షరాలను ఎంచుకోండి. మీరు యాప్‌కి తిరిగి వచ్చిన ప్రతిసారీ ఈ కోడ్‌ని నమోదు చేస్తారు.",
@@ -119,9 +119,9 @@ export const te = {
     "finish": "సెటప్ పూర్తి చేయండి"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "ఈ ఆడియోను వినిపించలేకపోయాము. మళ్లీ ప్రయత్నించండి.",
+    chapterFeedbackSuccessTitle: "అభిప్రాయం పంపబడింది",
+    readerFontsAndSettings: "అక్షరశైలి మరియు సెట్టింగ్‌లు",
     "title": "బైబిల్",
     "oldTestament": "పాత నిబంధన",
     "fontsAndSettings": "ఫాంట్‌లు & సెట్టింగ్‌లు",
@@ -165,12 +165,12 @@ export const te = {
     "chooseVerseImageBackground": "నేపథ్యాన్ని ఎంచుకోండి",
     "books": {
       "GEN": "ఆదికాండము",
-      "EXO": "ఎక్సోడస్",
-      "LEV": "లెవిటికస్",
-      "NUM": "సంఖ్యలు",
+      "EXO": "నిర్గమకాండము",
+      "LEV": "లేవీయకాండము",
+      "NUM": "సంఖ్యాకాండము",
       "DEU": "ద్వితీయోపదేశకాండము",
       "JOS": "జాషువా",
-      "JDG": "న్యాయమూర్తులు",
+      "JDG": "న్యాయాధిపతులు",
       "RUT": "రూత్",
       "1SA": "1 శామ్యూల్",
       "2SA": "2 శామ్యూల్",
@@ -181,7 +181,7 @@ export const te = {
       "EZR": "ఎజ్రా",
       "NEH": "నెహెమియా",
       "EST": "ఎస్తేర్",
-      "JOB": "ఉద్యోగం",
+      "JOB": "యోబు",
       "PSA": "కీర్తనలు",
       "PRO": "సామెతలు",
       "ECC": "ప్రసంగీకులు",
@@ -203,12 +203,12 @@ export const te = {
       "HAG": "హగ్గై",
       "ZEC": "జెకరియా",
       "MAL": "మలాచి",
-      "MAT": "మాథ్యూ",
+      "MAT": "మత్తయి",
       "MRK": "మార్క్",
       "LUK": "ల్యూక్",
-      "JHN": "జాన్",
-      "ACT": "చట్టాలు",
-      "ROM": "రోమన్లు ​​",
+      "JHN": "యోహాను",
+      "ACT": "అపొస్తలుల కార్యములు",
+      "ROM": "రోమీయులకు",
       "1CO": "1 కొరింథీయులు",
       "2CO": "2 కొరింథీయులు",
       "GAL": "గలతీయులు",
@@ -222,12 +222,12 @@ export const te = {
       "TIT": "టైటస్",
       "PHM": "ఫిలెమోన్",
       "HEB": "హిబ్రూలు",
-      "JAS": "జేమ్స్",
-      "1PE": "1 పీటర్",
-      "2PE": "2 పీటర్",
-      "1JN": "1 జాన్",
-      "2JN": "2 జాన్",
-      "3JN": "3 జాన్",
+      "JAS": "యాకోబు",
+      "1PE": "1 పేతురు",
+      "2PE": "2 పేతురు",
+      "1JN": "1 యోహాను",
+      "2JN": "2 యోహాను",
+      "3JN": "3 యోహాను",
       "JUD": "జూడ్",
       "REV": "ప్రకటన"
     },
@@ -239,42 +239,42 @@ export const te = {
     "chapterFeedbackPlaceholder": "ఈ అధ్యాయం గురించి ఐచ్ఛిక వ్యాఖ్య",
     "chapterFeedbackSelectionHint": "ఐచ్ఛిక గమనికను జోడించడానికి థంబ్స్ అప్ లేదా థంబ్స్ డౌన్ నొక్కండి.",
     "chapterFeedbackSubmit": "అభిప్రాయాన్ని పంపండి",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "బదులుగా మాట్లాడి మీ అభిప్రాయాన్ని రికార్డ్ చేయండి",
+    "chapterFeedbackAudioRecording": "రికార్డ్ అవుతోంది {{duration}}",
+    "chapterFeedbackAudioReady": "ఆడియో అభిప్రాయం సిద్ధంగా ఉంది: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, గరిష్ఠంగా 1 నిమిషం",
+    "chapterFeedbackAudioRecord": "స్వరాన్ని రికార్డ్ చేయండి",
+    "chapterFeedbackAudioStop": "ఆపండి",
+    "chapterFeedbackAudioPreview": "రికార్డ్ చేసిన అభిప్రాయాన్ని వినండి",
+    "chapterFeedbackAudioRerecord": "అభిప్రాయాన్ని మళ్లీ రికార్డ్ చేయండి",
+    "chapterFeedbackAudioUploading": "ఆడియో అప్‌లోడ్ అవుతోంది...",
+    "chapterFeedbackAudioPermissionDenied": "మైక్రోఫోన్ అనుమతి ఆపివేయబడింది. మీరు ఇంకా అభిప్రాయాన్ని వ్రాయవచ్చు.",
+    "chapterFeedbackAudioPermissionHelp": "ఆడియో అభిప్రాయం పంపడానికి పరికర సెట్టింగ్‌లలో మైక్రోఫోన్ అనుమతి ఇవ్వండి.",
+    "chapterFeedbackAudioStartError": "రికార్డింగ్ ప్రారంభించలేకపోయాము. మీరు అభిప్రాయాన్ని వ్రాయవచ్చు.",
+    "chapterFeedbackAudioStopError": "రికార్డింగ్ పూర్తి చేయలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    "chapterFeedbackAudioRecordingMissing": "రికార్డింగ్‌ను భద్రపరచలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    "chapterFeedbackAudioUploadError": "ఆడియో అప్‌లోడ్ కాలేదు. మీ రికార్డింగ్ భద్రంగా ఉంది; మళ్లీ పంపండి.",
     "chapterFeedbackSuccess": "మీ అభిప్రాయానికి ధన్యవాదాలు. మీ సమర్పణ స్వీకరించబడింది మరియు వీలైనంత త్వరగా మా అనువాద బృందాలచే సమీక్షించబడుతుంది.",
     "chapterFeedbackSignInRequired": "దయచేసి అధ్యాయం అభిప్రాయాన్ని పంపే ముందు సైన్ ఇన్ చేయండి.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "ఖచ్చితత్వ సమీక్ష",
+    "translatorReviewSummary": "పెండింగ్ నిర్ణయాలు: {{count}}లో {{pending}}",
+    "translatorReviewSummaryComplete": "ఖచ్చితత్వ సమీక్షలన్నీ పూర్తయ్యాయి",
+    "translatorReviewLoading": "అభిప్రాయాలు లోడ్ అవుతున్నాయి...",
+    "translatorReviewEmpty": "ఈ అధ్యాయానికి ఇంకా అభిప్రాయం సమర్పించబడలేదు.",
+    "translatorReviewUnknownUser": "పేరు తెలియని సహకారి",
+    "translatorReviewUnread": "నిర్ణయం అవసరం",
+    "translatorReviewSubmittedAt": "{{date}}న సమర్పించబడింది",
+    "translatorReviewSubmittedBy": "{{name}} సమర్పించారు",
+    "translatorReviewNoComment": "వ్రాతపూర్వక అభిప్రాయం లేదు.",
+    "translatorReviewFixed": "సరిచేయబడింది",
+    "translatorReviewConfirmedAccurate": "ఖచ్చితమైనదని నిర్ధారించబడింది",
+    "translatorReviewReviewed": "మార్పు అవసరం లేదు",
+    "translatorReviewConfirmAccurate": "ఖచ్చితమైనదని నిర్ధారించండి",
+    "translatorReviewMarkFixed": "సరిచేసినట్లు గుర్తించండి",
+    "translatorReviewNoActionNeeded": "చర్య అవసరం లేదు",
+    "translatorReviewReopen": "మళ్లీ తెరవండి",
+    "translatorReviewListened": "విన్నారు",
+    "translatorReviewListen": "వినండి",
     "translatorReviewPause": "పాజ్",
     "nextChapterHint": "తదుపరి అధ్యాయానికి వెళుతుంది",
     "openBookAndChapterPickerHint": "పుస్తకం మరియు చాప్టర్ పికర్‌ను తెరుస్తుంది",
@@ -298,7 +298,7 @@ export const te = {
   },
   "privacy": {
     "lockTitle": "మీ సురక్షిత కోడ్‌ని నమోదు చేయండి",
-    "lockBody": "ఈ పరికరం విచక్షణ మోడ్‌లో ఉంది. కొనసాగించడానికి Every Bibleని అన్‌లాక్ చేయండి.",
+    "lockBody": "ఈ పరికరం గోప్య మోడ్‌లో ఉంది. కొనసాగించడానికి Every Bible లాక్ తెరవండి.",
     "pinPlaceholder": "మీ కోడ్‌ని నొక్కండి",
     "pinLengthHint": "మీ 4 నుండి 6 అక్షరాల కోడ్‌ని ఉపయోగించండి.",
     "unlock": "బైబిల్‌ను అన్‌లాక్ చేయండి",
@@ -387,16 +387,16 @@ export const te = {
     "chapterFeedback": "అధ్యాయం అభిప్రాయం",
     "chapterFeedbackSummaryOn": "ఐచ్ఛిక చాప్టర్ ఫీడ్‌బ్యాక్ ఆన్‌లో ఉంది",
     "chapterFeedbackSummaryOff": "ఐచ్ఛిక చాప్టర్ ఫీడ్‌బ్యాక్ ఆఫ్ చేయబడింది",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "అనువాదకుల ప్రవేశం",
+    "translatorAccessTitle": "అనువాదకుల ప్రవేశం",
+    "translatorAccessBody": "ఈ పరికరంలో అధ్యాయాల అభిప్రాయాలను సమీక్షించడానికి అనువాదకుల ప్రవేశ కోడ్ నమోదు చేయండి.",
+    "translatorAccessPlaceholder": "ప్రవేశ కోడ్",
+    "translatorAccessUnlock": "తెరవండి",
+    "translatorAccessIncorrect": "ఆ అనువాదకుల ప్రవేశ కోడ్ సరైనది కాదు.",
+    "translatorAccessEnabled": "అనువాదకుల సమీక్ష మోడ్ ప్రారంభించబడింది",
+    "translatorAccessEnabledBody": "ఇప్పుడు అధ్యాయాల తెరలపై అభిప్రాయ సమీక్ష సాధనాలు కనిపిస్తాయి.",
+    "translatorAccessSummaryOn": "అనువాదకుల సమీక్ష సాధనాలు ప్రారంభించబడ్డాయి",
+    "translatorAccessSummaryOff": "సమీక్ష సాధనాలను ప్రారంభించడానికి ప్రవేశ కోడ్ నమోదు చేయండి",
   },
   "notifications": {
     "channelDailyReminder": "రోజువారీ పఠనం రిమైండర్",
@@ -598,7 +598,7 @@ export const te = {
     "playChapterSubtitle": "తెరిచి ప్లే చేయండి",
     "lessons": {
       "entry1": "హార్వెస్ట్ కోసం ప్రార్థన",
-      "entry2": "మీ Oikos మ్యాప్",
+      "entry2": "మీ సంబంధాల పటం",
       "entry3": "శాంతి వ్యక్తులను కనుగొనడం",
       "entry4": "మీ కథ ముఖ్యం",
       "gospel1": "ది సింపుల్ గాస్పెల్",
@@ -618,7 +618,7 @@ export const te = {
       "church3": "అందరూ పాల్గొంటారు",
       "church4": "నాయకులను నియమించడం",
       "mult1": "గుణకారం మైండ్‌సెట్",
-      "mult2": "కోచింగ్ vs టీచింగ్",
+      "mult2": "మార్గదర్శకత్వం మరియు బోధన మధ్య తేడా",
       "mult3": "పంపడం & మద్దతు",
       "mult4": "4వ తరానికి విజన్"
     }
@@ -659,7 +659,7 @@ export const te = {
     "saved": "సేవ్ చేయబడింది",
     "completions": "{{count}} పూర్తయినవి",
     "saveForLater": "తర్వాత కోసం సేవ్ చేయండి",
-    "unsave": "సేవ్ చేయబడలేదు",
+    "unsave": "భద్రపరచిన జాబితా నుండి తీసివేయండి",
     "sample": "నమూనా",
     "featuredPlan": "ఫీచర్ చేసిన ప్లాన్",
     "relatedPlans": "సంబంధిత ప్రణాళికలు",
@@ -699,8 +699,8 @@ export const te = {
       "description": "జ్ఞానం యొక్క నెల కోసం ప్రతి రోజు సామెతల యొక్క ఒక అధ్యాయం."
     },
     "kathisma": {
-      "title": "Kathisma",
-      "description": "ప్రతి వారం పునరావృతమయ్యే ప్రతి వారం రోజుకు నియమించబడిన ఉదయం మరియు సాయంత్రం Kathismata చదవండి."
+      "title": "కాథిస్మా",
+      "description": "ప్రతి వారం పునరావృతమయ్యే క్రమంలో, పనిదినాల ఉదయం మరియు సాయంత్రానికి కేటాయించిన కీర్తనల భాగాలు చదవండి."
     },
     "chronological": {
       "title": "కాలక్రమానుసారం బైబిల్",
@@ -757,7 +757,7 @@ export const te = {
     "addPassage": "లేఖన భాగాన్ని జోడించండి",
     "addPassageToRhythm": "లయకు పాసేజ్ జోడించండి",
     "repeatablePassage": "పునరావృతమయ్యే మార్గం",
-    "startChapterLabel": "అధ్యాయాన్ని ప్రారంభించండి",
+    "startChapterLabel": "ప్రారంభ అధ్యాయం",
     "endChapterLabel": "ముగింపు అధ్యాయం",
     "maxChapterHint": "{{count}} అధ్యాయాలు అందుబాటులో ఉన్నాయి",
     "chooseBook": "ముందుగా ఒక పుస్తకాన్ని ఎంచుకోండి.",
@@ -774,7 +774,7 @@ export const te = {
     },
     "identityInChrist": {
       "title": "క్రీస్తులో గుర్తింపు",
-      "description": "మీ గుర్తింపు, భద్రత మరియు యేసులో పిలుపునిచ్చే గ్రంథాన్ని చదవండి."
+      "description": "మీ గుర్తింపు, భద్రత, పిలుపును యేసులో స్థిరపరిచే లేఖనాలు చదవండి."
     },
     "kingdomOfGod": {
       "title": "దేవుని రాజ్యం",
@@ -789,7 +789,7 @@ export const te = {
       "description": "పవిత్రత, విధేయత మరియు ఎదుగుదలపై భాగాల ద్వారా వేరు చేయబడిన జీవితాన్ని కొనసాగించండి."
     },
     "greatCommissionAndMission": {
-      "title": "ది గ్రేట్ కమిషన్ & మిషన్",
+      "title": "మహా ఆజ్ఞ మరియు సువార్త సేవ",
       "description": "అబ్రాహాముకు చేసిన వాగ్దానాల నుండి భూమి యొక్క చివరల వరకు దేవుని మిషన్‌ను అనుసరించండి."
     },
     "faithAndObedience": {
@@ -831,7 +831,7 @@ export const te = {
     },
     "ntIn6Months": {
       "title": "6 నెలల్లో కొత్త నిబంధన",
-      "description": "180 రోజుల్లో మొత్తం 27 NT పుస్తకాల ద్వారా ఒక సున్నితమైన వేగం, రోజుకు 1–2 అధ్యాయాలు."
+      "description": "180 రోజుల్లో మొత్తం 27 క్రొత్త నిబంధన పుస్తకాల ద్వారా ఒక సున్నితమైన వేగం, రోజుకు 1–2 అధ్యాయాలు."
     },
     "gospels7Days": {
       "title": "7 రోజుల్లో సువార్తలు",
@@ -859,15 +859,15 @@ export const te = {
     },
     "otIn90Days": {
       "title": "90 రోజుల్లో పాత నిబంధన",
-      "description": "90 రోజుల్లో మొత్తం 929 OT చాప్టర్‌లు — రోజుకు దాదాపు 10 అధ్యాయాలు. తీవ్రమైన నిబద్ధత."
+      "description": "90 రోజుల్లో మొత్తం 929 పాత నిబంధన చాప్టర్‌లు — రోజుకు దాదాపు 10 అధ్యాయాలు. తీవ్రమైన నిబద్ధత."
     },
     "pentateuch30Days": {
-      "title": "30 రోజుల్లో పెంటాట్యూచ్",
+      "title": "30 రోజుల్లో మోషే వ్రాసిన ఐదు గ్రంథాలు",
       "description": "ద్వితీయోపదేశకాండము ద్వారా ఆదికాండము - మోషే యొక్క మొదటి ఐదు పుస్తకాలు - ఒక నెలలో."
     },
     "wisdom30Days": {
       "title": "30 రోజుల్లో జ్ఞానం సాహిత్యం",
-      "description": "జాబ్, కీర్తనలు, సామెతలు, ప్రసంగీకులు మరియు 30 రోజుల ప్రతిబింబంలో సోలమన్ పాట."
+      "description": "30 రోజుల్లో యోబు, కీర్తనలు, సామెతలు, ప్రసంగి మరియు పరమగీతముపై ధ్యానించండి."
     },
     "prophets90Days": {
       "title": "90 రోజుల్లో ప్రవక్తలు",
@@ -878,8 +878,8 @@ export const te = {
       "description": "పాల్ యొక్క మొత్తం 13 లేఖలు — రోమన్ల ద్వారా ఫిలేమోను — ఒక నెలలో చదవండి."
     },
     "acts28Days": {
-      "title": "28 రోజుల్లో పనిచేస్తుంది",
-      "description": "రోజుకు చట్టాల యొక్క ఒక అధ్యాయం - జెరూసలేం నుండి రోమ్ వరకు ప్రారంభ చర్చిని అనుసరించండి."
+      "title": "28 రోజుల్లో అపొస్తలుల కార్యములు",
+      "description": "ప్రతిరోజూ అపొస్తలుల కార్యములలో ఒక అధ్యాయం చదివి, యెరూషలేము నుండి రోము వరకు తొలి సంఘ ప్రయాణాన్ని అనుసరించండి."
     },
     "revelation22Days": {
       "title": "22 రోజుల్లో వెల్లడి",
@@ -1043,7 +1043,7 @@ export const te = {
     "publicDomain": "పబ్లిక్ డొమైన్",
     "cloudLibrary": "క్లౌడ్ లైబ్రరీ",
     "downloading": "డౌన్‌లోడ్ చేస్తోంది...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "ఆఫ్‌లైన్‌లో చదవడానికి {{name}} వ్రాతపూర్వక పాఠాన్ని (~{{size}} MB) డౌన్‌లోడ్ చేయాలా?",
     "deleteConfirmTitle": "అనువాదాన్ని తొలగించండి",
     "deleteConfirmMessage": "{{name}} కోసం డౌన్‌లోడ్ చేసిన డేటాను తీసివేయాలా? మీరు దీన్ని ఎప్పుడైనా మళ్లీ డౌన్‌లోడ్ చేసుకోవచ్చు.",
     "cancelDownload": "డౌన్‌లోడ్‌ను రద్దు చేయండి",
@@ -1530,6 +1530,282 @@ export const te = {
       "errorEmptyItems": "ఈ లయను రూపొందించడానికి కనీసం ఒక అంశాన్ని ఎంచుకోండి.",
       "errorPlanInAnotherRhythm": "ఈ ప్రణాళిక ఇప్పటికే మరొక లయకు చెందినది.",
       "errorRhythmNotFound": "ఆ లయను కనుగొనలేకపోయాము.",
+    }
+  },
+  "interface": {
+    "close": "మూసివేయండి",
+    "share": "పంచుకోండి",
+    "minutesShort": "{{count}} నిమి.",
+    "hoursShort": "{{count}} గం.",
+    "daysShort": "{{count}} రోజులు",
+    "hoursMinutes": "{{hours}} గం. {{minutes}} నిమి.",
+    "justNow": "ఇప్పుడే",
+    "minutesAgo": "{{count}} నిమిషాల క్రితం",
+    "hoursAgo": "{{count}} గంటల క్రితం",
+    "daysAgo": "{{count}} రోజుల క్రితం",
+    "activePrayerCount": "{{count}} క్రియాశీలం",
+    "groupShareMessage": "EveryBibleలో నా \"{{name}}\" శిష్యత్వ బృందంలో చేరండి!\n\nచేరడానికి కోడ్: {{code}}",
+    "groupAboutTitle": "బృంద సమావేశాల గురించి",
+    "groupAboutBody": "బృంద సమావేశాలు ప్రపంచవ్యాప్తంగా శిష్యులను తయారుచేసే ఉద్యమాల్లో వాడే మూడు సమాన భాగాల పద్ధతిని అనుసరిస్తాయి:",
+    "groupLookBack": "మీరు ఎలా విధేయత చూపారు? ఎవరితో పంచుకున్నారు?",
+    "groupLookUp": "కలిసి లేఖనాలు చదివి చర్చించండి",
+    "groupLookForward": "మీరు ఎలా విధేయత చూపుతారు? ఎవరికి చెబుతారు?",
+    "backgroundMusicLabel": "నేపథ్య సంగీతం: {{name}}",
+    "backgroundMusicHint": "నేపథ్య సంగీతం ఎంపికను తెరుస్తుంది",
+    "repeatHint": "పునరావృతం ఆపు, అధ్యాయం పునరావృతం, గ్రంథం పునరావృతం మధ్య మారుస్తుంది",
+    "shareAudioHint": "ఈ అధ్యాయం ఆడియోను పంచుకునే ఎంపికలను తెరుస్తుంది",
+    "playChapterAudio": "అధ్యాయం ఆడియో వినిపించండి",
+    "pauseChapterAudio": "అధ్యాయం ఆడియోకు విరామం ఇవ్వండి",
+    "previousChapterHint": "మునుపటి అధ్యాయానికి వెళ్తుంది",
+    "chapterRange": "అధ్యాయాలు {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}} గ్రంథాలు ({{percent}}%)",
+    "currentPlanDay": "ప్రణాళికలో ప్రస్తుత రోజు {{day}}",
+    "planDay": "రోజు {{day}}",
+    "planSessionForDay": "రోజు {{day}} కోసం {{session}}",
+    "music": {
+      "off": {
+        "label": "ఆఫ్",
+        "description": "నేపథ్య సంగీతం లేకుండా లేఖనాలను వినండి."
+      },
+      "ambient": {
+        "label": "వాతావరణ స్వరాలు",
+        "description": "పఠనం వెనుక నీటి అడుగున ఉన్న భావననిచ్చే మృదు స్వరాలు, గంటల ధ్వనులు పునరావృతమవుతాయి."
+      },
+      "piano": {
+        "label": "పియానో",
+        "description": "తేలికపాటి నేపథ్య స్వరాలతో మృదువైన పియానో రాగం."
+      },
+      "soft-guitar": {
+        "label": "మృదువైన గిటార్",
+        "description": "పఠనానికి ఆటంకం కలిగించకుండా పునరావృతమయ్యే నైలాన్ తీగల గిటార్ స్వరం."
+      },
+      "harp": {
+        "label": "హార్ప్",
+        "description": "భక్తి భావాన్నిచ్చే మృదువైన ఏక హార్ప్ స్వరం."
+      },
+      "flute": {
+        "label": "వేణువు",
+        "description": "మృదువైన ఊహాలోక వాతావరణంలో చిన్న వేణుగానపు పునరావృతం."
+      },
+      "sitar": {
+        "label": "సితార్",
+        "description": "ఎక్కువసేపు వినేందుకు వెచ్చని ఎడారి శైలి సితార్ స్వరాలు."
+      },
+      "ocean-waves": {
+        "label": "సముద్ర అలలు",
+        "description": "ప్రశాంత నేపథ్యానికి పునరావృతమయ్యే తీరపు అలల శబ్దం."
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "కాథలిక్ ఉదయ ప్రార్థన",
+        "description": "స్తుతి, స్తోత్రగానం, సువార్త ఆశీర్వాదంతో ప్రాతఃస్తుతి విధానంలో ప్రారంభం.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "నిర్దిష్ట వేళల ప్రార్థనా విధానం"
+      },
+      "catholic-daytime-prayer": {
+        "title": "కాథలిక్ పగటి ప్రార్థన",
+        "description": "చిన్న కీర్తనలతో, దేవుని వైపు నిరంతరం తిరుగుతూ చేసే సంక్షిప్త మధ్యాహ్న ప్రార్థన.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "నిర్దిష్ట వేళల ప్రార్థనా విధానం"
+      },
+      "catholic-evening-prayer": {
+        "title": "కాథలిక్ సాయంత్ర ప్రార్థన",
+        "description": "కీర్తనలు, కృతజ్ఞత, మరియ స్తుతిగీతంతో సంధ్యా ప్రార్థన పద్ధతిలో రోజు ముగింపు.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "నిర్దిష్ట వేళల ప్రార్థనా విధానం"
+      },
+      "catholic-night-prayer": {
+        "title": "కాథలిక్ రాత్రి ప్రార్థన",
+        "description": "నమ్మకం, రక్షణ, ప్రశాంత సమర్పణ కోసం నిద్రకు ముందరి ప్రార్థనా క్రమం.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "నిద్రకు ముందరి ప్రార్థన"
+      },
+      "catholic-lectio-divina": {
+        "title": "కాథలిక్ ధ్యానపూర్వక వాక్యపఠనం",
+        "description": "ధ్యానం, ప్రార్థన, వాక్యంలో నిలవడం కోసం నెమ్మదిగా చదివే క్రమం.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "ధ్యానపూర్వక వాక్యపఠనం"
+      },
+      "ignatian-daily-examen": {
+        "title": "ఇగ్నేషియన్ రోజువారీ ఆత్మపరిశీలన",
+        "description": "కృతజ్ఞత, ఆత్మపరిశీలన, పశ్చాత్తాపంతో రోజు చివర చేసే ధ్యానం.",
+        "tradition": "కాథలిక్",
+        "historicRoots": "ఇగ్నేషియన్ ఆధ్యాత్మిక సంప్రదాయం"
+      },
+      "anglican-morning-prayer": {
+        "title": "ఆంగ్లికన్ ఉదయ ప్రార్థన",
+        "description": "రాబోయే రోజుకు కీర్తనలు, సువార్త బోధనతో కూడిన క్రమబద్ధమైన ఉదయ ప్రార్థన.",
+        "tradition": "ఆంగ్లికన్",
+        "historicRoots": "సామూహిక ప్రార్థనా గ్రంథం"
+      },
+      "anglican-noonday-prayer": {
+        "title": "ఆంగ్లికన్ మధ్యాహ్న ప్రార్థన",
+        "description": "సహాయ కీర్తనలు, జీవాహారపు ఆశతో మధ్యాహ్నపు చిన్న ప్రార్థనా విరామం.",
+        "tradition": "ఆంగ్లికన్",
+        "historicRoots": "రోజువారీ ప్రార్థన"
+      },
+      "anglican-evening-prayer": {
+        "title": "ఆంగ్లికన్ సాయంత్ర ప్రార్థన",
+        "description": "సాయంత్ర కీర్తనలు, మరియ గీతంతో సంప్రదాయ సంధ్యా ప్రార్థనా క్రమం.",
+        "tradition": "ఆంగ్లికన్",
+        "historicRoots": "సామూహిక ప్రార్థనా గ్రంథం"
+      },
+      "anglican-compline": {
+        "title": "ఆంగ్లికన్ నిద్రకు ముందరి ప్రార్థన",
+        "description": "పాప ఒప్పుకోలు, నమ్మకం, విశ్రాంతి కోసం మృదువైన రాత్రి ప్రార్థన.",
+        "tradition": "ఆంగ్లికన్",
+        "historicRoots": "సామూహిక ప్రార్థనా గ్రంథం"
+      },
+      "orthodox-morning-rule": {
+        "title": "ఆర్థడాక్స్ ఉదయ ప్రార్థనా నియమం",
+        "description": "పశ్చాత్తాపం, కరుణ, యేసు నేర్పిన ప్రార్థనతో కూడిన వేకువ ప్రార్థనా క్రమం.",
+        "tradition": "ఆర్థడాక్స్",
+        "historicRoots": "ఉదయ ప్రార్థనలు"
+      },
+      "orthodox-sixth-hour": {
+        "title": "ఆర్థడాక్స్ ఆరవ ఘడియ ప్రార్థన",
+        "description": "క్రీస్తు శ్రమలను, మెలకువను గుర్తుచేసే మధ్యాహ్న ప్రార్థనా విరామం.",
+        "tradition": "ఆర్థడాక్స్",
+        "historicRoots": "ప్రార్థనా ఘడియలు"
+      },
+      "orthodox-vespers": {
+        "title": "ఆర్థడాక్స్ సంధ్యా ప్రార్థన",
+        "description": "సృష్టి స్తుతి, దీపాలు వెలిగించే కీర్తనలు, వాక్యంతో సాయంత్ర సమర్పణ.",
+        "tradition": "ఆర్థడాక్స్",
+        "historicRoots": "రోజువారీ సంధ్యా ప్రార్థన"
+      },
+      "orthodox-small-compline": {
+        "title": "ఆర్థడాక్స్ సంక్షిప్త నిద్రపూర్వ ప్రార్థన",
+        "description": "కరుణ, ఆశ్రయం, నిద్రకు ముందరి చివరి వేడుకోళ్ల కోసం ప్రశాంత రాత్రి ప్రార్థన.",
+        "tradition": "ఆర్థడాక్స్",
+        "historicRoots": "నిద్రకు ముందరి ప్రార్థన"
+      },
+      "benedictine-sacred-reading": {
+        "title": "బెనెడిక్టైన్ పవిత్ర పఠనం",
+        "description": "నిర్దిష్ట వేళల ధ్యానపఠనం, ప్రశాంత ఏకాగ్రత నుంచి ప్రేరణ పొందిన పఠన క్రమం.",
+        "tradition": "బెనెడిక్టైన్",
+        "historicRoots": "సెయింట్ బెనెడిక్ట్ నియమం"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "బెనెడిక్టైన్ కీర్తన మరియు పని",
+        "description": "రోజంతా ప్రార్థన, పని, నిశ్శబ్ద విధేయత కోసం ఆచరణాత్మక క్రమం.",
+        "tradition": "బెనెడిక్టైన్",
+        "historicRoots": "ప్రార్థన మరియు శ్రమ"
+      },
+      "taize-evening-prayer": {
+        "title": "తైజే సాయంత్ర ప్రార్థన",
+        "description": "కీర్తన, పఠనం, ప్రశాంతత చుట్టూ పాట, నిశ్శబ్దంతో గడిపే సాయంత్రం.",
+        "tradition": "తైజే",
+        "historicRoots": "తైజేలో సామూహిక ప్రార్థన"
+      },
+      "lutheran-morning-devotion": {
+        "title": "లూథరన్ ఉదయ ఆరాధన",
+        "description": "లేఖనం, కంఠస్థం, క్రమమైన ప్రార్థన కోరుకునే కుటుంబాల కోసం రోజు ప్రారంభించే క్రమం.",
+        "tradition": "లూథరన్",
+        "historicRoots": "కుటుంబాల రోజువారీ ఆరాధన"
+      },
+      "lutheran-close-of-day": {
+        "title": "లూథరన్ రోజు ముగింపు",
+        "description": "పాప ఒప్పుకోలు, ఆశ్రయం, క్రీస్తు రక్షణ కోసం సరళమైన రాత్రి ఆరాధన.",
+        "tradition": "లూథరన్",
+        "historicRoots": "కుటుంబాల రోజువారీ ఆరాధన"
+      },
+      "puritan-family-worship": {
+        "title": "ప్యూరిటన్ కుటుంబ ఆరాధన",
+        "description": "ప్రార్థన, స్తుతి, లేఖనం, దైవిక సంభాషణతో ఇంట్లో గడిపే సాయంత్రం.",
+        "tradition": "ప్యూరిటన్",
+        "historicRoots": "కుటుంబ ఆరాధన మార్గదర్శిని"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "భక్తి ధ్యానాలు",
+        "description": "యేసు బోధనకు దగ్గరగా ఉండే చిన్న ధ్యానాలు."
+      },
+      "mat-devotional-beatitudes": {
+        "title": "లోకపు రీతిని తలకిందులు చేసే రాజ్యంలో ధన్యులు",
+        "summary": "ధన్యతల బోధపై ధ్యానించి, యేసు మన కోరికలను ఎలా మార్చుతాడో గమనించండి.",
+        "actionLabel": "అధ్యాయం చదవండి"
+      },
+      "mat-plans": {
+        "title": "ప్రణాళికలు",
+        "description": "మత్తయిని ఒక ఉద్దేశంతో చదవడానికి సరళమైన మార్గాలు."
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "మత్తయిలో రాజ్య జీవన క్రమం",
+        "summary": "గుర్తింపు, ప్రార్థన, కరుణ, సువార్త సేవ, పునరుత్థాన నిరీక్షణపై ఏడు రోజులు.",
+        "actionLabel": "మొదటి అధ్యాయాన్ని తెరవండి"
+      },
+      "jhn-playlists": {
+        "title": "వినే జాబితాలు",
+        "description": "యోహానులోని ప్రధాన భాగాలను వినడానికి ఎంపిక చేసిన క్రమాలు."
+      },
+      "jhn-playlist-signs": {
+        "title": "యేసు సూచక క్రియలు",
+        "summary": "క్రీస్తు ఎవరో తెలియజేసే సూచక క్రియలను అర్థం చేసుకునే మార్గం.",
+        "actionLabel": "వినే జాబితాను ప్రారంభించండి"
+      },
+      "gal-devotionals": {
+        "title": "భక్తి ధ్యానాలు",
+        "description": "గలతీయులను ప్రార్థనాపూర్వకంగా చదవడానికి చిన్న ధ్యానాలు."
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "ఇక దాసులం కాదు",
+        "summary": "దత్తపుత్రత్వం, వారసత్వం, తండ్రి స్వాగతం గురించి ధ్యానించండి.",
+        "actionLabel": "అధ్యాయం చదవండి"
+      },
+      "gal-plans": {
+        "title": "ప్రణాళికలు",
+        "description": "పత్రికను చదివే చిన్న క్రమబద్ధ మార్గాలు."
+      },
+      "gal-plan-six-days": {
+        "title": "రోజుకు ఒక అధ్యాయం: గలతీయులకు",
+        "summary": "రోజూ ఒక అధ్యాయం చదివి, తొందరపడకుండా పౌలు వాదనను అనుసరించండి.",
+        "actionLabel": "మొదటి అధ్యాయాన్ని తెరవండి"
+      },
+      "psa-playlists": {
+        "title": "వినే జాబితాలు",
+        "description": "వివిధ భావోద్వేగ పరిస్థితుల కోసం ప్రార్థనాపూర్వక మార్గాలు."
+      },
+      "psa-playlist-morning": {
+        "title": "ఉదయపు ఆశ్రయం",
+        "summary": "రోజు ప్రారంభానికి నమ్మకపు కీర్తనల చిన్న క్రమం.",
+        "actionLabel": "వినే జాబితాను ప్రారంభించండి"
+      },
+      "psa-playlist-repentance": {
+        "title": "పశ్చాత్తాప కీర్తనలు",
+        "summary": "నిజాయితీ, పాప ఒప్పుకోలు, పునరుద్ధరణ కోరికతో ప్రార్థించండి.",
+        "actionLabel": "వినే జాబితాను ప్రారంభించండి"
+      },
+      "psa-devotionals": {
+        "title": "భక్తి ధ్యానాలు",
+        "description": "కీర్తనలతో నెమ్మదిగా ప్రార్థించడానికి ప్రశాంత ధ్యానాలు."
+      },
+      "psa-devotional-shepherd": {
+        "title": "పునరుద్ధరించే కాపరి",
+        "summary": "కీర్తన 23 నినాదంగా కాక ప్రార్థనగా మారేవరకు దానిపై ధ్యానించండి.",
+        "actionLabel": "కీర్తన చదవండి"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "ప్రజా వినియోగానికి అందుబాటులో ఉన్న బెరియన్ పాఠం, ప్రత్యక్ష CC0 అధ్యాయ ఆడియో",
+      "web": "EveryBible గ్రంథాలయం నుంచి ప్రజా వినియోగానికి అందుబాటులో ఉన్న బ్రిటిష్ సంచిక పాఠం, అధ్యాయ ఆడియో",
+      "kjv": "1611 నాటి అధికారిక కింగ్ జేమ్స్ సంచిక",
+      "asv": "1901లో ప్రచురితమైన KJV సవరణ, ముందే ఇన్‌స్టాల్ చేసిన పాఠం",
+      "bbe": "సులభ పఠనం కోసం పరిమిత పదజాలాన్ని ఉపయోగిస్తుంది",
+      "sparv1909": "సంప్రదాయ స్పానిష్ బైబిల్ — ప్రజా వినియోగానికి అందుబాటులో ఉన్న పాఠం",
+      "hincv": "హిందీ సమకాలీన సంచిక — ప్రజా వినియోగానికి అందుబాటులో ఉంది",
+      "npiulb": "అన్‌లాక్డ్ లిటరల్ బైబిల్ — ప్రజా వినియోగానికి అందుబాటులో ఉంది"
+    },
+    "audioUnavailableTranslation": "ఈ అనువాదానికి ఆడియో అందుబాటులో లేదు.",
+    "audioUnavailableChapter": "ఈ అధ్యాయానికి ఆడియో అందుబాటులో లేదు.",
+    "audioPlayFailed": "ఈ ఆడియోను వినిపించలేకపోయాము. మళ్లీ ప్రయత్నించండి.",
+    "nativePermissions": {
+      "NSCameraUsageDescription": "ప్రొఫైల్ ఫోటో తీయాలనుకుంటే Every Bibleకు మీ కెమెరాను ఉపయోగించే అనుమతి ఇవ్వండి.",
+      "NSMicrophoneUsageDescription": "అధ్యాయాల అభిప్రాయాలను స్వరంతో రికార్డ్ చేయడానికి Every Bibleకు అనుమతి ఇవ్వండి.",
+      "NSPhotoLibraryUsageDescription": "ప్రొఫైల్ ఫోటోను ఎంచుకోవడానికి Every Bibleకు మీ ఫోటో లైబ్రరీని ఉపయోగించే అనుమతి ఇవ్వండి.",
+      "NSFaceIDUsageDescription": "భద్రపరచిన సైన్-ఇన్‌ను రక్షించడానికి Every Bibleకు Face ID ఉపయోగించే అనుమతి ఇవ్వండి."
     }
   }
 } as const;

@@ -40,6 +40,18 @@ function int(value: unknown): number | undefined {
   return Number.isFinite(n) ? Math.floor(n) : undefined;
 }
 
+function summarizeSyncRun(run: Awaited<ReturnType<typeof listSyncRuns>>[number]) {
+  return {
+    state: run.state,
+    startedAt: run.started_at,
+    finishedAt: run.finished_at,
+    insertedCount: run.inserted_count,
+    updatedCount: run.updated_count,
+    failedCount: run.failed_count,
+    message: run.message,
+  };
+}
+
 export const OPERATOR_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   {
     name: 'get_health_snapshot',
@@ -63,7 +75,8 @@ export const OPERATOR_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'list_translations',
-    description: 'The imported translation catalog, optionally filtered by a search term (id, name, language, abbreviation).',
+    description:
+      'The imported translation catalog, optionally filtered by a search term (id, name, language, abbreviation).',
     parameters: {
       type: 'object',
       properties: {
@@ -97,7 +110,8 @@ export const OPERATOR_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'get_support_user',
-    description: 'Look up a support user by email or display name and return their account, reading, and engagement context.',
+    description:
+      'Look up a support user by email or display name and return their account, reading, and engagement context.',
     parameters: {
       type: 'object',
       properties: {
@@ -128,7 +142,15 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   get_health_snapshot: async () => {
     const [summary, issues] = await Promise.all([getDashboardSummary(), getHealthIssues()]);
     return {
-      summary,
+      summary: {
+        adminPathCount: summary.adminPathCount,
+        failedSyncCount: summary.failedSyncCount,
+        feedbackCount: summary.feedbackCount,
+        liveImageCount: summary.liveImageCount,
+        liveVerseCount: summary.liveVerseCount,
+        supportUserCount: summary.supportUserCount,
+        translationCount: summary.translationCount,
+      },
       issues: issues.map((issue) => ({
         title: issue.title,
         severity: issue.severity,
@@ -185,14 +207,42 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
     const id = str(args.translationId);
     if (!id) return { error: 'translationId is required.' };
     const detail = await getTranslationDetail(id);
-    return detail ?? { error: `No translation found for id "${id}".` };
+    if (!detail) return { error: `No translation found for id "${id}".` };
+    return {
+      translationId: detail.translationId,
+      name: detail.name,
+      abbreviation: detail.abbreviation,
+      languageName: detail.languageName,
+      distributionState: detail.distributionState,
+      hasText: detail.hasText,
+      hasAudio: detail.hasAudio,
+      isAvailable: detail.isAvailable,
+      currentVersion: detail.currentVersion,
+      updatedAt: detail.updatedAt,
+      upstreamLastSyncedAt: detail.upstreamLastSyncedAt,
+      versions: detail.versions.map((version) => ({
+        version: version.version_number,
+        current: version.is_current,
+        publishedAt: version.published_at,
+        totalBooks: version.total_books,
+        totalChapters: version.total_chapters,
+        totalVerses: version.total_verses,
+      })),
+      recentRuns: detail.recentRuns.map(summarizeSyncRun),
+    };
   },
 
   list_chapter_feedback: async (args) => {
     const items = await listChapterFeedback({
       query: str(args.search),
-      sentiment: str(args.sentiment) === 'up' ? 'up' : str(args.sentiment) === 'down' ? 'down' : undefined,
-      fixStatus: str(args.fixStatus) === 'open' ? 'open' : str(args.fixStatus) === 'fixed' ? 'fixed' : undefined,
+      sentiment:
+        str(args.sentiment) === 'up' ? 'up' : str(args.sentiment) === 'down' ? 'down' : undefined,
+      fixStatus:
+        str(args.fixStatus) === 'open'
+          ? 'open'
+          : str(args.fixStatus) === 'fixed'
+            ? 'fixed'
+            : undefined,
     });
     return {
       count: items.length,
@@ -214,7 +264,57 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
     const matches = await listSupportUsers(query);
     if (matches.length === 0) return { error: `No user found matching "${query}".` };
     const detail = await getSupportUserDetail(matches[0].id);
-    return { match: matches[0], detail };
+    const match = matches[0];
+    // This is a provider-facing DTO: allowlist every nested field. Never spread
+    // admin records here; they contain push tokens and direct user identities.
+    return {
+      match: {
+        createdAt: match.createdAt,
+        currentBook: match.currentBook,
+        currentChapter: match.currentChapter,
+        deviceCount: match.deviceCount,
+        engagementScore: match.engagementScore,
+        lastActiveDate: match.lastActiveDate,
+        streakDays: match.streakDays,
+      },
+      detail: detail
+        ? {
+            devices: detail.devices.map((device) => ({
+              platform: device.platform,
+              appVersion: device.app_version,
+              active: device.is_active,
+            })),
+            preferences: detail.preferences
+              ? {
+                  language: detail.preferences.language,
+                  theme: detail.preferences.theme,
+                  contentLanguage: detail.preferences.content_language_name,
+                  syncedAt: detail.preferences.synced_at,
+                }
+              : null,
+            progress: detail.progress
+              ? {
+                  currentBook: detail.progress.current_book,
+                  currentChapter: detail.progress.current_chapter,
+                  lastReadDate: detail.progress.last_read_date,
+                  streakDays: detail.progress.streak_days,
+                }
+              : null,
+            engagement: detail.engagement
+              ? {
+                  score: detail.engagement.engagement_score,
+                  lastActiveDate: detail.engagement.last_active_date,
+                  chaptersRead: detail.engagement.total_chapters_read,
+                  listeningMinutes: detail.engagement.total_listening_minutes,
+                  sessions: detail.engagement.total_sessions,
+                }
+              : null,
+            feedbackCount: detail.feedbackCount,
+            planCount: detail.planCount,
+            sessionCount: detail.sessionCount,
+          }
+        : null,
+    };
   },
 
   list_audit_logs: async (args) => {
@@ -233,6 +333,6 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
 
   list_sync_runs: async (args) => {
     const runs = await listSyncRuns(int(args.limit) ?? 10);
-    return { count: runs.length, runs };
+    return { count: runs.length, runs: runs.map(summarizeSyncRun) };
   },
 };

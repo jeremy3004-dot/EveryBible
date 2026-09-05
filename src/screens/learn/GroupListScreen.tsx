@@ -44,9 +44,8 @@ export function GroupListScreen() {
     syncFeatureEnabled,
     backendConfigured,
   });
-  const syncRequestKey = syncFeatureEnabled && backendConfigured && isSignedIn
-    ? user?.uid ?? 'signed-in'
-    : null;
+  const syncRequestKey =
+    syncFeatureEnabled && backendConfigured && isSignedIn ? (user?.uid ?? 'signed-in') : null;
   const [reloadKey, setReloadKey] = useState(0);
   const [remoteSyncState, setRemoteSyncState] = useState<{
     key: string | null;
@@ -61,14 +60,15 @@ export function GroupListScreen() {
   // reloadKey, not syncRequestKey) changes the token, making the derived loading
   // state re-show the spinner instead of the stale error card — no setState in
   // the effect required.
-  const syncRequestToken =
-    syncRequestKey === null ? null : `${syncRequestKey}:${reloadKey}`;
-  const syncedGroups = syncRequestToken !== null && remoteSyncState.key === syncRequestToken
-    ? remoteSyncState.groups
-    : [];
-  const syncLoadError = syncRequestToken !== null && remoteSyncState.key === syncRequestToken
-    ? remoteSyncState.error
-    : null;
+  const syncRequestToken = syncRequestKey === null ? null : `${syncRequestKey}:${reloadKey}`;
+  const syncedGroups =
+    syncRequestToken !== null && remoteSyncState.key === syncRequestToken
+      ? remoteSyncState.groups
+      : [];
+  const syncLoadError =
+    syncRequestToken !== null && remoteSyncState.key === syncRequestToken
+      ? remoteSyncState.error
+      : null;
   const isLoadingSynced = syncRequestToken !== null && remoteSyncState.key !== syncRequestToken;
   const repositorySnapshot = buildGroupRepositorySnapshot({
     localGroups: groups,
@@ -99,7 +99,7 @@ export function GroupListScreen() {
           error: null,
         });
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (cancelled) {
           return;
         }
@@ -107,14 +107,14 @@ export function GroupListScreen() {
         setRemoteSyncState({
           key: syncRequestToken,
           groups: [],
-          error: error instanceof Error ? error.message : 'Unable to refresh synced groups.',
+          error: t('groups.unableToLoadGroup'),
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [syncRequestToken]);
+  }, [syncRequestToken, t]);
 
   const handleRetrySync = useCallback(() => {
     setReloadKey((value) => value + 1);
@@ -127,12 +127,13 @@ export function GroupListScreen() {
         ? 'person-outline'
         : 'cloud-offline-outline';
   const statusIconColor =
-    groupRollout.syncStatusKey === 'harvest.groupSyncReady'
-      ? colors.success
-      : colors.accentPrimary;
+    groupRollout.syncStatusKey === 'harvest.groupSyncReady' ? colors.success : colors.accentPrimary;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -180,11 +181,7 @@ export function GroupListScreen() {
               { backgroundColor: colors.background, borderColor: colors.cardBorder },
             ]}
           >
-            <Ionicons
-              name={statusIconName}
-              size={20}
-              color={statusIconColor}
-            />
+            <Ionicons name={statusIconName} size={20} color={statusIconColor} />
             <Text style={[styles.statusText, { color: colors.primaryText }]}>
               {t(groupRollout.syncStatusKey)}
             </Text>
@@ -228,11 +225,15 @@ export function GroupListScreen() {
                   onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.groupIcon, { backgroundColor: colors.accentPrimary + '16' }]}>
+                  <View
+                    style={[styles.groupIcon, { backgroundColor: colors.accentPrimary + '16' }]}
+                  >
                     <Ionicons name="people-outline" size={18} color={colors.accentPrimary} />
                   </View>
                   <View style={styles.groupCopy}>
-                    <Text style={[styles.groupName, { color: colors.primaryText }]}>{group.name}</Text>
+                    <Text style={[styles.groupName, { color: colors.primaryText }]}>
+                      {group.name}
+                    </Text>
                     <Text style={[styles.groupMeta, { color: colors.secondaryText }]}>
                       {group.memberCount} • {group.joinCode}
                     </Text>
@@ -271,9 +272,7 @@ export function GroupListScreen() {
               {t('harvest.syncedGroupsTitle')}
             </Text>
             <Text style={[styles.localBody, { color: colors.secondaryText }]}>
-              {isSignedIn
-                ? t('harvest.syncedGroupsDescription')
-                : t('harvest.syncedGroupsSignin')}
+              {isSignedIn ? t('harvest.syncedGroupsDescription') : t('harvest.syncedGroupsSignin')}
             </Text>
 
             {syncLoadError ? (
@@ -326,7 +325,11 @@ export function GroupListScreen() {
                     <View
                       style={[styles.groupIcon, { backgroundColor: colors.accentSecondary + '16' }]}
                     >
-                      <Ionicons name="cloud-done-outline" size={18} color={colors.accentSecondary} />
+                      <Ionicons
+                        name="cloud-done-outline"
+                        size={18}
+                        color={colors.accentSecondary}
+                      />
                     </View>
                     <View style={styles.groupCopy}>
                       <Text style={[styles.groupName, { color: colors.primaryText }]}>

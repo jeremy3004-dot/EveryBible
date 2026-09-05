@@ -1,23 +1,23 @@
 export const bn = {
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "মতামতের তালিকা",
+    subtitle: "যেসব অধ্যায়ের মতামত পর্যালোচনা করতে হবে",
+    empty: "সব মতামত দেখা হয়েছে। কোনো মতামত বাকি নেই।",
+    pendingCount: "পর্যালোচনার জন্য {{count}}টি অধ্যায়",
+    chapterCounts: "{{down}}টি সংশোধন করতে হবে · {{up}}টি নিশ্চিত করতে হবে",
+    openLabel: "{{reference}} খুলুন",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "আমার মতামত",
+    settingsRow: "আমার মতামত",
+    settingsRowSummary: "আপনার পরামর্শ অনুযায়ী অনুবাদ দল কী করেছে দেখুন",
+    subtitle: "আপনার অধ্যায়ভিত্তিক মতামত নিয়ে অনুবাদ দল কী করেছে",
+    empty: "আপনি এখনও কোনো অধ্যায়ে মতামত পাঠাননি।",
+    signInRequired: "আপনার পাঠানো মতামত দেখতে সাইন ইন করুন।",
+    audioLabel: "কণ্ঠবার্তা সংযুক্ত আছে",
+    statusReceived: "প্রাপ্ত",
+    statusFixed: "সংশোধিত",
+    statusNoChange: "পর্যালোচিত — পরিবর্তন নেই",
   },
   "common": {
     "cancel": "বাতিল করুন",
@@ -30,7 +30,7 @@ export const bn = {
     "save": "সংরক্ষণ করুন",
     "delete": "মুছুন",
     "edit": "সম্পাদনা করুন",
-    "back": "ব্যাক",
+    "back": "ফিরে যান",
     "next": "পরবর্তী",
     "previous": "আগের",
     "search": "অনুসন্ধান করুন",
@@ -46,10 +46,10 @@ export const bn = {
     "all": "সব"
   },
   "tabs": {
-    "home": "বাড়ি",
+    "home": "মূলপাতা",
     "bible": "বাইবেল",
     "harvest": "ফসল",
-    "gather": "জড়ো করা",
+    "gather": "সহভাগিতা",
     "more": "আরও",
     "plans": "পরিকল্পনা"
   },
@@ -75,7 +75,7 @@ export const bn = {
     "percentComplete": "{{percent}}%",
     "fieldLabel": "ক্ষেত্র {{number}}",
     "notificationSettings": "বিজ্ঞপ্তি সেটিংস",
-    "chaptersRead": "অধ্যায় পঠিত",
+    "chaptersRead": "পড়া অধ্যায়",
     "today": "আজ",
     "week": "সপ্তাহ",
     "month": "মাস",
@@ -106,10 +106,10 @@ export const bn = {
     "recommendedBadge": "প্রস্তাবিত",
     "interfaceAvailable": "ইন্টারফেস উপলব্ধ",
     "privacyTitle": "আপনার গোপনীয়তা শৈলী চয়ন করুন",
-    "privacyBody": "এই ডিভাইসের জন্য আইকন শৈলী চয়ন করুন. আপনি যখনই অ্যাপটি ছেড়ে যান তখন বিচক্ষণ মোড একটি স্থানীয় কোড লক যোগ করে।",
+    "privacyBody": "এই ডিভাইসের আইকনের ধরন বেছে নিন। গোপন মোডে অ্যাপ ছেড়ে গেলেই ডিভাইসের কোড দিয়ে অ্যাপ লক হয়।",
     "standardIconTitle": "স্ট্যান্ডার্ড আইকন",
     "standardIconBody": "সাধারণ Every Bible আইকন ব্যবহার করুন এবং সরাসরি অ্যাপটি খুলুন।",
-    "discreetIconTitle": "বিচক্ষণ আইকন",
+    "discreetIconTitle": "গোপন আইকন",
     "discreetIconBody": "এই ডিভাইসে একটি লো-প্রোফাইল আইকন ব্যবহার করুন এবং একটি ক্যালকুলেটর-স্টাইল কোড দিয়ে অ্যাক্সেস রক্ষা করুন৷",
     "pinTitle": "আপনার নিরাপদ কোড তৈরি করুন",
     "pinBody": "+, -, x, বা / এর মতো সংখ্যা এবং চিহ্ন ব্যবহার করে 4 থেকে 6 অক্ষর চয়ন করুন। আপনি যখনই অ্যাপে ফিরে আসবেন আপনি এই কোডটি লিখবেন।",
@@ -119,9 +119,9 @@ export const bn = {
     "finish": "সেটআপ শেষ করুন"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "এই অডিও চালানো যায়নি। আবার চেষ্টা করুন।",
+    chapterFeedbackSuccessTitle: "মতামত পাঠানো হয়েছে",
+    readerFontsAndSettings: "অক্ষর ও সেটিংস",
     "title": "বাইবেল",
     "oldTestament": "ওল্ড টেস্টামেন্ট",
     "fontsAndSettings": "ফন্ট ও সেটিংস",
@@ -164,11 +164,11 @@ export const bn = {
     "shareVerseImage": "ছবি",
     "chooseVerseImageBackground": "একটি পটভূমি চয়ন করুন",
     "books": {
-      "GEN": "জেনেসিস",
-      "EXO": "এক্সোডাস",
-      "LEV": "লেভিটিকাস",
-      "NUM": "সংখ্যা",
-      "DEU": "বাইবেলের বই || Deuteronomy",
+      "GEN": "আদিপুস্তক",
+      "EXO": "যাত্রাপুস্তক",
+      "LEV": "লেবীয় পুস্তক",
+      "NUM": "গণনাপুস্তক",
+      "DEU": "দ্বিতীয় বিবরণ",
       "JOS": "জোশুয়া",
       "JDG": "বিচারক",
       "RUT": "রুথ",
@@ -181,13 +181,13 @@ export const bn = {
       "EZR": "এজরা",
       "NEH": "নেহেমিয়া",
       "EST": "এস্টার",
-      "JOB": "চাকরি",
+      "JOB": "ইয়োব",
       "PSA": "গীতসংহিতা",
       "PRO": "হিতোপদেশ",
       "ECC": "উপদেশক",
       "SNG": "সলোমনের গান",
       "ISA": "ইশাইয়া",
-      "JER": "বাইবেলের বই || যিরমিয়",
+      "JER": "যিরমিয়",
       "LAM": "বিলাপ",
       "EZK": "ইজেকিয়েল",
       "DAN": "ড্যানিয়েল",
@@ -203,11 +203,11 @@ export const bn = {
       "HAG": "হাগাই",
       "ZEC": "জাকারিয়া",
       "MAL": "মালাচি",
-      "MAT": "ম্যাথিউ",
+      "MAT": "মথি",
       "MRK": "মার্ক",
       "LUK": "লুক",
-      "JHN": "জন",
-      "ACT": "আইন",
+      "JHN": "যোহন",
+      "ACT": "প্রেরিতদের কার্য",
       "ROM": "রোমানস",
       "1CO": "1 করিন্থিয়ানস",
       "2CO": "2 করিন্থিয়ানস",
@@ -225,11 +225,11 @@ export const bn = {
       "JAS": "জেমস",
       "1PE": "1 পিটার",
       "2PE": "2 পিটার",
-      "1JN": "1 জন",
-      "2JN": "2 জন",
-      "3JN": "3 জন",
+      "1JN": "১ যোহন",
+      "2JN": "২ যোহন",
+      "3JN": "৩ যোহন",
       "JUD": "জুড",
-      "REV": "উদ্ঘাটন"
+      "REV": "প্রকাশিত বাক্য"
     },
     "chapterFeedback": "অধ্যায় প্রতিক্রিয়া",
     "chapterFeedbackTitle": "এই অধ্যায় সম্পর্কে মতামত শেয়ার করুন",
@@ -239,42 +239,42 @@ export const bn = {
     "chapterFeedbackPlaceholder": "এই অধ্যায় সম্পর্কে ঐচ্ছিক মন্তব্য",
     "chapterFeedbackSelectionHint": "একটি ঐচ্ছিক নোট যোগ করতে থাম্বস আপ বা থাম্বস ডাউন আলতো চাপুন।",
     "chapterFeedbackSubmit": "প্রতিক্রিয়া পাঠান",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "এর বদলে কথা বলে মতামত রেকর্ড করুন",
+    "chapterFeedbackAudioRecording": "রেকর্ড হচ্ছে {{duration}}",
+    "chapterFeedbackAudioReady": "কণ্ঠে দেওয়া মতামত প্রস্তুত: {{duration}}",
+    "chapterFeedbackAudioLimit": "M4A, সর্বোচ্চ ১ মিনিট",
+    "chapterFeedbackAudioRecord": "কণ্ঠ রেকর্ড করুন",
+    "chapterFeedbackAudioStop": "থামান",
+    "chapterFeedbackAudioPreview": "রেকর্ড করা মতামত শুনুন",
+    "chapterFeedbackAudioRerecord": "মতামত আবার রেকর্ড করুন",
+    "chapterFeedbackAudioUploading": "অডিও আপলোড হচ্ছে...",
+    "chapterFeedbackAudioPermissionDenied": "মাইক্রোফোন ব্যবহারের অনুমতি বন্ধ আছে। আপনি এখনও মতামত লিখতে পারেন।",
+    "chapterFeedbackAudioPermissionHelp": "কণ্ঠে মতামত পাঠাতে ডিভাইসের সেটিংসে মাইক্রোফোন ব্যবহারের অনুমতি দিন।",
+    "chapterFeedbackAudioStartError": "রেকর্ডিং শুরু করা যায়নি। আপনি মতামত লিখতে পারেন।",
+    "chapterFeedbackAudioStopError": "রেকর্ডিং শেষ করা যায়নি। আবার চেষ্টা করুন।",
+    "chapterFeedbackAudioRecordingMissing": "রেকর্ডিংটি সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+    "chapterFeedbackAudioUploadError": "অডিও আপলোড হয়নি। আপনার রেকর্ডিং সংরক্ষিত আছে; আবার পাঠান।",
     "chapterFeedbackSuccess": "আপনার মতামতের জন্য আপনাকে ধন্যবাদ. আপনার জমা দেওয়া হয়েছে এবং যত তাড়াতাড়ি সম্ভব আমাদের অনুবাদ দলগুলি দ্বারা পর্যালোচনা করা হবে৷",
     "chapterFeedbackSignInRequired": "অধ্যায় প্রতিক্রিয়া পাঠানোর আগে সাইন ইন করুন.",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "নির্ভুলতা পর্যালোচনা",
+    "translatorReviewSummary": "সিদ্ধান্ত বাকি: {{count}}টির মধ্যে {{pending}}টি",
+    "translatorReviewSummaryComplete": "নির্ভুলতার সব পর্যালোচনা সম্পন্ন হয়েছে",
+    "translatorReviewLoading": "মতামত লোড হচ্ছে...",
+    "translatorReviewEmpty": "এই অধ্যায়ের জন্য এখনও কোনো মতামত জমা পড়েনি।",
+    "translatorReviewUnknownUser": "অজানা অবদানকারী",
+    "translatorReviewUnread": "সিদ্ধান্ত প্রয়োজন",
+    "translatorReviewSubmittedAt": "{{date}} তারিখে জমা দেওয়া হয়েছে",
+    "translatorReviewSubmittedBy": "{{name}} জমা দিয়েছেন",
+    "translatorReviewNoComment": "কোনো লিখিত মতামত নেই।",
+    "translatorReviewFixed": "সংশোধিত",
+    "translatorReviewConfirmedAccurate": "সঠিক বলে নিশ্চিত করা হয়েছে",
+    "translatorReviewReviewed": "পরিবর্তনের প্রয়োজন নেই",
+    "translatorReviewConfirmAccurate": "সঠিক বলে নিশ্চিত করুন",
+    "translatorReviewMarkFixed": "সংশোধিত হিসেবে চিহ্নিত করুন",
+    "translatorReviewNoActionNeeded": "কোনো পদক্ষেপের প্রয়োজন নেই",
+    "translatorReviewReopen": "আবার খুলুন",
+    "translatorReviewListened": "শোনা হয়েছে",
+    "translatorReviewListen": "শুনুন",
     "translatorReviewPause": "বিরতি",
     "nextChapterHint": "পরের অধ্যায়ে যায়",
     "openBookAndChapterPickerHint": "বই এবং অধ্যায় পিকার খোলে",
@@ -298,7 +298,7 @@ export const bn = {
   },
   "privacy": {
     "lockTitle": "আপনার নিরাপদ কোড লিখুন",
-    "lockBody": "এই ডিভাইসটি বিচক্ষণ মোডে আছে। চালিয়ে যেতে Every Bible আনলক করুন।",
+    "lockBody": "এই ডিভাইস গোপন মোডে আছে। চালিয়ে যেতে Every Bible-এর লক খুলুন।",
     "pinPlaceholder": "আপনার কোড আলতো চাপুন",
     "pinLengthHint": "আপনার 4 থেকে 6 অক্ষরের কোড ব্যবহার করুন।",
     "unlock": "বাইবেল আনলক করুন",
@@ -383,20 +383,20 @@ export const bn = {
     "chapterFeedbackIdentityRole": "প্রকল্পে ভূমিকা",
     "chapterFeedbackIdentityRolePlaceholder": "গির্জার নেতা, ভাষা বক্তা, সম্প্রদায়ের অগ্রজ",
     "chapterFeedbackIdentityRequired": "আপনার নাম এবং ভূমিকা লিখুন.",
-    "chapterFeedbackIdentitySummaryOff": "কোন প্রতিক্রিয়া পরিচয় এখনো সংরক্ষিত",
+    "chapterFeedbackIdentitySummaryOff": "প্রতিক্রিয়া পাঠানোর পরিচয় এখনও সংরক্ষিত হয়নি",
     "chapterFeedback": "অধ্যায় প্রতিক্রিয়া",
     "chapterFeedbackSummaryOn": "ঐচ্ছিক অধ্যায় প্রতিক্রিয়া চালু আছে",
     "chapterFeedbackSummaryOff": "ঐচ্ছিক অধ্যায় প্রতিক্রিয়া বন্ধ আছে",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "অনুবাদকের প্রবেশাধিকার",
+    "translatorAccessTitle": "অনুবাদকের প্রবেশাধিকার",
+    "translatorAccessBody": "এই ডিভাইসে অধ্যায়ের মতামত পর্যালোচনা করতে অনুবাদকের প্রবেশ কোড লিখুন।",
+    "translatorAccessPlaceholder": "প্রবেশ কোড",
+    "translatorAccessUnlock": "খুলুন",
+    "translatorAccessIncorrect": "অনুবাদকের প্রবেশ কোডটি সঠিক নয়।",
+    "translatorAccessEnabled": "অনুবাদক পর্যালোচনা মোড চালু হয়েছে",
+    "translatorAccessEnabledBody": "অধ্যায়ের পর্দায় এখন মতামত পর্যালোচনার সরঞ্জাম দেখা যাবে।",
+    "translatorAccessSummaryOn": "অনুবাদক পর্যালোচনার সরঞ্জাম চালু আছে",
+    "translatorAccessSummaryOff": "পর্যালোচনার সরঞ্জাম চালু করতে প্রবেশ কোড লিখুন",
   },
   "notifications": {
     "channelDailyReminder": "দৈনিক পড়ার অনুস্মারক",
@@ -598,7 +598,7 @@ export const bn = {
     "playChapterSubtitle": "খুলুন এবং খেলুন",
     "lessons": {
       "entry1": "ফসল কাটার জন্য প্রার্থনা",
-      "entry2": "আপনার Oikos মানচিত্র",
+      "entry2": "আপনার পরিচিত মানুষদের সম্পর্কের মানচিত্র",
       "entry3": "শান্তির মানুষ খোঁজা",
       "entry4": "আপনার গল্প বিষয়",
       "gospel1": "সহজ গসপেল",
@@ -659,7 +659,7 @@ export const bn = {
     "saved": "সংরক্ষিত",
     "completions": "{{count}} সমাপ্তি",
     "saveForLater": "পরে জন্য সংরক্ষণ করুন",
-    "unsave": "অসংরক্ষিত",
+    "unsave": "সংরক্ষিত তালিকা থেকে সরান",
     "sample": "নমুনা",
     "featuredPlan": "বৈশিষ্ট্যযুক্ত পরিকল্পনা",
     "relatedPlans": "সম্পর্কিত পরিকল্পনা",
@@ -699,8 +699,8 @@ export const bn = {
       "description": "জ্ঞানের এক মাসের জন্য প্রতিদিন হিতোপদেশের একটি অধ্যায়।"
     },
     "kathisma": {
-      "title": "Kathisma",
-      "description": "প্রতি সপ্তাহের জন্য নির্ধারিত সকাল ও সন্ধ্যার Kathismata পড়ুন, যা প্রতি সপ্তাহে পুনরাবৃত্তি হয়।"
+      "title": "কাথিসমা",
+      "description": "প্রতি সপ্তাহে একই সূচি মেনে কর্মদিবসগুলোর সকাল ও সন্ধ্যার নির্ধারিত গীতসংহিতার অংশ পড়ুন।"
     },
     "chronological": {
       "title": "কালানুক্রমিক বাইবেল",
@@ -757,7 +757,7 @@ export const bn = {
     "addPassage": "ধর্মগ্রন্থ প্যাসেজ যোগ করুন",
     "addPassageToRhythm": "ছন্দে উত্তরণ যোগ করুন",
     "repeatablePassage": "পুনরাবৃত্তিযোগ্য উত্তরণ",
-    "startChapterLabel": "অধ্যায় শুরু করুন",
+    "startChapterLabel": "শুরুর অধ্যায়",
     "endChapterLabel": "অধ্যায় শেষ",
     "maxChapterHint": "{{count}} অধ্যায় উপলব্ধ",
     "chooseBook": "প্রথমে একটি বই বেছে নিন।",
@@ -774,7 +774,7 @@ export const bn = {
     },
     "identityInChrist": {
       "title": "খ্রীষ্টের মধ্যে পরিচয়",
-      "description": "বাইবেল পড়ুন যা আপনার পরিচয়, নিরাপত্তা, এবং যীশুর মধ্যে ডাকার মূলে রয়েছে।"
+      "description": "এমন শাস্ত্র পড়ুন যা আপনার পরিচয়, নিরাপত্তা ও আহ্বানকে যীশুতে প্রতিষ্ঠিত করে।"
     },
     "kingdomOfGod": {
       "title": "ঈশ্বরের রাজ্য",
@@ -789,7 +789,7 @@ export const bn = {
       "description": "পবিত্রতা, আনুগত্য, এবং বৃদ্ধির অনুচ্ছেদের মাধ্যমে আলাদাভাবে সেট করা জীবন অনুসরণ করুন।"
     },
     "greatCommissionAndMission": {
-      "title": "মহান কমিশন এবং মিশন",
+      "title": "মহান আদেশ ও সুসমাচার প্রচার",
       "description": "আব্রাহামের প্রতিশ্রুতি থেকে পৃথিবীর শেষ প্রান্ত পর্যন্ত ঈশ্বরের মিশন অনুসরণ করুন।"
     },
     "faithAndObedience": {
@@ -831,7 +831,7 @@ export const bn = {
     },
     "ntIn6Months": {
       "title": "6 মাসে নতুন নিয়ম",
-      "description": "180 দিনের মধ্যে সমস্ত 27 টি NT বইয়ের মাধ্যমে একটি মৃদু গতি, প্রতিদিন প্রায় 1-2 অধ্যায়।"
+      "description": "180 দিনের মধ্যে সমস্ত 27 টি নতুন নিয়মের বইয়ের মাধ্যমে একটি মৃদু গতি, প্রতিদিন প্রায় 1-2 অধ্যায়।"
     },
     "gospels7Days": {
       "title": "7 দিনের মধ্যে গসপেল",
@@ -859,15 +859,15 @@ export const bn = {
     },
     "otIn90Days": {
       "title": "90 দিনের মধ্যে ওল্ড টেস্টামেন্ট",
-      "description": "90 দিনের মধ্যে সমস্ত 929 OT অধ্যায় — প্রতিদিন প্রায় 10টি অধ্যায়৷ একটি গুরুতর অঙ্গীকার."
+      "description": "90 দিনের মধ্যে সমস্ত 929 পুরাতন নিয়মের অধ্যায় — প্রতিদিন প্রায় 10টি অধ্যায়৷ একটি গুরুতর অঙ্গীকার."
     },
     "pentateuch30Days": {
-      "title": "30 দিনের মধ্যে Pentateuch",
+      "title": "৩০ দিনে মোশির পাঁচটি পুস্তক",
       "description": "জেনেসিস থ্রু ডিউটারনমি - এক মাসে মোশির প্রথম পাঁচটি বই।"
     },
     "wisdom30Days": {
       "title": "30 দিনের মধ্যে জ্ঞান সাহিত্য",
-      "description": "জব, গীতসংহিতা, হিতোপদেশ, উপদেশক, এবং সলোমনের গান 30 দিনের প্রতিফলনের মধ্যে।"
+      "description": "৩০ দিন ধরে ইয়োব, গীতসংহিতা, হিতোপদেশ, উপদেশক ও পরমগীত নিয়ে ধ্যান করুন।"
     },
     "prophets90Days": {
       "title": "৯০ দিনে নবীরা",
@@ -878,8 +878,8 @@ export const bn = {
       "description": "পলের সমস্ত 13টি পত্র পড়ুন — ফিলেমনের মাধ্যমে রোমান — এক মাসে।"
     },
     "acts28Days": {
-      "title": "28 দিনের মধ্যে কাজ করে",
-      "description": "প্রতিদিন আইনের একটি অধ্যায় — জেরুজালেম থেকে রোমে প্রাথমিক গির্জা অনুসরণ করুন।"
+      "title": "২৮ দিনে প্রেরিতদের কার্য",
+      "description": "প্রতিদিন প্রেরিতদের কার্যের একটি অধ্যায় পড়ে যিরূশালেম থেকে রোম পর্যন্ত প্রাথমিক মণ্ডলীর যাত্রা অনুসরণ করুন।"
     },
     "revelation22Days": {
       "title": "22 দিনের মধ্যে প্রকাশ",
@@ -1043,7 +1043,7 @@ export const bn = {
     "publicDomain": "পাবলিক ডোমেইন",
     "cloudLibrary": "ক্লাউড লাইব্রেরি",
     "downloading": "ডাউনলোড হচ্ছে...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "অফলাইনে পড়ার জন্য {{name}}-এর লিখিত পাঠ (~{{size}} MB) ডাউনলোড করবেন?",
     "deleteConfirmTitle": "অনুবাদ মুছুন",
     "deleteConfirmMessage": "{{name}} এর জন্য ডাউনলোড করা ডেটা সরাবেন? আপনি যেকোনো সময় এটি পুনরায় ডাউনলোড করতে পারেন।",
     "cancelDownload": "ডাউনলোড বাতিল করুন",
@@ -1530,6 +1530,282 @@ export const bn = {
       "errorEmptyItems": "এই ছন্দটি তৈরি করতে অন্তত একটি আইটেম নির্বাচন করুন।",
       "errorPlanInAnotherRhythm": "এই পরিকল্পনাটি ইতিমধ্যে অন্য একটি ছন্দের অন্তর্গত।",
       "errorRhythmNotFound": "সেই ছন্দটি খুঁজে পাওয়া যায়নি।",
+    }
+  },
+  "interface": {
+    "close": "বন্ধ করুন",
+    "share": "শেয়ার করুন",
+    "minutesShort": "{{count}} মিনিট",
+    "hoursShort": "{{count}} ঘণ্টা",
+    "daysShort": "{{count}} দিন",
+    "hoursMinutes": "{{hours}} ঘণ্টা {{minutes}} মিনিট",
+    "justNow": "এইমাত্র",
+    "minutesAgo": "{{count}} মিনিট আগে",
+    "hoursAgo": "{{count}} ঘণ্টা আগে",
+    "daysAgo": "{{count}} দিন আগে",
+    "activePrayerCount": "{{count}}টি সক্রিয়",
+    "groupShareMessage": "EveryBible-এ আমার \"{{name}}\" শিষ্যত্ব দলে যোগ দিন!\n\nযোগদানের কোড: {{code}}",
+    "groupAboutTitle": "দলীয় সভা সম্পর্কে",
+    "groupAboutBody": "দলীয় সভায় বিশ্বজুড়ে শিষ্য গড়ার আন্দোলনে প্রচলিত তিনটি সমান ভাগের পদ্ধতি অনুসরণ করা হয়:",
+    "groupLookBack": "কীভাবে বাধ্য হয়েছেন? কার সঙ্গে ভাগ করেছেন?",
+    "groupLookUp": "একসঙ্গে শাস্ত্র পড়ুন ও আলোচনা করুন",
+    "groupLookForward": "কীভাবে বাধ্য হবেন? কাকে বলবেন?",
+    "backgroundMusicLabel": "পটভূমির সঙ্গীত: {{name}}",
+    "backgroundMusicHint": "পটভূমির সঙ্গীত বাছাইয়ের তালিকা খোলে",
+    "repeatHint": "পুনরাবৃত্তি বন্ধ, অধ্যায় পুনরাবৃত্তি ও পুস্তক পুনরাবৃত্তি বদলায়",
+    "shareAudioHint": "এই অধ্যায়ের অডিও শেয়ারের বিকল্প খোলে",
+    "playChapterAudio": "অধ্যায়ের অডিও চালান",
+    "pauseChapterAudio": "অধ্যায়ের অডিও বিরতি দিন",
+    "previousChapterHint": "আগের অধ্যায়ে যায়",
+    "chapterRange": "অধ্যায় {{start}}–{{end}}",
+    "bookDownloadProgress": "{{completed}}/{{total}}টি পুস্তক ({{percent}}%)",
+    "currentPlanDay": "পরিকল্পনার বর্তমান দিন {{day}}",
+    "planDay": "দিন {{day}}",
+    "planSessionForDay": "দিন {{day}}-এর {{session}}",
+    "music": {
+      "off": {
+        "label": "বন্ধ",
+        "description": "পটভূমির সঙ্গীত ছাড়া শাস্ত্র শুনুন।"
+      },
+      "ambient": {
+        "label": "পরিবেশী সুর",
+        "description": "পাঠের পেছনে জলের নিচের আবহ তৈরি করা কোমল সুর ও ঘণ্টাধ্বনির পুনরাবৃত্তি।"
+      },
+      "piano": {
+        "label": "পিয়ানো",
+        "description": "হালকা আবহসুরের সঙ্গে কোমল পিয়ানোর সুর।"
+      },
+      "soft-guitar": {
+        "label": "কোমল গিটার",
+        "description": "পাঠে বাধা না দিয়ে বারবার বাজে নাইলন-তারের গিটারের সুর।"
+      },
+      "harp": {
+        "label": "হার্প",
+        "description": "ভক্তিময় অনুভূতি জাগানো কোমল একক হার্পের সুর।"
+      },
+      "flute": {
+        "label": "বাঁশি",
+        "description": "কোমল কল্পনাময় আবহে ছোট বাঁশির সুরের পুনরাবৃত্তি।"
+      },
+      "sitar": {
+        "label": "সেতার",
+        "description": "দীর্ঘক্ষণ শোনার জন্য উষ্ণ মরু-আবহের সেতারের সুর।"
+      },
+      "ocean-waves": {
+        "label": "সমুদ্রের ঢেউ",
+        "description": "শান্ত পটভূমির জন্য তটের ঢেউয়ের শব্দের পুনরাবৃত্তি।"
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "ক্যাথলিক প্রভাতের প্রার্থনা",
+        "description": "স্তুতি, স্তবগান ও সুসমাচারের আশীর্বাদসহ প্রভাতী স্তবের আদলে শুরু।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "নির্ধারিত প্রহরের প্রার্থনাবিধি"
+      },
+      "catholic-daytime-prayer": {
+        "title": "ক্যাথলিক দিনের প্রার্থনা",
+        "description": "সংক্ষিপ্ত গীত ও বারবার ঈশ্বরের দিকে ফিরে আসার মধ্যাহ্নের প্রার্থনা।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "নির্ধারিত প্রহরের প্রার্থনাবিধি"
+      },
+      "catholic-evening-prayer": {
+        "title": "ক্যাথলিক সন্ধ্যার প্রার্থনা",
+        "description": "গীত, ধন্যবাদ ও মরিয়মের স্তবগানসহ সন্ধ্যার প্রার্থনার আদলে দিন শেষ করা।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "নির্ধারিত প্রহরের প্রার্থনাবিধি"
+      },
+      "catholic-night-prayer": {
+        "title": "ক্যাথলিক রাতের প্রার্থনা",
+        "description": "ভরসা, সুরক্ষা ও শান্ত সমর্পণের জন্য শোবার আগের প্রার্থনার ক্রম।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "শয়নকালীন প্রার্থনা"
+      },
+      "catholic-lectio-divina": {
+        "title": "ক্যাথলিক ধ্যানময় শাস্ত্রপাঠ",
+        "description": "ধ্যান, প্রার্থনা ও বাক্যে স্থির থাকার জন্য ধীর পাঠের ক্রম।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "ধ্যানময় শাস্ত্রপাঠ"
+      },
+      "ignatian-daily-examen": {
+        "title": "ইগনেশীয় দৈনিক আত্মপর্যালোচনা",
+        "description": "কৃতজ্ঞতা, আত্মপর্যালোচনা ও অনুতাপে দিনশেষের ধ্যান।",
+        "tradition": "ক্যাথলিক",
+        "historicRoots": "ইগনেশীয় আধ্যাত্মিকতা"
+      },
+      "anglican-morning-prayer": {
+        "title": "অ্যাংলিকান প্রভাতের প্রার্থনা",
+        "description": "আসন্ন দিনের জন্য গীত ও সুসমাচারের শিক্ষা নিয়ে নিয়মিত প্রভাতের প্রার্থনা।",
+        "tradition": "অ্যাংলিকান",
+        "historicRoots": "সাধারণ প্রার্থনার পুস্তক"
+      },
+      "anglican-noonday-prayer": {
+        "title": "অ্যাংলিকান মধ্যাহ্নের প্রার্থনা",
+        "description": "সহায়তার গীত ও জীবন-রুটির আশা নিয়ে দুপুরের ছোট প্রার্থনাবিরতি।",
+        "tradition": "অ্যাংলিকান",
+        "historicRoots": "দৈনিক প্রার্থনা"
+      },
+      "anglican-evening-prayer": {
+        "title": "অ্যাংলিকান সন্ধ্যার প্রার্থনা",
+        "description": "সন্ধ্যার গীত ও মরিয়মের গান নিয়ে ঐতিহ্যবাহী সান্ধ্য প্রার্থনা।",
+        "tradition": "অ্যাংলিকান",
+        "historicRoots": "সাধারণ প্রার্থনার পুস্তক"
+      },
+      "anglican-compline": {
+        "title": "অ্যাংলিকান শয়নকালীন প্রার্থনা",
+        "description": "পাপস্বীকার, ভরসা ও বিশ্রামের জন্য কোমল রাতের প্রার্থনা।",
+        "tradition": "অ্যাংলিকান",
+        "historicRoots": "সাধারণ প্রার্থনার পুস্তক"
+      },
+      "orthodox-morning-rule": {
+        "title": "অর্থোডক্স প্রভাতের প্রার্থনাক্রম",
+        "description": "অনুতাপ, দয়া ও যীশুর শেখানো প্রার্থনা নিয়ে ভোরের প্রার্থনাক্রম।",
+        "tradition": "অর্থোডক্স",
+        "historicRoots": "প্রভাতের প্রার্থনা"
+      },
+      "orthodox-sixth-hour": {
+        "title": "অর্থোডক্স ষষ্ঠ প্রহরের প্রার্থনা",
+        "description": "খ্রিস্টের যন্ত্রণাভোগ ও সতর্কতা স্মরণে মধ্যাহ্নের প্রার্থনাবিরতি।",
+        "tradition": "অর্থোডক্স",
+        "historicRoots": "প্রার্থনার প্রহর"
+      },
+      "orthodox-vespers": {
+        "title": "অর্থোডক্স সন্ধ্যার প্রার্থনা",
+        "description": "সৃষ্টির স্তুতি, প্রদীপ জ্বালানোর গীত ও বাক্য নিয়ে সন্ধ্যার নিবেদন।",
+        "tradition": "অর্থোডক্স",
+        "historicRoots": "দৈনিক সন্ধ্যার প্রার্থনা"
+      },
+      "orthodox-small-compline": {
+        "title": "অর্থোডক্স সংক্ষিপ্ত শয়নকালীন প্রার্থনা",
+        "description": "দয়া, আশ্রয় ও ঘুমের আগের শেষ মিনতি নিয়ে নীরব রাতের প্রার্থনা।",
+        "tradition": "অর্থোডক্স",
+        "historicRoots": "শয়নকালীন প্রার্থনা"
+      },
+      "benedictine-sacred-reading": {
+        "title": "বেনেডিক্টীয় পবিত্র পাঠ",
+        "description": "নির্দিষ্ট সময়ে ধ্যানময় পাঠ ও শান্ত মনোযোগ থেকে অনুপ্রাণিত পাঠের ক্রম।",
+        "tradition": "বেনেডিক্টীয়",
+        "historicRoots": "সন্ত বেনেডিক্টের নিয়ম"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "বেনেডিক্টীয় গীত ও কাজ",
+        "description": "সারাদিন প্রার্থনা, কাজ ও নীরব বাধ্যতার ব্যবহারিক ক্রম।",
+        "tradition": "বেনেডিক্টীয়",
+        "historicRoots": "প্রার্থনা ও শ্রম"
+      },
+      "taize-evening-prayer": {
+        "title": "তেজের সন্ধ্যার প্রার্থনা",
+        "description": "গীত, পাঠ ও স্থিরতা নিয়ে গান ও নীরবতার সন্ধ্যা।",
+        "tradition": "তেজে",
+        "historicRoots": "তেজের সমবেত প্রার্থনা"
+      },
+      "lutheran-morning-devotion": {
+        "title": "লুথারীয় প্রভাতের উপাসনা",
+        "description": "শাস্ত্র, মুখস্থচর্চা ও নিয়মিত প্রার্থনা চায় এমন পরিবারের দিন শুরুর ক্রম।",
+        "tradition": "লুথারীয়",
+        "historicRoots": "পরিবারের দৈনিক উপাসনা"
+      },
+      "lutheran-close-of-day": {
+        "title": "লুথারীয় দিনশেষের উপাসনা",
+        "description": "পাপস্বীকার, আশ্রয় ও খ্রিস্টের সুরক্ষার জন্য সরল রাতের উপাসনা।",
+        "tradition": "লুথারীয়",
+        "historicRoots": "পরিবারের দৈনিক উপাসনা"
+      },
+      "puritan-family-worship": {
+        "title": "পিউরিটান পারিবারিক উপাসনা",
+        "description": "প্রার্থনা, স্তুতি, শাস্ত্র ও ঈশ্বরভক্তিময় আলাপ নিয়ে ঘরোয়া সন্ধ্যা।",
+        "tradition": "পিউরিটান",
+        "historicRoots": "পারিবারিক উপাসনার নির্দেশিকা"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "ভক্তিমূলক ধ্যান",
+        "description": "যীশুর শিক্ষার ওপর নিবিড় সংক্ষিপ্ত ধ্যান।"
+      },
+      "mat-devotional-beatitudes": {
+        "title": "প্রচলিত ধারা উল্টে দেওয়া রাজ্যে ধন্য",
+        "summary": "ধন্যবাণী নিয়ে ধ্যান করে দেখুন যীশু কীভাবে আমাদের আকাঙ্ক্ষা বদলে দেন।",
+        "actionLabel": "অধ্যায় পড়ুন"
+      },
+      "mat-plans": {
+        "title": "পরিকল্পনা",
+        "description": "উদ্দেশ্য নিয়ে মথি পড়ার সরল পথ।"
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "মথিতে রাজ্যের জীবনছন্দ",
+        "summary": "পরিচয়, প্রার্থনা, দয়া, প্রচার ও পুনরুত্থানের আশা নিয়ে সাত দিন।",
+        "actionLabel": "প্রথম অধ্যায় খুলুন"
+      },
+      "jhn-playlists": {
+        "title": "শোনার তালিকা",
+        "description": "যোহনের প্রধান অংশগুলো শোনার বাছাই করা ক্রম।"
+      },
+      "jhn-playlist-signs": {
+        "title": "যীশুর নিদর্শন",
+        "summary": "খ্রিস্টের পরিচয় প্রকাশকারী নিদর্শন বোঝার নির্দেশিত পথ।",
+        "actionLabel": "শোনার তালিকা শুরু করুন"
+      },
+      "gal-devotionals": {
+        "title": "ভক্তিমূলক ধ্যান",
+        "description": "প্রার্থনাপূর্ণ মনে গালাতীয় পড়ার সংক্ষিপ্ত ধ্যান।"
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "আর দাস নই",
+        "summary": "সন্তান হিসেবে গ্রহণ, উত্তরাধিকার ও পিতার স্বাগত নিয়ে ভাবুন।",
+        "actionLabel": "অধ্যায় পড়ুন"
+      },
+      "gal-plans": {
+        "title": "পরিকল্পনা",
+        "description": "পত্রটি পড়ার সংক্ষিপ্ত সাজানো পথ।"
+      },
+      "gal-plan-six-days": {
+        "title": "প্রতিদিন এক অধ্যায়: গালাতীয়",
+        "summary": "প্রতিদিন একটি অধ্যায় পড়ে ধীরে ধীরে পৌলের যুক্তি অনুসরণ করুন।",
+        "actionLabel": "প্রথম অধ্যায় খুলুন"
+      },
+      "psa-playlists": {
+        "title": "শোনার তালিকা",
+        "description": "বিভিন্ন আবেগের সময়ের জন্য প্রার্থনার পথ।"
+      },
+      "psa-playlist-morning": {
+        "title": "প্রভাতের আশ্রয়",
+        "summary": "দিন শুরু করতে আস্থার গীতের সংক্ষিপ্ত ক্রম।",
+        "actionLabel": "শোনার তালিকা শুরু করুন"
+      },
+      "psa-playlist-repentance": {
+        "title": "অনুতাপের গীত",
+        "summary": "সততা, পাপস্বীকার ও পুনঃস্থাপনের আকাঙ্ক্ষা নিয়ে প্রার্থনা করুন।",
+        "actionLabel": "শোনার তালিকা শুরু করুন"
+      },
+      "psa-devotionals": {
+        "title": "ভক্তিমূলক ধ্যান",
+        "description": "ধীরে ধীরে গীতের মাধ্যমে প্রার্থনার জন্য শান্ত ধ্যান।"
+      },
+      "psa-devotional-shepherd": {
+        "title": "পুনরুদ্ধারকারী মেষপালক",
+        "summary": "গীতসংহিতা ২৩ যেন স্লোগান না থেকে প্রার্থনা হয়ে ওঠে, ততক্ষণ তা নিয়ে ধ্যান করুন।",
+        "actionLabel": "গীত পড়ুন"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "সর্বসাধারণের ব্যবহারযোগ্য বেরীয় পাঠ ও সরাসরি CC0 অধ্যায়ের অডিও",
+      "web": "EveryBible সংগ্রহের সর্বসাধারণের ব্যবহারযোগ্য ব্রিটিশ সংস্করণের পাঠ ও অধ্যায়ের অডিও",
+      "kjv": "১৬১১ সালের অনুমোদিত কিং জেমস সংস্করণ",
+      "asv": "১৯০১ সালে প্রকাশিত KJV-এর সংশোধন, আগে থেকেই স্থাপিত পাঠ",
+      "bbe": "সহজে পড়ার জন্য সীমিত শব্দভাণ্ডার ব্যবহার করা হয়েছে",
+      "sparv1909": "ঐতিহ্যবাহী স্প্যানিশ বাইবেল — সর্বসাধারণের ব্যবহারযোগ্য পাঠ",
+      "hincv": "হিন্দি সমকালীন সংস্করণ — সর্বসাধারণের ব্যবহারযোগ্য",
+      "npiulb": "আনলকড লিটারাল বাইবেল — সর্বসাধারণের ব্যবহারযোগ্য"
+    },
+    "audioUnavailableTranslation": "এই অনুবাদের অডিও পাওয়া যাচ্ছে না।",
+    "audioUnavailableChapter": "এই অধ্যায়ের অডিও পাওয়া যাচ্ছে না।",
+    "audioPlayFailed": "এই অডিও চালানো যায়নি। আবার চেষ্টা করুন।",
+    "nativePermissions": {
+      "NSCameraUsageDescription": "প্রোফাইলের ছবি তুলতে চাইলে Every Bible-কে ক্যামেরা ব্যবহারের অনুমতি দিন।",
+      "NSMicrophoneUsageDescription": "অধ্যায় সম্পর্কে কণ্ঠে মতামত রেকর্ড করতে Every Bible-কে অনুমতি দিন।",
+      "NSPhotoLibraryUsageDescription": "প্রোফাইলের ছবি বেছে নিতে Every Bible-কে আপনার ছবির সংগ্রহ ব্যবহারের অনুমতি দিন।",
+      "NSFaceIDUsageDescription": "সংরক্ষিত সাইন-ইন সুরক্ষিত রাখতে Every Bible-কে Face ID ব্যবহারের অনুমতি দিন।"
     }
   }
 } as const;

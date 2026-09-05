@@ -38,7 +38,7 @@ interface CountrySearchEntry {
 }
 
 
-const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
+export const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
   en: ['en'],
   zh: ['zh-Hans', 'zh'],
   hi: ['hi'],
@@ -139,11 +139,21 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
       }
     }
 
+    let offlineNames: Record<string, string> | undefined;
     countries.forEach((country) => {
       const localizedName = displayNames?.of(country.code);
+      // Hermes may not provide DisplayNames. Load the offline CLDR names only
+      // when the native formatter cannot supply this country name.
+      if (!localizedName || localizedName === country.code) {
+        offlineNames ??= (require('../../data/countryDisplayNames.generated.json') as {
+          names: Record<LanguageCode, Record<string, string>>;
+        }).names[languageCode];
+      }
       names.set(
         country.code,
-        localizedName && localizedName !== country.code ? localizedName : country.name
+        localizedName && localizedName !== country.code
+          ? localizedName
+          : offlineNames?.[country.code] ?? country.name
       );
     });
 

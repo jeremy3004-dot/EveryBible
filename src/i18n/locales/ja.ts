@@ -1,28 +1,304 @@
 export const ja = {
+  interface: {
+    "close": "閉じる",
+    "share": "共有",
+    "minutesShort": "{{count}}分",
+    "hoursShort": "{{count}}時間",
+    "daysShort": "{{count}}日",
+    "hoursMinutes": "{{hours}}時間{{minutes}}分",
+    "justNow": "たった今",
+    "minutesAgo": "{{count}}分前",
+    "hoursAgo": "{{count}}時間前",
+    "daysAgo": "{{count}}日前",
+    "activePrayerCount": "{{count}}件進行中",
+    "groupShareMessage": "EveryBibleの弟子訓練グループ「{{name}}」に参加しませんか！\n\n参加コード：{{code}}",
+    "groupAboutTitle": "グループの集まりについて",
+    "groupAboutBody": "グループの集まりは、世界の弟子訓練運動で使われる3分の3形式で進めます：",
+    "groupLookBack": "どのように従いましたか。誰に分かち合いましたか。",
+    "groupLookUp": "聖書を一緒に読み、話し合う",
+    "groupLookForward": "どのように従いますか。誰に伝えますか。",
+    "backgroundMusicLabel": "背景音楽：{{name}}",
+    "backgroundMusicHint": "背景音楽の選択画面を開く",
+    "repeatHint": "リピートなし、章のリピート、書のリピートを切り替える",
+    "shareAudioHint": "この章の音声共有オプションを開く",
+    "playChapterAudio": "章の音声を再生",
+    "pauseChapterAudio": "章の音声を一時停止",
+    "previousChapterHint": "前の章に移動",
+    "chapterRange": "{{start}}–{{end}}章",
+    "bookDownloadProgress": "{{completed}}/{{total}}書（{{percent}}%）",
+    "currentPlanDay": "現在のプラン：{{day}}日目",
+    "planDay": "{{day}}日目",
+    "planSessionForDay": "{{day}}日目の{{session}}",
+    "music": {
+      "off": {
+        "label": "オフ",
+        "description": "付属の背景音楽なしで聖書を再生します。"
+      },
+      "ambient": {
+        "label": "アンビエント",
+        "description": "水中を思わせるパッド音とベルのループが朗読に寄り添います。"
+      },
+      "piano": {
+        "label": "ピアノ",
+        "description": "穏やかなピアノの旋律に軽いパッド音を添えます。"
+      },
+      "soft-guitar": {
+        "label": "ソフトギター",
+        "description": "朗読を妨げない、ナイロン弦ギターのループ伴奏です。"
+      },
+      "harp": {
+        "label": "ハープ",
+        "description": "穏やかな黙想に合う、軽やかなハープ独奏です。"
+      },
+      "flute": {
+        "label": "フルート",
+        "description": "フルートを中心に、柔らかな幻想的な音が短く繰り返されます。"
+      },
+      "sitar": {
+        "label": "シタール",
+        "description": "長時間の聴取に合う、砂漠を思わせる温かなシタールの音色です。"
+      },
+      "ocean-waves": {
+        "label": "波の音",
+        "description": "岸に寄せる波のループが、落ち着いた背景を作ります。"
+      }
+    },
+    "rhythmPresets": {
+      "catholic-morning-prayer": {
+        "title": "カトリックの朝の祈り",
+        "description": "賛美、聖歌、福音の祝福で始める、朝課に沿った祈りです。",
+        "tradition": "カトリック",
+        "historicRoots": "教会の祈り（時課）"
+      },
+      "catholic-daytime-prayer": {
+        "title": "カトリックの日中の祈り",
+        "description": "短い詩編を通して神に立ち返る、簡潔な昼の時課です。",
+        "tradition": "カトリック",
+        "historicRoots": "教会の祈り（時課）"
+      },
+      "catholic-evening-prayer": {
+        "title": "カトリックの晩の祈り",
+        "description": "詩編、感謝、マリアの賛歌で一日を結ぶ、晩課に倣った祈りです。",
+        "tradition": "カトリック",
+        "historicRoots": "教会の祈り（時課）"
+      },
+      "catholic-night-prayer": {
+        "title": "カトリックの寝る前の祈り",
+        "description": "信頼、守り、安らかな委ねのための就寝前の祈りです。",
+        "tradition": "カトリック",
+        "historicRoots": "終課"
+      },
+      "catholic-lectio-divina": {
+        "title": "カトリックの聖なる読書",
+        "description": "ゆっくり読み、黙想し、祈り、みことばにとどまるためのリズムです。",
+        "tradition": "カトリック",
+        "historicRoots": "聖なる読書"
+      },
+      "ignatian-daily-examen": {
+        "title": "イグナチオ式の一日の振り返り",
+        "description": "感謝、振り返り、悔い改めで一日を見つめ直します。",
+        "tradition": "カトリック",
+        "historicRoots": "イグナチオの霊性"
+      },
+      "anglican-morning-prayer": {
+        "title": "聖公会の朝の祈り",
+        "description": "詩編と福音の教えで一日を備える、時課に沿った朝の祈りです。",
+        "tradition": "聖公会",
+        "historicRoots": "祈祷書"
+      },
+      "anglican-noonday-prayer": {
+        "title": "聖公会の昼の祈り",
+        "description": "助けを求める詩編と命のパンの希望をもって祈る、短い昼の休息です。",
+        "tradition": "聖公会",
+        "historicRoots": "日々の祈り"
+      },
+      "anglican-evening-prayer": {
+        "title": "聖公会の夕の祈り",
+        "description": "夕べの詩編とマリアの賛歌を用いる、伝統的な晩祷の流れです。",
+        "tradition": "聖公会",
+        "historicRoots": "祈祷書"
+      },
+      "anglican-compline": {
+        "title": "聖公会の終祷",
+        "description": "告白、信頼、休息のための穏やかな夜の時課です。",
+        "tradition": "聖公会",
+        "historicRoots": "祈祷書"
+      },
+      "orthodox-morning-rule": {
+        "title": "正教会の朝の祈り",
+        "description": "悔い改め、あわれみ、イエスが教えた祈りを中心とする早朝の祈りです。",
+        "tradition": "正教会",
+        "historicRoots": "朝の祈祷"
+      },
+      "orthodox-sixth-hour": {
+        "title": "正教会の六時課",
+        "description": "受難を覚え、目を覚まして祈る、昼の時課です。",
+        "tradition": "正教会",
+        "historicRoots": "時課の祈り"
+      },
+      "orthodox-vespers": {
+        "title": "正教会の晩課",
+        "description": "創造の賛美、灯火の詩編、みことばをもってささげる夕べの祈りです。",
+        "tradition": "正教会",
+        "historicRoots": "日々の晩課"
+      },
+      "orthodox-small-compline": {
+        "title": "正教会の小終課",
+        "description": "あわれみと避け所を求め、就寝前の最後の祈りをささげる静かな時課です。",
+        "tradition": "正教会",
+        "historicRoots": "終課"
+      },
+      "benedictine-sacred-reading": {
+        "title": "ベネディクト会の聖なる読書",
+        "description": "決まった時間の聖書読書と静かな集中に倣い、読むことを中心に据えます。",
+        "tradition": "ベネディクト会",
+        "historicRoots": "聖ベネディクトの戒律"
+      },
+      "benedictine-psalm-and-work": {
+        "title": "ベネディクト会の詩編と労働",
+        "description": "祈り、働き、静かに従うことを一日につなげる、実践的な順序です。",
+        "tradition": "ベネディクト会",
+        "historicRoots": "祈り、働け"
+      },
+      "taize-evening-prayer": {
+        "title": "テゼの夕の祈り",
+        "description": "詩編、聖書朗読、静けさを中心に、歌と沈黙で過ごす夕べです。",
+        "tradition": "テゼ",
+        "historicRoots": "テゼの共同の祈り"
+      },
+      "lutheran-morning-devotion": {
+        "title": "ルーテル教会の朝の黙想",
+        "description": "聖書、暗唱、変わらぬ祈りを大切にする家庭のための朝の習慣です。",
+        "tradition": "ルーテル教会",
+        "historicRoots": "家庭のための日々の黙想"
+      },
+      "lutheran-close-of-day": {
+        "title": "ルーテル教会の一日の終わり",
+        "description": "罪を告白し、キリストのもとに逃れ、その守りに委ねる簡素な夜の黙想です。",
+        "tradition": "ルーテル教会",
+        "historicRoots": "家庭のための日々の黙想"
+      },
+      "puritan-family-worship": {
+        "title": "ピューリタンの家庭礼拝",
+        "description": "祈り、賛美、聖書、信仰の語らいを中心に家庭で過ごす夕べです。",
+        "tradition": "ピューリタン",
+        "historicRoots": "家庭礼拝の指針"
+      }
+    },
+    "companions": {
+      "mat-devotionals": {
+        "title": "黙想",
+        "description": "イエスの教えに寄り添う短い黙想です。"
+      },
+      "mat-devotional-beatitudes": {
+        "title": "価値観を逆転させる御国の祝福",
+        "summary": "山上の祝福にとどまり、イエスが私たちの願いをどう変えるか見つめます。",
+        "actionLabel": "章を読む"
+      },
+      "mat-plans": {
+        "title": "プラン",
+        "description": "目的を持ってマタイを読むための、シンプルな道筋です。"
+      },
+      "mat-plan-kingdom-rhythm": {
+        "title": "マタイに見る御国のリズム",
+        "summary": "アイデンティティ、祈り、あわれみ、宣教、復活の希望をたどる7日間です。",
+        "actionLabel": "最初の章を開く"
+      },
+      "jhn-playlists": {
+        "title": "プレイリスト",
+        "description": "ヨハネの主要な流れをたどる、厳選された聴き方です。"
+      },
+      "jhn-playlist-signs": {
+        "title": "イエスのしるし",
+        "summary": "キリストがどなたかを明らかにするしるしを、導きに沿ってたどります。",
+        "actionLabel": "プレイリストを再生"
+      },
+      "gal-devotionals": {
+        "title": "黙想",
+        "description": "祈りをもってガラテヤを読むための短い黙想です。"
+      },
+      "gal-devotional-no-longer-slaves": {
+        "title": "もはや奴隷ではない",
+        "summary": "神の子とされること、受け継ぐ恵み、父の歓迎を静かに味わいます。",
+        "actionLabel": "章を読む"
+      },
+      "gal-plans": {
+        "title": "プラン",
+        "description": "この手紙をたどる、短く組み立てられた道筋です。"
+      },
+      "gal-plan-six-days": {
+        "title": "一日一章：ガラテヤ",
+        "summary": "一日一章を読み、急がずにパウロの論旨をたどります。",
+        "actionLabel": "最初の章を開く"
+      },
+      "psa-playlists": {
+        "title": "プレイリスト",
+        "description": "さまざまな心の季節に寄り添う祈りの道筋です。"
+      },
+      "psa-playlist-morning": {
+        "title": "朝の避け所",
+        "summary": "一日の始まりに、信頼の詩編を短くたどります。",
+        "actionLabel": "プレイリストを再生"
+      },
+      "psa-playlist-repentance": {
+        "title": "悔い改めの詩編",
+        "summary": "正直に罪を告白し、回復を願って祈ります。",
+        "actionLabel": "プレイリストを再生"
+      },
+      "psa-devotionals": {
+        "title": "黙想",
+        "description": "ゆっくりと詩編を祈るための静かな黙想です。"
+      },
+      "psa-devotional-shepherd": {
+        "title": "回復させてくださる羊飼い",
+        "summary": "詩編23編が単なる標語ではなく祈りになるまで、そこにとどまります。",
+        "actionLabel": "詩編を読む"
+      }
+    },
+    "translationDescriptions": {
+      "bsb": "パブリックドメインのベレアン聖書本文と、直接再生できるCC0の章音声",
+      "web": "EveryBibleライブラリのパブリックドメイン英国版本文と章音声",
+      "kjv": "1611年の欽定訳聖書",
+      "asv": "1901年刊行の欽定訳改訂版。本文はインストール済み",
+      "bbe": "読みやすいように限られた語彙を使用",
+      "sparv1909": "伝統的なスペイン語聖書。パブリックドメインの本文",
+      "hincv": "ヒンディー語現代訳。パブリックドメイン",
+      "npiulb": "オープンな逐語訳聖書。パブリックドメイン"
+    },
+    "audioUnavailableTranslation": "この翻訳の音声はありません。",
+    "audioUnavailableChapter": "この章の音声はありません。",
+    "audioPlayFailed": "音声を再生できませんでした。もう一度お試しください。",
+    nativePermissions: {
+      "NSCameraUsageDescription": "プロフィール写真を撮影する場合は、Every Bibleによるカメラへのアクセスを許可してください。",
+      "NSMicrophoneUsageDescription": "章へのフィードバック用の音声回答を録音できるよう、Every Bibleに許可してください。",
+      "NSPhotoLibraryUsageDescription": "プロフィール写真を選べるよう、Every Bibleによる写真ライブラリへのアクセスを許可してください。",
+      "NSFaceIDUsageDescription": "保存したログイン情報を保護するため、Every BibleによるFace IDの使用を許可してください。"
+    }
+  },
   translatorQueue: {
-    title: 'Feedback queue',
-    subtitle: 'Chapters with feedback to review',
-    empty: "You're all caught up. No feedback is waiting.",
-    pendingCount: '{{count}} chapters to review',
-    chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
-    openLabel: 'Open {{reference}}',
+    title: "フィードバック一覧",
+    subtitle: "確認が必要なフィードバックのある章",
+    empty: "すべて確認済みです。未確認のフィードバックはありません。",
+    pendingCount: "確認が必要な章：{{count}}章",
+    chapterCounts: "修正待ち {{down}}件 · 確認待ち {{up}}件",
+    openLabel: "{{reference}}を開く",
   },
   myFeedback: {
-    title: 'My feedback',
-    settingsRow: 'My feedback',
-    settingsRowSummary: 'Track what the translation team did with your notes',
-    subtitle: 'What the translation team did with your chapter feedback',
-    empty: "You haven't sent any chapter feedback yet.",
-    signInRequired: 'Sign in to see the feedback you have sent.',
-    audioLabel: 'Voice note attached',
-    statusReceived: 'Received',
-    statusFixed: 'Fixed',
-    statusNoChange: 'Reviewed \u2014 no change',
+    title: "自分のフィードバック",
+    settingsRow: "自分のフィードバック",
+    settingsRowSummary: "翻訳チームによる対応状況を確認する",
+    subtitle: "章へのフィードバックに対する翻訳チームの対応",
+    empty: "章へのフィードバックはまだ送信していません。",
+    signInRequired: "送信したフィードバックを見るにはログインしてください。",
+    audioLabel: "音声メモあり",
+    statusReceived: "受信済み",
+    statusFixed: "修正済み",
+    statusNoChange: "確認済み・変更なし",
   },
   "common": {
     "cancel": "キャンセル",
     "ok": "わかりました",
-    "done": "終わり",
+    "done": "完了",
     "error": "エラー",
     "retry": "リトライ",
     "loading": "読み込み中...",
@@ -32,7 +308,7 @@ export const ja = {
     "edit": "編集",
     "back": "戻る",
     "next": "次",
-    "previous": "前の",
+    "previous": "前へ",
     "search": "検索",
     "settings": "設定",
     "comingSoon": "近日公開",
@@ -62,12 +338,12 @@ export const ja = {
     "welcome": "Every Bibleへようこそ",
     "beginToday": "今日から始める",
     "todaysScripture": "今日の聖句",
-    "verseOfTheDay": "今日の詩",
+    "verseOfTheDay": "今日の聖句",
     "sectionOfTheDay": "その日のセクション",
     "sectionOfTheDayBody": "今日の選択は、テキストがまだ追加されていない場合でも、この章の音声として利用できます。",
     "verseAudioBody": "今日の聖句は現在音声形式で提供されているため、文字が追加される前でも聞くことができます。",
     "playSectionOfTheDay": "その日のプレイセクション",
-    "playVerseOfTheDay": "今日の詩を再生",
+    "playVerseOfTheDay": "今日の聖句を再生",
     "continueReading": "続きを読む",
     "sharePrompt": "光を分かち合いましょう。今日、誰かを励ましましょう。",
     "plan": "プラン",
@@ -119,9 +395,9 @@ export const ja = {
     "finish": "セットアップを完了する"
   },
   "bible": {
-    translatorReviewAudioError: "Couldn't play this audio. Try again.",
-    chapterFeedbackSuccessTitle: 'Feedback sent',
-    readerFontsAndSettings: 'Fonts & Settings',
+    translatorReviewAudioError: "音声を再生できませんでした。もう一度お試しください。",
+    chapterFeedbackSuccessTitle: "フィードバックを送信しました",
+    readerFontsAndSettings: "フォントと設定",
     "title": "聖書",
     "oldTestament": "旧約聖書",
     "fontsAndSettings": "フォントと設定",
@@ -134,7 +410,7 @@ export const ja = {
     "byBook": "書籍ごと",
     "chapters": "章",
     "chapter": "章",
-    "verse": "詩",
+    "verse": "節",
     "selectTranslation": "翻訳を選択",
     "manageAudio": "オーディオを管理",
     "audioDownloads": "オーディオのダウンロード",
@@ -147,11 +423,11 @@ export const ja = {
     "searchUnavailable": "この翻訳では全文検索はまだ利用できません。",
     "noVersesAvailable": "{{book}} {{chapter}} にはまだテキストが書き込まれていません。",
     "fullBibleComingSoon": "現在、この章はテキストで利用できません。オーディオが利用可能な場合は、代わりに Every Bible がリスニング エクスペリエンスを開きます。",
-    "audioOnlyTitle": "オーディオの最初の章",
+    "audioOnlyTitle": "音声を優先する章",
     "audioOnlyBody": "{{translation}} は現在、この章の音声として利用可能ですが、テキストはまだ準備中です。",
-    "verseCount_one": "{{count}} 詩",
-    "verseCount_other": "{{count}} 節",
-    "listen": "聞く",
+    "verseCount_one": "{{count}}節",
+    "verseCount_other": "{{count}}節",
+    "listen": "聴く",
     "read": "読む",
     "removeFromFavorites": "お気に入りから削除",
     "addToFavorites": "お気に入りに追加",
@@ -167,47 +443,47 @@ export const ja = {
       "GEN": "創世記",
       "EXO": "出エジプト記",
       "LEV": "レビ記",
-      "NUM": "数字",
+      "NUM": "民数記",
       "DEU": "申命記",
-      "JOS": "ジョシュア",
-      "JDG": "裁判官",
-      "RUT": "ルース",
-      "1SA": "1 サムエル",
-      "2SA": "2 サミュエル",
-      "1KI": "列王記 1",
-      "2KI": "2 王",
-      "1CH": "1 歴代誌",
-      "2CH": "2 歴代誌",
-      "EZR": "エズラ",
-      "NEH": "ネヘミヤ",
-      "EST": "エスター",
-      "JOB": "ジョブ",
+      "JOS": "ヨシュア記",
+      "JDG": "士師記",
+      "RUT": "ルツ記",
+      "1SA": "サムエル記第一",
+      "2SA": "サムエル記第二",
+      "1KI": "列王記第一",
+      "2KI": "列王記第二",
+      "1CH": "歴代誌第一",
+      "2CH": "歴代誌第二",
+      "EZR": "エズラ記",
+      "NEH": "ネヘミヤ記",
+      "EST": "エステル記",
+      "JOB": "ヨブ記",
       "PSA": "詩篇",
-      "PRO": "ことわざ",
+      "PRO": "箴言",
       "ECC": "伝道者の書",
-      "SNG": "ソロモンの歌",
+      "SNG": "雅歌",
       "ISA": "イザヤ書",
-      "JER": "エレミヤ",
+      "JER": "エレミヤ書",
       "LAM": "哀歌",
-      "EZK": "エゼキエル",
-      "DAN": "ダニエル",
+      "EZK": "エゼキエル書",
+      "DAN": "ダニエル書",
       "HOS": "ホセア書",
-      "JOL": "ジョエル",
-      "AMO": "アモス",
-      "OBA": "オバデア",
-      "JON": "ジョナ",
-      "MIC": "ミカ",
-      "NAM": "ナホム",
-      "HAB": "ハバクク",
-      "ZEP": "ゼパニヤ",
-      "HAG": "ハガイ",
-      "ZEC": "ゼカリヤ",
+      "JOL": "ヨエル書",
+      "AMO": "アモス書",
+      "OBA": "オバデヤ書",
+      "JON": "ヨナ書",
+      "MIC": "ミカ書",
+      "NAM": "ナホム書",
+      "HAB": "ハバクク書",
+      "ZEP": "ゼパニヤ書",
+      "HAG": "ハガイ書",
+      "ZEC": "ゼカリヤ書",
       "MAL": "マラキ書",
-      "MAT": "マシュー",
-      "MRK": "マルコ",
-      "LUK": "ルーク",
-      "JHN": "ジョン",
-      "ACT": "行為",
+      "MAT": "マタイの福音書",
+      "MRK": "マルコの福音書",
+      "LUK": "ルカの福音書",
+      "JHN": "ヨハネの福音書",
+      "ACT": "使徒の働き",
       "ROM": "ローマ人への手紙",
       "1CO": "コリント人への手紙第一",
       "2CO": "コリント人への手紙第二",
@@ -215,66 +491,66 @@ export const ja = {
       "EPH": "エペソ人への手紙",
       "PHP": "ピリピ人への手紙",
       "COL": "コロサイ人への手紙",
-      "1TH": "テサロニケ人への第一の手紙",
+      "1TH": "テサロニケ人への手紙第一",
       "2TH": "テサロニケ人への手紙第二",
-      "1TI": "1 テモテ",
-      "2TI": "2 テモテ",
-      "TIT": "タイタス",
-      "PHM": "フィレモン",
-      "HEB": "ヘブライ人への手紙",
-      "JAS": "ジェームズ",
-      "1PE": "1 ピーター",
-      "2PE": "2 ピーター",
-      "1JN": "1 ジョン",
-      "2JN": "2 ジョン",
-      "3JN": "3 ジョン",
-      "JUD": "ジュード",
-      "REV": "黙示録"
+      "1TI": "テモテへの手紙第一",
+      "2TI": "テモテへの手紙第二",
+      "TIT": "テトスへの手紙",
+      "PHM": "ピレモンへの手紙",
+      "HEB": "ヘブル人への手紙",
+      "JAS": "ヤコブの手紙",
+      "1PE": "ペテロの手紙第一",
+      "2PE": "ペテロの手紙第二",
+      "1JN": "ヨハネの手紙第一",
+      "2JN": "ヨハネの手紙第二",
+      "3JN": "ヨハネの手紙第三",
+      "JUD": "ユダの手紙",
+      "REV": "ヨハネの黙示録"
     },
     "chapterFeedback": "章のフィードバック",
-    "chapterFeedbackTitle": "この章に関するフィードバックを共有する",
+    "chapterFeedbackTitle": "この聖書箇所を確認",
     "chapterFeedbackBody": "この章が役に立ったかどうか、または改善の余地があるかどうかをお聞かせください。コメントはオプションです。",
     "chapterFeedbackThumbsUp": "役立つ",
     "chapterFeedbackThumbsDown": "仕事が必要です",
     "chapterFeedbackPlaceholder": "この章に関するオプションのコメント",
     "chapterFeedbackSelectionHint": "サムアップまたはサムダウンをタップして、オプションのメモを追加します。",
     "chapterFeedbackSubmit": "フィードバックを送信する",
-    "chapterFeedbackAudioIdle": "Record an audio response instead",
-    "chapterFeedbackAudioRecording": "Recording {{duration}}",
-    "chapterFeedbackAudioReady": "Audio response ready: {{duration}}",
-    "chapterFeedbackAudioLimit": "M4A, 1 min max",
-    "chapterFeedbackAudioRecord": "Record audio",
-    "chapterFeedbackAudioStop": "Stop",
-    "chapterFeedbackAudioPreview": "Preview audio response",
-    "chapterFeedbackAudioRerecord": "Re-record audio response",
-    "chapterFeedbackAudioUploading": "Uploading audio...",
-    "chapterFeedbackAudioPermissionDenied": "Microphone access is off. You can still type a response.",
-    "chapterFeedbackAudioPermissionHelp": "Turn on microphone access in system settings to submit audio feedback.",
-    "chapterFeedbackAudioStartError": "Unable to start recording. You can still type a response.",
-    "chapterFeedbackAudioStopError": "Unable to finish this recording. Please try again.",
-    "chapterFeedbackAudioRecordingMissing": "The recording could not be saved. Please try again.",
-    "chapterFeedbackAudioUploadError": "Audio upload failed. Your recording is still here; try submitting again.",
+    "chapterFeedbackAudioIdle": "代わりに音声で回答する",
+    "chapterFeedbackAudioRecording": "録音中 {{duration}}",
+    "chapterFeedbackAudioReady": "音声回答の準備完了：{{duration}}",
+    "chapterFeedbackAudioLimit": "M4A、最長1分",
+    "chapterFeedbackAudioRecord": "録音する",
+    "chapterFeedbackAudioStop": "停止",
+    "chapterFeedbackAudioPreview": "音声回答を試聴",
+    "chapterFeedbackAudioRerecord": "音声回答を録り直す",
+    "chapterFeedbackAudioUploading": "音声をアップロード中…",
+    "chapterFeedbackAudioPermissionDenied": "マイクへのアクセスが無効です。文字での回答は可能です。",
+    "chapterFeedbackAudioPermissionHelp": "音声フィードバックを送るには、システム設定でマイクへのアクセスを許可してください。",
+    "chapterFeedbackAudioStartError": "録音を開始できません。文字での回答は可能です。",
+    "chapterFeedbackAudioStopError": "録音を完了できませんでした。もう一度お試しください。",
+    "chapterFeedbackAudioRecordingMissing": "録音を保存できませんでした。もう一度お試しください。",
+    "chapterFeedbackAudioUploadError": "音声のアップロードに失敗しました。録音は保持されています。もう一度送信してください。",
     "chapterFeedbackSuccess": "ご意見ありがとうございます。あなたの提出物は受理され、できるだけ早く翻訳チームによって審査されます。",
     "chapterFeedbackSignInRequired": "章のフィードバックを送信する前にサインインしてください。",
-    "translatorReviewTitle": "Translator feedback review",
-    "translatorReviewSummary": "{{pending}} pending of {{count}} feedback items",
-    "translatorReviewSummaryComplete": "All accuracy reviews processed",
-    "translatorReviewLoading": "Loading feedback...",
-    "translatorReviewEmpty": "No feedback has been submitted for this chapter yet.",
-    "translatorReviewUnknownUser": "Unknown contributor",
-    "translatorReviewUnread": "Needs review",
-    "translatorReviewSubmittedAt": "Submitted {{date}}",
-    "translatorReviewSubmittedBy": "Submitted by {{name}}",
-    "translatorReviewNoComment": "No written feedback.",
-    "translatorReviewFixed": "Fixed",
-    "translatorReviewConfirmedAccurate": "Confirmed accurate",
-    "translatorReviewReviewed": "Reviewed",
-    "translatorReviewConfirmAccurate": "Confirm accurate",
-    "translatorReviewMarkFixed": "Mark fixed",
-    "translatorReviewNoActionNeeded": "No action needed",
-    "translatorReviewReopen": "Reopen",
-    "translatorReviewListened": "Listened",
-    "translatorReviewListen": "Listen",
+    "translatorReviewTitle": "正確性の確認",
+    "translatorReviewSummary": "判断待ち：{{count}}件中{{pending}}件",
+    "translatorReviewSummaryComplete": "正確性の確認はすべて完了しました",
+    "translatorReviewLoading": "フィードバックを読み込み中…",
+    "translatorReviewEmpty": "この章へのフィードバックはまだありません。",
+    "translatorReviewUnknownUser": "不明な投稿者",
+    "translatorReviewUnread": "判断が必要",
+    "translatorReviewSubmittedAt": "送信日：{{date}}",
+    "translatorReviewSubmittedBy": "投稿者：{{name}}",
+    "translatorReviewNoComment": "文章でのフィードバックはありません。",
+    "translatorReviewFixed": "修正済み",
+    "translatorReviewConfirmedAccurate": "正確であることを確認済み",
+    "translatorReviewReviewed": "変更不要",
+    "translatorReviewConfirmAccurate": "正確であると確認する",
+    "translatorReviewMarkFixed": "修正済みにする",
+    "translatorReviewNoActionNeeded": "対応不要",
+    "translatorReviewReopen": "再開する",
+    "translatorReviewListened": "試聴済み",
+    "translatorReviewListen": "聴く",
     "translatorReviewPause": "一時停止",
     "nextChapterHint": "次の章に進みます",
     "openBookAndChapterPickerHint": "ブックと章のピッカーを開きます",
@@ -387,16 +663,16 @@ export const ja = {
     "chapterFeedback": "章のフィードバック",
     "chapterFeedbackSummaryOn": "オプションの章フィードバックがオンになっています",
     "chapterFeedbackSummaryOff": "オプションのチャプターフィードバックがオフになっています",
-    "translatorAccess": "Translator Access",
-    "translatorAccessTitle": "Translator access",
-    "translatorAccessBody": "Enter the translator passcode to review chapter feedback on this device.",
-    "translatorAccessPlaceholder": "Passcode",
-    "translatorAccessUnlock": "Unlock",
-    "translatorAccessIncorrect": "That translator passcode is not correct.",
-    "translatorAccessEnabled": "Translator review mode enabled",
-    "translatorAccessEnabledBody": "Chapter screens will now show translator feedback review tools.",
-    "translatorAccessSummaryOn": "Translator review tools are on",
-    "translatorAccessSummaryOff": "Enter passcode to enable review tools",
+    "translatorAccess": "翻訳者アクセス",
+    "translatorAccessTitle": "翻訳者アクセス",
+    "translatorAccessBody": "この端末で章のフィードバックを確認するには、翻訳者のパスコードを入力してください。",
+    "translatorAccessPlaceholder": "パスコード",
+    "translatorAccessUnlock": "ロック解除",
+    "translatorAccessIncorrect": "翻訳者のパスコードが正しくありません。",
+    "translatorAccessEnabled": "翻訳者の確認モードを有効にしました",
+    "translatorAccessEnabledBody": "章の画面に翻訳者用のフィードバック確認ツールが表示されます。",
+    "translatorAccessSummaryOn": "翻訳者用確認ツールは有効です",
+    "translatorAccessSummaryOff": "パスコードを入力して確認ツールを有効にする",
   },
   "notifications": {
     "channelDailyReminder": "毎日の読書リマインダー",
@@ -481,7 +757,7 @@ export const ja = {
     "readingActivitySubtitle": "読書日数と連続読書数が一目でわかります。",
     "readingDays": "読書の日",
     "chaptersRead": "読んだ章",
-    "chapterRead": "章を読む",
+    "chapterRead": "読んだ章",
     "selectedDay": "選択した日",
     "tapDayHint": "マークされた日をタップすると詳細が表示されます。",
     "noReadingActivityTitle": "まだ読書活動はありません",
@@ -549,7 +825,7 @@ export const ja = {
     "allLessonsComplete": "すべてのレッスンが完了しました",
     "allLessonsCompleteBody": "現在のトレーニング パスは完了しました。あらゆる分野を再訪し、練習を続け、他の人に教えてください。",
     "fieldProgress": "{{progress}}%完了",
-    "keyVerse": "重要な詩",
+    "keyVerse": "中心となる聖句",
     "practiceActivity": "練習活動",
     "discussionLabel": "議論",
     "prayerLabel": "祈り",
@@ -651,12 +927,12 @@ export const ja = {
     "enrolled": "登録済み",
     "dayOf": "{{total}} の {{current}} 日目",
     "markComplete": "完了としてマークを付ける",
-    "completed": "完了",
+    "completed": "完了済み",
     "progress": "進捗",
     "noPlans": "利用可能な読書プランはありません",
     "noActivePlans": "まだ何も計画を始めていません",
     "findPlans": "プランを探す",
-    "saved": "保存されました",
+    "saved": "保存済み",
     "completions": "{{count}} 件完了",
     "saveForLater": "後で使うために保存",
     "unsave": "未保存",
@@ -674,7 +950,7 @@ export const ja = {
     "dayLabel": "{{day}} 日",
     "chapterProgress": "{{current}}/{{total}}",
     "nextChapterCta": "次の章",
-    "completeDayCta": "一日を終える",
+    "completeDayCta": "今日の読書を完了",
     "listenChapterCounted": "今日の計画では {{reference}} がカウントされます",
     "dailyTargetCompleteTitle": "毎日の読書が完了しました",
     "dailyTargetCompleteBody": "今日の計画書の読み終わりました。計画に戻り、進捗状況を確認します。",
@@ -695,19 +971,19 @@ export const ja = {
       "description": "マタイ、マルコ、ルカ、ヨハネを 2 か月間で見てみましょう。"
     },
     "proverbs31": {
-      "title": "31日間のことわざ",
-      "description": "箴言を毎日 1 章ずつ、1 か月間知恵を学びます。"
+      "title": "毎日の箴言",
+      "description": "今日の日付に対応する箴言の章を読み、毎月繰り返します。"
     },
     "kathisma": {
       "title": "Kathisma",
-      "description": "毎週繰り返される、各平日の定められた朝と晩のKathismaを読みます。"
+      "description": "平日の朝と晩に定められた詩篇の区分を読み、毎週繰り返します。"
     },
     "chronological": {
       "title": "年代別聖書",
       "description": "創世記から黙示録まで、出来事が起こった順序で聖書を読んでください。"
     },
     "epistles30": {
-      "title": "30日後の手紙",
+      "title": "30日で読む書簡",
       "description": "パウロ、ペテロ、ヤコブ、ヨハネの手紙を一ヶ月以内に読みましょう。"
     },
     "sermonMount7": {
@@ -733,19 +1009,19 @@ export const ja = {
     "rhythmNamePlaceholder": "自動名を付ける場合は空白のままにします",
     "rhythmPlanCount": "{{count}} 件の計画",
     "rhythmItemCount": "{{count}} 個のアイテム",
-    "includedPlans": "含まれるプラン",
+    "includedPlans": "含まれる読書プラン",
     "includedItems": "同梱品",
-    "availablePlans": "利用可能なプラン",
+    "availablePlans": "利用可能な読書プラン",
     "rhythmsIntro": "計画の進捗状況とカスタムの聖句を組み合わせて、繰り返し可能な朝、午後、夕方の流れを構築します。",
     "rhythmSlotPrompt": "最初に構築したいフローの種類を選択します。",
     "rhythmSlotActive": "{{name}} 個が選択されました",
     "selected": "選択済み",
     "continueRhythm": "リズムを続ける",
     "nextUp": "次は: {{value}}",
-    "openRhythm": "オープンリズム",
+    "openRhythm": "リズムを開く",
     "deleteRhythm": "リズムの削除",
-    "emptyRhythmPlans": "このリズムを保存するには、少なくとも 1 つのプランを追加します。",
-    "emptyRhythmItems": "このリズムを保存するには、少なくとも 1 つの計画またはパッセージを追加します。",
+    "emptyRhythmPlans": "このリズムを保存するには、プランを一つ以上追加してください。",
+    "emptyRhythmItems": "このリズムを保存するには、プランか聖書箇所を一つ以上追加してください。",
     "alreadyInAnotherRhythm": "この計画はすでに別のリズムに入っています。",
     "planUnavailableForRhythm": "登録済みのアクティブなプランのみをリズムに追加できます。",
     "rhythmDaySummary": "現在の日: {{day}}",
@@ -753,23 +1029,23 @@ export const ja = {
     "rhythmPlanSource": "{{count}} 日プラン",
     "rhythmPassageLabel": "{{count}} 章",
     "planItemLabel": "プラン",
-    "passageItemLabel": "通路",
+    "passageItemLabel": "聖書箇所",
     "addPassage": "聖書の一節を追加",
-    "addPassageToRhythm": "リズムにパッセージを加える",
-    "repeatablePassage": "繰り返し可能なパッセージ",
+    "addPassageToRhythm": "リズムに聖書箇所を追加",
+    "repeatablePassage": "繰り返し読む聖書箇所",
     "startChapterLabel": "章の開始",
     "endChapterLabel": "終章",
     "maxChapterHint": "{{count}} 章が利用可能",
     "chooseBook": "まずは本を選びましょう。",
     "chapterCount": "{{count}} 章",
     "deleteRhythmConfirmTitle": "このリズムを削除しますか?",
-    "deleteRhythmConfirmBody": "含まれているプラ​​ンは [マイ プラン] に残りますが、このリズムは削除されます。",
+    "deleteRhythmConfirmBody": "含まれているプランは [マイ プラン] に残りますが、このリズムは削除されます。",
     "foundationsOfTheGospel": {
       "title": "福音の基礎",
       "description": "創造から新たな創造に至るまでの救いの物語を 14 日間にわたってたどります。"
     },
     "prayerIntimacyWithGod": {
-      "title": "祈りと神との​​親密さ",
+      "title": "祈りと神との親密さ",
       "description": "祈り、礼拝、そして主との親密な交わりを目指す7日間の旅。"
     },
     "identityInChrist": {
@@ -859,7 +1135,7 @@ export const ja = {
     },
     "otIn90Days": {
       "title": "90日でわかる旧約聖書",
-      "description": "90 日間で 929 の OT の章をすべて学習 - 1 日あたり約 10 章。真剣な取り組み。"
+      "description": "旧約聖書929章を90日で読みます。一日約10章の、真剣な取り組みです。"
     },
     "pentateuch30Days": {
       "title": "30日後のモーセ五書",
@@ -878,7 +1154,7 @@ export const ja = {
       "description": "パウロの手紙 13 冊 (ローマ人への手紙からピレモンまで) を 1 か月以内にすべて読みましょう。"
     },
     "acts28Days": {
-      "title": "28日以内に行動する",
+      "title": "28日で読む使徒の働き",
       "description": "使徒言行録を 1 日 1 章 — エルサレムからローマまで初代教会をたどります。"
     },
     "revelation22Days": {
@@ -895,18 +1171,18 @@ export const ja = {
     "sessionUpcoming": "予定",
     "morningAndEveningPrayer": {
       "title": "朝と夕の祈り",
-      "description": "7日間、朝と夕の祈りの朗読で毎日を始め、締めくくります。"
+      "description": "詩篇、福音書、夕べの聖書箇所で一日を始め、終えます。"
     },
     "prayerOfTheHours": {
       "title": "時課の祈り",
-      "description": "7日間、朝・正午・夕の祈りの朗読で一日のリズムを整えます。"
+      "description": "詩篇、福音書、書簡を通して、朝、昼、晩の読書を進めます。"
     }
   },
   "annotations": {
-    "title": "私のメモとハイライト",
+    "title": "自分のメモとハイライト",
     "bookmarks": "ブックマーク",
     "highlights": "ハイライト",
-    "notes": "注意事項",
+    "notes": "メモ",
     "addNote": "メモを追加",
     "addBookmark": "ブックマーク",
     "highlight": "ハイライト",
@@ -917,7 +1193,7 @@ export const ja = {
     "noHighlights": "ハイライトはまだありません",
     "noNotes": "まだメモはありません",
     "noteHint": "あなたの考えを書いてください...",
-    "saved": "保存されました",
+    "saved": "保存済み",
     "colors": {
       "yellow": "黄色",
       "green": "緑",
@@ -927,7 +1203,7 @@ export const ja = {
       "red": "赤"
     },
     "selected": "選択済み",
-    "note": "注",
+    "note": "メモ",
     "copy": "コピー",
     "removeHighlight": "ハイライトを削除"
   },
@@ -1022,12 +1298,12 @@ export const ja = {
     "longestStreak": "最長連続記録",
     "plansCompleted": "完了した計画",
     "engagementScore": "エンゲージメントスコア",
-    "annotationsCreated": "注意事項とハイライト",
+    "annotationsCreated": "メモとハイライト",
     "minutes": "分",
     "hours": "時間",
     "days": "日",
     "totalChapters": "合計チャプター数",
-    "totalListening": "トータルリスニング"
+    "totalListening": "総聴取時間"
   },
   "translations": {
     "title": "聖書の翻訳",
@@ -1043,7 +1319,7 @@ export const ja = {
     "publicDomain": "パブリックドメイン",
     "cloudLibrary": "クラウドライブラリ",
     "downloading": "ダウンロード中...",
-    "downloadPrompt": "Download {{name}} (~{{size}} MB) for offline reading?",
+    "downloadPrompt": "{{name}}の本文（約{{size}} MB）をダウンロードしてオフラインで読みますか？",
     "deleteConfirmTitle": "翻訳の削除",
     "deleteConfirmMessage": "{{name}} のダウンロードしたデータを削除しますか?いつでも再ダウンロードできます。",
     "cancelDownload": "ダウンロードをキャンセル",

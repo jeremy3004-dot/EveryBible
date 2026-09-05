@@ -386,6 +386,9 @@ verify_jwt = false
 [functions.track-anonymous-usage-events]
 verify_jwt = false
 
+[functions.aggregate-engagement]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

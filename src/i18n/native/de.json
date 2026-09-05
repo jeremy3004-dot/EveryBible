@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Erlaube Every Bible den Zugriff auf deine Kamera, wenn du ein Profilfoto aufnehmen möchtest.",
+    "NSMicrophoneUsageDescription": "Erlaube Every Bible, Audioantworten für Rückmeldungen zu Kapiteln aufzunehmen.",
+    "NSPhotoLibraryUsageDescription": "Erlaube Every Bible den Zugriff auf deine Fotomediathek, damit du ein Profilfoto auswählen kannst.",
+    "NSFaceIDUsageDescription": "Erlaube Every Bible, deine gespeicherte Anmeldung mit Face ID zu schützen."
+  }
+}
