@@ -15,15 +15,37 @@ export const SCRIPTURE_VISUAL_ORDER: ScriptureVisualCategory[] = [
   'unknown',
 ];
 
+// Hex mirrors of the canonical FIELD data tokens. MapLibre cannot consume the
+// space-separated hsl(var(--token)) values used by the stylesheets.
+export const SCRIPTURE_COLORS = {
+  light: {
+    bible: '#1e8a7a', // --reef
+    nt: '#db9b1a', // --ochre
+    portions: '#bf6d3b', // --clay
+    'no-scripture': '#c62a3a', // --danger
+    unknown: '#7e7972', // --neutral
+  },
+  dark: {
+    bible: '#36c9b3',
+    nt: '#efb748',
+    portions: '#d68b5c',
+    'no-scripture': '#e34f5b',
+    unknown: '#a39b8a',
+  },
+} as const satisfies Record<'light' | 'dark', Record<ScriptureVisualCategory, string>>;
+
 export const SCRIPTURE_PRESENTATION: Record<
   ScriptureVisualCategory,
   { label: string; color: string }
 > = {
-  bible: { label: 'Full Bible', color: '#10b981' },
-  nt: { label: 'New Testament', color: '#eab308' },
-  portions: { label: 'Portions', color: '#eb6a38' },
-  'no-scripture': { label: 'No Scripture', color: '#ef4444' },
-  unknown: { label: 'Unknown', color: '#94a3b8' },
+  bible: { label: 'Full Bible', color: SCRIPTURE_COLORS.light.bible },
+  nt: { label: 'New Testament', color: SCRIPTURE_COLORS.light.nt },
+  portions: { label: 'Portions', color: SCRIPTURE_COLORS.light.portions },
+  'no-scripture': {
+    label: 'No Scripture',
+    color: SCRIPTURE_COLORS.light['no-scripture'],
+  },
+  unknown: { label: 'Unknown', color: SCRIPTURE_COLORS.light.unknown },
 };
 
 export function scriptureVisualCategory(status: ScriptureStatus): ScriptureVisualCategory {

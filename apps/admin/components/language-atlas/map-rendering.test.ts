@@ -11,6 +11,7 @@ import {
   atlasControlInsets,
   atlasScriptureColorExpression,
   atlasSourceOptions,
+  resolveReadyAtlasMap,
 } from './map-rendering';
 
 const data: AtlasFeatures = { type: 'FeatureCollection', features: [] };
@@ -54,6 +55,16 @@ test('map controls stay inside the parent-provided visible map padding', () => {
   );
 });
 
+test('ready work is rejected when React has installed a replacement map instance', () => {
+  const removedMap = { id: 'removed' };
+  const replacementMap = { id: 'replacement' };
+
+  assert.equal(resolveReadyAtlasMap(removedMap, removedMap), removedMap);
+  assert.equal(resolveReadyAtlasMap(replacementMap, removedMap), null);
+  assert.equal(resolveReadyAtlasMap(replacementMap, null), null);
+  assert.equal(resolveReadyAtlasMap(null, removedMap), null);
+});
+
 test('atlas basemap repaint is neutral and never overwrites GeoJSON data colors', () => {
   const updates: Array<[string, string, unknown]> = [];
   const skies: unknown[] = [];
@@ -79,18 +90,30 @@ test('atlas basemap repaint is neutral and never overwrites GeoJSON data colors'
     'light'
   );
 
-  assert.equal(ATLAS_BASEMAP_COLORS.light.canvas, '#ffffff');
-  assert.equal(ATLAS_BASEMAP_COLORS.dark.canvas, '#09090b');
+  assert.deepEqual(ATLAS_BASEMAP_COLORS.light, {
+    canvas: '#f0ece5',
+    land: '#edece8',
+    water: '#d5dde2',
+    border: '#d2cec6',
+    label: '#69624f',
+  });
+  assert.deepEqual(ATLAS_BASEMAP_COLORS.dark, {
+    canvas: '#11110d',
+    land: '#1d1b16',
+    water: '#0a0d0f',
+    border: '#3d382e',
+    label: '#b0a99b',
+  });
   assert.deepEqual(updates, [
-    ['background', 'background-color', '#ffffff'],
-    ['water-fill', 'fill-color', '#dbe3e8'],
-    ['land-fill', 'fill-color', '#ffffff'],
+    ['background', 'background-color', '#edece8'],
+    ['water-fill', 'fill-color', '#d5dde2'],
+    ['land-fill', 'fill-color', '#edece8'],
   ]);
   assert.deepEqual(skies, [
     {
-      'sky-color': '#ffffff',
-      'horizon-color': '#ffffff',
-      'fog-color': '#ffffff',
+      'sky-color': '#f0ece5',
+      'horizon-color': '#f0ece5',
+      'fog-color': '#f0ece5',
       'sky-horizon-blend': 0,
       'horizon-fog-blend': 0,
       'atmosphere-blend': 0,
@@ -98,20 +121,35 @@ test('atlas basemap repaint is neutral and never overwrites GeoJSON data colors'
   ]);
 });
 
-test('map dots read exact Scripture colors from the shared presentation categories', () => {
-  assert.deepEqual(atlasScriptureColorExpression(), [
+test('map dots read exact FIELD Scripture colors for each theme', () => {
+  assert.deepEqual(atlasScriptureColorExpression('light'), [
     'match',
     ['get', 'category'],
     'bible',
-    '#10b981',
+    '#1e8a7a',
     'nt',
-    '#eab308',
+    '#db9b1a',
     'portions',
-    '#eb6a38',
+    '#bf6d3b',
     'no-scripture',
-    '#ef4444',
+    '#c62a3a',
     'unknown',
-    '#94a3b8',
-    '#94a3b8',
+    '#7e7972',
+    '#7e7972',
+  ]);
+  assert.deepEqual(atlasScriptureColorExpression('dark'), [
+    'match',
+    ['get', 'category'],
+    'bible',
+    '#36c9b3',
+    'nt',
+    '#efb748',
+    'portions',
+    '#d68b5c',
+    'no-scripture',
+    '#e34f5b',
+    'unknown',
+    '#a39b8a',
+    '#a39b8a',
   ]);
 });

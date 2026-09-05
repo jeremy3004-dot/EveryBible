@@ -5,8 +5,8 @@ import maplibregl, {
   type GeoJSONSource,
   type Map as LibreMap,
 } from 'maplibre-gl';
-import { loadAtlasBasemap } from '@/lib/atlas-basemap';
-import { normalizeAdminTheme } from '@/lib/theme';
+import { loadAtlasBasemap } from '../../lib/atlas-basemap';
+import { normalizeAdminTheme } from '../../lib/theme';
 import {
   buildFeatures,
   formatCount,
@@ -16,17 +16,17 @@ import {
   resolveMapHitRecords,
   SCRIPTURE_LABELS,
   scriptureStatus,
-} from '@/lib/language-atlas/model';
+} from '../../lib/language-atlas/model';
 import {
-  SCRIPTURE_PRESENTATION,
+  SCRIPTURE_COLORS,
   scriptureVisualCategory,
-} from '@/lib/language-atlas/presentation';
+} from '../../lib/language-atlas/presentation';
 import type {
   AtlasDisplayMode,
   AtlasMapPadding,
   AtlasProjection,
   AtlasRecord,
-} from '@/lib/language-atlas/types';
+} from '../../lib/language-atlas/types';
 import {
   ATLAS_BASEMAP_COLORS,
   ATLAS_SOURCE_ID,
@@ -35,6 +35,7 @@ import {
   atlasControlInsets,
   atlasScriptureColorExpression,
   atlasSourceOptions,
+  resolveReadyAtlasMap,
 } from './map-rendering';
 
 const DOTS = 'language-atlas-dots';
@@ -64,6 +65,7 @@ export function LanguageMap({
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
+  const readyMapRef = useRef<LibreMap | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const clickedLocation = useRef<{ id: string; coordinates: [number, number] } | null>(null);
   const data = useMemo(() => buildFeatures(records), [records]);
@@ -97,7 +99,7 @@ export function LanguageMap({
   }, [padding]);
 
   const fit = useCallback(() => {
-    const map = mapRef.current;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
     if (!map || !data.features.length) return;
     const bounds = new maplibregl.LngLatBounds();
     data.features.forEach((feature) =>
@@ -108,7 +110,10 @@ export function LanguageMap({
 
   useEffect(() => {
     if (!container.current) return;
+    readyMapRef.current = null;
+    setReady(false);
     let alive = true;
+    let styleReady = false;
     const styleRequest = new AbortController();
     let selectionRequest = 0;
     let map: LibreMap;
@@ -137,19 +142,20 @@ export function LanguageMap({
     popupRef.current = popup;
     map.setPadding(paddingRef.current);
     const paint = () => {
+      if (!alive || !styleReady || mapRef.current !== map) return;
       if (!map.getLayer(DOTS)) return;
       const currentTheme = theme();
       const colors = ATLAS_BASEMAP_COLORS[currentTheme];
       applyAtlasBasemapContrast(map, currentTheme);
-      map.setPaintProperty(DOTS, 'circle-color', atlasScriptureColorExpression());
+      map.setPaintProperty(DOTS, 'circle-color', atlasScriptureColorExpression(currentTheme));
       map.setPaintProperty(DOTS, 'circle-stroke-color', colors.canvas);
-      map.setPaintProperty(CLUSTERS, 'circle-color', SCRIPTURE_PRESENTATION.unknown.color);
+      map.setPaintProperty(CLUSTERS, 'circle-color', SCRIPTURE_COLORS[currentTheme].unknown);
       map.setPaintProperty(CLUSTERS, 'circle-stroke-color', colors.canvas);
       map.setPaintProperty(COUNTS, 'text-color', colors.canvas);
       map.setPaintProperty(SELECTED, 'circle-stroke-color', colors.label);
     };
     map.on('style.load', () => {
-      if (!alive) return;
+      if (!alive || mapRef.current !== map) return;
       map.addSource(
         ATLAS_SOURCE_ID,
         atlasSourceOptions(current.current.data, displayModeRef.current)
@@ -207,14 +213,16 @@ export function LanguageMap({
         filter: ['!', ['has', 'point_count']],
         paint: { 'circle-radius': 14, 'circle-opacity': 0 },
       });
+      styleReady = true;
       paint();
       map.setProjection({ type: projectionRef.current });
       map.setPadding(paddingRef.current);
+      readyMapRef.current = map;
       setReady(true);
       setFailed(false);
     });
     map.on('error', () => {
-      if (alive) setFailed(true);
+      if (alive && mapRef.current === map) setFailed(true);
     });
     const showGroup = (rows: AtlasRecord[], snapshot: typeof data) => {
       setGroup({ records: rows, data: snapshot });
@@ -318,7 +326,9 @@ export function LanguageMap({
         popup.remove();
       });
     }
-    const resize = new ResizeObserver(() => map.resize());
+    const resize = new ResizeObserver(() => {
+      if (alive && mapRef.current === map) map.resize();
+    });
     resize.observe(container.current);
     const observer = new MutationObserver(paint);
     observer.observe(document.documentElement, {
@@ -326,30 +336,36 @@ export function LanguageMap({
       attributeFilter: ['data-theme'],
     });
     void loadAtlasBasemap(map, theme(), styleRequest.signal).catch(() => {
-      if (alive) setFailed(true);
+      if (alive && mapRef.current === map) setFailed(true);
     });
     return () => {
       alive = false;
+      styleReady = false;
+      if (readyMapRef.current === map) readyMapRef.current = null;
+      if (mapRef.current === map) mapRef.current = null;
+      if (popupRef.current === popup) popupRef.current = null;
       styleRequest.abort();
       selectionRequest++;
       resize.disconnect();
       observer.disconnect();
       popup.remove();
       map.remove();
-      mapRef.current = null;
-      popupRef.current = null;
     };
   }, [retry]);
 
   useEffect(() => {
     if (!ready) return;
-    const source = mapRef.current?.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
+    if (!map) return;
+    const source = map.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
     popupRef.current?.remove();
     source?.setData(data);
   }, [data, ready]);
   useEffect(() => {
     if (!ready) return;
-    const source = mapRef.current?.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
+    if (!map) return;
+    const source = map.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
     if (!applyAtlasDisplayMode(source, appliedDisplayModeRef.current, displayMode)) return;
     appliedDisplayModeRef.current = displayMode;
@@ -358,11 +374,13 @@ export function LanguageMap({
     setGroupError(false);
   }, [displayMode, ready]);
   useEffect(() => {
-    if (ready) mapRef.current?.setProjection({ type: projection });
+    if (!ready) return;
+    resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.setProjection({ type: projection });
   }, [projection, ready]);
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !ready || !map.getLayer(SELECTED)) return;
+    if (!ready) return;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
+    if (!map || !map.getLayer(SELECTED)) return;
     map.setFilter(SELECTED, ['==', ['get', 'recordId'], selected?.id ?? '']);
     const location = selected ? recordLocations(selected)[0] : null;
     const clicked = clickedLocation.current;
@@ -403,7 +421,11 @@ export function LanguageMap({
             title="Zoom in"
             aria-label="Zoom in"
             disabled={!ready}
-            onClick={() => mapRef.current?.zoomIn({ duration: duration() })}
+            onClick={() =>
+              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomIn({
+                duration: duration(),
+              })
+            }
           >
             +
           </button>
@@ -413,7 +435,11 @@ export function LanguageMap({
             title="Zoom out"
             aria-label="Zoom out"
             disabled={!ready}
-            onClick={() => mapRef.current?.zoomOut({ duration: duration() })}
+            onClick={() =>
+              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomOut({
+                duration: duration(),
+              })
+            }
           >
             −
           </button>
@@ -431,7 +457,7 @@ export function LanguageMap({
             disabled={!ready}
             onClick={() => {
               setGroup(null);
-              mapRef.current?.easeTo({
+              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.easeTo({
                 ...INITIAL_CAMERA,
                 bearing: 0,
                 pitch: 0,

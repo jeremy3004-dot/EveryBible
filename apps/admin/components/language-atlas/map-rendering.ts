@@ -1,24 +1,28 @@
 import type { ExpressionSpecification, Map as LibreMap } from 'maplibre-gl';
 import type { AtlasFeatures } from '../../lib/language-atlas/model';
-import { SCRIPTURE_PRESENTATION } from '../../lib/language-atlas/presentation';
+import { SCRIPTURE_COLORS } from '../../lib/language-atlas/presentation';
 import type { AtlasDisplayMode, AtlasMapPadding } from '../../lib/language-atlas/types';
 import type { AdminThemeMode } from '../../lib/theme';
 
 export const ATLAS_SOURCE_ID = 'language-atlas-records';
 export const ATLAS_CLUSTER_RADIUS = 50;
 export const ATLAS_CLUSTER_MAX_ZOOM = 4;
+// FIELD chrome mirrored from the canonical --background, --map-land,
+// --map-water, --border, and --muted-foreground tokens for MapLibre.
 export const ATLAS_BASEMAP_COLORS = {
   light: {
-    canvas: '#ffffff',
-    water: '#dbe3e8',
-    border: '#cbd5e1',
-    label: '#475569',
+    canvas: '#f0ece5',
+    land: '#edece8',
+    water: '#d5dde2',
+    border: '#d2cec6',
+    label: '#69624f',
   },
   dark: {
-    canvas: '#09090b',
-    water: '#1e293b',
-    border: '#334155',
-    label: '#cbd5e1',
+    canvas: '#11110d',
+    land: '#1d1b16',
+    water: '#0a0d0f',
+    border: '#3d382e',
+    label: '#b0a99b',
   },
 } as const;
 
@@ -49,21 +53,28 @@ export function atlasControlInsets(padding: AtlasMapPadding) {
   };
 }
 
-export function atlasScriptureColorExpression(): ExpressionSpecification {
+export function resolveReadyAtlasMap<T>(activeMap: T | null, readyMap: T | null): T | null {
+  return activeMap !== null && activeMap === readyMap ? activeMap : null;
+}
+
+export function atlasScriptureColorExpression(
+  theme: AdminThemeMode = 'light'
+): ExpressionSpecification {
+  const colors = SCRIPTURE_COLORS[theme];
   return [
     'match',
     ['get', 'category'],
     'bible',
-    SCRIPTURE_PRESENTATION.bible.color,
+    colors.bible,
     'nt',
-    SCRIPTURE_PRESENTATION.nt.color,
+    colors.nt,
     'portions',
-    SCRIPTURE_PRESENTATION.portions.color,
+    colors.portions,
     'no-scripture',
-    SCRIPTURE_PRESENTATION['no-scripture'].color,
+    colors['no-scripture'],
     'unknown',
-    SCRIPTURE_PRESENTATION.unknown.color,
-    SCRIPTURE_PRESENTATION.unknown.color,
+    colors.unknown,
+    colors.unknown,
   ];
 }
 
@@ -92,16 +103,16 @@ export function applyAtlasBasemapContrast(
       continue;
     try {
       if (layer.type === 'background') {
-        map.setPaintProperty(layer.id, 'background-color', colors.canvas);
+        map.setPaintProperty(layer.id, 'background-color', colors.land);
       } else if (layer.type === 'fill' && /water|ocean|sea|marine|bathym/i.test(layer.id)) {
         map.setPaintProperty(layer.id, 'fill-color', colors.water);
       } else if (layer.type === 'fill') {
-        map.setPaintProperty(layer.id, 'fill-color', colors.canvas);
+        map.setPaintProperty(layer.id, 'fill-color', colors.land);
       } else if (layer.type === 'line') {
         map.setPaintProperty(layer.id, 'line-color', colors.border);
       } else if (layer.type === 'symbol') {
         map.setPaintProperty(layer.id, 'text-color', colors.label);
-        map.setPaintProperty(layer.id, 'text-halo-color', colors.canvas);
+        map.setPaintProperty(layer.id, 'text-halo-color', colors.land);
       }
     } catch {
       // Basemap styles do not all support every paint property.
