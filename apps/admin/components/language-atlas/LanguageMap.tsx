@@ -42,6 +42,7 @@ const CLUSTERS = 'language-atlas-clusters';
 const COUNTS = 'language-atlas-counts';
 const SELECTED = 'language-atlas-selected';
 const HIT = 'language-atlas-hit';
+const INITIAL_CAMERA = { center: [65, 25] as [number, number], zoom: 2.75 };
 const duration = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450);
 
 interface Props {
@@ -121,8 +122,7 @@ export function LanguageMap({
     try {
       map = new maplibregl.Map({
         container: container.current,
-        center: [35, 20],
-        zoom: 1.5,
+        ...INITIAL_CAMERA,
         minZoom: 0.6,
         maxZoom: 18,
         renderWorldCopies: false,
@@ -432,8 +432,7 @@ export function LanguageMap({
             onClick={() => {
               setGroup(null);
               mapRef.current?.easeTo({
-                center: [35, 20],
-                zoom: 1.5,
+                ...INITIAL_CAMERA,
                 bearing: 0,
                 pitch: 0,
                 padding: paddingRef.current,
