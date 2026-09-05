@@ -4,7 +4,7 @@
 node_modules
 ios
 android
-data
+/data
 assets
 credentials
 store-assets
