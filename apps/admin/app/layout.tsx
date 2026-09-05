@@ -6,6 +6,7 @@ import './neo-swiss.css';
 // shell structure the two stylesheets above provide.
 import './el-field.css';
 import './analytics-atlas.css';
+import './language-atlas.css';
 
 import Script from 'next/script';
 import type { Viewport } from 'next';

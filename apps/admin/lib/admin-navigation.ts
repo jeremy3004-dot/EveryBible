@@ -36,6 +36,12 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Insights',
   },
   {
+    label: 'Languages',
+    href: '/languages',
+    description: 'Explore languages, dialects, people groups, and Scripture coverage.',
+    group: 'Insights',
+  },
+  {
     label: 'Chapter Feedback',
     href: '/feedback',
     description: 'Review chapter feedback submitted from the mobile reader and listener.',

@@ -4,6 +4,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
+  outputFileTracingIncludes: {
+    '/api/language-atlas': ['./data/language-atlas/index.json.gz'],
+    '/api/language-atlas/*': ['./data/language-atlas/details-*.json.gz'],
+  },
 };
 
 export default nextConfig;

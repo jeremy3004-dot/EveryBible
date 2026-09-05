@@ -28,6 +28,8 @@
     "admin:lint": "npm run lint --workspace @everybible/admin",
     "site:typecheck": "npm run typecheck --workspace @everybible/site",
     "admin:typecheck": "npm run typecheck --workspace @everybible/admin",
+    "atlas:build": "python3 scripts/language-atlas/build_atlas.py",
+    "atlas:check": "python3 -m unittest discover -s scripts/language-atlas -p 'test_*.py' && python3 scripts/language-atlas/build_atlas.py --check",
     "i18n:native": "node --import tsx scripts/sync-native-localizations.mjs",
     "i18n:native:check": "node --import tsx scripts/sync-native-localizations.mjs --check",
     "i18n:tolgee:export": "tsx scripts/export-i18n-tolgee.ts",

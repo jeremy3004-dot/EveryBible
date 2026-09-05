@@ -1,0 +1,154 @@
+{
+  "manifest_version": 1,
+  "retrieved_at": "2026-09-05T11:58:51Z",
+  "purpose": "Auditable language atlas source snapshots for the admin importer",
+  "primary_sources": [
+    {
+      "id": "grn-rolv-code-list-current",
+      "artifact": "grn-rolv-codes-20260905.json",
+      "url": "https://gql.globalrecordings.net/graphql?query=%7BROLVCodes%7BLanguageCode%2CLanguageName%2CROLVCode%2CLanguageTag%2CVarietyName%2CCountryCode%2CLocationName%7D%7D",
+      "endpoint": "https://gql.globalrecordings.net/graphql",
+      "method": "GET",
+      "query": "{ROLVCodes{LanguageCode,LanguageName,ROLVCode,LanguageTag,VarietyName,CountryCode,LocationName}}",
+      "response_path": "data.ROLVCodes",
+      "rows": 12400,
+      "bytes": 2304197,
+      "sha256": "4d01ec884d69c2079e1ca2ef797173f3d203ab9860d21e669fd9993bfd1c00aa",
+      "fields": ["LanguageCode", "LanguageName", "ROLVCode", "LanguageTag", "VarietyName", "CountryCode", "LocationName"],
+      "notes": "Current public response. ROLVCode is numeric in JSON and must be zero-padded to five-character text in the normalized registry. No coordinate or audio fields are exposed by this query."
+    },
+    {
+      "id": "grn-rolv-alternate-name-list-current",
+      "artifact": "grn-rolv-alternate-names-20260905.json",
+      "url": "https://gql.globalrecordings.net/graphql?query=%7BROLVAlternateNames%7BROLVCode%2CLanguageTag%2CAlternateName%7D%7D",
+      "endpoint": "https://gql.globalrecordings.net/graphql",
+      "method": "GET",
+      "query": "{ROLVAlternateNames{ROLVCode,LanguageTag,AlternateName}}",
+      "response_path": "data.ROLVAlternateNames",
+      "rows": 29300,
+      "bytes": 2326160,
+      "sha256": "4bdfd3fff6f9bb5de5ced725817319b7d40f82b428aec87eee20175bcec2c499",
+      "fields": ["ROLVCode", "LanguageTag", "AlternateName"],
+      "notes": "Join to a variety by zero-padded ROLVCode and LanguageTag. Preserve alternate names as source records."
+    },
+    {
+      "id": "grn-rolv-change-list-current",
+      "artifact": "grn-rolv-changes-20260905.json",
+      "url": "https://gql.globalrecordings.net/graphql?query=%7BROLVChanges%7BROLVCode%2CLanguageTag%2CDate%2CChangeType%2CPrevLanguageCode%2CExplanation%7D%7D",
+      "endpoint": "https://gql.globalrecordings.net/graphql",
+      "method": "GET",
+      "query": "{ROLVChanges{ROLVCode,LanguageTag,Date,ChangeType,PrevLanguageCode,Explanation}}",
+      "response_path": "data.ROLVChanges",
+      "rows": 50614,
+      "bytes": 7375535,
+      "sha256": "860d8a4c000364b146f97f43bc89e1872beb352cbf2abe0379a3c1e2c96b4921",
+      "fields": ["ROLVCode", "LanguageTag", "Date", "ChangeType", "PrevLanguageCode", "Explanation"],
+      "notes": "ChangeType values are A, M, U, and R per the official ROLV documentation. Keep history independent of the current code list."
+    },
+    {
+      "id": "grn-mapapp-language-varieties-current",
+      "artifact": "grn-mapapp-language-varieties-20260905.geojson",
+      "url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+      "service_metadata_url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer?f=pjson",
+      "layer_metadata_url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1?f=pjson",
+      "count_url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1/query?where=1%3D1&returnCountOnly=true&f=pjson",
+      "object_ids_url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1/query?where=1%3D1&returnIdsOnly=true&f=pjson",
+      "rows": 1476,
+      "bytes": 523884,
+      "sha256": "633277f8253eab96a8b2a0bb88adef9b7d89e6a9bef29215e4a2cdbb36e2d80b",
+      "fields": ["objectid", "iso", "grn_num", "iso_lang_name", "grn_name", "scope", "state", "parent_num", "longitude", "latitude", "location", "geometry"],
+      "service_scope": "MapServer Feature Layer 1, Language Varieties; service reports capabilities Map,Query,Data, maxRecordCount 2000, singleFusedMapCache false, supports GeoJSON, and count/object ID queries report the complete 1476-feature layer.",
+      "notes": "989 Dialect records and 487 ISO_Lang records; 1419 Verified and 57 Unverified; 1395 records have Point geometry and 81 have null geometry. grn_num is a GRN language number. For Dialect rows it can be joined to a current ROLV only by exact zero-padded code; ISO_Lang rows join by explicit ISO 639-3 and are language-area placements. Preserve geometry coordinates separately from rounded attribute longitude/latitude."
+    },
+    {
+      "id": "grn-mapapp-language-variety-index-current",
+      "artifact": "grn-mapapp-language-variety-index-20260905.json",
+      "rows": 1476,
+      "bytes": 724315,
+      "sha256": "1c874940fdc68f22ce90aa49bcdeffcc8874e8bd976e7a0a25fdfc375aaaa22d",
+      "notes": "Derived index with stable source_id grnmapapp:LanguageResources_v6/MapServer/1:objectid:<objectid>, explicit match_basis, exact rolv_code_exact only for Dialect rows, ISO language-area matching for ISO_Lang rows, and both source_coordinates and attribute_coordinates."
+    }
+  ],
+  "local_registry_sources": [
+    {
+      "id": "local-rolv-registry-20260822",
+      "original_path": "/Users/dev/Documents/ChatGPT/DIALECTS/dialect-study/.work/01a02720-79ba-7ef2-80c2-b43c27fdc073/source-cache/rolv_graphql.json",
+      "artifact": "registry-rolv-local-20260822.json",
+      "source_date": "2026-08-22",
+      "rows": 12406,
+      "bytes": 2305554,
+      "sha256": "4d91a5b01395797b4a516ead334f116a003faa25a2310035f5928b0061651539",
+      "notes": "Preserved original local response so six removed records and all historical source values remain auditable."
+    },
+    {
+      "id": "local-workbook-data-20260822",
+      "original_path": "/Users/dev/Documents/ChatGPT/DIALECTS/dialect-study/.work/01a02720-79ba-7ef2-80c2-b43c27fdc073/workbook_data.json",
+      "artifact": "registry-workbook-data-20260822.json.gz",
+      "source_date": "2026-08-22",
+      "bytes": 4668604,
+      "sha256": "15272ddac0d6f9487644b3a4be164e92042d4d560147e4798763aaa7989d33d6",
+      "tables": {
+        "language_crosswalk": 8327,
+        "rolv_varieties": 12406,
+        "glottolog_omt_enriched": 5396,
+        "unified_source_index": 60041,
+        "review_queue": 975,
+        "raw_glottolog_5_3": 27178,
+        "raw_rolv": 12406
+      },
+      "notes": "All workbook tables are retained as headers plus row arrays. raw_glottolog_5_3 contains 27177 data rows: 4853 family, 8618 language, and 13706 dialect records. Glottocode id and parent_id values are the stable parent links; family rows are retained but excluded from mapped-language counts."
+    }
+  ],
+  "rolv_delta": {
+    "artifact": "registry-rolv-delta-20260905.json",
+    "bytes": 9125,
+    "sha256": "5e77b04bfbbd42b56d734047aacd2fe20590eeb367c506ab6cfecec52c3add58",
+    "join_key": "LanguageCode|ROLVCode (zero-padded)|LanguageTag",
+    "old_rows": 12406,
+    "current_rows": 12400,
+    "removed_rows": 7,
+    "added_rows": 1,
+    "changed_rows": 14,
+    "notes": "Use the separate old and current full snapshots plus this delta; do not silently replace the old registry."
+  },
+  "mapapp_audit_artifacts": [
+    {
+      "artifact": "grn-mapapp-service-metadata-20260905.json",
+      "url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer?f=pjson",
+      "bytes": 7892,
+      "sha256": "d889d74d10dd6aa818c654b24aa51a242fa1fb6845cc4e3e322237e29acd63dc"
+    },
+    {
+      "artifact": "grn-mapapp-language-varieties-metadata-20260905.json",
+      "url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1?f=pjson",
+      "bytes": 5805,
+      "sha256": "bb56a63a9ff5e7004fac098faa36c476c3ae6ba08ccc133428fbb4c42c422031"
+    },
+    {
+      "artifact": "grn-mapapp-language-varieties-count-20260905.json",
+      "url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1/query?where=1%3D1&returnCountOnly=true&f=pjson",
+      "bytes": 18,
+      "sha256": "65e7d04578cc76c468298aa17f30e29028f41a68f08f534ca788310af4879636"
+    },
+    {
+      "artifact": "grn-mapapp-language-varieties-object-ids-20260905.json",
+      "url": "https://gis.lightsys.org/server/rest/services/LanguageResources_v6/MapServer/1/query?where=1%3D1&returnIdsOnly=true&f=pjson",
+      "bytes": 10756,
+      "sha256": "7a150394d2a4aa2528e827d551b0fa0341c1d49cf99286589a369ac5f877c50e"
+    }
+  ],
+  "provenance_and_terms": {
+    "rolv_documentation": "https://globalrecordings.net/en/rolv",
+    "rolv_profile_pattern": "https://globalrecordings.net/en/language/vvvvv (the public page may canonicalize a leading-zero code in the URL; retain the five-digit code in data)",
+    "rolv_terms": "The public ROLV page documents the registry and downloads but supplies no separate API license text. Confirm permission and attribution before republishing registry content.",
+    "mapapp_terms": "The ArcGIS service metadata supplies no explicit license or copyright text in the retrieved response. Confirm permission and attribution before republishing coordinates.",
+    "audio_terms": "Individual GRN program pages state that recordings may be freely copied for personal or local ministry use when unmodified and not sold or bundled with sold products; other redistribution requires GRN permission. Do not copy media into the atlas; link to GRN pages and preserve this limitation."
+  },
+  "normalization_policy": {
+    "rolv_code": "String, exactly five ASCII digits, left-zero-padded from API numeric values.",
+    "iso_parent": "LanguageCode / iso639_3 is the explicit ISO 639-3 parent crosswalk for each ROLV variety.",
+    "dialect_identity": "Do not infer dialect-specific Scripture or media from an ISO parent. A parent ISO or country match is not evidence for the ROLV variety.",
+    "coordinates": "Use MapApp geometry only when present and label it as source geometry; retain rounded attribute coordinates separately. No MapApp point is a complete substitute for absent ROLV coordinates.",
+    "source_ids": "MapApp source_id uses layer path plus immutable objectid. ROLV source records use the exact tuple LanguageCode|ROLVCode|LanguageTag. Glottolog uses its stable glottocode id and parent_id."
+  }
+}
