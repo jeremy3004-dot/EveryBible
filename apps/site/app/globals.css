@@ -182,6 +182,11 @@
   --card-border: 40 14% 24%;
   --input: 40 14% 17%;
   --ring: 202 80% 56%;
+  --reef: 171 58% 50%;
+  --ochre: 40 84% 61%;
+  --clay: 23 60% 60%;
+  --danger: 355 73% 60%;
+  --neutral: 40 12% 59%;
   --brand-blue: 202 80% 56%;
   --brand-red: 355 65% 55%;
   --grain-opacity: 0.025;
@@ -483,6 +488,8 @@ img { display: block; max-width: 100%; }
 }
 
 .site-mobile-menu__cta {
+  white-space: nowrap;
+  flex-shrink: 0;
   min-height: var(--control-height-touch);
   display: inline-flex;
   align-items: center;
@@ -1393,4 +1400,16 @@ img { display: block; max-width: 100%; }
 
   .feature-card { min-height: auto; }
   .site-footer__columns { grid-template-columns: 1fr; }
+}
+
+/* Dark-default pages retain readable links and FIELD surfaces. */
+html.dark .static-page__content a,
+html.dark .static-page__backlink { color: hsl(var(--primary)); }
+html.dark .site-header { background: hsl(var(--background) / .96); box-shadow: none; }
+
+@media (max-width: 380px) {
+  .site-header__inner { gap: 12px; padding-inline: 16px; }
+  .site-mobile-menu { gap: 0; }
+  .site-mobile-menu > a:not(.site-mobile-menu__cta) { display: none; }
+  .site-mobile-menu__cta { min-height: 44px; padding-inline: 14px; }
 }

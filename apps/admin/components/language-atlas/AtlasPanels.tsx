@@ -106,10 +106,7 @@ export function MapControls({
                   onChange({ scripture: (active ? 'all' : category) as AtlasScriptureFilter })
                 }
               >
-                <i
-                  className={`la-dot la-dot--${category}`}
-                  style={{ backgroundColor: item.color }}
-                />
+                <i className={`la-dot la-dot--${category}`} />
                 <span>{item.label}</span>
               </button>
             );

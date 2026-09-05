@@ -83,9 +83,9 @@ export interface HomepageContent {
 }
 
 export const siteNavigation: SiteNavigationItem[] = [
-  { label: 'Screenshots', href: '#screenshots' },
-  { label: 'Mission', href: '#mission' },
-  { label: 'Verse of the day', href: '#verse-of-the-day' },
+  { label: 'Language atlas', href: '/' },
+  { label: 'Mission', href: '/about' },
+  { label: 'About the data', href: '/#atlas-sources' },
   { label: 'Support', href: '/support' },
 ];
 
@@ -201,7 +201,7 @@ export const footerColumns: FooterColumn[] = [
     title: 'Useful links',
     links: [
       { label: 'Bible languages', href: '/about#languages' },
-      { label: 'Verse of the day', href: '#verse-of-the-day' },
+      { label: 'About the data', href: '/#atlas-sources' },
       { label: 'Privacy policy', href: EVERYBIBLE_PRIVACY_PATH },
       { label: 'Terms of service', href: EVERYBIBLE_TERMS_PATH },
       { label: 'Get the app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH },

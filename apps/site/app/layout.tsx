@@ -14,7 +14,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark" data-theme="dark">
       {/* .grain is the kit's paper-noise overlay: 3.5% multiply in light,
           2.5% in dark, 0 in high contrast, removed in print. */}
       <body className="grain">

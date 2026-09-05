@@ -47,10 +47,10 @@ ROLV match is verified.
   and Reset view stay above the mobile sheet and clear of the desktop inspector.
   The initial and Reset views use zoom 2.75 centered at 65°E, 25°N, filling the
   map with the closer Africa–Europe–Asia view requested in the reference screenshot.
-- Colors match the Every Language reference: Full Bible `#10b981`, New Testament
-  `#eab308`, Portions `#eb6a38`, and No Scripture `#ef4444`. Started and needed
+- Colors use the Field brand's reef, ochre, clay, danger, and neutral tokens,
+  with separate light and dark values shared by map dots and legends. Started and needed
   records share the No Scripture display category; their exact progress remains
-  in the profile and export. Unknown is a separate neutral `#94a3b8` category.
+  in the profile and export. Unknown is a separate warm neutral category.
   Labels accompany every legend swatch. Mixed clusters use a neutral color.
 - **Unknown does not mean no Scripture.** Dialect coverage is not inferred from
   its ISO or parent language. The inspector shows parent-language context
