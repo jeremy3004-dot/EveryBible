@@ -1,5 +1,10 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { downloadAndValidateAudioFile } from './audioDownloadService';
+import {
+  AudioDownloadCancelledError,
+  AudioDownloadStopError,
+  downloadAndValidateAudioFile,
+  isAudioDownloadCancellation,
+} from './audioDownloadService';
 import { createPersistentAudioDownloadJobStore as createJobStore } from './audioDownloadJobStore';
 import type {
   AudioDownloadJobStore,
@@ -28,15 +33,64 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
     const info = await FileSystem.getInfoAsync(fileUri);
     return info.exists ? info.size : null;
   },
-  downloadFile: async (from, to) => {
+  downloadFile: async (from, to, options) => {
+    const signal = options?.signal;
+    if (signal?.aborted) throw new AudioDownloadCancelledError();
     await downloadAndValidateAudioFile({
       sourceUrl: from,
-      runDownload: () => FileSystem.downloadAsync(from, to),
+      // The chapter worker owns a progress-reset inactivity deadline.
+      timeoutMs: null,
+      runDownload: () =>
+        new Promise<{ status: number }>((resolve, reject) => {
+          let settled = false;
+          let cancelling = false;
+          const download = FileSystem.createDownloadResumable(from, to, {}, (progress) => {
+            if (settled || cancelling || signal?.aborted) return;
+            options?.onProgress?.({
+              bytesDownloaded: progress.totalBytesWritten,
+              bytesTotal: progress.totalBytesExpectedToWrite,
+            });
+          });
+          const settle = (run: () => void) => {
+            if (settled) return;
+            settled = true;
+            signal?.removeEventListener('abort', onAbort);
+            run();
+          };
+          const onAbort = () => {
+            if (settled || cancelling) return;
+            cancelling = true;
+            // The download promise may never settle on cancellation. The native
+            // cancel promise is the boundary after which retrying the path is safe.
+            void download.cancelAsync().then(
+              () => settle(() => reject(new AudioDownloadCancelledError())),
+              (error: unknown) => settle(() => reject(new AudioDownloadStopError(error)))
+            );
+          };
+          signal?.addEventListener('abort', onAbort);
+          if (signal?.aborted) {
+            onAbort();
+            return;
+          }
+          void download.downloadAsync().then(
+            (result) => {
+              if (cancelling) return;
+              settle(() => (result ? resolve(result) : reject(new AudioDownloadCancelledError())));
+            },
+            (error: unknown) => {
+              if (!cancelling) settle(() => reject(error));
+            }
+          );
+        }),
       getFileSize: async () => {
         const info = await FileSystem.getInfoAsync(to);
+        if (signal?.aborted) throw new AudioDownloadCancelledError();
         return info.exists ? info.size : 0;
       },
-      deleteFile: () => FileSystem.deleteAsync(to, { idempotent: true }),
+      deleteFile: async () => {
+        if (signal?.aborted) throw new AudioDownloadCancelledError();
+        await FileSystem.deleteAsync(to, { idempotent: true });
+      },
     });
   },
   readTextFile: async (fileUri) => {
@@ -74,11 +128,13 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
         }
 
         if (signal?.aborted) {
-          return;
+          throw new AudioDownloadCancelledError();
         }
 
         try {
           await new Promise<void>((resolve, reject) => {
+            let settled = false;
+            let cancelling = false;
             const task = backgroundDownloader
               .createDownloadTask({
                 id: taskId,
@@ -91,10 +147,10 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
                 },
               })
               .progress(({ bytesDownloaded, bytesTotal }) => {
+                if (settled || cancelling || signal?.aborted) return;
                 options?.onProgress?.({ bytesDownloaded, bytesTotal });
               });
 
-            let settled = false;
             const settle = (run: () => void) => {
               if (settled) {
                 return;
@@ -106,26 +162,27 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
               run();
             };
 
-            // The native background downloader's stop() fires no terminal .done()/.error()
-            // callback, so without this the promise would hang forever after a cancel — the
-            // worker never returns, the persisted job stays "downloading", and next launch
-            // resurrects a phantom "Loading… 0%". Racing the AbortSignal settles the promise
-            // (and stops the native task) the moment cancelDownload aborts. (M2)
+            // stop() fires no terminal callback. Wait for its native promise so
+            // the next attempt cannot write this destination before the old one stops.
             const onAbort = () => {
-              settle(() => {
-                void task.stop?.();
-                resolve();
-              });
+              if (settled || cancelling) return;
+              cancelling = true;
+              void task.stop().then(
+                () => settle(() => reject(new AudioDownloadCancelledError())),
+                (error: unknown) => settle(() => reject(new AudioDownloadStopError(error)))
+              );
             };
 
             task
               .done(() => {
+                if (cancelling || signal?.aborted) return;
                 settle(() => {
                   backgroundDownloader.completeHandler(taskId);
                   resolve();
                 });
               })
               .error(({ error }) => {
+                if (cancelling || signal?.aborted) return;
                 settle(() => reject(new Error(error)));
               });
 
@@ -133,9 +190,14 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
               signal.addEventListener('abort', onAbort);
             }
 
-            task.start();
+            if (signal?.aborted) onAbort();
+            else task.start();
           });
         } catch (error) {
+          if (error instanceof AudioDownloadStopError) throw error;
+          if (signal?.aborted || isAudioDownloadCancellation(error)) {
+            throw new AudioDownloadCancelledError();
+          }
           // Background downloader native module may not be linked in Expo
           // managed workflow. Always fall back to standard FileSystem download.
           console.warn('[AudioDownload] Background downloader failed, using fallback:', error);

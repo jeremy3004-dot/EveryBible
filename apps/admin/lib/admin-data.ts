@@ -1,3 +1,5 @@
+import { cache } from 'react';
+import { requireAdminIdentity } from '@/lib/admin-auth';
 import { analyticsWindowStart } from '@/lib/analytics-window';
 import { adminNavigation } from '@/lib/admin-navigation';
 import {
@@ -16,6 +18,13 @@ import {
   mapLocationRollupsToMetrics,
 } from '@/lib/analytics-reporting';
 import { createAdminServiceClient } from '@/lib/supabase/service';
+
+// Layouts and child server components may execute in parallel. Authorize at the
+// data boundary; React shares this promise only within the current render request.
+const getAuthorizedAdminServiceClient = cache(async () => {
+  await requireAdminIdentity();
+  return createAdminServiceClient();
+});
 
 interface TranslationCatalogRow {
   abbreviation: string;
@@ -375,7 +384,7 @@ function isWithinWindow(startsAt: string | null, endsAt: string | null, now = Da
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
 
   const [translations, failedSyncs, liveVerses, liveImages, supportUsers, feedback] =
     await Promise.all([
@@ -410,7 +419,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 }
 
 export async function getRecentAuditLogs(limit = 12): Promise<AuditLogRow[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('admin_audit_logs')
     .select('id, action, actor_email, entity_type, entity_id, metadata, summary, created_at')
@@ -425,7 +434,7 @@ export async function getRecentAuditLogs(limit = 12): Promise<AuditLogRow[]> {
 }
 
 export async function listTranslations(searchTerm?: string): Promise<TranslationListItem[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   let query = service
     .from('translation_catalog')
     .select(
@@ -481,7 +490,7 @@ export async function listTranslations(searchTerm?: string): Promise<Translation
 export async function getTranslationDetail(
   translationId: string
 ): Promise<TranslationDetail | null> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const [{ data: catalog, error: catalogError }, { data: versions, error: versionsError }] =
     await Promise.all([
       service
@@ -546,7 +555,7 @@ export async function getTranslationDetail(
 }
 
 export async function listSyncRuns(limit = 10): Promise<SyncRunRow[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('translation_sync_runs')
     .select(
@@ -665,7 +674,7 @@ function mapChapterFeedbackRows(
 }
 
 async function signChapterFeedbackAudioRows(rows: ChapterFeedbackRow[]): Promise<Array<string | null>> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
 
   return Promise.all(
     rows.map(async (row) => {
@@ -689,7 +698,7 @@ async function signChapterFeedbackAudioRows(rows: ChapterFeedbackRow[]): Promise
 export async function listChapterFeedback(
   filtersOrSearchTerm?: ChapterFeedbackFilters | string
 ): Promise<ChapterFeedbackListItem[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const filters = normalizeChapterFeedbackFilters(filtersOrSearchTerm);
   let query = service
     .from('chapter_feedback_submissions')
@@ -786,7 +795,7 @@ export async function listChapterFeedback(
 export async function getChapterFeedbackReviewModel(
   filters: ChapterFeedbackFilters = {}
 ): Promise<ChapterFeedbackReviewModel> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const [feedback, optionRowsResult] = await Promise.all([
     listChapterFeedback(filters),
     service
@@ -899,7 +908,7 @@ export async function getChapterFeedbackReviewModel(
 }
 
 export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('verse_of_day_entries')
     .select(
@@ -931,7 +940,7 @@ export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
 }
 
 export async function listContentImages(): Promise<ContentImageRow[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('content_images')
     .select(
@@ -947,7 +956,7 @@ export async function listContentImages(): Promise<ContentImageRow[]> {
 }
 
 export async function getHealthIssues(): Promise<HealthIssue[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const issues: HealthIssue[] = [];
   const now = Date.now();
 
@@ -1042,7 +1051,7 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
 }
 
 export async function listSupportUsers(queryText?: string): Promise<SupportUserSummary[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   let profileQuery = service
     .from('profiles')
     .select('id, email, display_name, created_at, admin_role')
@@ -1108,7 +1117,7 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
 }
 
 export async function getSupportUserDetail(userId: string): Promise<SupportUserDetail | null> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const [profile, preferences, progress, engagement, plans, feedback, events, audits] =
     await Promise.all([
       service
@@ -1198,7 +1207,7 @@ export function normalizeAnalyticsWindow(value: unknown): AnalyticsWindowDays {
 export async function getAnalyticsOverview(
   windowDays: AnalyticsWindowDays = DEFAULT_ANALYTICS_WINDOW_DAYS
 ): Promise<AnalyticsOverview> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const since = analyticsWindowStart(windowDays);
 
   // S16: engagement scores are pre-computed by the nightly cron, NOT within this

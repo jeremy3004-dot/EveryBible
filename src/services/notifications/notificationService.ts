@@ -11,10 +11,45 @@ export { setupNotificationHandler } from './notificationBootstrap';
  * Used by deactivatePushToken to identify which row to mark inactive on sign-out.
  */
 let cachedPushToken: string | null = null;
-let registerPushTokenInFlight: Promise<string | null> | null = null;
 let lastRegisteredUserId: string | null = null;
+let lastRegisteredAuthGeneration: number | null = null;
 let lastRegisteredDevicePushTokenKey: string | null = null;
+let registrationSequence = 0;
+let registrationInFlight: {
+  sequence: number;
+  userId: string;
+  authGeneration: number;
+  devicePushTokenKey: string | null;
+  promise: Promise<string | null>;
+} | null = null;
+const invalidatedAuthGenerations = new Map<string, number>();
+// Only database writes and their cleanup belong here, never native token acquisition.
+// Serialize each user's writes so old cleanup cannot deactivate a newer registration.
+const deviceWrites = new Map<string, Promise<unknown>>();
 const EXPO_NOTIFICATIONS_BASE_URL = 'https://exp.host/--/api/v2/';
+
+function getAuthIdentity(): { userId: string | null; generation: number } | null {
+  try {
+    const { useAuthStore } =
+      require('../../stores/authStore') as typeof import('../../stores/authStore');
+    const { user, authGeneration } = useAuthStore.getState();
+    return { userId: user?.uid ?? null, generation: authGeneration };
+  } catch {
+    return null;
+  }
+}
+
+async function markPushTokenInactive(userId: string, token: string): Promise<void> {
+  try {
+    await supabase
+      .from('user_devices')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('push_token', token);
+  } catch {
+    // Best-effort: an unavailable backend must not prevent sign-out.
+  }
+}
 
 async function disableExpoAutoServerRegistration(): Promise<void> {
   try {
@@ -123,87 +158,139 @@ export async function registerPushToken(
   userId: string,
   devicePushToken?: DevicePushToken
 ): Promise<string | null> {
+  const auth = getAuthIdentity();
+  if (auth?.userId !== userId || invalidatedAuthGenerations.get(userId) === auth.generation) {
+    return null;
+  }
+  const authGeneration = auth.generation;
   const devicePushTokenKey = getDevicePushTokenKey(devicePushToken);
   const canReuseCachedRegistration =
     cachedPushToken &&
     lastRegisteredUserId === userId &&
+    lastRegisteredAuthGeneration === authGeneration &&
     (!devicePushToken || lastRegisteredDevicePushTokenKey === devicePushTokenKey);
 
   if (canReuseCachedRegistration) {
     return cachedPushToken;
   }
 
-  if (registerPushTokenInFlight) {
-    return registerPushTokenInFlight;
+  if (
+    registrationInFlight?.userId === userId &&
+    registrationInFlight.authGeneration === authGeneration &&
+    registrationInFlight.devicePushTokenKey === devicePushTokenKey
+  ) {
+    return registrationInFlight.promise;
   }
 
-  registerPushTokenInFlight = (async () => {
+  const sequence = ++registrationSequence;
+  const isCurrentRegistration = () => {
+    const currentAuth = getAuthIdentity();
+    return (
+      sequence === registrationSequence &&
+      currentAuth?.userId === userId &&
+      currentAuth.generation === authGeneration &&
+      invalidatedAuthGenerations.get(userId) !== authGeneration
+    );
+  };
+  const promise = Promise.resolve().then(async () => {
     try {
       const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-      if (!projectId) return null;
+      if (!projectId || !isCurrentRegistration()) return null;
 
       const { status } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted') return null;
+      if (status !== 'granted' || !isCurrentRegistration()) return null;
 
       // Keep Expo token registration explicit and app-driven.
       await disableExpoAutoServerRegistration();
+      if (!isCurrentRegistration()) return null;
 
       const tokenResult = await Notifications.getExpoPushTokenAsync({
         projectId,
         baseUrl: EXPO_NOTIFICATIONS_BASE_URL,
         devicePushToken,
       });
+      if (!isCurrentRegistration()) return null;
 
-      const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
-      const { error } = await supabase.from('user_devices').upsert(
-        {
-          user_id: userId,
-          push_token: tokenResult.data,
-          platform,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,push_token' }
-      );
+      const previousWrite = deviceWrites.get(userId);
+      if (previousWrite) await previousWrite;
+      if (!isCurrentRegistration()) return null;
 
-      if (error) {
-        throw error;
+      const write = (async () => {
+        try {
+          const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
+          const { error } = await supabase.from('user_devices').upsert(
+            {
+              user_id: userId,
+              push_token: tokenResult.data,
+              platform,
+              is_active: true,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,push_token' }
+          );
+          if (error || !isCurrentRegistration()) return null;
+
+          cachedPushToken = tokenResult.data;
+          lastRegisteredUserId = userId;
+          lastRegisteredAuthGeneration = authGeneration;
+          lastRegisteredDevicePushTokenKey = devicePushTokenKey;
+          return tokenResult.data;
+        } catch {
+          return null;
+        } finally {
+          // The upsert may already have reached the server when auth/token state changed.
+          if (!isCurrentRegistration()) await markPushTokenInactive(userId, tokenResult.data);
+        }
+      })();
+      deviceWrites.set(userId, write);
+      try {
+        return await write;
+      } finally {
+        if (deviceWrites.get(userId) === write) deviceWrites.delete(userId);
       }
-
-      cachedPushToken = tokenResult.data;
-      lastRegisteredUserId = userId;
-      lastRegisteredDevicePushTokenKey = devicePushTokenKey;
-      return tokenResult.data;
     } catch {
       // Non-fatal: simulator, offline, or RLS error — do not crash sign-in or startup
       return null;
     } finally {
-      registerPushTokenInFlight = null;
+      if (registrationInFlight?.sequence === sequence) registrationInFlight = null;
     }
-  })();
+  });
 
-  return registerPushTokenInFlight;
+  registrationInFlight = { sequence, userId, authGeneration, devicePushTokenKey, promise };
+  return promise;
 }
 
 /**
  * Mark the cached push token as inactive in user_devices when the user signs out.
  *
- * Best-effort: if the token is not cached (e.g. never successfully registered)
- * or if Supabase is unavailable, the call is a no-op.
+ * Invalidate pending work immediately, then finish any started database write
+ * and deactivate it while sign-out still retains the user's credentials.
+ * Native token acquisition is never awaited. Backend cleanup is best-effort.
  */
 export async function deactivatePushToken(userId: string): Promise<void> {
-  try {
-    if (!cachedPushToken) return;
-    await supabase
-      .from('user_devices')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('push_token', cachedPushToken);
+  const auth = getAuthIdentity();
+  if (auth) invalidatedAuthGenerations.set(userId, auth.generation);
+  if (registrationInFlight?.userId === userId) {
+    registrationSequence++;
+    registrationInFlight = null;
+  }
+  const token = lastRegisteredUserId === userId ? cachedPushToken : null;
+  if (lastRegisteredUserId === userId) {
     cachedPushToken = null;
     lastRegisteredUserId = null;
+    lastRegisteredAuthGeneration = null;
     lastRegisteredDevicePushTokenKey = null;
-  } catch {
-    // Non-fatal
+  }
+  const previousWrite = deviceWrites.get(userId);
+  const cleanup = (async () => {
+    if (previousWrite) await previousWrite;
+    if (token) await markPushTokenInactive(userId, token);
+  })();
+  deviceWrites.set(userId, cleanup);
+  try {
+    await cleanup;
+  } finally {
+    if (deviceWrites.get(userId) === cleanup) deviceWrites.delete(userId);
   }
 }
 

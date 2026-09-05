@@ -168,8 +168,9 @@ function collectionUserId(): string | null {
   // Capture identity with the event, not later when a shared device flushes.
   // Lazy access keeps auth/native storage out of module initialization.
   try {
-    const { useAuthStore } = require('../../stores/authStore');
-    return useAuthStore.getState().user?.id ?? null;
+    const { useAuthStore } =
+      require('../../stores/authStore') as typeof import('../../stores/authStore');
+    return useAuthStore.getState().user?.uid ?? null;
   } catch {
     return null;
   }

@@ -18,7 +18,7 @@ export type NavigationState = { routes: StateRoute[] };
 const buildBibleReaderState = (
   bookId: string,
   chapter: number,
-  focusVerse?: number,
+  focusVerse?: number
 ): NavigationState => ({
   routes: [
     {
@@ -51,6 +51,13 @@ export const buildBibleNavState = (
   ) => NavigationState | undefined,
   options: PathConfigMap<RootTabParamList>
 ): NavigationState | undefined => {
+  try {
+    // Reject malformed escapes before the vendor query parser's recursive decoder.
+    // Validate only: forwarding the decoded value would decode valid tokens twice.
+    decodeURIComponent(path);
+  } catch {
+    return undefined;
+  }
   const result = parseBibleDeepLink(path);
   if (result !== null) {
     return buildBibleReaderState(result.bookId, result.chapter, result.verse);
@@ -67,12 +74,9 @@ export const buildBibleNavState = (
  */
 export const resolveTextReferenceNavState = (
   text: string,
-  locale?: string,
+  locale?: string
 ): NavigationState | undefined => {
-  const ref: PassageReferenceTarget | null = parsePassageReferenceLocale(
-    text,
-    locale ?? 'en',
-  );
+  const ref: PassageReferenceTarget | null = parsePassageReferenceLocale(text, locale ?? 'en');
   if (!ref) {
     return undefined;
   }
