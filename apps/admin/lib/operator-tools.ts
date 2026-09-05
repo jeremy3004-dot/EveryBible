@@ -272,18 +272,12 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
         createdAt: match.createdAt,
         currentBook: match.currentBook,
         currentChapter: match.currentChapter,
-        deviceCount: match.deviceCount,
         engagementScore: match.engagementScore,
         lastActiveDate: match.lastActiveDate,
         streakDays: match.streakDays,
       },
       detail: detail
         ? {
-            devices: detail.devices.map((device) => ({
-              platform: device.platform,
-              appVersion: device.app_version,
-              active: device.is_active,
-            })),
             preferences: detail.preferences
               ? {
                   language: detail.preferences.language,

@@ -156,7 +156,7 @@ const sensitive = {
   future_sensitive_field: { secret: 'FUTURE_SECRET' },
 };
 
-test('support tool returns only allowlisted context, never raw identity, device, or audit data', async () => {
+test('support tool excludes push registrations and device counts from account context', async () => {
   const matched = {
     ...sensitive,
     id: 'PRIVATE_ID',
@@ -224,13 +224,11 @@ test('support tool returns only allowlisted context, never raw identity, device,
       createdAt: '2026-01-01',
       currentBook: 'GEN',
       currentChapter: 2,
-      deviceCount: 1,
       engagementScore: 8,
       lastActiveDate: '2026-09-01',
       streakDays: 3,
     },
     detail: {
-      devices: [{ platform: 'ios', appVersion: '1.0.7', active: true }],
       preferences: {
         language: 'en',
         theme: 'dark',
@@ -263,7 +261,6 @@ test('support tool preserves missing details and nullable support context', asyn
   for (const detail of [
     null,
     {
-      devices: [],
       preferences: null,
       progress: null,
       engagement: null,

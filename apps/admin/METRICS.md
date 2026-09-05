@@ -1,5 +1,17 @@
 # EveryBible Admin — Analytics Metric Taxonomy
 
+## Support account context
+
+The support user list, detail page, and AI support lookup do not report a device
+count. `user_devices` stores push-notification registrations, keyed by account
+and push token. It is populated only after notification permission is granted
+and token registration succeeds; it does not track every app installation.
+Reading and syncing can work without any row in this table. Token rotation and
+inactive registrations also prevent its row count from representing physical
+devices. The table remains in use for push delivery.
+
+## Analytics overview
+
 Every number on `/analytics` traces to exactly **one** field of the
 `get_admin_analytics_overview` RPC. The client renders RPC values; it never
 re-derives a listener or country count by summing or max-ing rows. This is the

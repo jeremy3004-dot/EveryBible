@@ -96,16 +96,6 @@ interface UserProgressRow {
   user_id: string;
 }
 
-interface UserDeviceRow {
-  app_version: string | null;
-  created_at: string;
-  id: string;
-  is_active: boolean;
-  platform: string;
-  push_token: string;
-  user_id: string;
-}
-
 interface UserEngagementRow {
   engagement_score: number;
   last_active_date: string | null;
@@ -220,7 +210,6 @@ export interface SupportUserSummary {
   createdAt: string;
   currentBook: string | null;
   currentChapter: number | null;
-  deviceCount: number;
   displayName: string | null;
   email: string | null;
   engagementScore: number;
@@ -230,7 +219,6 @@ export interface SupportUserSummary {
 }
 
 export interface SupportUserDetail {
-  devices: UserDeviceRow[];
   engagement: UserEngagementRow | null;
   feedbackCount: number;
   planCount: number;
@@ -1076,13 +1064,12 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
     return [];
   }
 
-  const [preferences, progress, devices, engagement] = await Promise.all([
+  const [preferences, progress, engagement] = await Promise.all([
     service.from('user_preferences').select('user_id, country_name').in('user_id', userIds),
     service
       .from('user_progress')
       .select('user_id, current_book, current_chapter, streak_days, last_read_date')
       .in('user_id', userIds),
-    service.from('user_devices').select('user_id').in('user_id', userIds),
     service
       .from('user_engagement_summary')
       .select('user_id, engagement_score, last_active_date')
@@ -1098,12 +1085,6 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
   const engagementByUser = new Map(
     (engagement.data ?? []).map((row) => [row.user_id as string, row as UserEngagementRow])
   );
-  const deviceCountByUser = new Map<string, number>();
-
-  for (const row of devices.data ?? []) {
-    const userId = row.user_id as string;
-    deviceCountByUser.set(userId, (deviceCountByUser.get(userId) ?? 0) + 1);
-  }
 
   return (profiles ?? []).map((profile) => {
     const profileRow = profile as ProfileRow;
@@ -1116,7 +1097,6 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
       createdAt: profileRow.created_at,
       currentBook: userProgress?.current_book ?? null,
       currentChapter: userProgress?.current_chapter ?? null,
-      deviceCount: deviceCountByUser.get(profileRow.id) ?? 0,
       displayName: profileRow.display_name,
       email: profileRow.email,
       engagementScore: userEngagement?.engagement_score ?? 0,
@@ -1129,7 +1109,7 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
 
 export async function getSupportUserDetail(userId: string): Promise<SupportUserDetail | null> {
   const service = createAdminServiceClient();
-  const [profile, preferences, progress, devices, engagement, plans, feedback, events, audits] =
+  const [profile, preferences, progress, engagement, plans, feedback, events, audits] =
     await Promise.all([
       service
         .from('profiles')
@@ -1148,10 +1128,6 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
         .select('user_id, current_book, current_chapter, streak_days, last_read_date')
         .eq('user_id', userId)
         .maybeSingle<UserProgressRow>(),
-      service
-        .from('user_devices')
-        .select('id, user_id, push_token, platform, app_version, is_active, created_at')
-        .eq('user_id', userId),
       service
         .from('user_engagement_summary')
         .select(
@@ -1189,7 +1165,6 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
   );
 
   return {
-    devices: (devices.data ?? []) as UserDeviceRow[],
     engagement: (engagement.data ?? null) as UserEngagementRow | null,
     feedbackCount: feedback.count ?? 0,
     planCount: plans.count ?? 0,

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { getSupportUserDetail } from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
-import { formatDate, formatDateTime, maskToken } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 interface SupportUserDetailPageProps {
   params: Promise<{ userId: string }>;
@@ -32,7 +32,7 @@ export default async function SupportUserDetailPage({
           <p className="eyebrow">Support detail</p>
           <h2>{detail.profile.display_name ?? detail.profile.email ?? 'EveryBible user'}</h2>
           <p className="page-copy">
-            Read-only support context across profile, preferences, devices, sessions, and recent
+            Read-only support context across profile, preferences, sessions, and recent
             admin actions tied to this user.
           </p>
         </div>
@@ -53,10 +53,6 @@ export default async function SupportUserDetailPage({
         <article className="metric-card">
           <span>Feedback items</span>
           <strong>{detail.feedbackCount}</strong>
-        </article>
-        <article className="metric-card">
-          <span>Devices</span>
-          <strong>{detail.devices.length}</strong>
         </article>
       </section>
 
@@ -131,42 +127,6 @@ export default async function SupportUserDetailPage({
             </div>
           </dl>
         </article>
-      </section>
-
-      <section className="card">
-        <div className="card__header">
-          <div>
-            <p className="eyebrow">Devices</p>
-            <h3>Registered push and app installations</h3>
-          </div>
-        </div>
-
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Platform</th>
-                <th>Version</th>
-                <th>Created</th>
-                <th>Status</th>
-                <th>Push token</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.devices.map((device) => (
-                <tr key={device.id}>
-                  <td>{device.platform}</td>
-                  <td>{device.app_version ?? 'Unknown'}</td>
-                  <td>{formatDateTime(device.created_at)}</td>
-                  <td>{device.is_active ? 'active' : 'inactive'}</td>
-                  <td className="table-preview">
-                    <code>{maskToken(device.push_token)}</code>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       <section className="card">

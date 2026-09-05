@@ -25,7 +25,6 @@ export default async function SupportUsersPage({ searchParams }: SupportUsersPag
     { key: 'joined', header: 'Joined' },
     { key: 'country', header: 'Country' },
     { key: 'reading', header: 'Reading' },
-    { key: 'devices', header: 'Devices' },
     { key: 'engagement', header: 'Engagement' },
     { key: 'details', header: 'Details' },
   ];
@@ -33,7 +32,7 @@ export default async function SupportUsersPage({ searchParams }: SupportUsersPag
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Operations" title="User and support visibility">
-        Give internal staff enough account, device, engagement, and sync context to answer support
+        Give internal staff enough account, engagement, and sync context to answer support
         questions safely without exposing write-heavy tooling too early.
       </PageHeader>
 
@@ -64,7 +63,6 @@ export default async function SupportUsersPage({ searchParams }: SupportUsersPag
                 {user.currentChapter ? ` ${user.currentChapter}` : ''}
                 <p className="table-note">Streak {user.streakDays} days</p>
               </td>
-              <td>{user.deviceCount}</td>
               <td>{user.engagementScore}</td>
               <td>
                 <Link href={`/support/users/${user.id}`} className="button">
