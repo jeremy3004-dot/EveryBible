@@ -1,0 +1,609 @@
+{
+  "artifacts": {
+    "details-0.json.gz": {
+      "bytes": 642720,
+      "sha256": "954ee83b5cbce8ebf298f82633eb5b3ea1927b949fa51155cae055a6e8e25d91"
+    },
+    "details-1.json.gz": {
+      "bytes": 631975,
+      "sha256": "bba387e75b9dea8e85d8f167bfbbfea1a9cc9ac8c5b3fb8e52a0c7d0e93b6d98"
+    },
+    "details-2.json.gz": {
+      "bytes": 633947,
+      "sha256": "f6db9ed69e90286f348fc18cb518e0b3c86eb98c244134d6d7dbc7ba972dfd7e"
+    },
+    "details-3.json.gz": {
+      "bytes": 600860,
+      "sha256": "6e5e8623033882f2801c0fcf7a7cbdec0fc033468c34d7d4c29e14d1aa7133fd"
+    },
+    "details-4.json.gz": {
+      "bytes": 610098,
+      "sha256": "c3d52e89d995dda062f8350eb517a400cbd92ad94858f5f1540c61a29f783624"
+    },
+    "details-5.json.gz": {
+      "bytes": 631670,
+      "sha256": "af5e942e72de9f91c55a7a54990b09e180e4e59732479d6753316f998bef5186"
+    },
+    "details-6.json.gz": {
+      "bytes": 631509,
+      "sha256": "d9a08e548b0b33a1a17746120534d0cac43e2a387681bbc4b75b0d9a552eb3b3"
+    },
+    "details-7.json.gz": {
+      "bytes": 639946,
+      "sha256": "9f08af358151d85c1c0798739861b6981f76146fd8330ea9ed3593b5dcbfd8cc"
+    },
+    "details-8.json.gz": {
+      "bytes": 642450,
+      "sha256": "e3e6b9a931d2b77af56cdfbf1db4df57e5c2ed80224e07419070c0d3e0e280b5"
+    },
+    "details-9.json.gz": {
+      "bytes": 602081,
+      "sha256": "9817b45bde39d676c396c92e072ca415ca05d1a3a1c915e16f6d96647051fe98"
+    },
+    "details-a.json.gz": {
+      "bytes": 650066,
+      "sha256": "ad67060fc52e39e34d680f508a5a2266aebcad1f3ff923a90eb6160e21644cec"
+    },
+    "details-b.json.gz": {
+      "bytes": 643784,
+      "sha256": "d6266d13a326ec137a6c7363be76df109068ff71479136e4ed04567c752b9d39"
+    },
+    "details-c.json.gz": {
+      "bytes": 663672,
+      "sha256": "c678dbf78a4513e97dabaa2fad963b9594a2e881a4e874939e7fbf5db7c48d2b"
+    },
+    "details-d.json.gz": {
+      "bytes": 638214,
+      "sha256": "e9065970522444433353f16c35e84506ba9c4e5f4a9cd2f0041d2858cbaf7305"
+    },
+    "details-e.json.gz": {
+      "bytes": 640025,
+      "sha256": "d2344f41d7a1f484821069f01e377f6ef7c1cc1f853148e343695380084b0891"
+    },
+    "details-f.json.gz": {
+      "bytes": 637025,
+      "sha256": "96234fddb859872f3ec78cefb186788b7f20b7ee685584b4bb752f3dcbac33bf"
+    },
+    "index.json.gz": {
+      "bytes": 4776421,
+      "sha256": "cfeebc45f43bdcef26135a6336d8cf340b3d0a2c29dd71b6d4ad7933910c471b"
+    }
+  },
+  "countryConflicts": {
+    "55b6733d-dc8e-4382-95e2-6c75a447eea9": {
+      "everyLanguageIso2": "PS",
+      "joshuaIso2": "EH"
+    }
+  },
+  "inputs": {
+    "everyLanguageCoordinates": 8590,
+    "everyLanguageEntities": 35348,
+    "glottolog": {
+      "dialect": 13706,
+      "family": 4853,
+      "language": 8618
+    },
+    "joshuaPeopleGroups": 16426,
+    "localLanguageRecords": 8327,
+    "rolvCurrent": 12400,
+    "rolvSaved": 12406
+  },
+  "matches": {
+    "everyLanguageAdditionalRecords": 11117,
+    "everyLanguageCoordinatesImported": 8590,
+    "everyLanguageHierarchyOnly": 63,
+    "everyLanguageMatchedByIdentifier": 24231,
+    "everyLanguagePeopleAdditional": 45,
+    "everyLanguagePeopleMatched": 16323,
+    "grnAlternateNamesImported": 29300,
+    "grnMapSeparateRecords": 44,
+    "grnMapSourcePoints": 1395,
+    "rolvAbsentFromCurrent": [
+      "20848",
+      "21198",
+      "26019",
+      "26195",
+      "27484",
+      "28690",
+      "30735"
+    ]
+  },
+  "orphanEveryLanguageSourceLinks": [
+    {
+      "external_id": "23652",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "004f23f1-53b3-4f47-b6b7-5c23db68eb34",
+      "source": "grn"
+    },
+    {
+      "external_id": "121",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "006b8d8c-ce79-40ca-91fb-e634193b6c32",
+      "source": "grn"
+    },
+    {
+      "external_id": "3809",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "0e2c7827-db26-407c-aae8-2364c1e1467d",
+      "source": "grn"
+    },
+    {
+      "external_id": "18831",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "1181618b-0f9b-4ed0-b8a9-6309f20473fc",
+      "source": "grn"
+    },
+    {
+      "external_id": "1972",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "11ad52c6-e25d-4d10-ab68-803ce731c512",
+      "source": "grn"
+    },
+    {
+      "external_id": "23587",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "1d667a0c-7c15-4a69-a2c9-245cd8ae12e7",
+      "source": "grn"
+    },
+    {
+      "external_id": "6245",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "210d609c-e9dd-404d-a0a4-842792abdb68",
+      "source": "grn"
+    },
+    {
+      "external_id": "4543",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "21da7213-92dc-4cef-8ae4-6c443f5ffc81",
+      "source": "grn"
+    },
+    {
+      "external_id": "427",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "24f3a881-9302-4538-8bdd-118d269ce407",
+      "source": "grn"
+    },
+    {
+      "external_id": "1961",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "276c2d13-d51c-4760-bb37-0821ad9eef5b",
+      "source": "grn"
+    },
+    {
+      "external_id": "513",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "28891217-3950-44ac-815f-69619f3da80c",
+      "source": "grn"
+    },
+    {
+      "external_id": "1382",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "29144b81-aaf8-4f89-90d1-89f2fa7bd6b6",
+      "source": "grn"
+    },
+    {
+      "external_id": "2710",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "30ca302c-3d02-485a-b1e9-b113fd386ffe",
+      "source": "grn"
+    },
+    {
+      "external_id": "3057",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "38b01279-164c-4cfd-9da6-17df79c52c87",
+      "source": "grn"
+    },
+    {
+      "external_id": "1960",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "3915c265-43cd-4c3b-b6d5-092108577825",
+      "source": "grn"
+    },
+    {
+      "external_id": "18811",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "3a0e8091-0e64-4593-8857-db4e011d2528",
+      "source": "grn"
+    },
+    {
+      "external_id": "4166",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "517f5442-21ed-41af-ae78-8da0f380059e",
+      "source": "grn"
+    },
+    {
+      "external_id": "23125",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "51e7ad50-66ba-426c-8ee2-04aac75c3659",
+      "source": "grn"
+    },
+    {
+      "external_id": "1192",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "52e88ab1-cab0-4845-8f79-4f4efb03ad03",
+      "source": "grn"
+    },
+    {
+      "external_id": "9551",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "56cf571f-b629-472e-92ca-0097bf4cf248",
+      "source": "grn"
+    },
+    {
+      "external_id": "11956",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "599f7420-68d3-4338-ad5f-d24c9475c662",
+      "source": "grn"
+    },
+    {
+      "external_id": "23121",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "6158ec01-acb8-4cf2-909d-17c870990565",
+      "source": "grn"
+    },
+    {
+      "external_id": "1002",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "64e1ee9d-3591-4d50-8d46-acfecb27a951",
+      "source": "grn"
+    },
+    {
+      "external_id": "1190",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "67dc2280-6daa-46c2-bb80-041be6fe06d6",
+      "source": "grn"
+    },
+    {
+      "external_id": "18315",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "737bef05-e84b-412e-b1c6-bd8d3ff44719",
+      "source": "grn"
+    },
+    {
+      "external_id": "18712",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "7840cb32-777d-472d-bcb0-64988ecd0a9e",
+      "source": "grn"
+    },
+    {
+      "external_id": "3799",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "7885d817-9a6e-4633-b1cd-cb0c056b70fd",
+      "source": "grn"
+    },
+    {
+      "external_id": "1342",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "7c6a2416-cdbc-498f-a5e6-a7401766c974",
+      "source": "grn"
+    },
+    {
+      "external_id": "8114",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "8e5e8bd1-4d2f-4e2b-8531-6c47ad19bb8b",
+      "source": "grn"
+    },
+    {
+      "external_id": "10047",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "90e0914a-1f28-484b-9cee-6b0e146b4650",
+      "source": "grn"
+    },
+    {
+      "external_id": "23529",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "90e0914a-1f28-484b-9cee-6b0e146b4650",
+      "source": "grn"
+    },
+    {
+      "external_id": "16430",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "9c23e39c-a55c-419f-829b-e8134d4d4cf5",
+      "source": "grn"
+    },
+    {
+      "external_id": "18311",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "9fac4665-e9d4-4c16-ab01-40223554761c",
+      "source": "grn"
+    },
+    {
+      "external_id": "2525",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "a4bb3dc0-f5ec-4571-9394-5d6050ae9a56",
+      "source": "grn"
+    },
+    {
+      "external_id": "19401",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "ae53f6c3-0a7d-4b3e-b99d-17036163aba4",
+      "source": "grn"
+    },
+    {
+      "external_id": "9333",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "b18b6af1-01a7-46fe-a071-a74e8c401446",
+      "source": "grn"
+    },
+    {
+      "external_id": "1055",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "b9850607-00fc-426e-86f9-e01566daf718",
+      "source": "grn"
+    },
+    {
+      "external_id": "14197",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "ba6c0542-fee0-40f7-b690-3bfcaa7e7cb1",
+      "source": "grn"
+    },
+    {
+      "external_id": "5046",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "ce3a5f5c-4496-4fe0-bf6d-1bf91a377ac2",
+      "source": "grn"
+    },
+    {
+      "external_id": "6076",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "d6d10c0d-5ee3-4df7-bcbd-62de74792d25",
+      "source": "grn"
+    },
+    {
+      "external_id": "6662",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "d6d10c0d-5ee3-4df7-bcbd-62de74792d25",
+      "source": "grn"
+    },
+    {
+      "external_id": "1657",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "d8484fbf-7073-4248-9ded-026ea97d513d",
+      "source": "grn"
+    },
+    {
+      "external_id": "23836",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "dee4b37d-04f2-4c07-9704-148765a9b909",
+      "source": "grn"
+    },
+    {
+      "external_id": "2477",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "f0665b49-260b-4161-bcd5-c172755101c7",
+      "source": "grn"
+    },
+    {
+      "external_id": "2481",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "f17b1d68-ecc7-4e52-8b94-92e107069190",
+      "source": "grn"
+    },
+    {
+      "external_id": "249",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "f6d3e349-657d-45ea-99a0-edad8f714756",
+      "source": "grn"
+    },
+    {
+      "external_id": "22910",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "f6f9e14c-a000-43a8-b83f-95caa1f9357b",
+      "source": "grn"
+    },
+    {
+      "external_id": "22961",
+      "external_id_type": "grn_language_id",
+      "language_entity_id": "fb38610c-0994-4c52-9ec7-4e8b39deb6a0",
+      "source": "grn"
+    }
+  ],
+  "output": {
+    "approximate": 34843,
+    "dialects": 36566,
+    "languages": 9795,
+    "mapped": 61312,
+    "needsReview": 1710,
+    "peopleGroups": 16471,
+    "records": 62832,
+    "unmapped": 1520
+  },
+  "sourceFiles": [
+    {
+      "bytes": 1004,
+      "file": "data/language-atlas/sources/everylanguage-active-project-links.json.gz",
+      "sha256": "643958bae6884a06b99e47e2e5c8d7b00cfdf751b28b75dba7660367a0d8109b"
+    },
+    {
+      "bytes": 623,
+      "file": "data/language-atlas/sources/everylanguage-active-projects.json.gz",
+      "sha256": "3c46e988889eebed39f35198250bf852ae667cd947a3889d8f35ee995c62e322"
+    },
+    {
+      "bytes": 533184,
+      "file": "data/language-atlas/sources/everylanguage-countries-bible-status.json.gz",
+      "sha256": "f8078d9b8435ca0a54aace26fbe7e7834ec02d85014425464fb0cce0c6ce53e5"
+    },
+    {
+      "bytes": 212,
+      "file": "data/language-atlas/sources/everylanguage-global-translation-statistics.json.gz",
+      "sha256": "bf9491545f7946822b0af122f682bda64fe1de2d87bbbc46e1e17bc80a951c79"
+    },
+    {
+      "bytes": 533183,
+      "file": "data/language-atlas/sources/everylanguage-language-coordinates.json.gz",
+      "sha256": "37be6619d12961c1b1dfc2a11ad3b11bfca6f2b954bc7908270aa73c17b6ae84"
+    },
+    {
+      "bytes": 1374929,
+      "file": "data/language-atlas/sources/everylanguage-language-entities-regions.json.gz",
+      "sha256": "0e9a40e2db145d367edcfbc4449b95a3120ebbd6f5325f076a763b977b253bef"
+    },
+    {
+      "bytes": 1844157,
+      "file": "data/language-atlas/sources/everylanguage-language-entities.json.gz",
+      "sha256": "9d185c765e421b0b8788747756182f5a684afc47c4b0d5cee15292cd84398e75"
+    },
+    {
+      "bytes": 1404534,
+      "file": "data/language-atlas/sources/everylanguage-language-entity-sources.json.gz",
+      "sha256": "2ef6f9da0472e2814f8ed5274546cb421601aff8f8c14cc9fb2a7005d4368f7c"
+    },
+    {
+      "bytes": 1957654,
+      "file": "data/language-atlas/sources/everylanguage-language-stats.json.gz",
+      "sha256": "2bf972055fab75e5ca62d9f820b584c8d34d6e2a79f60fa8e938189cd2d3de0a"
+    },
+    {
+      "bytes": 490791,
+      "file": "data/language-atlas/sources/everylanguage-languages-people-groups-stats.json.gz",
+      "sha256": "782832f6a57cc6ab8784308de86d82a419be72779d9d2ab519e7f504f7aea456"
+    },
+    {
+      "bytes": 624762,
+      "file": "data/language-atlas/sources/everylanguage-languages-regions-stats.json.gz",
+      "sha256": "c2dee3f2c2c8e577c1f8f7d477839d4553e85e783ea556e5776c37d66690af30"
+    },
+    {
+      "bytes": 1270136,
+      "file": "data/language-atlas/sources/everylanguage-people-coordinates.json.gz",
+      "sha256": "aa0dcbc914344fdf12a199c6e7a6d2e3f8b3eafd11dc2af9e0841c666eba1301"
+    },
+    {
+      "bytes": 1594008,
+      "file": "data/language-atlas/sources/everylanguage-people-groups-regions.json.gz",
+      "sha256": "d9e29aeb3ac929ccbbfb8e569bdc97c089a7242eb437f5766167d562cfa3cd2d"
+    },
+    {
+      "bytes": 445163,
+      "file": "data/language-atlas/sources/everylanguage-people-groups-sources.json.gz",
+      "sha256": "27223561dc0f0bcdca4ae6e5c7be8db41dfb84d988ad77df2978007d011d44b4"
+    },
+    {
+      "bytes": 959146,
+      "file": "data/language-atlas/sources/everylanguage-people-groups-stats.json.gz",
+      "sha256": "473068e09346536ef49cb557251ad5ff4f32dc7b6986a7c68695dbf212f46fa6"
+    },
+    {
+      "bytes": 426503,
+      "file": "data/language-atlas/sources/everylanguage-people-groups.json.gz",
+      "sha256": "8cc3b7d535673fe393b33e57eb18cdd1918c019ff2824d2541e2d621837dc808"
+    },
+    {
+      "bytes": 38043,
+      "file": "data/language-atlas/sources/everylanguage-region-stats.json.gz",
+      "sha256": "c248564b672906a8f4e8ce554ec6d2539ff36e5cd77db1362a316e10ca714785"
+    },
+    {
+      "bytes": 24422,
+      "file": "data/language-atlas/sources/everylanguage-regions.json.gz",
+      "sha256": "b5b722a25b3eca22dc11c7ad032de70d960091217f36d6bebe3a6dd83e8d087f"
+    },
+    {
+      "bytes": 20314,
+      "file": "data/language-atlas/sources/everylanguage-snapshot-manifest.json",
+      "sha256": "3816038729f487ed5039d12deafef9fd0eb8ef1da0273899143d5e80052655a5"
+    },
+    {
+      "bytes": 523884,
+      "file": "data/language-atlas/sources/grn-mapapp-language-varieties-20260905.geojson",
+      "sha256": "633277f8253eab96a8b2a0bb88adef9b7d89e6a9bef29215e4a2cdbb36e2d80b"
+    },
+    {
+      "bytes": 18,
+      "file": "data/language-atlas/sources/grn-mapapp-language-varieties-count-20260905.json",
+      "sha256": "65e7d04578cc76c468298aa17f30e29028f41a68f08f534ca788310af4879636"
+    },
+    {
+      "bytes": 5805,
+      "file": "data/language-atlas/sources/grn-mapapp-language-varieties-metadata-20260905.json",
+      "sha256": "bb56a63a9ff5e7004fac098faa36c476c3ae6ba08ccc133428fbb4c42c422031"
+    },
+    {
+      "bytes": 10756,
+      "file": "data/language-atlas/sources/grn-mapapp-language-varieties-object-ids-20260905.json",
+      "sha256": "7a150394d2a4aa2528e827d551b0fa0341c1d49cf99286589a369ac5f877c50e"
+    },
+    {
+      "bytes": 724315,
+      "file": "data/language-atlas/sources/grn-mapapp-language-variety-index-20260905.json",
+      "sha256": "1c874940fdc68f22ce90aa49bcdeffcc8874e8bd976e7a0a25fdfc375aaaa22d"
+    },
+    {
+      "bytes": 7892,
+      "file": "data/language-atlas/sources/grn-mapapp-service-metadata-20260905.json",
+      "sha256": "d889d74d10dd6aa818c654b24aa51a242fa1fb6845cc4e3e322237e29acd63dc"
+    },
+    {
+      "bytes": 2326160,
+      "file": "data/language-atlas/sources/grn-rolv-alternate-names-20260905.json",
+      "sha256": "4bdfd3fff6f9bb5de5ced725817319b7d40f82b428aec87eee20175bcec2c499"
+    },
+    {
+      "bytes": 7375535,
+      "file": "data/language-atlas/sources/grn-rolv-changes-20260905.json",
+      "sha256": "860d8a4c000364b146f97f43bc89e1872beb352cbf2abe0379a3c1e2c96b4921"
+    },
+    {
+      "bytes": 2304197,
+      "file": "data/language-atlas/sources/grn-rolv-codes-20260905.json",
+      "sha256": "4d01ec884d69c2079e1ca2ef797173f3d203ab9860d21e669fd9993bfd1c00aa"
+    },
+    {
+      "bytes": 1952268,
+      "file": "data/language-atlas/sources/joshua-project-atlas.json.gz",
+      "sha256": "f9ddf10d90be06e79b2581dca9dca59ba698c4f890e7f41584abba7c7296c04e"
+    },
+    {
+      "bytes": 34987,
+      "file": "data/language-atlas/sources/joshua-project-countries-all.csv",
+      "sha256": "03ca732b969700bcf6f76e57c47557bdca78f14d8816807b30e13adc6fc3ad89"
+    },
+    {
+      "bytes": 16181,
+      "file": "data/language-atlas/sources/joshua-project-field-definitions.csv",
+      "sha256": "a51772a8c73db5f7f56dc2a309a4836f96ef6f73b6833a70dfbde375f66267bb"
+    },
+    {
+      "bytes": 273937,
+      "file": "data/language-atlas/sources/joshua-project-languages-all.csv",
+      "sha256": "d6f9def56c1eaad2606faf3e96d0e62722c4ad4ae018354ccf9b212d7ebcb944"
+    },
+    {
+      "bytes": 1913060,
+      "file": "data/language-atlas/sources/joshua-project-people-country-language.csv",
+      "sha256": "49da019b729ab4c7e3c2cb40b0c47f7875e6555776e18555fb4deb2596b97c01"
+    },
+    {
+      "bytes": 4286716,
+      "file": "data/language-atlas/sources/joshua-project-pgic-all.csv",
+      "sha256": "7e82dab12e31aac1acbab2cb8e3f6b4489dcf9ecfd1298a74c9e687e44de4464"
+    },
+    {
+      "bytes": 7144,
+      "file": "data/language-atlas/sources/joshua-project-source-manifest.json",
+      "sha256": "4a3126d4fc381ea7c7ab728fddbada8cd386d06ef182180eded979c9e9833ef2"
+    },
+    {
+      "bytes": 9125,
+      "file": "data/language-atlas/sources/registry-rolv-delta-20260905.json",
+      "sha256": "5e77b04bfbbd42b56d734047aacd2fe20590eeb367c506ab6cfecec52c3add58"
+    },
+    {
+      "bytes": 2305554,
+      "file": "data/language-atlas/sources/registry-rolv-local-20260822.json",
+      "sha256": "4d91a5b01395797b4a516ead334f116a003faa25a2310035f5928b0061651539"
+    },
+    {
+      "bytes": 10288,
+      "file": "data/language-atlas/sources/registry-source-manifest.json",
+      "sha256": "5e4433efa26aaefea9a81ddd7fb88681fa58e7a0c2f1451f62160e3f3955931b"
+    },
+    {
+      "bytes": 4668604,
+      "file": "data/language-atlas/sources/registry-workbook-data-20260822.json.gz",
+      "sha256": "15272ddac0d6f9487644b3a4be164e92042d4d560147e4798763aaa7989d33d6"
+    }
+  ],
+  "warnings": []
+}
