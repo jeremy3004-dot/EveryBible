@@ -455,7 +455,7 @@ test('reader top chrome places search between audio and overflow actions', () =>
 
   assert.match(
     source,
-    /Ionicons name="volume-medium-outline"[\s\S]*Ionicons name="search-outline"[\s\S]*Ionicons name="ellipsis-horizontal"/s,
+    /Ionicons name="volume-medium-outline"[\s\S]*Ionicons name="search"[\s\S]*Ionicons\s+name="ellipsis-horizontal-circle-outline"/s,
     'BibleReaderScreen should render the search button between the audio button and the overflow button'
   );
 });
@@ -845,7 +845,7 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
   assert.match(
     source,
     /floatingReaderReferencePill:\s*{[\s\S]*maxWidth:\s*212,[\s\S]*height:\s*layout\.minTouchTarget,/s,
-    'BibleReaderScreen should keep the top-left reference pill aligned at the same compact height as the other header buttons'
+    'BibleReaderScreen should retain full touch-target height around the compact reference pill'
   );
 
   assert.match(
@@ -856,8 +856,8 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
 
   assert.match(
     source,
-    /floatingReaderReferencePillDivider:\s*{[\s\S]*alignSelf:\s*'stretch'/s,
-    'BibleReaderScreen should draw a thin divider that spans the full pill height'
+    /floatingReaderReferencePillDivider:\s*{[\s\S]*height:\s*32,[\s\S]*alignSelf:\s*'center'/s,
+    'BibleReaderScreen should center the divider within the visual pill while retaining taller touch targets'
   );
 });
 
@@ -1138,7 +1138,7 @@ test('premium read mode keeps the three-dot overflow menu on the right while rem
 
   assert.match(
     source,
-    /name="ellipsis-horizontal"/,
+    /accessibilityLabel=\{t\('tabs.more'\)\}[\s\S]*name="ellipsis-horizontal-circle-outline"/,
     'BibleReaderScreen should keep the overflow menu icon on the right side of the premium read chrome'
   );
 
@@ -1179,7 +1179,7 @@ test('premium read mode uses flat segmented top buttons with separate chapter an
 
   assert.match(
     source,
-    /const sharedTopChromeTop = safeInsets\.top \+ premiumTopInset;/,
+    /const sharedTopChromeTop = safeInsets\.top;/,
     'BibleReaderScreen should compute the top chrome offset once from the safe area and reuse it in both modes'
   );
 
@@ -1191,8 +1191,8 @@ test('premium read mode uses flat segmented top buttons with separate chapter an
 
   assert.match(
     topChrome,
-    /backgroundColor:\s*colors\.bibleElevatedSurface,\s*borderColor:\s*colors\.bibleElevatedSurface/s,
-    'BibleReaderScreen should use the single elevated secondary surface for the shared top controls instead of the older grayscale treatment'
+    /styles\.floatingReaderReferencePillBackground,[\s\S]*backgroundColor:\s*colors\.bibleElevatedSurface/s,
+    'BibleReaderScreen should keep the elevated surface on the reference pill background'
   );
 
   assert.equal(

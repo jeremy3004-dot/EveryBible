@@ -97,3 +97,44 @@ The existing React Native/Expo stack determines the implementation. The user
 delegated visual decisions to the reference; no backend changes are needed.
 
 Verification results are recorded in the corresponding quick-task summary.
+
+## Follow-up: top reader controls
+
+The user extended this same surface comparison to the top toolbar. At 0.2 seconds
+in the second recording, audio and search are bare icons; the overflow action is
+an outlined-circle ellipsis glyph without a filled background. The selector is
+about 32 points high at x 24, y 68, with matching bold chapter/version labels
+around 14 points. Action artwork is approximately 20 points with stronger strokes
+than the current thin icons. Toolbar centers are around y 84, 18 points above the
+previous EveryBible position. These observations have high confidence; exact font
+and invisible hit areas cannot be recovered from the recording.
+
+Implementation follows the existing quick task: remove individual filled action
+discs, use stronger existing icons, raise the toolbar to the safe-area boundary,
+and keep a compact selector background inside full 44-point touch targets. Retain
+the action callbacks, translations, conditional feedback, plan exit, and scroll
+visibility behavior. No new package or backend behavior is needed.
+
+Follow-up verification (September 5, 2026):
+
+- `npm run release:verify` passed lint, workspace type checks, all 1,655 tests,
+  and Expo configuration validation (`/tmp/eb-toolbar-release-verify.log`).
+- The 56 focused reader checks and formatting checks passed.
+- Android production export passed (`/tmp/eb-toolbar-android-export.log`).
+- Signed iOS simulator Release build passed (`/tmp/eb-toolbar-ios-final-build.log`)
+  and was installed on the isolated iPhone 17 Pro Max, iOS 26.5. An initial
+  simultaneous Android/iOS bundling attempt hit a shared Metro cache conflict;
+  running the iOS build after Android completed resolved it without code changes.
+- Native screenshot `everybible-reader-toolbar.png` in this task's local visual
+  artifacts confirms the 32-point selector at y 68, bare action icons at y 84,
+  stronger labels, and no clipping or overlap. The right action centers are
+  308/352/396; their 44-point pitch preserves full non-overlapping touch targets.
+- The reader could be reopened through the Bible tab and its named controls
+  appeared in the native accessibility tree. Individual modal tap checks were
+  inconclusive because the simulator screen kept changing between automation
+  observations. Those checks are not claimed as passed. The existing handlers
+  were preserved and the full source regression suite passed.
+
+Production toolbar edits are included in local main revision `020d81b0`; the
+follow-up test expectations and this evidence are saved separately. No publishing
+or changes to the bottom controls are part of this follow-up.
