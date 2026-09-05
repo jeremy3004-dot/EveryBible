@@ -1,5 +1,14 @@
 export type AtlasRecordKind = 'language' | 'dialect' | 'people-group';
 export type ScriptureStatus = 'bible' | 'nt' | 'portions' | 'started' | 'needed' | 'unknown';
+export type AtlasDisplayMode = 'individual' | 'clustered';
+export type AtlasProjection = 'globe' | 'mercator';
+export interface AtlasMapPadding {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+export type AtlasScriptureFilter = 'all' | ScriptureStatus | 'no-scripture';
 export type ScriptureScope = 'language' | 'dialect' | 'primary-language' | 'unknown';
 export type LocationPrecision =
   | 'language-area'
@@ -105,7 +114,7 @@ export interface AtlasFilters {
   query: string;
   kind: 'all' | AtlasRecordKind;
   country: string;
-  scripture: 'all' | ScriptureStatus;
+  scripture: AtlasScriptureFilter;
   placement: 'all' | 'mapped' | 'unmapped' | 'approximate';
   source: string;
 }

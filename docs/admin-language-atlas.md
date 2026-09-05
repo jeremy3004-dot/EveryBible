@@ -5,6 +5,13 @@ atlas using the existing admin identity and MapLibre globe. It provides a shared
 searchable list and map, hover biographies, a selected-record inspector, source
 links, related varieties and people groups, filters, and a filtered CSV export.
 
+The atlas fills the viewport below a 56px header. A floating inspector holds
+Map controls, Records, and Collection; on phones it collapses to a bottom sheet.
+The header's Admin menu opens the other admin pages. Search shows up to ten
+keyboard-accessible suggestions, with the complete filtered list in Records.
+Profiles replace the inspector contents and keep source evidence in an expandable
+section. Back, close, and Escape restore access to the list/search.
+
 ## Collection prepared 2026-09-05
 
 | Record kind / placement | Records |
@@ -35,8 +42,14 @@ ROLV match is verified.
 
 ## Interpreting the map
 
-- Colors distinguish Complete Bible, New Testament, Portions, Translation
-  started, Translation needed, and Unknown. Labels accompany the colors.
+- Individual dots are the default. **Clustered** groups nearby points; Map and
+  Globe change projection while retaining the current view. Zoom, Fit results,
+  and Reset view stay above the mobile sheet and clear of the desktop inspector.
+- Colors match the Every Language reference: Full Bible `#10b981`, New Testament
+  `#eab308`, Portions `#eb6a38`, and No Scripture `#ef4444`. Started and needed
+  records share the No Scripture display category; their exact progress remains
+  in the profile and export. Unknown is a separate neutral `#94a3b8` category.
+  Labels accompany every legend swatch. Mixed clusters use a neutral color.
 - **Unknown does not mean no Scripture.** Dialect coverage is not inferred from
   its ISO or parent language. The inspector shows parent-language context
   separately. People-group status describes its reported primary language.
@@ -125,9 +138,10 @@ and snapshot checksums. Existing analytics camera and brand tests remain in plac
 Browser QA uses the real components and full dataset with temporary local data
 fixtures because this checkout has no configured admin login environment. The
 preview route and fixture servers are removed before the production build.
-Live account sign-in and published deployment are outside this local verification.
+Live account sign-in and published deployment are verified separately by the
+deployment task.
 
-Final verification on this revision: **1,693 workspace tests and nine importer
+Initial collection verification: **1,693 workspace tests and nine importer
 regressions passed**, with lint, typecheck, deterministic rebuild, and the
 production build successful. The existing Next custom-font warning remains.
 All 17 runtime data files in the standalone package match their source hashes;
@@ -139,3 +153,9 @@ Local browser evidence is in `qa-evidence/language-atlas/` (ignored verification
 artifacts): settled globe, selected map/profile, hover, mobile profile, and the
 31-record Tamang CSV. Research plans and final review are in
 `docs/superpowers/plans/2026-09-05-language-atlas.md`.
+
+The subsequent experience-parity update is documented in
+`docs/superpowers/plans/2026-09-05-language-atlas-experience-parity.md`.
+Astra reviewed the Sol implementation against measured reference geometry and
+performed browser checks at 1440×960, 390×844, and 768×1024. The update passed
+1,702 workspace tests. Data files and source claims were not changed.

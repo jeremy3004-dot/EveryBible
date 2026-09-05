@@ -70,8 +70,35 @@ test('dialects never inherit a verified Scripture claim from language scope', ()
     filterRecords([dialect], { ...DEFAULT_FILTERS, kind: 'all', scripture: 'unknown' }).length,
     1
   );
-  assert.equal(buildFeatures([dialect]).features[0].properties.status, 'unknown');
+  assert.equal(buildFeatures([dialect]).features[0].properties.category, 'unknown');
   assert.equal(scriptureStatus(record({ kind: 'dialect', scriptureScope: 'dialect' })), 'bible');
+});
+
+test('no-scripture filter groups progress states but keeps unknown dialect evidence separate', () => {
+  const rows = [
+    record({ id: 'started', scriptureStatus: 'started' }),
+    record({ id: 'needed', scriptureStatus: 'needed' }),
+    record({ id: 'unknown', scriptureStatus: 'unknown' }),
+    record({
+      id: 'inherited-dialect',
+      kind: 'dialect',
+      scriptureStatus: 'needed',
+      scriptureScope: 'language',
+    }),
+  ];
+
+  assert.deepEqual(
+    filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'no-scripture' }).map(
+      (row) => row.id
+    ),
+    ['started', 'needed']
+  );
+  assert.deepEqual(
+    filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'unknown' }).map(
+      (row) => row.id
+    ),
+    ['unknown', 'inherited-dialect']
+  );
 });
 
 test('invalid and missing coordinates remain searchable and count as unmapped', () => {
@@ -118,9 +145,9 @@ test('coincident records remain separate lightweight map features', () => {
   assert.equal(features.length, 2);
   assert.deepEqual(features[0].geometry.coordinates, features[1].geometry.coordinates);
   assert.deepEqual(Object.keys(features[0].properties).sort(), [
+    'category',
     'locationIndex',
     'recordId',
-    'status',
   ]);
 });
 

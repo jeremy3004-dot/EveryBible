@@ -34,7 +34,7 @@ interface Props {
 
 export function RecordInspector({ record, sources, countries, onSelect, onClose }: Props) {
   return (
-    <aside className="la-inspector" id="language-profile" aria-label="Selected language profile">
+    <div className="la-inspector" id="language-profile" aria-label="Selected language profile">
       {record ? (
         <Profile
           key={record.id}
@@ -66,7 +66,7 @@ export function RecordInspector({ record, sources, countries, onSelect, onClose 
           </p>
         </div>
       )}
-    </aside>
+    </div>
   );
 }
 
@@ -115,9 +115,9 @@ function Profile({
           className="la-text-button"
           type="button"
           onClick={onClose}
-          aria-label="Close selected profile"
+          aria-label="Back to records"
         >
-          Close
+          <span aria-hidden="true">←</span> Back
         </button>
       </div>
       <h2>{record.name}</h2>
@@ -291,8 +291,11 @@ function Profile({
       {detail && (
         <>
           {detail.evidence.length > 0 && (
-            <section className="la-profile-section">
-              <h3>Source evidence</h3>
+            <details className="la-profile-section la-evidence-section">
+              <summary>
+                <span>Source evidence</span>
+                <small>{formatCount(detail.evidence.length)} claims · Expand</small>
+              </summary>
               <div className="la-evidence">
                 {detail.evidence.map((evidence, index) => (
                   <div key={index}>
@@ -303,7 +306,7 @@ function Profile({
                   </div>
                 ))}
               </div>
-            </section>
+            </details>
           )}
           {related.length > 0 && (
             <section className="la-profile-section">
