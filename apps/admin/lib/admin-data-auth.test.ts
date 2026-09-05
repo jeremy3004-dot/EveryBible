@@ -18,8 +18,6 @@ const loaderNames = [
   'listSyncRuns',
   'listChapterFeedback',
   'getChapterFeedbackReviewModel',
-  'listVerseOfDayEntries',
-  'listContentImages',
   'getHealthIssues',
   'listSupportUsers',
   'getSupportUserDetail',
@@ -205,8 +203,6 @@ for (const name of loaderNames) {
         adminPathCount: navigation.adminNavigation.length,
         failedSyncCount: 0,
         feedbackCount: 0,
-        liveImageCount: 0,
-        liveVerseCount: 0,
         supportUserCount: 0,
         translationCount: 0,
       });
@@ -223,7 +219,7 @@ for (const name of loaderNames) {
     } else if (name === 'getHealthIssues') {
       assert.deepEqual(
         result.map((issue: { title: string }) => issue.title),
-        ['Upstream metadata sync not running', 'Verse of the Day is empty']
+        ['Upstream metadata sync not running']
       );
     } else if (name === 'getAnalyticsOverview') {
       assert.equal(result.listeningTotalMinutes, 0);

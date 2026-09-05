@@ -19,10 +19,10 @@ export default async function HealthPage() {
       <section className="page-header">
         <div>
           <p className="eyebrow">Operations</p>
-          <h2>Content health and readiness checks</h2>
+          <h2>Translation health and readiness checks</h2>
           <p className="page-copy">
-            Focus the first health layer on operational readiness: stale upstream syncs, missing
-            live content, and mismatched delivery state before app users ever feel the breakage.
+            Review upstream sync freshness and translation delivery state to catch issues before
+            they affect app users.
           </p>
         </div>
       </section>

@@ -245,6 +245,17 @@ The Play service-account JSON is written to `google-play-service-account.json` d
 - Shared mobile-content and web-admin analytics now flow through a Cloudflare collector that enriches events with approximate IP-based location before storing them in Supabase for reporting.
 - The admin analytics map now uses MapLibre with an open basemap and privacy-safe approximate-location heatmap overlays instead of the earlier Cesium globe approach.
 
+### Daily Scripture and pictures
+
+The admin dashboard focuses on analytics, translation delivery, chapter feedback, support, and system health. It has no verse-of-the-day or image-management screens, editing actions, content counters, or missing-content alerts.
+
+Manage the mobile daily rotation from this workspace in Codex:
+
+- Scripture references: `src/services/bible/popularVerseReferences.ts`.
+- Pictures: `assets/home/verse-backgrounds/`, registered in `src/data/homeVerseBackgrounds.ts`.
+
+Both rotate locally and work offline. Changes to these bundled resources reach installed apps through an app update. Removing the admin editors does not delete existing database records, stored images, or public content feeds used by other clients.
+
 ## Planned Web Workstream
 
 The web/admin initiative is documented here:

@@ -65,19 +65,6 @@ interface SyncRunRow {
   updated_count: number;
 }
 
-interface ContentImageRow {
-  alt_text: string;
-  caption: string | null;
-  ends_at: string | null;
-  id: string;
-  kind: 'hero' | 'verse_of_day' | 'promo' | 'feature' | 'social';
-  public_url: string;
-  starts_at: string | null;
-  state: 'draft' | 'scheduled' | 'live' | 'archived';
-  title: string;
-  updated_at: string;
-}
-
 interface ProfileRow {
   admin_role: string | null;
   created_at: string;
@@ -162,8 +149,6 @@ export interface DashboardSummary {
   adminPathCount: number;
   failedSyncCount: number;
   feedbackCount: number;
-  liveImageCount: number;
-  liveVerseCount: number;
   supportUserCount: number;
   translationCount: number;
 }
@@ -187,24 +172,6 @@ export interface TranslationDetail extends TranslationListItem {
   recentRuns: SyncRunRow[];
   upstreamPayload: Record<string, unknown> | null;
   versions: TranslationVersionRow[];
-}
-
-export interface VerseOfDayListItem {
-  bookId: string | null;
-  chapter: number | null;
-  createdAt: string;
-  endsAt: string | null;
-  id: string;
-  imageId: string | null;
-  referenceLabel: string;
-  reflection: string | null;
-  startsAt: string | null;
-  state: 'draft' | 'scheduled' | 'live' | 'archived';
-  title: string | null;
-  translationId: string;
-  updatedAt: string;
-  verse: number | null;
-  verseText: string;
 }
 
 export interface HealthIssue {
@@ -377,42 +344,23 @@ interface AnalyticsOverviewRpcPayload {
   userCountWithListening?: number;
 }
 
-function isWithinWindow(startsAt: string | null, endsAt: string | null, now = Date.now()): boolean {
-  const startsOk = !startsAt || new Date(startsAt).getTime() <= now;
-  const endsOk = !endsAt || new Date(endsAt).getTime() >= now;
-  return startsOk && endsOk;
-}
-
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const service = await getAuthorizedAdminServiceClient();
 
-  const [translations, failedSyncs, liveVerses, liveImages, supportUsers, feedback] =
-    await Promise.all([
-      service.from('translation_catalog').select('translation_id', { count: 'exact', head: true }),
-      service
-        .from('translation_sync_runs')
-        .select('id', { count: 'exact', head: true })
-        .eq('state', 'failed'),
-      service.from('verse_of_day_entries').select('id, starts_at, ends_at, state'),
-      service.from('content_images').select('id, starts_at, ends_at, state'),
-      service.from('profiles').select('id', { count: 'exact', head: true }),
-      service.from('chapter_feedback_submissions').select('id', { count: 'exact', head: true }),
-    ]);
-
-  const liveVerseCount = (liveVerses.data ?? []).filter((item) => {
-    return item.state === 'live' && isWithinWindow(item.starts_at, item.ends_at);
-  }).length;
-
-  const liveImageCount = (liveImages.data ?? []).filter((item) => {
-    return item.state === 'live' && isWithinWindow(item.starts_at, item.ends_at);
-  }).length;
+  const [translations, failedSyncs, supportUsers, feedback] = await Promise.all([
+    service.from('translation_catalog').select('translation_id', { count: 'exact', head: true }),
+    service
+      .from('translation_sync_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('state', 'failed'),
+    service.from('profiles').select('id', { count: 'exact', head: true }),
+    service.from('chapter_feedback_submissions').select('id', { count: 'exact', head: true }),
+  ]);
 
   return {
     adminPathCount: adminNavigation.length,
     failedSyncCount: failedSyncs.count ?? 0,
     feedbackCount: feedback.count ?? 0,
-    liveImageCount,
-    liveVerseCount,
     supportUserCount: supportUsers.count ?? 0,
     translationCount: translations.count ?? 0,
   };
@@ -907,63 +855,13 @@ export async function getChapterFeedbackReviewModel(
   };
 }
 
-export async function listVerseOfDayEntries(): Promise<VerseOfDayListItem[]> {
-  const service = await getAuthorizedAdminServiceClient();
-  const { data, error } = await service
-    .from('verse_of_day_entries')
-    .select(
-      'id, title, translation_id, book_id, chapter, verse, reference_label, verse_text, reflection, state, starts_at, ends_at, created_at, updated_at, image_id'
-    )
-    .order('updated_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Unable to load verse-of-day entries: ${error.message}`);
-  }
-
-  return (data ?? []).map((row) => ({
-    bookId: (row.book_id as string | null) ?? null,
-    chapter: (row.chapter as number | null) ?? null,
-    createdAt: row.created_at as string,
-    endsAt: (row.ends_at as string | null) ?? null,
-    id: row.id as string,
-    imageId: (row.image_id as string | null) ?? null,
-    referenceLabel: row.reference_label as string,
-    reflection: row.reflection as string | null,
-    startsAt: row.starts_at as string | null,
-    state: row.state as VerseOfDayListItem['state'],
-    title: row.title as string | null,
-    translationId: row.translation_id as string,
-    updatedAt: row.updated_at as string,
-    verse: (row.verse as number | null) ?? null,
-    verseText: row.verse_text as string,
-  }));
-}
-
-export async function listContentImages(): Promise<ContentImageRow[]> {
-  const service = await getAuthorizedAdminServiceClient();
-  const { data, error } = await service
-    .from('content_images')
-    .select(
-      'id, title, kind, state, alt_text, caption, public_url, starts_at, ends_at, updated_at'
-    )
-    .order('updated_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Unable to load content images: ${error.message}`);
-  }
-
-  return (data ?? []) as ContentImageRow[];
-}
-
 export async function getHealthIssues(): Promise<HealthIssue[]> {
   const service = await getAuthorizedAdminServiceClient();
   const issues: HealthIssue[] = [];
   const now = Date.now();
 
-  const [syncRuns, verses, images, translations] = await Promise.all([
+  const [syncRuns, translations] = await Promise.all([
     listSyncRuns(12),
-    service.from('verse_of_day_entries').select('id, state, starts_at, ends_at'),
-    service.from('content_images').select('id, title, state, starts_at, ends_at, public_url'),
     service
       .from('translation_catalog')
       .select('translation_id, distribution_state, is_available, upstream_last_synced_at'),
@@ -991,39 +889,6 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
     });
   }
 
-  const liveVerseCount = (verses.data ?? []).filter((row) => {
-    return (
-      row.state === 'live' &&
-      isWithinWindow(row.starts_at as string | null, row.ends_at as string | null)
-    );
-  }).length;
-
-  if (liveVerseCount === 0) {
-    issues.push({
-      description: 'There is no live verse-of-the-day entry available right now.',
-      href: '/content/verse-of-day',
-      severity: 'critical',
-      title: 'Verse of the Day is empty',
-    });
-  }
-
-  const brokenImage = (images.data ?? []).find((row) => {
-    return (
-      row.state === 'live' &&
-      (!row.public_url ||
-        !isWithinWindow(row.starts_at as string | null, row.ends_at as string | null))
-    );
-  });
-
-  if (brokenImage) {
-    issues.push({
-      description: `The live image "${brokenImage.title as string}" is missing a valid delivery window or URL.`,
-      href: '/content/images',
-      severity: 'warning',
-      title: 'Live image needs attention',
-    });
-  }
-
   const hiddenPublishedTranslations = (translations.data ?? []).filter((row) => {
     return row.distribution_state === 'published' && row.is_available === false;
   });
@@ -1040,7 +905,7 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
 
   if (issues.length === 0) {
     issues.push({
-      description: 'All tracked translation, content, and readiness checks are green.',
+      description: 'All tracked translation sync and delivery checks are green.',
       href: '/health',
       severity: 'info',
       title: 'No active health issues',

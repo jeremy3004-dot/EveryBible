@@ -32,8 +32,8 @@ export default async function AdminOverviewPage() {
           <p className="eyebrow">Overview</p>
           <h2>EveryBible at a glance</h2>
           <p className="page-copy">
-            See where Scripture is reaching people, review content, and keep translation delivery
-            healthy.
+            See where Scripture is reaching people, review chapter feedback, and keep translation
+            delivery healthy.
           </p>
         </div>
       </section>
@@ -84,14 +84,6 @@ export default async function AdminOverviewPage() {
         <Link href="/translations" className="metric-card">
           <span>Failed syncs</span>
           <strong>{summary.failedSyncCount}</strong>
-        </Link>
-        <Link href="/content/verse-of-day" className="metric-card">
-          <span>Live verses</span>
-          <strong>{summary.liveVerseCount}</strong>
-        </Link>
-        <Link href="/content/images" className="metric-card">
-          <span>Live images</span>
-          <strong>{summary.liveImageCount}</strong>
         </Link>
         <Link href="/support/users" className="metric-card">
           <span>Support users</span>
