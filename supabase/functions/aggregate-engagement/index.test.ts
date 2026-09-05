@@ -60,7 +60,10 @@ function loadFunction(
           assert.equal(key, serviceRoleKey);
           assert.equal(options?.global?.headers?.Authorization, undefined);
           privilegedCalls += 1;
-          return { from: () => ({ select: () => ({ gte: async () => ({ data: [] }) }) }) };
+          return { rpc: async (name: string) => {
+            assert.equal(name, 'refresh_engagement_summaries');
+            return { data: { success: true, refreshed: 0, errors: 0, total_users: 0 }, error: null };
+          } };
         },
       };
     },

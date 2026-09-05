@@ -83,6 +83,7 @@ async function mountPlayer(failure: 'unavailable' | 'lookup' | 'playback') {
     '../services/audio/audioDownloadStorage': { expoAudioFileSystemAdapter: {} },
     '../services/audio/audioRemote': {},
     '../services/analytics': {},
+    '../services/analytics/listeningTime': { elapsedListeningMs: () => 0 },
     '../constants': {},
     '../stores/audioQueueModel': {},
     '../stores/audioPlaybackCompletionModel': {},

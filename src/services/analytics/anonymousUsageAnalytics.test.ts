@@ -264,3 +264,18 @@ test('A4: background audio tick emits NO session_started for the authenticated p
 
   facade.clearAnonymousSessionContext();
 });
+
+test('foreground after background audio emits a new paired session start exactly once', async (t) => {
+  const facade = await loadFacade();
+  if (!facade) { t.skip('module mocking unavailable'); return; }
+  resetFacade(facade);
+  facade.startAnonymousUsageSession();
+  facade.endAnonymousUsageSession();
+  facade.trackAnonymousUsageEvent('audio_playback_progress', { listened_ms: 30000 });
+  const nextId = facade.startAnonymousUsageSession();
+  facade.startAnonymousUsageSession();
+  facade.endAnonymousUsageSession();
+  assert.equal(enqueueLog.filter(e => e.name === 'session_started').length, 2);
+  assert.equal(enqueueLog.filter(e => e.name === 'session_ended').length, 2);
+  assert.equal(enqueueLog.at(-1)?.sessionId, nextId);
+});

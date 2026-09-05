@@ -29,47 +29,13 @@ test('analytics page renders a whitelisted time-range picker + client explorer',
   assert.doesNotMatch(page, /<AnalyticsGlobe/, 'globe should render inside the explorer, not the page');
 });
 
-test('analytics explorer: globe hero before metrics + tables, and translation filter syncs the tables', async () => {
+test('analytics explorer distinguishes global totals from linked geographic filters', async () => {
   const explorer = await read('apps/admin/components/AnalyticsExplorer.tsx');
-
-  const globeIndex = explorer.indexOf('<AnalyticsGlobe');
-  const metricsIndex = explorer.indexOf('<section className="metric-grid analytics-page__metrics">');
-  const dailyTrendsIndex = explorer.indexOf('<DailyTrendsPanel');
-  const translationTableIndex = explorer.indexOf('<p className="eyebrow">By translation</p>');
-  const countryTableIndex = explorer.indexOf('<p className="eyebrow">Top countries</p>');
-
-  assert.ok(globeIndex >= 0, 'expected globe component to be present');
-  assert.match(explorer, /metrics=\{analytics\.locationMetrics\}/, 'globe should use locationMetrics for markers');
-  assert.ok(
-    globeIndex < metricsIndex &&
-      metricsIndex < dailyTrendsIndex &&
-      dailyTrendsIndex < translationTableIndex &&
-      translationTableIndex < countryTableIndex,
-    'sections must be ordered: globe → metrics → daily trends → translation table → country table'
-  );
-
-  // Filter sync (P3 S17): the globe is CONTROLLED by the explorer (both the
-  // value and the setter are passed), so "Clear filter" and the chips share one
-  // source of truth.
-  assert.match(
-    explorer,
-    /selectedTranslation=\{selectedTranslation\}/,
-    'globe must be controlled (value passed down)'
-  );
-  assert.match(
-    explorer,
-    /onSelectedTranslationChange=\{setSelectedTranslation\}/,
-    'globe selection must be lifted into the explorer state'
-  );
-  assert.match(
-    explorer,
-    /const countryRows = activeEntry \? activeEntry\.countryTableMetrics : analytics\.countryMetrics/,
-    'the country table must filter by the selected translation, using table-safe rollups'
-  );
-
-  // S16 additions.
-  assert.match(explorer, /Reading min/, 'country table should show reading minutes');
-  assert.match(explorer, /country\.readingMinutes/, 'reading minutes must be wired into the country row');
-  assert.match(explorer, /engagementScoreComputedAt/, 'engagement computed-at timestamp should be shown');
-  assert.match(explorer, /Translation engagement/, 'translation table present');
+  assert.ok(explorer.indexOf('className="atlas-kpis"') < explorer.indexOf('<AnalyticsGlobe'));
+  assert.match(explorer, /getAtlasScope\(analytics, selectedTranslation\)/);
+  assert.match(explorer, /countries=\{scope.countries\}/);
+  assert.match(explorer, /onSelectCountry=\{setSelectedCountry\}/);
+  assert.match(explorer, /The totals above and daily trends\s+cover all translations/);
+  assert.match(explorer, /engagementScoreComputedAt/);
+  assert.match(explorer, /<AnalyticsTables/);
 });

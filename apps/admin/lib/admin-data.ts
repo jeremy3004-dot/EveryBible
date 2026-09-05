@@ -1,3 +1,4 @@
+import { analyticsWindowStart } from '@/lib/analytics-window';
 import { adminNavigation } from '@/lib/admin-navigation';
 import {
   type CountryMetric,
@@ -9,6 +10,7 @@ import {
   type TranslationLocationRollup,
   type TranslationListeningRollup,
   type TranslationListenerRollup,
+  type TranslationTotalsRollup,
   buildTranslationBreakdown,
   mapCountryRollupsToMetrics,
   mapLocationRollupsToMetrics,
@@ -322,7 +324,18 @@ export interface ChapterFeedbackReviewModel {
   totalAvailable: number;
 }
 
+export interface AnalyticsCollectionHealth {
+  eventCount: number;
+  countryEventCount: number;
+  coordinateEventCount: number;
+  latestEventAt: string | null;
+  latestReceivedAt: string | null;
+  eventCounts: Array<{ eventName: string; count: number; latestEventAt: string | null }>;
+}
+
 export interface AnalyticsOverview {
+  collectionHealth?: AnalyticsCollectionHealth;
+  retrievedAt?: string;
   activeCountryCount: number;
   activeLocationCount: number;
   averageEngagementScore: number;
@@ -345,6 +358,8 @@ export interface AnalyticsOverview {
 }
 
 interface AnalyticsOverviewRpcPayload {
+  collectionHealth?: AnalyticsCollectionHealth;
+  translationTotals?: TranslationTotalsRollup[];
   activeCountryCount?: number;
   activeLocationCount?: number;
   averageEngagementScore?: number;
@@ -1209,8 +1224,7 @@ export async function getAnalyticsOverview(
   windowDays: AnalyticsWindowDays = DEFAULT_ANALYTICS_WINDOW_DAYS
 ): Promise<AnalyticsOverview> {
   const service = createAdminServiceClient();
-  const since = new Date();
-  since.setDate(since.getDate() - windowDays);
+  const since = analyticsWindowStart(windowDays);
 
   // S16: engagement scores are pre-computed by the nightly cron, NOT within this
   // window — expose when they were last refreshed. The RPC doesn't return this,
@@ -1219,7 +1233,7 @@ export async function getAnalyticsOverview(
   // missing timestamp never takes down the whole dashboard.
   const [overviewResult, engagementResult] = await Promise.all([
     service.rpc('get_admin_analytics_overview', {
-      p_since: since.toISOString(),
+      p_since: since,
       p_total_days: windowDays,
     }),
     service
@@ -1258,10 +1272,13 @@ export async function getAnalyticsOverview(
     (overview.translationCountryMetrics ?? []) as TranslationCountryRollup[],
     (overview.translationLocationMetrics ?? []) as TranslationLocationRollup[],
     (overview.translationListeningMinutes ?? []) as TranslationListeningRollup[],
-    (overview.translationListenerCounts ?? []) as TranslationListenerRollup[]
+    (overview.translationListenerCounts ?? []) as TranslationListenerRollup[],
+    overview.translationTotals ?? []
   );
 
   return {
+    retrievedAt: new Date().toISOString(),
+    collectionHealth: overview.collectionHealth,
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
     activeLocationCount: locationMetrics.length,
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),

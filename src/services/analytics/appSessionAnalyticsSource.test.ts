@@ -54,7 +54,7 @@ test('foreground emits exactly one session_started — auth path never calls the
   // Authenticated foreground: establish the anon session_id context WITHOUT an
   // event, then emit the single authenticated session_started.
   assert.match(authBranch, /initAnonymousSessionContext\(\)/, 'auth path must set the anon session id context');
-  assert.match(authBranch, /startSession\(\)/, 'auth path must emit exactly one authenticated session_started');
+  assert.match(authBranch, /startSession\(sessionId\)/, 'auth path must emit exactly one authenticated session_started');
   assert.ok(
     !/startAnonymousUsageSession\(/.test(authBranch),
     'auth path must NOT call startAnonymousUsageSession — that re-introduces the duplicate session_started bug'

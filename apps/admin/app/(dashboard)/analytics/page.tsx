@@ -31,9 +31,9 @@ export default async function AnalyticsPage({
       <div className="analytics-page__header">
         <div>
           <p className="eyebrow">Usage analytics</p>
-          <h2>Global overview</h2>
+          <h2>Global reach</h2>
           <p className="analytics-page__note">
-            Map and listening totals update live. Engagement scores refresh via nightly cron or manually below.
+            Explore listening, reading and downloads around the world.
           </p>
         </div>
         <div className="analytics-page__header-actions">

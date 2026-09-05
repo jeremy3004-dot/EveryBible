@@ -24,25 +24,12 @@ type GeoAttachableEvent = {
   geo_region_name?: string | null;
 };
 
-// ---------------------------------------------------------------------------
-// Client geo resolution (P1 S5)
-//
-// Geo is resolved EAGERLY at app-foreground/session-start (primeGeoContext),
-// fire-and-forget with a short timeout, and cached in memory AND persisted to
-// MMKV as a stale-but-usable fallback. resolveGeoContext() — called at flush,
-// which happens on app-background when iOS may already be tearing down the
-// network — NEVER waits on the network: it returns the cached value or null and
-// kicks off a background prime. This is why the self-owned Cloudflare worker
-// (which also returns city/region/region_code) can serve the vast majority of
-// rows instead of losing the race to server-side IP fallback.
-// ---------------------------------------------------------------------------
+// Resolve approximate network location at foreground time without delaying app
+// activity. Only a fresh (under three hours) fix may enrich a new event. Offline
+// events retain their captured fix; uncaptured events use the upload network.
 
 const GEO_CACHE_KEY = 'analytics-geo-cache-v1';
 const GEO_FETCH_TIMEOUT_MS = 3000;
-// How long a disk-restored fix is treated as "fresh enough" to skip a refetch.
-// Beyond this, restored geo stays usable (it still enriches flushes) but the
-// next foreground prime is allowed to refetch so a moved/travelling/VPN user
-// stops reporting a stale first-launch location indefinitely.
 const GEO_FRESH_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 // Persisted shape wraps the server-facing GeoContext with a fetch timestamp so
@@ -57,9 +44,7 @@ let cachedGeoContext: GeoContext | null = null;
 // Wall-clock time the current in-memory geo was fetched (from the worker in this
 // process) or last fetched (when restored from disk). null when nothing cached.
 let cachedFetchedAt: number | null = null;
-// True only when the current cache was fetched in THIS process. Disk-restored
-// geo is usable but not "fresh in-process", so it permits exactly one refetch.
-let cachedFetchedThisProcess = false;
+
 let persistedLoaded = false;
 let primePromise: Promise<GeoContext | null> | null = null;
 
@@ -72,21 +57,27 @@ function getText(value: unknown): string | null {
 function normalizeCountryCode(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const countryCode = value.trim().toUpperCase();
-  if (countryCode === 'XX' || countryCode === 'T1' || countryCode.length === 0) {
+  if (countryCode === 'XX' || countryCode === 'T1' || !/^[A-Z]{2}$/.test(countryCode)) {
     return null;
   }
   return countryCode;
 }
 
-function normalizeCoordinate(value: unknown): number | null {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const parsed = Number(value.trim());
-  return Number.isFinite(parsed) ? parsed : null;
+function normalizeCoordinate(value: unknown, limit: number): number | null {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Math.abs(parsed) <= limit ? Math.round(parsed * 10) / 10 : null;
+}
+
+function normalizeGeo(geo: GeoContext): GeoContext {
+  const latitude = normalizeCoordinate(geo.geo_latitude, 90);
+  const longitude = normalizeCoordinate(geo.geo_longitude, 180);
+  return {
+    ...geo,
+    geo_country_code: normalizeCountryCode(geo.geo_country_code),
+    geo_latitude: longitude == null ? null : latitude,
+    geo_longitude: latitude == null ? null : longitude,
+  };
 }
 
 // MMKV persistence is loaded lazily via require() so this module stays free of
@@ -107,8 +98,7 @@ function loadPersistedGeo(): PersistedGeo | null {
     if (candidate.geo && typeof candidate.geo === 'object') {
       return {
         geo: candidate.geo as GeoContext,
-        fetched_at:
-          typeof candidate.fetched_at === 'number' ? candidate.fetched_at : 0,
+        fetched_at: typeof candidate.fetched_at === 'number' ? candidate.fetched_at : 0,
       };
     }
     return { geo: parsed as GeoContext, fetched_at: 0 };
@@ -127,18 +117,14 @@ function persistGeo(geo: GeoContext, fetchedAt: number): void {
   }
 }
 
-// Seeds the in-memory cache from the last-known persisted geo exactly once, so
-// the very first flush after a cold start can still attach a (stale) location.
+// Restore the cache once; its timestamp still controls whether it can be used.
 function ensurePersistedLoaded(): void {
   if (persistedLoaded) return;
   persistedLoaded = true;
   const persisted = loadPersistedGeo();
   if (persisted && !cachedGeoContext) {
-    cachedGeoContext = persisted.geo;
+    cachedGeoContext = normalizeGeo(persisted.geo);
     cachedFetchedAt = persisted.fetched_at;
-    // Restored from disk — usable, but NOT fetched in this process, so the next
-    // foreground prime is allowed to refetch (subject to the freshness TTL).
-    cachedFetchedThisProcess = false;
   }
 }
 
@@ -164,33 +150,31 @@ async function fetchWorkerGeo(): Promise<GeoContext | null> {
       return null;
     }
 
-    const payload = (await response.json().catch(() => null)) as
-      | {
-          country_code?: unknown;
-          latitude?: unknown;
-          longitude?: unknown;
-          timezone?: unknown;
-          city?: unknown;
-          region?: unknown;
-          region_code?: unknown;
-        }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      country_code?: unknown;
+      latitude?: unknown;
+      longitude?: unknown;
+      timezone?: unknown;
+      city?: unknown;
+      region?: unknown;
+      region_code?: unknown;
+    } | null;
 
     if (!payload) {
       return null;
     }
 
-    const geo: GeoContext = {
+    const geo: GeoContext = normalizeGeo({
       geo_accuracy_km: null,
       geo_country_code: normalizeCountryCode(payload.country_code),
-      geo_latitude: normalizeCoordinate(payload.latitude),
-      geo_longitude: normalizeCoordinate(payload.longitude),
+      geo_latitude: normalizeCoordinate(payload.latitude, 90),
+      geo_longitude: normalizeCoordinate(payload.longitude, 180),
       geo_source: 'cf-worker',
       geo_timezone: getText(payload.timezone),
       geo_city: getText(payload.city),
       geo_region_code: getText(payload.region_code)?.toUpperCase() ?? null,
       geo_region_name: getText(payload.region),
-    };
+    });
 
     // Reject an all-empty payload so we don't cache a useless "cf-worker" source
     // that would suppress the server-side IP fallback.
@@ -220,15 +204,12 @@ async function fetchWorkerGeo(): Promise<GeoContext | null> {
 export function primeGeoContext(): Promise<GeoContext | null> {
   ensurePersistedLoaded();
 
-  // Short-circuit only when the cached worker fix is genuinely fresh: either it
-  // was fetched in THIS process, or it was restored from disk within the TTL.
-  // Disk-restored geo older than the TTL stays usable for flushes but falls
-  // through here so a moved/travelling/VPN user gets exactly one refetch per
-  // foreground (the single in-flight promise below prevents a refetch storm).
+  // The TTL applies to both live and restored caches, including long-running apps.
   if (cachedGeoContext?.geo_source === 'cf-worker') {
     const isFresh =
-      cachedFetchedThisProcess ||
-      (cachedFetchedAt != null && Date.now() - cachedFetchedAt < GEO_FRESH_TTL_MS);
+      cachedFetchedAt != null &&
+      Date.now() >= cachedFetchedAt &&
+      Date.now() - cachedFetchedAt < GEO_FRESH_TTL_MS;
     if (isFresh) {
       return Promise.resolve(cachedGeoContext);
     }
@@ -245,10 +226,10 @@ export function primeGeoContext(): Promise<GeoContext | null> {
         const fetchedAt = Date.now();
         cachedGeoContext = geo;
         cachedFetchedAt = fetchedAt;
-        cachedFetchedThisProcess = true;
+
         persistGeo(geo, fetchedAt);
       }
-      return geo ?? cachedGeoContext;
+      return geo ?? getCachedGeoContext();
     } finally {
       primePromise = null;
     }
@@ -258,20 +239,22 @@ export function primeGeoContext(): Promise<GeoContext | null> {
 }
 
 /**
- * Returns the cached geo WITHOUT ever waiting on the network — safe to call at
- * flush time. If nothing is cached yet, it kicks off a background prime (so the
- * next flush is enriched) and returns null; the server then enriches by IP.
+ * Returns fresh cached geo without a network wait. Expired locations never
+ * override a later upload from another network.
  */
-export async function resolveGeoContext(): Promise<GeoContext | null> {
+export function getCachedGeoContext(): GeoContext | null {
   ensurePersistedLoaded();
+  return cachedFetchedAt != null &&
+    Date.now() >= cachedFetchedAt &&
+    Date.now() - cachedFetchedAt < GEO_FRESH_TTL_MS
+    ? cachedGeoContext
+    : null;
+}
 
-  if (cachedGeoContext) {
-    return cachedGeoContext;
-  }
-
-  // Nothing cached — warm it for next time, but never block this flush on it.
-  void primeGeoContext();
-  return null;
+export async function resolveGeoContext(): Promise<GeoContext | null> {
+  const geo = getCachedGeoContext();
+  if (!geo) void primeGeoContext();
+  return geo;
 }
 
 // Test-only: clears the in-memory cache + prime state so each unit test starts
@@ -279,7 +262,7 @@ export async function resolveGeoContext(): Promise<GeoContext | null> {
 export function __resetGeoContextForTests(): void {
   cachedGeoContext = null;
   cachedFetchedAt = null;
-  cachedFetchedThisProcess = false;
+
   persistedLoaded = false;
   primePromise = null;
 }

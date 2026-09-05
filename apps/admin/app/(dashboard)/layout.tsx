@@ -64,7 +64,24 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </div>
       </aside>
 
-      <main className="dashboard-main">{children}</main>
+      <main className="dashboard-main">
+        <details className="admin-mobile-nav">
+          <summary>Navigate admin</summary>
+          <nav aria-label="Mobile admin navigation">
+            {navigationSections
+              .flatMap((section) => section.items)
+              .map((item) => (
+                <AdminNavLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  description={item.description}
+                />
+              ))}
+          </nav>
+        </details>
+        {children}
+      </main>
       <OperatorLauncher />
     </div>
   );

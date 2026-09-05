@@ -19,7 +19,7 @@ test('track-anonymous-usage-events is the unified auth-OPTIONAL ingestion endpoi
   assert.match(source, /resolveUserId/, 'collector should resolve an optional user id');
   assert.match(source, /looksLikeUserToken/, 'collector should cheaply pre-filter non-user tokens');
   assert.match(source, /auth\.getUser/, 'collector should verify a present user token');
-  assert.match(source, /user_id:\s*userId/, 'rows must carry the optionally-resolved user id');
+  assert.match(source, /user_id:.*attribution_user_id.*userId/, 'rows must carry the optionally-resolved user id');
 
   // Backward compatibility: it must NEVER reject a request for missing/invalid auth,
   // so app builds <=1.0.4 (anon-only traffic) keep working.

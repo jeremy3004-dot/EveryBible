@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import { attachGeoContext, resolveGeoContext } from './geoContext';
+import { attachGeoContext, getCachedGeoContext, resolveGeoContext } from './geoContext';
 
 // ---------------------------------------------------------------------------
 // Unified analytics ingestion queue (P1 S2b)
@@ -16,6 +16,8 @@ import { attachGeoContext, resolveGeoContext } from './geoContext';
 // ---------------------------------------------------------------------------
 
 export interface QueuedEvent {
+  event_id: string;
+  attribution_user_id?: string | null;
   event_name: string;
   event_properties: Record<string, unknown>;
   geo_accuracy_km?: number | null;
@@ -42,43 +44,41 @@ export interface UsageFlushResult {
 // The single unified ingestion endpoint. All analytics events flow here.
 export const UNIFIED_USAGE_ENDPOINT = 'track-anonymous-usage-events';
 
-// Events accumulate here until flushed or the queue reaches AUTO_FLUSH_SIZE.
+// Retain unacknowledged events on disk, including the in-flight batch. Stable
+// event IDs let the collector ignore retries after an ambiguous response/crash.
 const eventQueue: QueuedEvent[] = [];
-
 const AUTO_FLUSH_SIZE = 20;
 const MAX_QUEUE_SIZE = 500;
-// Cap on how many queued events we mirror to disk so a force-kill/crash doesn't
-// lose everything. Kept well under MAX_QUEUE_SIZE to bound the MMKV write size.
-const MAX_PERSISTED_EVENTS = 200;
+const MAX_PERSISTED_EVENTS = MAX_QUEUE_SIZE;
+const MAX_BATCH_SIZE = 100;
 const QUEUE_CACHE_KEY = 'analytics-usage-queue-v1';
+const FLUSH_INTERVAL_MS = 30_000;
+let retryDelayMs = FLUSH_INTERVAL_MS;
+let flushPromise: Promise<UsageFlushResult> | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Fallback dead-letter guard: even a 5xx/network fault should not requeue the
-// SAME batch forever. Once a batch has been retried this many times we drop it
-// so a permanently-failing (but non-4xx-reporting) endpoint can't loop the queue
-// indefinitely. Tracked out-of-band on the in-flight snapshot, not persisted —
-// worst case a cross-launch retry gets a fresh budget, which is acceptable.
-const MAX_BATCH_RETRIES = 8;
-// How many times the current head-of-queue batch has been requeued after a
-// transient failure. The live `eventQueue` array identity never changes (only its
-// contents are spliced/unshifted), so a simple counter tracks the retry budget of
-// whatever batch currently sits at the head. Reset to 0 on any successful flush.
-let headBatchRetries = 0;
-
-// The four fields the server's parseBatchRequest requires on EVERY event
-// (track-anonymous-usage-events 400s the whole batch if any event is missing
-// one). Restore validation must enforce all four so a cross-version or corrupt
-// persisted payload can't poison the queue into a permanent 400 loop.
 const REQUIRED_EVENT_FIELDS = [
   'event_name',
   'device_platform',
   'app_version',
   'queued_at',
 ] as const;
-
 function hasAllRequiredFields(event: unknown): event is QueuedEvent {
   if (!event || typeof event !== 'object') return false;
   const record = event as Record<string, unknown>;
-  return REQUIRED_EVENT_FIELDS.every((field) => typeof record[field] === 'string');
+  return (
+    REQUIRED_EVENT_FIELDS.every(
+      (field) => typeof record[field] === 'string' && record[field].trim().length > 0
+    ) && Number.isFinite(Date.parse(record.queued_at as string))
+  );
+}
+
+function scheduleFlush(delay = FLUSH_INTERVAL_MS): void {
+  if (flushTimer || eventQueue.length === 0 || !isSupabaseConfigured()) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    void flushUsageQueue();
+  }, delay);
 }
 
 // Write-through persistence via a guarded require() so this module's static
@@ -96,7 +96,20 @@ function loadPersistedQueue(): QueuedEvent[] {
     // written under a different app schema version — or a corrupt MMKV blob —
     // missing any required field would otherwise be restored and 400 the whole
     // batch forever; drop such entries on restore instead of keeping them.
-    return parsed.filter(hasAllRequiredFields);
+    return parsed
+      .filter(hasAllRequiredFields)
+      .slice(0, MAX_QUEUE_SIZE)
+      .map((event) => ({
+        ...event,
+        attribution_user_id: event.attribution_user_id ?? null,
+        event_id:
+          typeof event.event_id === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            event.event_id
+          )
+            ? event.event_id
+            : generateUUID(),
+      }));
   } catch {
     return [];
   }
@@ -151,140 +164,113 @@ function getAppVersion(): string {
   }
 }
 
+function collectionUserId(): string | null {
+  // Capture identity with the event, not later when a shared device flushes.
+  // Lazy access keeps auth/native storage out of module initialization.
+  try {
+    const { useAuthStore } = require('../../stores/authStore');
+    return useAuthStore.getState().user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function buildQueuedEvent(
   eventName: string,
   properties: Record<string, unknown>,
   sessionId: string | null
 ): QueuedEvent {
-  return {
-    event_name: eventName,
-    event_properties: properties,
-    session_id: sessionId,
-    device_platform: Platform.OS,
-    app_version: getAppVersion(),
-    queued_at: new Date().toISOString(),
-  };
+  return attachGeoContext<QueuedEvent>(
+    {
+      event_id: generateUUID(),
+      attribution_user_id: collectionUserId(),
+      event_name: eventName,
+      event_properties: { ...properties, analytics_schema_version: 2 },
+      session_id: sessionId,
+      device_platform: Platform.OS,
+      app_version: getAppVersion(),
+      queued_at: new Date().toISOString(),
+    },
+    getCachedGeoContext()
+  );
 }
 
-function requeueSnapshot(snapshot: QueuedEvent[]): void {
-  const spaceLeft = Math.max(0, MAX_QUEUE_SIZE - eventQueue.length);
-  if (spaceLeft > 0) {
-    eventQueue.unshift(...snapshot.slice(0, spaceLeft));
-  }
-}
-
-// Classifies a supabase functions.invoke error as permanent (drop the batch) or
-// transient (requeue and retry). functions.invoke surfaces non-2xx responses as
-// a FunctionsHttpError whose `.context` is the raw Response, so `.context.status`
-// carries the HTTP status; network faults arrive as FunctionsFetchError (no
-// status) and MUST retry. We treat any 4xx as permanent — the server's
-// parseBatchRequest 400s a malformed batch and it will 400 identically on every
-// retry, so requeuing only poisons the queue. Anything else (5xx, relay, network,
-// or a status we can't read) is treated as transient and retried.
+// Only a malformed payload is permanent. Auth expiry, throttling, timeouts,
+// relay faults, and unavailable collectors must keep their retryable events.
 function isPermanentFlushError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const context = (error as { context?: unknown }).context;
-  const status =
-    context && typeof context === 'object'
-      ? (context as { status?: unknown }).status
-      : undefined;
-  return typeof status === 'number' && status >= 400 && status < 500;
+  const status = (error as { context?: { status?: number } } | null)?.context?.status;
+  return status === 400 || status === 422;
 }
 
-// Enqueues a named event carrying the caller-supplied session id. Triggers an
-// automatic background flush when the queue reaches AUTO_FLUSH_SIZE.
 export function enqueueUsageEvent(
   eventName: string,
   properties: Record<string, unknown>,
   sessionId: string | null
 ): void {
   ensureQueueRestored();
+  // Keep the oldest pending work (including in-flight events) safe. A bounded
+  // queue is essential for months offline; never silently evict an active batch.
+  if (eventQueue.length >= MAX_QUEUE_SIZE) {
+    scheduleFlush(retryDelayMs);
+    return;
+  }
   eventQueue.push(buildQueuedEvent(eventName, properties, sessionId));
   persistQueue();
-
-  if (eventQueue.length >= AUTO_FLUSH_SIZE) {
-    // Fire-and-forget: flush in the background; caller does not need to await.
-    flushUsageQueue().catch(() => {
-      // Errors are non-fatal — events stay in the queue for the next flush.
-    });
+  if (eventQueue.length >= AUTO_FLUSH_SIZE && retryDelayMs === FLUSH_INTERVAL_MS) {
+    void flushUsageQueue();
+  } else {
+    scheduleFlush(retryDelayMs);
   }
 }
 
-// Drains the queue to the unified auth-optional ingestion endpoint. When a user
-// session exists we forward its access token so the server attributes user_id;
-// otherwise the request is anonymous. Events arriving mid-flush are preserved.
 export async function flushUsageQueue(): Promise<UsageFlushResult> {
   ensureQueueRestored();
-
-  if (!isSupabaseConfigured()) {
-    return { success: true };
-  }
-
-  if (eventQueue.length === 0) {
-    return { success: true };
-  }
-
-  // Snapshot and drain before the await so that events arriving mid-flush are
-  // NOT lost — they remain in the queue for the next call.
-  const snapshot = eventQueue.splice(0, eventQueue.length);
-  // Retry budget already spent by the batch currently at the head of the queue.
-  const retriesSoFar = headBatchRetries;
-  // Mirror the drained queue immediately so a crash mid-flight doesn't resurrect
-  // already-sent events; requeue-on-failure below re-persists if delivery fails.
+  if (flushPromise) return flushPromise;
+  if (!isSupabaseConfigured() || eventQueue.length === 0) return { success: true };
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  const snapshot = eventQueue.slice(0, MAX_BATCH_SIZE);
+  // Persist IDs assigned to restored legacy events before attempting delivery.
   persistQueue();
-
-  // Requeues the batch for a later retry unless it's a permanent client error or
-  // has exhausted its retry budget, in which case it is DROPPED (dead-lettered)
-  // so a single poison batch can never loop the queue forever.
-  const requeueUnlessPoison = (error: unknown): void => {
-    if (isPermanentFlushError(error) || retriesSoFar + 1 >= MAX_BATCH_RETRIES) {
-      // Drop the batch: don't requeue, don't re-persist it, and clear the retry
-      // budget so the next distinct batch starts fresh.
-      headBatchRetries = 0;
-      return;
-    }
-    requeueSnapshot(snapshot);
-    headBatchRetries = retriesSoFar + 1;
-  };
-
-  try {
-    const geoContext = await resolveGeoContext();
-    const enrichedSnapshot = snapshot.map((event) => attachGeoContext(event, geoContext));
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token?.trim();
-
-    const { error } = await supabase.functions.invoke(UNIFIED_USAGE_ENDPOINT, {
-      body: { events: enrichedSnapshot },
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    });
-
-    if (error) {
-      // 4xx = permanent (drop); 5xx/relay = transient (requeue). See
-      // isPermanentFlushError.
-      requeueUnlessPoison(error);
+  flushPromise = (async (): Promise<UsageFlushResult> => {
+    try {
+      const geoContext = await resolveGeoContext();
+      // Event-time geo wins over the current upload network for delayed events.
+      const enrichedSnapshot = snapshot.map((event) =>
+        event.geo_source ? event : attachGeoContext(event, geoContext)
+      );
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token?.trim();
+      const { error } = await supabase.functions.invoke(UNIFIED_USAGE_ENDPOINT, {
+        body: { events: enrichedSnapshot },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
+      if (error) throw error;
+      eventQueue.splice(0, snapshot.length);
+      retryDelayMs = FLUSH_INTERVAL_MS;
       persistQueue();
-      return { success: false, error: error.message };
+      return { success: true };
+    } catch (error) {
+      if (isPermanentFlushError(error)) eventQueue.splice(0, snapshot.length);
+      retryDelayMs = Math.min(retryDelayMs * 2, 5 * 60_000);
+      persistQueue();
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String((error as { message?: unknown })?.message ?? 'Analytics delivery failed'),
+      };
+    } finally {
+      flushPromise = null;
+      scheduleFlush(retryDelayMs);
     }
-
-    // Successful delivery — the head batch is gone; reset the retry budget.
-    headBatchRetries = 0;
-    return { success: true };
-  } catch (error) {
-    // Thrown errors here are network/geo/session faults — transient by nature —
-    // so requeue and retry (still bounded by the dead-letter cap).
-    requeueUnlessPoison(error);
-    persistQueue();
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  })();
+  return flushPromise;
 }
 
-// Exposed for testing / diagnostics only.
 export function getPendingUsageEventCount(): number {
   ensureQueueRestored();
   return eventQueue.length;

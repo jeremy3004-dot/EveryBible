@@ -1,57 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-
-import maplibregl, {
-  type GeoJSONSource,
-  type Map as MapLibreMap,
-  type Popup as MapLibrePopup,
-} from 'maplibre-gl';
-
-import type { CountryMetric, TranslationBreakdownEntry } from '@/lib/analytics-reporting';
+import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl';
+import type { CountryMetric } from '@/lib/analytics-reporting';
+import {
+  buildAtlasFeatures,
+  formatNumber,
+  metricLabel,
+  pointId,
+  type AtlasMetric,
+} from '@/lib/analytics-atlas';
 import { normalizeAdminTheme, type AdminThemeMode } from '@/lib/theme';
-
-type MapMetricMode = 'listeningMinutes' | 'downloadUnits';
-
-interface AnalyticsGlobeProps {
-  heatmapPoints?: CountryMetric[];
-  metrics: CountryMetric[];
-  listeningTotalMinutes?: number;
-  // Phase 1 (metric truth): authoritative counts from the RPC for the unfiltered
-  // coverage snapshot, so the globe never derives them from map buckets. Countries
-  // = distinct ISO codes; located listeners = distinct listeners with geo.
-  authoritativeCountryCount?: number;
-  authoritativeLocatedListeners?: number;
-  translationBreakdown?: TranslationBreakdownEntry[];
-  // Controlled translation filter (P3 S17): when a parent supplies both of these
-  // it owns the filter and sibling views (e.g. the country totals table) stay in
-  // sync; when omitted the globe manages its own filter internally.
-  selectedTranslation?: string | null;
-  onSelectedTranslationChange?: (translationId: string | null) => void;
-}
-
-interface MetricFeatureProperties {
-  countryCode: string;
-  countryName: string;
-  downloadUnits: number;
-  listenerCount: number;
-  listeningMinutes: number;
-}
-
-interface MetricFeature {
-  type: 'Feature';
-  geometry: {
-    type: 'Point';
-    coordinates: [number, number];
-  };
-  properties: MetricFeatureProperties;
-}
-
-interface MetricFeatureCollection {
-  type: 'FeatureCollection';
-  features: MetricFeature[];
-}
 
 const LIGHT_MAP_STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const DARK_MAP_STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
@@ -60,7 +19,7 @@ const HEAT_LAYER_ID = 'country-metrics-heat';
 const CIRCLE_LAYER_ID = 'country-metrics-circles';
 const HIT_LAYER_ID = 'country-metrics-hit-area';
 const INITIAL_CENTER: [number, number] = [12, 18];
-const INITIAL_ZOOM = 3.3;
+const INITIAL_ZOOM = 1.4;
 const WORLD_BOUNDS: [[number, number], [number, number]] = [
   [-170, -58],
   [180, 82],
@@ -116,15 +75,13 @@ function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
         map.setPaintProperty(id, 'background-color', GLOBE_LAND);
       } else if (layer.type === 'fill' && /water|ocean|sea|marine|bathym/i.test(id)) {
         map.setPaintProperty(id, 'fill-color', GLOBE_OCEAN);
-      } else if (
-        layer.type === 'fill' &&
-        /(land|earth|park|wood|forest|grass|landcover|landuse|glacier|sand)/i.test(id)
-      ) {
+      } else if (layer.type === 'fill') {
         map.setPaintProperty(id, 'fill-color', GLOBE_LAND);
-      } else if (layer.type === 'line' && /(boundary|admin|border)/i.test(id)) {
+      } else if (layer.type === 'line') {
         map.setPaintProperty(id, 'line-color', GLOBE_BORDER);
       } else if (layer.type === 'symbol') {
         map.setPaintProperty(id, 'text-color', GLOBE_LABEL);
+        map.setPaintProperty(id, 'text-halo-color', GLOBE_LAND);
       }
     } catch {
       // Some layers don't carry the property we tried to set — safe to skip.
@@ -132,920 +89,517 @@ function applyBasemapContrast(map: MapLibreMap, theme: AdminThemeMode) {
   }
 }
 
-// Faint atmosphere so the globe reads as a lit object sitting on the paper, not
-// a hole in it. Wrapped defensively: setSky is a MapLibre 5.x surface and we
-// never want an unsupported key to blank the map.
-function applyGlobeAtmosphere(map: MapLibreMap, theme: AdminThemeMode) {
-  const chrome = GLOBE_CHROME[theme === 'dark' ? 'dark' : 'light'];
-  try {
-    (map as unknown as { setSky: (spec: Record<string, unknown>) => void }).setSky({
-      'sky-color': chrome.sky,
-      'horizon-color': chrome.horizon,
-      'fog-color': chrome.sky,
-      'fog-ground-blend': 0.6,
-      'horizon-fog-blend': 0.5,
-      'sky-horizon-blend': 0.8,
-      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 0.9, 5, 0.35],
-    });
-  } catch {
-    // setSky unavailable in this build — the globe still renders fine without it.
-  }
-}
-
-// Weighted (by listening minutes) centroid so the camera opens over where the
-// data actually is (South-Asia-heavy today) rather than the mid-Atlantic/Sahara.
-function computeWeightedCentroid(
-  metrics: Array<{ latitude: number; longitude: number; listeningMinutes: number; downloadUnits: number }>
-): [number, number] | null {
-  let latAcc = 0;
-  let lngAcc = 0;
-  let weightAcc = 0;
-  for (const metric of metrics) {
-    const weight = Math.max(metric.listeningMinutes, metric.downloadUnits, 0);
-    if (weight <= 0) continue;
-    latAcc += metric.latitude * weight;
-    lngAcc += metric.longitude * weight;
-    weightAcc += weight;
-  }
-  if (weightAcc <= 0) return null;
-  return [lngAcc / weightAcc, latAcc / weightAcc];
-}
-
-function getMapStyleUrl(theme: AdminThemeMode): string {
-  return theme === 'dark' ? DARK_MAP_STYLE_URL : LIGHT_MAP_STYLE_URL;
-}
-
-function getDocumentTheme(): AdminThemeMode {
-  if (typeof document === 'undefined') {
-    return 'light';
-  }
-
-  return normalizeAdminTheme(document.documentElement.dataset.theme);
-}
-
-function getMetricProperty(mode: MapMetricMode): 'listeningMinutes' | 'downloadUnits' {
-  return mode;
-}
-
-function getMetricValue(metric: CountryMetric, mode: MapMetricMode): number {
-  return metric[getMetricProperty(mode)];
-}
-
-function formatMetricValue(metric: CountryMetric, mode: MapMetricMode): string {
-  if (mode === 'downloadUnits') {
-    return `${metric.downloadUnits} downloads`;
-  }
-
-  return `${Math.round(metric.listeningMinutes)} listening min`;
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(Math.round(value));
-}
-
-function getModeLabel(mode: MapMetricMode): string {
-  return mode === 'downloadUnits' ? 'downloads' : 'listening minutes';
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function buildMetricsFeatureCollection(metrics: CountryMetric[]): MetricFeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: metrics.map((metric) => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [metric.longitude, metric.latitude],
-      },
-      properties: {
-        countryCode: metric.code,
-        countryName: metric.name,
-        downloadUnits: metric.downloadUnits,
-        listenerCount: metric.listenerCount,
-        listeningMinutes: metric.listeningMinutes,
-      },
-    })),
-  };
-}
-
-function updateVisualizationLayers(
-  map: MapLibreMap,
-  mode: MapMetricMode,
-  maxMetricValue: number,
-  theme: AdminThemeMode
-) {
-  const metricProperty = getMetricProperty(mode);
-  const safeMax = Math.max(maxMetricValue, 1);
-  const scope = theme === 'dark' ? 'dark' : 'light';
-  const heat = GLOBE_HEAT[scope];
-
-  map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-weight', [
-    'interpolate',
-    ['linear'],
-    ['to-number', ['get', metricProperty]],
-    0,
-    0,
-    safeMax,
-    1,
-  ]);
-  map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-radius', [
-    'interpolate',
-    ['linear'],
-    ['zoom'],
-    0,
-    16,
-    2,
-    24,
-    4,
-    38,
-  ]);
-  map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-intensity', [
-    'interpolate',
-    ['linear'],
-    ['zoom'],
-    0,
-    0.45,
-    3,
-    0.9,
-    5,
-    1.2,
-  ]);
-  map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-color', [
-    'interpolate',
-    ['linear'],
-    ['heatmap-density'],
-    // Intensity ramp, low → high, faded in from the basemap so density reads
-    // as magnitude rather than decoration.
-    0,
-    'rgba(0, 0, 0, 0)',
-    0.1,
-    heat[0],
-    0.3,
-    heat[1],
-    0.55,
-    heat[2],
-    0.8,
-    heat[3],
-    1,
-    heat[4],
-  ]);
-
-  map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-radius', [
-    'interpolate',
-    ['linear'],
-    ['to-number', ['get', metricProperty]],
-    // Front-loaded (sqrt-like) stops so mid-tier countries read as mid-tier
-    // instead of collapsing to the min dot under a linear scale on skewed data.
-    0,
-    7,
-    safeMax * 0.04,
-    13,
-    safeMax * 0.15,
-    19,
-    safeMax * 0.45,
-    27,
-    safeMax,
-    36,
-  ]);
-  map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-color', [
-    'interpolate',
-    ['linear'],
-    ['to-number', ['get', metricProperty]],
-    // Intensity ramp, low → high. The lowest-magnitude countries start at the
-    // blue end and the busiest land on red.
-    0,
-    heat[0],
-    safeMax * 0.25,
-    heat[1],
-    safeMax * 0.5,
-    heat[2],
-    safeMax * 0.75,
-    heat[3],
-    safeMax,
-    heat[4],
-  ]);
-  map.setPaintProperty(HIT_LAYER_ID, 'circle-radius', [
-    'interpolate',
-    ['linear'],
-    ['to-number', ['get', metricProperty]],
-    0,
-    18,
-    safeMax,
-    42,
-  ]);
+interface AtlasProps {
+  points: CountryMetric[];
+  countries: CountryMetric[];
+  mode: AtlasMetric;
+  selectedCountry: string | null;
+  onSelectCountry: (code: string | null) => void;
 }
 
 export function AnalyticsGlobe({
-  heatmapPoints,
-  metrics,
-  listeningTotalMinutes,
-  authoritativeCountryCount,
-  authoritativeLocatedListeners,
-  translationBreakdown,
-  selectedTranslation: selectedTranslationProp,
-  onSelectedTranslationChange,
-}: AnalyticsGlobeProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  points,
+  countries,
+  mode,
+  selectedCountry,
+  onSelectCountry,
+}: AtlasProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const popupRef = useRef<MapLibrePopup | null>(null);
-  const readyRef = useRef(false);
-  const currentStyleUrlRef = useRef(getMapStyleUrl('light'));
-  const latestMetricsRef = useRef(metrics);
-  const latestFeatureCollectionRef = useRef<MetricFeatureCollection>(buildMetricsFeatureCollection(metrics));
-  const latestMaxMetricValueRef = useRef(1);
-  const modeRef = useRef<MapMetricMode>('listeningMinutes');
-  const themeRef = useRef<AdminThemeMode>(getDocumentTheme());
-  const hasFlownRef = useRef(false);
-  const [theme, setTheme] = useState<AdminThemeMode>(getDocumentTheme);
-  const [mode, setMode] = useState<MapMetricMode>('listeningMinutes');
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [internalTranslation, setInternalTranslation] = useState<string | null>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [showAllTranslations, setShowAllTranslations] = useState(false);
-  const selectedTranslation =
-    selectedTranslationProp !== undefined ? selectedTranslationProp : internalTranslation;
-  const setSelectedTranslation = useCallback(
-    (value: string | null) => {
-      if (onSelectedTranslationChange) {
-        onSelectedTranslationChange(value);
-      } else {
-        setInternalTranslation(value);
-      }
-    },
-    [onSelectedTranslationChange]
+  const styleReadyRef = useRef(false);
+  const lastFittedPointsRef = useRef<CountryMetric[] | null>(null);
+  const [theme, setTheme] = useState<AdminThemeMode>('light');
+  const [projection, setProjection] = useState<'mercator' | 'globe'>('mercator');
+  const [layer, setLayer] = useState<'heat' | 'points'>('heat');
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [ready, setReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
+  const scopedPoints = useMemo(
+    () => (selectedCountry ? points.filter((point) => point.code === selectedCountry) : points),
+    [points, selectedCountry]
   );
-
-  const activeBreakdown = useMemo(() => {
-    if (!selectedTranslation || !translationBreakdown?.length) return null;
-    return translationBreakdown.find((entry) => entry.translationId === selectedTranslation) ?? null;
-  }, [selectedTranslation, translationBreakdown]);
-
-  const isSingleTranslationWindow = (translationBreakdown?.length ?? 0) === 1;
-  const selectedTranslationHasGeoMetrics = Boolean(
-    activeBreakdown &&
-      (activeBreakdown.locationMetrics.length > 0 || activeBreakdown.countryMetrics.length > 0)
+  const data = useMemo(() => buildAtlasFeatures(scopedPoints, mode), [scopedPoints, mode]);
+  const state = useRef({ data, theme, projection, layer, points, onSelectCountry });
+  const selectedPoint = scopedPoints.find((point) => pointId(point) === selectedPointId);
+  const selected = countries.find((country) => country.code === selectedCountry);
+  const ranked = [...countries]
+    .filter((country) => country[mode] > 0)
+    .sort((a, b) => b[mode] - a[mode]);
+  const visibleCountries = ranked.filter((country) =>
+    `${country.name} ${country.code} ${country.region ?? ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase())
   );
-  const reuseOverallMapForSelectedTranslation = Boolean(
-    activeBreakdown && isSingleTranslationWindow && !selectedTranslationHasGeoMetrics
-  );
+  const countryTotal = countries.reduce((sum, country) => sum + country[mode], 0);
+  const maximum = Math.max(1, ...scopedPoints.map((point) => point[mode]));
 
-  // Use filtered metrics when a translation is selected. If the selected
-  // translation is the only active one in the window, reuse the overall map so
-  // the operator can still inspect its geography even when per-translation geo
-  // rows were not persisted for that period.
-  const effectiveMetrics = reuseOverallMapForSelectedTranslation
-    ? metrics
-    : activeBreakdown?.countryMetrics ?? metrics;
-  const effectiveHeatmapPoints = reuseOverallMapForSelectedTranslation
-    ? heatmapPoints && heatmapPoints.length > 0
-      ? heatmapPoints
-      : metrics
-    : activeBreakdown?.locationMetrics ?? (heatmapPoints && heatmapPoints.length > 0 ? heatmapPoints : metrics);
-  const effectiveListeningTotal = activeBreakdown?.listeningMinutes ?? listeningTotalMinutes;
+  // Keep the event handlers and asynchronous style loads on the latest filter.
+  useEffect(() => {
+    state.current = { data, theme, projection, layer, points, onSelectCountry };
+  }, [data, theme, projection, layer, points, onSelectCountry]);
 
-  // Downloads mode uses country-level metrics (which carry downloadUnits).
-  // Listening mode uses GPS heatmap points for finer spatial resolution.
-  const mapPoints = mode === 'downloadUnits' ? effectiveMetrics : effectiveHeatmapPoints;
-
-  const rankedMetrics = useMemo(() => {
-    return [...effectiveMetrics]
-      .filter((metric) => getMetricValue(metric, mode) > 0)
-      .sort((left, right) => getMetricValue(right, mode) - getMetricValue(left, mode));
-  }, [effectiveMetrics, mode]);
-
-  const activeSelectedCode = useMemo(() => {
-    if (!selectedCode) {
-      return null;
-    }
-
-    return rankedMetrics.some((metric) => metric.code === selectedCode)
-      ? selectedCode
-      : null;
-  }, [rankedMetrics, selectedCode]);
-
-  const selectedMetric = useMemo(() => {
-    if (!activeSelectedCode) {
-      return null;
-    }
-
-    return rankedMetrics.find((metric) => metric.code === activeSelectedCode) ?? null;
-  }, [activeSelectedCode, rankedMetrics]);
-
-  const featureCollection = useMemo(() => buildMetricsFeatureCollection(mapPoints), [mapPoints]);
-  const maxMetricValue = useMemo(() => {
-    return mapPoints.reduce((max, metric) => Math.max(max, getMetricValue(metric, mode)), 1);
-  }, [mapPoints, mode]);
-
-  const overviewMetrics = useMemo(() => {
-    if (activeBreakdown) {
-      // Filtered to one translation: count genuine per-country rows (not map
-      // buckets), and take the RPC's authoritative per-translation listener
-      // count (buildTranslationBreakdown no longer max-merges country rows).
-      const activeCountryCount = activeBreakdown.countryTableMetrics.filter(
-        (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
-      ).length;
-      return {
-        activeCountryCount,
-        listeningMinutes: activeBreakdown.listeningMinutes,
-        listenerCount: activeBreakdown.listenerCount,
-        downloadUnits: activeBreakdown.downloadUnits,
-      };
-    }
-
-    // Unfiltered: prefer the RPC's authoritative scalars. "Countries" is the
-    // distinct ISO-country count (NOT the number of lat/lng map buckets), and
-    // "Listeners (located)" is the deduped distinct listener count with geo.
-    const derivedCountryCount = effectiveMetrics.filter(
-      (metric) => metric.listeningMinutes > 0 || metric.downloadUnits > 0
-    ).length;
-
-    return {
-      activeCountryCount: authoritativeCountryCount ?? derivedCountryCount,
-      // Use the true total (includes anonymous events with no geo data) when
-      // available. Falling back to the country sum makes unattributed minutes
-      // invisible even though they are real listening time.
-      listeningMinutes:
-        effectiveListeningTotal ??
-        effectiveMetrics.reduce((sum, metric) => sum + metric.listeningMinutes, 0),
-      listenerCount:
-        authoritativeLocatedListeners ??
-        effectiveMetrics.reduce((sum, metric) => sum + metric.listenerCount, 0),
-      downloadUnits: effectiveMetrics.reduce((sum, metric) => sum + metric.downloadUnits, 0),
-    };
-  }, [
-    effectiveMetrics,
-    effectiveListeningTotal,
-    activeBreakdown,
-    authoritativeCountryCount,
-    authoritativeLocatedListeners,
-  ]);
-
-  const topCountry = rankedMetrics[0] ?? null;
-  const modeLabel = getModeLabel(mode);
-
-  const syncVisualizationLayers = useCallback(
-    (map: MapLibreMap) => {
-      const latestFeatureCollection = latestFeatureCollectionRef.current;
-      const latestMaxValue = latestMaxMetricValueRef.current;
-      const currentTheme = themeRef.current;
-
-      if (!map.getSource(METRIC_SOURCE_ID)) {
-        map.addSource(METRIC_SOURCE_ID, {
-          type: 'geojson',
-          data: latestFeatureCollection,
-        });
-      } else {
-        const source = map.getSource(METRIC_SOURCE_ID) as GeoJSONSource | undefined;
-        source?.setData(latestFeatureCollection);
-      }
-
-      if (!map.getLayer(HEAT_LAYER_ID)) {
-        map.addLayer({
+  const syncLayers = useCallback((map: MapLibreMap) => {
+    const current = state.current;
+    const heat = GLOBE_HEAT[current.theme === 'dark' ? 'dark' : 'light'];
+    if (!map.getSource(METRIC_SOURCE_ID))
+      map.addSource(METRIC_SOURCE_ID, { type: 'geojson', data: current.data });
+    else (map.getSource(METRIC_SOURCE_ID) as GeoJSONSource).setData(current.data);
+    const before = map.getStyle().layers?.find((item) => item.type === 'symbol')?.id;
+    if (!map.getLayer(HEAT_LAYER_ID))
+      map.addLayer(
+        {
           id: HEAT_LAYER_ID,
           source: METRIC_SOURCE_ID,
           type: 'heatmap',
-          maxzoom: 5,
           paint: {
-            'heatmap-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              0,
-              0.82,
-              4,
-              0.58,
-              5,
-              0,
-            ],
+            'heatmap-weight': ['get', 'weight'],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 18, 3, 34, 6, 48, 10, 60],
+            'heatmap-intensity': 1.15,
+            'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.85, 6, 0.65, 9, 0.25],
           },
-        });
-      }
-
-      if (!map.getLayer(CIRCLE_LAYER_ID)) {
-        map.addLayer({
+        },
+        before
+      );
+    map.setPaintProperty(HEAT_LAYER_ID, 'heatmap-color', [
+      'interpolate',
+      ['linear'],
+      ['heatmap-density'],
+      0,
+      'rgba(0,0,0,0)',
+      0.12,
+      heat[0],
+      0.35,
+      heat[1],
+      0.55,
+      heat[2],
+      0.8,
+      heat[3],
+      1,
+      heat[4],
+    ]);
+    if (!map.getLayer(CIRCLE_LAYER_ID))
+      map.addLayer(
+        {
           id: CIRCLE_LAYER_ID,
           source: METRIC_SOURCE_ID,
           type: 'circle',
-          minzoom: 1.2,
           paint: {
-            'circle-blur': 0.12,
-            'circle-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              1.2,
-              0.34,
-              3,
-              0.72,
-            ],
-            'circle-stroke-color':
-              currentTheme === 'dark' ? GLOBE_CHROME.dark.land : GLOBE_CHROME.light.land,
-            'circle-stroke-opacity': currentTheme === 'dark' ? 0.7 : 0.85,
-            'circle-stroke-width': 1.25,
+            'circle-radius': ['interpolate', ['linear'], ['get', 'weight'], 0, 3, 1, 16],
+            'circle-stroke-width': 1.5,
           },
-        });
-      }
+        },
+        before
+      );
+    map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-color', [
+      'interpolate',
+      ['linear'],
+      ['get', 'weight'],
+      0,
+      heat[0],
+      0.25,
+      heat[1],
+      0.5,
+      heat[2],
+      0.75,
+      heat[3],
+      1,
+      heat[4],
+    ]);
+    map.setPaintProperty(CIRCLE_LAYER_ID, 'circle-stroke-color', GLOBE_CHROME[current.theme].land);
+    map.setPaintProperty(
+      CIRCLE_LAYER_ID,
+      'circle-opacity',
+      current.layer === 'points'
+        ? 0.85
+        : ['interpolate', ['linear'], ['zoom'], 0, 0.15, 4, 0.45, 7, 0.85]
+    );
+    map.setPaintProperty(
+      CIRCLE_LAYER_ID,
+      'circle-stroke-opacity',
+      current.layer === 'points' ? 0.9 : 0.35
+    );
+    map.setLayoutProperty(
+      HEAT_LAYER_ID,
+      'visibility',
+      current.layer === 'heat' ? 'visible' : 'none'
+    );
+    if (!map.getLayer(HIT_LAYER_ID))
+      map.addLayer({
+        id: HIT_LAYER_ID,
+        source: METRIC_SOURCE_ID,
+        type: 'circle',
+        paint: { 'circle-radius': 18, 'circle-opacity': 0 },
+      });
+    map.setProjection({ type: current.projection });
+  }, []);
 
-      if (!map.getLayer(HIT_LAYER_ID)) {
-        map.addLayer({
-          id: HIT_LAYER_ID,
-          source: METRIC_SOURCE_ID,
-          type: 'circle',
-          minzoom: 1,
-          paint: {
-            'circle-color': '#ffffff',
-            'circle-opacity': 0,
-          },
-        });
-      }
-
-      map.setProjection({ type: 'globe' });
-      updateVisualizationLayers(map, modeRef.current, latestMaxValue, themeRef.current);
-    },
-    []
-  );
-
-  const showMetricPopup = useCallback((metric: CountryMetric, shouldFly = false) => {
+  const fitPoints = useCallback((rows: CountryMetric[]) => {
     const map = mapRef.current;
-    if (!map || !readyRef.current) {
-      return;
-    }
-
-    const currentMode = modeRef.current;
-
-    if (!popupRef.current) {
-      popupRef.current = new maplibregl.Popup({
-        className: 'analytics-map-popup',
-        closeButton: false,
-        maxWidth: '260px',
-        offset: 18,
-      });
-    }
-
-    const popupHtml = `
-      <div class="analytics-map-popup__body">
-        <p class="analytics-map-popup__eyebrow">${escapeHtml(metric.code)}</p>
-        <h4>${escapeHtml(metric.name)}</h4>
-        <p class="analytics-map-popup__value">${escapeHtml(formatMetricValue(metric, currentMode))}</p>
-        <dl>
-          <div><dt>Listening</dt><dd>${Math.round(metric.listeningMinutes)} min</dd></div>
-          <div><dt>Downloads</dt><dd>${metric.downloadUnits}</dd></div>
-          <div><dt>Listeners</dt><dd>${metric.listenerCount}</dd></div>
-        </dl>
-      </div>
-    `;
-
-    popupRef.current
-      .setLngLat([metric.longitude, metric.latitude])
-      .setHTML(popupHtml)
-      .addTo(map);
-
-    if (shouldFly) {
-      map.flyTo({
-        center: [metric.longitude, metric.latitude],
-        duration: 900,
-        essential: true,
-        zoom: Math.max(map.getZoom(), 2.35),
-      });
-    }
+    if (!map || !rows.length) return;
+    const bounds = new maplibregl.LngLatBounds();
+    rows.forEach((point) => bounds.extend([point.longitude, point.latitude]));
+    map.fitBounds(bounds, {
+      padding: 60,
+      maxZoom: rows.every((row) => row.locationKind === 'country') ? 4 : 7,
+      duration: 650,
+    });
   }, []);
 
   useEffect(() => {
-    latestMetricsRef.current = effectiveMetrics;
-  }, [effectiveMetrics]);
-
-  useEffect(() => {
-    latestFeatureCollectionRef.current = featureCollection;
-  }, [featureCollection]);
-
-  useEffect(() => {
-    latestMaxMetricValueRef.current = maxMetricValue;
-  }, [maxMetricValue]);
-
-  useEffect(() => {
-    themeRef.current = theme;
-    const map = mapRef.current;
-    if (map && readyRef.current) {
-      applyBasemapContrast(map, theme);
-      applyGlobeAtmosphere(map, theme);
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const root = document.documentElement;
-    const updateTheme = () => {
-      const nextTheme = normalizeAdminTheme(root.dataset.theme);
-      setTheme((currentTheme) => (currentTheme === nextTheme ? currentTheme : nextTheme));
-    };
-
-    updateTheme();
-
-    const observer = new MutationObserver(updateTheme);
-    observer.observe(root, {
-      attributeFilter: ['data-theme'],
+    const update = () => setTheme(normalizeAdminTheme(document.documentElement.dataset.theme));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
       attributes: true,
+      attributeFilter: ['data-theme'],
     });
-
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
+    if (!containerRef.current) return;
+    let map: MapLibreMap;
+    try {
+      const initialTheme = normalizeAdminTheme(document.documentElement.dataset.theme);
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style: initialTheme === 'dark' ? DARK_MAP_STYLE_URL : LIGHT_MAP_STYLE_URL,
+        center: INITIAL_CENTER,
+        zoom: INITIAL_ZOOM,
+        bearing: 0,
+        pitch: 0,
+        minZoom: 0.6,
+        maxZoom: 10,
+        renderWorldCopies: false,
+        attributionControl: { compact: true },
+      });
+    } catch {
+      // Map construction can fail synchronously when WebGL is unavailable.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMapError(true);
       return;
     }
-
-    const initialStyle = getMapStyleUrl(theme);
-    currentStyleUrlRef.current = initialStyle;
-
-    const map = new maplibregl.Map({
-      attributionControl: {
-        compact: true,
-      },
-      // North-up and flat. The globe used to open at bearing -8 / pitch 12 and
-      // then drift, which left no way to get the world square again.
-      bearing: 0,
-      center: INITIAL_CENTER,
-      container: containerRef.current,
-      // Operators can still spin the globe and zoom into a region; the compass
-      // control below puts it back to north.
-      dragRotate: true,
-      maxBounds: WORLD_BOUNDS,
-      pitch: 0,
-      minZoom: 1,
-      pitchWithRotate: false,
-      renderWorldCopies: false,
-      scrollZoom: true,
-      style: initialStyle,
-      zoom: INITIAL_ZOOM,
-    });
-
-    // showCompass gives the operator a reset-bearing button: clicking it snaps
-    // the globe back to north-up.
+    mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 100 }), 'bottom-left');
     map.on('style.load', () => {
-      readyRef.current = true;
-      applyBasemapContrast(map, themeRef.current);
-      applyGlobeAtmosphere(map, themeRef.current);
-      syncVisualizationLayers(map);
-      setIsMapReady(true);
+      styleReadyRef.current = true;
+      applyBasemapContrast(map, state.current.theme);
+      syncLayers(map);
+      setReady(true);
+      setMapError(false);
     });
-
+    map.on('error', () => setMapError(true));
+    map.on('idle', () => setMapError(false));
     map.on('click', HIT_LAYER_ID, (event) => {
-      const countryCode = event.features?.[0]?.properties?.countryCode;
-      if (typeof countryCode !== 'string') {
-        return;
-      }
-
-      const metric = latestMetricsRef.current.find((entry) => entry.code === countryCode);
-      if (!metric) {
-        return;
-      }
-
-      setSelectedCode(countryCode);
-      showMetricPopup(metric, true);
+      const id = event.features?.[0]?.properties?.pointId;
+      const point = state.current.points.find((item) => pointId(item) === id);
+      if (!point) return;
+      setSelectedPointId(id);
+      state.current.onSelectCountry(point.code);
     });
-
     map.on('mouseenter', HIT_LAYER_ID, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
-
     map.on('mouseleave', HIT_LAYER_ID, () => {
       map.getCanvas().style.cursor = '';
     });
-
-    mapRef.current = map;
-
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(containerRef.current);
     return () => {
-      readyRef.current = false;
-      popupRef.current?.remove();
-      popupRef.current = null;
+      observer.disconnect();
+      styleReadyRef.current = false;
       map.remove();
       mapRef.current = null;
     };
-  }, [showMetricPopup, syncVisualizationLayers, theme]);
+  }, [syncLayers]);
 
+  // Repaint the existing vector style instead of replacing it. This keeps the
+  // camera and sources intact, including when themes change during tile loads.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !readyRef.current) {
-      return;
-    }
-
-    const nextStyle = getMapStyleUrl(theme);
-    if (currentStyleUrlRef.current === nextStyle) {
-      return;
-    }
-
-    currentStyleUrlRef.current = nextStyle;
-    map.setStyle(nextStyle);
-  }, [theme]);
+    if (!map || !ready) return;
+    applyBasemapContrast(map, theme);
+    syncLayers(map);
+  }, [theme, ready, syncLayers]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !readyRef.current) {
-      return;
-    }
-
-    const source = map.getSource(METRIC_SOURCE_ID) as GeoJSONSource | undefined;
-    source?.setData(featureCollection);
-    updateVisualizationLayers(map, mode, maxMetricValue, theme);
-  }, [featureCollection, maxMetricValue, mode, theme]);
+    if (mapRef.current && ready && styleReadyRef.current) syncLayers(mapRef.current);
+  }, [data, projection, layer, ready, syncLayers]);
 
   useEffect(() => {
-    if (!selectedMetric) {
-      popupRef.current?.remove();
-      return;
+    if (ready && lastFittedPointsRef.current !== scopedPoints) {
+      lastFittedPointsRef.current = scopedPoints;
+      fitPoints(scopedPoints);
     }
-
-    showMetricPopup(selectedMetric);
-  }, [selectedMetric, showMetricPopup]);
-
-  // Open the camera over the data's weighted centroid once the first metrics are
-  // ready, so the globe doesn't greet the operator with an empty ocean.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !isMapReady || hasFlownRef.current) {
-      return;
-    }
-    const centroid = computeWeightedCentroid(effectiveMetrics);
-    if (!centroid) {
-      return;
-    }
-    hasFlownRef.current = true;
-    map.flyTo({ center: centroid, zoom: 3.1, duration: 2200, essential: true });
-  }, [isMapReady, effectiveMetrics]);
-
-  if (!effectiveMetrics.length) {
-    return (
-      <section className="globe-card globe-card--empty">
-        <p>No coarse geography data is available yet.</p>
-      </section>
-    );
-  }
+  }, [selectedCountry, scopedPoints, ready, fitPoints]);
 
   return (
-    <section className="globe-card">
-      <div className="globe-card__header">
-        <div className="globe-card__title-stack">
-          <Link href="/" className="globe-card__back-link">
-            <span aria-hidden="true">←</span>
-            Back to overview
-          </Link>
-          <div>
-            <p className="eyebrow">Global map</p>
-            <h3>World reach globe</h3>
+    <div className="atlas-body">
+      <div className="atlas-map-column">
+        <div className="atlas-map-toolbar">
+          <div className="atlas-toggle" role="group" aria-label="Map projection">
+            <button
+              type="button"
+              aria-pressed={projection === 'mercator'}
+              onClick={() => setProjection('mercator')}
+            >
+              Map
+            </button>
+            <button
+              type="button"
+              aria-pressed={projection === 'globe'}
+              onClick={() => {
+                setProjection('globe');
+                const focus = selected ?? ranked[0] ?? scopedPoints[0];
+                if (focus)
+                  mapRef.current?.flyTo({
+                    center: [focus.longitude, focus.latitude],
+                    zoom: 1.7,
+                    bearing: 0,
+                    pitch: 0,
+                    duration: 650,
+                  });
+              }}
+            >
+              Globe
+            </button>
           </div>
-        </div>
-
-        <div
-          className="segmented-control"
-          role="group"
-          aria-label="Select globe metric"
-        >
+          <div className="atlas-toggle" role="group" aria-label="Map display">
+            <button type="button" aria-pressed={layer === 'heat'} onClick={() => setLayer('heat')}>
+              Heat
+            </button>
+            <button
+              type="button"
+              aria-pressed={layer === 'points'}
+              onClick={() => setLayer('points')}
+            >
+              Points
+            </button>
+          </div>
           <button
+            className="atlas-text-button"
             type="button"
-            className={`segmented-control__button ${
-              mode === 'listeningMinutes' ? 'segmented-control__button--active' : ''
-            }`.trim()}
-            aria-pressed={mode === 'listeningMinutes'}
-            onClick={() => setMode('listeningMinutes')}
+            disabled={!ready || !scopedPoints.length}
+            onClick={() => fitPoints(scopedPoints)}
           >
-            Listening
+            Fit activity
           </button>
           <button
+            className="atlas-text-button"
             type="button"
-            className={`segmented-control__button ${
-              mode === 'downloadUnits' ? 'segmented-control__button--active' : ''
-            }`.trim()}
-            aria-pressed={mode === 'downloadUnits'}
-            onClick={() => setMode('downloadUnits')}
+            disabled={!ready}
+            onClick={() => {
+              onSelectCountry(null);
+              setSelectedPointId(null);
+              mapRef.current?.fitBounds(WORLD_BOUNDS, { padding: 20, duration: 650 });
+            }}
           >
-            Downloads
+            Reset view
           </button>
         </div>
-
-        {translationBreakdown && translationBreakdown.length > 0 && (
-          <>
-            <div className="translation-selector-wrap">
-              <label htmlFor="translation-select" className="translation-selector__label">
-                Translation
-              </label>
-              <select
-                id="translation-select"
-                className="translation-selector"
-                value={selectedTranslation ?? ''}
-                onChange={(e) => setSelectedTranslation(e.target.value || null)}
-              >
-                <option value="">All translations</option>
-                {translationBreakdown.map((entry) => (
-                  <option key={entry.translationId} value={entry.translationId}>
-                    {entry.translationId.toUpperCase()} — {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.readingMinutes)} read min
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="translation-chip-list" role="group" aria-label="Select translation heatmap">
-              <button
-                type="button"
-                className={`translation-chip ${selectedTranslation === null ? 'translation-chip--active' : ''}`.trim()}
-                aria-pressed={selectedTranslation === null}
-                onClick={() => setSelectedTranslation(null)}
-              >
-                <span>All translations</span>
-                <small>{Math.round(listeningTotalMinutes ?? 0)} listen min</small>
-              </button>
-              {(() => {
-                const active = translationBreakdown.filter(
-                  (entry) => entry.listeningMinutes > 0 || entry.downloadUnits > 0
-                );
-                const zero = translationBreakdown.filter(
-                  (entry) => entry.listeningMinutes <= 0 && entry.downloadUnits <= 0
-                );
-                // Zero-activity translations (often the majority) bury the signal;
-                // keep them one click away behind a "+N more" toggle. Always show a
-                // zero translation if it's the current selection.
-                const visibleZero = showAllTranslations
-                  ? zero
-                  : zero.filter((entry) => entry.translationId === selectedTranslation);
-                const chips = [...active, ...visibleZero];
-                return (
-                  <>
-                    {chips.map((entry) => (
-                      <button
-                        key={entry.translationId}
-                        type="button"
-                        className={`translation-chip ${
-                          selectedTranslation === entry.translationId ? 'translation-chip--active' : ''
-                        }`.trim()}
-                        aria-pressed={selectedTranslation === entry.translationId}
-                        onClick={() => setSelectedTranslation(entry.translationId)}
-                      >
-                        <span>{entry.translationId.toUpperCase()}</span>
-                        <small>
-                          {Math.round(entry.listeningMinutes)} listen min, {Math.round(entry.downloadUnits)} downloads
-                        </small>
-                      </button>
-                    ))}
-                    {zero.length > 0 && !showAllTranslations && zero.length !== visibleZero.length && (
-                      <button
-                        type="button"
-                        className="translation-chip translation-chip--more"
-                        onClick={() => setShowAllTranslations(true)}
-                      >
-                        <span>+{zero.length - visibleZero.length} more</span>
-                        <small>no activity this window</small>
-                      </button>
-                    )}
-                    {showAllTranslations && zero.length > 0 && (
-                      <button
-                        type="button"
-                        className="translation-chip translation-chip--more"
-                        onClick={() => setShowAllTranslations(false)}
-                      >
-                        <span>Show less</span>
-                        <small>hide inactive</small>
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="globe-card__content">
-        <div className="globe-card__viewer-wrap">
+        <div className="atlas-viewer">
           <div
             ref={containerRef}
-            className="globe-card__viewer"
-            aria-label="Global usage heatmap"
+            className="atlas-map"
+            role="region"
+            aria-label="Global activity map"
           />
-          {!isMapReady && (
-            <div className="globe-card__skeleton" aria-hidden="true">
-              <div className="globe-card__skeleton-orb" />
-            </div>
+          {!ready && !mapError && (
+            <p className="atlas-map-message" role="status">
+              Loading map…
+            </p>
+          )}
+          {mapError && (
+            <p className="atlas-map-message" role="status">
+              Some map tiles could not load. Country and location data remain available beside the
+              map.
+            </p>
+          )}
+          {ready && !data.features.length && (
+            <p className="atlas-map-message">
+              No mapped {metricLabel(mode)} for this selection. Check the totals and tables below.
+            </p>
+          )}
+          {selectedCountry && (
+            <button
+              className="atlas-map-selection"
+              type="button"
+              onClick={() => {
+                onSelectCountry(null);
+                setSelectedPointId(null);
+              }}
+            >
+              {selected?.name ?? selectedCountry} · Clear selection
+            </button>
           )}
         </div>
-
-        <aside className="globe-card__panel">
-          <div className="globe-card__summary">
-            <p className="eyebrow">Coverage snapshot</p>
-            <div className="globe-card__summary-grid" aria-label="Coverage summary">
-              <div>
-                <span>Countries</span>
-                <strong>{overviewMetrics.activeCountryCount}</strong>
-              </div>
-              <div>
-                <span>{activeBreakdown ? 'Listeners' : 'Listeners (located)'}</span>
-                <strong>{formatNumber(overviewMetrics.listenerCount)}</strong>
-              </div>
-              <div>
-                <span>Listening min</span>
-                <strong>{formatNumber(overviewMetrics.listeningMinutes)}</strong>
-              </div>
-              <div>
-                <span>Downloads</span>
-                <strong>{formatNumber(overviewMetrics.downloadUnits)}</strong>
-              </div>
+        <div className="atlas-legend">
+          <div>
+            <span>{layer === 'heat' ? 'Relative density' : 'Activity per point'}</span>
+            <div className="globe-card__legend-bar" />
+            <div className="atlas-legend-labels">
+              <span>{layer === 'heat' ? 'Low' : '0'}</span>
+              <span>{layer === 'heat' ? 'High' : formatNumber(maximum)}</span>
             </div>
           </div>
-
-          <div className="globe-card__legend-card">
-            <div className="globe-card__legend" aria-hidden="true">
-              <span>Lower</span>
-              <div className="globe-card__legend-bar" />
-              <span>Higher</span>
+          <p>
+            {layer === 'heat'
+              ? 'Overlapping activity, weighted on a log scale.'
+              : `Log scale · ${metricLabel(mode)}.`}
+            <br />
+            Approximate IP locations; country centers where coordinates are unavailable. Not GPS.
+          </p>
+        </div>
+      </div>
+      <aside className="atlas-inspector" aria-label="Geographic detail">
+        {selectedCountry ? (
+          <>
+            <div className="atlas-inspector-heading">
+              <div>
+                <p className="eyebrow">Country detail</p>
+                <h3>{selected?.name ?? scopedPoints[0]?.name ?? selectedCountry}</h3>
+              </div>
+              <button
+                type="button"
+                className="atlas-text-button"
+                onClick={() => {
+                  onSelectCountry(null);
+                  setSelectedPointId(null);
+                }}
+              >
+                Back
+              </button>
             </div>
-            <p>Colors intensify from low to high values in the selected metric.</p>
-          </div>
-
-          {activeBreakdown ? (
-            <div className="globe-card__notice" role="status">
-              <p className="eyebrow">Translation focus</p>
-              {reuseOverallMapForSelectedTranslation ? (
-                <p>
-                  {activeBreakdown.translationId.toUpperCase()} is the only active translation in this window, so the
-                  globe is reusing the overall map while the per-translation geo rows catch up.
-                </p>
-              ) : selectedTranslationHasGeoMetrics ? (
-                <p>
-                  The globe and coverage cards are now filtered to {activeBreakdown.translationId.toUpperCase()}.
-                </p>
-              ) : (
-                <p>
-                  {activeBreakdown.translationId.toUpperCase()} has engagement totals, but no location-tagged events
-                  were stored for this window yet.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          <div className="globe-card__explore">
-            <p className="eyebrow">Explore</p>
-            {topCountry ? (
+            <p className="atlas-muted">
+              {[selected?.subregion, selected?.region, selectedCountry].filter(Boolean).join(' · ')}
+            </p>
+            {selected ? (
               <>
-                <h4>
-                  {topCountry.name} leads in {modeLabel}.
-                </h4>
-                <p>
-                  Click a country bubble to open the detailed country card and compare listening,
-                  downloads, and listeners.
+                <dl className="atlas-country-metrics">
+                  <div>
+                    <dt>Listening min</dt>
+                    <dd>{formatNumber(selected.listeningMinutes)}</dd>
+                  </div>
+                  <div>
+                    <dt>Reading min</dt>
+                    <dd>{formatNumber(selected.readingMinutes)}</dd>
+                  </div>
+                  <div>
+                    <dt>Download units</dt>
+                    <dd>{formatNumber(selected.downloadUnits)}</dd>
+                  </div>
+                  <div>
+                    <dt>Listeners</dt>
+                    <dd>{formatNumber(selected.listenerCount)}</dd>
+                  </div>
+                </dl>
+                <p className="atlas-muted">
+                  {countryTotal ? formatNumber((selected[mode] / countryTotal) * 100) : 0}% of
+                  country-attributed {metricLabel(mode)}.
                 </p>
               </>
             ) : (
-              <>
-                <h4>Click any country to open its detail card.</h4>
-                <p>Use the globe to drill into the geography data.</p>
-              </>
+              <p className="atlas-muted">
+                Country totals are unavailable for this translation. Location values below cover
+                individual buckets.
+              </p>
             )}
-          </div>
-
-          {selectedMetric ? (
-            <div className="globe-card__selected">
-              <p className="eyebrow">Selected country</p>
-              <h4>
-                {selectedMetric.name} <span>{selectedMetric.code}</span>
-              </h4>
-              <p>{formatMetricValue(selectedMetric, mode)}</p>
-              <dl>
-                <div>
-                  <dt>Listening</dt>
-                  <dd>{Math.round(selectedMetric.listeningMinutes)} min</dd>
-                </div>
-                <div>
-                  <dt>Downloads</dt>
-                  <dd>{selectedMetric.downloadUnits}</dd>
-                </div>
-                <div>
-                  <dt>Listeners</dt>
-                  <dd>{selectedMetric.listenerCount}</dd>
-                </div>
-              </dl>
+            <h4>
+              {scopedPoints.length} mapped {scopedPoints.length === 1 ? 'location' : 'locations'}
+            </h4>
+            <div className="atlas-location-list">
+              {[...scopedPoints]
+                .sort((a, b) => b[mode] - a[mode])
+                .map((point) => (
+                  <button
+                    type="button"
+                    key={pointId(point)}
+                    aria-pressed={pointId(point) === selectedPointId}
+                    onClick={() => {
+                      setSelectedPointId(pointId(point));
+                      fitPoints([point]);
+                    }}
+                  >
+                    <span>
+                      {point.locationKind === 'country'
+                        ? 'Country center'
+                        : `${point.latitude.toFixed(1)}°, ${point.longitude.toFixed(1)}°`}
+                    </span>
+                    <strong>{formatNumber(point[mode])}</strong>
+                  </button>
+                ))}
             </div>
-          ) : null}
-
-        </aside>
-      </div>
-    </section>
+            {selectedPoint && (
+              <div className="atlas-location-detail" aria-live="polite">
+                <strong>
+                  {selectedPoint.locationKind === 'country'
+                    ? 'Country-level placement'
+                    : 'Approximate location'}
+                </strong>
+                <p>
+                  {formatNumber(selectedPoint[mode])} {metricLabel(mode)} at{' '}
+                  {selectedPoint.latitude.toFixed(1)}°, {selectedPoint.longitude.toFixed(1)}°.
+                </p>
+                <p>Coordinates identify a reporting bucket, not a person or an exact address.</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="atlas-inspector-heading">
+              <h3>Countries</h3>
+              <span className="atlas-count">{ranked.length}</span>
+            </div>
+            <p className="atlas-muted">Ranked by {metricLabel(mode)}. Select to explore.</p>
+            <input
+              className="atlas-search"
+              type="search"
+              aria-label="Search countries on map"
+              placeholder="Find a country or region…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <div className="atlas-country-list">
+              {visibleCountries.map((country, index) => (
+                <button
+                  type="button"
+                  key={country.code}
+                  onClick={() => {
+                    onSelectCountry(country.code);
+                    setSelectedPointId(null);
+                  }}
+                >
+                  <span className="atlas-rank">{index + 1}</span>
+                  <span className="atlas-country-name">
+                    {country.name}
+                    <span className="atlas-rank-track">
+                      <span
+                        style={{
+                          width: `${(country[mode] / Math.max(ranked[0]?.[mode] ?? 1, 1)) * 100}%`,
+                        }}
+                      />
+                    </span>
+                  </span>
+                  <strong>{formatNumber(country[mode])}</strong>
+                </button>
+              ))}
+            </div>
+            {!visibleCountries.length && (
+              <p className="atlas-muted">
+                {query
+                  ? 'No countries match your search.'
+                  : 'No country totals for this metric. Available locations remain on the map.'}
+              </p>
+            )}
+            <p className="atlas-inspector-footnote">
+              Country totals can include activity without map coordinates. Listeners are distinct
+              within each country and cannot be added across countries.
+            </p>
+          </>
+        )}
+      </aside>
+    </div>
   );
 }

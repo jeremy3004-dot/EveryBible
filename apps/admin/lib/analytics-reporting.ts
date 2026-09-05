@@ -6,6 +6,9 @@ export interface DailyMetricPoint {
 }
 
 export interface CountryMetric {
+  locationKind?: 'country' | 'approximate';
+  region?: string;
+  subregion?: string;
   code: string;
   downloadUnits: number;
   latitude: number;
@@ -26,6 +29,7 @@ export interface CountryMetricRollup {
 }
 
 export interface LocationMetricRollup {
+  readingMinutes?: number;
   countryCode: string | null;
   countryName?: string | null;
   downloadUnits: number;
@@ -60,13 +64,16 @@ function compareCountryMetrics(left: CountryMetric, right: CountryMetric): numbe
 
 export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]): CountryMetric[] {
   return countryRollups
-    .map((rollup) => {
+    .map((rollup): CountryMetric | null => {
       const geography = getCountryGeography(rollup.code);
       if (!geography) {
         return null;
       }
 
       return {
+        locationKind: 'country' as const,
+        region: geography.region,
+        subregion: geography.subregion,
         code: geography.code,
         downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
         latitude: geography.latitude,
@@ -96,6 +103,7 @@ export interface TranslationCountryRollup {
 }
 
 export interface TranslationLocationRollup {
+  readingMinutes?: number;
   translationId: string;
   countryCode: string | null;
   countryName?: string | null;
@@ -104,6 +112,13 @@ export interface TranslationLocationRollup {
   listeningMinutes: number;
   downloadUnits: number;
   listenerCount: number;
+}
+
+export interface TranslationTotalsRollup {
+  translationId: string;
+  listeningMinutes: number;
+  readingMinutes: number;
+  downloadUnits: number;
 }
 
 export interface TranslationListeningRollup {
@@ -145,6 +160,7 @@ export function buildTranslationBreakdown(
   locationRollups: TranslationLocationRollup[],
   listeningRollups: TranslationListeningRollup[] = [],
   listenerRollups: TranslationListenerRollup[] = [],
+  totalRollups: TranslationTotalsRollup[] = []
 ): TranslationBreakdownEntry[] {
   const byTranslation = new Map<
     string,
@@ -158,12 +174,16 @@ export function buildTranslationBreakdown(
       locationRollups: LocationMetricRollup[];
     }
   >();
+  const totalsByTranslation = new Map(totalRollups.map((row) => [row.translationId, row]));
   const listeningMinutesByTranslation = new Map<string, number>();
   // Authoritative per-translation distinct listener counts from the RPC.
   const listenerCountByTranslation = new Map<string, number>();
 
   for (const row of listenerRollups) {
-    listenerCountByTranslation.set(row.translationId, Math.max(0, Math.round(Number(row.listenerCount) || 0)));
+    listenerCountByTranslation.set(
+      row.translationId,
+      Math.max(0, Math.round(Number(row.listenerCount) || 0))
+    );
   }
 
   const ensure = (id: string) => {
@@ -183,8 +203,13 @@ export function buildTranslationBreakdown(
     return entry;
   };
 
+  for (const row of totalRollups) ensure(row.translationId);
+
   for (const row of listeningRollups) {
-    listeningMinutesByTranslation.set(row.translationId, Math.max(0, Number(row.listeningMinutes) || 0));
+    listeningMinutesByTranslation.set(
+      row.translationId,
+      Math.max(0, Number(row.listeningMinutes) || 0)
+    );
     ensure(row.translationId);
   }
 
@@ -212,6 +237,7 @@ export function buildTranslationBreakdown(
     const entry = ensure(row.translationId);
     entry.locationListeningMinutes += Number(row.listeningMinutes) || 0;
     entry.locationRollups.push({
+      readingMinutes: Number(row.readingMinutes) || 0,
       countryCode: row.countryCode,
       countryName: row.countryName,
       latitude: row.latitude,
@@ -230,11 +256,14 @@ export function buildTranslationBreakdown(
       return {
         translationId,
         listeningMinutes: Math.round(
-          listeningMinutesByTranslation.get(translationId) ??
+          totalsByTranslation.get(translationId)?.listeningMinutes ??
+            listeningMinutesByTranslation.get(translationId) ??
             Math.max(entry.listeningMinutes, entry.locationListeningMinutes)
         ),
-        readingMinutes: Math.round(entry.readingMinutes),
-        downloadUnits: entry.downloadUnits,
+        readingMinutes: roundToSingleDecimal(
+          totalsByTranslation.get(translationId)?.readingMinutes ?? entry.readingMinutes
+        ),
+        downloadUnits: totalsByTranslation.get(translationId)?.downloadUnits ?? entry.downloadUnits,
         // Prefer the RPC's authoritative distinct count; fall back to the
         // per-country max only when the RPC didn't supply one.
         listenerCount: listenerCountByTranslation.get(translationId) ?? entry.listenerCount,
@@ -243,7 +272,10 @@ export function buildTranslationBreakdown(
         locationMetrics,
       };
     })
-    .sort((a, b) => b.listeningMinutes - a.listeningMinutes || a.translationId.localeCompare(b.translationId));
+    .sort(
+      (a, b) =>
+        b.listeningMinutes - a.listeningMinutes || a.translationId.localeCompare(b.translationId)
+    );
 }
 
 export function mapLocationRollupsToMetrics(
@@ -257,7 +289,14 @@ export function mapLocationRollupsToMetrics(
     const latitude = hasCoords ? (rollup.latitude as number) : geography?.latitude;
     const longitude = hasCoords ? (rollup.longitude as number) : geography?.longitude;
 
-    if (latitude == null || longitude == null) {
+    if (
+      latitude == null ||
+      longitude == null ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 ||
+      Math.abs(longitude) > 180
+    ) {
       continue;
     }
 
@@ -267,18 +306,23 @@ export function mapLocationRollupsToMetrics(
     const bucketLatitude = roundCoordinateToBucket(latitude);
     const bucketLongitude = roundCoordinateToBucket(longitude);
     const bucketKey = [
+      hasCoords ? 'approximate' : 'country',
       geography?.code ?? rollup.countryCode ?? 'UNKNOWN',
       bucketLatitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
       bucketLongitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
     ].join(':');
 
     const listeningMinutes = roundToSingleDecimal(Number(rollup.listeningMinutes) || 0);
+    const readingMinutes = roundToSingleDecimal(Number(rollup.readingMinutes) || 0);
     const downloadUnits = Math.max(0, Math.round(Number(rollup.downloadUnits) || 0));
     const listenerCount = Math.max(0, Math.round(Number(rollup.listenerCount) || 0));
 
     const existing = bucketedMetrics.get(bucketKey);
     if (existing) {
-      existing.listeningMinutes = roundToSingleDecimal(existing.listeningMinutes + listeningMinutes);
+      existing.listeningMinutes = roundToSingleDecimal(
+        existing.listeningMinutes + listeningMinutes
+      );
+      existing.readingMinutes = roundToSingleDecimal(existing.readingMinutes + readingMinutes);
       existing.downloadUnits += downloadUnits;
       // Rollups are already deduped upstream per raw coordinate, so when we
       // merge nearby approximate buckets client-side we keep the conservative
@@ -288,14 +332,15 @@ export function mapLocationRollupsToMetrics(
     }
 
     bucketedMetrics.set(bucketKey, {
+      locationKind: hasCoords ? 'approximate' : 'country',
+      region: geography?.region,
+      subregion: geography?.subregion,
       code: geography?.code ?? bucketKey,
       downloadUnits,
       latitude: bucketLatitude,
       listenerCount,
       listeningMinutes,
-      // Reading is not IP-geolocated onto the map; location metrics carry no
-      // reading minutes (country rollups do — see mapCountryRollupsToMetrics).
-      readingMinutes: 0,
+      readingMinutes,
       longitude: bucketLongitude,
       name: geography?.name ?? rollup.countryName ?? 'Unknown location',
     });

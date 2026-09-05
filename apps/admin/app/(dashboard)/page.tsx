@@ -2,9 +2,15 @@ import Link from 'next/link';
 
 import { AdminSetupCard } from '@/components/AdminSetupCard';
 import { StatusPill } from '@/components/StatusPill';
-import { getDashboardSummary, getHealthIssues, getRecentAuditLogs } from '@/lib/admin-data';
+import {
+  getAnalyticsOverview,
+  getDashboardSummary,
+  getHealthIssues,
+  getRecentAuditLogs,
+} from '@/lib/admin-data';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 import { formatDateTime } from '@/lib/format';
+import { formatNumber } from '@/lib/analytics-atlas';
 
 export default async function AdminOverviewPage() {
   const missingKeys = getAdminRequiredEnvKeys();
@@ -12,10 +18,11 @@ export default async function AdminOverviewPage() {
     return <AdminSetupCard missingKeys={missingKeys} />;
   }
 
-  const [summary, healthIssues, auditLogs] = await Promise.all([
+  const [summary, healthIssues, auditLogs, analytics] = await Promise.all([
     getDashboardSummary(),
     getHealthIssues(),
     getRecentAuditLogs(),
+    getAnalyticsOverview(30),
   ]);
 
   return (
@@ -23,44 +30,78 @@ export default async function AdminOverviewPage() {
       <section className="page-header">
         <div>
           <p className="eyebrow">Overview</p>
-          <h2>Operate translation delivery, dynamic content, support, and reporting from one place.</h2>
+          <h2>EveryBible at a glance</h2>
           <p className="page-copy">
-            The admin platform is now wired for secure access, operational visibility, and
-            the full set of content and reporting workflows defined in the web-platform roadmap.
+            See where Scripture is reaching people, review content, and keep translation delivery
+            healthy.
           </p>
         </div>
       </section>
 
+      <section className="atlas-panel">
+        <div className="atlas-panel-header">
+          <div>
+            <p className="eyebrow">Last 30 days</p>
+            <h3>Scripture around the world</h3>
+          </div>
+          <Link className="button button-primary" href="/analytics?window=30">
+            Explore activity atlas
+          </Link>
+        </div>
+        <div className="atlas-kpis overview-reach">
+          <article>
+            <span>Listening minutes</span>
+            <strong>{formatNumber(analytics.listeningTotalMinutes)}</strong>
+            <small>Across all translations</small>
+          </article>
+          <article>
+            <span>Reading minutes</span>
+            <strong>{formatNumber(analytics.readingTotalMinutes)}</strong>
+            <small>Time in Scripture</small>
+          </article>
+          <article>
+            <span>Listeners</span>
+            <strong>{formatNumber(analytics.userCountWithListening)}</strong>
+            <small>{formatNumber(analytics.locatedListenerCount)} with map location</small>
+          </article>
+          <article>
+            <span>Countries reached</span>
+            <strong>{formatNumber(analytics.activeCountryCount)}</strong>
+            <small>{formatNumber(analytics.totalDownloadUnits)} download units</small>
+          </article>
+        </div>
+        <div className="atlas-source">
+          Source: EveryBible analytics · last 30 days · Read country, translation and location
+          details in the atlas.
+        </div>
+      </section>
+
       <section className="metric-grid">
-        <article className="metric-card">
+        <Link href="/translations" className="metric-card">
           <span>Translations</span>
           <strong>{summary.translationCount}</strong>
-        </article>
-        <article className="metric-card">
+        </Link>
+        <Link href="/translations" className="metric-card">
           <span>Failed syncs</span>
           <strong>{summary.failedSyncCount}</strong>
-        </article>
-        <article className="metric-card">
+        </Link>
+        <Link href="/content/verse-of-day" className="metric-card">
           <span>Live verses</span>
           <strong>{summary.liveVerseCount}</strong>
-        </article>
-        <article className="metric-card">
+        </Link>
+        <Link href="/content/images" className="metric-card">
           <span>Live images</span>
           <strong>{summary.liveImageCount}</strong>
-        </article>
-        <article className="metric-card">
+        </Link>
+        <Link href="/support/users" className="metric-card">
           <span>Support users</span>
           <strong>{summary.supportUserCount}</strong>
-        </article>
+        </Link>
         <Link href="/feedback" className="metric-card">
           <span>Chapter feedback</span>
           <strong>{summary.feedbackCount}</strong>
           <small>Open review queue</small>
         </Link>
-        <article className="metric-card">
-          <span>Admin modules</span>
-          <strong>{summary.adminPathCount}</strong>
-        </article>
       </section>
 
       <section className="card">
@@ -123,8 +164,8 @@ export default async function AdminOverviewPage() {
               {auditLogs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="data-table__empty">
-                    No admin actions recorded yet — actions appear here when you publish,
-                    sync, or moderate.
+                    No admin actions recorded yet — actions appear here when you publish, sync, or
+                    moderate.
                   </td>
                 </tr>
               ) : (

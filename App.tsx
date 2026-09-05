@@ -421,6 +421,7 @@ function AppContent() {
       return;
     }
 
+    let sessionWasAuthenticated = false;
     const startAnalyticsSessions = () => {
       void import('./src/services/analytics').then(
         ({
@@ -435,7 +436,8 @@ function AppContent() {
           void primeGeoContext();
           // Read auth live at call time so a mid-session sign-in/out is attributed
           // correctly without tearing down the AppState listener on every auth change.
-          if (useAuthStore.getState().isAuthenticated) {
+          sessionWasAuthenticated = useAuthStore.getState().isAuthenticated;
+          if (sessionWasAuthenticated) {
             // Authenticated path: the session lifecycle event (session_started /
             // session_ended) is owned by analyticsService so it carries user_id.
             // We still establish an anonymous session_id context so that
@@ -444,8 +446,8 @@ function AppContent() {
             // session_id. Without this setup those events would
             // lazily create a new anonymous session and emit their own
             // session_started, which is worse than just pre-creating the id.
-            initAnonymousSessionContext();
-            startSession();
+            const sessionId = initAnonymousSessionContext();
+            startSession(sessionId);
           } else {
             // Unauthenticated path: anonymous analytics owns both the session
             // context and the session lifecycle event (session_started).
@@ -464,7 +466,7 @@ function AppContent() {
           endSession,
           flushEvents,
         }) => {
-          if (useAuthStore.getState().isAuthenticated) {
+          if (sessionWasAuthenticated) {
             // Authenticated path: session_ended is emitted by the authenticated
             // analytics path. We only reset the anonymous session_id context (no
             // duplicate session_ended event) and flush both queues so audio /
@@ -475,8 +477,7 @@ function AppContent() {
             // Unauthenticated path: anonymous analytics owns the session_ended event.
             endAnonymousUsageSession();
           }
-          // Always flush both queues — audio/reading events land in the anonymous
-          // queue and authenticated events (if any) land in the authenticated queue.
+          // Both facades share one durable queue; concurrent calls are coalesced.
           void flushAnonymousUsageEvents();
           void flushEvents();
         }

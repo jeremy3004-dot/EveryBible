@@ -15,12 +15,12 @@ interface GeoPayload {
   region_code: string | null;
 }
 
-function parseCoordinate(value: string | undefined): number | null {
-  if (value === undefined || value === null) {
+function parseCoordinate(value: string | undefined, limit: number): number | null {
+  if (value === undefined || value === null || !value.trim()) {
     return null;
   }
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && Math.abs(parsed) <= limit ? Math.round(parsed * 10) / 10 : null;
 }
 
 function nullableString(value: string | undefined): string | null {
@@ -50,8 +50,8 @@ export default {
     const payload: GeoPayload = cf
       ? {
           country_code: nullableString(cf.country as string | undefined),
-          latitude: parseCoordinate(cf.latitude as string | undefined),
-          longitude: parseCoordinate(cf.longitude as string | undefined),
+          latitude: parseCoordinate(cf.latitude as string | undefined, 90),
+          longitude: parseCoordinate(cf.longitude as string | undefined, 180),
           timezone: nullableString(cf.timezone as string | undefined),
           city: nullableString(cf.city as string | undefined),
           region: nullableString(cf.region as string | undefined),

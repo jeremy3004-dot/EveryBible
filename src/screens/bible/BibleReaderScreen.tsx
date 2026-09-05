@@ -62,7 +62,8 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
 import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
-import { trackAnonymousUsageEvent } from '../../services/analytics';
+import { trackAnonymousUsageEvent, flushAnonymousUsageEvents } from '../../services/analytics';
+import { createReadingTimer } from '../../services/analytics/readingTimer';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
   getAnnotationsForChapter,
@@ -1709,9 +1710,8 @@ export function BibleReaderScreen() {
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
   const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
-  const premiumTopInset = 18;
   const premiumBottomInset = 18;
-  const sharedTopChromeTop = safeInsets.top + premiumTopInset;
+  const sharedTopChromeTop = safeInsets.top;
   const readerContentTopPadding = sharedTopChromeTop + 98;
   const lastReaderScrollJsOffset = useSharedValue(0);
   const lastReaderScrollJsAtBottom = useSharedValue(false);
@@ -2291,46 +2291,33 @@ export function BibleReaderScreen() {
     void loadAnnotations();
   }, [bookId, chapter]);
 
-  // Reading time tracking — measures actual foreground time spent on this chapter.
-  // Uses wall-clock math with AppState gating (no interval). Emits a single
-  // reading_ended event on unmount so reading time lands in backend analytics.
-  useEffect(() => {
-    // Only track when there is text to read.
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-
-    let startedAt: number | null = Date.now();
-    let accumulatedMs = 0;
-
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        startedAt = Date.now();
-      } else {
-        if (startedAt !== null) {
-          accumulatedMs += Date.now() - startedAt;
-          startedAt = null;
-        }
-      }
-    });
-
-    return () => {
-      subscription.remove();
-      if (startedAt !== null) {
-        accumulatedMs += Date.now() - startedAt;
-      }
-      const durationSeconds = Math.round(accumulatedMs / 1000);
-      // Ignore sub-5-second visits (accidental taps / fast chapter skips).
-      if (durationSeconds >= 5) {
+  // Checkpoint focused foreground reading so a background force-quit does not
+  // lose the visit. Hidden tabs remain mounted, so mount/unmount is insufficient.
+  useFocusEffect(
+    useCallback(() => {
+      if (chapterSessionMode !== 'read') return;
+      const timer = createReadingTimer((durationSeconds) => {
         trackAnonymousUsageEvent('reading_ended', {
           book_id: bookId,
           chapter,
           translation_id: currentTranslation,
           duration_seconds: durationSeconds,
         });
-      }
-    };
-  }, [bookId, chapter, currentTranslation, chapterSessionMode]);
+      });
+      timer.setActive(AppState.currentState === 'active');
+      const interval = setInterval(timer.checkpoint, 30_000);
+      const subscription = AppState.addEventListener('change', (nextState) => {
+        timer.setActive(nextState === 'active');
+        if (nextState !== 'active') void flushAnonymousUsageEvents();
+      });
+      return () => {
+        subscription.remove();
+        clearInterval(interval);
+        timer.finish();
+        void flushAnonymousUsageEvents();
+      };
+    }, [bookId, chapter, currentTranslation, chapterSessionMode])
+  );
 
   useEffect(() => {
     if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
@@ -5300,17 +5287,19 @@ export function BibleReaderScreen() {
           </TouchableOpacity>
         ) : null}
 
-        <View
-          style={[
-            styles.floatingReaderReferencePill,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.bibleElevatedSurface,
-            },
-          ]}
-        >
+        <View style={styles.floatingReaderReferencePill}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.floatingReaderReferencePillBackground,
+              { backgroundColor: colors.bibleElevatedSurface },
+            ]}
+          />
           <TouchableOpacity
-            style={styles.floatingReaderReferencePillSegment}
+            style={[
+              styles.floatingReaderReferencePillSegment,
+              styles.floatingReaderReferencePillBookSegment,
+            ]}
             activeOpacity={0.85}
             onPress={handleOpenBookPicker}
             accessibilityRole="button"
@@ -5347,7 +5336,7 @@ export function BibleReaderScreen() {
             <Text
               style={[
                 styles.floatingReaderReferencePillTranslation,
-                { color: colors.bibleSecondaryText },
+                { color: colors.biblePrimaryText },
               ]}
               numberOfLines={1}
             >
@@ -5360,13 +5349,7 @@ export function BibleReaderScreen() {
       <View style={styles.floatingReaderTopActionGroup}>
         {audioEnabled ? (
           <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleElevatedSurface,
-              },
-            ]}
+            style={styles.floatingReaderMenuButton}
             activeOpacity={0.85}
             onPress={() => {
               setShowFontSizeSheet(false);
@@ -5378,57 +5361,39 @@ export function BibleReaderScreen() {
             accessibilityLabel={t('audio.nowPlaying')}
           >
             <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons name="volume-medium-outline" size={22} color={colors.biblePrimaryText} />
+              <Ionicons name="volume-medium-outline" size={26} color={colors.biblePrimaryText} />
             </View>
           </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.bibleElevatedSurface,
-            },
-          ]}
+          style={styles.floatingReaderMenuButton}
           activeOpacity={0.85}
           onPress={handleOpenBibleSearch}
           accessibilityRole="button"
           accessibilityLabel={t('common.search')}
         >
           <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons name="search-outline" size={22} color={colors.biblePrimaryText} />
+            <Ionicons name="search" size={26} color={colors.biblePrimaryText} />
           </View>
         </TouchableOpacity>
 
         {chapterFeedbackEnabled ? (
           <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleElevatedSurface,
-              },
-            ]}
+            style={styles.floatingReaderMenuButton}
             activeOpacity={0.85}
             onPress={handleOpenChapterFeedback}
             accessibilityRole="button"
             accessibilityLabel={t('bible.chapterFeedback')}
           >
             <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons name="chatbox-ellipses-outline" size={21} color={colors.biblePrimaryText} />
+              <Ionicons name="chatbox-ellipses-outline" size={26} color={colors.biblePrimaryText} />
             </View>
           </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.bibleElevatedSurface,
-            },
-          ]}
+          style={styles.floatingReaderMenuButton}
           activeOpacity={0.85}
           onPress={() => {
             setShowAudioOptionsSheet(false);
@@ -5437,9 +5402,14 @@ export function BibleReaderScreen() {
             setShowChapterActionsSheet(true);
           }}
           accessibilityRole="button"
+          accessibilityLabel={t('tabs.more')}
         >
           <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.biblePrimaryText} />
+            <Ionicons
+              name="ellipsis-horizontal-circle-outline"
+              size={28}
+              color={colors.biblePrimaryText}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -6777,8 +6747,8 @@ const styles = StyleSheet.create({
   },
   floatingReaderTopBar: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: 24,
+    right: 22,
     zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
@@ -6795,7 +6765,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: spacing.sm,
+    gap: 0,
     flexShrink: 0,
   },
   floatingReaderPlanExitButton: {
@@ -6817,45 +6787,55 @@ const styles = StyleSheet.create({
     height: layout.minTouchTarget,
     flexDirection: 'row',
     alignItems: 'stretch',
-    borderWidth: 1,
+    alignSelf: 'center',
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 6,
+    height: 32,
     borderRadius: radius.pill,
     overflow: 'hidden',
-    alignSelf: 'center',
   },
   floatingReaderReferencePillSegment: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
+    minWidth: layout.minTouchTarget,
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillBookSegment: {
+    paddingHorizontal: 16,
   },
   floatingReaderReferencePillPrimary: {
     ...typography.label,
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 14,
+    lineHeight: 17,
     fontWeight: '700',
-    letterSpacing: -0.15,
+    letterSpacing: 0,
     flexShrink: 1,
   },
   floatingReaderReferencePillDivider: {
     width: 1,
-    alignSelf: 'stretch',
+    height: 32,
+    alignSelf: 'center',
     opacity: 0.55,
   },
   floatingReaderReferencePillTranslation: {
     ...typography.label,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 14,
+    lineHeight: 17,
     fontWeight: '700',
-    letterSpacing: 0.6,
+    letterSpacing: 0,
     flexShrink: 1,
   },
   floatingReaderMenuButton: {
     width: layout.minTouchTarget,
     height: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     alignSelf: 'center',
   },
   floatingReaderMenuButtonContent: {

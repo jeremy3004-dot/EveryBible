@@ -1,6 +1,8 @@
 import countries from 'world-countries';
 
 interface WorldCountryRecord {
+  region?: string;
+  subregion?: string;
   cca2?: string;
   latlng?: number[];
   name?: {
@@ -9,6 +11,8 @@ interface WorldCountryRecord {
 }
 
 export interface CountryGeography {
+  region?: string;
+  subregion?: string;
   code: string;
   latitude: number;
   longitude: number;
@@ -35,6 +39,8 @@ for (const country of countries as WorldCountryRecord[]) {
   }
 
   countryGeographyByCode.set(code, {
+    region: country.region,
+    subregion: country.subregion,
     code,
     latitude,
     longitude,

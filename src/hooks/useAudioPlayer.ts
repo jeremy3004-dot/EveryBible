@@ -19,6 +19,7 @@ import { expoAudioFileSystemAdapter } from '../services/audio/audioDownloadStora
 import { fetchRemoteChapterAudio } from '../services/audio/audioRemote';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackAnonymousUsageEvent } from '../services/analytics';
+import { elapsedListeningMs } from '../services/analytics/listeningTime';
 import { getAdjacentBibleChapter, getBookById } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
@@ -223,6 +224,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       clearInterval(audioProgressTelemetryTimerRef.current);
       audioProgressTelemetryTimerRef.current = null;
     }
+    audioProgressTelemetryLastEmittedAtRef.current = 0;
   }, []);
 
   const resetAudioProgressTelemetryClock = useCallback(() => {
@@ -240,15 +242,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       const now = Date.now();
-      const lastEmittedAt = audioProgressTelemetryLastEmittedAtRef.current || now;
-      const elapsedMs = Math.max(0, now - lastEmittedAt);
-      const listenedMs = Math.round(elapsedMs * (state.playbackRate ?? 1));
+      const listenedMs = elapsedListeningMs(audioProgressTelemetryLastEmittedAtRef.current, now);
 
       if (!force && reason === 'tick' && listenedMs < AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS / 2) {
         return;
       }
 
-      if (!force && listenedMs <= 0) {
+      if (listenedMs <= 0) {
         return;
       }
 
@@ -321,6 +321,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           );
       }
 
+      emitAudioPlaybackProgress('chapter-change', true);
+      stopAudioProgressTelemetryTimer();
       await audioPlayer.stop();
       setStatus('loading');
       setCurrentTrack(targetTranslationId, bookId, chapter);
@@ -419,6 +421,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
     },
     [
+      emitAudioPlaybackProgress,
+      stopAudioProgressTelemetryTimer,
       currentBookId,
       currentChapter,
       playbackRate,
@@ -517,6 +521,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           clearInterval(interpolationTimerRef.current);
           interpolationTimerRef.current = null;
         }
+        emitAudioPlaybackProgress('pause', true);
         stopAudioProgressTelemetryTimer();
 
         if (snapshot.isBuffering) {
@@ -531,6 +536,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       setDuration,
       setStatus,
       startAudioProgressTelemetry,
+      emitAudioPlaybackProgress,
       stopAudioProgressTelemetryTimer,
       syncCurrentNowPlaying,
       translationId,
@@ -679,10 +685,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         clearInterval(interpolationTimerRef.current);
         interpolationTimerRef.current = null;
       }
-      // Clean up telemetry timer when hook unmounts
+      // Flush the active segment before callbacks change or the player unmounts.
+      emitAudioPlaybackProgress('pause', true);
       stopAudioProgressTelemetryTimer();
     };
-  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer, t]);
+  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer, emitAudioPlaybackProgress, t]);
 
   useEffect(() => {
     if (status === 'playing') {
@@ -773,6 +780,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       clearInterval(interpolationTimerRef.current);
       interpolationTimerRef.current = null;
     }
+    emitAudioPlaybackProgress('pause', true);
     stopAudioProgressTelemetryTimer();
     setStatus('paused');
     const { currentPosition: positionAtPause, duration: durationAtPause } =
@@ -786,7 +794,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       true
     );
     await audioPlayer.pause();
-    emitAudioPlaybackProgress('pause', true);
     if (currentBookId && currentChapter && durationAtPause > 0) {
       useLibraryStore
         .getState()

@@ -40,7 +40,8 @@ Both themes ship. Light is the default; the shell stamps `data-theme="dark"` on
   technical metadata). Tabular numerals everywhere numbers align.
 - Data gets the expanded palette **in order**: Sea, Reef, Ochre, Clay, Dusk,
   Sage. Never cherry-picked for decoration.
-- Choropleths and heatmaps use the sequential `--seq-1..5` scale.
+- Choropleths use the sequential `--seq-1..5` scale. The activity atlas uses
+  the existing `--heat-1..5` intensity ramp, shared by its map and legend.
 - Elevation is a warm shadow plus an inset edge light — never neutral black.
 - A `--grain` overlay at 3.5% multiply keeps the paper feeling like paper
   (2.5% in dark, 0 in high contrast, removed in print).

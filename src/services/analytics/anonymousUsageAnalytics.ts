@@ -36,11 +36,15 @@ export interface AnonymousUsageServiceResult<T = void> {
 // client and stays independent of sign-in state.
 
 let currentAnonymousSessionId: string | null = null;
+let sessionStarted = false;
 
 function ensureAnonymousSession(): string {
   if (!currentAnonymousSessionId) {
     currentAnonymousSessionId = generateUUID();
+  }
+  if (!sessionStarted) {
     enqueueUsageEvent('session_started', { session_kind: 'app' }, currentAnonymousSessionId);
+    sessionStarted = true;
   }
 
   return currentAnonymousSessionId;
@@ -126,6 +130,7 @@ export function initAnonymousSessionContext(): string {
  */
 export function clearAnonymousSessionContext(): void {
   currentAnonymousSessionId = null;
+  sessionStarted = false;
 }
 
 export function endAnonymousUsageSession(): void {
@@ -133,8 +138,10 @@ export function endAnonymousUsageSession(): void {
     return;
   }
 
-  enqueueUsageEvent('session_ended', { session_kind: 'app' }, currentAnonymousSessionId);
+  if (sessionStarted)
+    enqueueUsageEvent('session_ended', { session_kind: 'app' }, currentAnonymousSessionId);
   currentAnonymousSessionId = null;
+  sessionStarted = false;
 }
 
 export function getCurrentAnonymousUsageSessionId(): string | null {

@@ -3,11 +3,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
-import {
-  __resetGeoContextForTests,
-  primeGeoContext,
-  resolveGeoContext,
-} from './geoContext';
+import { __resetGeoContextForTests, primeGeoContext, resolveGeoContext } from './geoContext';
 
 const GEO_WORKER_URL = 'https://everybible-geo.example.workers.dev';
 
@@ -22,9 +18,7 @@ function installFakeMmkv(seed?: string): {
   store: Map<string, string>;
   restore: () => void;
 } {
-  const target = require.resolve(
-    path.join(process.cwd(), 'src/stores/mmkvStorage')
-  );
+  const target = require.resolve(path.join(process.cwd(), 'src/stores/mmkvStorage'));
   const store = new Map<string, string>();
   if (seed !== undefined) {
     store.set(GEO_CACHE_KEY, seed);
@@ -66,8 +60,8 @@ const WORKER_PAYLOAD = {
 const EXPECTED_GEO = {
   geo_accuracy_km: null,
   geo_country_code: 'NP',
-  geo_latitude: 28.2096,
-  geo_longitude: 83.9856,
+  geo_latitude: 28.2,
+  geo_longitude: 84,
   geo_source: 'cf-worker',
   geo_timezone: 'Asia/Kathmandu',
   geo_city: 'Pokhara',
@@ -75,10 +69,7 @@ const EXPECTED_GEO = {
   geo_region_name: 'Gandaki',
 };
 
-function setup(
-  t: { after: (fn: () => void) => void },
-  fetchImpl: () => Promise<Response>
-) {
+function setup(t: { after: (fn: () => void) => void }, fetchImpl: () => Promise<Response>) {
   __resetGeoContextForTests();
   const originalFetch = global.fetch;
   const originalUrl = publicRuntimeConfig.EXPO_PUBLIC_GEO_WORKER_URL;
@@ -99,7 +90,11 @@ test('primeGeoContext resolves + caches worker geo (incl. city/region); resolve 
   });
 
   const primed = await primeGeoContext();
-  assert.deepEqual(primed, EXPECTED_GEO, 'prime should capture country/coords/timezone AND city/region');
+  assert.deepEqual(
+    primed,
+    EXPECTED_GEO,
+    'prime should capture country/coords/timezone AND city/region'
+  );
   assert.equal(fetchCount, 1);
 
   // resolveGeoContext (called at flush) must return the cache WITHOUT refetching.
@@ -116,7 +111,11 @@ test('resolveGeoContext returns null (never throws/waits) when the worker is una
   setup(t, async () => ({ ok: false }) as Response);
 
   const resolved = await resolveGeoContext();
-  assert.equal(resolved, null, 'no cache + failed worker => null, so the server enriches by IP instead');
+  assert.equal(
+    resolved,
+    null,
+    'no cache + failed worker => null, so the server enriches by IP instead'
+  );
 });
 
 test('stale fallback: once primed, a later worker failure still yields the cached geo', async (t) => {
@@ -131,7 +130,11 @@ test('stale fallback: once primed, a later worker failure still yields the cache
   // Worker now dies (e.g. flush fires on app-background with the network gone).
   shouldFail = true;
   const resolved = await resolveGeoContext();
-  assert.deepEqual(resolved, EXPECTED_GEO, 'the last-known geo must survive as a stale-but-usable fallback');
+  assert.deepEqual(
+    resolved,
+    EXPECTED_GEO,
+    'the last-known geo must survive as a stale-but-usable fallback'
+  );
 });
 
 test('cold start: geo restored from MMKV (aged past TTL) refetches on next prime', async (t) => {
@@ -156,8 +159,8 @@ test('cold start: geo restored from MMKV (aged past TTL) refetches on next prime
 
   // Flush before any prime still enriches with the stale disk geo (never blocks).
   const stale = await resolveGeoContext();
-  assert.equal(stale?.geo_city, 'StaleCity', 'disk-restored geo is usable at flush time');
-  assert.equal(fetchCount, 0, 'resolve must not hit the network');
+  assert.equal(stale, null, 'expired location is not attributed to new activity');
+  assert.equal(fetchCount, 1, 'expired geo starts a nonblocking refresh');
 
   // Foreground prime on a disk-restored (aged) fix MUST refetch — the core A3 fix.
   const primed = await primeGeoContext();
@@ -175,7 +178,11 @@ test('cold start: geo restored from MMKV (aged past TTL) refetches on next prime
     geo: typeof EXPECTED_GEO;
     fetched_at: number;
   };
-  assert.deepEqual(persisted.geo, EXPECTED_GEO, 'persisted payload shape is unchanged (still cf-worker)');
+  assert.deepEqual(
+    persisted.geo,
+    EXPECTED_GEO,
+    'persisted payload shape is unchanged (still cf-worker)'
+  );
   assert.ok(
     persisted.fetched_at > Date.now() - 60 * 1000,
     'persisted fetched_at reflects the fresh fetch'
@@ -215,8 +222,46 @@ test('cold start: aged disk geo still returns null-safely when the worker refetc
   t.after(mmkv.restore);
 
   const primed = await primeGeoContext();
-  assert.deepEqual(primed, EXPECTED_GEO, 'a failed refetch falls back to the stale disk geo, never rejects');
+  assert.equal(primed, null, 'expired geo must not override the upload network');
 
   const resolved = await resolveGeoContext();
-  assert.deepEqual(resolved, EXPECTED_GEO, 'flush still enriches with the stale disk geo after a failed refetch');
+  assert.equal(resolved, null, 'expired geo is not returned after a failed refetch');
+});
+
+test('in-process geo expires after three hours and refreshes after a network change', async (t) => {
+  let now = Date.now();
+  const originalNow = Date.now;
+  Date.now = () => now;
+  t.after(() => {
+    Date.now = originalNow;
+  });
+  let fetchCount = 0;
+  setup(t, async () => {
+    fetchCount++;
+    return {
+      ok: true,
+      json: async () => ({ ...WORKER_PAYLOAD, country_code: fetchCount === 1 ? 'NP' : 'US' }),
+    } as Response;
+  });
+  await primeGeoContext();
+  now += 4 * 60 * 60 * 1000;
+  const result = await primeGeoContext();
+  assert.equal(fetchCount, 2);
+  assert.equal(result?.geo_country_code, 'US');
+});
+
+test('IP coordinates are coarse before persistence and invalid pairs never become map points', async (t) => {
+  setup(t, async () => ({ ok: true, json: async () => WORKER_PAYLOAD }) as Response);
+  const geo = await primeGeoContext();
+  assert.equal(geo?.geo_latitude, 28.2);
+  assert.equal(geo?.geo_longitude, 84);
+  __resetGeoContextForTests();
+  global.fetch = async () =>
+    ({
+      ok: true,
+      json: async () => ({ country_code: 'NP', latitude: '', longitude: 190 }),
+    }) as Response;
+  const invalid = await primeGeoContext();
+  assert.equal(invalid?.geo_latitude, null);
+  assert.equal(invalid?.geo_longitude, null);
 });

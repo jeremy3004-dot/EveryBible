@@ -1,58 +1,27 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const read = (file: string) => readFile(new URL(file, import.meta.url), 'utf8');
 
-test('admin analytics map uses MapLibre instead of Cesium runtime wiring', async () => {
-  const componentSource = await readFile(
-    path.join(repoRoot, 'apps/admin/components/AnalyticsGlobe.tsx'),
-    'utf8'
-  );
-  const layoutSource = await readFile(path.join(repoRoot, 'apps/admin/app/layout.tsx'), 'utf8');
-  const packageSource = await readFile(path.join(repoRoot, 'apps/admin/package.json'), 'utf8');
+test('atlas retains MapLibre and theme-aware basemaps with accessible alternative detail', async () => {
+  const source = await read('./AnalyticsGlobe.tsx');
+  assert.match(source, /from 'maplibre-gl'/);
+  assert.match(source, /positron-gl-style/);
+  assert.match(source, /dark-matter-gl-style/);
+  assert.match(source, /MutationObserver/);
+  assert.match(source, /ResizeObserver/);
+  assert.match(source, /aria-label="Geographic detail"/);
+  assert.match(source, /Approximate IP locations/);
+  assert.match(source, /country centers where coordinates are unavailable/);
+});
 
-  assert.match(componentSource, /from 'maplibre-gl'/);
-  assert.doesNotMatch(componentSource, /cesium/i);
-  assert.match(componentSource, /useState<string \| null>\(null\)/);
-  assert.doesNotMatch(componentSource, /metrics\[0\]\?\.code \?\? null/);
-  assert.match(componentSource, /const INITIAL_ZOOM = 3\.3;/);
-  assert.match(
-    componentSource,
-    /const WORLD_BOUNDS: \[\[number, number\], \[number, number\]\] = \[\s*\[-170, -58\],\s*\[180, 82\],\s*\];/m
-  );
-  assert.match(componentSource, /setProjection\(\{\s*type:\s*'globe'\s*\}\)/s);
-  assert.match(componentSource, /basemaps\.cartocdn\.com\/gl\/positron-gl-style\/style\.json/);
-  assert.match(componentSource, /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json/);
-  assert.match(componentSource, /MutationObserver/);
-  assert.match(componentSource, /globe-card__back-link/);
-  assert.match(componentSource, /globe-card__summary/);
-  assert.match(componentSource, /globe-card__explore/);
-  assert.match(
-    componentSource,
-    /const \[mode, setMode\] = useState<MapMetricMode>\('listeningMinutes'\);/
-  );
-  assert.match(componentSource, /modeRef\.current = mode;/);
-  assert.match(componentSource, /aria-label="Select globe metric"/);
-  assert.match(componentSource, /onClick=\{\(\) => setMode\('listeningMinutes'\)\}/);
-  assert.match(componentSource, /onClick=\{\(\) => setMode\('downloadUnits'\)\}/);
-  assert.match(componentSource, /segmented-control__button--active/);
-  assert.match(componentSource, /<button[\s\S]*type="button"/);
-  assert.match(componentSource, /aria-label="Select translation heatmap"/);
-  assert.match(componentSource, /translation-chip--active/);
-  assert.match(componentSource, /is the only active translation in this window/);
-  assert.match(
-    componentSource,
-    /globe is reusing the overall map while the per-translation geo rows catch up/
-  );
-  assert.match(componentSource, /Click a country bubble to open the detailed country card/);
-  // Magnitude uses the EL intensity ramp; brandTokens.test.ts checks its contract.
-  assert.match(componentSource, /const heat = GLOBE_HEAT\[scope\];/);
-  assert.doesNotMatch(componentSource, /globe-card__toplist/);
-  assert.doesNotMatch(componentSource, /openfreemap/i);
-  assert.match(layoutSource, /maplibre-gl\/dist\/maplibre-gl\.css/);
-  assert.match(packageSource, /"maplibre-gl":/);
-  assert.doesNotMatch(packageSource, /"cesium":/);
+test('map clicks resolve a unique coordinate identity and layer updates follow current filters', async () => {
+  const source = await read('./AnalyticsGlobe.tsx');
+  assert.match(source, /pointId\(item\) === id/);
+  assert.doesNotMatch(source, /entry\.code === countryCode/);
+  assert.match(source, /source: METRIC_SOURCE_ID/);
+  assert.match(source, /map\.on\('style.load'/);
+  assert.match(source, /syncLayers\(map\)/);
+  assert.match(source, /map\.remove\(\)/);
 });

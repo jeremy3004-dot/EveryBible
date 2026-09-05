@@ -35,10 +35,7 @@ let currentSessionId: string | null = null;
 // Enqueues a named event with optional metadata properties, tagged with the
 // current authenticated session id. Delivery + auto-flush are handled by the
 // shared queue.
-export function trackEvent(
-  eventName: string,
-  properties: Record<string, unknown> = {}
-): void {
+export function trackEvent(eventName: string, properties: Record<string, unknown> = {}): void {
   enqueueUsageEvent(eventName, properties, currentSessionId);
 }
 
@@ -130,8 +127,8 @@ export async function refreshEngagement(): Promise<AnalyticsServiceResult> {
 
 // Generates a fresh session ID and immediately enqueues a session_started event.
 // Call this once when the app moves to the foreground or the user opens the app.
-export function startSession(): void {
-  currentSessionId = generateUUID();
+export function startSession(sessionId = generateUUID()): void {
+  currentSessionId = sessionId;
   trackEvent('session_started');
 }
 

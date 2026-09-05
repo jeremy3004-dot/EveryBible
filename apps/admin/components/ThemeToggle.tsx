@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import {
   ADMIN_THEME_STORAGE_KEY,
@@ -8,15 +8,12 @@ import {
   normalizeAdminTheme,
   persistAdminTheme,
   type AdminThemeMode,
-} from '@/lib/theme';
+} from '../lib/theme';
 
 function MoonIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20">
-      <path
-        d="M13.5 3.25a6.8 6.8 0 1 0 3.25 9.2A7.3 7.3 0 0 1 13.5 3.25Z"
-        fill="currentColor"
-      />
+      <path d="M13.5 3.25a6.8 6.8 0 1 0 3.25 9.2A7.3 7.3 0 0 1 13.5 3.25Z" fill="currentColor" />
     </svg>
   );
 }
@@ -32,41 +29,34 @@ function SunIcon() {
   );
 }
 
+function subscribeToTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === ADMIN_THEME_STORAGE_KEY) applyAdminTheme(normalizeAdminTheme(event.newValue));
+  };
+  window.addEventListener('storage', handleStorage);
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('storage', handleStorage);
+  };
+}
+
+const readTheme = () => normalizeAdminTheme(document.documentElement.dataset.theme);
+const serverTheme = (): AdminThemeMode => 'light';
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<AdminThemeMode>(() => {
-    if (typeof document === 'undefined') {
-      return 'light';
-    }
-
-    return normalizeAdminTheme(document.documentElement.dataset.theme);
-  });
-
-  useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== ADMIN_THEME_STORAGE_KEY) {
-        return;
-      }
-
-      const nextTheme = normalizeAdminTheme(event.newValue);
-      applyAdminTheme(nextTheme);
-      setTheme(nextTheme);
-    };
-
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
+  // The hydration snapshot must match SSR; then subscribe to the theme applied
+  // by the beforeInteractive bootstrap script and cross-tab storage changes.
+  const theme = useSyncExternalStore(subscribeToTheme, readTheme, serverTheme);
 
   const updateTheme = (nextTheme: AdminThemeMode) => {
     applyAdminTheme(nextTheme);
     persistAdminTheme(nextTheme);
-    setTheme(nextTheme);
   };
 
   return (
-    <div className="theme-toggle" role="group" aria-label="Theme mode" suppressHydrationWarning>
+    <div className="theme-toggle" role="group" aria-label="Theme mode">
       <button
         type="button"
         className={`theme-toggle__button ${theme === 'dark' ? 'theme-toggle__button--active' : ''}`}

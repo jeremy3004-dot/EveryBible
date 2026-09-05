@@ -68,10 +68,10 @@ function getText(value: unknown): string | null {
 // Tier 1: CF-IPCountry header — always present on Cloudflare-proxied requests,
 //   no API call, no rate limit.  Country code only.
 //
-// Tier 2 (precise, free):  ipapi.co  — 30 k requests/day free, no token.
+// Tier 2 (approximate): ipapi.co — optional fallback, no token.
 //   Returns country code + lat/lng + timezone.
 //
-// Tier 3 (precise, paid):  ipinfo.io — unlimited with IPINFO_TOKEN secret.
+// Tier 3 (approximate): ipinfo.io — used when IPINFO_TOKEN is configured.
 //   Used instead of Tier 2 when IPINFO_TOKEN is configured so the paid tier
 //   is preferred over the free tier once the key is in place.
 //
@@ -130,7 +130,7 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
   try {
     const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
     url.searchParams.set('token', token);
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2000) });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
       | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
@@ -162,6 +162,7 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
   try {
     const resp = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
       headers: { Accept: 'application/json', 'User-Agent': 'EveryBible/analytics' },
+      signal: AbortSignal.timeout(2000),
     });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
@@ -208,6 +209,7 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
       getEventProperty(event, 'geo_longitude_bucket')
   );
   const sourceValue = event.geo_source ?? getEventProperty(event, 'geo_source');
+  if (sourceValue && !['cf-worker','ipapi','ipinfo','cf_ipcountry'].includes(String(sourceValue))) return null;
   const timezoneValue = event.geo_timezone ?? getEventProperty(event, 'geo_timezone');
   const accuracyKm = normalizeAccuracyKm(
     event.geo_accuracy_km ?? getEventProperty(event, 'geo_accuracy_km')
@@ -296,16 +298,9 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
   };
 }
 
-// Coarse accuracy radius by source when the client didn't supply one:
-// city-level ~50 km, country-only ~800 km. Whole-km integers to match the
-// geo_accuracy_km INTEGER column contract (see P2 S13).
-function accuracyKmForGeo(geo: GeoResult): number | null {
-  // Round to whole km: geo_accuracy_km is an INTEGER column (P2 S13), and a
-  // fractional value from an arbitrary payload would fail the whole batch insert.
-  if (geo.accuracyKm != null) return Math.round(geo.accuracyKm);
-  if (geo.city) return 50;
-  if (geo.countryCode) return 800;
-  return null;
+function coarseCoordinate(value: number | null, limit: number): number | null {
+  return value != null && Number.isFinite(value) && Math.abs(value) <= limit
+    ? Math.round(value * 10) / 10 : null;
 }
 
 Deno.serve(async (req) => {
@@ -363,9 +358,6 @@ Deno.serve(async (req) => {
       );
     });
     const requestGeo = requiresRequestGeo ? await resolveRequestGeo(req) : null;
-    console.log(
-      `[track-analytics-events] geo tier=${requestGeo?.source ?? 'payload-or-none'} country=${requestGeo?.countryCode ?? 'none'} city=${requestGeo?.city ?? 'none'}`
-    );
     const now = new Date().toISOString();
 
     const rows = events.map((event, index) => {
@@ -385,14 +377,15 @@ Deno.serve(async (req) => {
       return {
         app_version: event.app_version,
         created_at: event.queued_at || now,
+        received_at: now,
         device_platform: event.device_platform,
         event_name: event.event_name,
         event_properties: event.event_properties ?? {},
-        geo_accuracy_km: accuracyKmForGeo(geo),
+        geo_accuracy_km: null, // No measured radius supplied by IP providers.
         geo_city: geo.city,
         geo_country_code: geo.countryCode,
-        geo_latitude: geo.latitude,
-        geo_longitude: geo.longitude,
+        geo_latitude: coarseCoordinate(geo.longitude, 180) == null ? null : coarseCoordinate(geo.latitude, 90),
+        geo_longitude: coarseCoordinate(geo.latitude, 90) == null ? null : coarseCoordinate(geo.longitude, 180),
         geo_region_code: geo.regionCode,
         geo_region_name: geo.region,
         geo_source: geo.source,

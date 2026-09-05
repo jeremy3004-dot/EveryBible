@@ -50,3 +50,60 @@ labeled "(all-time)" in the UI to keep the taxonomy explicit.
 - `locatedListenerCount <= userCountWithListening`
 - every `translationListenerCounts[t] <= userCountWithListening`
 - `sum(per-translation downloadUnits) == totalDownloadUnits` (downloads are summable; listener dedup counts are NOT)
+
+## Activity atlas (September 2026)
+
+The four headline totals and daily charts always cover all translations in the
+selected window. The translation dropdown filters the atlas and country table;
+a separate translation summary makes that scope explicit. Country selection
+focuses the map and inspector, and highlights its table row.
+
+- Country details and rankings use genuine `countryMetrics` or the selected
+  translation's `countryTableMetrics`. Never use coordinate buckets as country
+  totals or sum their listener counts.
+- Listening and downloads use available location buckets. Reading also uses collected approximate location buckets. Country-only activity
+  is shown as the additive remainder at the country center.
+- `locationKind` distinguishes `approximate` IP buckets from `country` fallback
+  placements. They remain separate even when coordinates match. No city names,
+  GPS precision, or individual identities are inferred.
+- Heat mode shows relative spatial density with log-normalized activity weights;
+  overlapping points intensify. Points mode shows per-bucket magnitude on a log
+  scale. Each selection rescales to its own maximum, so colors are not absolute
+  comparisons across filters.
+- Country share uses the sum of country-attributed values for the selected
+  additive metric, not the global total that also includes unlocated activity.
+- CSV exports include only searched rows in their current sort order. Text that
+  could be interpreted as a spreadsheet formula is escaped.
+- Daily values are shown on a UTC calendar axis, with absent dates inside the
+  reported series shown as zero. The current day can be incomplete.
+- The server supplies `retrievedAt` for the source line. Engagement's separate
+  all-time computation timestamp remains visible.
+
+## Collection and reporting contract (schema 2)
+
+- `analytics_schema_version: 2` in new mobile event properties identifies elapsed
+  listening time. Older `listened_ms` was elapsed time multiplied by playback
+  speed; `analytics_listened_ms` divides legacy values by their recorded rate.
+  Old raw events remain unchanged. The dashboard, engagement refresh and retained
+  rollups use the same conversion.
+- `totalTrackedSessions` counts distinct `session_started.session_id` values for
+  app visits, including reading-only visits. It no longer counts audio sessions.
+- A listener must have positive listening time. Accounts are deduplicated by
+  verified user ID, signed-out activity by session ID. Neither is a reliable
+  count of unique people across devices or visits.
+- `translationTotals` includes unlocated reading and downloads. Country rows are
+  geographic subsets and must never substitute for complete translation totals.
+- Location coordinates are rounded to 0.1 degrees **before SQL aggregation** so
+  per-bucket listener counts are distinct at the actual displayed grain.
+- All windows include today and start at UTC midnight `N - 1` days ago. Totals
+  and daily series share that interval. Minute series round to tenths and headline
+  totals to whole minutes, so small rounding differences are expected.
+- `collectionHealth` reports event and location coverage counts, event types,
+  latest occurrence time, and latest receipt time. Historical receipt timestamps
+  are unknown and fall back to occurrence time; new events store both.
+- Approximate network location may reflect a VPN, carrier gateway, or upload
+  network. No device GPS or hardware identifier is collected. An IP provider's
+  decimal coordinates are not evidence of street-level accuracy. Unknown
+  accuracy stays null instead of a fabricated kilometer radius.
+
+See `docs/analytics-collection-audit.md` for the audit and release order.

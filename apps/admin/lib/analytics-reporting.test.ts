@@ -204,3 +204,19 @@ test('buildTranslationBreakdown still falls back to the country max when the RPC
 
   assert.equal(breakdown[0]?.listenerCount, 6);
 });
+
+test('translation totals retain reading and downloads without country attribution', () => {
+  const entries = buildTranslationBreakdown([], [], [], [], [
+    { translationId: 'offline', listeningMinutes: 0, readingMinutes: 5, downloadUnits: 3 },
+  ]);
+  assert.equal(entries[0].readingMinutes, 5);
+  assert.equal(entries[0].downloadUnits, 3);
+  assert.equal(entries[0].countryTableMetrics.length, 0);
+});
+
+test('location rollups carry reading activity through to the atlas', () => {
+  const points = mapLocationRollupsToMetrics([
+    { countryCode: 'NP', latitude: 28.2, longitude: 84, listeningMinutes: 0, readingMinutes: 10, downloadUnits: 0, listenerCount: 0 },
+  ]);
+  assert.equal(points[0].readingMinutes, 10);
+});

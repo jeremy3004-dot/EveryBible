@@ -64,7 +64,7 @@ test('analyticsService startSession assigns currentSessionId and enqueues sessio
   const source = readRelativeSource('./analyticsService.ts');
   assert.match(
     source,
-    /currentSessionId\s*=\s*generateUUID/,
+    /startSession\(sessionId = generateUUID\(\)\)/,
     'startSession must assign a fresh UUID to currentSessionId'
   );
   assert.match(

@@ -5,6 +5,7 @@ import './neo-swiss.css';
 // decisions (paper surfaces, type, interaction states, geometry) on top of the
 // shell structure the two stylesheets above provide.
 import './el-field.css';
+import './analytics-atlas.css';
 
 import Script from 'next/script';
 import type { Viewport } from 'next';

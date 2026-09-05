@@ -6,6 +6,8 @@ const corsHeaders = {
 };
 
 interface AnonymousUsageEvent {
+  event_id?: string;
+  attribution_user_id?: string | null;
   app_version: string;
   device_platform: string;
   event_name: string;
@@ -45,10 +47,10 @@ interface GeoResult {
 // Tier 1: CF-IPCountry header — always present on Cloudflare-proxied requests,
 //   no API call, no rate limit.  Country code only.
 //
-// Tier 2 (precise, free):  ipapi.co  — 30 k requests/day free, no token.
+// Tier 2 (approximate): ipapi.co — optional fallback, no token.
 //   Returns country code + lat/lng + timezone.
 //
-// Tier 3 (precise, paid):  ipinfo.io — unlimited with IPINFO_TOKEN secret.
+// Tier 3 (approximate, paid):  ipinfo.io — unlimited with IPINFO_TOKEN secret.
 //   Used instead of Tier 2 when IPINFO_TOKEN is configured so the paid tier
 //   is preferred over the free tier once the key is in place.
 //
@@ -62,21 +64,14 @@ interface GeoResult {
 function normalizeCountryCode(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const c = value.trim().toUpperCase();
-  if (c === 'XX' || c === 'T1' || c.length === 0) return null;
+  if (c === 'XX' || c === 'T1' || !/^[A-Z]{2}$/.test(c)) return null;
   return c;
 }
 
-function normalizeCoordinate(value: unknown): number | null {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const parsed = Number(value.trim());
-  return Number.isFinite(parsed) ? parsed : null;
+function normalizeCoordinate(value: unknown, limit: number): number | null {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Math.abs(parsed) <= limit ? Math.round(parsed * 10) / 10 : null;
 }
 
 function normalizeAccuracyKm(value: unknown): number | null {
@@ -106,7 +101,7 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
   try {
     const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
     url.searchParams.set('token', token);
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2000) });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
       | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
@@ -134,10 +129,11 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
 }
 
 async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
-  // ipapi.co — free, no token, 30 k req/day.
+  // Approximate IP fallback. Raw IPs are used for lookup and never stored in events.
   try {
     const resp = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
       headers: { Accept: 'application/json', 'User-Agent': 'EveryBible/analytics' },
+      signal: AbortSignal.timeout(2000),
     });
     if (!resp.ok) return null;
     const p = (await resp.json().catch(() => null)) as
@@ -169,9 +165,11 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
 }
 
 function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
+  // Accept only approximate IP-derived payloads, never device/GPS fixes.
+  if (event.geo_source !== 'cf-worker') return null;
   const countryCode = normalizeCountryCode(event.geo_country_code);
-  const latitude = normalizeCoordinate(event.geo_latitude);
-  const longitude = normalizeCoordinate(event.geo_longitude);
+  const latitude = normalizeCoordinate(event.geo_latitude, 90);
+  const longitude = normalizeCoordinate(event.geo_longitude, 180);
   const source = getText(event.geo_source);
   const timezone = getText(event.geo_timezone);
   const accuracyKm = normalizeAccuracyKm(event.geo_accuracy_km);
@@ -235,33 +233,13 @@ async function resolveRequestGeo(req: Request): Promise<GeoResult> {
 }
 
 function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResult {
-  if (!payloadGeo) {
-    return requestGeo;
-  }
-
-  return {
-    accuracyKm: payloadGeo.accuracyKm ?? requestGeo.accuracyKm,
-    countryCode: payloadGeo.countryCode ?? requestGeo.countryCode,
-    latitude: payloadGeo.latitude ?? requestGeo.latitude,
-    longitude: payloadGeo.longitude ?? requestGeo.longitude,
-    source: payloadGeo.source ?? requestGeo.source,
-    timezone: payloadGeo.timezone ?? requestGeo.timezone,
-    city: payloadGeo.city ?? requestGeo.city,
-    region: payloadGeo.region ?? requestGeo.region,
-    regionCode: payloadGeo.regionCode ?? requestGeo.regionCode,
-  };
-}
-
-// Sets a coarse accuracy radius by source when the client didn't supply one:
-// city-level fixes ~50 km, country-only ~800 km. Whole-km integers to match the
-// geo_accuracy_km INTEGER column contract (see P2 S13).
-function accuracyKmForGeo(geo: GeoResult): number | null {
-  // Round to whole km: geo_accuracy_km is an INTEGER column (P2 S13), and a
-  // fractional value from an arbitrary payload would fail the whole batch insert.
-  if (geo.accuracyKm != null) return Math.round(geo.accuracyKm);
-  if (geo.city) return 50;
-  if (geo.countryCode) return 800;
-  return null;
+  // Never combine one provider's country with another provider's coordinates.
+  // A country-only event-time fix remains country-only if the upload moved.
+  const geo = payloadGeo?.countryCode ? payloadGeo : requestGeo;
+  const latitude = normalizeCoordinate(geo.latitude, 90);
+  const longitude = normalizeCoordinate(geo.longitude, 180);
+  return { ...geo, latitude: longitude == null ? null : latitude,
+    longitude: latitude == null ? null : longitude };
 }
 
 function getText(value: unknown): string | null {
@@ -337,7 +315,7 @@ async function resolveUserId(
 function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   if (!body || typeof body !== 'object') return null;
   const events = (body as { events?: unknown }).events;
-  if (!Array.isArray(events) || events.length === 0) return null;
+  if (!Array.isArray(events) || events.length === 0 || events.length > 500) return null;
 
   const normalizedEvents: AnonymousUsageEvent[] = [];
   for (const event of events) {
@@ -347,8 +325,12 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     const devicePlatform = getText(raw.device_platform);
     const appVersion = getText(raw.app_version);
     const queuedAt = getText(raw.queued_at);
-    if (!eventName || !devicePlatform || !appVersion || !queuedAt) return null;
+    if (!eventName || !devicePlatform || !appVersion || !queuedAt || !Number.isFinite(Date.parse(queuedAt))) return null;
+    const eventId = getText(raw.event_id);
+    if (eventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) return null;
     normalizedEvents.push({
+      event_id: eventId ?? undefined,
+      attribution_user_id: raw.attribution_user_id === undefined ? undefined : getText(raw.attribution_user_id),
       app_version: appVersion,
       device_platform: devicePlatform,
       event_name: eventName as AnonymousUsageEvent['event_name'],
@@ -360,14 +342,14 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
         raw.geo_accuracy_km == null ? null : normalizeAccuracyKm(raw.geo_accuracy_km),
       geo_country_code:
         raw.geo_country_code == null ? null : normalizeCountryCode(raw.geo_country_code),
-      geo_latitude: raw.geo_latitude == null ? null : normalizeCoordinate(raw.geo_latitude),
-      geo_longitude: raw.geo_longitude == null ? null : normalizeCoordinate(raw.geo_longitude),
+      geo_latitude: raw.geo_latitude == null ? null : normalizeCoordinate(raw.geo_latitude, 90),
+      geo_longitude: raw.geo_longitude == null ? null : normalizeCoordinate(raw.geo_longitude, 180),
       geo_source: raw.geo_source == null ? null : getText(raw.geo_source),
       geo_timezone: raw.geo_timezone == null ? null : getText(raw.geo_timezone),
       geo_city: raw.geo_city == null ? null : getText(raw.geo_city),
       geo_region_code: raw.geo_region_code == null ? null : getText(raw.geo_region_code),
       geo_region_name: raw.geo_region_name == null ? null : getText(raw.geo_region_name),
-      queued_at: queuedAt,
+      queued_at: new Date(Math.min(Date.parse(queuedAt), Date.now())).toISOString(),
       session_id: raw.session_id === null || getText(raw.session_id) === null ? null : getText(raw.session_id),
     });
   }
@@ -401,10 +383,11 @@ Deno.serve(async (request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const requestGeo = await resolveRequestGeo(request);
-    console.log(
-      `[track-anonymous-usage-events] geo tier=${requestGeo.source ?? 'none'} country=${requestGeo.countryCode ?? 'none'} city=${requestGeo.city ?? 'none'}`
-    );
+    const needsRequestGeo = batch.events.some(event => !resolveEventGeo(event)?.countryCode);
+    const requestGeo: GeoResult = needsRequestGeo ? await resolveRequestGeo(request) : {
+      accuracyKm: null, countryCode: null, latitude: null, longitude: null,
+      source: null, timezone: null, city: null, region: null, regionCode: null,
+    };
     // Auth-optional: attribute user_id when a genuine user token is present.
     const userId = await resolveUserId(request, supabase);
 
@@ -412,14 +395,16 @@ Deno.serve(async (request) => {
       const geo = mergeGeo(requestGeo, resolveEventGeo(event));
 
       return {
-        user_id: userId,
+        id: event.event_id ?? crypto.randomUUID(),
+        user_id: event.attribution_user_id === undefined || event.attribution_user_id === userId ? userId : null,
         event_name: event.event_name,
         event_properties: event.event_properties,
         session_id: event.session_id,
         device_platform: event.device_platform,
         app_version: event.app_version,
         created_at: event.queued_at,
-        geo_accuracy_km: accuracyKmForGeo(geo),
+        received_at: new Date().toISOString(),
+        geo_accuracy_km: null, // IP providers here supply no measured accuracy radius.
         geo_city: geo.city,
         geo_country_code: geo.countryCode,
         geo_latitude: geo.latitude,
@@ -431,7 +416,7 @@ Deno.serve(async (request) => {
       };
     });
 
-    const { error } = await supabase.from('analytics_events').insert(rows);
+    const { error } = await supabase.from('analytics_events').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
     if (error) return jsonResponse({ error: error.message }, 500);
 
     return jsonResponse({
