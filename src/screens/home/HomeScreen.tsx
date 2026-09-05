@@ -46,10 +46,6 @@ import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils';
-import {
-  getLiveVerseOfDayOverride,
-  type MobileVerseOfDayOverride,
-} from '../../services/content/mobileContentService';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -91,14 +87,10 @@ export function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const bottomTabBarHeight = useBottomTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
-  const [remoteVerseOverride, setRemoteVerseOverride] = useState<MobileVerseOfDayOverride | null>(
-    null
-  );
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
   const verseRequestIdRef = useRef(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const verseSharePreviewRef = useRef<View | null>(null);
@@ -198,22 +190,13 @@ export function HomeScreen() {
       }
 
       try {
-        const override = await getLiveVerseOfDayOverride();
-        if (requestId !== verseRequestIdRef.current) return;
-        setRemoteVerseOverride(override);
-
-        if (override) {
-          setDailyScripture(null);
-          return;
-        }
-
         if (!currentTranslationInfo) {
           setDailyScripture(null);
-          setRemoteVerseOverride(null);
           return;
         }
 
         const { getDailyScripture } = await import('../../services/bible/bibleService');
+        if (requestId !== verseRequestIdRef.current) return;
         const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
           allowInitialization,
         });
@@ -223,7 +206,6 @@ export function HomeScreen() {
       } catch (error) {
         if (requestId === verseRequestIdRef.current) {
           console.error('Error loading verse of the day:', error);
-          setRemoteVerseOverride(null);
         }
       } finally {
         // A silent retry may supersede the initial load, so it must also settle its spinner.
@@ -237,7 +219,7 @@ export function HomeScreen() {
 
   useEffect(() => {
     const refreshVerseOfDay = () => {
-      void loadVerseOfDay({ allowInitialization: false, silent: true });
+      void loadVerseOfDay({ silent: true });
     };
 
     const scheduleMidnightRefresh = () => {
@@ -252,12 +234,8 @@ export function HomeScreen() {
     };
 
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      void loadVerseOfDay({ allowInitialization: false });
+      void loadVerseOfDay();
     });
-
-    retryTimerRef.current = setTimeout(() => {
-      void loadVerseOfDay({ allowInitialization: false, silent: true });
-    }, 2500);
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -275,10 +253,6 @@ export function HomeScreen() {
       interactionHandle.cancel();
       subscription.remove();
 
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
       if (midnightRefreshTimerRef.current) {
         clearTimeout(midnightRefreshTimerRef.current);
         midnightRefreshTimerRef.current = null;
@@ -338,7 +312,7 @@ export function HomeScreen() {
       )
     : null;
   const dailyAudioAvailability =
-    dailyScripture && !remoteVerseOverride && currentTranslationInfo
+    dailyScripture && currentTranslationInfo
       ? getAudioAvailability({
           featureEnabled: config.features.audioEnabled,
           translationHasAudio: currentTranslationInfo.hasAudio,
@@ -359,20 +333,16 @@ export function HomeScreen() {
       : dailyScripture?.kind;
   const verseCardTitleLabel =
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
-  const verseShareReferenceLabel =
-    remoteVerseOverride?.referenceLabel ?? dailyReferenceLabel ?? t('home.defaultReference');
-  const verseShareBodyText = remoteVerseOverride?.verseText?.trim()
-    ? remoteVerseOverride.verseText.trim()
-    : dailyScripture?.kind === 'verse-text'
+  const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
+  const verseShareBodyText =
+    dailyScripture?.kind === 'verse-text'
       ? dailyScripture.text?.trim() || t('home.defaultVerse')
       : shouldShowDailyAudio
         ? dailyAudioKind === 'section-audio'
           ? t('home.sectionOfTheDayBody')
           : t('home.verseAudioBody')
         : t('home.defaultVerse');
-  const verseBackgroundSource = remoteVerseOverride?.imageUrl
-    ? { uri: remoteVerseOverride.imageUrl }
-    : verseBackground;
+  const verseBackgroundSource = verseBackground;
   const verseShareMessage = buildHomeVerseShareMessage({
     cardTitle: verseCardTitleLabel,
     referenceLabel: verseShareReferenceLabel,

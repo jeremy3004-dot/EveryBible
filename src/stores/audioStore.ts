@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+  persist,
+  createJSONStorage,
+  type PersistStorage,
+  type StorageValue,
+} from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import type {
   AudioPlaybackSequenceEntry,
@@ -84,9 +89,65 @@ interface AudioState {
   resetPlayback: () => void;
 }
 
+const selectPersistedAudioState = (state: AudioState) => ({
+  playbackRate: state.playbackRate,
+  autoAdvanceChapter: state.autoAdvanceChapter,
+  repeatMode: state.repeatMode,
+  sleepTimerMinutes: state.sleepTimerMinutes,
+  backgroundMusicChoice: state.backgroundMusicChoice,
+  queue: state.queue,
+  queueIndex: state.queueIndex,
+  lastPlayedTranslationId: state.lastPlayedTranslationId,
+  lastPlayedBookId: state.lastPlayedBookId,
+  lastPlayedChapter: state.lastPlayedChapter,
+  lastPosition: state.lastPosition,
+});
+
+type PersistedAudioState = ReturnType<typeof selectPersistedAudioState>;
+const audioJsonStorage = createJSONStorage<PersistedAudioState>(() => zustandStorage)!;
+let lastSavedAudio: StorageValue<PersistedAudioState> | undefined;
+
+function hasSameSavedAudio(left: PersistedAudioState, right: PersistedAudioState): boolean {
+  // Both values come from the same fixed projection. Avoid allocating Maps or
+  // serializing the queue just to check the fixed saved fields.
+  for (const key in right) {
+    const field = key as keyof PersistedAudioState;
+    if (!Object.is(left[field], right[field])) return false;
+  }
+  return true;
+}
+
+// Zustand calls storage even when partialize excludes the changed field. Compare
+// before JSON serialization so 250ms playback ticks do not serialize the queue or
+// cross the native storage boundary between the existing resume checkpoints.
+const audioStorage: PersistStorage<PersistedAudioState> = {
+  getItem: (name) => {
+    lastSavedAudio = undefined;
+    return audioJsonStorage.getItem(name);
+  },
+  removeItem: (name) => {
+    lastSavedAudio = undefined;
+    return audioJsonStorage.removeItem(name);
+  },
+  setItem: (name, value) => {
+    if (
+      lastSavedAudio?.version === value.version &&
+      lastSavedAudio &&
+      hasSameSavedAudio(lastSavedAudio.state, value.state)
+    ) {
+      return;
+    }
+    const result = audioJsonStorage.setItem(name, value);
+    // MMKV is synchronous. Only remember successful synchronous saves; an async
+    // adapter can still work, but must not suppress a write before it has finished.
+    lastSavedAudio = result === undefined ? value : undefined;
+    return result;
+  },
+};
+
 export const useAudioStore = create<AudioState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial playback state
       status: 'idle',
       currentTranslationId: null,
@@ -114,7 +175,10 @@ export const useAudioStore = create<AudioState>()(
       backgroundMusicChoice: 'off',
 
       // Playback actions
-      setStatus: (status) => set({ status, error: status === 'error' ? 'Playback error' : null }),
+      setStatus: (status) => {
+        const error = status === 'error' ? 'Playback error' : null;
+        if (get().status !== status || get().error !== error) set({ status, error });
+      },
 
       setCurrentTrack: (translationId, bookId, chapter) =>
         set({
@@ -129,16 +193,20 @@ export const useAudioStore = create<AudioState>()(
           lastPosition: 0,
         }),
 
-      setPosition: (position) =>
-        set((state) => ({
-          currentPosition: position,
-          lastPosition:
-            Math.abs(position - state.lastPosition) >= 5000 || position === 0
-              ? position
-              : state.lastPosition,
-        })),
+      setPosition: (position) => {
+        const state = get();
+        const lastPosition =
+          Math.abs(position - state.lastPosition) >= 5000 || position === 0
+            ? position
+            : state.lastPosition;
+        if (state.currentPosition !== position || state.lastPosition !== lastPosition) {
+          set({ currentPosition: position, lastPosition });
+        }
+      },
 
-      setDuration: (duration) => set({ duration }),
+      setDuration: (duration) => {
+        if (get().duration !== duration) set({ duration });
+      },
 
       setError: (error) => set({ error, status: error ? 'error' : 'idle' }),
 
@@ -232,21 +300,8 @@ export const useAudioStore = create<AudioState>()(
     }),
     {
       name: 'audio-storage',
-      storage: createJSONStorage(() => zustandStorage),
-      // Only persist settings, not playback state
-      partialize: (state) => ({
-        playbackRate: state.playbackRate,
-        autoAdvanceChapter: state.autoAdvanceChapter,
-        repeatMode: state.repeatMode,
-        sleepTimerMinutes: state.sleepTimerMinutes,
-        backgroundMusicChoice: state.backgroundMusicChoice,
-        queue: state.queue,
-        queueIndex: state.queueIndex,
-        lastPlayedTranslationId: state.lastPlayedTranslationId,
-        lastPlayedBookId: state.lastPlayedBookId,
-        lastPlayedChapter: state.lastPlayedChapter,
-        lastPosition: state.lastPosition,
-      }),
+      storage: audioStorage,
+      partialize: selectPersistedAudioState,
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedAudioState(persistedState),

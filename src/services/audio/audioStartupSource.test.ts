@@ -63,7 +63,7 @@ test('audio progress does not persist every playback tick', () => {
 
   assert.match(
     source,
-    /lastPosition:\s*Math\.abs\(position - state\.lastPosition\) >= 5000 \|\| position === 0[\s\S]*\? position[\s\S]*: state\.lastPosition/,
+    /const lastPosition =\s*Math\.abs\(position - state\.lastPosition\) >= 5000 \|\| position === 0[\s\S]*\? position[\s\S]*: state\.lastPosition/,
     'AudioStore should only move the persisted resume position in coarse steps, not on every visible progress update'
   );
 

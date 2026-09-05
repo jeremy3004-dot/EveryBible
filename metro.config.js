@@ -6,16 +6,28 @@ const path = require('path');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Keep Expo's transform settings and defer unused module evaluation on the
+// Android release startup path. Bare side-effect imports still run eagerly.
+const getExpoTransformOptions = config.transformer.getTransformOptions;
+config.transformer.getTransformOptions = async (...args) => {
+  const options = await getExpoTransformOptions(...args);
+  return {
+    ...options,
+    transform: {
+      ...options.transform,
+      inlineRequires:
+        args[1].platform === 'android' && !args[1].dev ? true : options.transform?.inlineRequires,
+    },
+  };
+};
+
 // During local development this workspace is a git worktree of /Users/dev/Projects/EveryBible,
 // so Metro can follow the base checkout for shared node_modules.
 // In EAS local build archives that base checkout does not exist, so keep Metro self-contained.
 const baseProjectRoot = path.resolve(__dirname, '../../../../Projects/EveryBible');
 
 if (fs.existsSync(baseProjectRoot)) {
-  config.watchFolders = [
-    ...(config.watchFolders || []),
-    baseProjectRoot,
-  ];
+  config.watchFolders = [...(config.watchFolders || []), baseProjectRoot];
 
   config.resolver.nodeModulesPaths = [
     ...(config.resolver.nodeModulesPaths || []),

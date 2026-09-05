@@ -2,9 +2,8 @@ import * as bibleDb from './bibleDatabase';
 import { DEFAULT_MINIMUM_READY_VERSE_COUNT } from './bibleDatabase';
 import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
-import { shouldLoadDailyScriptureText } from './dailyScripture';
+import { getDailyScriptureReference, shouldLoadDailyScriptureText } from './dailyScripture';
 import { buildDailyScripture } from './presentation';
-import { POPULAR_VERSE_REFERENCES } from './popularVerseReferences';
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
@@ -87,11 +86,7 @@ export function getAllBooks() {
 }
 
 function getTodayReference(): DailyScriptureReference {
-  // Get a verse based on the day of the year for variety
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
-  );
-  return POPULAR_VERSE_REFERENCES[dayOfYear % POPULAR_VERSE_REFERENCES.length];
+  return getDailyScriptureReference();
 }
 
 function getReferencePassageText(

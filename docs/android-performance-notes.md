@@ -1,5 +1,7 @@
 # Android Performance Notes
 
+The [September 5 Android optimization pass](android-optimization-2026-09-05.md) adds a fully local 200-passage daily rotation, reduces audio persistence work, enables Android release module deferral, and records fresh before/after results. Its measured 77.6% queued-audio CPU reduction is separate from the 6.9% emulator activity-display improvement and does not establish an app-wide speedup on physical older phones.
+
 The [September 5 app review](app-optimization-review-2026-09-05.md) records further catalog/picker, audio-registry, and sync work reductions with regression coverage. Its counts are deterministic measurements, separate from the older emulator timings below.
 
 ## Startup Assumptions

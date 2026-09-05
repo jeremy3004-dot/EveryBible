@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { fileURLToPath, URL } from 'node:url';
 
 import { POPULAR_VERSE_REFERENCES } from './popularVerseReferences';
 
@@ -21,7 +22,7 @@ const formatReference = (reference: {
 };
 
 const ORIGINAL_REQUESTED_REFERENCE_COUNT = 58;
-const ADDITIONAL_UPLIFTING_REFERENCE_COUNT = 100;
+const ADDITIONAL_UPLIFTING_REFERENCE_COUNT = 142;
 
 const REQUIRED_REFERENCES = [
   'JHN 3:16',
@@ -54,5 +55,44 @@ test('popular verse references include the requested verses and passage ranges',
 
   for (const reference of REQUIRED_REFERENCES) {
     assert.equal(referenceSet.has(reference), true, `Missing ${reference}`);
+  }
+});
+
+test('every daily passage exists in each bundled translation for offline use', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const database = new DatabaseSync(
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url)),
+    { readOnly: true }
+  );
+  try {
+    const translations = database.prepare('SELECT DISTINCT translation_id FROM verses').all() as {
+      translation_id: string;
+    }[];
+    const query = database.prepare(
+      'SELECT COUNT(*) AS count FROM verses WHERE translation_id = ? AND book_id = ? AND chapter = ? AND verse BETWEEN ? AND ? AND length(trim(text)) > 0'
+    );
+    assert.ok(translations.length >= 4);
+    for (const { translation_id } of translations) {
+      for (const reference of POPULAR_VERSE_REFERENCES) {
+        const start = reference.verse!;
+        const end = reference.verseEnd ?? start;
+        const result = query.get(
+          translation_id,
+          reference.bookId,
+          reference.chapter,
+          start,
+          end
+        ) as {
+          count: number;
+        };
+        assert.equal(
+          result.count,
+          end - start + 1,
+          `${translation_id}: ${formatReference(reference)}`
+        );
+      }
+    }
+  } finally {
+    database.close();
   }
 });

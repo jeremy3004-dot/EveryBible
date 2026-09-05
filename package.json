@@ -35,6 +35,8 @@
     "test:i18n:tolgee": "node --test --import tsx scripts/i18nTolgeeSource.test.ts",
     "verify:expo-config": "npx expo config --json >/dev/null",
     "perf:android": "bash scripts/android_perf_smoke.sh",
+    "perf:android:audio": "node --import tsx scripts/benchmark-android-audio.ts",
+    "perf:android:startup": "python3 scripts/benchmark-android-startup.py",
     "release:verify": "npm run verify:workspace && npm run verify:expo-config",
     "testflight:guard": "tsx scripts/testflight_release_guard.ts",
     "release:prepare": "npm run release:verify && npm run testflight:guard",
