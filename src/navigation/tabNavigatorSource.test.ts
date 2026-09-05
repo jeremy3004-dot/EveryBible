@@ -7,6 +7,20 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
+test('collapsed tabs leave touch and accessibility navigation without fading native glass', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+  assert.match(source, /useAnimatedReaction\(/);
+  assert.match(source, /if \(hidden !== previous\)\s*\{\s*runOnJS\(setScrollHidden\)\(hidden\)/);
+  assert.match(source, /forcedHidden \|\| \(followsScroll && scrollHidden\)/);
+  assert.match(source, /pointerEvents=\{interactionHidden \? 'none' : 'box-none'\}/);
+  assert.match(source, /accessibilityElementsHidden=\{interactionHidden\}/);
+  assert.match(
+    source,
+    /importantForAccessibility=\{interactionHidden \? 'no-hide-descendants' : 'auto'\}/
+  );
+  assert.doesNotMatch(source, /opacity:/);
+});
+
 test('TabNavigator keeps the bottom tab bar flat instead of rounding its top corners', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
@@ -51,7 +65,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
   );
   assert.match(
     capsuleSource,
-    /transform:\s*\[\{\s*translateY:\s*\(barHeight \+ bottomPadding\) \* collapseProgress\s*\}\],[\s\S]*opacity:\s*1 - collapseProgress/s,
+    /transform:\s*\[\{\s*translateY:\s*getReaderTabBarTranslation\(collapseProgress\)\s*\}\]/s,
     'the collapsing capsule should slide clear of the screen, gap included'
   );
 
@@ -172,13 +186,11 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
     'the capsule edge should follow the reader divider while the reader is focused'
   );
 
-  // The selected tab always sits on the accent surface, so its glyph is always
-  // the accent foreground — tinting it with the reader's ink made the Bible tab
-  // render near-black on the pale-blue pill in vellum.
+  // A neutral translucent selection uses each surface's readable ink.
   assert.match(
     source,
-    /tabBarActiveTintColor: colors\.tabActive,/,
-    'the selected tab glyph should always be the accent foreground'
+    /tabBarActiveTintColor: isBibleReader \? colors\.biblePrimaryText : colors\.primaryText,/,
+    'the selected tab glyph should use surface-aware primary text'
   );
 
   assert.match(
@@ -213,7 +225,7 @@ test('TabNavigator renders the tab bar as a floating glass capsule', () => {
   );
   assert.match(
     capsuleSource,
-    /backgroundColor: 'transparent',[\s\S]*left: sideInset,[\s\S]*right: sideInset,[\s\S]*bottom: bottomPadding,[\s\S]*height: barHeight,/s,
+    /backgroundColor: 'transparent',[\s\S]*start: sideInset,[\s\S]*end: sideInset,[\s\S]*bottom: bottomPadding,[\s\S]*height: barHeight,/s,
     'the tab bar should be an inset, lifted, transparent capsule'
   );
   assert.match(
@@ -223,12 +235,11 @@ test('TabNavigator renders the tab bar as a floating glass capsule', () => {
   );
   assert.match(source, /<BlurView/, 'the capsule should use a real blur material');
 
-  // React Navigation v7 hands tabBarButton `aria-selected`; reading
-  // `accessibilityState.selected` yields undefined and the pill never appears.
+  // Keep all React Navigation v7 accessibility and interaction props intact.
   assert.match(
     source,
-    /focused=\{props\['aria-selected'\] \?\? false\}/,
-    "the selected tab must be read from `aria-selected`, not accessibilityState"
+    /<PlatformPressable \{\.\.\.props\}/,
+    'the tab button should preserve accessibility, links, test IDs, and press callbacks'
   );
   assert.match(
     source,
@@ -286,7 +297,7 @@ test('TabNavigator resumes the last open Bible chapter when the Bible tab is pre
 
   assert.match(
     source,
-    /const \{[\s\S]*hasReaderHistory,[\s\S]*currentBibleBook,[\s\S]*currentBibleChapter,[\s\S]*preferredBibleMode,[\s\S]*\} = getBibleTabResumeState\(\);[\s\S]*navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
+    /const \{[\s\S]*hasReaderHistory,[\s\S]*currentBibleBook,[\s\S]*currentBibleChapter,[\s\S]*preferredBibleMode,?\s*\} =\s*getBibleTabResumeState\(\);[\s\S]*navigation\.navigate\('Bible', \{\s*screen:\s*'BibleReader',\s*params:\s*\{\s*bookId:\s*currentBibleBook,\s*chapter:\s*currentBibleChapter/s,
     'TabNavigator should reopen the Bible tab at the persisted reader chapter instead of always dumping the user back into the book list'
   );
 });

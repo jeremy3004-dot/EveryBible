@@ -1,8 +1,7 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import Svg, { Circle } from 'react-native-svg';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -11,15 +10,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { mediumHaptic } from '../../utils/haptics';
-import { layout, radius } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
+import { radius } from '../../design/system';
+import { READER_TAB_BAR_COLLAPSE_DISTANCE } from '../../navigation/readerTabBarMotion';
+import {
+  READER_PLAY_BUTTON_SIZE,
+  READER_PLAY_COLLAPSE_TRAVEL,
+  READER_CHAPTER_BUTTON_SIZE,
+} from '../../screens/bible/readerChromeMotion';
 
 const PRESSED_SCALE = 0.96;
 
 interface ReaderPlaybackDockProps {
   collapseProgress: SharedValue<number>;
   isCollapsed: boolean;
-  progress: number;
   isPlaying: boolean;
   isLoading: boolean;
   hasPreviousChapter: boolean;
@@ -35,16 +38,9 @@ interface ReaderPlaybackDockProps {
   onPlayPause: () => void;
 }
 
-const RING_SIZE = 78;
-const RING_STROKE_WIDTH = 4;
-const PLAY_BUTTON_SIZE = 66;
-const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
-const circumference = 2 * Math.PI * RING_RADIUS;
-
 export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   collapseProgress,
   isCollapsed,
-  progress,
   isPlaying,
   isLoading,
   hasPreviousChapter,
@@ -61,61 +57,24 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 }: ReaderPlaybackDockProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [optimisticTransportState, setOptimisticTransportState] = useState<
-    'playing' | 'paused' | null
-  >(null);
-  const clampedProgress = Math.max(0, Math.min(progress, 1));
-  const strokeDashoffset = circumference - clampedProgress * circumference;
-
-  const playButtonIconName =
-    optimisticTransportState === 'playing'
-      ? isPlaying || isLoading
-        ? 'pause'
-        : 'play'
-      : optimisticTransportState === 'paused'
-        ? isPlaying
-          ? 'pause'
-          : 'play'
-        : isPlaying
-          ? 'pause'
-          : 'play';
+  const playButtonIconName = isPlaying || isLoading ? 'pause' : 'play';
   const playButtonAccessibilityLabel =
     playButtonIconName === 'pause'
       ? t('interface.pauseChapterAudio')
       : t('interface.playChapterAudio');
   const showPlayButton = hidePlayButton !== true;
 
-  const leftTransportAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseProgress.value, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
+  // The whole dock travels 65pt. The arrows travel the remaining 67pt,
+  // so their total travel matches the tab capsule at every animation frame.
+  const sideTransportAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        scale: interpolate(collapseProgress.value, [0, 1], [1, 0.82], Extrapolation.CLAMP),
-      },
-      {
-        translateY: interpolate(collapseProgress.value, [0, 1], [0, 34], Extrapolation.CLAMP),
-      },
-    ],
-  }));
-
-  const rightTransportAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseProgress.value, [0, 0.72, 1], [1, 0.18, 0], Extrapolation.CLAMP),
-    transform: [
-      {
-        scale: interpolate(collapseProgress.value, [0, 1], [1, 0.82], Extrapolation.CLAMP),
-      },
-      {
-        translateY: interpolate(collapseProgress.value, [0, 1], [0, 34], Extrapolation.CLAMP),
-      },
-    ],
-  }));
-
-  const centerTransportAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(collapseProgress.value, [0, 1], [0, 12], Extrapolation.CLAMP),
-      },
-      {
-        scale: interpolate(collapseProgress.value, [0, 1], [1, 1.02], Extrapolation.CLAMP),
+        translateY: interpolate(
+          collapseProgress.value,
+          [0, 1],
+          [0, READER_TAB_BAR_COLLAPSE_DISTANCE - READER_PLAY_COLLAPSE_TRAVEL],
+          Extrapolation.CLAMP
+        ),
       },
     ],
   }));
@@ -123,20 +82,23 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   return (
     <View style={[styles.container]}>
       <Animated.View
-        style={[styles.sideTransportWrap, leftTransportAnimatedStyle]}
+        style={[styles.sideTransportWrap, sideTransportAnimatedStyle]}
         pointerEvents={isCollapsed ? 'none' : 'auto'}
+        accessibilityElementsHidden={isCollapsed}
+        importantForAccessibility={isCollapsed ? 'no-hide-descendants' : 'auto'}
       >
         <Pressable
           style={({ pressed }) => [
             styles.sideTransportButton,
             {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
+              backgroundColor: colors.bibleElevatedSurface,
               transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
             },
           ]}
           onPress={onPreviousChapter}
           disabled={isCollapsed || !hasPreviousChapter}
+          accessibilityState={{ disabled: isCollapsed || !hasPreviousChapter }}
+          hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={t('audio.previousChapter')}
         >
@@ -149,7 +111,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
       </Animated.View>
 
       {showPlayButton ? (
-        <Animated.View style={[styles.playButtonWrap, centerTransportAnimatedStyle]}>
+        <Animated.View style={styles.playButtonWrap}>
           <Pressable
             style={({ pressed }) => [
               styles.playButton,
@@ -158,51 +120,22 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
                 // the glyph carry the contrast, rather than inverting the whole
                 // button — an inverted disc reads as a hard slam over Scripture.
                 backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleDivider,
                 transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
               },
             ]}
             onPress={() => {
               mediumHaptic();
-              setOptimisticTransportState(
-                isPlaying || optimisticTransportState === 'playing' ? 'paused' : 'playing'
-              );
               onPlayPause();
             }}
             accessibilityRole="button"
             accessibilityLabel={playButtonAccessibilityLabel}
+            accessibilityState={{ busy: isLoading, disabled: isLoading }}
+            disabled={isLoading}
+            testID="reader-play-pause"
           >
-            <Svg
-              width={RING_SIZE}
-              height={RING_SIZE}
-              style={styles.progressRing}
-              viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-            >
-              <Circle
-                cx={RING_SIZE / 2}
-                cy={RING_SIZE / 2}
-                r={RING_RADIUS}
-                stroke={hexWithAlpha(colors.bibleDivider, 0.667)}
-                strokeWidth={RING_STROKE_WIDTH}
-                fill="none"
-              />
-              <Circle
-                cx={RING_SIZE / 2}
-                cy={RING_SIZE / 2}
-                r={RING_RADIUS}
-                stroke={colors.bibleAccent}
-                strokeWidth={RING_STROKE_WIDTH}
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                fill="none"
-                transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-              />
-            </Svg>
-
             <Ionicons
               name={playButtonIconName}
-              size={30}
+              size={28}
               color={colors.biblePrimaryText}
               style={playButtonIconName === 'play' ? styles.playIcon : undefined}
             />
@@ -211,20 +144,23 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
       ) : null}
 
       <Animated.View
-        style={[styles.sideTransportWrap, rightTransportAnimatedStyle]}
+        style={[styles.sideTransportWrap, sideTransportAnimatedStyle]}
         pointerEvents={isCollapsed ? 'none' : 'auto'}
+        accessibilityElementsHidden={isCollapsed}
+        importantForAccessibility={isCollapsed ? 'no-hide-descendants' : 'auto'}
       >
         <Pressable
           style={({ pressed }) => [
             styles.sideTransportButton,
             {
-              backgroundColor: nextButtonColor ?? colors.bibleSurface,
-              borderColor: colors.bibleDivider,
+              backgroundColor: nextButtonColor ?? colors.bibleElevatedSurface,
               transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
             },
           ]}
           onPress={onNextChapter}
           disabled={isCollapsed || !hasNextChapter}
+          accessibilityState={{ disabled: isCollapsed || !hasNextChapter }}
+          hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={nextAccessibilityLabel ?? t('audio.nextChapter')}
           accessibilityHint={nextAccessibilityHint}
@@ -255,14 +191,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sideTransportWrap: {
-    width: 52,
+    width: 56,
+    height: 48,
+    marginBottom: -4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sideTransportButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderWidth: 1,
+    width: READER_CHAPTER_BUTTON_SIZE,
+    height: READER_CHAPTER_BUTTON_SIZE,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -272,15 +209,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   playButton: {
-    width: PLAY_BUTTON_SIZE,
-    height: PLAY_BUTTON_SIZE,
+    width: READER_PLAY_BUTTON_SIZE,
+    height: READER_PLAY_BUTTON_SIZE,
     borderRadius: radius.pill,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  progressRing: {
-    position: 'absolute',
   },
   playIcon: {
     marginLeft: 2,

@@ -1,0 +1,37 @@
+diff --git a/node_modules/expo-glass-effect/ios/GlassContainer.swift b/node_modules/expo-glass-effect/ios/GlassContainer.swift
+--- a/node_modules/expo-glass-effect/ios/GlassContainer.swift
++++ b/node_modules/expo-glass-effect/ios/GlassContainer.swift
+@@ -46,6 +46,8 @@ public final class GlassContainer: ExpoView {
+     }
+   }
+ 
++  // This child mounting API exists only on ExpoFabricView.
++  #if RCT_NEW_ARCH_ENABLED
+   public override func mountChildComponentView(_ childComponentView: UIView, index: Int) {
+     containerEffectView.contentView.insertSubview(childComponentView, at: index)
+   }
+@@ -53,4 +55,5 @@ public final class GlassContainer: ExpoView {
+   public override func unmountChildComponentView(_ childComponentView: UIView, index: Int) {
+     childComponentView.removeFromSuperview()
+   }
++  #endif
+ }
+diff --git a/node_modules/expo-glass-effect/ios/GlassView.swift b/node_modules/expo-glass-effect/ios/GlassView.swift
+--- a/node_modules/expo-glass-effect/ios/GlassView.swift
++++ b/node_modules/expo-glass-effect/ios/GlassView.swift
+@@ -244,6 +244,9 @@ public final class GlassView: ExpoView {
+       #endif
+     }
+   }
++  // ExpoClassicView has no Fabric mounting API. Legacy background-only views
++  // use the inherited RCTView lifecycle instead.
++  #if RCT_NEW_ARCH_ENABLED
+   public override func mountChildComponentView(_ childComponentView: UIView, index: Int) {
+     glassEffectView.contentView.insertSubview(childComponentView, at: index)
+   }
+@@ -251,4 +254,5 @@ public final class GlassView: ExpoView {
+   public override func unmountChildComponentView(_ childComponentView: UIView, index: Int) {
+     childComponentView.removeFromSuperview()
+   }
++  #endif
+ }

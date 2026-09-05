@@ -17,18 +17,18 @@ export interface TabBarHeightMetrics {
 // capsule plus the gap beneath it. Every surface docked above the tab bar reads
 // these numbers, so the capsule and the things floating over it stay in sync.
 //
-// Measured against the reference: a 392x62pt capsule inset 24pt each side,
-// sitting 21pt above the screen bottom on a 440pt-wide device.
-export const TAB_BAR_CAPSULE_HEIGHT = 62;
-export const TAB_BAR_CAPSULE_SIDE_INSET = 24;
+// Measured against the reference: a 398x60pt capsule inset 21pt each side,
+// sitting 22pt above the screen bottom on a 440pt-wide device.
+export const TAB_BAR_CAPSULE_HEIGHT = 60;
+export const TAB_BAR_CAPSULE_SIDE_INSET = 21;
 export const TAB_BAR_CAPSULE_RADIUS = TAB_BAR_CAPSULE_HEIGHT / 2;
 
 export function useTabBarHeight(): TabBarHeightMetrics {
   const insets = useSafeAreaInsets();
   // On a device with a home indicator the capsule tucks into the safe area — the
-  // indicator is a hairline, so 21pt reads as a deliberate gap rather than a
+  // indicator is a hairline, so 22pt reads as a deliberate gap rather than a
   // collision. Without one, fall back to the standard gutter.
-  const bottomPadding = insets.bottom > 0 ? 21 : spacing.lg;
+  const bottomPadding = insets.bottom > 0 ? 22 : spacing.lg;
 
   return {
     bottomPadding,

@@ -7,19 +7,26 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('ReaderPlaybackDock renders a circular progress ring around the persistent play button', () => {
+test('ReaderPlaybackDock uses fixed reference-sized transport discs without a progress ring', () => {
   const source = readRelativeSource('./ReaderPlaybackDock.tsx');
+  const motion = readRelativeSource('../../screens/bible/readerChromeMotion.ts');
 
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /from 'react-native-svg'/,
-    'ReaderPlaybackDock should draw the chapter progress ring with react-native-svg'
+    /react-native-svg|<Svg|<Circle|strokeDasharray|strokeDashoffset/,
+    'The persistent play disc should not bring back the visible playback ring'
   );
-
+  assert.match(motion, /READER_PLAY_BUTTON_SIZE = 64;/);
+  assert.match(motion, /READER_CHAPTER_BUTTON_SIZE = 40;/);
   assert.match(
     source,
-    /<Svg[\s\S]*<Circle[\s\S]*strokeDasharray=\{circumference\}[\s\S]*strokeDashoffset=\{strokeDashoffset\}/s,
-    'ReaderPlaybackDock should convert chapter playback progress into a circular stroke around the play button'
+    /playButton:\s*\{\s*width: READER_PLAY_BUTTON_SIZE,\s*height: READER_PLAY_BUTTON_SIZE,/,
+    'Play should use the reference diameter in both dimensions'
+  );
+  assert.match(
+    source,
+    /sideTransportButton:\s*\{\s*width: READER_CHAPTER_BUTTON_SIZE,\s*height: READER_CHAPTER_BUTTON_SIZE,/,
+    'Both chapter buttons should use the reference diameter'
   );
 });
 
@@ -40,15 +47,16 @@ test('ReaderPlaybackDock collapses the side chapter arrows away while keeping th
 
   assert.match(
     source,
-    /leftTransportAnimatedStyle = useAnimatedStyle\(/,
-    'ReaderPlaybackDock should animate the previous-chapter control out as the reader collapses'
+    /sideTransportAnimatedStyle = useAnimatedStyle\(/,
+    'Both chapter controls should share one UI-thread translation'
   );
 
   assert.match(
     source,
-    /rightTransportAnimatedStyle = useAnimatedStyle\(/,
-    'ReaderPlaybackDock should animate the next-chapter control out as the reader collapses'
+    /\[0, READER_TAB_BAR_COLLAPSE_DISTANCE - READER_PLAY_COLLAPSE_TRAVEL\]/,
+    'Arrows should travel the remaining distance beyond the whole dock so they match the tab capsule'
   );
+  assert.equal(source.match(/styles\.sideTransportWrap, sideTransportAnimatedStyle/g)?.length, 2);
 
   assert.match(
     source,

@@ -598,52 +598,55 @@ test('BibleReaderScreen hands the premium read bottom controls to the dedicated 
   );
 });
 
-test('BibleReaderScreen reopens the dock and root tab bar when the reader reaches the bottom of the page', () => {
+test('BibleReaderScreen updates dock and root tab motion on every UI frame before throttled JS bookkeeping', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
-    source,
-    /const readerBottomChromeProgressShared = useSharedValue\(0\);/,
-    'BibleReaderScreen should keep a shared bottom-chrome progress value so the floating dock can animate independently of raw scroll position'
+  const scrollHandler = source.slice(
+    source.indexOf('  const scrollHandler = useAnimatedScrollHandler('),
+    source.indexOf('  const topChromeAnimatedStyle = useAnimatedStyle(')
+  );
+  assert.ok(scrollHandler.length > 0, 'The native scroll handler should be locatable');
+  assert.match(scrollHandler, /const nextProgress = getNextReaderChromeProgress\(/);
+  assert.match(scrollHandler, /previousOffset: readerChromeOffsetShared\.value,/);
+  assert.match(scrollHandler, /viewportHeight,\s*contentHeight,\s*reduceMotion,/);
+
+  const throttleIndex = scrollHandler.indexOf('const shouldNotifyJs');
+  for (const update of [
+    'readerBottomChromeProgressShared.value = nextProgress;',
+    'rootTabBarScrollProgress.value = nextProgress;',
+  ]) {
+    const updateIndex = scrollHandler.indexOf(update);
+    assert.ok(
+      updateIndex >= 0 && updateIndex < throttleIndex,
+      `${update} must run on every native frame before the JS bookkeeping throttle`
+    );
+  }
+  assert.doesNotMatch(scrollHandler, /navigation\.setParams|\.setOptions|syncRootTabBar/);
+  assert.match(scrollHandler, /runOnJS\(updateReaderBottomChromeState\)/);
+  const bookkeeping = source
+    .slice(
+      source.indexOf('  const updateReaderBottomChromeState = useCallback('),
+      source.indexOf('  const scrollHandler = useAnimatedScrollHandler(')
+    )
+    .split('  useEffect(')[0];
+  assert.ok(bookkeeping.length > 0);
+  assert.doesNotMatch(
+    bookkeeping,
+    /\.setParams|\.setOptions|syncRootTabBar|ProgressShared\.value\s*=/,
+    'JS scroll bookkeeping must not drive visible motion or rewrite root navigation options'
   );
 
-  assert.match(
-    source,
-    /readerBottomChromeProgressShared\.value = nextProgress;/,
-    'BibleReaderScreen should push the dock progress into Reanimated so the overlay can respond in real time'
-  );
-
-  assert.match(
-    source,
-    /const readerRevealTabBarOnUpScrollRef = useRef\(false\);[\s\S]*const scrollDeltaY = offsetY - readerLastScrollOffsetYRef\.current;[\s\S]*isScrollingUp && offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD[\s\S]*readerRevealTabBarOnUpScrollRef\.current = true;[\s\S]*const shouldRevealReaderDock =[\s\S]*isAtBottom \|\| readerRevealTabBarOnUpScrollRef\.current;[\s\S]*showPremiumReadMode && !shouldRevealReaderDock[\s\S]*const nextCollapsed =[\s\S]*!shouldRevealReaderDock[\s\S]*showPremiumReadMode &&[\s\S]*!shouldRevealReaderDock/s,
-    'BibleReaderScreen should let a short upward flick restore the dock height and side arrows at the same time the root tab bar comes back'
-  );
-
-  assert.match(
-    source,
-    /navigation\.setParams\(\{ tabBarCollapseProgress: clampedProgress \}\);/,
-    'BibleReaderScreen should push the same normalized collapse progress into the reader route params so the root tab bar can sink at the same speed as the dock'
-  );
-
-  assert.match(
-    source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*rootTabBarStyleBuilderRef\.current\(clampedProgress\),\s*\}\)/,
-    'BibleReaderScreen should push the normalized collapse style directly to the parent navigator so the live root tab bar actually moves with the reader dock'
-  );
-
-  // The reader still rebuilds the root tab bar for its scroll-linked collapse,
-  // but through the shared capsule builder — a second inline copy is what made
-  // the bar change shape when entering and leaving the reader.
+  // Explicit selection, plan, and mode overrides still use the shared capsule
+  // geometry, while continuous scroll motion runs entirely on the UI thread.
   assert.match(
     source,
     /const getRootTabBarStyle = useCallback\(\s*\(collapseProgress: number\) =>\s*buildTabBarCapsuleStyle\(\{[\s\S]*collapseProgress,/s,
-    'BibleReaderScreen should rebuild the root tab bar from the shared capsule style'
+    'Explicit root tab overrides should preserve the shared capsule geometry'
   );
-
   assert.doesNotMatch(
     source,
     /const getRootTabBarStyle = useCallback\([\s\S]{0,400}?borderTopWidth: 1,/s,
-    'the reader must not re-inline its own full-width tab bar geometry'
+    'The reader must not re-inline its own full-width tab bar geometry'
   );
 
   assert.match(
@@ -693,31 +696,56 @@ test('BibleReaderScreen reopens the dock and root tab bar when the reader reache
   );
 });
 
-test('ReaderPlaybackDock keeps the play button visible while the side arrows sink out of view and flips directly between play and pause', () => {
+test('ReaderPlaybackDock keeps the play disc unchanged during collapse and uses actual transport state', () => {
   const source = readRelativeSource('../../components/audio/ReaderPlaybackDock.tsx');
+  const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
+  const motion = readRelativeSource('./readerChromeMotion.ts');
+  const tabMotion = readRelativeSource('../../navigation/readerTabBarMotion.ts');
 
+  assert.match(motion, /READER_PLAY_COLLAPSE_TRAVEL = 65;/);
+  assert.match(tabMotion, /READER_TAB_BAR_COLLAPSE_DISTANCE = 132;/);
   assert.match(
     source,
-    /translateY:\s*interpolate\(collapseProgress\.value,\s*\[0,\s*1\],\s*\[0,\s*34\]/,
-    'ReaderPlaybackDock should push the side arrows farther downward as the reader chrome collapses'
+    /\[0, READER_TAB_BAR_COLLAPSE_DISTANCE - READER_PLAY_COLLAPSE_TRAVEL\]/,
+    'Arrows should add 67pt to the dock travel, matching the tab bar at 132pt'
   );
-
+  assert.match(readerSource, /readerDockCollapsedTranslateY = READER_PLAY_COLLAPSE_TRAVEL;/);
+  const dockAnimation = readerSource.slice(
+    readerSource.indexOf('  const bottomDockAnimatedStyle = useAnimatedStyle('),
+    readerSource.indexOf('  const planSessionBottomBarAnimatedStyle = useAnimatedStyle(')
+  );
+  assert.ok(dockAnimation.length > 0);
+  assert.doesNotMatch(
+    dockAnimation,
+    /opacity:|scale:/,
+    'Collapse must translate the play disc without fading or shrinking it'
+  );
+  assert.match(source, /<Animated\.View style=\{styles\.playButtonWrap\}>/);
+  assert.doesNotMatch(source, /hourglass|optimisticTransportState|playButtonAnimatedStyle/);
+  assert.match(source, /const playButtonIconName = isPlaying \|\| isLoading \? 'pause' : 'play';/);
+  assert.match(source, /name=\{playButtonIconName\}/);
   assert.match(
     source,
-    /translateY:\s*interpolate\(collapseProgress\.value,\s*\[0,\s*1\],\s*\[0,\s*12\]/,
-    'ReaderPlaybackDock should only nudge the center play button downward so it stays visible'
+    /accessibilityState=\{\{ busy: isLoading, disabled: isLoading \}\}\s*disabled=\{isLoading\}/
   );
+});
 
-  assert.equal(
-    source.includes('hourglass'),
-    false,
-    'ReaderPlaybackDock should not show an hourglass state in the play button'
+test('only the focused reader can publish or clear shared root tab motion', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const scrollHandler = source.slice(
+    source.indexOf('  const scrollHandler = useAnimatedScrollHandler('),
+    source.indexOf('  const topChromeAnimatedStyle = useAnimatedStyle(')
   );
-
+  const guard = scrollHandler.indexOf('if (readerChromeOwner.value !== readerRouteKey) return;');
+  const write = scrollHandler.indexOf('rootTabBarScrollProgress.value = nextProgress;');
+  assert.ok(
+    guard >= 0 && guard < write,
+    'Late retained-reader events must stop before changing shared motion'
+  );
   assert.match(
     source,
-    /const playButtonIconName =[\s\S]*optimisticTransportState === 'playing'[\s\S]*optimisticTransportState === 'paused'[\s\S]*name=\{playButtonIconName\}/s,
-    'ReaderPlaybackDock should switch directly between play and pause icons with a brief optimistic transport state'
+    /useFocusEffect\(\s*useCallback\(\(\) => \{[\s\S]*readerChromeOwner\.value = readerRouteKey;[\s\S]*return \(\) => \{\s*if \(readerChromeOwner\.value === readerRouteKey\) \{\s*readerChromeOwner\.value = '';\s*rootTabBarScrollProgress\.value = 0;/,
+    'A reader must claim ownership on focus and only clear its own shared state on blur'
   );
 });
 
@@ -1398,16 +1426,14 @@ test('chapter session resets close the live transcript because readable chapters
   );
 });
 
-test('the reader dock clears the real tab bar, not the 52pt base height', () => {
+test('the reader dock uses the measured 18pt clearance above the shared tab footprint', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  // layout.tabBarBaseHeight is only the base; the rendered tab bar is
-  // `tabBarBaseHeight + max(insets.bottom, spacing.lg)`. Measuring the dock off
-  // the base put it 2pt inside the bar on any Dynamic Island iPhone and clipped
-  // the bottom of the play button.
+  // With the reference 82pt tab footprint and 64pt play disc, this places
+  // the center at 956 - (82 + 18) - 32 = 824pt without hard-coding a device height.
   assert.match(
     source,
-    /const readerDockBaseBottom = rootTabBarHeight \+ spacing\.lg;/,
+    /const readerDockBaseBottom = rootTabBarHeight \+ 18;/,
     'the dock must be measured off the shared useTabBarHeight() value'
   );
   assert.doesNotMatch(
@@ -1428,4 +1454,30 @@ test('the reader transport row shares a bottom baseline', () => {
   );
   assert.ok(container.length > 0, 'dock container style should be locatable');
   assert.match(container, /alignItems: 'flex-end'/, 'transport row should be bottom-aligned');
+});
+
+test('invisible animated top chrome excludes interaction without disabling listen controls', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const start = source.indexOf('  const renderSharedTopChrome = (useAnimatedChrome: boolean) => (');
+  assert.ok(start >= 0, 'shared top chrome renderer must exist');
+  const wrapper = source.slice(
+    start,
+    source.indexOf('<View style={styles.floatingReaderReferenceCluster}', start)
+  );
+
+  assert.match(
+    wrapper,
+    /pointerEvents=\{useAnimatedChrome && isReadBottomChromeCollapsed \? 'none' : 'box-none'\}/,
+    'only fully collapsed animated chrome must stop receiving touches'
+  );
+  assert.match(
+    wrapper,
+    /accessibilityElementsHidden=\{useAnimatedChrome && isReadBottomChromeCollapsed\}/,
+    'iOS must exclude invisible top controls from accessibility traversal'
+  );
+  assert.match(
+    wrapper,
+    /importantForAccessibility=\{\s*useAnimatedChrome && isReadBottomChromeCollapsed \? 'no-hide-descendants' : 'auto'\s*\}/,
+    'Android must exclude hidden descendants while nonanimated listen chrome stays reachable'
+  );
 });

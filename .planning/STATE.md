@@ -245,6 +245,7 @@ Recent decisions affecting current work:
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260905-f0r | Match reader transport geometry, coordinated scroll motion, and native Liquid Glass tabs to supplied video; verified on iPhone 17 Pro Max simulator | 2026-09-05 | local main | [260905-f0r](./quick/260905-f0r-match-reader-controls-and-liquid-glass-t/) |
 | 260324-lvw | Comprehensive i18n audit and fix across all screens, components, and data files | 2026-03-24 | 94728f4 | [260324-lvw](./quick/260324-lvw-comprehensive-i18n-audit-and-fix-across-/) |
 | 260323 | Fix 4 Bible reader bugs: back navigation, background downloads, font size clipping, audio scroll alignment | 2026-03-23 | 954569f | [260323-fix-4-bible-reader-bugs-back-navigation-](./quick/260323-fix-4-bible-reader-bugs-back-navigation-/) |
 | 260324 | Fix 5 UI bugs: tab bar padding, secure-code keyboard, reader header, back button safe area, mini player overlap | 2026-03-24 | 7bc941b | [260324-fix-5-ui-bugs-tab-bar-padding-secure-cod](./quick/260324-fix-5-ui-bugs-tab-bar-padding-secure-cod/) |

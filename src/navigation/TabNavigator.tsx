@@ -1,15 +1,20 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarButtonProps, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated';
+import { PlatformPressable } from '@react-navigation/elements';
+import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+import { useReaderChromeProgress } from '../stores/readerChromeStore';
+import {
+  getReaderTabBarTranslation,
+  isReaderTabBarScrollHidden,
+  shouldFollowReaderScroll,
+} from './readerTabBarMotion';
+import { TabBarSelection } from './TabBarSelection';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { RootTabParamList } from './types';
@@ -22,12 +27,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
-import { motion, typography } from '../design/system';
+import { typography } from '../design/system';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks';
 import { lightHaptic } from '../utils';
 
-// Bottom-tab icon. The selected state is carried by the pill drawn in
-// TabBarButton below, so the icon itself no longer scales on focus.
+// The selected state is carried by the sliding background pill.
 function TabBarIcon({
   name,
   size,
@@ -40,10 +44,27 @@ function TabBarIcon({
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-// The frosted capsule behind the whole bar. expo-blur gives the real material;
-// the tint layer above it keeps the capsule legible when the blur is weak (or
-// unavailable, as on some Android builds) and carries the hairline edge.
-function TabBarBackground({ isDark, fill, stroke }: { isDark: boolean; fill: string; stroke: string }) {
+// Native liquid glass supplies its own material. Only older platforms need the
+// tinted blur fallback; adding that fill over native glass obscures refraction.
+function TabBarBackground({
+  isDark,
+  fill,
+  stroke,
+}: {
+  isDark: boolean;
+  fill: string;
+  stroke: string;
+}) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
+    return (
+      <GlassView
+        pointerEvents="none"
+        glassEffectStyle="clear"
+        colorScheme={isDark ? 'dark' : 'light'}
+        style={styles.capsule}
+      />
+    );
+  }
   return (
     <View style={styles.capsule} pointerEvents="none">
       <BlurView
@@ -57,54 +78,14 @@ function TabBarBackground({ isDark, fill, stroke }: { isDark: boolean; fill: str
   );
 }
 
-// One tab. The accent pill wraps the icon AND the label — the reference sizes it
-// at roughly the full item width by the full capsule height less a small inset,
-// so it reads as a selected segment rather than a badge behind the glyph.
-function TabBarButton({
-  focused,
-  pillColor,
-  onPress,
-  onLongPress,
-  accessibilityLabel,
-  children,
-}: {
-  focused: boolean;
-  pillColor: string;
-  onPress?: () => void;
-  onLongPress?: () => void;
-  accessibilityLabel?: string;
-  children?: React.ReactNode;
-}) {
-  const reduceMotion = useReducedMotion();
-  const progress = useSharedValue(focused ? 1 : 0);
-
-  useEffect(() => {
-    progress.value = reduceMotion ? (focused ? 1 : 0) : withSpring(focused ? 1 : 0, motion.spring);
-  }, [focused, reduceMotion, progress]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
-
+// Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
+function TabBarButton(props: BottomTabBarButtonProps) {
   return (
-    <Pressable
-      style={styles.tabButton}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ selected: focused }}
-    >
-      <View style={styles.tabPillWrap}>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.tabPill, { backgroundColor: pillColor }, animatedStyle]}
-        />
-        <View style={styles.tabContent}>{children}</View>
-      </View>
-    </Pressable>
+    <PlatformPressable {...props} style={[props.style, styles.tabButton]}>
+      <View style={styles.tabContent}>{props.children}</View>
+    </PlatformPressable>
   );
 }
-
-const TAB_PILL_HEIGHT = 52;
 
 const styles = StyleSheet.create({
   capsule: {
@@ -121,17 +102,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'stretch',
-  },
-  tabPillWrap: {
-    alignSelf: 'stretch',
-    marginHorizontal: 2,
-    height: TAB_PILL_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabPill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_PILL_HEIGHT / 2,
   },
   tabContent: {
     alignItems: 'center',
@@ -212,6 +182,89 @@ const resolveActiveNestedRoute = (route: {
   };
 };
 
+function ReaderAwareTabBar(props: BottomTabBarProps) {
+  const progress = useReaderChromeProgress();
+  const [scrollHidden, setScrollHidden] = useState(false);
+  const { colors } = useTheme();
+  const activeRoute = props.state.routes[props.state.index];
+  const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(
+    activeRoute as { state?: NestedTabRouteState; params?: NestedTabRouteParams }
+  );
+  const followsReader = shouldFollowReaderScroll(
+    activeRoute.name,
+    nestedRouteName,
+    nestedRouteParams
+  );
+  const descriptor = props.descriptors[activeRoute.key];
+  const tabBarStyle = StyleSheet.flatten(descriptor.options.tabBarStyle) as ViewStyle | undefined;
+  // setOptions still owns explicit hidden/modal states. Its transform must not
+  // receive a second scroll translation from this wrapper.
+  const hasExplicitTranslation =
+    Array.isArray(tabBarStyle?.transform) &&
+    tabBarStyle.transform.some(
+      (transform) => 'translateY' in transform && transform.translateY !== 0
+    );
+  const followsScroll = followsReader && !hasExplicitTranslation;
+  const forcedHidden =
+    shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams) ||
+    tabBarStyle?.display === 'none' ||
+    (Array.isArray(tabBarStyle?.transform) &&
+      tabBarStyle.transform.some(
+        (transform) =>
+          'translateY' in transform &&
+          typeof transform.translateY === 'number' &&
+          transform.translateY >= getReaderTabBarTranslation(0.98)
+      ));
+  useAnimatedReaction(
+    () => isReaderTabBarScrollHidden(followsScroll, progress.value),
+    (hidden, previous) => {
+      // Only the visibility boundary crosses to JS, never per-frame progress.
+      if (hidden !== previous) {
+        runOnJS(setScrollHidden)(hidden);
+      }
+    }
+  );
+  const interactionHidden = forcedHidden || (followsScroll && scrollHidden);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: followsScroll ? getReaderTabBarTranslation(progress.value) : 0 }],
+  }));
+  const originalBackground = descriptor.options.tabBarBackground;
+  const isReader = activeRoute.name === 'Bible' && nestedRouteName === 'BibleReader';
+  const pillColor = withAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
+
+  return (
+    <Animated.View
+      style={[StyleSheet.absoluteFill, animatedStyle]}
+      pointerEvents={interactionHidden ? 'none' : 'box-none'}
+      accessibilityElementsHidden={interactionHidden}
+      importantForAccessibility={interactionHidden ? 'no-hide-descendants' : 'auto'}
+    >
+      <BottomTabBar
+        {...props}
+        descriptors={{
+          ...props.descriptors,
+          [activeRoute.key]: {
+            ...descriptor,
+            options: {
+              ...descriptor.options,
+              tabBarBackground: () => (
+                <>
+                  {originalBackground?.()}
+                  <TabBarSelection
+                    selectedIndex={props.state.index}
+                    count={props.state.routes.length}
+                    color={pillColor}
+                  />
+                </>
+              ),
+            },
+          },
+        }}
+      />
+    </Animated.View>
+  );
+}
+
 function getBibleTabResumeState() {
   const { useBibleStore } =
     require('../stores/bibleStore') as typeof import('../stores/bibleStore');
@@ -228,7 +281,10 @@ function getBibleTabResumeState() {
 export function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useTranslation();
-  const capsuleFill = useMemo(() => withAlpha(colors.cardBackground, 0.62), [colors.cardBackground]);
+  const capsuleFill = useMemo(
+    () => withAlpha(colors.cardBackground, 0.62),
+    [colors.cardBackground]
+  );
   const readerCapsuleFill = useMemo(
     () => withAlpha(colors.bibleSurface, 0.62),
     [colors.bibleSurface]
@@ -239,10 +295,7 @@ export function TabNavigator() {
     sideInset: tabBarSideInset,
   } = useTabBarHeight();
 
-  // These style objects are static per theme/inset change, so build them once
-  // instead of on every screenOptions invocation (fires on each nav event, and
-  // repeatedly during reader scroll-collapse ticks). Visual values (absolute
-  // positioning, spacing.xs bottom padding) come from the polish pass.
+  // Geometry changes with insets; UI-thread scroll motion never rebuilds it.
   const defaultTabBarStyle = useMemo(
     () =>
       buildTabBarCapsuleStyle({
@@ -269,6 +322,7 @@ export function TabNavigator() {
   return (
     <Tab.Navigator
       id="RootTab"
+      tabBar={(props) => <ReaderAwareTabBar {...props} />}
       screenOptions={({ route }) => {
         // Resolve the active nested route once per invocation rather than three
         // times across the tint/style callbacks below.
@@ -305,11 +359,8 @@ export function TabNavigator() {
         return {
           headerShown: false,
           freezeOnBlur: true,
-          // The selected tab always sits on the accent surface, so its glyph is
-          // always the accent foreground. Tinting it with the reader's text
-          // colour (the rule from when the reader retinted the whole bar) made
-          // the Bible tab render near-black on the pale-blue pill in vellum.
-          tabBarActiveTintColor: colors.tabActive,
+          // Neutral glass selection uses the current surface's readable ink.
+          tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
           tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.tabInactive,
           tabBarStyle,
           tabBarLabelStyle: typography.tabLabel,
@@ -323,20 +374,7 @@ export function TabNavigator() {
               stroke={isBibleReader ? colors.bibleDivider : colors.cardBorder}
             />
           ),
-          // React Navigation v7 reports selection as `aria-selected`, not
-          // `accessibilityState.selected` — reading the latter leaves the pill
-          // permanently at opacity 0.
-          tabBarButton: (props: BottomTabBarButtonProps) => (
-            <TabBarButton
-              focused={props['aria-selected'] ?? false}
-              pillColor={colors.accentSurface}
-              onPress={props.onPress as (() => void) | undefined}
-              onLongPress={props.onLongPress as (() => void) | undefined}
-              accessibilityLabel={props['aria-label']}
-            >
-              {props.children}
-            </TabBarButton>
-          ),
+          tabBarButton: (props: BottomTabBarButtonProps) => <TabBarButton {...props} />,
           tabBarIcon: ({ focused, color, size }) => {
             const tab = rootTabManifest.find((entry) => entry.name === route.name);
             const iconName = focused ? tab?.focusedIcon : tab?.unfocusedIcon;
@@ -372,12 +410,8 @@ export function TabNavigator() {
             const nestedRouteParams = focusedRoute?.params ?? bibleRouteState.params?.params;
             const isPlanSessionReader =
               nestedRouteName === 'BibleReader' && typeof nestedRouteParams?.planId === 'string';
-            const {
-              hasReaderHistory,
-              currentBibleBook,
-              currentBibleChapter,
-              preferredBibleMode,
-            } = getBibleTabResumeState();
+            const { hasReaderHistory, currentBibleBook, currentBibleChapter, preferredBibleMode } =
+              getBibleTabResumeState();
             const shouldResumeReader =
               hasReaderHistory && (nestedRouteName !== 'BibleReader' || isPlanSessionReader);
 

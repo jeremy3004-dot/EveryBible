@@ -1,19 +1,18 @@
 import type { ViewStyle } from 'react-native';
+import { getReaderTabBarTranslation } from './readerTabBarMotion';
 
 // The one definition of the floating tab-bar capsule.
 //
 // Both the navigator and the Bible reader set the root tab bar's style — the
-// reader drives a scroll-linked collapse through navigation.setOptions. They
+// reader uses navigation.setOptions only for explicit hidden states. They
 // used to carry separate copies of the geometry, so the bar visibly changed
 // shape when you entered or left the reader. Everything that positions the
 // capsule now goes through here.
 
 /**
- * The capsule is fully rounded, so at the selection pill's vertical extent its
- * edge has already curved ~14pt inward. The row is inset by that much or the
- * first and last pills breach the curve.
+ * Keeps the five tab centers aligned with the reference's inset capsule.
  */
-export const TAB_BAR_CAPSULE_ROW_INSET = 14;
+export const TAB_BAR_CAPSULE_ROW_INSET = 8;
 
 export interface TabBarCapsuleStyleOptions {
   sideInset: number;
@@ -36,8 +35,9 @@ export function buildTabBarCapsuleStyle({
     borderTopWidth: 0,
     elevation: 0,
     position: 'absolute',
-    left: sideInset,
-    right: sideInset,
+    // BottomTabBar sets logical edges, which take precedence over left/right.
+    start: sideInset,
+    end: sideInset,
     bottom: bottomPadding,
     paddingTop: 0,
     paddingBottom: 0,
@@ -45,7 +45,6 @@ export function buildTabBarCapsuleStyle({
     height: barHeight,
     // Travel far enough to clear the gap beneath the capsule too, or a sliver
     // stays visible when the reader hides the bar.
-    transform: [{ translateY: (barHeight + bottomPadding) * collapseProgress }],
-    opacity: 1 - collapseProgress,
+    transform: [{ translateY: getReaderTabBarTranslation(collapseProgress) }],
   };
 }

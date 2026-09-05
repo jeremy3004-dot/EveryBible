@@ -28,6 +28,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue,
+  useReducedMotion,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   interpolate,
@@ -40,7 +41,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +60,8 @@ import { getReadingFontFamily } from '../../design/fonts';
 import { readerThemePreviews } from '../../design/readerThemePreviews';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
+import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
+import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
 import { trackAnonymousUsageEvent } from '../../services/analytics';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
@@ -140,8 +143,6 @@ import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
-  READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
-  READER_TAB_BAR_RESTORE_TOP_THRESHOLD,
   SWIPE_THRESHOLD,
   SWIPE_VELOCITY_MIN,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
@@ -156,10 +157,8 @@ import {
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
-  getReaderChromeAnimationProgress,
   hasAudioPositionRestarted,
   isActiveAudioTrackMatch,
-  isReaderChromeCollapsed,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
   shouldAutoplayChapterAudio,
@@ -774,8 +773,47 @@ export function BibleReaderScreen() {
   const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
   const readerLastScrollOffsetYRef = useRef(0);
   const readerScrollViewportHeightRef = useRef(0);
-  const readerRevealTabBarOnUpScrollRef = useRef(false);
   const readerBottomChromeProgressShared = useSharedValue(0);
+  const rootTabBarScrollProgress = useReaderChromeProgress();
+  const readerChromeOwner = useReaderChromeOwner();
+  const readerChromeOffsetShared = useSharedValue(0);
+  const readerChromeChapterKeyRef = useRef('');
+  const readerChromeCollapsedShared = useSharedValue(false);
+  const reduceMotion = useReducedMotion();
+  const readerRouteKey = route.key;
+
+  // Retained readers keep local motion. Only the focused route may publish to
+  // the root bar; late scroll events and old cleanup cannot overwrite a new one.
+  useFocusEffect(
+    useCallback(() => {
+      readerBottomChromeProgressShared.value = 0;
+      const chapterKey = `${bookId}:${chapter}`;
+      if (readerChromeChapterKeyRef.current !== chapterKey) {
+        readerChromeChapterKeyRef.current = chapterKey;
+        readerChromeOffsetShared.value = 0;
+      }
+      readerChromeCollapsedShared.value = false;
+      readerBottomChromeCollapsedRef.current = false;
+      setIsReadBottomChromeCollapsed(false);
+      readerChromeOwner.value = readerRouteKey;
+      rootTabBarScrollProgress.value = 0;
+      return () => {
+        if (readerChromeOwner.value === readerRouteKey) {
+          readerChromeOwner.value = '';
+          rootTabBarScrollProgress.value = 0;
+        }
+      };
+    }, [
+      bookId,
+      chapter,
+      readerRouteKey,
+      readerBottomChromeProgressShared,
+      readerChromeOffsetShared,
+      readerChromeCollapsedShared,
+      readerChromeOwner,
+      rootTabBarScrollProgress,
+    ])
+  );
   const rootTabBarVisibleRef = useRef<boolean | null>(null);
   const {
     bottomPadding: rootTabBarBottomPadding,
@@ -1790,58 +1828,16 @@ export function BibleReaderScreen() {
     ]
   );
   const updateReaderBottomChromeState = useCallback(
-    (offsetY: number, isAtBottom: boolean, viewportHeight: number) => {
-      const scrollDeltaY = offsetY - readerLastScrollOffsetYRef.current;
+    (offsetY: number, viewportHeight: number, nextCollapsed: boolean) => {
+      if (readerChromeOwner.value !== readerRouteKey) return;
       readerLastScrollOffsetYRef.current = offsetY;
       readerScrollViewportHeightRef.current = viewportHeight;
-      const isScrollingUp = scrollDeltaY < -6;
-      const isScrollingDown = scrollDeltaY > 6;
-      if (isScrollingUp && offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD) {
-        readerRevealTabBarOnUpScrollRef.current = true;
-      } else if (isScrollingDown) {
-        readerRevealTabBarOnUpScrollRef.current = false;
-      }
-
-      const shouldRevealReaderDock = isAtBottom || readerRevealTabBarOnUpScrollRef.current;
-      const nextProgress =
-        showPremiumReadMode && !shouldRevealReaderDock
-          ? getReaderChromeAnimationProgress(offsetY, READER_BOTTOM_CHROME_COLLAPSE_DISTANCE)
-          : 0;
-      readerBottomChromeProgressShared.value = nextProgress;
-
-      const nextCollapsed =
-        showPremiumReadMode && !shouldRevealReaderDock && isReaderChromeCollapsed(offsetY);
-      const didCollapsedFlip = nextCollapsed !== readerBottomChromeCollapsedRef.current;
-      if (didCollapsedFlip) {
+      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
         readerBottomChromeCollapsedRef.current = nextCollapsed;
         setIsReadBottomChromeCollapsed(nextCollapsed);
       }
-
-      if (shouldForceHideRootTabBar) {
-        syncRootTabBarVisibility(false);
-        syncRootTabBarCollapseProgress(1);
-        return;
-      }
-
-      const shouldCollapseRootTabBar =
-        showPremiumReadMode &&
-        !shouldRevealReaderDock &&
-        !readerRevealTabBarOnUpScrollRef.current &&
-        offsetY > READER_TAB_BAR_RESTORE_TOP_THRESHOLD &&
-        nextCollapsed;
-      const nextRootTabBarProgress = shouldCollapseRootTabBar ? 1 : 0;
-      if (didCollapsedFlip || nextRootTabBarProgress !== rootTabBarCollapseProgressRef.current) {
-        syncRootTabBarVisibility(true);
-        syncRootTabBarCollapseProgress(nextRootTabBarProgress);
-      }
     },
-    [
-      readerBottomChromeProgressShared,
-      shouldForceHideRootTabBar,
-      showPremiumReadMode,
-      syncRootTabBarCollapseProgress,
-      syncRootTabBarVisibility,
-    ]
+    [readerChromeOwner, readerRouteKey]
   );
 
   useEffect(() => {
@@ -1852,8 +1848,10 @@ export function BibleReaderScreen() {
     readerBottomChromeCollapsedRef.current = false;
     rootTabBarCollapseProgressRef.current = 0;
     readerLastScrollOffsetYRef.current = 0;
-    readerRevealTabBarOnUpScrollRef.current = false;
     readerBottomChromeProgressShared.value = 0;
+    if (readerChromeOwner.value === readerRouteKey) {
+      rootTabBarScrollProgress.value = 0;
+    }
     setIsReadBottomChromeCollapsed(false);
     const rootTabNavigation = getRootTabNavigation();
     if (rootTabNavigation) {
@@ -1867,6 +1865,9 @@ export function BibleReaderScreen() {
     getRootTabBarStyle,
     navigation,
     readerBottomChromeProgressShared,
+    readerChromeOwner,
+    readerRouteKey,
+    rootTabBarScrollProgress,
     showPremiumReadMode,
     shouldForceHideRootTabBar,
   ]);
@@ -1881,15 +1882,34 @@ export function BibleReaderScreen() {
         viewportHeight > 0 && contentHeight > 0
           ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
           : false;
+      if (readerChromeOwner.value !== readerRouteKey) return;
+
+      const nextProgress = getNextReaderChromeProgress({
+        progress: readerBottomChromeProgressShared.value,
+        previousOffset: readerChromeOffsetShared.value,
+        offset: nextOffsetY,
+        viewportHeight,
+        contentHeight,
+        reduceMotion,
+      });
+      readerChromeOffsetShared.value = nextOffsetY;
+      readerBottomChromeProgressShared.value = nextProgress;
+      rootTabBarScrollProgress.value = nextProgress;
+      const nextCollapsed = nextProgress >= 0.98;
+      // Only bookkeeping crosses to JS. All visible motion above runs for
+      // every native scroll frame, including the small deltas of a slow drag.
       const shouldNotifyJs =
+        nextCollapsed !== readerChromeCollapsedShared.value ||
         Math.abs(nextOffsetY - lastReaderScrollJsOffset.value) >=
-          READER_SCROLL_JS_UPDATE_INTERVAL_PX || isAtBottom !== lastReaderScrollJsAtBottom.value;
+          READER_SCROLL_JS_UPDATE_INTERVAL_PX ||
+        isAtBottom !== lastReaderScrollJsAtBottom.value;
       if (!shouldNotifyJs) {
         return;
       }
+      readerChromeCollapsedShared.value = nextCollapsed;
       lastReaderScrollJsOffset.value = nextOffsetY;
       lastReaderScrollJsAtBottom.value = isAtBottom;
-      runOnJS(updateReaderBottomChromeState)(nextOffsetY, isAtBottom, viewportHeight);
+      runOnJS(updateReaderBottomChromeState)(nextOffsetY, viewportHeight, nextCollapsed);
     },
   });
 
@@ -1912,13 +1932,11 @@ export function BibleReaderScreen() {
     ],
   }));
 
-  // Measure the dock off the ACTUAL tab bar, not the 52pt base. The tab bar is
-  // `tabBarBaseHeight + max(insets.bottom, spacing.lg)` — 86pt on a Dynamic
-  // Island iPhone — so the old `tabBarBaseHeight + spacing.xxl` (84pt) put the
-  // dock 2pt *inside* the bar and clipped the bottom of the play button.
-  const readerDockBaseBottom = rootTabBarHeight + spacing.lg;
-  const readerDockCollapsedTranslateY =
-    readerDockBaseBottom - (safeInsets.bottom + spacing.xl) + spacing.xs;
+  // Resting play center is 50pt above the capsule top; it lowers 65pt
+  // while the tabs and arrows travel 132pt. These paths never intersect.
+  const readerDockBaseBottom = rootTabBarHeight + 18;
+  const readerDockCollapsedTranslateY = READER_PLAY_COLLAPSE_TRAVEL;
+
   const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       {
@@ -5234,7 +5252,6 @@ export function BibleReaderScreen() {
             <ReaderPlaybackDock
               collapseProgress={readerBottomChromeProgressShared}
               isCollapsed={isReadBottomChromeCollapsed}
-              progress={isCurrentAudioChapter && duration > 0 ? currentPosition / duration : 0}
               isPlaying={isCurrentAudioChapter && status === 'playing'}
               isLoading={isCurrentAudioChapter && status === 'loading'}
               hidePlayButton={showPlanSessionChrome ? false : hidePlayButtonFromReadingTab}
@@ -5257,6 +5274,11 @@ export function BibleReaderScreen() {
 
   const renderSharedTopChrome = (useAnimatedChrome: boolean) => (
     <Animated.View
+      pointerEvents={useAnimatedChrome && isReadBottomChromeCollapsed ? 'none' : 'box-none'}
+      accessibilityElementsHidden={useAnimatedChrome && isReadBottomChromeCollapsed}
+      importantForAccessibility={
+        useAnimatedChrome && isReadBottomChromeCollapsed ? 'no-hide-descendants' : 'auto'
+      }
       style={[
         styles.floatingReaderTopBar,
         { top: sharedTopChromeTop },

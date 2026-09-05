@@ -21,7 +21,7 @@ test('useTabBarHeight derives the bottom gutter from the device safe area instea
   // indicator is a hairline); without one it falls back to the design gutter.
   assert.match(
     source,
-    /const bottomPadding = insets\.bottom > 0 \? 21 : spacing\.lg;/,
+    /const bottomPadding = insets\.bottom > 0 \? 22 : spacing\.lg;/,
     'useTabBarHeight should derive the capsule gap from the real bottom inset, not a fixed constant'
   );
 
