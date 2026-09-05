@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl, {
-  type ExpressionSpecification,
   type GeoJSONSource,
   type Map as LibreMap,
 } from 'maplibre-gl';
-import { applyBasemapContrast, GLOBE_CHROME, loadAtlasBasemap } from '@/lib/atlas-basemap';
+import { loadAtlasBasemap } from '@/lib/atlas-basemap';
 import { normalizeAdminTheme } from '@/lib/theme';
 import {
   buildFeatures,
@@ -18,47 +17,83 @@ import {
   SCRIPTURE_LABELS,
   scriptureStatus,
 } from '@/lib/language-atlas/model';
-import type { AtlasRecord, ScriptureStatus } from '@/lib/language-atlas/types';
+import {
+  SCRIPTURE_PRESENTATION,
+  scriptureVisualCategory,
+} from '@/lib/language-atlas/presentation';
+import type {
+  AtlasDisplayMode,
+  AtlasMapPadding,
+  AtlasProjection,
+  AtlasRecord,
+} from '@/lib/language-atlas/types';
+import {
+  ATLAS_BASEMAP_COLORS,
+  ATLAS_SOURCE_ID,
+  applyAtlasBasemapContrast,
+  applyAtlasDisplayMode,
+  atlasControlInsets,
+  atlasScriptureColorExpression,
+  atlasSourceOptions,
+} from './map-rendering';
 
-const SOURCE = 'language-atlas-records';
 const DOTS = 'language-atlas-dots';
 const CLUSTERS = 'language-atlas-clusters';
 const COUNTS = 'language-atlas-counts';
 const SELECTED = 'language-atlas-selected';
 const HIT = 'language-atlas-hit';
-const statuses = Object.keys(SCRIPTURE_LABELS) as ScriptureStatus[];
 const duration = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450);
 
 interface Props {
   records: AtlasRecord[];
   selected: AtlasRecord | null;
   onSelect: (id: string) => void;
+  displayMode: AtlasDisplayMode;
+  projection: AtlasProjection;
+  padding: AtlasMapPadding;
 }
 
-export function LanguageMap({ records, selected, onSelect }: Props) {
+export function LanguageMap({
+  records,
+  selected,
+  onSelect,
+  displayMode,
+  projection,
+  padding,
+}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const clickedLocation = useRef<{ id: string; coordinates: [number, number] } | null>(null);
   const data = useMemo(() => buildFeatures(records), [records]);
   const byId = useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
-  const current = useRef({ data, byId, onSelect });
+  const current = useRef({ data, byId, onSelect, displayMode });
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [projection, setProjection] = useState<'globe' | 'mercator'>('globe');
   const projectionRef = useRef(projection);
+  const displayModeRef = useRef(displayMode);
+  const appliedDisplayModeRef = useRef(displayMode);
+  const paddingRef = useRef(padding);
   const [group, setGroup] = useState<{ data: typeof data; records: AtlasRecord[] } | null>(null);
   const [groupPage, setGroupPage] = useState(0);
   const [groupError, setGroupError] = useState(false);
   const visibleGroup = group?.data === data ? group.records : null;
+  const controlInsets = atlasControlInsets(padding);
 
   useEffect(() => {
-    current.current = { data, byId, onSelect };
-  }, [data, byId, onSelect]);
+    current.current = { data, byId, onSelect, displayMode };
+  }, [data, byId, onSelect, displayMode]);
   useEffect(() => {
     projectionRef.current = projection;
   }, [projection]);
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
+  useEffect(() => {
+    paddingRef.current = padding;
+    mapRef.current?.setPadding(padding);
+  }, [padding]);
 
   const fit = useCallback(() => {
     const map = mapRef.current;
@@ -67,7 +102,7 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
     data.features.forEach((feature) =>
       bounds.extend(feature.geometry.coordinates as [number, number])
     );
-    map.fitBounds(bounds, { padding: 56, maxZoom: 8, duration: duration() });
+    map.fitBounds(bounds, { padding: paddingRef.current, maxZoom: 8, duration: duration() });
   }, [data]);
 
   useEffect(() => {
@@ -100,54 +135,30 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
     }
     mapRef.current = map;
     popupRef.current = popup;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.setPadding(paddingRef.current);
     const paint = () => {
       if (!map.getLayer(DOTS)) return;
-      applyBasemapContrast(map, theme());
-      const css = getComputedStyle(document.documentElement);
-      const colors = statuses.map(
-        (_, index) =>
-          `hsl(${css
-            .getPropertyValue(`--series-${index + 1}`)
-            .trim()
-            .split(/\s+/)
-            .join(',')})`
-      );
-      const expression: ExpressionSpecification = [
-        'match',
-        ['get', 'status'],
-        'bible',
-        colors[0],
-        'nt',
-        colors[1],
-        'portions',
-        colors[2],
-        'started',
-        colors[3],
-        'needed',
-        colors[4],
-        colors[5],
-      ];
-      map.setPaintProperty(DOTS, 'circle-color', expression);
-      map.setPaintProperty(DOTS, 'circle-stroke-color', GLOBE_CHROME[theme()].land);
-      map.setPaintProperty(CLUSTERS, 'circle-color', GLOBE_CHROME[theme()].land);
-      map.setPaintProperty(CLUSTERS, 'circle-stroke-color', GLOBE_CHROME[theme()].label);
-      map.setPaintProperty(COUNTS, 'text-color', GLOBE_CHROME[theme()].label);
-      map.setPaintProperty(SELECTED, 'circle-stroke-color', GLOBE_CHROME[theme()].horizon);
+      const currentTheme = theme();
+      const colors = ATLAS_BASEMAP_COLORS[currentTheme];
+      applyAtlasBasemapContrast(map, currentTheme);
+      map.setPaintProperty(DOTS, 'circle-color', atlasScriptureColorExpression());
+      map.setPaintProperty(DOTS, 'circle-stroke-color', colors.canvas);
+      map.setPaintProperty(CLUSTERS, 'circle-color', SCRIPTURE_PRESENTATION.unknown.color);
+      map.setPaintProperty(CLUSTERS, 'circle-stroke-color', colors.canvas);
+      map.setPaintProperty(COUNTS, 'text-color', colors.canvas);
+      map.setPaintProperty(SELECTED, 'circle-stroke-color', colors.label);
     };
     map.on('style.load', () => {
       if (!alive) return;
-      map.addSource(SOURCE, {
-        type: 'geojson',
-        data: current.current.data,
-        cluster: true,
-        clusterRadius: 42,
-        clusterMaxZoom: 16,
-      });
+      map.addSource(
+        ATLAS_SOURCE_ID,
+        atlasSourceOptions(current.current.data, displayModeRef.current)
+      );
+      appliedDisplayModeRef.current = displayModeRef.current;
       map.addLayer({
         id: CLUSTERS,
         type: 'circle',
-        source: SOURCE,
+        source: ATLAS_SOURCE_ID,
         filter: ['has', 'point_count'],
         paint: {
           'circle-radius': ['step', ['get', 'point_count'], 17, 100, 22, 1000, 28],
@@ -158,7 +169,7 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
       map.addLayer({
         id: COUNTS,
         type: 'symbol',
-        source: SOURCE,
+        source: ATLAS_SOURCE_ID,
         filter: ['has', 'point_count'],
         layout: {
           'text-field': ['get', 'point_count_abbreviated'],
@@ -170,21 +181,21 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
       map.addLayer({
         id: DOTS,
         type: 'circle',
-        source: SOURCE,
+        source: ATLAS_SOURCE_ID,
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 7, 6, 15, 8],
-          'circle-stroke-width': 1.5,
-          'circle-opacity': 0.94,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 3, 7, 4, 15, 5],
+          'circle-stroke-width': 1,
+          'circle-opacity': 0.92,
         },
       });
       map.addLayer({
         id: SELECTED,
         type: 'circle',
-        source: SOURCE,
+        source: ATLAS_SOURCE_ID,
         filter: ['==', ['get', 'recordId'], ''],
         paint: {
-          'circle-radius': 12,
+          'circle-radius': 9,
           'circle-opacity': 0,
           'circle-stroke-width': 3,
         },
@@ -192,12 +203,13 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
       map.addLayer({
         id: HIT,
         type: 'circle',
-        source: SOURCE,
+        source: ATLAS_SOURCE_ID,
         filter: ['!', ['has', 'point_count']],
         paint: { 'circle-radius': 14, 'circle-opacity': 0 },
       });
       paint();
       map.setProjection({ type: projectionRef.current });
+      map.setPadding(paddingRef.current);
       setReady(true);
       setFailed(false);
     });
@@ -210,9 +222,10 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
       setGroupError(false);
     };
     map.on('click', CLUSTERS, async (event) => {
+      if (current.current.displayMode !== 'clustered') return;
       const feature = event.features?.[0];
       if (!feature || feature.geometry.type !== 'Point') return;
-      const source = map.getSource(SOURCE) as GeoJSONSource;
+      const source = map.getSource(ATLAS_SOURCE_ID) as GeoJSONSource;
       const clusterId = Number(feature.properties.cluster_id);
       const request = ++selectionRequest;
       const snapshot = current.current;
@@ -222,7 +235,12 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
           source.getClusterExpansionZoom(clusterId),
           source.getClusterLeaves(clusterId, Number(feature.properties.point_count), 0),
         ]);
-        if (!alive || request !== selectionRequest || snapshot.data !== current.current.data)
+        if (
+          !alive ||
+          request !== selectionRequest ||
+          snapshot.data !== current.current.data ||
+          snapshot.displayMode !== current.current.displayMode
+        )
           return;
         const ids = new Set(leaves.map((leaf) => String(leaf.properties?.recordId)));
         showGroup(
@@ -232,6 +250,7 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
         map.easeTo({
           center: feature.geometry.coordinates as [number, number],
           zoom: Math.min(zoom, 17),
+          padding: paddingRef.current,
           duration: duration(),
         });
       } catch {
@@ -324,10 +343,20 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
 
   useEffect(() => {
     if (!ready) return;
-    const source = mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined;
+    const source = mapRef.current?.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
     popupRef.current?.remove();
     source?.setData(data);
   }, [data, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    const source = mapRef.current?.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
+    if (!source) return;
+    if (!applyAtlasDisplayMode(source, appliedDisplayModeRef.current, displayMode)) return;
+    appliedDisplayModeRef.current = displayMode;
+    popupRef.current?.remove();
+    setGroup(null);
+    setGroupError(false);
+  }, [displayMode, ready]);
   useEffect(() => {
     if (ready) mapRef.current?.setProjection({ type: projection });
   }, [projection, ready]);
@@ -344,29 +373,50 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
           ? ([location.longitude, location.latitude] as [number, number])
           : null;
     clickedLocation.current = null;
-    if (center) map.easeTo({ center, zoom: Math.max(map.getZoom(), 5), duration: duration() });
+    if (center)
+      map.easeTo({
+        center,
+        zoom: Math.max(map.getZoom(), 5),
+        padding: paddingRef.current,
+        duration: duration(),
+      });
   }, [selected, ready]);
 
   return (
     <section className="la-map-panel" aria-label="Language atlas map">
-      <div className="la-map-toolbar">
-        <div className="la-segment" role="group" aria-label="Map projection">
+      <div className="la-map-view">
+        <div
+          ref={container}
+          className="la-map-canvas"
+          role="region"
+          aria-label="Interactive language map. Use the Records panel for keyboard access to every record."
+        />
+        <div
+          className="la-map-actions la-map-actions--floating"
+          role="group"
+          aria-label="Map view actions"
+          style={controlInsets}
+        >
           <button
+            className="la-text-button"
             type="button"
-            aria-pressed={projection === 'globe'}
-            onClick={() => setProjection('globe')}
+            title="Zoom in"
+            aria-label="Zoom in"
+            disabled={!ready}
+            onClick={() => mapRef.current?.zoomIn({ duration: duration() })}
           >
-            Globe
+            +
           </button>
           <button
+            className="la-text-button"
             type="button"
-            aria-pressed={projection === 'mercator'}
-            onClick={() => setProjection('mercator')}
+            title="Zoom out"
+            aria-label="Zoom out"
+            disabled={!ready}
+            onClick={() => mapRef.current?.zoomOut({ duration: duration() })}
           >
-            Map
+            −
           </button>
-        </div>
-        <div className="la-map-actions">
           <button
             className="la-text-button"
             type="button"
@@ -386,24 +436,13 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
                 zoom: 1.5,
                 bearing: 0,
                 pitch: 0,
+                padding: paddingRef.current,
                 duration: duration(),
               });
             }}
           >
             Reset view
           </button>
-        </div>
-      </div>
-      <div className="la-map-view">
-        <div
-          ref={container}
-          className="la-map-canvas"
-          role="region"
-          aria-label="Interactive language map. Use the results list below for keyboard access to every record."
-        />
-        <div className="la-map-caption">
-          <span className="eyebrow">The language landscape</span>
-          <span>{formatCount(data.features.length)} reference points</span>
         </div>
         {!ready && !failed && (
           <p className="la-map-message" role="status">
@@ -427,80 +466,70 @@ export function LanguageMap({ records, selected, onSelect }: Props) {
         )}
         {ready && !failed && !data.features.length && (
           <p className="la-map-message">
-            No mapped records in this selection. Explore the results below.
+            No mapped records in this selection. Explore the Records panel.
           </p>
         )}
-      </div>
-      <div className="la-legend" aria-label="Scripture status legend">
-        {statuses.map((status) => (
-          <span key={status}>
-            <i className={`la-dot la-dot--${status}`} />
-            {SCRIPTURE_LABELS[status]}
-          </span>
-        ))}
-      </div>
-      <p className="la-map-note">
-        Reference areas, not settlement boundaries. Numbers group nearby points. Select a group to
-        zoom in and browse its records.
-      </p>
-      {groupError && (
-        <p className="la-map-note" role="status">
-          That group changed while the map updated. Select it again to browse.
-        </p>
-      )}
-      {visibleGroup && (
-        <div className="la-map-group">
-          <div className="la-section-heading">
-            <div>
-              <span className="eyebrow">Selected map group</span>
-              <h3>{formatCount(visibleGroup.length)} records to explore</h3>
+        {groupError && (
+          <p className="la-map-note" role="status">
+            That group changed while the map updated. Select it again to browse.
+          </p>
+        )}
+        {visibleGroup && (
+          <div className="la-map-group" role="region" aria-label="Selected map records">
+            <div className="la-section-heading">
+              <div>
+                <span className="eyebrow">Selected map group</span>
+                <h3>{formatCount(visibleGroup.length)} records to explore</h3>
+              </div>
+              <button className="la-text-button" type="button" onClick={() => setGroup(null)}>
+                Close
+              </button>
             </div>
-            <button className="la-text-button" type="button" onClick={() => setGroup(null)}>
-              Close
-            </button>
-          </div>
-          <div className="la-group-records">
-            {visibleGroup.slice(groupPage * 12, (groupPage + 1) * 12).map((record) => (
-              <button
-                type="button"
-                key={record.id}
-                aria-pressed={selected?.id === record.id}
-                onClick={() => onSelect(record.id)}
-              >
-                <i className={`la-dot la-dot--${scriptureStatus(record)}`} />
+            <div className="la-group-records">
+              {visibleGroup.slice(groupPage * 12, (groupPage + 1) * 12).map((record) => (
+                <button
+                  type="button"
+                  key={record.id}
+                  aria-pressed={selected?.id === record.id}
+                  onClick={() => onSelect(record.id)}
+                >
+                  <i
+                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record))}`}
+                  />
+                  <span>
+                    {record.name}
+                    <small>
+                      {KIND_LABELS[record.kind]} ·{' '}
+                      {record.iso6393 ?? record.rolvCode ?? record.glottocode ?? record.id}
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {visibleGroup.length > 12 && (
+              <div className="la-pagination">
+                <button
+                  type="button"
+                  disabled={groupPage === 0}
+                  onClick={() => setGroupPage((page) => page - 1)}
+                >
+                  Previous
+                </button>
                 <span>
-                  {record.name}
-                  <small>
-                    {KIND_LABELS[record.kind]} ·{' '}
-                    {record.iso6393 ?? record.rolvCode ?? record.glottocode ?? record.id}
-                  </small>
+                  {groupPage + 1} / {Math.ceil(visibleGroup.length / 12)}
                 </span>
-              </button>
-            ))}
+                <button
+                  type="button"
+                  disabled={(groupPage + 1) * 12 >= visibleGroup.length}
+                  onClick={() => setGroupPage((page) => page + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
-          {visibleGroup.length > 12 && (
-            <div className="la-pagination">
-              <button
-                type="button"
-                disabled={groupPage === 0}
-                onClick={() => setGroupPage((page) => page - 1)}
-              >
-                Previous
-              </button>
-              <span>
-                {groupPage + 1} / {Math.ceil(visibleGroup.length / 12)}
-              </span>
-              <button
-                type="button"
-                disabled={(groupPage + 1) * 12 >= visibleGroup.length}
-                onClick={() => setGroupPage((page) => page + 1)}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

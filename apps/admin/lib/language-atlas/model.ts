@@ -6,6 +6,7 @@ import type {
   AtlasRecord,
   ScriptureStatus,
 } from './types';
+import { scriptureVisualCategory, type ScriptureVisualCategory } from './presentation';
 
 export const DEFAULT_FILTERS: AtlasFilters = {
   query: '',
@@ -74,7 +75,14 @@ export function filterRecords(records: AtlasRecord[], filters: AtlasFilters): At
     if (filters.kind !== 'all' && record.kind !== filters.kind) return false;
     if (filters.country && !record.countryCodes.includes(filters.country)) return false;
     if (filters.source && !record.sourceIds.includes(filters.source)) return false;
-    if (filters.scripture !== 'all' && scriptureStatus(record) !== filters.scripture) return false;
+    const status = scriptureStatus(record);
+    if (
+      filters.scripture !== 'all' &&
+      (filters.scripture === 'no-scripture'
+        ? status !== 'started' && status !== 'needed'
+        : status !== filters.scripture)
+    )
+      return false;
     if (filters.placement === 'mapped' && !hasLocation(record)) return false;
     if (filters.placement === 'unmapped' && hasLocation(record)) return false;
     if (filters.placement === 'approximate' && !isApproximate(record)) return false;
@@ -122,7 +130,7 @@ export function countRecords(records: AtlasRecord[]): AtlasCounts {
 }
 export type AtlasFeatures = FeatureCollection<
   Point,
-  { recordId: string; locationIndex: number; status: ScriptureStatus }
+  { recordId: string; locationIndex: number; category: ScriptureVisualCategory }
 >;
 export function buildFeatures(records: AtlasRecord[]): AtlasFeatures {
   return {
@@ -132,7 +140,11 @@ export function buildFeatures(records: AtlasRecord[]): AtlasFeatures {
         type: 'Feature' as const,
         id: `${record.id}:${index}`,
         geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
-        properties: { recordId: record.id, locationIndex: index, status: scriptureStatus(record) },
+        properties: {
+          recordId: record.id,
+          locationIndex: index,
+          category: scriptureVisualCategory(scriptureStatus(record)),
+        },
       }))
     ),
   };
