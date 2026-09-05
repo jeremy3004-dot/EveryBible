@@ -1,11 +1,15 @@
 import unittest
 
-from build_atlas import AtlasBuilder, normalize_rolv, scripture_status, valid_coordinates, scoped_scripture, country_code
+from build_atlas import AtlasBuilder, encode_snapshot, normalize_rolv, scripture_status, valid_coordinates, scoped_scripture, country_code
 from everylanguage import enrich_everylanguage, add_location
 from grn import enrich_grn
 
 
 class SourceRules(unittest.TestCase):
+    def test_snapshot_encoding_has_a_stable_gzip_header(self):
+        encoded = encode_snapshot({"value": "stable"})
+        self.assertEqual(encoded[9], 255)
+
     def test_rolv_identifiers_keep_five_digits(self):
         self.assertEqual(normalize_rolv(7262), "07262")
         self.assertEqual(normalize_rolv("07966"), "07966")

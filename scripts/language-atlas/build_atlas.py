@@ -5,6 +5,7 @@ import argparse
 import collections
 import gzip
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -389,7 +390,13 @@ class AtlasBuilder:
 
 
 def encode_snapshot(value):
-    return gzip.compress(json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode(), mtime=0)
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    output = io.BytesIO()
+    # GzipFile writes a stable OS byte across Python/zlib versions. gzip.compress
+    # delegates mtime=0 compression to zlib, whose platform byte can drift.
+    with gzip.GzipFile(fileobj=output, mode="wb", compresslevel=9, mtime=0) as stream:
+        stream.write(payload)
+    return output.getvalue()
 
 
 def write_output(name, data, check):
