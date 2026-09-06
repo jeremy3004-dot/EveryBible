@@ -162,7 +162,7 @@
 .pa-mobile-tools { display: none; }
 @media (max-width: 760px) {
   .public-atlas { min-height: 620px; }
-  .pa-intro, .pa-explorer > .pa-legend, .pa-explorer > .pa-collection-note, .public-atlas > .pa-map-toolbar, .public-atlas .la-map-view > .la-map-actions { display: none; }
+  .pa-intro, .pa-explorer > .pa-legend, .pa-explorer > .pa-collection-note, .public-atlas > .pa-map-toolbar, .public-atlas .la-map-view > .la-map-actions, .public-atlas .la-spread-caption { display: none; }
   .pa-explorer { top: 12px; bottom: 200px; left: 12px; right: 12px; width: auto; max-height: none; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; pointer-events: none; }
   .pa-search-wrap { padding: 6px 12px; min-height: 48px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: var(--panel); box-shadow: 0 4px 12px #0002; pointer-events: auto; }
   .pa-search input { font-size: 16px; }

@@ -22,6 +22,7 @@ typing opens the filtered record list. Legend contains Scripture filters, the
 and About the data. Settings contains projection,
 Dots and Clusters controls, zoom, Fit results, and
 Reset view. The public explorer omits the technical record-count/display note.
+The spread record-count caption is also hidden on mobile so it does not obscure the map.
 
 Only one mobile panel opens at a time. Close buttons, Escape, and tapping
 outside dismiss it without clearing the active filters. Overlapping map dots

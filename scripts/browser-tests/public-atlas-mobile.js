@@ -12,6 +12,12 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Search copy must describe languages and dialects'
   );
   await page.getByRole('link', { name: 'Data provided by Joshua Project' }).waitFor();
+  const spreadCaption = page.locator('.la-spread-caption');
+  await spreadCaption.waitFor({ state: 'attached' });
+  check(
+    await spreadCaption.evaluate((element) => getComputedStyle(element).display === 'none'),
+    'Spread record-count caption stays hidden on mobile'
+  );
   check(
     await page.getByRole('button', { name: 'Legend', exact: true }).isVisible(),
     'Mobile must offer a collapsed Legend button'
@@ -148,6 +154,10 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   await page.getByRole('button', { name: 'Close legend', exact: true }).click();
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByRole('button', { name: 'Globe', exact: true }).waitFor();
+  check(
+    await spreadCaption.evaluate((element) => getComputedStyle(element).display !== 'none'),
+    'Desktop spread record-count caption remains visible'
+  );
   check(
     await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
     'Desktop Records stays accessible'
