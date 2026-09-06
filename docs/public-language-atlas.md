@@ -7,8 +7,9 @@ collection (languages plus dialects, excluding people groups). The search, recor
 list, filters, hover summaries, and selected profiles operate on research
 records; these counts are not the app's available Bible catalog.
 
-Spread dots is the default on each fresh page visit. Recorded locations remains
-available and allows overlap at source positions. Spread mode shows one representative point per mapped record and separates
+Dots is the default on each fresh page visit and uses spread mode. The public
+controls offer only Dots and Clusters; Recorded locations is hidden for now and
+remains available in the admin atlas. Spread mode shows one representative point per mapped record and separates
 crowded dots only at regional zoom (5 and above); global views remain unshifted, and Clusters groups those positions while zoomed out. The public
 collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
@@ -19,13 +20,13 @@ At widths up to 760px, the default view keeps overlapping dots, a slim search
 bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
 typing opens the filtered record list. Legend contains Scripture filters, the
 and About the data. Settings contains projection,
-Spread dots, Recorded locations and Clusters controls, zoom, Fit results, and
+Dots and Clusters controls, zoom, Fit results, and
 Reset view. The public explorer omits the technical record-count/display note.
 
 Only one mobile panel opens at a time. Close buttons, Escape, and tapping
 outside dismiss it without clearing the active filters. Overlapping map dots
-in Recorded locations or Clusters open a paginated group list; choosing a record
-replaces that list with its profile. Spread dots select their individual record.
+in Clusters open a paginated group list; choosing a record
+replaces that list with its profile. Dots select their individual record.
 Hover summaries are disabled on mobile to avoid duplicate popups.
 The floating QR/app card, direct store links, provider credit, and research
 availability note stay visible while panels are open. Desktop controls retain

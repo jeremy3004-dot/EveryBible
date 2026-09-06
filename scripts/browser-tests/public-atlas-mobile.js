@@ -38,8 +38,8 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Legend opens'
   );
   check(
-    await page.getByText('Unknown ≠ no Scripture', { exact: true }).isVisible(),
-    'Unknown status explanation remains available'
+    await page.getByRole('button', { name: 'No known Scripture', exact: true }).isVisible(),
+    'Current Scripture legend remains available'
   );
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   check(
@@ -47,9 +47,13 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Settings replaces Legend'
   );
   check(
-    (await page.getByRole('button', { name: 'Recorded locations', exact: true }).getAttribute('aria-pressed')) ===
+    (await page.getByRole('button', { name: 'Dots', exact: true }).getAttribute('aria-pressed')) ===
       'true',
-    'Recorded locations remain the default'
+    'Dots is the default'
+  );
+  check(
+    (await page.getByRole('button', { name: 'Recorded locations', exact: true }).count()) === 0,
+    'Recorded locations is hidden on the public site'
   );
   check(
     await page.getByRole('button', { name: 'Fit results', exact: true }).isVisible(),
@@ -71,8 +75,15 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   );
   await page.getByRole('button', { name: 'Globe', exact: true }).click();
   await page.getByRole('button', { name: 'Clusters', exact: true }).click();
-  await page.getByRole('button', { name: 'Recorded locations', exact: true }).click();
-  await page.getByRole('button', { name: 'Spread dots', exact: true }).click();
+  check(
+    (await page.getByRole('button', { name: 'Clusters', exact: true }).getAttribute('aria-pressed')) === 'true',
+    'Clusters can be selected'
+  );
+  await page.getByRole('button', { name: 'Dots', exact: true }).click();
+  check(
+    (await page.getByRole('button', { name: 'Dots', exact: true }).getAttribute('aria-pressed')) === 'true',
+    'Dots can be restored'
+  );
   await page.getByRole('button', { name: 'Reset view', exact: true }).click();
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   check(

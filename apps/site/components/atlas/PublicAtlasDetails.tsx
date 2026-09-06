@@ -182,8 +182,8 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
       </p>
       <p>People-group research is retained for a future, separate map overlay.</p>
       <p>
-        Spread dots show one representative point per mapped record and separate only at regional zoom for
-        visibility. Recorded locations restore the source coordinates. Some locations are
+        Dots show one representative point per mapped record and separate only at regional zoom for
+        visibility. Source coordinates remain unchanged. Some locations are
         approximate, and records without a supported placement remain searchable.
       </p>
       <p>

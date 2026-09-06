@@ -48,14 +48,7 @@ export function AtlasMapSettings({
           aria-pressed={displayMode === 'spread'}
           onClick={() => onDisplayModeChange('spread')}
         >
-          Spread dots
-        </button>
-        <button
-          type="button"
-          aria-pressed={displayMode === 'individual'}
-          onClick={() => onDisplayModeChange('individual')}
-        >
-          Recorded locations
+          Dots
         </button>
         <button
           type="button"
