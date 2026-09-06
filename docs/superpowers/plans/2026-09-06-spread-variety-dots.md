@@ -50,8 +50,8 @@ Files: new pure spread layout and tests, shared map integration, rendering lifec
 ## Task 4: Review and delivery (primary)
 
 - [x] Review worker diffs and source evidence preservation.
-- [ ] Run importer deterministic checks, workspace lint/typecheck/tests, and production builds for site/admin.
-- [ ] Browser-check desktop and mobile, globe/map, spread/recorded/clusters, search, hover and selected profiles. Capture evidence.
+- [x] Run importer deterministic checks, workspace lint/typecheck/tests, and production builds for site/admin.
+- [x] Browser-check desktop and mobile, globe/map, spread/recorded/clusters, search, hover and selected profiles. Capture evidence.
 - [ ] Present the result. Follow the existing project release handoff for any publication and local-main integration; no parallel publishing.
 
 ## Verification notes
@@ -64,3 +64,12 @@ Files: new pure spread layout and tests, shared map integration, rendering lifec
 ## User correction: preserve geographic overlap
 
 The user rejected forced spreading, especially globally. Recorded locations is now the default in both apps. Optional Spread dots retains exact projected anchors below zoom5 and separates only in regional views at zoom5 or higher. This supersedes the initial default-spread design above. A regression verifies global anchors remain unshifted.
+
+## Final combined verification
+
+- Integrated main40dca2f7 mobile controls and5dfe7cfb public languages/dialects-only boundary, preserving the floating QR dock.
+- Final site and admin production builds passed on Next15.5.25. Both lints and typechecks passed (existing admin font warning only). All188 tests across37 web test files passed; importer19 tests and deterministic snapshots passed. Earlier whole-workspace verification passed1,710 tests; the incoming public-boundary commit was independently verified against1,869 workspace tests.
+- Desktop/mobile browser regression passed at390px,320px and1440px: collapsed tools, exclusive panels, QR visibility, collection restriction, projection and all display controls. Actual rendered native dots were verified before capturing the final global screenshot.
+- Default Recorded locations has no spread overlay. Optional spread at global zoom explicitly retains overlap; regional Ngelima search displays7 records after exact-ID reconciliation.
+- Temporary admin preview route removed before the final production build. Local fixture tested admin collection/search/modes; live authenticated profile verification remains with deployment owner.
+- Evidence: qa-evidence/language-atlas/overlap-global-final.png and spread-admin-final.png.

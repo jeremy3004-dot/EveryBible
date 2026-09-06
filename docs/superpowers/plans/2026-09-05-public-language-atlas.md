@@ -12,6 +12,9 @@
 - Preserve initial/reset camera 65°E, 25°N at zoom 2.75. Default globe and individual dots. Keep map/cluster switches, search, hover summaries, and selection accessible.
 - Keep Full Bible, NT, portions, no Scripture, and unknown distinct. Never promote parent language status to dialect-specific coverage.
 - Public atlas records are research identities, not a count of translations offered in the app.
+- The primary public map, search, and collection combine language and dialect/variety records.
+  People-group research remains in the snapshot for a future separate overlay and is not shown in
+  the primary public atlas.
 - User confirmed existing Joshua Project permission covers public republication. Retain linked attribution. No source media or long copyrighted biographies are copied into the public projection.
 - Existing smart download QR and verified store URLs remain canonical; retain `#download` destination for desktop routing.
 - Preserve unrelated main-checkout work. Separate existing deployment task exclusively owns main integration and both Vercel releases.

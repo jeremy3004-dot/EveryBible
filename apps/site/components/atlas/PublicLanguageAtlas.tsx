@@ -20,6 +20,7 @@ import type {
   AtlasIndex,
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
+import { selectPublicAtlasRecords } from '../../lib/public-atlas-records';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../../lib/site-links';
@@ -102,11 +103,18 @@ export function PublicLanguageAtlas() {
     return () => window.removeEventListener('hashchange', openSources);
   }, []);
 
-  const records = useMemo(
-    () => filterRecords(index?.records ?? EMPTY_RECORDS, deferredFilters),
-    [index, deferredFilters]
+  const publicRecords = useMemo(
+    () => selectPublicAtlasRecords(index?.records ?? EMPTY_RECORDS),
+    [index]
   );
-  const byId = useMemo(() => new Map(index?.records.map((record) => [record.id, record])), [index]);
+  const records = useMemo(
+    () => filterRecords(publicRecords, deferredFilters),
+    [publicRecords, deferredFilters]
+  );
+  const byId = useMemo(
+    () => new Map(publicRecords.map((record) => [record.id, record])),
+    [publicRecords]
+  );
   const selected = selectedId ? (byId.get(selectedId) ?? null) : null;
   const searching = Boolean(filters.query.trim());
   const showRecords = panel === 'records';
@@ -229,12 +237,12 @@ export function PublicLanguageAtlas() {
               <circle cx="10.5" cy="10.5" r="6.5" />
               <path d="m16 16 4.5 4.5" />
             </svg>
-            <span className="pa-sr-only">Search languages, dialects and people groups</span>
+            <span className="pa-sr-only">Search languages and dialects</span>
             <input
               ref={searchRef}
               type="search"
               value={filters.query}
-              placeholder="Find a language or people…"
+              placeholder="Find a language or dialect…"
               onFocus={(event) => {
                 if (skipSearchFocus.current) {
                   skipSearchFocus.current = false;
@@ -346,11 +354,9 @@ export function PublicLanguageAtlas() {
                       updateFilter('kind', event.target.value as AtlasFilters['kind'])
                     }
                   >
-                    <option value="varieties">Language varieties</option>
+                    <option value="varieties">Languages &amp; dialects</option>
                     <option value="language">Languages</option>
                     <option value="dialect">Dialects / varieties</option>
-                    <option value="people-group">People groups</option>
-                    <option value="all">All collections</option>
                   </select>
                 </label>
                 <label>
@@ -442,8 +448,8 @@ export function PublicLanguageAtlas() {
                 <em>Every person.</em>
               </h1>
               <p className="pa-intro-copy">
-                A world to discover. A Word to share. Explore the languages and communities that
-                make our world.
+                A world to discover. A Word to share. Explore the languages and dialects that make
+                our world.
               </p>
               <div className="pa-collection-stats" aria-label="Atlas collection counts">
                 <div>
