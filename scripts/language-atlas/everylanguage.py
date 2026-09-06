@@ -28,13 +28,21 @@ def add_location(builder, record, latitude, longitude, precision, label, country
 def enrich_everylanguage(builder, bundle):
     entities = {row["id"]: row for row in bundle.get("language-entities", []) if not row.get("deleted_at")}
     external = collections.defaultdict(list)
+    grn_entities = collections.defaultdict(set)
     orphan_links = []
     for row in bundle.get("language-entity-sources", []):
         if not row.get("deleted_at"):
             external[row["language_entity_id"]].append(row)
+            if row.get("source", "").casefold() == "grn" and row.get("external_id_type") == "grn_language_id":
+                grn_id = normalize_rolv(row.get("external_id"))
+                if grn_id:
+                    grn_entities[grn_id].add(row["language_entity_id"])
             if row["language_entity_id"] not in entities:
                 orphan_links.append({key: row[key] for key in ["language_entity_id", "source", "external_id_type", "external_id"]})
     builder.report["orphanEveryLanguageSourceLinks"] = orphan_links
+    ambiguous_grn_ids = [{"grnLanguageId": grn_id, "languageEntityIds": sorted(entity_ids)}
+                         for grn_id, entity_ids in sorted(grn_entities.items()) if len(entity_ids) > 1]
+    builder.report["ambiguousEveryLanguageGrnIdentifiers"] = ambiguous_grn_ids
     stats = {row["language_entity_id"]: row for row in bundle.get("language-stats", [])}
     region_country = {row["region_id"]: row["iso2"] for row in bundle.get("region-stats", []) if row.get("iso2")}
     joshua_region_codes = collections.defaultdict(set)
@@ -62,17 +70,75 @@ def enrich_everylanguage(builder, bundle):
             builder.evidence(record_id, "Country code from Every Language region", conflict["everyLanguageIso2"], "everylanguage", MAP_URL)
             builder.evidence(record_id, "Country code from explicit Joshua Project ROG crosswalk", conflict["joshuaIso2"], "joshua", "https://joshuaproject.net/resources/datasets")
             builder.details[record_id]["notes"].append("Country sources differ. Placement follows the direct Joshua Project country crosswalk; the Every Language region code is retained for review.")
+
+    def explicit_parent_iso_ids(entity_id):
+        visited = set()
+        parent_id = entities[entity_id].get("parent_id")
+        while parent_id in entities and parent_id not in visited:
+            visited.add(parent_id)
+            parent_iso_ids = {text(item["external_id"]) for item in external[parent_id]
+                              if item["external_id_type"] in {"iso-639-3", "iso639_3"}}
+            parent_iso_ids = {code for code in parent_iso_ids if re.fullmatch(r"[a-z]{3}", code) and code != "xxx"}
+            if parent_iso_ids:
+                return parent_iso_ids
+            parent_id = entities[parent_id].get("parent_id")
+        return set()
+
     matched, added, excluded = 0, 0, 0
+    matched_by_grn, conflicting_grn_rolv = 0, 0
+    same_entity_grn_rolv_confirmations = 0
+    grn_entities_with_multiple_ids = 0
+    grn_only_entities_without_retained_rolv = 0
+    unresolved_ambiguous_grn_entities = 0
+    parent_iso_conflicts = []
+    ambiguous_parent_iso_matches = []
     for entity_id, row in entities.items():
         identifiers = external[entity_id]
         iso_ids = {text(item["external_id"]) for item in identifiers if item["external_id_type"] in {"iso-639-3", "iso639_3"}}
         rolv_ids = {normalize_rolv(item["external_id"]) for item in identifiers if item["external_id_type"] == "rolv_code"}
         rolv_ids.discard(None)
+        grn_ids = {normalize_rolv(item["external_id"]) for item in identifiers
+                   if item.get("source", "").casefold() == "grn" and item.get("external_id_type") == "grn_language_id"}
+        grn_ids.discard(None)
+        same_entity_grn_rolv_confirmations += int(bool(grn_ids & rolv_ids))
         hierarchy_only = row["level"] == "family"
         if row["level"] not in {"language", "dialect", "mother_tongue", "family"}:
             raise ValueError(f'Unexpected Every Language classification: {row["level"]}')
         kind = "language" if row["level"] in {"language", "family"} else "dialect"
-        candidates = {f"rolv:{code}" for code in rolv_ids if f"rolv:{code}" in builder.records} if kind == "dialect" else {builder.iso_ids[code] for code in iso_ids if code in builder.iso_ids}
+        if kind == "dialect":
+            rolv_candidates = {f"rolv:{code}" for code in rolv_ids if f"rolv:{code}" in builder.records}
+            grn_candidates = set()
+            parent_iso_conflict = None
+            ambiguous_parent_iso_match = None
+            grn_rolv_conflict = len(grn_ids) == 1 and len(rolv_ids) == 1 and grn_ids != rolv_ids
+            conflicting_grn_rolv += int(grn_rolv_conflict)
+            if len(grn_ids) > 1:
+                grn_entities_with_multiple_ids += 1
+            elif len(grn_ids) == 1:
+                grn_id = next(iter(grn_ids))
+                target_id = f"rolv:{grn_id}"
+                if target_id not in builder.records:
+                    grn_only_entities_without_retained_rolv += int(not rolv_candidates)
+                elif len(grn_entities[grn_id]) == 1:
+                    parent_iso_ids = explicit_parent_iso_ids(entity_id) if not rolv_candidates else set()
+                    target_iso = builder.records[target_id]["iso6393"]
+                    if target_iso and parent_iso_ids and target_iso not in parent_iso_ids:
+                        parent_iso_conflict = {"languageEntityId": entity_id, "grnLanguageId": grn_id,
+                                               "parentIso6393": sorted(parent_iso_ids), "rolvIso6393": target_iso}
+                        parent_iso_conflicts.append(parent_iso_conflict)
+                    elif grn_rolv_conflict and not rolv_candidates:
+                        pass
+                    else:
+                        grn_candidates.add(target_id)
+                        if target_iso and len(parent_iso_ids) > 1:
+                            ambiguous_parent_iso_match = {"languageEntityId": entity_id, "grnLanguageId": grn_id,
+                                                          "parentIso6393": sorted(parent_iso_ids), "rolvIso6393": target_iso}
+                            ambiguous_parent_iso_matches.append(ambiguous_parent_iso_match)
+            candidates = rolv_candidates | grn_candidates
+            matched_from_grn = bool(grn_candidates and not rolv_candidates)
+        else:
+            candidates = {builder.iso_ids[code] for code in iso_ids if code in builder.iso_ids}
+            matched_from_grn = False
         if hierarchy_only:
             excluded += 1
             if len(candidates) != 1:
@@ -80,6 +146,7 @@ def enrich_everylanguage(builder, bundle):
         if len(candidates) == 1:
             record_id = next(iter(candidates))
             matched += 1
+            matched_by_grn += int(matched_from_grn)
         else:
             record_id = f"el:{entity_id}"
             added += 1
@@ -87,6 +154,20 @@ def enrich_everylanguage(builder, bundle):
         if len(candidates) > 1:
             record["needsReview"] = True
             builder.details[record_id]["notes"].append("Conflicting external identifiers; kept as a separate Every Language record for review.")
+        elif kind == "dialect" and parent_iso_conflict:
+            record["needsReview"] = True
+            builder.details[record_id]["notes"].append("The explicit Every Language parent ISO and the ROLV language code differ; kept as a separate record for review.")
+        elif kind == "dialect" and grn_rolv_conflict:
+            record["needsReview"] = True
+            builder.details[record_id]["notes"].append("The Every Language GRN language identifier and ROLV code differ. Both source values are retained for review.")
+        elif kind == "dialect" and ambiguous_parent_iso_match:
+            record["needsReview"] = True
+            builder.details[record_id]["notes"].append("The Every Language parent has multiple explicit ISO identifiers. The exact GRN/ROLV identity is retained and the parent evidence remains flagged for review.")
+        elif kind == "dialect" and not rolv_candidates and grn_ids and (
+                len(grn_ids) > 1 or any(len(grn_entities[grn_id]) > 1 for grn_id in grn_ids)):
+            record["needsReview"] = True
+            builder.details[record_id]["notes"].append("The GRN language identifier is ambiguous in the retained Every Language crosswalk; kept as a separate record for review.")
+            unresolved_ambiguous_grn_entities += 1
         builder.el_ids[entity_id] = record_id
         data = stats.get(entity_id, {})
         iso = next(iter(iso_ids)) if len(iso_ids) == 1 else text(data.get("iso639_3"))
@@ -221,6 +302,17 @@ def enrich_everylanguage(builder, bundle):
 
     builder.report["inputs"]["everyLanguageEntities"] = len(entities)
     builder.report["inputs"]["everyLanguageCoordinates"] = len(coordinates)
+    builder.report["parentIsoConflictingEveryLanguageGrnMatches"] = parent_iso_conflicts
+    builder.report["ambiguousParentIsoEveryLanguageGrnMatches"] = ambiguous_parent_iso_matches
     builder.report["matches"].update({"everyLanguageMatchedByIdentifier": matched, "everyLanguageAdditionalRecords": added,
+                                     "everyLanguageMatchedByGrnLanguageId": matched_by_grn,
+                                     "everyLanguageGrnRolvSameEntityConfirmations": same_entity_grn_rolv_confirmations,
+                                     "everyLanguageAmbiguousGrnIdentifiers": len(ambiguous_grn_ids),
+                                     "everyLanguageEntitiesWithMultipleGrnIdentifiers": grn_entities_with_multiple_ids,
+                                     "everyLanguageGrnOnlyEntitiesWithoutRetainedRolv": grn_only_entities_without_retained_rolv,
+                                     "everyLanguageUnresolvedAmbiguousGrnEntities": unresolved_ambiguous_grn_entities,
+                                     "everyLanguageConflictingGrnRolvIdentifiers": conflicting_grn_rolv,
+                                     "everyLanguageParentIsoConflictingGrnMatches": len(parent_iso_conflicts),
+                                     "everyLanguageAmbiguousParentIsoGrnMatches": len(ambiguous_parent_iso_matches),
                                      "everyLanguageHierarchyOnly": excluded, "everyLanguageCoordinatesImported": mapped_coordinates,
                                      "everyLanguagePeopleMatched": people_matched, "everyLanguagePeopleAdditional": people_added})

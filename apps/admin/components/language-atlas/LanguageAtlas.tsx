@@ -112,7 +112,7 @@ export function LanguageAtlasContent({ index }: { index: AtlasIndex }) {
   const [exportNotice, setExportNotice] = useState('');
   const [view, setView] = useState<InspectorView>('controls');
   const [sheetExpanded, setSheetExpanded] = useState(false);
-  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('individual');
+  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('spread');
   const [projection, setProjection] = useState<AtlasProjection>('globe');
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeSearchResult, setActiveSearchResult] = useState(-1);
@@ -202,10 +202,15 @@ export function LanguageAtlasContent({ index }: { index: AtlasIndex }) {
     filters.source
   );
   const kindOptions: { value: AtlasFilters['kind']; label: string; count: number }[] = [
+    {
+      value: 'varieties',
+      label: 'Language varieties',
+      count: index.counts.languages + index.counts.dialects,
+    },
     { value: 'language', label: 'Languages', count: index.counts.languages },
     { value: 'dialect', label: 'Dialects', count: index.counts.dialects },
     { value: 'people-group', label: 'People groups', count: index.counts.peopleGroups },
-    { value: 'all', label: 'All', count: index.counts.records },
+    { value: 'all', label: 'All collections', count: index.counts.records },
   ];
   const exportFiltered = () => {
     const url = URL.createObjectURL(
@@ -367,7 +372,7 @@ export function LanguageAtlasContent({ index }: { index: AtlasIndex }) {
                 onSelect={select}
                 onExport={exportFiltered}
                 onClear={() => {
-                  setFilters({ ...DEFAULT_FILTERS, kind: 'all' });
+                  setFilters(DEFAULT_FILTERS);
                   setPage(0);
                 }}
               />

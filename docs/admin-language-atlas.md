@@ -4,6 +4,8 @@ The **Languages** item under **Insights** opens `/languages`, an internal resear
 atlas using the existing admin identity and MapLibre globe. It provides a shared
 searchable list and map, hover biographies, a selected-record inspector, source
 links, related varieties and people groups, filters, and a filtered CSV export.
+The default collection combines language and dialect records as **Language
+varieties**; people groups and all collections remain separately selectable.
 
 The atlas fills the viewport below a 56px header. A floating inspector holds
 Map controls, Records, and Collection; on phones it collapses to a bottom sheet.
@@ -12,18 +14,18 @@ keyboard-accessible suggestions, with the complete filtered list in Records.
 Profiles replace the inspector contents and keep source evidence in an expandable
 section. Back, close, and Escape restore access to the list/search.
 
-## Collection prepared 2026-09-05
+## Collection reconciled 2026-09-06
 
-| Record kind / placement | Records |
-| --- | ---: |
-| Languages | 9,795 |
-| Dialects and varieties | 36,566 |
-| People groups in countries | 16,471 |
-| Total | 62,832 |
-| With a reference or approximate placement | 61,312 |
-| Approximate placements within the mapped total | 34,843 |
-| Without a supported placement | 1,520 |
-| Flagged for source review | 1,710 |
+| Record kind / placement                        | Records |
+| ---------------------------------------------- | ------: |
+| Languages                                      |   9,795 |
+| Dialects and varieties                         |  30,790 |
+| People groups in countries                     |  16,471 |
+| Total                                          |  57,056 |
+| With a reference or approximate placement      |  55,550 |
+| Approximate placements within the mapped total |  29,081 |
+| Without a supported placement                  |   1,506 |
+| Flagged for source review                      |   1,790 |
 
 These are registry records, not a definitive count of distinct living languages.
 Different registries remain separate where no verified identifier crosswalk
@@ -42,9 +44,12 @@ ROLV match is verified.
 
 ## Interpreting the map
 
-- Individual dots are the default. **Clustered** groups nearby points; Map and
-  Globe change projection while retaining the current view. Zoom, Fit results,
-  and Reset view stay above the mobile sheet and clear of the desktop inspector.
+- **Spread dots** is the default. It shows one representative point per mapped
+  record and separates crowded dots on screen so every record remains selectable.
+  **Recorded locations** shows the retained source positions, including additional
+  positions for a record. **Clusters** groups recorded positions as the user zooms
+  out. Map and Globe change projection while retaining the current view. Zoom,
+  Fit results, and Reset view stay above the mobile sheet and clear of the desktop inspector.
   The initial and Reset views use zoom 2.75 centered at 65°E, 25°N, filling the
   map with the closer Africa–Europe–Asia view requested in the reference screenshot.
 - Colors use the Field brand's reef, ochre, clay, danger, and neutral tokens,
@@ -58,10 +63,14 @@ ROLV match is verified.
 - GRN gospel/audio resources are not automatically an audio Bible. Original
   audio and Scripture flags remain attributed source claims in the inspector.
 - Source points are reference areas. Related-people-group, parent-language and
-  country-center placements are explicitly approximate. No coordinates are
-  invented or jittered to separate dots. Unmapped records remain searchable.
+  country-center placements are explicitly approximate. Spread mode changes only
+  the on-screen presentation; exact source coordinates remain retained and
+  Recorded locations restore them. Unmapped records remain searchable.
 - Multiple source positions and co-located records remain inspectable. A cluster
   counts points; its chooser lists distinct records, with pagination when needed.
+- Displayed totals count filtered source records. Records remain separate where a
+  source identity cannot yet be verified, so totals are not a definitive count of
+  distinct living languages.
 - Country filters follow reported associations, not a spatial boundary test.
   A language's reference point can lie in another associated country.
 - CSV contains the filtered records and their representative location, preserves
@@ -77,6 +86,8 @@ counts, schemas, versions, attribution, and reuse limits. The public Every
 Language map uses Supabase data and RPCs; no private API key is needed in this
 application. Joshua Project's public bulk exports supply the requested facts
 without obtaining a REST API key.
+
+The 2026-09-06 identity reconciliation joined 5,776 duplicate Every Language variety records through globally unique GRN identifiers and retained ROLV codes. Explicit parent-language conflicts are excluded; ambiguous links remain flagged. All 12,407 ROLV records, 35,348 Every Language entity IDs, 70,232 external-ID evidence rows, and 8,590 language-coordinate source references remain represented. Surviving Scripture status, scope, and parent-context values are unchanged.
 
 Current Joshua Project language claims take precedence over saved language
 claims. Conflicting values are retained. No name-only join merges entities.

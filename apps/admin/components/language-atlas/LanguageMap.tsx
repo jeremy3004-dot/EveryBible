@@ -1,10 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, {
-  type GeoJSONSource,
-  type Map as LibreMap,
-} from 'maplibre-gl';
+import maplibregl, { type GeoJSONSource, type Map as LibreMap } from 'maplibre-gl';
 import { loadAtlasBasemap } from '../../lib/atlas-basemap';
 import { normalizeAdminTheme } from '../../lib/theme';
 import {
@@ -17,10 +14,7 @@ import {
   SCRIPTURE_LABELS,
   scriptureStatus,
 } from '../../lib/language-atlas/model';
-import {
-  SCRIPTURE_COLORS,
-  scriptureVisualCategory,
-} from '../../lib/language-atlas/presentation';
+import { SCRIPTURE_COLORS, scriptureVisualCategory } from '../../lib/language-atlas/presentation';
 import type {
   AtlasDisplayMode,
   AtlasMapPadding,
@@ -30,6 +24,7 @@ import type {
 import {
   ATLAS_BASEMAP_COLORS,
   ATLAS_SOURCE_ID,
+  EMPTY_ATLAS_FEATURES,
   applyAtlasBasemapContrast,
   applyAtlasDisplayMode,
   atlasControlInsets,
@@ -37,6 +32,8 @@ import {
   atlasSourceOptions,
   resolveReadyAtlasMap,
 } from './map-rendering';
+import { SpreadDots } from './SpreadDots';
+import { representativePoints } from './spread-layout';
 
 const DOTS = 'language-atlas-dots';
 const CLUSTERS = 'language-atlas-clusters';
@@ -83,6 +80,15 @@ export function LanguageMap({
   const [groupError, setGroupError] = useState(false);
   const visibleGroup = group?.data === data ? group.records : null;
   const controlInsets = atlasControlInsets(padding);
+  const selectSpreadPoint = useCallback(
+    (id: string) => {
+      setGroup(null);
+      setGroupError(false);
+      clickedLocation.current = null;
+      onSelect(id);
+    },
+    [onSelect]
+  );
 
   useEffect(() => {
     current.current = { data, byId, onSelect, displayMode };
@@ -102,11 +108,27 @@ export function LanguageMap({
     const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
     if (!map || !data.features.length) return;
     const bounds = new maplibregl.LngLatBounds();
-    data.features.forEach((feature) =>
-      bounds.extend(feature.geometry.coordinates as [number, number])
-    );
+    if (displayMode === 'spread') {
+      representativePoints(records).forEach(({ location }) =>
+        bounds.extend([location.longitude, location.latitude])
+      );
+      // A co-located group needs a useful regional view, not an extreme zero-area fit.
+      if (bounds.getEast() - bounds.getWest() < 1 && bounds.getNorth() - bounds.getSouth() < 1) {
+        map.easeTo({
+          center: bounds.getCenter(),
+          zoom: 6,
+          padding: paddingRef.current,
+          duration: duration(),
+        });
+        return;
+      }
+    } else {
+      data.features.forEach((feature) =>
+        bounds.extend(feature.geometry.coordinates as [number, number])
+      );
+    }
     map.fitBounds(bounds, { padding: paddingRef.current, maxZoom: 8, duration: duration() });
-  }, [data]);
+  }, [data, displayMode, records]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -266,6 +288,7 @@ export function LanguageMap({
       }
     });
     map.on('click', HIT, (event) => {
+      if (current.current.displayMode === 'spread') return;
       selectionRequest++;
       popup.remove();
       const nearbyFeatures = map.queryRenderedFeatures(
@@ -295,6 +318,7 @@ export function LanguageMap({
       }
     });
     map.on('mousemove', HIT, (event) => {
+      if (current.current.displayMode === 'spread') return;
       const feature = event.features?.[0];
       const record = current.current.byId.get(String(feature?.properties.recordId));
       if (!record || feature?.geometry.type !== 'Point') return;
@@ -359,8 +383,8 @@ export function LanguageMap({
     if (!map) return;
     const source = map.getSource(ATLAS_SOURCE_ID) as GeoJSONSource | undefined;
     popupRef.current?.remove();
-    source?.setData(data);
-  }, [data, ready]);
+    source?.setData(displayMode === 'spread' ? EMPTY_ATLAS_FEATURES : data);
+  }, [data, ready, displayMode]);
   useEffect(() => {
     if (!ready) return;
     const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
@@ -372,6 +396,15 @@ export function LanguageMap({
     popupRef.current?.remove();
     setGroup(null);
     setGroupError(false);
+  }, [displayMode, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
+    if (!map) return;
+    for (const layer of [DOTS, HIT, SELECTED, CLUSTERS, COUNTS]) {
+      if (map.getLayer(layer))
+        map.setLayoutProperty(layer, 'visibility', displayMode === 'spread' ? 'none' : 'visible');
+    }
   }, [displayMode, ready]);
   useEffect(() => {
     if (!ready) return;
@@ -409,6 +442,15 @@ export function LanguageMap({
           role="region"
           aria-label="Interactive language map. Use the Records panel for keyboard access to every record."
         />
+        {ready && mapRef.current && displayMode === 'spread' && (
+          <SpreadDots
+            map={mapRef.current}
+            records={records}
+            selectedId={selected?.id ?? null}
+            onSelect={selectSpreadPoint}
+            inset={controlInsets}
+          />
+        )}
         <div
           className="la-map-actions la-map-actions--floating"
           role="group"

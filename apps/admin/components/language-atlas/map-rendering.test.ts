@@ -25,6 +25,23 @@ test('the initial individual source keeps the complete feature collection unclus
   assert.equal(source.clusterMaxZoom, 4);
 });
 
+test('spread mode leaves native source points empty so each record is drawn only by the overlay', () => {
+  const data: AtlasFeatures = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [24.8754, 1.81314] },
+        properties: { recordId: 'rolv:01423', locationIndex: 0, category: 'unknown' },
+      },
+    ],
+  };
+  const source = atlasSourceOptions(data, 'spread');
+  assert.equal(source.data.features.length, 0);
+  assert.equal(atlasSourceOptions(data, 'individual').data.features.length, 1);
+  assert.equal(source.cluster, false);
+});
+
 test('display mode changes reindex only the existing source', () => {
   const updates: unknown[] = [];
   const source = {
@@ -45,14 +62,14 @@ test('display mode changes reindex only the existing source', () => {
 });
 
 test('map controls stay inside the parent-provided visible map padding', () => {
-  assert.deepEqual(
-    atlasControlInsets({ top: 80, right: 496, bottom: 16, left: 16 }),
-    { left: 30, bottom: 30 }
-  );
-  assert.deepEqual(
-    atlasControlInsets({ top: 72, right: 16, bottom: 620, left: 16 }),
-    { left: 30, bottom: 634 }
-  );
+  assert.deepEqual(atlasControlInsets({ top: 80, right: 496, bottom: 16, left: 16 }), {
+    left: 30,
+    bottom: 30,
+  });
+  assert.deepEqual(atlasControlInsets({ top: 72, right: 16, bottom: 620, left: 16 }), {
+    left: 30,
+    bottom: 634,
+  });
 });
 
 test('ready work is rejected when React has installed a replacement map instance', () => {

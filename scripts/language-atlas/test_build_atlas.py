@@ -72,6 +72,145 @@ class SourceRules(unittest.TestCase):
         dialect = next(row for row in index["records"] if row["id"] == first["id"])
         self.assertNotIn("Glottolog", dialect["summary"])
 
+    def test_everylanguage_grn_language_id_joins_the_same_explicit_rolv_record(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        parent_id = builder.ensure_language("agh", "Ngelima")
+        builder.add("rolv:01423", "Registry label", "dialect", "grn",
+                    iso6393="agh", rolvCode="01423", parentId=parent_id)
+        bundle = {
+            "language-entities": [
+                {"id": "parent", "parent_id": None, "name": "Ngelima", "level": "language"},
+                {"id": "legacy", "parent_id": "parent", "name": "Legacy source label", "level": "dialect"},
+                {"id": "current", "parent_id": "parent", "name": "Current source label", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "parent", "source": "SIL", "external_id_type": "iso-639-3", "external_id": "agh", "version": "2025"},
+                {"language_entity_id": "legacy", "source": "grn", "external_id_type": "grn_language_id", "external_id": "1423", "version": None},
+                {"language_entity_id": "current", "source": "GRN", "external_id_type": "rolv_code", "external_id": "1423", "version": "2025"},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        self.assertEqual(builder.el_ids["legacy"], "rolv:01423")
+        self.assertEqual(builder.el_ids["current"], "rolv:01423")
+        self.assertNotIn("el:legacy", builder.records)
+        record = builder.records["rolv:01423"]
+        self.assertEqual(record["scriptureStatus"], "unknown")
+        self.assertEqual(record["scriptureScope"], "unknown")
+        evidence = builder.details[record["id"]]["evidence"]
+        self.assertTrue({"legacy", "current"}.issubset({row["value"] for row in evidence}))
+        self.assertTrue({"grn · grn_language_id", "GRN · rolv_code"}.issubset({row["label"] for row in evidence}))
+        self.assertEqual(builder.report["matches"]["everyLanguageMatchedByGrnLanguageId"], 1)
+
+    def test_build_report_counts_direct_same_entity_grn_rolv_confirmations(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        builder.add("rolv:01423", "Lingelima: Basoko", "dialect", "grn", rolvCode="01423")
+        bundle = {
+            "language-entities": [
+                {"id": "paired", "parent_id": None, "name": "Lingelima: Basoko", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "paired", "source": "grn", "external_id_type": "grn_language_id", "external_id": "1423", "version": None},
+                {"language_entity_id": "paired", "source": "GRN", "external_id_type": "rolv_code", "external_id": "1423", "version": "2025"},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        self.assertEqual(builder.report["matches"].get("everyLanguageGrnRolvSameEntityConfirmations", 0), 1)
+
+    def test_ambiguous_grn_language_ids_stay_separate_for_review(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        parent_id = builder.ensure_language("agh", "Ngelima")
+        builder.add("rolv:01423", "Lingelima: Basoko", "dialect", "grn",
+                    iso6393="agh", rolvCode="01423", parentId=parent_id)
+        bundle = {
+            "language-entities": [
+                {"id": "first", "parent_id": None, "name": "First variety", "level": "dialect"},
+                {"id": "second", "parent_id": None, "name": "Second variety", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "first", "source": "grn", "external_id_type": "grn_language_id", "external_id": "1423", "version": None},
+                {"language_entity_id": "second", "source": "grn", "external_id_type": "grn_language_id", "external_id": "1423", "version": None},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        for entity_id in ("first", "second"):
+            record_id = f"el:{entity_id}"
+            self.assertEqual(builder.el_ids[entity_id], record_id)
+            self.assertTrue(builder.records[record_id]["needsReview"])
+        self.assertEqual(builder.report["ambiguousEveryLanguageGrnIdentifiers"], [{
+            "grnLanguageId": "01423", "languageEntityIds": ["first", "second"],
+        }])
+        self.assertEqual(builder.report["matches"].get("everyLanguageUnresolvedAmbiguousGrnEntities", 0), 2)
+
+    def test_conflicting_grn_and_rolv_ids_stay_separate_for_review(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        for code in ("22892", "22893"):
+            builder.add(f"rolv:{code}", code, "dialect", "grn", rolvCode=code)
+        bundle = {
+            "language-entities": [
+                {"id": "conflict", "parent_id": None, "name": "Ngangam Gangamba", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "conflict", "source": "grn", "external_id_type": "grn_language_id", "external_id": "22892", "version": None},
+                {"language_entity_id": "conflict", "source": "GRN", "external_id_type": "rolv_code", "external_id": "22893", "version": "2025"},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        self.assertEqual(builder.el_ids["conflict"], "el:conflict")
+        self.assertTrue(builder.records["el:conflict"]["needsReview"])
+        self.assertEqual(builder.report["matches"]["everyLanguageConflictingGrnRolvIdentifiers"], 1)
+
+    def test_grn_fallback_rejects_a_conflicting_explicit_parent_iso(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        builder.add("rolv:02967", "Goran", "dialect", "grn", iso6393="dzg", rolvCode="02967")
+        bundle = {
+            "language-entities": [
+                {"id": "parent", "parent_id": None, "name": "Assangori", "level": "language"},
+                {"id": "child", "parent_id": "parent", "name": "Goran", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "parent", "source": "SIL", "external_id_type": "iso-639-3", "external_id": "sjg", "version": "2025"},
+                {"language_entity_id": "child", "source": "grn", "external_id_type": "grn_language_id", "external_id": "2967", "version": None},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        self.assertEqual(builder.el_ids["child"], "el:child")
+        self.assertTrue(builder.records["el:child"]["needsReview"])
+        self.assertEqual(builder.report["parentIsoConflictingEveryLanguageGrnMatches"], [{
+            "languageEntityId": "child", "grnLanguageId": "02967",
+            "parentIso6393": ["sjg"], "rolvIso6393": "dzg",
+        }])
+
+    def test_grn_fallback_flags_an_ambiguous_parent_iso_that_contains_the_target(self):
+        builder = AtlasBuilder({}, {"country_records": [], "language_records": []}, {}, [])
+        builder.add("rolv:08183", "Bisa: Barka", "dialect", "grn", iso6393="bib", rolvCode="08183")
+        bundle = {
+            "language-entities": [
+                {"id": "parent", "parent_id": None, "name": "Bisa", "level": "language"},
+                {"id": "child", "parent_id": "parent", "name": "Bisa: Barka", "level": "dialect"},
+            ],
+            "language-entity-sources": [
+                {"language_entity_id": "parent", "source": "SIL", "external_id_type": "iso-639-3", "external_id": "bib", "version": "2025"},
+                {"language_entity_id": "parent", "source": "SIL", "external_id_type": "iso-639-3", "external_id": "bqp", "version": "2025"},
+                {"language_entity_id": "child", "source": "grn", "external_id_type": "grn_language_id", "external_id": "8183", "version": None},
+            ],
+        }
+
+        enrich_everylanguage(builder, bundle)
+
+        self.assertEqual(builder.el_ids["child"], "rolv:08183")
+        self.assertTrue(builder.records["rolv:08183"]["needsReview"])
+        self.assertEqual(builder.report["matches"].get("everyLanguageAmbiguousParentIsoGrnMatches", 0), 1)
+
     def test_explicit_country_conflicts_keep_both_values_for_review(self):
         builder = AtlasBuilder({}, {"country_records": [{"rog3": "WI", "iso2": "EH"}], "language_records": []}, {}, [])
         bundle = {

@@ -59,6 +59,20 @@ test('country uses source associations, not representative dot country, and filt
   assert.equal(filterRecords([row], { ...DEFAULT_FILTERS, kind: 'dialect' }).length, 0);
 });
 
+test('language varieties are the default collection and exclude people groups', () => {
+  const rows = [
+    record({ id: 'language', kind: 'language' }),
+    record({ id: 'dialect', kind: 'dialect' }),
+    record({ id: 'people-group', kind: 'people-group' }),
+  ];
+
+  assert.equal(DEFAULT_FILTERS.kind, 'varieties');
+  assert.deepEqual(
+    filterRecords(rows, DEFAULT_FILTERS).map((row) => row.id),
+    ['language', 'dialect']
+  );
+});
+
 test('dialects never inherit a verified Scripture claim from language scope', () => {
   const dialect = record({
     kind: 'dialect',

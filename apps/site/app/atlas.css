@@ -47,6 +47,8 @@
 .pa-segment { display: flex; gap: 2px; border: 1px solid hsl(var(--border)); padding: 4px; border-radius: 8px; background: var(--panel); box-shadow: 0 4px 12px #0002; }
 .pa-segment button { color: hsl(var(--muted-foreground)); background: transparent; padding: 7px 12px; border: 0; border-radius: 5px; font-size: 12px; }
 .pa-segment button[aria-pressed=true] { color: hsl(var(--foreground)); background: hsl(var(--secondary)); }
+.pa-segment--display button { white-space: nowrap; }
+.pa-display-note { margin: 0; padding: 10px 18px; border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.45; flex-shrink: 0; }
 .pa-download { position: absolute; left: 24px; bottom: 65px; width: 352px; border: 1px solid hsl(var(--border)); background: var(--panel); border-radius: 12px; display: flex; align-items: center; gap: 16px; padding: 16px; z-index: 3; scroll-margin-top: 100px; }
 .pa-qr { flex-shrink: 0; display: block; background: #fff; padding: 9px; border-radius: 6px; }
 .pa-qr img { display: block; width: 82px; height: 82px; }
@@ -147,6 +149,8 @@
   .pa-map-toolbar { top: 245px; right: 12px; gap: 6px; flex-direction: column; align-items: flex-end; }
   .pa-segment { padding: 3px; }
   .pa-segment button { padding: 7px 9px; font-size: 12px; }
+  .pa-segment--display button { padding-inline: 7px; font-size: 11px; }
+  .pa-display-note { padding: 8px 14px; font-size: 10px; }
   .pa-download { left: 12px; right: 12px; bottom: 76px; width: auto; padding: 11px 14px; gap: 12px; }
   .pa-qr { padding: 6px; }
   .pa-qr img { width: 56px; height: 56px; }
@@ -160,7 +164,7 @@
   .public-atlas--expanded .pa-explorer { max-height: none; height: auto; top: auto; bottom: 14px; max-height: 48%; }
   .public-atlas--expanded .pa-explorer-body { flex: 1; }
   .public-atlas--expanded .pa-download, .public-atlas--expanded .pa-atlas-disclaimer { display: none; }
-  .public-atlas--expanded .pa-map-toolbar { top: 12px; flex-direction: row; }
+  .public-atlas--expanded .pa-map-toolbar { top: 12px; }
   .public-atlas--expanded .pa-legend, .public-atlas--expanded .pa-collection-note { display: none; }
   .pa-records, .pa-profile, .pa-sources { padding: 14px; }
   .pa-profile h2 { font-size: 27px; }
@@ -190,4 +194,6 @@
   .public-atlas .la-map-actions { bottom: 235px !important; }
   .public-atlas--expanded .pa-download-dock { bottom: calc(48% + 66px); }
   .public-atlas--expanded .la-map-actions { bottom: calc(48% + 24px) !important; }
+  .public-atlas .la-spread-caption { left: 12px !important; top: 345px; bottom: auto !important; }
+  .public-atlas--expanded .la-spread-caption { top: 108px; }
 }

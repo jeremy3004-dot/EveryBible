@@ -343,6 +343,9 @@ body:has(.language-atlas--viewport) > .theme-toggle {
   left: calc((100vw - var(--la-panel-width) - 16px) / 2);
   transform: translateX(-50%);
   display: flex;
+  max-width: calc(100vw - var(--la-panel-width) - 48px);
+  overflow-x: auto;
+  scrollbar-width: none;
   padding: 4px;
   border: 1px solid hsl(var(--la-border));
   border-radius: 9px;
@@ -726,6 +729,9 @@ body:has(.language-atlas--viewport) > .theme-toggle {
   border-radius: 9px;
   background: hsl(var(--la-surface-muted));
 }
+.la-segment--display {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .la-segment button {
   min-height: 38px;
   border: 0;
@@ -734,6 +740,11 @@ body:has(.language-atlas--viewport) > .theme-toggle {
   color: hsl(var(--la-muted));
   font-size: 12px;
   font-weight: 650;
+}
+.la-segment--display button {
+  padding-inline: 7px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 .la-segment button[aria-pressed='true'] {
   background: hsl(var(--la-surface));

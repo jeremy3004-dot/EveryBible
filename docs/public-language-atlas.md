@@ -2,9 +2,16 @@
 
 The public homepage opens on the same interactive MapLibre engine as the admin
 atlas. It defaults to Field's dark theme and the closer globe camera (65°E,
-25°N, zoom 2.75), with individual Scripture-colored dots. The search, record
+25°N, zoom 2.75), with spread Scripture-colored dots and the Language varieties
+collection (languages plus dialects, excluding people groups). The search, record
 list, filters, hover summaries, and selected profiles operate on research
 records; these counts are not the app's available Bible catalog.
+
+Spread mode shows one representative point per mapped record and separates
+crowded dots on screen for visibility. Recorded locations restore the retained
+source positions, and Clusters groups those positions while zoomed out. The
+collection control also exposes People groups and All collections. Filtered totals
+count source records; unresolved source identities may remain separate.
 
 Field branding is defined in `packages/brand/tokens.css` and mirrored by the
 existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
@@ -17,7 +24,7 @@ uses reef, ochre, clay, danger and neutral, preserving unknown separately.
 and explicitly selects public identity, search, summary, Scripture-scope,
 location, country and source fields. The public artifact is
 `apps/site/data/language-atlas/index.json.gz`. New fields added upstream do not
-automatically become public. All 62,832 records and 86,511 source placements
+automatically become public. All 57,056 records and 80,749 source placements
 are retained. Original source evidence shards, raw imports, active-project
 data, identities and operational APIs are not included in the site endpoint.
 
@@ -77,3 +84,9 @@ The deployment task owns main integration and both Vercel deployments.
   The lifecycle regression verifies replacement maps are not treated as loaded.
 - Temporary local-only admin preview route and fixture servers were removed
   before builds. Final live verification belongs to the deployment task.
+
+### Spread-view update 2026-09-06
+
+The shared canvas overlay projects one representative location per record. Overlapping anchors separate into deterministic compact spirals in screen pixels; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
+
+The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Current public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.

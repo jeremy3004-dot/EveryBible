@@ -1,72 +1,705 @@
 {
+  "ambiguousEveryLanguageGrnIdentifiers": [
+    {
+      "grnLanguageId": "00023",
+      "languageEntityIds": [
+        "1fd668d7-2398-4466-8422-cd81db39e644",
+        "4b98f90d-bd08-435e-a571-203b0b88694c"
+      ]
+    },
+    {
+      "grnLanguageId": "00121",
+      "languageEntityIds": [
+        "006b8d8c-ce79-40ca-91fb-e634193b6c32",
+        "46853af9-63ce-4393-8c3b-49546f564def"
+      ]
+    },
+    {
+      "grnLanguageId": "00249",
+      "languageEntityIds": [
+        "4c2551a5-7e94-4959-8561-f32973bb0b55",
+        "f6d3e349-657d-45ea-99a0-edad8f714756"
+      ]
+    },
+    {
+      "grnLanguageId": "00427",
+      "languageEntityIds": [
+        "24f3a881-9302-4538-8bdd-118d269ce407",
+        "5307cd88-605e-4292-a3bc-46ac964bc0cb"
+      ]
+    },
+    {
+      "grnLanguageId": "00495",
+      "languageEntityIds": [
+        "22b263eb-7aeb-4913-a136-0ea735497180",
+        "37d2517b-f9d6-4067-819a-0418cd0d037e"
+      ]
+    },
+    {
+      "grnLanguageId": "00513",
+      "languageEntityIds": [
+        "12dda6ae-c1a7-4b38-8794-db59ad85d79c",
+        "28891217-3950-44ac-815f-69619f3da80c"
+      ]
+    },
+    {
+      "grnLanguageId": "00609",
+      "languageEntityIds": [
+        "7b4060fb-a3d1-4356-85e5-8a10e31903b7",
+        "7f252b54-b30c-4ae1-ae83-d4afca38d083"
+      ]
+    },
+    {
+      "grnLanguageId": "01002",
+      "languageEntityIds": [
+        "2eb5ddce-ac8c-4803-8165-79a0e74b8995",
+        "64e1ee9d-3591-4d50-8d46-acfecb27a951"
+      ]
+    },
+    {
+      "grnLanguageId": "01055",
+      "languageEntityIds": [
+        "05762481-7ea6-4302-9c0c-accf6d509024",
+        "b9850607-00fc-426e-86f9-e01566daf718"
+      ]
+    },
+    {
+      "grnLanguageId": "01098",
+      "languageEntityIds": [
+        "9d8386e1-9f54-44f2-bb57-9751c7f02c15",
+        "e51ed868-82ff-4ac1-9fde-a58fa56e0aba"
+      ]
+    },
+    {
+      "grnLanguageId": "01190",
+      "languageEntityIds": [
+        "67dc2280-6daa-46c2-bb80-041be6fe06d6",
+        "c1505ad3-c572-4ac3-b67b-8e17f505e35e"
+      ]
+    },
+    {
+      "grnLanguageId": "01192",
+      "languageEntityIds": [
+        "0a80d3fd-253d-4fe0-bbfe-3a0d1fbb778e",
+        "52e88ab1-cab0-4845-8f79-4f4efb03ad03"
+      ]
+    },
+    {
+      "grnLanguageId": "01342",
+      "languageEntityIds": [
+        "0cc6d413-9338-43c3-8b3c-a6feb3ae2b06",
+        "7c6a2416-cdbc-498f-a5e6-a7401766c974"
+      ]
+    },
+    {
+      "grnLanguageId": "01382",
+      "languageEntityIds": [
+        "0577cbfe-6d3e-4ff2-803d-eedf79bcf906",
+        "29144b81-aaf8-4f89-90d1-89f2fa7bd6b6"
+      ]
+    },
+    {
+      "grnLanguageId": "01455",
+      "languageEntityIds": [
+        "080d7fba-0899-438a-922f-11b570a6de43",
+        "34075d26-93d8-4950-9f85-2e85b0d2e227"
+      ]
+    },
+    {
+      "grnLanguageId": "01657",
+      "languageEntityIds": [
+        "13e9cbfe-6e2e-42f2-9f80-70ef74ccf3b2",
+        "d8484fbf-7073-4248-9ded-026ea97d513d"
+      ]
+    },
+    {
+      "grnLanguageId": "01749",
+      "languageEntityIds": [
+        "41f00713-635b-4cca-87fa-9d776ef52d92",
+        "a438d691-697d-4082-8df2-989a80c1bf84"
+      ]
+    },
+    {
+      "grnLanguageId": "01960",
+      "languageEntityIds": [
+        "25d83b53-8936-4294-90f5-6a5c50e79695",
+        "3915c265-43cd-4c3b-b6d5-092108577825"
+      ]
+    },
+    {
+      "grnLanguageId": "01961",
+      "languageEntityIds": [
+        "2623c5eb-bf6b-453a-8be2-0dafc995ccab",
+        "276c2d13-d51c-4760-bb37-0821ad9eef5b"
+      ]
+    },
+    {
+      "grnLanguageId": "01972",
+      "languageEntityIds": [
+        "11ad52c6-e25d-4d10-ab68-803ce731c512",
+        "4c411990-558e-4287-b3f6-416d6ed550a2"
+      ]
+    },
+    {
+      "grnLanguageId": "02017",
+      "languageEntityIds": [
+        "807434a7-0842-4dae-be79-1610fe04c308",
+        "ae19a17b-882d-4971-a3c4-43ab39f28fef"
+      ]
+    },
+    {
+      "grnLanguageId": "02203",
+      "languageEntityIds": [
+        "1018cb00-47c6-40f0-b5a2-37312009f26f",
+        "b80ebfc5-92fb-418d-9d00-1344197ef928"
+      ]
+    },
+    {
+      "grnLanguageId": "02477",
+      "languageEntityIds": [
+        "5fbeecb2-de87-4fe2-abe8-59134cfa4df0",
+        "f0665b49-260b-4161-bcd5-c172755101c7"
+      ]
+    },
+    {
+      "grnLanguageId": "02481",
+      "languageEntityIds": [
+        "cafc662f-b187-49f1-b8bb-5b29c23bc90f",
+        "f17b1d68-ecc7-4e52-8b94-92e107069190"
+      ]
+    },
+    {
+      "grnLanguageId": "02525",
+      "languageEntityIds": [
+        "4c8b768b-9138-4df7-a2f2-72bdbbcaab7b",
+        "a4bb3dc0-f5ec-4571-9394-5d6050ae9a56"
+      ]
+    },
+    {
+      "grnLanguageId": "02610",
+      "languageEntityIds": [
+        "3aa1086f-de9e-4d70-8d6f-87b1d160f750",
+        "8aafe77a-1979-4fb5-8bbe-5b85e17c2970"
+      ]
+    },
+    {
+      "grnLanguageId": "02710",
+      "languageEntityIds": [
+        "237256fe-f59f-4206-93d8-b8c9a28683ce",
+        "30ca302c-3d02-485a-b1e9-b113fd386ffe"
+      ]
+    },
+    {
+      "grnLanguageId": "03057",
+      "languageEntityIds": [
+        "38b01279-164c-4cfd-9da6-17df79c52c87",
+        "67562260-acab-49f8-9fe9-2d03709e536b"
+      ]
+    },
+    {
+      "grnLanguageId": "03184",
+      "languageEntityIds": [
+        "80e28695-9b7c-4af0-980d-9225451c7335",
+        "aaf21c84-d100-4573-af3d-d9be263edf6f"
+      ]
+    },
+    {
+      "grnLanguageId": "03799",
+      "languageEntityIds": [
+        "1ca74ab5-d6d1-4417-b3ab-22ea78e766eb",
+        "7885d817-9a6e-4633-b1cd-cb0c056b70fd"
+      ]
+    },
+    {
+      "grnLanguageId": "03809",
+      "languageEntityIds": [
+        "0e2c7827-db26-407c-aae8-2364c1e1467d",
+        "67b5b2d6-9300-40e7-99ea-084179fbe54b"
+      ]
+    },
+    {
+      "grnLanguageId": "04166",
+      "languageEntityIds": [
+        "1e0d09b8-e290-48ee-9311-53e7a35a448b",
+        "517f5442-21ed-41af-ae78-8da0f380059e"
+      ]
+    },
+    {
+      "grnLanguageId": "04173",
+      "languageEntityIds": [
+        "636a1285-d7eb-4451-9688-7a32ab43cef2",
+        "6a765222-451c-427e-a27f-dad5e86d5afc"
+      ]
+    },
+    {
+      "grnLanguageId": "04543",
+      "languageEntityIds": [
+        "21da7213-92dc-4cef-8ae4-6c443f5ffc81",
+        "512a70b9-dec4-445c-946c-7a826f89c582"
+      ]
+    },
+    {
+      "grnLanguageId": "04588",
+      "languageEntityIds": [
+        "38ea7800-6155-4a89-a444-b55bf806b95b",
+        "f91dab3d-9013-48d1-b5b8-3b59606e5aa4"
+      ]
+    },
+    {
+      "grnLanguageId": "04703",
+      "languageEntityIds": [
+        "cff31b7d-a1cc-4885-b1fe-c84ad475fcc0",
+        "f85ba572-e466-4e86-b4a9-d38c2eb39588"
+      ]
+    },
+    {
+      "grnLanguageId": "05046",
+      "languageEntityIds": [
+        "c5819699-85dc-4954-8c6e-3fef94c5b3eb",
+        "ce3a5f5c-4496-4fe0-bf6d-1bf91a377ac2"
+      ]
+    },
+    {
+      "grnLanguageId": "05104",
+      "languageEntityIds": [
+        "2bb2d720-0357-4324-800d-e82309829d54",
+        "67043aef-4cef-4f7a-89fe-be0ff9c996e4"
+      ]
+    },
+    {
+      "grnLanguageId": "06076",
+      "languageEntityIds": [
+        "30d492ca-3757-4018-957b-af9727269dc3",
+        "d6d10c0d-5ee3-4df7-bcbd-62de74792d25"
+      ]
+    },
+    {
+      "grnLanguageId": "06245",
+      "languageEntityIds": [
+        "210d609c-e9dd-404d-a0a4-842792abdb68",
+        "673d9850-8b0a-4bdb-b186-ebf1a04bc837"
+      ]
+    },
+    {
+      "grnLanguageId": "06392",
+      "languageEntityIds": [
+        "0e2ab73a-edb1-490a-b3e9-bbbd692c1db5",
+        "55a27da7-50a0-4d37-a4d4-289c090f3f71"
+      ]
+    },
+    {
+      "grnLanguageId": "06662",
+      "languageEntityIds": [
+        "30d492ca-3757-4018-957b-af9727269dc3",
+        "d6d10c0d-5ee3-4df7-bcbd-62de74792d25"
+      ]
+    },
+    {
+      "grnLanguageId": "08114",
+      "languageEntityIds": [
+        "01a023af-25f8-4e23-a2d1-e385de2f5392",
+        "8e5e8bd1-4d2f-4e2b-8531-6c47ad19bb8b"
+      ]
+    },
+    {
+      "grnLanguageId": "08115",
+      "languageEntityIds": [
+        "63906969-78bf-4e27-a23e-cca2cbf99d56",
+        "bcaf0721-3f94-426c-9ea6-68a9472e1684"
+      ]
+    },
+    {
+      "grnLanguageId": "09333",
+      "languageEntityIds": [
+        "8c949dcc-3d20-482d-9d1c-a7891c059b6e",
+        "b18b6af1-01a7-46fe-a071-a74e8c401446"
+      ]
+    },
+    {
+      "grnLanguageId": "10700",
+      "languageEntityIds": [
+        "a0ddbff9-8a1e-4083-b253-4598d02c9cd0",
+        "e5d81972-1765-4d51-b162-0a5b2aec8832"
+      ]
+    },
+    {
+      "grnLanguageId": "11956",
+      "languageEntityIds": [
+        "2c109602-3699-4ac1-be5c-036db7e86422",
+        "599f7420-68d3-4338-ad5f-d24c9475c662"
+      ]
+    },
+    {
+      "grnLanguageId": "14197",
+      "languageEntityIds": [
+        "7d786cd9-b2bb-4195-8b0f-7e15365e0241",
+        "ba6c0542-fee0-40f7-b690-3bfcaa7e7cb1"
+      ]
+    },
+    {
+      "grnLanguageId": "14200",
+      "languageEntityIds": [
+        "ad9c1ee9-4c36-4d5e-b67e-9a2ace188723",
+        "cb24427d-f8c9-4873-9e1b-c13cc248470d"
+      ]
+    },
+    {
+      "grnLanguageId": "14966",
+      "languageEntityIds": [
+        "8b9b8342-ea4e-4860-869f-98026f819302",
+        "a22d643c-9f95-4e62-9c97-4730efcfb2eb"
+      ]
+    },
+    {
+      "grnLanguageId": "14982",
+      "languageEntityIds": [
+        "63a90681-1a7f-4ad1-ba7f-d4d550a59359",
+        "f16d02d9-49b7-442b-958c-87dcb81256a2"
+      ]
+    },
+    {
+      "grnLanguageId": "14991",
+      "languageEntityIds": [
+        "091a3cef-e1c1-4615-8022-4a98b33fbb3f",
+        "a14b2413-a053-42d2-be64-872f112fe50a"
+      ]
+    },
+    {
+      "grnLanguageId": "16430",
+      "languageEntityIds": [
+        "4d9f4d06-1022-4b06-b20f-ba1510d179d4",
+        "9c23e39c-a55c-419f-829b-e8134d4d4cf5"
+      ]
+    },
+    {
+      "grnLanguageId": "18311",
+      "languageEntityIds": [
+        "49d72ea7-aee5-4e38-ba75-0edb981c31a9",
+        "9fac4665-e9d4-4c16-ab01-40223554761c"
+      ]
+    },
+    {
+      "grnLanguageId": "18315",
+      "languageEntityIds": [
+        "737bef05-e84b-412e-b1c6-bd8d3ff44719",
+        "bb4da99b-704c-4c33-94b9-85d76f308acd"
+      ]
+    },
+    {
+      "grnLanguageId": "18541",
+      "languageEntityIds": [
+        "78989498-47aa-4d43-80fa-985a8eddcd3c",
+        "a1891592-ac39-4e83-a0af-c1e888d281fe"
+      ]
+    },
+    {
+      "grnLanguageId": "18712",
+      "languageEntityIds": [
+        "7840cb32-777d-472d-bcb0-64988ecd0a9e",
+        "e77260e8-deea-4cbf-82c9-f27f0ad23e04"
+      ]
+    },
+    {
+      "grnLanguageId": "18811",
+      "languageEntityIds": [
+        "3a0e8091-0e64-4593-8857-db4e011d2528",
+        "70b5565d-bacd-42dd-b076-856173e1fa61"
+      ]
+    },
+    {
+      "grnLanguageId": "18831",
+      "languageEntityIds": [
+        "1181618b-0f9b-4ed0-b8a9-6309f20473fc",
+        "8b65632b-5e50-44db-aae5-11a77f59040c"
+      ]
+    },
+    {
+      "grnLanguageId": "19401",
+      "languageEntityIds": [
+        "3a71b4ea-a8ef-4973-a7eb-59d911402509",
+        "ae53f6c3-0a7d-4b3e-b99d-17036163aba4"
+      ]
+    },
+    {
+      "grnLanguageId": "22910",
+      "languageEntityIds": [
+        "7d3eb0f0-77c7-49b4-a7b0-2d635a5d16a7",
+        "f6f9e14c-a000-43a8-b83f-95caa1f9357b"
+      ]
+    },
+    {
+      "grnLanguageId": "22961",
+      "languageEntityIds": [
+        "8d97589b-4312-47c5-b2cf-fb65abfa5ac9",
+        "fb38610c-0994-4c52-9ec7-4e8b39deb6a0"
+      ]
+    },
+    {
+      "grnLanguageId": "23121",
+      "languageEntityIds": [
+        "06bae609-0e33-4f10-aaf8-140e74316ef8",
+        "6158ec01-acb8-4cf2-909d-17c870990565"
+      ]
+    },
+    {
+      "grnLanguageId": "23125",
+      "languageEntityIds": [
+        "4e203889-e25e-49a1-b50a-d37013ba93b4",
+        "51e7ad50-66ba-426c-8ee2-04aac75c3659"
+      ]
+    },
+    {
+      "grnLanguageId": "23587",
+      "languageEntityIds": [
+        "03ad74f7-a442-4714-bde7-4ff28448dc5c",
+        "1d667a0c-7c15-4a69-a2c9-245cd8ae12e7"
+      ]
+    },
+    {
+      "grnLanguageId": "23836",
+      "languageEntityIds": [
+        "3704990a-e94c-44cf-9065-8ea91001f62f",
+        "dee4b37d-04f2-4c07-9704-148765a9b909"
+      ]
+    },
+    {
+      "grnLanguageId": "23918",
+      "languageEntityIds": [
+        "882f9d0f-8a71-4a17-8a8d-846c8584f835",
+        "e4977114-6a41-4db6-a618-3289728ed004"
+      ]
+    },
+    {
+      "grnLanguageId": "24087",
+      "languageEntityIds": [
+        "2a359bc8-4ae8-408d-bb24-263850d7867b",
+        "c042cf53-f31e-45f4-ae37-7dce7382c7d0"
+      ]
+    }
+  ],
+  "ambiguousParentIsoEveryLanguageGrnMatches": [
+    {
+      "grnLanguageId": "08183",
+      "languageEntityId": "08514962-75d9-41ed-8348-1771b8eddaf9",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bib"
+    },
+    {
+      "grnLanguageId": "25508",
+      "languageEntityId": "0e3705b3-eb21-4ebc-bbcc-61d0c6998f40",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "tci"
+    },
+    {
+      "grnLanguageId": "25049",
+      "languageEntityId": "1043819c-c0d2-425f-8220-79f9834dc630",
+      "parentIso6393": [
+        "guq",
+        "yif"
+      ],
+      "rolvIso6393": "guq"
+    },
+    {
+      "grnLanguageId": "25506",
+      "languageEntityId": "147e5b37-b0de-4038-bef9-650041f3d335",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "tci"
+    },
+    {
+      "grnLanguageId": "08564",
+      "languageEntityId": "1ab586b2-cdd2-4287-b0e8-91f97fda4d2f",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bqp"
+    },
+    {
+      "grnLanguageId": "08565",
+      "languageEntityId": "28998288-cfe8-4cd6-a256-bff12ac8adc8",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bqp"
+    },
+    {
+      "grnLanguageId": "25050",
+      "languageEntityId": "2a59c89a-b375-4bfe-b27c-4ac2ce831ec4",
+      "parentIso6393": [
+        "guq",
+        "yif"
+      ],
+      "rolvIso6393": "guq"
+    },
+    {
+      "grnLanguageId": "08182",
+      "languageEntityId": "3453dfe5-c482-4ef6-961c-61a0b17e66cb",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bib"
+    },
+    {
+      "grnLanguageId": "18193",
+      "languageEntityId": "40e28cd9-edce-4da9-a01a-fc132abb7c8f",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "wbf"
+    },
+    {
+      "grnLanguageId": "25505",
+      "languageEntityId": "41e93b87-3036-4774-9346-8f0008abddbb",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "tci"
+    },
+    {
+      "grnLanguageId": "04891",
+      "languageEntityId": "737fa5c9-8e11-4260-9dcc-a60c554fee80",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bib"
+    },
+    {
+      "grnLanguageId": "18192",
+      "languageEntityId": "aafde4c8-52f9-46de-95d1-866c2883e228",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "wbf"
+    },
+    {
+      "grnLanguageId": "25047",
+      "languageEntityId": "b2664e33-e10e-434a-91dd-b5640d9d7873",
+      "parentIso6393": [
+        "guq",
+        "yif"
+      ],
+      "rolvIso6393": "guq"
+    },
+    {
+      "grnLanguageId": "18190",
+      "languageEntityId": "b62e3962-0e93-4417-a073-2a4466401705",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "wbf"
+    },
+    {
+      "grnLanguageId": "29956",
+      "languageEntityId": "e168609c-4cd0-4fc8-9172-ad2dd29e6bc2",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "tci"
+    },
+    {
+      "grnLanguageId": "08184",
+      "languageEntityId": "ed533f1c-738d-429d-8fce-a9dc18741ef2",
+      "parentIso6393": [
+        "bib",
+        "bqp"
+      ],
+      "rolvIso6393": "bib"
+    },
+    {
+      "grnLanguageId": "18191",
+      "languageEntityId": "fd02aa9b-65f1-4b28-8db7-8708d43cb731",
+      "parentIso6393": [
+        "tci",
+        "wbf"
+      ],
+      "rolvIso6393": "wbf"
+    }
+  ],
   "artifacts": {
     "details-0.json.gz": {
-      "bytes": 642720,
-      "sha256": "954ee83b5cbce8ebf298f82633eb5b3ea1927b949fa51155cae055a6e8e25d91"
+      "bytes": 623708,
+      "sha256": "3bdace040f92db0529cd7e8a11227764121a42266981f6d014a0f63b4e4a1ded"
     },
     "details-1.json.gz": {
-      "bytes": 631975,
-      "sha256": "bba387e75b9dea8e85d8f167bfbbfea1a9cc9ac8c5b3fb8e52a0c7d0e93b6d98"
+      "bytes": 608059,
+      "sha256": "ac8775fbbc64ce1ad53f7b92e53a043b955d8de2736d80787d7a794e0d77b580"
     },
     "details-2.json.gz": {
-      "bytes": 633947,
-      "sha256": "f6db9ed69e90286f348fc18cb518e0b3c86eb98c244134d6d7dbc7ba972dfd7e"
+      "bytes": 606064,
+      "sha256": "2bf91034c7f1295812f5b8676420e7263130c61c33cd66a8d7c31ca10af418e0"
     },
     "details-3.json.gz": {
-      "bytes": 600860,
-      "sha256": "6e5e8623033882f2801c0fcf7a7cbdec0fc033468c34d7d4c29e14d1aa7133fd"
+      "bytes": 573815,
+      "sha256": "0439c0561ff6de5035d81656bcb5d666611e2873f8c7b3dd332581fc2033dfb9"
     },
     "details-4.json.gz": {
-      "bytes": 610098,
-      "sha256": "c3d52e89d995dda062f8350eb517a400cbd92ad94858f5f1540c61a29f783624"
+      "bytes": 583178,
+      "sha256": "07be6e228fba96c104c768d5ceff82441f023d40602a7d96cc0a88bd40bb569a"
     },
     "details-5.json.gz": {
-      "bytes": 631670,
-      "sha256": "af5e942e72de9f91c55a7a54990b09e180e4e59732479d6753316f998bef5186"
+      "bytes": 609792,
+      "sha256": "2464efb7c7770648ecf1330f84b33f082f47d493abc0ee2a3a8f16a13a7105c5"
     },
     "details-6.json.gz": {
-      "bytes": 631509,
-      "sha256": "d9a08e548b0b33a1a17746120534d0cac43e2a387681bbc4b75b0d9a552eb3b3"
+      "bytes": 605043,
+      "sha256": "9ff6c10084baa3516e0f8e84eeec0d4ef4a0c2c65e55a702aa4b3eb8e44cc262"
     },
     "details-7.json.gz": {
-      "bytes": 639946,
-      "sha256": "9f08af358151d85c1c0798739861b6981f76146fd8330ea9ed3593b5dcbfd8cc"
+      "bytes": 618125,
+      "sha256": "5a67fc4357bf4b6073d968cdaf4e8bc1cbeda810ee3a8f2bacf1f61e3fa43da3"
     },
     "details-8.json.gz": {
-      "bytes": 642450,
-      "sha256": "e3e6b9a931d2b77af56cdfbf1db4df57e5c2ed80224e07419070c0d3e0e280b5"
+      "bytes": 620507,
+      "sha256": "5c4ebcaea4c8988701f52cf6a33d0a6e9bc4f8d387da7e9bbe2a52a177e1b4b8"
     },
     "details-9.json.gz": {
-      "bytes": 602081,
-      "sha256": "9817b45bde39d676c396c92e072ca415ca05d1a3a1c915e16f6d96647051fe98"
+      "bytes": 577285,
+      "sha256": "64e5a0d6d3fe99a48edc11c12b1c5cad9051d65e434564ab3d565e9a3265d22d"
     },
     "details-a.json.gz": {
-      "bytes": 650066,
-      "sha256": "ad67060fc52e39e34d680f508a5a2266aebcad1f3ff923a90eb6160e21644cec"
+      "bytes": 622069,
+      "sha256": "33d239ebbc973fc21204bfe9d2ae6a99863325d1a8a150ae96c4d229161b904b"
     },
     "details-b.json.gz": {
-      "bytes": 643784,
-      "sha256": "d6266d13a326ec137a6c7363be76df109068ff71479136e4ed04567c752b9d39"
+      "bytes": 620662,
+      "sha256": "0ee24a646bacc001b521fdb65530d0fbf46955a309a20a95a709c0b1e3243757"
     },
     "details-c.json.gz": {
-      "bytes": 663672,
-      "sha256": "c678dbf78a4513e97dabaa2fad963b9594a2e881a4e874939e7fbf5db7c48d2b"
+      "bytes": 638104,
+      "sha256": "fce8555d406fd70e9ea0369ce68ee30f3213f51ee8a4143ac3660b3d307ae4f3"
     },
     "details-d.json.gz": {
-      "bytes": 638214,
-      "sha256": "e9065970522444433353f16c35e84506ba9c4e5f4a9cd2f0041d2858cbaf7305"
+      "bytes": 617523,
+      "sha256": "195bfb3e4adb5b0f0e447d86c939cf0ee276cc9c67179ffa570b566b71d84787"
     },
     "details-e.json.gz": {
-      "bytes": 640025,
-      "sha256": "d2344f41d7a1f484821069f01e377f6ef7c1cc1f853148e343695380084b0891"
+      "bytes": 612428,
+      "sha256": "7064023f5d36ab1ace9f45ed5bd6baa984aaeb8745a07071151d67f8f38b090f"
     },
     "details-f.json.gz": {
-      "bytes": 637025,
-      "sha256": "96234fddb859872f3ec78cefb186788b7f20b7ee685584b4bb752f3dcbac33bf"
+      "bytes": 612570,
+      "sha256": "2fbcf061dd676fe001937d793bdb32b2db117a79c77b4df92103291a11a87f5d"
     },
     "index.json.gz": {
-      "bytes": 4776421,
-      "sha256": "cfeebc45f43bdcef26135a6336d8cf340b3d0a2c29dd71b6d4ad7933910c471b"
+      "bytes": 4531895,
+      "sha256": "81a0cbd8db1274fd5c26c3fb7a85b30150dc96bb129f6373a6dac80fdb49e71c"
     }
   },
   "countryConflicts": {
@@ -89,12 +722,21 @@
     "rolvSaved": 12406
   },
   "matches": {
-    "everyLanguageAdditionalRecords": 11117,
+    "everyLanguageAdditionalRecords": 5341,
+    "everyLanguageAmbiguousGrnIdentifiers": 68,
+    "everyLanguageAmbiguousParentIsoGrnMatches": 17,
+    "everyLanguageConflictingGrnRolvIdentifiers": 1,
     "everyLanguageCoordinatesImported": 8590,
+    "everyLanguageEntitiesWithMultipleGrnIdentifiers": 99,
+    "everyLanguageGrnOnlyEntitiesWithoutRetainedRolv": 4534,
+    "everyLanguageGrnRolvSameEntityConfirmations": 5055,
     "everyLanguageHierarchyOnly": 63,
-    "everyLanguageMatchedByIdentifier": 24231,
+    "everyLanguageMatchedByGrnLanguageId": 5776,
+    "everyLanguageMatchedByIdentifier": 30007,
+    "everyLanguageParentIsoConflictingGrnMatches": 1,
     "everyLanguagePeopleAdditional": 45,
     "everyLanguagePeopleMatched": 16323,
+    "everyLanguageUnresolvedAmbiguousGrnEntities": 61,
     "grnAlternateNamesImported": 29300,
     "grnMapSeparateRecords": 44,
     "grnMapSourcePoints": 1395,
@@ -399,15 +1041,25 @@
     }
   ],
   "output": {
-    "approximate": 34843,
-    "dialects": 36566,
+    "approximate": 29081,
+    "dialects": 30790,
     "languages": 9795,
-    "mapped": 61312,
-    "needsReview": 1710,
+    "mapped": 55550,
+    "needsReview": 1790,
     "peopleGroups": 16471,
-    "records": 62832,
-    "unmapped": 1520
+    "records": 57056,
+    "unmapped": 1506
   },
+  "parentIsoConflictingEveryLanguageGrnMatches": [
+    {
+      "grnLanguageId": "02967",
+      "languageEntityId": "8bf15551-dd7a-4d2a-87e9-502f89f393d0",
+      "parentIso6393": [
+        "sjg"
+      ],
+      "rolvIso6393": "dzg"
+    }
+  ],
   "sourceFiles": [
     {
       "bytes": 1004,

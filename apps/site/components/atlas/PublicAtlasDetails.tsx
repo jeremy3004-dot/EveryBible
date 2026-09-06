@@ -182,7 +182,13 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
         People-group status refers to its primary language. Mixed clusters use a neutral color.
       </p>
       <p>
-        Some locations are approximate. Records without a supported placement remain searchable.
+        Spread dots show one representative point per mapped record and are spaced on screen for
+        visibility. Recorded locations restore the source coordinates. Some locations are
+        approximate, and records without a supported placement remain searchable.
+      </p>
+      <p>
+        Records stay separate where source identities cannot be verified. The totals are source
+        records, not a definitive count of distinct living languages.
       </p>
       <p>
         This atlas describes research coverage. It is separate from the translations available to

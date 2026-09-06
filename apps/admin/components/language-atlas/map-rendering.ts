@@ -5,6 +5,7 @@ import type { AtlasDisplayMode, AtlasMapPadding } from '../../lib/language-atlas
 import type { AdminThemeMode } from '../../lib/theme';
 
 export const ATLAS_SOURCE_ID = 'language-atlas-records';
+export const EMPTY_ATLAS_FEATURES: AtlasFeatures = { type: 'FeatureCollection', features: [] };
 export const ATLAS_CLUSTER_RADIUS = 50;
 export const ATLAS_CLUSTER_MAX_ZOOM = 4;
 // FIELD chrome mirrored from the canonical --background, --map-land,
@@ -29,7 +30,7 @@ export const ATLAS_BASEMAP_COLORS = {
 export function atlasSourceOptions(data: AtlasFeatures, displayMode: AtlasDisplayMode) {
   return {
     type: 'geojson' as const,
-    data,
+    data: displayMode === 'spread' ? EMPTY_ATLAS_FEATURES : data,
     cluster: displayMode === 'clustered',
     clusterRadius: ATLAS_CLUSTER_RADIUS,
     clusterMaxZoom: ATLAS_CLUSTER_MAX_ZOOM,

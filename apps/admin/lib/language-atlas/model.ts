@@ -10,7 +10,7 @@ import { scriptureVisualCategory, type ScriptureVisualCategory } from './present
 
 export const DEFAULT_FILTERS: AtlasFilters = {
   query: '',
-  kind: 'language',
+  kind: 'varieties',
   country: '',
   scripture: 'all',
   placement: 'all',
@@ -72,7 +72,11 @@ export function isApproximate(record: AtlasRecord): boolean {
 export function filterRecords(records: AtlasRecord[], filters: AtlasFilters): AtlasRecord[] {
   const query = filters.query.trim().toLocaleLowerCase();
   return records.filter((record) => {
-    if (filters.kind !== 'all' && record.kind !== filters.kind) return false;
+    if (
+      filters.kind !== 'all' &&
+      (filters.kind === 'varieties' ? record.kind === 'people-group' : record.kind !== filters.kind)
+    )
+      return false;
     if (filters.country && !record.countryCodes.includes(filters.country)) return false;
     if (filters.source && !record.sourceIds.includes(filters.source)) return false;
     const status = scriptureStatus(record);

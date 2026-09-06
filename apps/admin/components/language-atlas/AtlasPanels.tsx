@@ -49,28 +49,42 @@ export function MapControls({
   return (
     <div className="la-panel-content">
       <p className="la-control-summary">
-        {formatCount(counts.records)} matching records · {formatCount(counts.mapped)} mapped
+        {formatCount(counts.records)} matching source records · {formatCount(counts.mapped)} with a
+        supported placement
       </p>
       <section className="la-control-section">
-        <div className="la-control-label">
-          <div>
-            <strong>Clustered</strong>
-            <small>Group nearby points as you zoom out.</small>
-          </div>
+        <span className="la-control-kicker">Point display</span>
+        <div className="la-segment la-segment--display" role="group" aria-label="Point display">
           <button
-            className="la-switch"
             type="button"
-            role="switch"
-            aria-checked={displayMode === 'clustered'}
-            aria-label="Cluster nearby map points"
-            onClick={() => onDisplayMode(displayMode === 'clustered' ? 'individual' : 'clustered')}
+            aria-pressed={displayMode === 'spread'}
+            onClick={() => onDisplayMode('spread')}
           >
-            <span />
+            Spread dots
+          </button>
+          <button
+            type="button"
+            aria-pressed={displayMode === 'individual'}
+            onClick={() => onDisplayMode('individual')}
+          >
+            Recorded locations
+          </button>
+          <button
+            type="button"
+            aria-pressed={displayMode === 'clustered'}
+            onClick={() => onDisplayMode('clustered')}
+          >
+            Clusters
           </button>
         </div>
         <p className="la-mode-readout">
-          Current view: {displayMode === 'clustered' ? 'Clustered' : 'Individual dots'}
+          {displayMode === 'spread'
+            ? 'One representative point per mapped record. Dots are spaced for visibility; exact source coordinates are retained.'
+            : displayMode === 'individual'
+              ? 'Recorded source locations. Co-located records may overlap.'
+              : 'Recorded source locations grouped as you zoom out.'}
         </p>
+        <p className="la-fine">Unresolved source identities may remain separate records.</p>
       </section>
       <section className="la-control-section">
         <span className="la-control-kicker">Projection</span>

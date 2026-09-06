@@ -40,7 +40,7 @@ const LanguageMap = dynamic(
   }
 );
 const EMPTY_RECORDS: AtlasIndex['records'] = [];
-const INITIAL_FILTERS: AtlasFilters = { ...DEFAULT_FILTERS, kind: 'all' };
+const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
 
 export function PublicLanguageAtlas() {
@@ -52,7 +52,7 @@ export function PublicLanguageAtlas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<'intro' | 'records' | 'sources'>('intro');
   const [page, setPage] = useState(0);
-  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('individual');
+  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('spread');
   const [projection, setProjection] = useState<AtlasProjection>('globe');
   const [mobile, setMobile] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -177,13 +177,20 @@ export function PublicLanguageAtlas() {
             Map
           </button>
         </div>
-        <div className="pa-segment" role="group" aria-label="Point display">
+        <div className="pa-segment pa-segment--display" role="group" aria-label="Point display">
+          <button
+            type="button"
+            aria-pressed={displayMode === 'spread'}
+            onClick={() => setDisplayMode('spread')}
+          >
+            Spread dots
+          </button>
           <button
             type="button"
             aria-pressed={displayMode === 'individual'}
             onClick={() => setDisplayMode('individual')}
           >
-            Dots
+            Recorded locations
           </button>
           <button
             type="button"
@@ -246,10 +253,11 @@ export function PublicLanguageAtlas() {
                       updateFilter('kind', event.target.value as AtlasFilters['kind'])
                     }
                   >
-                    <option value="all">All records</option>
+                    <option value="varieties">Language varieties</option>
                     <option value="language">Languages</option>
                     <option value="dialect">Dialects / varieties</option>
                     <option value="people-group">People groups</option>
+                    <option value="all">All collections</option>
                   </select>
                 </label>
                 <label>
@@ -377,6 +385,16 @@ export function PublicLanguageAtlas() {
             </p>
           )}
         </div>
+
+        <p className="pa-display-note" role="status">
+          {index ? `${formatCount(records.length)} matching source records. ` : ''}
+          {displayMode === 'spread'
+            ? 'One dot per mapped record, spaced for visibility.'
+            : displayMode === 'individual'
+              ? 'Recorded locations may overlap.'
+              : 'Recorded locations grouped as you zoom out.'}{' '}
+          Some identities still need review.
+        </p>
 
         <div className="pa-legend" aria-label="Scripture status legend">
           {SCRIPTURE_VISUAL_ORDER.map((category) => (
