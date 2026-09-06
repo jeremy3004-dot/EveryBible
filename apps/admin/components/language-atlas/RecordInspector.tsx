@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { scriptureVisualCategory } from '../../lib/language-atlas/presentation';
 import {
   formatCount,
   KIND_LABELS,
@@ -126,8 +127,10 @@ function Profile({
           'Country not recorded'}
       </p>
       <div className="la-status">
-        <i className={`la-dot la-dot--${status}`} />
-        <strong>{SCRIPTURE_LABELS[status]}</strong>
+        <i className={`la-dot la-dot--${scriptureVisualCategory(status, record.kind)}`} />
+        <strong>
+          {record.kind === 'dialect' && status === 'unknown' ? 'Unverified' : SCRIPTURE_LABELS[status]}
+        </strong>
         {record.kind === 'people-group' && <span>Primary-language context</span>}
       </div>
       {record.kind === 'dialect' && (

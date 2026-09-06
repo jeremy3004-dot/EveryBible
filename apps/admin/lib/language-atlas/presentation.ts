@@ -1,4 +1,4 @@
-import type { ScriptureStatus } from './types';
+import type { AtlasRecordKind, ScriptureStatus } from './types';
 
 export type ScriptureVisualCategory =
   | 'bible'
@@ -42,13 +42,18 @@ export const SCRIPTURE_PRESENTATION: Record<
   nt: { label: 'New Testament', color: SCRIPTURE_COLORS.light.nt },
   portions: { label: 'Portions', color: SCRIPTURE_COLORS.light.portions },
   'no-scripture': {
-    label: 'No Scripture',
+    label: 'No known Scripture',
     color: SCRIPTURE_COLORS.light['no-scripture'],
   },
   unknown: { label: 'Unknown', color: SCRIPTURE_COLORS.light.unknown },
 };
 
-export function scriptureVisualCategory(status: ScriptureStatus): ScriptureVisualCategory {
+export function scriptureVisualCategory(
+  status: ScriptureStatus,
+  kind?: AtlasRecordKind
+): ScriptureVisualCategory {
+  // Red is a presentation default, not a claim that an unverified dialect has no Scripture.
+  if (kind === 'dialect' && status === 'unknown') return 'no-scripture';
   if (status === 'started' || status === 'needed') return 'no-scripture';
   return status;
 }

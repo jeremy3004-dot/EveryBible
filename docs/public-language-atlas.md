@@ -46,7 +46,10 @@ defaults, panel replacement/dismissal, Settings actions, QR preservation,
 Field branding is defined in `packages/brand/tokens.css` and mirrored by the
 existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
 Mono labels, warm charcoal/cream surfaces, and blue accents. Scripture status
-uses reef, ochre, clay, danger and neutral, preserving unknown separately.
+uses reef, ochre, clay, danger and neutral. Unverified dialects default to red
+(**No known Scripture**) without asserting verified absence or altering source data.
+Unknown languages remain neutral. Exact-variety portions, NT and Bible evidence
+sets the corresponding dialect color; profiles distinguish unverified coverage.
 
 Map panels use fully opaque surfaces. Hover popups stack above the spread-dot
 canvas so dots cannot paint over their text; keep this order when changing map layers.

@@ -373,7 +373,7 @@ export function PublicLanguageAtlas() {
                       className="pa-dot"
                       style={{
                         background:
-                          SCRIPTURE_COLORS.dark[scriptureVisualCategory(scriptureStatus(record))],
+                          SCRIPTURE_COLORS.dark[scriptureVisualCategory(scriptureStatus(record), record.kind)],
                       }}
                     />
                     <span>

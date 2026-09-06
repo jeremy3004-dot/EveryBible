@@ -127,8 +127,8 @@ export function MapControls({
           })}
         </div>
         <p className="la-fine">
-          Started and needed records appear as No Scripture. Their exact progress remains visible in
-          the profile.
+          Red means No known Scripture, including unverified dialects. Exact status and evidence
+          remain visible in the profile.
         </p>
       </section>
       <details className="la-filter-details">
@@ -261,7 +261,7 @@ export function RecordsPanel({
       )}
       <div className="la-result-list" aria-busy={queryPending}>
         {filtered.slice(currentPage * 30, (currentPage + 1) * 30).map((record) => {
-          const category = scriptureVisualCategory(scriptureStatus(record));
+          const category = scriptureVisualCategory(scriptureStatus(record), record.kind);
           return (
             <button
               className="la-result"

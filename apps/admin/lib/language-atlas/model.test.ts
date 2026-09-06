@@ -82,13 +82,13 @@ test('dialects never inherit a verified Scripture claim from language scope', ()
   assert.equal(scriptureStatus(dialect), 'unknown');
   assert.equal(
     filterRecords([dialect], { ...DEFAULT_FILTERS, kind: 'all', scripture: 'unknown' }).length,
-    1
+    0
   );
-  assert.equal(buildFeatures([dialect]).features[0].properties.category, 'unknown');
+  assert.equal(buildFeatures([dialect]).features[0].properties.category, 'no-scripture');
   assert.equal(scriptureStatus(record({ kind: 'dialect', scriptureScope: 'dialect' })), 'bible');
 });
 
-test('no-scripture filter groups progress states but keeps unknown dialect evidence separate', () => {
+test('red legend filter includes unverified dialects without changing their evidence', () => {
   const rows = [
     record({ id: 'started', scriptureStatus: 'started' }),
     record({ id: 'needed', scriptureStatus: 'needed' }),
@@ -105,13 +105,13 @@ test('no-scripture filter groups progress states but keeps unknown dialect evide
     filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'no-scripture' }).map(
       (row) => row.id
     ),
-    ['started', 'needed']
+    ['started', 'needed', 'inherited-dialect']
   );
   assert.deepEqual(
     filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'unknown' }).map(
       (row) => row.id
     ),
-    ['unknown', 'inherited-dialect']
+    ['unknown']
   );
 });
 
@@ -218,4 +218,19 @@ test('the actual hit stays first while overlapping locations merge into unique r
     resolveMapHitRecords([first.id], [second.id, first.id, second.id, 'stale-id'], records),
     [first, second]
   );
+});
+
+
+test('an exact dialect status update changes its point and legend filter without inheriting parent coverage', () => {
+  const dialect = record({kind: 'dialect', scriptureScope: 'unknown', scriptureStatus: 'unknown', languageContextStatus: 'bible'});
+  const original = structuredClone(dialect);
+  assert.equal(buildFeatures([dialect]).features[0].properties.category, 'no-scripture');
+  assert.equal(scriptureStatus(dialect), 'unknown');
+  assert.deepEqual(dialect, original);
+  for (const status of ['portions', 'nt', 'bible'] as const) {
+    const verified = {...dialect, scriptureStatus: status, scriptureScope: 'dialect' as const};
+    assert.equal(buildFeatures([verified]).features[0].properties.category, status);
+    assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: status}).length, 1);
+    assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: 'no-scripture'}).length, 0);
+  }
 });

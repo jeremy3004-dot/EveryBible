@@ -69,9 +69,11 @@ export function AtlasRecordProfile({
       <div className="pa-scripture-status">
         <i
           className="pa-dot"
-          style={{ background: SCRIPTURE_COLORS.dark[scriptureVisualCategory(status)] }}
+          style={{ background: SCRIPTURE_COLORS.dark[scriptureVisualCategory(status, record.kind)] }}
         />
-        <strong>{SCRIPTURE_LABELS[status]}</strong>
+        <strong>
+          {record.kind === 'dialect' && status === 'unknown' ? 'Unverified' : SCRIPTURE_LABELS[status]}
+        </strong>
       </div>
       {record.kind === 'people-group' && (
         <p className="pa-scope">
@@ -179,7 +181,7 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
         count of distinct living languages.
       </p>
       <p>
-        Unknown does not mean no Scripture. Dialect status requires evidence for the exact variety.
+        Red means no known Scripture and includes unverified dialects. It does not confirm absence. Dialect status requires evidence for the exact variety.
         Mixed clusters use a neutral color.
       </p>
       <p>People-group research is retained for a future, separate map overlay.</p>

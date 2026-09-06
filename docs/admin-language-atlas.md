@@ -54,8 +54,10 @@ ROLV match is verified.
   map with the closer Africa–Europe–Asia view requested in the reference screenshot.
 - Colors use the Field brand's reef, ochre, clay, danger, and neutral tokens,
   with separate light and dark values shared by map dots and legends. Started and needed
-  records share the No Scripture display category; their exact progress remains
-  in the profile and export. Unknown is a separate warm neutral category.
+  records and unverified dialects share the red **No known Scripture** display category.
+  This is a visual default, not verified absence. Exact status remains in profiles and
+  exports; unknown languages and people groups remain neutral. Legend filters follow
+  these displayed categories.
   Labels accompany every legend swatch. Mixed clusters use a neutral color.
 - **Unknown does not mean no Scripture.** Dialect coverage is not inferred from
   its ISO or parent language. The inspector shows parent-language context
@@ -172,3 +174,13 @@ The subsequent experience-parity update is documented in
 Astra reviewed the Sol implementation against measured reference geometry and
 performed browser checks at 1440×960, 390×844, and 768×1024. The update passed
 1,702 workspace tests. Data files and source claims were not changed.
+
+## Dialect color updates
+
+Unverified dialects default to red without changing their stored Scripture evidence.
+Confirmed exact-variety portions, NT, and Bible claims retain their corresponding colors.
+To update an individual variety through the reviewed data pipeline, set its canonical
+record's `scriptureStatus` and `scriptureScope: "dialect"` from attributed evidence,
+then rebuild both snapshots. Parent-language status never changes a dialect's color.
+The atlas currently has no inline status editor; snapshot files are generated and
+should not be hand-edited.

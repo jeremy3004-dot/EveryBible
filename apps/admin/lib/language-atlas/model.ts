@@ -82,8 +82,8 @@ export function filterRecords(records: AtlasRecord[], filters: AtlasFilters): At
     const status = scriptureStatus(record);
     if (
       filters.scripture !== 'all' &&
-      (filters.scripture === 'no-scripture'
-        ? status !== 'started' && status !== 'needed'
+      (filters.scripture === 'no-scripture' || filters.scripture === 'unknown'
+        ? scriptureVisualCategory(status, record.kind) !== filters.scripture
         : status !== filters.scripture)
     )
       return false;
@@ -147,7 +147,7 @@ export function buildFeatures(records: AtlasRecord[]): AtlasFeatures {
         properties: {
           recordId: record.id,
           locationIndex: index,
-          category: scriptureVisualCategory(scriptureStatus(record)),
+          category: scriptureVisualCategory(scriptureStatus(record), record.kind),
         },
       }))
     ),

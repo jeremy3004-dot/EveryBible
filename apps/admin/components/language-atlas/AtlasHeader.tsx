@@ -155,7 +155,7 @@ export function AtlasHeader(props: Props) {
                   onClick={() => props.onSelect(record.id)}
                 >
                   <i
-                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record))}`}
+                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record), record.kind)}`}
                   />
                   <span>
                     <strong>{record.name}</strong>

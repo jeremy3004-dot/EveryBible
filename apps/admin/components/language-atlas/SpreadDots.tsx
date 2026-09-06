@@ -68,7 +68,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       ])
     );
     const categories = new Map(
-      points.map((point) => [point.id, scriptureVisualCategory(scriptureStatus(point.record))])
+      points.map((point) => [point.id, scriptureVisualCategory(scriptureStatus(point.record), point.record.kind)])
     );
     const popup = new maplibregl.Popup({
       closeButton: false,

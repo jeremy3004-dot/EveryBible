@@ -585,7 +585,7 @@ export function LanguageMap({
                   onClick={() => onSelect(record.id)}
                 >
                   <i
-                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record))}`}
+                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record), record.kind)}`}
                   />
                   <span>
                     {record.name}
