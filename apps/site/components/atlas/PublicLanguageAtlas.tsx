@@ -12,8 +12,6 @@ import {
 } from '../../../admin/lib/language-atlas/model';
 import {
   SCRIPTURE_COLORS,
-  SCRIPTURE_PRESENTATION,
-  SCRIPTURE_VISUAL_ORDER,
   scriptureVisualCategory,
 } from '../../../admin/lib/language-atlas/presentation';
 import type {
@@ -23,6 +21,7 @@ import type {
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
+import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../../lib/site-links';
 
 const LanguageMap = dynamic(
@@ -50,7 +49,14 @@ export function PublicLanguageAtlas() {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const deferredFilters = useDeferredValue(filters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'intro' | 'records' | 'sources'>('intro');
+  const [panel, setPanel] = useState<
+    'intro' | 'search' | 'records' | 'sources' | 'legend' | 'settings' | 'group'
+  >('intro');
+  const [groupIds, setGroupIds] = useState<string[]>([]);
+  const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
+  const explorerRef = useRef<HTMLElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const skipSearchFocus = useRef(false);
   const [page, setPage] = useState(0);
   const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('individual');
   const [projection, setProjection] = useState<AtlasProjection>('globe');
@@ -95,20 +101,6 @@ export function PublicLanguageAtlas() {
     window.addEventListener('hashchange', openSources);
     return () => window.removeEventListener('hashchange', openSources);
   }, []);
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedId(null);
-        setPanel('intro');
-        setFilters((current) => ({ ...current, query: '' }));
-        if (window.location.hash === '#atlas-sources')
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, []);
 
   const records = useMemo(
     () => filterRecords(index?.records ?? EMPTY_RECORDS, deferredFilters),
@@ -117,38 +109,92 @@ export function PublicLanguageAtlas() {
   const byId = useMemo(() => new Map(index?.records.map((record) => [record.id, record])), [index]);
   const selected = selectedId ? (byId.get(selectedId) ?? null) : null;
   const searching = Boolean(filters.query.trim());
-  const showRecords = panel === 'records' || searching;
+  const showRecords = panel === 'records';
+  const expanded = Boolean(selected || panel !== 'intro');
   const padding = useMemo(
     () =>
       mobile
         ? {
-            top: 150,
+            top: 120,
             right: 24,
-            bottom: selected || showRecords || panel === 'sources' ? 310 : 110,
+            bottom: 210,
             left: 24,
           }
         : { top: 60, right: 50, bottom: 70, left: 410 },
-    [mobile, selected, showRecords, panel]
+    [mobile]
   );
-  const select = useCallback((id: string) => setSelectedId(id), []);
+  const select = useCallback((id: string) => {
+    setSelectedId(id);
+    setPanel('intro');
+  }, []);
+  const selectGroup = useCallback((ids: string[]) => {
+    setSelectedId(null);
+    setGroupIds(ids);
+    setPage(0);
+    setPanel('group');
+  }, []);
   const updateFilter = <Key extends keyof AtlasFilters>(key: Key, value: AtlasFilters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }));
     setPage(0);
     setSelectedId(null);
-    if (key !== 'query') setPanel('records');
+    setPanel(key === 'query' && !String(value).trim() ? 'search' : 'records');
   };
-  const closePanel = () => {
+  const closePanel = useCallback((restoreFocus = true) => {
     if (window.location.hash === '#atlas-sources')
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     setSelectedId(null);
     setPanel('intro');
-    if (searching) setFilters((current) => ({ ...current, query: '' }));
-    searchRef.current?.focus();
+    const trigger = triggerRef.current ?? searchRef.current;
+    if (restoreFocus && trigger && trigger !== document.activeElement) {
+      skipSearchFocus.current = trigger === searchRef.current;
+      trigger.focus({ preventScroll: true });
+    }
+  }, []);
+
+  const openPanel = (next: typeof panel, trigger?: HTMLElement) => {
+    if (trigger) triggerRef.current = trigger;
+    setSelectedId(null);
+    setPanel(next);
   };
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePanel();
+    };
+    const handleOutside = (event: PointerEvent) => {
+      if (!mobile || !expanded || !(event.target instanceof Node)) return;
+      if (explorerRef.current?.contains(event.target)) return;
+      closePanel(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    document.addEventListener('pointerdown', handleOutside);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      document.removeEventListener('pointerdown', handleOutside);
+    };
+  }, [mobile, expanded, closePanel]);
+
+  const mapSettings = (
+    <AtlasMapSettings
+      mobile={mobile}
+      projection={projection}
+      displayMode={displayMode}
+      onProjectionChange={setProjection}
+      onDisplayModeChange={setDisplayMode}
+    />
+  );
+  const legend = (
+    <AtlasLegend
+      scripture={filters.scripture}
+      onScriptureChange={(value) => updateFilter('scripture', value)}
+      onSources={() => openPanel('sources')}
+    />
+  );
 
   return (
     <section
-      className={`public-atlas ${selected || showRecords || panel === 'sources' ? 'public-atlas--expanded' : ''}`}
+      className={`public-atlas ${expanded ? 'public-atlas--expanded' : ''}`}
+      data-mobile-panel={panel}
       aria-label="Explore the world's languages"
     >
       <LanguageMap
@@ -158,44 +204,14 @@ export function PublicLanguageAtlas() {
         displayMode={displayMode}
         projection={projection}
         padding={padding}
+        controlsTarget={mobile ? controlsTarget : undefined}
+        onSelectGroup={mobile ? selectGroup : undefined}
+        showHoverSummary={!mobile}
       />
 
-      <div className="pa-map-toolbar" aria-label="Map settings">
-        <div className="pa-segment" role="group" aria-label="Map projection">
-          <button
-            type="button"
-            aria-pressed={projection === 'globe'}
-            onClick={() => setProjection('globe')}
-          >
-            Globe
-          </button>
-          <button
-            type="button"
-            aria-pressed={projection === 'mercator'}
-            onClick={() => setProjection('mercator')}
-          >
-            Map
-          </button>
-        </div>
-        <div className="pa-segment" role="group" aria-label="Point display">
-          <button
-            type="button"
-            aria-pressed={displayMode === 'individual'}
-            onClick={() => setDisplayMode('individual')}
-          >
-            Dots
-          </button>
-          <button
-            type="button"
-            aria-pressed={displayMode === 'clustered'}
-            onClick={() => setDisplayMode('clustered')}
-          >
-            Clusters
-          </button>
-        </div>
-      </div>
+      {!mobile && mapSettings}
 
-      <aside className="pa-explorer" aria-label="Language explorer">
+      <aside className="pa-explorer" ref={explorerRef} aria-label="Language explorer">
         <div className="pa-search-wrap">
           <label className="pa-search">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -208,24 +224,96 @@ export function PublicLanguageAtlas() {
               type="search"
               value={filters.query}
               placeholder="Find a language or people…"
+              onFocus={(event) => {
+                if (skipSearchFocus.current) {
+                  skipSearchFocus.current = false;
+                  return;
+                }
+                if (mobile) openPanel(searching ? 'records' : 'search', event.currentTarget);
+              }}
+              onClick={(event) => {
+                if (mobile && panel !== 'search' && panel !== 'records')
+                  openPanel(searching ? 'records' : 'search', event.currentTarget);
+              }}
               onChange={(event) => updateFilter('query', event.target.value)}
             />
           </label>
-          <button
-            type="button"
-            className="pa-browse"
-            aria-pressed={panel === 'records'}
-            onClick={() => {
-              setSelectedId(null);
-              setPanel(panel === 'records' ? 'intro' : 'records');
-            }}
-          >
-            Records
-          </button>
+          {!mobile && (
+            <button
+              type="button"
+              className="pa-browse"
+              aria-pressed={panel === 'records'}
+              onClick={() => {
+                setSelectedId(null);
+                setPanel(panel === 'records' ? 'intro' : 'records');
+              }}
+            >
+              Records
+            </button>
+          )}
         </div>
 
-        <div className="pa-explorer-body" ref={bodyRef}>
-          {selected && index ? (
+        <div className="pa-mobile-tools" aria-label="Atlas tools">
+          {(['legend', 'settings'] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              aria-expanded={panel === name}
+              aria-controls="pa-mobile-panel"
+              onClick={(event) =>
+                panel === name ? closePanel() : openPanel(name, event.currentTarget)
+              }
+            >
+              {name === 'legend' ? 'Legend' : 'Settings'}
+            </button>
+          ))}
+        </div>
+
+        <div className="pa-explorer-body" ref={bodyRef} id="pa-mobile-panel">
+          {mobile && panel === 'settings' ? (
+            <section className="pa-tool-panel" aria-label="Settings">
+              <div className="pa-section-top">
+                <h2>Map settings</h2>
+                <button type="button" onClick={() => closePanel()} aria-label="Close settings">
+                  ×
+                </button>
+              </div>
+              {mapSettings}
+              <div className="pa-settings-actions" ref={setControlsTarget} />
+            </section>
+          ) : mobile && panel === 'legend' ? (
+            <section className="pa-tool-panel" aria-label="Legend">
+              <div className="pa-section-top">
+                <h2>Scripture status</h2>
+                <button type="button" onClick={() => closePanel()} aria-label="Close legend">
+                  ×
+                </button>
+              </div>
+              {legend}
+            </section>
+          ) : mobile && panel === 'search' ? (
+            <section className="pa-tool-panel" aria-label="Search options">
+              <div className="pa-section-top">
+                <h2>Explore languages</h2>
+                <button type="button" onClick={() => closePanel()} aria-label="Close search">
+                  ×
+                </button>
+              </div>
+              <p className="pa-empty">Search by name, or browse the collection.</p>
+              <button type="button" className="pa-browse" onClick={() => openPanel('records')}>
+                Records
+              </button>
+            </section>
+          ) : mobile && panel === 'group' ? (
+            <AtlasGroupRecords
+              ids={groupIds}
+              byId={byId}
+              page={page}
+              onPageChange={setPage}
+              onSelect={select}
+              onClose={() => closePanel()}
+            />
+          ) : selected && index ? (
             <AtlasRecordProfile record={selected} index={index} onClose={closePanel} />
           ) : panel === 'sources' && index ? (
             <AtlasSources index={index} onClose={closePanel} />
@@ -233,7 +321,7 @@ export function PublicLanguageAtlas() {
             <section className="pa-records" aria-label="Records">
               <div className="pa-section-top">
                 <h2>Explore records</h2>
-                <button type="button" onClick={closePanel} aria-label="Close records">
+                <button type="button" onClick={() => closePanel()} aria-label="Close records">
                   ×
                 </button>
               </div>
@@ -330,7 +418,7 @@ export function PublicLanguageAtlas() {
                 Clear all filters
               </button>
             </section>
-          ) : (
+          ) : !mobile ? (
             <div className="pa-intro">
               <p className="pa-eyebrow">
                 <span /> A WORLD OF LANGUAGES
@@ -356,7 +444,7 @@ export function PublicLanguageAtlas() {
               </div>
               <p className="pa-map-hint">Choose a dot. Discover its story.</p>
             </div>
-          )}
+          ) : null}
           {loadError && (
             <div className="pa-load-error" role="alert">
               The collection could not load.{' '}
@@ -378,33 +466,7 @@ export function PublicLanguageAtlas() {
           )}
         </div>
 
-        <div className="pa-legend" aria-label="Scripture status legend">
-          {SCRIPTURE_VISUAL_ORDER.map((category) => (
-            <button
-              type="button"
-              key={category}
-              aria-pressed={filters.scripture === category}
-              onClick={() =>
-                updateFilter('scripture', filters.scripture === category ? 'all' : category)
-              }
-            >
-              <i className="pa-dot" style={{ background: SCRIPTURE_COLORS.dark[category] }} />
-              {SCRIPTURE_PRESENTATION[category].label}
-            </button>
-          ))}
-        </div>
-        <div className="pa-collection-note">
-          <span>Unknown ≠ no Scripture</span>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedId(null);
-              setPanel(panel === 'sources' ? 'intro' : 'sources');
-            }}
-          >
-            About the data ↗
-          </button>
-        </div>
+        {!mobile && legend}
       </aside>
 
       <div className="pa-download-dock">

@@ -6,6 +6,33 @@ atlas. It defaults to Field's dark theme and the closer globe camera (65°E,
 list, filters, hover summaries, and selected profiles operate on research
 records; these counts are not the app's available Bible catalog.
 
+## Mobile controls
+
+At widths up to 760px, the default view keeps individual dots, a slim search
+bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
+typing opens the filtered record list. Legend contains Scripture filters, the
+unknown-status explanation, and About the data. Settings contains projection,
+dot/cluster display, zoom, Fit results, and Reset view.
+
+Only one mobile panel opens at a time. Close buttons, Escape, and tapping
+outside dismiss it without clearing the active filters. Overlapping map dots
+open a paginated group list; choosing a record replaces that list with its
+profile. Hover summaries are disabled on mobile to avoid duplicate popups.
+The floating QR/app card, direct store links, provider credit, and research
+availability note stay visible while panels are open. Desktop controls retain
+their expanded layout.
+
+The shared map accepts an optional controls target for the public mobile
+Settings panel and a group-selection callback for the single-panel flow.
+Without these options, the admin map retains its existing controls and groups.
+
+Local browser regression: run `npm run dev --workspace @everybible/site --
+--hostname 127.0.0.1 --port 3100`, then pass
+`scripts/browser-tests/public-atlas-mobile.js` to the managed Playwright
+`browser_run_code_unsafe` tool's `filename` argument. The regression checks collapsed
+defaults, panel replacement/dismissal, Settings actions, QR preservation,
+320px overflow/overlap, and desktop controls.
+
 Field branding is defined in `packages/brand/tokens.css` and mirrored by the
 existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
 Mono labels, warm charcoal/cream surfaces, and blue accents. Scripture status
