@@ -48,6 +48,9 @@ existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
 Mono labels, warm charcoal/cream surfaces, and blue accents. Scripture status
 uses reef, ochre, clay, danger and neutral, preserving unknown separately.
 
+Map panels use fully opaque surfaces. Hover popups stack above the spread-dot
+canvas so dots cannot paint over their text; keep this order when changing map layers.
+
 ## Public data boundary
 
 `scripts/language-atlas/build_public_atlas.py` reads the reviewed admin index

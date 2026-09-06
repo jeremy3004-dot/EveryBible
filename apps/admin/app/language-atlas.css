@@ -1354,6 +1354,10 @@ body:has(.language-atlas--viewport) > .theme-toggle {
   border: 0;
 }
 
+/* Keep popup text above the sibling spread-dot canvas. */
+.language-atlas-popup {
+  z-index: 1;
+}
 .language-atlas-popup .maplibregl-popup-content {
   padding: 13px;
   border: 1px solid hsl(var(--la-border));
