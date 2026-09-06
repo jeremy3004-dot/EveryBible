@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next';
 export const siteMetadata: Metadata = {
   title: 'Every language. Every person. | EveryBible',
   description:
-    'Explore the world’s languages, dialects and people groups. Discover Scripture coverage and get EveryBible to read and listen for free.',
+    'Explore the world’s languages and dialects. Discover Scripture coverage and get EveryBible to read and listen for free.',
 };
 
 /** Browser chrome matches the default FIELD dark surface. */

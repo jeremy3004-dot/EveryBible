@@ -5,8 +5,12 @@ async function verifyPublicAtlasMobile(page) {
   };
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://127.0.0.1:3100');
-  const search = page.getByRole('searchbox');
+  const search = page.getByRole('searchbox', { name: 'Search languages and dialects' });
   await search.waitFor();
+  check(
+    (await search.getAttribute('placeholder')) === 'Find a language or dialect…',
+    'Search copy must describe languages and dialects'
+  );
   await page.getByRole('link', { name: 'Data provided by Joshua Project' }).waitFor();
   check(
     await page.getByRole('button', { name: 'Legend', exact: true }).isVisible(),
@@ -79,6 +83,13 @@ async function verifyPublicAtlasMobile(page) {
     await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
     'Search reveals Records'
   );
+  await page.getByRole('button', { name: 'Records', exact: true }).click();
+  const collection = page.getByLabel('Collection');
+  check(
+    (await collection.locator('option').allTextContents()).join('|') ===
+      'Languages & dialects|Languages|Dialects / varieties',
+    'The main collection must contain languages and dialects without people groups'
+  );
   await page.keyboard.press('Escape');
   await search.blur();
   await search.focus();
@@ -133,5 +144,5 @@ async function verifyPublicAtlasMobile(page) {
     await page.getByRole('button', { name: 'Full Bible', exact: true }).isVisible(),
     'Desktop legend remains visible'
   );
-  return 'PASS: mobile collapse, exclusivity, dismissal, dot default, QR preservation, narrow phone and desktop controls';
+  return 'PASS: language/dialect collection, mobile collapse, exclusivity, dismissal, dot default, QR preservation, narrow phone and desktop controls';
 }

@@ -174,13 +174,15 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
         </button>
       </div>
       <p>
-        {formatCount(index.counts.records)} registry records connect languages, dialects, varieties
-        and people groups. These are not a count of distinct living languages.
+        The main map brings together {formatCount(index.counts.languages)} languages and{' '}
+        {formatCount(index.counts.dialects)} dialects and varieties. These registry records are not a
+        count of distinct living languages.
       </p>
       <p>
         Unknown does not mean no Scripture. Dialect status requires evidence for the exact variety.
-        People-group status refers to its primary language. Mixed clusters use a neutral color.
+        Mixed clusters use a neutral color.
       </p>
+      <p>People-group research is retained for a future, separate map overlay.</p>
       <p>
         Some locations are approximate. Records without a supported placement remain searchable.
       </p>
