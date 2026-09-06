@@ -59,7 +59,7 @@ export function PublicLanguageAtlas() {
   const triggerRef = useRef<HTMLElement | null>(null);
   const skipSearchFocus = useRef(false);
   const [page, setPage] = useState(0);
-  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('individual');
+  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('spread');
   const [projection, setProjection] = useState<AtlasProjection>('globe');
   const [mobile, setMobile] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);

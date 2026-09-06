@@ -7,8 +7,8 @@ collection (languages plus dialects, excluding people groups). The search, recor
 list, filters, hover summaries, and selected profiles operate on research
 records; these counts are not the app's available Bible catalog.
 
-Recorded locations is the default and allows overlap at source positions. Optional
-Spread mode shows one representative point per mapped record and separates
+Spread dots is the default on each fresh page visit. Recorded locations remains
+available and allows overlap at source positions. Spread mode shows one representative point per mapped record and separates
 crowded dots only at regional zoom (5 and above); global views remain unshifted, and Clusters groups those positions while zoomed out. The public
 collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
