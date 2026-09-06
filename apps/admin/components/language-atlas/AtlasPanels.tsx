@@ -79,7 +79,7 @@ export function MapControls({
         </div>
         <p className="la-mode-readout">
           {displayMode === 'spread'
-            ? 'One representative point per mapped record. Dots are spaced for visibility; exact source coordinates are retained.'
+            ? 'One point per mapped record. Overlaps separate only at regional zoom; global views keep their recorded geography.'
             : displayMode === 'individual'
               ? 'Recorded source locations. Co-located records may overlap.'
               : 'Recorded source locations grouped as you zoom out.'}

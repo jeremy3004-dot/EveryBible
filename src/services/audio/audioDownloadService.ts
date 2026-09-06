@@ -488,11 +488,10 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-// Runs a single chapter download with an inactivity timeout (reset whenever bytes arrive) and a
-// small retry-with-backoff loop. onActivity is called by the caller's progress handler; passing a
-// reset function down keeps the timer logic here without leaking timer state into the worker.
+// A transport must settle only after cancellation has stopped its native writer.
+// Waiting for that settlement prevents retries from writing the same path concurrently.
 async function downloadChapterWithInactivityTimeoutAndRetry(
-  run: (onActivity: () => void) => Promise<void>,
+  run: (onActivity: () => boolean, attemptSignal: AbortSignal) => Promise<void>,
   signal: AbortSignal | undefined,
   { inactivityTimeoutMs = AUDIO_DOWNLOAD_INACTIVITY_TIMEOUT_MS } = {}
 ): Promise<void> {
@@ -505,53 +504,55 @@ async function downloadChapterWithInactivityTimeoutAndRetry(
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let timedOut = false;
+    let active = true;
+    const controller = new AbortController();
 
     const clearInactivityTimer = () => {
-      if (timer) {
+      if (timer !== null) {
         clearTimeout(timer);
         timer = null;
       }
     };
 
+    const onAbort = () => {
+      clearInactivityTimer();
+      controller.abort();
+    };
+    signal?.addEventListener('abort', onAbort);
+    const onActivity = () => {
+      if (!active || controller.signal.aborted) return false;
+      clearInactivityTimer();
+      timer = setTimeout(() => {
+        timedOut = true;
+        onAbort();
+      }, inactivityTimeoutMs);
+      return true;
+    };
+
     try {
-      await new Promise<void>((resolve, reject) => {
-        const armTimer = () => {
-          clearInactivityTimer();
-          timer = setTimeout(() => {
-            timedOut = true;
-            reject(new Error('Chapter download stalled (no progress).'));
-          }, inactivityTimeoutMs);
-        };
-
-        armTimer();
-
-        run(armTimer).then(
-          () => {
-            clearInactivityTimer();
-            resolve();
-          },
-          (error) => {
-            clearInactivityTimer();
-            reject(error);
-          }
-        );
-      });
-
+      onActivity();
+      await run(onActivity, controller.signal);
+      if (signal?.aborted) throw new AudioDownloadCancelledError();
+      if (timedOut) throw new Error('Chapter download stalled (no progress).');
       return;
     } catch (error) {
-      clearInactivityTimer();
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Never retry (or swallow) a cancellation.
-      if (lastError instanceof AudioDownloadCancelledError || signal?.aborted) {
+      // A failed native stop leaves the destination unsafe for another writer.
+      if (error instanceof AudioDownloadStopError) throw error;
+      if (signal?.aborted || (!timedOut && isAudioDownloadCancellation(error))) {
         throw new AudioDownloadCancelledError();
       }
-
-      if (attempt < AUDIO_DOWNLOAD_MAX_ATTEMPTS) {
-        await delay(AUDIO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), signal);
-      }
-
-      void timedOut;
+      lastError = timedOut
+        ? new Error('Chapter download stalled (no progress).')
+        : error instanceof Error
+          ? error
+          : new Error(String(error));
+    } finally {
+      active = false;
+      clearInactivityTimer();
+      signal?.removeEventListener('abort', onAbort);
+    }
+    if (attempt < AUDIO_DOWNLOAD_MAX_ATTEMPTS) {
+      await delay(AUDIO_DOWNLOAD_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), signal);
     }
   }
 
@@ -574,17 +575,22 @@ export async function downloadAndValidateAudioFile({
   runDownload: () => Promise<{ status: number }>;
   getFileSize: () => Promise<number>;
   deleteFile: () => Promise<void>;
-  timeoutMs?: number;
+  // Progress-aware transports use the chapter inactivity deadline instead.
+  timeoutMs?: number | null;
   minValidBytes?: number;
 }): Promise<void> {
   let result: { status: number };
   try {
-    result = await withTimeout(
-      runDownload(),
-      timeoutMs,
-      `Download timed out after ${timeoutMs}ms: ${sourceUrl}`
-    );
+    result =
+      timeoutMs === null
+        ? await runDownload()
+        : await withTimeout(
+            runDownload(),
+            timeoutMs,
+            `Download timed out after ${timeoutMs}ms: ${sourceUrl}`
+          );
   } catch (error) {
+    if (isAudioDownloadCancellation(error) || error instanceof AudioDownloadStopError) throw error;
     await deleteFile();
     throw error;
   }
@@ -644,6 +650,13 @@ export class AudioDownloadCancelledError extends Error {
   constructor() {
     super('Audio download was cancelled.');
     this.name = 'AudioDownloadCancelledError';
+  }
+}
+
+export class AudioDownloadStopError extends Error {
+  constructor(error: unknown) {
+    super(`Audio download stop failed: ${error instanceof Error ? error.message : String(error)}`);
+    this.name = 'AudioDownloadStopError';
   }
 }
 
@@ -728,9 +741,8 @@ export async function downloadAudioBook({
     });
   };
 
-  await fileSystem.ensureDirectory(directoryUri);
-
   try {
+    await fileSystem.ensureDirectory(directoryUri);
     await runWithConcurrency(
       chapterTargets,
       DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY,
@@ -743,6 +755,7 @@ export async function downloadAudioBook({
           resolvedRootUri
         );
         if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
+          if (signal.aborted) throw new AudioDownloadCancelledError();
           chapterProgressByNumber.set(target.chapter, 100);
           emitBookProgress(target.chapter);
           return;
@@ -753,26 +766,31 @@ export async function downloadAudioBook({
           throw new Error(`Audio is not available for ${target.bookId} ${target.chapter}`);
         }
 
-        await downloadChapterWithInactivityTimeoutAndRetry(
-          (onActivity) =>
-            activeTransport.downloadFile(remoteAudio.url, fileUri, {
-              jobId: job.id,
-              taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
-              translationId,
-              bookId: target.bookId,
-              chapter: target.chapter,
-              signal,
-              onProgress: ({ bytesDownloaded, bytesTotal }) => {
-                onActivity();
-                const chapterProgress =
-                  bytesTotal > 0 ? clampProgress((bytesDownloaded / bytesTotal) * 100) : 0;
-                chapterProgressByNumber.set(target.chapter, chapterProgress);
-                emitBookProgress(target.chapter);
-              },
-            }),
-          signal
-        );
+        await downloadChapterWithInactivityTimeoutAndRetry(async (onActivity, attemptSignal) => {
+          await activeTransport.downloadFile(remoteAudio.url, fileUri, {
+            jobId: job.id,
+            taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
+            translationId,
+            bookId: target.bookId,
+            chapter: target.chapter,
+            signal: attemptSignal,
+            onProgress: ({ bytesDownloaded, bytesTotal }) => {
+              if (!onActivity()) return;
+              const chapterProgress =
+                bytesTotal > 0
+                  ? Math.min(99, clampProgress((bytesDownloaded / bytesTotal) * 100))
+                  : 0;
+              chapterProgressByNumber.set(target.chapter, chapterProgress);
+              emitBookProgress(target.chapter);
+            },
+          });
+          if (attemptSignal.aborted) throw new AudioDownloadCancelledError();
+          if (fileSystem.getFileSize && !(await isValidDownloadedAudioFile(fileSystem, fileUri))) {
+            throw new Error(`Downloaded audio is missing or incomplete: ${fileUri}`);
+          }
+        }, signal);
 
+        if (signal.aborted) throw new AudioDownloadCancelledError();
         chapterProgressByNumber.set(target.chapter, 100);
         emitBookProgress(target.chapter);
       },

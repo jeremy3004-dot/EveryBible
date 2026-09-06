@@ -1,581 +1,385 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
+import type { DevicePushToken } from 'expo-notifications';
 
-// Mock expo-notifications
-const mockCancelScheduledNotificationAsync = async (_id: string) => {};
-const mockCancelAllScheduledNotificationsAsync = async () => {};
-const mockScheduleNotificationAsync = async (_request: unknown) => 'daily-reading-reminder';
-const mockGetPermissionsAsync = { status: 'undetermined' };
-const mockRequestPermissionsAsync = { status: 'undetermined' };
-const mockSetNotificationHandler = (_handler: unknown) => {};
-const mockSetChannelAsync = async (_id: string, _channel: unknown) => {};
+const compiled = ts.transpileModule(
+  readFileSync(new URL('./notificationService.ts', import.meta.url), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
+).outputText;
 
-const cancelCalls: string[] = [];
-const scheduleCalls: Array<{ identifier: string; content: unknown; trigger: unknown }> = [];
-const permCalls: string[] = [];
-const channelCalls: string[] = [];
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
-const Notifications = {
-  setNotificationHandler: (handler: unknown) => {
-    mockSetNotificationHandler(handler);
-  },
-  cancelScheduledNotificationAsync: async (id: string) => {
-    cancelCalls.push(id);
-    return mockCancelScheduledNotificationAsync(id);
-  },
-  cancelAllScheduledNotificationsAsync: async () => {
-    cancelCalls.push('ALL');
-    return mockCancelAllScheduledNotificationsAsync();
-  },
-  scheduleNotificationAsync: async (request: {
-    identifier?: string;
-    content: unknown;
-    trigger: unknown;
-  }) => {
-    scheduleCalls.push({
-      identifier: request.identifier ?? '',
-      content: request.content,
-      trigger: request.trigger,
-    });
-    return mockScheduleNotificationAsync(request);
-  },
-  getPermissionsAsync: async () => {
-    permCalls.push('get');
-    return mockGetPermissionsAsync;
-  },
-  requestPermissionsAsync: async () => {
-    permCalls.push('request');
-    return mockRequestPermissionsAsync;
-  },
-  setNotificationChannelAsync: async (id: string, channel: unknown) => {
-    channelCalls.push(id);
-    return mockSetChannelAsync(id, channel);
-  },
-  AndroidImportance: {
-    DEFAULT: 3,
-    HIGH: 4,
-  },
-  SchedulableTriggerInputTypes: {
-    DAILY: 'daily',
-  },
-};
+const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+const deviceToken = (data: string): DevicePushToken => ({ type: 'ios', data });
+type DatabaseResult = { error: { message: string } | null };
+type TokenOptions = { projectId: string; baseUrl: string; devicePushToken?: DevicePushToken };
+type DeviceWrite = { user_id: string; push_token: string; is_active: boolean; platform: string };
 
-// Mock i18next
-const i18n = {
-  t: (key: string) => key,
-};
+function notificationHarness() {
+  const api = {} as typeof import('./notificationService');
+  const platform = { OS: 'ios' };
+  const auth = { user: { uid: 'user-a' } as { uid: string } | null, authGeneration: 0 };
+  const permission = { current: 'granted', requested: 'granted' };
+  const permissionCalls: string[] = [];
+  const cancellations: string[] = [];
+  const schedules: Array<Record<string, unknown>> = [];
+  const channels: Array<{ id: string; options: Record<string, unknown> }> = [];
+  const autoRegistration: boolean[] = [];
+  const tokenCalls: TokenOptions[] = [];
+  const upserts: Array<{ table: string; row: DeviceWrite; options: Record<string, unknown> }> = [];
+  const updates: Array<{
+    table: string;
+    row: Record<string, unknown>;
+    filters: Record<string, string>;
+  }> = [];
+  let getToken: (options: TokenOptions) => Promise<{ data: string }> = async () => ({
+    data: 'expo-token',
+  });
+  let upsert: (row: DeviceWrite) => Promise<DatabaseResult> = async () => ({ error: null });
+  let update: () => Promise<DatabaseResult> = async () => ({ error: null });
 
-// Mock Platform
-const Platform = {
-  OS: 'android',
-};
-
-// Inject mocks before importing the service
-// Since we can't dynamically override imports in node:test, we test the logic directly
-
-// --- Direct unit tests for the notification service logic ---
-
-function scheduleDailyReminder(
-  hour: number,
-  minute: number,
-  notifs: typeof Notifications,
-  i18nMock: typeof i18n
-) {
-  return async () => {
-    await notifs.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
-    await notifs.scheduleNotificationAsync({
-      identifier: 'daily-reading-reminder',
-      content: {
-        title: i18nMock.t('settings.notificationTitle'),
-        body: i18nMock.t('settings.notificationBody'),
-        sound: true,
-      },
-      trigger: {
-        type: notifs.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
-        channelId: 'daily-reminder',
-      },
-    });
+  runInNewContext(compiled, {
+    exports: api,
+    require: (name: string) => {
+      if (name === 'react-native') return { Platform: platform };
+      if (name === '../../stores/authStore') return { useAuthStore: { getState: () => auth } };
+      if (name === 'expo-constants')
+        return { default: { expoConfig: { extra: { eas: { projectId: 'project-id' } } } } };
+      if (name === '../../i18n') return { default: { t: (key: string) => key } };
+      if (name === './notificationBootstrap') return { setupNotificationHandler: () => {} };
+      if (name === 'expo-notifications')
+        return {
+          AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+          SchedulableTriggerInputTypes: { DAILY: 'daily' },
+          getPermissionsAsync: async () => {
+            permissionCalls.push('get');
+            return { status: permission.current };
+          },
+          requestPermissionsAsync: async () => {
+            permissionCalls.push('request');
+            return { status: permission.requested };
+          },
+          setAutoServerRegistrationEnabledAsync: async (enabled: boolean) => {
+            autoRegistration.push(enabled);
+          },
+          getExpoPushTokenAsync: (options: TokenOptions) => {
+            tokenCalls.push(options);
+            return getToken(options);
+          },
+          cancelScheduledNotificationAsync: async (id: string) => {
+            cancellations.push(id);
+          },
+          scheduleNotificationAsync: async (request: Record<string, unknown>) => {
+            schedules.push(request);
+          },
+          setNotificationChannelAsync: async (id: string, options: Record<string, unknown>) => {
+            channels.push({ id, options });
+          },
+        };
+      if (name === '../supabase')
+        return {
+          supabase: {
+            from: (table: string) => ({
+              upsert: (row: DeviceWrite, options: Record<string, unknown>) => {
+                upserts.push({ table, row, options });
+                return upsert(row);
+              },
+              update: (row: Record<string, unknown>) => ({
+                eq: (first: string, firstValue: string) => ({
+                  eq: (second: string, secondValue: string) => {
+                    updates.push({
+                      table,
+                      row,
+                      filters: { [first]: firstValue, [second]: secondValue },
+                    });
+                    return update();
+                  },
+                }),
+              }),
+            }),
+          },
+        };
+      throw new Error(`Unexpected dependency: ${name}`);
+    },
+  });
+  return {
+    api,
+    platform,
+    permission,
+    permissionCalls,
+    cancellations,
+    schedules,
+    channels,
+    autoRegistration,
+    tokenCalls,
+    upserts,
+    updates,
+    setUser: (uid: string | null) => {
+      auth.user = uid ? { uid } : null;
+      auth.authGeneration++;
+    },
+    setGetToken: (fn: typeof getToken) => {
+      getToken = fn;
+    },
+    setUpsert: (fn: typeof upsert) => {
+      upsert = fn;
+    },
+    setUpdate: (fn: typeof update) => {
+      update = fn;
+    },
   };
 }
 
-function cancelDailyReminder(notifs: typeof Notifications) {
-  return async () => {
-    await notifs.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
-  };
-}
-
-function requestNotificationPermissions(notifs: typeof Notifications) {
-  return async () => {
-    const { status: existingStatus } = await notifs.getPermissionsAsync();
-    if (existingStatus === 'granted') {
-      return true;
-    }
-    const { status } = await notifs.requestPermissionsAsync();
-    return status === 'granted';
-  };
-}
-
-function setupAndroidChannels(notifs: typeof Notifications, platformMock: typeof Platform) {
-  return async () => {
-    if (platformMock.OS !== 'android') {
-      return;
-    }
-    await notifs.setNotificationChannelAsync('daily-reminder', {
-      name: i18n.t('notifications.channelDailyReminder'),
-      importance: notifs.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
-    await notifs.setNotificationChannelAsync('group-alerts', {
-      name: i18n.t('notifications.channelGroupAlerts'),
-      importance: notifs.AndroidImportance.HIGH,
-      sound: 'default',
-    });
-  };
-}
-
-// --- Tests ---
-
-test('scheduleDailyReminder cancels daily-reading-reminder then schedules with stable identifier', async () => {
-  cancelCalls.length = 0;
-  scheduleCalls.length = 0;
-
-  await scheduleDailyReminder(8, 30, Notifications, i18n)();
-
-  assert.equal(cancelCalls[0], 'daily-reading-reminder', 'should cancel stable identifier first');
-  assert.ok(!cancelCalls.includes('ALL'), 'should NOT call cancelAll');
-  assert.equal(scheduleCalls.length, 1, 'should schedule exactly once');
-  assert.equal(scheduleCalls[0]?.identifier, 'daily-reading-reminder', 'identifier must be stable');
-  const trigger = scheduleCalls[0]?.trigger as { type: string; hour: number; minute: number };
-  assert.equal(trigger.type, 'daily', 'trigger type must be DAILY');
-  assert.equal(trigger.hour, 8, 'hour must match');
-  assert.equal(trigger.minute, 30, 'minute must match');
+test('daily reminders use a stable identifier and preserve unrelated schedules', async () => {
+  const h = notificationHarness();
+  await h.api.scheduleDailyReminder(8, 30);
+  await h.api.cancelDailyReminder();
+  assert.deepEqual(h.cancellations, ['daily-reading-reminder', 'daily-reading-reminder']);
+  assert.equal(h.schedules.length, 1);
+  const schedule = h.schedules[0];
+  assert.equal(schedule.identifier, 'daily-reading-reminder');
+  assert.deepEqual(JSON.parse(JSON.stringify(schedule.trigger)), {
+    type: 'daily',
+    hour: 8,
+    minute: 30,
+    channelId: 'daily-reminder',
+  });
+  assert.equal((schedule.content as { title: string }).title, 'settings.notificationTitle');
 });
 
-test('cancelDailyReminder calls cancelScheduledNotificationAsync with daily-reading-reminder only', async () => {
-  cancelCalls.length = 0;
-
-  await cancelDailyReminder(Notifications)();
-
-  assert.equal(cancelCalls.length, 1, 'should cancel exactly once');
-  assert.equal(cancelCalls[0], 'daily-reading-reminder', 'must cancel stable identifier');
-  assert.ok(!cancelCalls.includes('ALL'), 'must NOT cancel all notifications');
+test('permissions reuse a grant and otherwise return the requested permission result', async () => {
+  const h = notificationHarness();
+  assert.equal(await h.api.requestNotificationPermissions(), true);
+  assert.deepEqual(h.permissionCalls, ['get']);
+  h.permission.current = 'undetermined';
+  assert.equal(await h.api.requestNotificationPermissions(), true);
+  h.permission.requested = 'denied';
+  assert.equal(await h.api.requestNotificationPermissions(), false);
+  assert.deepEqual(h.permissionCalls, ['get', 'get', 'request', 'get', 'request']);
 });
 
-test('requestNotificationPermissions returns true when already granted (no requestPermissionsAsync call)', async () => {
-  permCalls.length = 0;
-  mockGetPermissionsAsync.status = 'granted';
-
-  const result = await requestNotificationPermissions(Notifications)();
-
-  assert.equal(result, true, 'should return true when already granted');
-  assert.ok(
-    !permCalls.includes('request'),
-    'should NOT call requestPermissionsAsync when already granted'
+test('Android channels retain their translated names and importance and skip iOS', async () => {
+  const h = notificationHarness();
+  await h.api.setupAndroidChannels();
+  assert.equal(h.channels.length, 0);
+  h.platform.OS = 'android';
+  await h.api.setupAndroidChannels();
+  assert.deepEqual(
+    h.channels.map(({ id, options }) => [id, options.name, options.importance]),
+    [
+      ['daily-reminder', 'notifications.channelDailyReminder', 3],
+      ['group-alerts', 'notifications.channelGroupAlerts', 4],
+    ]
   );
 });
 
-test('requestNotificationPermissions calls requestPermissionsAsync when undetermined, returns true on granted', async () => {
-  permCalls.length = 0;
-  mockGetPermissionsAsync.status = 'undetermined';
-  mockRequestPermissionsAsync.status = 'granted';
-
-  const result = await requestNotificationPermissions(Notifications)();
-
-  assert.equal(result, true, 'should return true when granted after request');
-  assert.ok(permCalls.includes('request'), 'should call requestPermissionsAsync');
+test('registration forwards the native token, disables auto registration and caches a successful upsert', async () => {
+  const h = notificationHarness();
+  const token = deviceToken('native-token');
+  assert.equal(await h.api.registerPushToken('user-a', token), 'expo-token');
+  assert.deepEqual(h.autoRegistration, [false]);
+  assert.equal(h.tokenCalls[0].projectId, 'project-id');
+  assert.equal(h.tokenCalls[0].baseUrl, 'https://exp.host/--/api/v2/');
+  assert.equal(h.tokenCalls[0].devicePushToken, token);
+  assert.equal(h.upserts[0].table, 'user_devices');
+  assert.equal(h.upserts[0].row.user_id, 'user-a');
+  assert.equal(h.upserts[0].row.push_token, 'expo-token');
+  assert.equal(h.upserts[0].row.platform, 'ios');
+  assert.equal(h.upserts[0].row.is_active, true);
+  assert.equal(h.upserts[0].options.onConflict, 'user_id,push_token');
+  assert.equal(h.api.getCachedPushToken(), 'expo-token');
+  assert.equal(await h.api.registerPushToken('user-a', token), 'expo-token');
+  assert.equal(h.upserts.length, 1);
 });
 
-test('requestNotificationPermissions returns false when final status is denied', async () => {
-  permCalls.length = 0;
-  mockGetPermissionsAsync.status = 'undetermined';
-  mockRequestPermissionsAsync.status = 'denied';
-
-  const result = await requestNotificationPermissions(Notifications)();
-
-  assert.equal(result, false, 'should return false when denied');
+test('concurrent requests for the same user and device token share one registration', async () => {
+  const h = notificationHarness();
+  const native = deferred<{ data: string }>();
+  h.setGetToken(() => native.promise);
+  const first = h.api.registerPushToken('user-a', deviceToken('native-token'));
+  const second = h.api.registerPushToken('user-a', deviceToken('native-token'));
+  await settle();
+  assert.equal(h.tokenCalls.length, 1);
+  native.resolve({ data: 'expo-token' });
+  assert.deepEqual(await Promise.all([first, second]), ['expo-token', 'expo-token']);
+  assert.equal(h.upserts.length, 1);
 });
 
-test('setupAndroidChannels creates daily-reminder and group-alerts on Android, skips on iOS', async () => {
-  channelCalls.length = 0;
-
-  // Android
-  Platform.OS = 'android';
-  await setupAndroidChannels(Notifications, Platform)();
-  assert.ok(
-    channelCalls.includes('daily-reminder'),
-    'should create daily-reminder channel on Android'
-  );
-  assert.ok(channelCalls.includes('group-alerts'), 'should create group-alerts channel on Android');
-
-  // iOS
-  channelCalls.length = 0;
-  const iosPlatform = { OS: 'ios' };
-  await setupAndroidChannels(Notifications, iosPlatform)();
-  assert.equal(channelCalls.length, 0, 'should NOT create channels on iOS');
-});
-
-// --- Push token registration tests ---
-
-// Mock state for push token tests
-const upsertCalls: Array<{
-  table: string;
-  data: Record<string, unknown>;
-  options?: Record<string, unknown>;
-}> = [];
-const autoServerRegistrationCalls: boolean[] = [];
-const getExpoPushTokenCalls: Array<Record<string, unknown>> = [];
-const updateCalls: Array<{
-  table: string;
-  data: Record<string, unknown>;
-  filters: Record<string, string>;
-}> = [];
-let mockTokenResult: { data: string } | null = { data: 'ExponentPushToken[test-token-123]' };
-let mockPermissionStatus = 'granted';
-let mockUpsertError: { message: string } | null = null;
-type DevicePushToken = { type: string; data: string | Record<string, unknown> };
-
-const NotificationsWithToken = {
-  ...Notifications,
-  getPermissionsAsync: async () => {
-    permCalls.push('get');
-    return { status: mockPermissionStatus };
-  },
-  setAutoServerRegistrationEnabledAsync: async (enabled: boolean) => {
-    autoServerRegistrationCalls.push(enabled);
-  },
-  getExpoPushTokenAsync: async (opts: {
-    projectId: string;
-    baseUrl: string;
-    devicePushToken?: DevicePushToken;
-  }) => {
-    getExpoPushTokenCalls.push(opts);
-    if (!mockTokenResult) {
-      throw new Error('getExpoPushTokenAsync failed (simulator)');
-    }
-    return mockTokenResult;
-  },
-};
-
-const mockSupabaseClient = {
-  from: (table: string) => ({
-    upsert: (data: Record<string, unknown>, options?: Record<string, unknown>) => {
-      upsertCalls.push({ table, data, options });
-      return Promise.resolve({ error: mockUpsertError });
-    },
-    update: (data: Record<string, unknown>) => ({
-      eq: (col1: string, val1: string) => ({
-        eq: (col2: string, val2: string) => {
-          updateCalls.push({ table, data, filters: { [col1]: val1, [col2]: val2 } });
-          return Promise.resolve({ error: null });
-        },
-      }),
-    }),
-  }),
-};
-
-const mockConstants = {
-  expoConfig: {
-    extra: {
-      eas: { projectId: 'cfbf2bac-d680-448f-b2aa-33c4c01ad15b' },
-    },
-  },
-};
-
-const mockPlatformIos = { OS: 'ios' };
-
-// Inline implementations of the functions under test (mirrors service logic)
-let cachedToken: string | null = null;
-let registerPushTokenInFlight: Promise<string | null> | null = null;
-let lastRegisteredUserId: string | null = null;
-let lastRegisteredDevicePushTokenKey: string | null = null;
-const EXPO_NOTIFICATIONS_BASE_URL = 'https://exp.host/--/api/v2/';
-
-function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null {
-  if (!devicePushToken) {
-    return null;
-  }
-
-  return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
+for (const change of ['account', 'device token'] as const) {
+  test(`a newer ${change} registration is not replaced by an older native token result`, async () => {
+    const h = notificationHarness();
+    const oldToken = deferred<{ data: string }>();
+    h.setGetToken(() =>
+      h.tokenCalls.length === 1 ? oldToken.promise : Promise.resolve({ data: 'new-expo' })
+    );
+    const old = h.api.registerPushToken('user-a', deviceToken('old-native'));
+    await settle();
+    const nextUser = change === 'account' ? 'user-b' : 'user-a';
+    if (change === 'account') h.setUser(nextUser);
+    const newer = h.api.registerPushToken(nextUser, deviceToken('new-native'));
+    await settle();
+    assert.equal(
+      h.tokenCalls.length,
+      2,
+      'different registration identities require separate native requests'
+    );
+    assert.equal(await newer, 'new-expo');
+    oldToken.resolve({ data: 'old-expo' });
+    assert.equal(await old, null);
+    assert.equal(h.api.getCachedPushToken(), 'new-expo');
+    assert.deepEqual(
+      h.upserts.map(({ row }) => [row.user_id, row.push_token]),
+      [[nextUser, 'new-expo']]
+    );
+  });
 }
 
-async function registerPushToken(
-  userId: string,
-  notifs: typeof NotificationsWithToken,
-  supabaseClient: typeof mockSupabaseClient,
-  constants: typeof mockConstants,
-  platformMock: { OS: string },
-  devicePushToken?: DevicePushToken
-): Promise<string | null> {
-  const devicePushTokenKey = getDevicePushTokenKey(devicePushToken);
-  const canReuseCachedRegistration =
-    cachedToken &&
-    lastRegisteredUserId === userId &&
-    (!devicePushToken || lastRegisteredDevicePushTokenKey === devicePushTokenKey);
+test('signout invalidates a pending native request without waiting for it or requiring a cached token', async () => {
+  const h = notificationHarness();
+  const native = deferred<{ data: string }>();
+  h.setGetToken(() => native.promise);
+  const registration = h.api.registerPushToken('user-a');
+  await settle();
+  let deactivated = false;
+  const deactivation = h.api.deactivatePushToken('user-a').then(() => {
+    deactivated = true;
+  });
+  await settle();
+  assert.equal(deactivated, true, 'signout must not wait for native token acquisition');
+  native.resolve({ data: 'late-expo' });
+  assert.equal(await registration, null);
+  await deactivation;
+  assert.equal(h.upserts.length, 0, 'signed-out user must never be reactivated');
+  assert.equal(h.api.getCachedPushToken(), null);
+});
 
-  if (canReuseCachedRegistration) {
-    return cachedToken;
-  }
+test('signout waits for a started database write and its inactive cleanup', async () => {
+  const h = notificationHarness();
+  const write = deferred<DatabaseResult>();
+  const cleanup = deferred<DatabaseResult>();
+  h.setUpsert(() => write.promise);
+  h.setUpdate(() => cleanup.promise);
+  const registration = h.api.registerPushToken('user-a');
+  await settle();
+  assert.equal(h.upserts.length, 1);
+  let deactivated = false;
+  const deactivation = h.api.deactivatePushToken('user-a').then(() => {
+    deactivated = true;
+  });
+  await settle();
+  assert.equal(
+    deactivated,
+    false,
+    'credentials must remain available until the started write is cleaned up'
+  );
+  write.resolve({ error: null });
+  await settle();
+  assert.equal(h.updates.length, 1);
+  assert.deepEqual(h.updates[0].filters, { user_id: 'user-a', push_token: 'expo-token' });
+  assert.equal(h.updates[0].row.is_active, false);
+  assert.equal(deactivated, false, 'signout must also await the inactive update');
+  cleanup.resolve({ error: null });
+  await deactivation;
+  assert.equal(await registration, null);
+  assert.equal(h.api.getCachedPushToken(), null);
+});
 
-  if (registerPushTokenInFlight) {
-    return registerPushTokenInFlight;
-  }
+test('delayed deactivation for an old account cannot clear a new account cache', async () => {
+  const h = notificationHarness();
+  await h.api.registerPushToken('user-a');
+  const cleanup = deferred<DatabaseResult>();
+  h.setUpdate(() => cleanup.promise);
+  const deactivation = h.api.deactivatePushToken('user-a');
+  assert.equal(
+    h.api.getCachedPushToken(),
+    null,
+    'old cache is invalidated before awaiting the server'
+  );
+  h.setGetToken(async () => ({ data: 'new-expo' }));
+  h.setUser('user-b');
+  assert.equal(await h.api.registerPushToken('user-b'), 'new-expo');
+  cleanup.resolve({ error: null });
+  await deactivation;
+  assert.equal(h.api.getCachedPushToken(), 'new-expo');
+  assert.deepEqual(h.updates[0].filters, { user_id: 'user-a', push_token: 'expo-token' });
+});
 
-  registerPushTokenInFlight = (async () => {
-    try {
-      const projectId = constants.expoConfig?.extra?.eas?.projectId as string;
-      if (!projectId) return null;
+test('deactivating another user leaves the current cache and pending registration intact', async () => {
+  const h = notificationHarness();
+  h.setUser('user-b');
+  await h.api.registerPushToken('user-b');
+  await h.api.deactivatePushToken('user-a');
+  assert.equal(h.api.getCachedPushToken(), 'expo-token');
+  assert.equal(h.updates.length, 0);
+});
 
-      const { status } = await notifs.getPermissionsAsync();
-      if (status !== 'granted') return null;
-
-      await notifs.setAutoServerRegistrationEnabledAsync(false);
-
-      const tokenResult = await notifs.getExpoPushTokenAsync({
-        projectId,
-        baseUrl: EXPO_NOTIFICATIONS_BASE_URL,
-        devicePushToken,
+for (const failure of ['permission', 'native', 'database'] as const) {
+  test(`registration remains non-fatal on ${failure} failure and never caches a failed token`, async () => {
+    const h = notificationHarness();
+    if (failure === 'permission') h.permission.current = 'denied';
+    if (failure === 'native')
+      h.setGetToken(async () => {
+        throw new Error('Simulator');
       });
-
-      const platform: 'ios' | 'android' = platformMock.OS === 'ios' ? 'ios' : 'android';
-      const { error } = await supabaseClient.from('user_devices').upsert(
-        {
-          user_id: userId,
-          push_token: tokenResult.data,
-          platform,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,push_token' }
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      cachedToken = tokenResult.data;
-      lastRegisteredUserId = userId;
-      lastRegisteredDevicePushTokenKey = devicePushTokenKey;
-      return tokenResult.data;
-    } catch {
-      return null;
-    } finally {
-      registerPushTokenInFlight = null;
-    }
-  })();
-
-  return registerPushTokenInFlight;
+    if (failure === 'database') h.setUpsert(async () => ({ error: { message: 'RLS denied' } }));
+    assert.equal(await h.api.registerPushToken('user-a'), null);
+    assert.equal(h.api.getCachedPushToken(), null);
+    assert.equal(h.upserts.length, failure === 'database' ? 1 : 0);
+  });
 }
 
-async function deactivatePushToken(
-  userId: string,
-  supabaseClient: typeof mockSupabaseClient
-): Promise<void> {
-  try {
-    if (!cachedToken) return;
-    await supabaseClient
-      .from('user_devices')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('push_token', cachedToken);
-    cachedToken = null;
-    lastRegisteredUserId = null;
-    lastRegisteredDevicePushTokenKey = null;
-  } catch {
-    // Non-fatal
-  }
-}
+test('signout blocks new callbacks for the invalidated auth generation but allows a fresh login', async () => {
+  const h = notificationHarness();
+  await h.api.deactivatePushToken('user-a');
+  assert.equal(await h.api.registerPushToken('user-a'), null);
+  assert.equal(h.tokenCalls.length, 0);
+  h.setUser(null);
+  h.setUser('user-a');
+  assert.equal(await h.api.registerPushToken('user-a'), 'expo-token');
+});
 
-test('registerPushToken calls getExpoPushTokenAsync with projectId and upserts to user_devices', async () => {
-  upsertCalls.length = 0;
-  autoServerRegistrationCalls.length = 0;
-  getExpoPushTokenCalls.length = 0;
-  cachedToken = null;
-  registerPushTokenInFlight = null;
-  lastRegisteredUserId = null;
-  lastRegisteredDevicePushTokenKey = null;
-  mockTokenResult = { data: 'ExponentPushToken[test-token-123]' };
-  mockPermissionStatus = 'granted';
-  mockUpsertError = null;
+test('registration rejects a stale account even before native work starts', async () => {
+  const h = notificationHarness();
+  h.setUser('user-b');
+  assert.equal(await h.api.registerPushToken('user-a'), null);
+  assert.equal(h.tokenCalls.length, 0);
+});
 
-  const result = await registerPushToken(
-    'user-abc-123',
-    NotificationsWithToken,
-    mockSupabaseClient,
-    mockConstants,
-    mockPlatformIos
+test('a newer token waits for superseded database cleanup before activating the same Expo token', async () => {
+  const h = notificationHarness();
+  const firstWrite = deferred<DatabaseResult>();
+  const firstCleanup = deferred<DatabaseResult>();
+  h.setUpsert(() =>
+    h.upserts.length === 1 ? firstWrite.promise : Promise.resolve({ error: null })
   );
-
-  assert.equal(result, 'ExponentPushToken[test-token-123]', 'should return the token');
-  assert.deepEqual(
-    autoServerRegistrationCalls,
-    [false],
-    'should disable Expo auto server registration before syncing the token'
-  );
-  assert.equal(getExpoPushTokenCalls.length, 1, 'should fetch an Expo push token exactly once');
+  h.setUpdate(() => firstCleanup.promise);
+  const old = h.api.registerPushToken('user-a', deviceToken('old-native'));
+  await settle();
+  const newer = h.api.registerPushToken('user-a', deviceToken('new-native'));
+  await settle();
+  assert.equal(h.tokenCalls.length, 2);
+  assert.equal(h.upserts.length, 1);
+  firstWrite.resolve({ error: null });
+  await settle();
+  assert.equal(h.updates.length, 1);
   assert.equal(
-    getExpoPushTokenCalls[0]?.['baseUrl'],
-    EXPO_NOTIFICATIONS_BASE_URL,
-    'should pass an explicit Expo notifications baseUrl'
+    h.upserts.length,
+    1,
+    'new active write must follow cleanup, even if Expo returns the same token'
   );
-  assert.equal(upsertCalls.length, 1, 'should upsert exactly once');
-  assert.equal(upsertCalls[0]?.table, 'user_devices', 'should upsert into user_devices');
-  const upserted = upsertCalls[0]?.data ?? {};
-  assert.equal(upserted['user_id'], 'user-abc-123', 'user_id must match');
-  assert.equal(
-    upserted['push_token'],
-    'ExponentPushToken[test-token-123]',
-    'push_token must match token'
-  );
-  assert.equal(upserted['platform'], 'ios', 'platform must be ios on iOS');
-  assert.equal(upserted['is_active'], true, 'is_active must be true');
-  assert.equal(
-    upsertCalls[0]?.options?.['onConflict'],
-    'user_id,push_token',
-    'onConflict must be user_id,push_token'
-  );
-});
-
-test('registerPushToken catches and suppresses getExpoPushTokenAsync errors (simulator scenario)', async () => {
-  upsertCalls.length = 0;
-  autoServerRegistrationCalls.length = 0;
-  getExpoPushTokenCalls.length = 0;
-  cachedToken = null;
-  registerPushTokenInFlight = null;
-  lastRegisteredUserId = null;
-  lastRegisteredDevicePushTokenKey = null;
-  mockTokenResult = null; // will throw
-  mockPermissionStatus = 'granted';
-
-  let threw = false;
-  let result: string | null = null;
-  try {
-    result = await registerPushToken(
-      'user-abc-123',
-      NotificationsWithToken,
-      mockSupabaseClient,
-      mockConstants,
-      mockPlatformIos
-    );
-  } catch {
-    threw = true;
-  }
-
-  assert.equal(threw, false, 'should NOT throw when getExpoPushTokenAsync fails');
-  assert.equal(result, null, 'should return null on error');
-  assert.equal(upsertCalls.length, 0, 'should NOT upsert when token fetch fails');
-});
-
-test('registerPushToken catches and suppresses Supabase upsert errors without throwing', async () => {
-  upsertCalls.length = 0;
-  autoServerRegistrationCalls.length = 0;
-  getExpoPushTokenCalls.length = 0;
-  cachedToken = null;
-  registerPushTokenInFlight = null;
-  lastRegisteredUserId = null;
-  lastRegisteredDevicePushTokenKey = null;
-  mockTokenResult = { data: 'ExponentPushToken[test-token-456]' };
-  mockPermissionStatus = 'granted';
-  mockUpsertError = { message: 'RLS violation' };
-
-  let threw = false;
-  let result: string | null = null;
-  try {
-    result = await registerPushToken(
-      'user-abc-123',
-      NotificationsWithToken,
-      mockSupabaseClient,
-      mockConstants,
-      mockPlatformIos
-    );
-  } catch {
-    threw = true;
-  }
-
-  assert.equal(threw, false, 'should NOT throw when upsert fails');
-  assert.equal(result, null, 'should return null when the backend upsert fails');
-  assert.equal(upsertCalls.length, 1, 'should have attempted the upsert');
-  assert.equal(cachedToken, null, 'should not cache a token that failed to sync');
-});
-
-test('registerPushToken forwards a listener-provided devicePushToken to Expo', async () => {
-  upsertCalls.length = 0;
-  autoServerRegistrationCalls.length = 0;
-  getExpoPushTokenCalls.length = 0;
-  cachedToken = null;
-  registerPushTokenInFlight = null;
-  lastRegisteredUserId = null;
-  lastRegisteredDevicePushTokenKey = null;
-  mockTokenResult = { data: 'ExponentPushToken[test-token-789]' };
-  mockPermissionStatus = 'granted';
-  mockUpsertError = null;
-  const devicePushToken = { type: 'ios', data: 'apns-device-token-1' };
-
-  const result = await registerPushToken(
-    'user-abc-123',
-    NotificationsWithToken,
-    mockSupabaseClient,
-    mockConstants,
-    mockPlatformIos,
-    devicePushToken
-  );
-
-  assert.equal(result, 'ExponentPushToken[test-token-789]', 'should return the synced Expo token');
-  assert.deepEqual(
-    getExpoPushTokenCalls[0]?.['devicePushToken'],
-    devicePushToken,
-    'should pass the refreshed devicePushToken through to Expo'
-  );
-});
-
-test('registerPushToken reuses the cached token for the same user after a successful sync', async () => {
-  upsertCalls.length = 0;
-  autoServerRegistrationCalls.length = 0;
-  getExpoPushTokenCalls.length = 0;
-  cachedToken = null;
-  registerPushTokenInFlight = null;
-  lastRegisteredUserId = null;
-  lastRegisteredDevicePushTokenKey = null;
-  mockTokenResult = { data: 'ExponentPushToken[test-token-repeat]' };
-  mockPermissionStatus = 'granted';
-  mockUpsertError = null;
-
-  const first = await registerPushToken(
-    'user-repeat',
-    NotificationsWithToken,
-    mockSupabaseClient,
-    mockConstants,
-    mockPlatformIos
-  );
-  const second = await registerPushToken(
-    'user-repeat',
-    NotificationsWithToken,
-    mockSupabaseClient,
-    mockConstants,
-    mockPlatformIos
-  );
-
-  assert.equal(first, 'ExponentPushToken[test-token-repeat]', 'first registration should succeed');
-  assert.equal(second, 'ExponentPushToken[test-token-repeat]', 'second registration should reuse the cached token');
-  assert.equal(getExpoPushTokenCalls.length, 1, 'should not fetch a second Expo token for the same user');
-  assert.equal(upsertCalls.length, 1, 'should not upsert the same token twice for the same user');
-});
-
-test('deactivatePushToken calls update with is_active=false filtered by user_id and push_token', async () => {
-  updateCalls.length = 0;
-  cachedToken = 'ExponentPushToken[test-token-999]';
-
-  await deactivatePushToken('user-xyz-789', mockSupabaseClient);
-
-  assert.equal(updateCalls.length, 1, 'should update exactly once');
-  assert.equal(updateCalls[0]?.table, 'user_devices', 'should update user_devices table');
-  assert.equal(updateCalls[0]?.data?.['is_active'], false, 'is_active must be false');
-  assert.equal(updateCalls[0]?.filters?.['user_id'], 'user-xyz-789', 'filter must include user_id');
-  assert.equal(
-    updateCalls[0]?.filters?.['push_token'],
-    'ExponentPushToken[test-token-999]',
-    'filter must include push_token'
-  );
-  assert.equal(cachedToken, null, 'cachedToken must be cleared after deactivation');
+  firstCleanup.resolve({ error: null });
+  assert.equal(await old, null);
+  assert.equal(await newer, 'expo-token');
+  assert.equal(h.upserts.length, 2);
+  assert.equal(h.api.getCachedPushToken(), 'expo-token');
 });

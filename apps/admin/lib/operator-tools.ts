@@ -56,7 +56,7 @@ export const OPERATOR_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   {
     name: 'get_health_snapshot',
     description:
-      'Current operational health: dashboard summary counts (failed syncs, live verse-of-day, live images, support users, translation catalog size) plus the active health issues with severity.',
+      'Current operational health: dashboard summary counts (failed syncs, chapter feedback, support users, translation catalog size) plus the active health issues with severity.',
     parameters: { type: 'object', properties: {} },
   },
   {
@@ -146,8 +146,6 @@ export const OPERATOR_TOOL_EXECUTORS: Record<string, ToolExecutor> = {
         adminPathCount: summary.adminPathCount,
         failedSyncCount: summary.failedSyncCount,
         feedbackCount: summary.feedbackCount,
-        liveImageCount: summary.liveImageCount,
-        liveVerseCount: summary.liveVerseCount,
         supportUserCount: summary.supportUserCount,
         translationCount: summary.translationCount,
       },

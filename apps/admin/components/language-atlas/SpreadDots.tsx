@@ -18,7 +18,7 @@ import { normalizeAdminTheme } from '../../lib/theme';
 import type { AtlasRecord } from '../../lib/language-atlas/types';
 import { ATLAS_BASEMAP_COLORS } from './map-rendering';
 import {
-  layoutSpreadPoints,
+  layoutSpreadPointsAtZoom,
   nearestSpreadPoint,
   projectSpreadPoints,
   representativePoints,
@@ -31,19 +31,25 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   inset: { left: number; bottom: number };
+  showHoverSummary?: boolean;
 }
 
 /** Screen-space presentation; all source coordinates and map camera targets stay intact. */
-export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props) {
+export function SpreadDots({ map, records, selectedId, onSelect, inset, showHoverSummary = true }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const points = useMemo(() => representativePoints(records), [records]);
   const selectedRef = useRef(selectedId);
   const selectRef = useRef(onSelect);
+  const hoverSummaryRef = useRef(showHoverSummary);
   const repaint = useRef<() => void>(() => {});
   const [visibleCount, setVisibleCount] = useState(0);
+  const [separating, setSeparating] = useState(false);
   useEffect(() => {
     selectRef.current = onSelect;
   }, [onSelect]);
+  useEffect(() => {
+    hoverSummaryRef.current = showHoverSummary;
+  }, [showHoverSummary]);
 
   useEffect(() => {
     selectedRef.current = selectedId;
@@ -78,6 +84,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
     let alive = true;
     let lastFrame = 0;
     let lastView = '';
+    let wasSeparating = false;
     const viewKey = () => {
       // Projection probes include animated globe/flat transitions while stationary.
       const a = map.project([0, 0]);
@@ -104,6 +111,10 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
       lastFrame = now;
       lastView = viewKey();
       const started = performance.now();
+      const separate = map.getZoom() >= 5;
+      if (separate !== wasSeparating) dirtyLayout = true;
+      wasSeparating = separate;
+      setSeparating(separate);
       const { width, height } = map.getCanvas().getBoundingClientRect();
       const pixelRatio = window.devicePixelRatio || 1;
       if (
@@ -128,8 +139,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
         height
       );
       if (dirtyLayout) {
-        const spacing = Math.min(8.5, 2.3 + Math.max(0, map.getZoom() - 2) * 1.15);
-        displayed = layoutSpreadPoints(anchors, width, height, spacing);
+        displayed = layoutSpreadPointsAtZoom(anchors, width, height, map.getZoom());
         offsets = new Map(
           displayed.map((point) => [
             point.id,
@@ -214,6 +224,10 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
       if (hovered === hit.id) return;
       hovered = hit.id;
       map.getCanvas().style.cursor = 'pointer';
+      if (!hoverSummaryRef.current) {
+        request();
+        return;
+      }
       const { record, location } = byId.get(hit.id)!;
       const node = document.createElement('div');
       const title = document.createElement('strong');
@@ -223,7 +237,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
       const bio = document.createElement('p');
       bio.textContent = record.summary;
       const position = document.createElement('small');
-      position.textContent = `Spaced for visibility · ${PRECISION_LABELS[location.precision]}. Reference: ${location.latitude.toFixed(3)}°, ${location.longitude.toFixed(3)}°.`;
+      position.textContent = `${wasSeparating ? 'Spaced for visibility' : 'Recorded reference location'} · ${PRECISION_LABELS[location.precision]}. Reference: ${location.latitude.toFixed(3)}°, ${location.longitude.toFixed(3)}°.`;
       node.append(title, status, bio, position);
       popup
         .setLngLat([location.longitude, location.latitude])
@@ -304,7 +318,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset }: Props)
       >
         <strong>{formatCount(visibleCount)} records in view</strong>
         <br />
-        One dot per record · Spaced for visibility
+        {separating ? 'One dot per record · Spaced for visibility' : 'Overlaps retained · Zoom in to separate'}
       </div>
     </>
   );

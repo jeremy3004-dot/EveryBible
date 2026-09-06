@@ -60,3 +60,7 @@ Files: new pure spread layout and tests, shared map integration, rendering lifec
 - The final snapshot has 57,056 records, including 30,790 dialect/variety records. Basoko ROLV 01423 now retains both matching Every Language source entities in one record.
 - A real 28,970-point projected scene exposed repeated spiral searches taking 5.7 seconds. A nearest-free hex lattice with row successor links reduced layout to 31.6 ms; a 30,000-point varying-anchor regression now completes in about 64 ms.
 - Workspace lint/typechecks and 1,710 tests passed before the final performance adjustment; final combined verification follows mobile-layout integration.
+
+## User correction: preserve geographic overlap
+
+The user rejected forced spreading, especially globally. Recorded locations is now the default in both apps. Optional Spread dots retains exact projected anchors below zoom5 and separates only in regional views at zoom5 or higher. This supersedes the initial default-spread design above. A regression verifies global anchors remain unshifted.

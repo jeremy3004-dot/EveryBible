@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import maplibregl, { type GeoJSONSource, type Map as LibreMap } from 'maplibre-gl';
 import { loadAtlasBasemap } from '../../lib/atlas-basemap';
 import { normalizeAdminTheme } from '../../lib/theme';
@@ -50,6 +51,10 @@ interface Props {
   displayMode: AtlasDisplayMode;
   projection: AtlasProjection;
   padding: AtlasMapPadding;
+  /** Undefined keeps the default toolbar; null hides it until a target mounts. */
+  controlsTarget?: HTMLElement | null;
+  onSelectGroup?: (ids: string[]) => void;
+  showHoverSummary?: boolean;
 }
 
 export function LanguageMap({
@@ -59,6 +64,9 @@ export function LanguageMap({
   displayMode,
   projection,
   padding,
+  controlsTarget,
+  onSelectGroup,
+  showHoverSummary = true,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
@@ -67,7 +75,7 @@ export function LanguageMap({
   const clickedLocation = useRef<{ id: string; coordinates: [number, number] } | null>(null);
   const data = useMemo(() => buildFeatures(records), [records]);
   const byId = useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
-  const current = useRef({ data, byId, onSelect, displayMode });
+  const current = useRef({ data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary });
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -91,8 +99,9 @@ export function LanguageMap({
   );
 
   useEffect(() => {
-    current.current = { data, byId, onSelect, displayMode };
-  }, [data, byId, onSelect, displayMode]);
+    current.current = { data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary };
+    if (!showHoverSummary) popupRef.current?.remove();
+  }, [data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary]);
   useEffect(() => {
     projectionRef.current = projection;
   }, [projection]);
@@ -247,6 +256,11 @@ export function LanguageMap({
       if (alive && mapRef.current === map) setFailed(true);
     });
     const showGroup = (rows: AtlasRecord[], snapshot: typeof data) => {
+      if (current.current.onSelectGroup) {
+        setGroup(null);
+        current.current.onSelectGroup(rows.map((record) => record.id));
+        return;
+      }
       setGroup({ records: rows, data: snapshot });
       setGroupPage(0);
       setGroupError(false);
@@ -307,6 +321,7 @@ export function LanguageMap({
       );
       if (rows.length > 1) showGroup(rows, current.current.data);
       else setGroup(null);
+      if (rows.length > 1 && current.current.onSelectGroup) return;
       if (rows[0]) {
         const hit = features.find((feature) => feature.properties.recordId === rows[0].id);
         if (hit?.geometry.type === 'Point')
@@ -318,7 +333,7 @@ export function LanguageMap({
       }
     });
     map.on('mousemove', HIT, (event) => {
-      if (current.current.displayMode === 'spread') return;
+      if (current.current.displayMode === 'spread' || !current.current.showHoverSummary) return;
       const feature = event.features?.[0];
       const record = current.current.byId.get(String(feature?.properties.recordId));
       if (!record || feature?.geometry.type !== 'Point') return;
@@ -433,6 +448,69 @@ export function LanguageMap({
       });
   }, [selected, ready]);
 
+  const controls = (
+    <div
+      className="la-map-actions la-map-actions--floating"
+      role="group"
+      aria-label="Map view actions"
+      style={controlInsets}
+    >
+      <button
+        className="la-text-button"
+        type="button"
+        title="Zoom in"
+        aria-label="Zoom in"
+        disabled={!ready}
+        onClick={() =>
+          resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomIn({
+            duration: duration(),
+          })
+        }
+      >
+        +
+      </button>
+      <button
+        className="la-text-button"
+        type="button"
+        title="Zoom out"
+        aria-label="Zoom out"
+        disabled={!ready}
+        onClick={() =>
+          resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomOut({
+            duration: duration(),
+          })
+        }
+      >
+        −
+      </button>
+      <button
+        className="la-text-button"
+        type="button"
+        disabled={!ready || !data.features.length}
+        onClick={fit}
+      >
+        Fit results
+      </button>
+      <button
+        className="la-text-button"
+        type="button"
+        disabled={!ready}
+        onClick={() => {
+          setGroup(null);
+          resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.easeTo({
+            ...INITIAL_CAMERA,
+            bearing: 0,
+            pitch: 0,
+            padding: paddingRef.current,
+            duration: duration(),
+          });
+        }}
+      >
+        Reset view
+      </button>
+    </div>
+  );
+
   return (
     <section className="la-map-panel" aria-label="Language atlas map">
       <div className="la-map-view">
@@ -449,68 +527,14 @@ export function LanguageMap({
             selectedId={selected?.id ?? null}
             onSelect={selectSpreadPoint}
             inset={controlInsets}
+            showHoverSummary={showHoverSummary}
           />
         )}
-        <div
-          className="la-map-actions la-map-actions--floating"
-          role="group"
-          aria-label="Map view actions"
-          style={controlInsets}
-        >
-          <button
-            className="la-text-button"
-            type="button"
-            title="Zoom in"
-            aria-label="Zoom in"
-            disabled={!ready}
-            onClick={() =>
-              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomIn({
-                duration: duration(),
-              })
-            }
-          >
-            +
-          </button>
-          <button
-            className="la-text-button"
-            type="button"
-            title="Zoom out"
-            aria-label="Zoom out"
-            disabled={!ready}
-            onClick={() =>
-              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.zoomOut({
-                duration: duration(),
-              })
-            }
-          >
-            −
-          </button>
-          <button
-            className="la-text-button"
-            type="button"
-            disabled={!ready || !data.features.length}
-            onClick={fit}
-          >
-            Fit results
-          </button>
-          <button
-            className="la-text-button"
-            type="button"
-            disabled={!ready}
-            onClick={() => {
-              setGroup(null);
-              resolveReadyAtlasMap(mapRef.current, readyMapRef.current)?.easeTo({
-                ...INITIAL_CAMERA,
-                bearing: 0,
-                pitch: 0,
-                padding: paddingRef.current,
-                duration: duration(),
-              });
-            }}
-          >
-            Reset view
-          </button>
-        </div>
+        {controlsTarget === undefined
+          ? controls
+          : controlsTarget
+            ? createPortal(controls, controlsTarget)
+            : null}
         {!ready && !failed && (
           <p className="la-map-message" role="status">
             Opening the atlas…
@@ -541,7 +565,7 @@ export function LanguageMap({
             That group changed while the map updated. Select it again to browse.
           </p>
         )}
-        {visibleGroup && (
+        {visibleGroup && !onSelectGroup && (
           <div className="la-map-group" role="region" aria-label="Selected map records">
             <div className="la-section-heading">
               <div>

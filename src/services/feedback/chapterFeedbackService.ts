@@ -66,6 +66,7 @@ interface ChapterFeedbackFunctionClient {
 interface ChapterFeedbackAuthClient {
   getAccessToken: () => Promise<string | null>;
   refreshAccessToken: () => Promise<string | null>;
+  isCurrent?: () => boolean;
 }
 
 function buildNormalizedIdentity(
@@ -90,21 +91,31 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackFunctionClient | n
   return supabase.functions as ChapterFeedbackFunctionClient;
 }
 
-async function resolveDefaultAuthClient(): Promise<ChapterFeedbackAuthClient | null> {
+async function resolveDefaultAuthClient(
+  expectedUserId: string | null,
+  authGeneration: number
+): Promise<ChapterFeedbackAuthClient | null> {
   const { isSupabaseConfigured, supabase } = await import('../supabase');
 
   if (!isSupabaseConfigured()) {
     return null;
   }
 
-  const getStoredAccessToken = async () => {
-    const { useAuthStore } = await import('../../stores/authStore');
-    return useAuthStore.getState().session?.access_token ?? null;
+  const { useAuthStore } = await import('../../stores/authStore');
+  // Keep this submission bound to its original account, including sign-out and
+  // sign-in to the same account while an async request is pending.
+  const isCurrent = () => {
+    const current = useAuthStore.getState();
+    return (
+      (current.user?.uid ?? null) === expectedUserId && current.authGeneration === authGeneration
+    );
   };
+  const getStoredAccessToken = () => useAuthStore.getState().session?.access_token ?? null;
 
   return {
+    isCurrent,
     getAccessToken: async () => {
-      const storedAccessToken = await getStoredAccessToken();
+      const storedAccessToken = getStoredAccessToken();
       if (storedAccessToken) {
         return storedAccessToken;
       }
@@ -115,17 +126,23 @@ async function resolveDefaultAuthClient(): Promise<ChapterFeedbackAuthClient | n
       return session?.access_token ?? null;
     },
     refreshAccessToken: async () => {
-      const storedAccessToken = await getStoredAccessToken();
-      if (storedAccessToken) {
-        return storedAccessToken;
-      }
-
-      const { data, error } = await supabase.auth.refreshSession();
-      if (error) {
+      if (!isCurrent()) {
         return null;
       }
 
-      return data.session?.access_token ?? (await getStoredAccessToken());
+      try {
+        // The stored token was just rejected. Only a refreshed, same-account
+        // session may authorize the single retry; never fall back to that token.
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !isCurrent() || data.session?.user.id !== expectedUserId) {
+          return null;
+        }
+
+        return data.session?.access_token ?? null;
+      } catch {
+        // Preserve the original 401 so callers still show the sign-in prompt.
+        return null;
+      }
     },
   };
 }
@@ -259,8 +276,21 @@ export async function submitChapterFeedback(
   client?: ChapterFeedbackFunctionClient,
   authClient?: ChapterFeedbackAuthClient
 ): Promise<ChapterFeedbackFunctionResponse> {
+  let defaultAuthIdentity: { userId: string | null; generation: number } | null = null;
+  if (!client && !authClient) {
+    // Snapshot before the first await: lazy client loading must not rebind this
+    // submission to a newly signed-in account. Keep the store out of startup imports.
+    const { useAuthStore } =
+      require('../../stores/authStore') as typeof import('../../stores/authStore');
+    const state = useAuthStore.getState();
+    defaultAuthIdentity = { userId: state.user?.uid ?? null, generation: state.authGeneration };
+  }
   const resolvedClient = client ?? (await resolveDefaultClient());
-  const resolvedAuthClient = authClient ?? (client ? null : await resolveDefaultAuthClient());
+  const resolvedAuthClient =
+    authClient ??
+    (defaultAuthIdentity
+      ? await resolveDefaultAuthClient(defaultAuthIdentity.userId, defaultAuthIdentity.generation)
+      : null);
   const payload = buildPayload(input);
 
   if (!resolvedClient) {
@@ -274,6 +304,15 @@ export async function submitChapterFeedback(
 
   try {
     const accessToken = await resolvedAuthClient?.getAccessToken();
+    if (resolvedAuthClient?.isCurrent?.() === false) {
+      return {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Please sign in again before sending chapter feedback.',
+        requiresSignIn: true,
+      };
+    }
     let { data, error } = await invokeChapterFeedbackFunction(
       resolvedClient,
       payload,
@@ -283,7 +322,7 @@ export async function submitChapterFeedback(
     if (getFunctionErrorStatus(error) === 401) {
       const refreshedAccessToken = await resolvedAuthClient?.refreshAccessToken();
 
-      if (refreshedAccessToken) {
+      if (refreshedAccessToken && resolvedAuthClient?.isCurrent?.() !== false) {
         ({ data, error } = await invokeChapterFeedbackFunction(
           resolvedClient,
           payload,

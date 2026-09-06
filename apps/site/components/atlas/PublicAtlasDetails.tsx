@@ -182,7 +182,7 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
         People-group status refers to its primary language. Mixed clusters use a neutral color.
       </p>
       <p>
-        Spread dots show one representative point per mapped record and are spaced on screen for
+        Spread dots show one representative point per mapped record and separate only at regional zoom for
         visibility. Recorded locations restore the source coordinates. Some locations are
         approximate, and records without a supported placement remain searchable.
       </p>

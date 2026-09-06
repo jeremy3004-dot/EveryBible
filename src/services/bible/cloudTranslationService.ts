@@ -10,6 +10,7 @@ import {
 } from './cloudTranslationModel';
 import { resolveBibleAssetUrl } from './bibleAssetBaseUrl';
 import { serializeVerseFormatting } from './verseFormatting';
+import { base64UrlToBytes, sha256HexSync } from '../elMedia/elEs256';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,38 +65,59 @@ async function deleteDatabaseArtifactsIfExists(path: string): Promise<void> {
   }
 }
 
-const HEX_LOOKUP = Array.from({ length: 256 }, (_, byte) =>
-  byte.toString(16).padStart(2, '0')
-);
-
-function bytesToHex(bytes: Uint8Array): string {
-  let hex = '';
-  for (let index = 0; index < bytes.length; index += 1) {
-    hex += HEX_LOOKUP[bytes[index]];
+// Validate staging before this function runs. Keep the old database and its sidecars
+// together until activation succeeds so a failed move can restore the installed copy.
+async function activateStagedTranslationDatabase(
+  stagingDbPath: string,
+  finalDbPath: string
+): Promise<void> {
+  const backupPath = `${finalDbPath}.rollback`;
+  const artifacts = ['', '-journal', '-shm', '-wal'].map((suffix) => ({
+    installed: `${finalDbPath}${suffix}`,
+    backup: `${backupPath}${suffix}`,
+  }));
+  for (const artifact of artifacts) {
+    if ((await FileSystem.getInfoAsync(artifact.backup)).exists) {
+      throw new Error(`A previous translation rollback needs recovery: ${backupPath}`);
+    }
   }
-  return hex;
+
+  const moved: typeof artifacts = [];
+  let activationStarted = false;
+  try {
+    for (const artifact of artifacts) {
+      if ((await FileSystem.getInfoAsync(artifact.installed)).exists) {
+        await FileSystem.moveAsync({ from: artifact.installed, to: artifact.backup });
+        moved.push(artifact);
+      }
+    }
+    activationStarted = true;
+    await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
+  } catch (error) {
+    try {
+      if (activationStarted) {
+        // A failed native move may leave a partial destination. The originals are
+        // already backed up, so remove only the failed replacement before restoring.
+        for (const artifact of artifacts) {
+          await FileSystem.deleteAsync(artifact.installed, { idempotent: true });
+        }
+      }
+      for (const artifact of moved.reverse()) {
+        await FileSystem.moveAsync({ from: artifact.backup, to: artifact.installed });
+      }
+    } catch {
+      // Do not clean up the backup if restoration itself fails.
+      throw new Error(
+        `Translation activation and rollback failed; recover the backup at ${backupPath}`
+      );
+    }
+    throw error;
+  }
+  await deleteDatabaseArtifactsIfExists(backupPath);
 }
 
-function base64ToBytes(base64: string): Uint8Array {
-  // atob is provided by the RN/Hermes runtime (and the web). If it is somehow unavailable the
-  // caller catches and skips verification rather than blocking the download.
-  if (typeof atob !== 'function') {
-    throw new Error('Base64 decoding is not available in this runtime.');
-  }
-
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-}
-
-// Verify the downloaded text-pack file against the catalog's declared SHA-256 so a stale,
-// truncated, or wrong artifact at the CDN URL is rejected before it is activated as "installed".
-// Uses Web Crypto's subtle.digest (already relied on by authService) rather than pulling in a new
-// crypto dependency. If the runtime cannot hash (no subtle.digest / no base64 decoder), verification
-// is skipped rather than failing the download — see M6 limitation note.
+// Hermes has neither Web Crypto nor atob. Use the same pure-JS primitives as EL
+// catalog verification, and fail closed whenever a declared checksum cannot be verified.
 async function verifyTextPackSha256({
   fileUri,
   expectedSha256,
@@ -103,31 +125,17 @@ async function verifyTextPackSha256({
   fileUri: string;
   expectedSha256: string;
 }): Promise<void> {
-  const webCrypto = (globalThis as { crypto?: Crypto }).crypto;
-  if (!webCrypto?.subtle || typeof webCrypto.subtle.digest !== 'function') {
-    return;
+  if (!/^[0-9a-f]{64}$/i.test(expectedSha256)) {
+    throw new Error('Downloaded translation has an invalid expected checksum.');
   }
-
-  let bytes: Uint8Array;
-  try {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    bytes = base64ToBytes(base64);
-  } catch {
-    // Unable to read the file for hashing (very large file / unsupported encoding). Skip rather
-    // than block; the verse-count check below still guards obviously-broken packs.
-    return;
+  const base64 = await FileSystem.readAsStringAsync(fileUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const bytes = base64UrlToBytes(base64.replace(/\+/g, '-').replace(/\//g, '_'));
+  if (!bytes) {
+    throw new Error('Downloaded translation could not be decoded for checksum verification.');
   }
-
-  const buffer = bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength
-  ) as ArrayBuffer;
-  const digest = await webCrypto.subtle.digest('SHA-256', buffer);
-  const actual = bytesToHex(new Uint8Array(digest));
-
-  if (actual.toLowerCase() !== expectedSha256.toLowerCase()) {
+  if (sha256HexSync(bytes) !== expectedSha256.toLowerCase()) {
     throw new Error('Downloaded translation failed integrity verification (checksum mismatch).');
   }
 }
@@ -332,78 +340,80 @@ export async function downloadCloudTranslation(
       directory
     );
 
-    // Keep staging installs self-contained so activation only needs the main sqlite file.
-    await database.execAsync('PRAGMA journal_mode = DELETE');
+    try {
+      // Keep staging installs self-contained so activation only needs the main sqlite file.
+      await database.execAsync('PRAGMA journal_mode = DELETE');
 
-    // ── 5. Create the schema matching the bundled db ─────────────────────
-    await database.execAsync(`
-      CREATE TABLE IF NOT EXISTS verses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        translation_id TEXT NOT NULL,
-        book_id TEXT NOT NULL,
-        chapter INTEGER NOT NULL,
-        verse INTEGER NOT NULL,
-        text TEXT NOT NULL,
-        heading TEXT,
-        formatting TEXT
-      );
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_verses_unique ON verses(translation_id, book_id, chapter, verse);
-      CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses(translation_id, book_id, chapter);
-    `);
+      // ── 5. Create the schema matching the bundled db ─────────────────────
+      await database.execAsync(`
+        CREATE TABLE IF NOT EXISTS verses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          translation_id TEXT NOT NULL,
+          book_id TEXT NOT NULL,
+          chapter INTEGER NOT NULL,
+          verse INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          heading TEXT,
+          formatting TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_verses_unique ON verses(translation_id, book_id, chapter, verse);
+        CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses(translation_id, book_id, chapter);
+      `);
 
-    // ── 6. Insert verses in a transaction ─────────────────────────────────
-    let written = 0;
-    const BATCH_SIZE = 500;
+      // ── 6. Insert verses in a transaction ─────────────────────────────────
+      let written = 0;
+      const BATCH_SIZE = 500;
 
-    // Use Expo SQLite's exclusive transaction handle for batched writes on native.
-    await database.withExclusiveTransactionAsync(async (txn) => {
-      for (let batchStart = 0; batchStart < allVerses.length; batchStart += BATCH_SIZE) {
-        const batch = allVerses.slice(batchStart, batchStart + BATCH_SIZE);
+      // Use Expo SQLite's exclusive transaction handle for batched writes on native.
+      await database.withExclusiveTransactionAsync(async (txn) => {
+        for (let batchStart = 0; batchStart < allVerses.length; batchStart += BATCH_SIZE) {
+          const batch = allVerses.slice(batchStart, batchStart + BATCH_SIZE);
 
-        for (const row of batch) {
-          await txn.runAsync(
-            `INSERT OR IGNORE INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              row.translation_id,
-              row.book_id,
-              row.chapter,
-              row.verse,
-              row.text,
-              row.heading ?? null,
-              serializeVerseFormatting(row.formatting),
-            ]
-          );
+          for (const row of batch) {
+            await txn.runAsync(
+              `INSERT OR IGNORE INTO verses (translation_id, book_id, chapter, verse, text, heading, formatting)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                row.translation_id,
+                row.book_id,
+                row.chapter,
+                row.verse,
+                row.text,
+                row.heading ?? null,
+                serializeVerseFormatting(row.formatting),
+              ]
+            );
+          }
+
+          written += batch.length;
+          onProgress?.({
+            phase: 'writing',
+            versesDownloaded: written,
+            totalVerses: allVerses.length,
+          });
         }
+      });
 
-        written += batch.length;
-        onProgress?.({
-          phase: 'writing',
-          versesDownloaded: written,
-          totalVerses: allVerses.length,
-        });
-      }
-    });
+      // ── 7. Finalize and activate the database ──────────────────────────────
+      onProgress?.({
+        phase: 'indexing',
+        versesDownloaded: allVerses.length,
+        totalVerses: allVerses.length,
+      });
 
-    // ── 7. Finalize and activate the database ──────────────────────────────
-    onProgress?.({
-      phase: 'indexing',
-      versesDownloaded: allVerses.length,
-      totalVerses: allVerses.length,
-    });
+      // Keep schema version aligned with the bundled bible database contract.
+      await database.execAsync('PRAGMA user_version = 5');
+    } finally {
+      // Always release the writer, including schema, transaction, and progress failures.
+      await database.closeAsync();
+    }
 
-    // Keep schema version aligned with the bundled bible database contract.
-    await database.execAsync('PRAGMA user_version = 5');
-
-    // Closing before activation avoids exposing a partially-written file.
-    await database.closeAsync();
-    await deleteDatabaseArtifactsIfExists(finalDbPath);
-    await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
     await verifyInstalledTranslationDatabase({
       directory,
-      databaseName: `${translationId}.db`,
+      databaseName: stagingDatabaseName,
       expectedVerseCount: allVerses.length,
     });
+    await activateStagedTranslationDatabase(stagingDbPath, finalDbPath);
 
     onProgress?.({
       phase: 'complete',
@@ -415,7 +425,6 @@ export async function downloadCloudTranslation(
   } catch (err) {
     // ── 8. Clean up partial file on error ─────────────────────────────────
     await deleteDatabaseArtifactsIfExists(stagingDbPath);
-    await deleteDatabaseArtifactsIfExists(finalDbPath);
 
     const message = err instanceof Error ? err.message : 'Unknown download error';
 
@@ -462,9 +471,12 @@ export async function downloadCatalogTextPack(params: {
       totalVerses: expectedVerseCount,
     });
 
-    await FileSystem.downloadAsync(resolvedDownloadUrl, stagingDbPath);
+    const download = await FileSystem.downloadAsync(resolvedDownloadUrl, stagingDbPath);
+    if (download.status < 200 || download.status >= 300) {
+      throw new Error(`Translation download failed with HTTP ${download.status}.`);
+    }
 
-    if (params.expectedSha256) {
+    if (params.expectedSha256 !== undefined) {
       await verifyTextPackSha256({
         fileUri: stagingDbPath,
         expectedSha256: params.expectedSha256,
@@ -478,13 +490,12 @@ export async function downloadCatalogTextPack(params: {
     });
 
     const directory = getTranslationsDirectory();
-    await deleteDatabaseArtifactsIfExists(finalDbPath);
-    await FileSystem.moveAsync({ from: stagingDbPath, to: finalDbPath });
     await verifyInstalledTranslationDatabase({
       directory,
-      databaseName: `${params.translationId}.db`,
+      databaseName: `${params.translationId}.staging.db`,
       expectedVerseCount,
     });
+    await activateStagedTranslationDatabase(stagingDbPath, finalDbPath);
 
     params.onProgress?.({
       phase: 'complete',
@@ -495,7 +506,6 @@ export async function downloadCatalogTextPack(params: {
     return finalDbPath;
   } catch (err) {
     await deleteDatabaseArtifactsIfExists(stagingDbPath);
-    await deleteDatabaseArtifactsIfExists(finalDbPath);
 
     const message = err instanceof Error ? err.message : 'Unknown download error';
 

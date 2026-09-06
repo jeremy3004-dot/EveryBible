@@ -16,7 +16,6 @@ export type AdminRole = 'super_admin';
 
 export type AdminNavigationGroup =
   | 'Overview'
-  | 'Content'
   | 'Delivery'
   | 'Insights'
   | 'Operations'
@@ -24,7 +23,6 @@ export type AdminNavigationGroup =
 
 export const adminNavigationGroupOrder: readonly AdminNavigationGroup[] = [
   'Overview',
-  'Content',
   'Delivery',
   'Insights',
   'Operations',

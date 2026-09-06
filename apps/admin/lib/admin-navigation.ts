@@ -12,18 +12,6 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Overview',
   },
   {
-    label: 'Verse of the Day',
-    href: '/content/verse-of-day',
-    description: 'Draft, schedule, publish, and archive daily Scripture cards.',
-    group: 'Content',
-  },
-  {
-    label: 'Images',
-    href: '/content/images',
-    description: 'Upload and manage promotional and verse artwork.',
-    group: 'Content',
-  },
-  {
     label: 'Translations',
     href: '/translations',
     description: 'Syncs, distribution state, and upstream catalog operations.',
@@ -50,7 +38,7 @@ export const adminNavigation: AdminNavigationItem[] = [
   {
     label: 'Health',
     href: '/health',
-    description: 'Catch stale syncs, missing content, and readiness problems early.',
+    description: 'Catch stale syncs and translation delivery problems early.',
     group: 'Operations',
   },
   {

@@ -5,7 +5,7 @@ interface NormalizedVersion {
   changelog: string | null;
   dataChecksum: string | null;
   isCurrent: boolean;
-  publishedAt: string;
+  publishedAt: string | null;
   totalBooks: number | null;
   totalChapters: number | null;
   totalVerses: number | null;
@@ -122,14 +122,17 @@ function mergeNormalizedVersion(
   incomingVersion: NormalizedVersion
 ): NormalizedVersion {
   if (!existingVersion) {
-    return incomingVersion;
+    return {
+      ...incomingVersion,
+      publishedAt: incomingVersion.publishedAt ?? new Date().toISOString(),
+    };
   }
 
   return {
     changelog: incomingVersion.changelog ?? existingVersion.changelog,
     dataChecksum: incomingVersion.dataChecksum ?? existingVersion.data_checksum,
     isCurrent: incomingVersion.isCurrent,
-    publishedAt: incomingVersion.publishedAt || existingVersion.published_at || new Date().toISOString(),
+    publishedAt: incomingVersion.publishedAt ?? existingVersion.published_at,
     totalBooks: incomingVersion.totalBooks ?? existingVersion.total_books,
     totalChapters: incomingVersion.totalChapters ?? existingVersion.total_chapters,
     totalVerses: incomingVersion.totalVerses ?? existingVersion.total_verses,
@@ -160,7 +163,7 @@ function normalizeVersions(item: Record<string, unknown>): NormalizedVersion[] {
         changelog: asString(version.changelog),
         dataChecksum: asString(version.data_checksum) ?? asString(version.dataChecksum),
         isCurrent: asBoolean(version.is_current, index === rawVersions.length - 1),
-        publishedAt: asString(version.published_at) ?? asString(version.publishedAt) ?? new Date().toISOString(),
+        publishedAt: asString(version.published_at) ?? asString(version.publishedAt),
         totalBooks: asNumber(version.total_books) ?? asNumber(version.totalBooks),
         totalChapters: asNumber(version.total_chapters) ?? asNumber(version.totalChapters),
         totalVerses: asNumber(version.total_verses) ?? asNumber(version.totalVerses),
@@ -178,7 +181,7 @@ function normalizeVersions(item: Record<string, unknown>): NormalizedVersion[] {
       changelog: null,
       dataChecksum: null,
       isCurrent: true,
-      publishedAt: new Date().toISOString(),
+      publishedAt: null,
       totalBooks: asNumber(item.total_books) ?? asNumber(item.totalBooks),
       totalChapters: asNumber(item.total_chapters) ?? asNumber(item.totalChapters),
       totalVerses: asNumber(item.total_verses) ?? asNumber(item.totalVerses),
@@ -332,35 +335,40 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
         existingCatalogById.get(translation.translationId) ?? null,
         translation.catalog
       );
-      const { error: upsertCatalogError } = await service
-        .from('translation_catalog')
-        .upsert(
-          {
-            abbreviation: translation.abbreviation,
+      const catalogMetadata = {
+        abbreviation: translation.abbreviation,
+        has_audio: translation.hasAudio,
+        has_text: translation.hasText,
+        language_code: translation.languageCode,
+        language_name: translation.languageName,
+        license_type: translation.licenseType,
+        license_url: translation.licenseUrl,
+        name: translation.name,
+        source_url: translation.sourceUrl,
+        sync_run_id: syncRun.id,
+        translation_id: translation.translationId,
+        upstream_external_id: translation.upstreamExternalId,
+        upstream_last_synced_at: new Date().toISOString(),
+        upstream_payload: translation.upstreamPayload,
+        catalog: mergedCatalog,
+      };
+      // Operator controls belong to the admin after creation. Omit them entirely
+      // on updates so a concurrent operator edit cannot be overwritten by this sync.
+      const { error: catalogError } = existed
+        ? await service
+            .from('translation_catalog')
+            .update(catalogMetadata)
+            .eq('translation_id', translation.translationId)
+        : await service.from('translation_catalog').insert({
+            ...catalogMetadata,
             admin_notes: translation.adminNotes,
             distribution_state: translation.distributionState,
-            has_audio: translation.hasAudio,
-            has_text: translation.hasText,
             is_available: translation.isAvailable,
-            language_code: translation.languageCode,
-            language_name: translation.languageName,
-            license_type: translation.licenseType,
-            license_url: translation.licenseUrl,
-            name: translation.name,
-            source_url: translation.sourceUrl,
-            sync_run_id: syncRun.id,
-            translation_id: translation.translationId,
-            upstream_external_id: translation.upstreamExternalId,
-            upstream_last_synced_at: new Date().toISOString(),
-            upstream_payload: translation.upstreamPayload,
-            catalog: mergedCatalog,
-          },
-          { onConflict: 'translation_id' }
-        );
+          });
 
-      if (upsertCatalogError) {
+      if (catalogError) {
         throw new Error(
-          `Unable to upsert translation ${translation.translationId}: ${upsertCatalogError.message}`
+          `Unable to save translation ${translation.translationId}: ${catalogError.message}`
         );
       }
 
@@ -405,7 +413,7 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
       translationIds,
     };
 
-    await service
+    const { error: finishRunError } = await service
       .from('translation_sync_runs')
       .update({
         failed_count: 0,
@@ -418,6 +426,10 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
         upstream_payload: payload,
       })
       .eq('id', syncRun.id);
+
+    if (finishRunError) {
+      throw new Error(`Unable to finish sync run: ${finishRunError.message}`);
+    }
 
     return {
       insertedCount,

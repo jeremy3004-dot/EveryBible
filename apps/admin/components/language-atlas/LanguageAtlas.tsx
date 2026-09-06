@@ -112,7 +112,7 @@ export function LanguageAtlasContent({ index }: { index: AtlasIndex }) {
   const [exportNotice, setExportNotice] = useState('');
   const [view, setView] = useState<InspectorView>('controls');
   const [sheetExpanded, setSheetExpanded] = useState(false);
-  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('spread');
+  const [displayMode, setDisplayMode] = useState<AtlasDisplayMode>('individual');
   const [projection, setProjection] = useState<AtlasProjection>('globe');
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeSearchResult, setActiveSearchResult] = useState(-1);

@@ -587,11 +587,24 @@ function AppContent() {
 
   // Register push token after authentication. Re-runs whenever the user changes.
   useEffect(() => {
+    let isCurrentEffect = true;
+    const authGeneration = useAuthStore.getState().authGeneration;
     if (isAuthenticated && user?.uid) {
-      void import('./src/services/notifications').then(({ registerPushToken }) =>
-        registerPushToken(user.uid)
-      );
+      void import('./src/services/notifications').then(({ registerPushToken }) => {
+        const currentAuth = useAuthStore.getState();
+        if (
+          isCurrentEffect &&
+          currentAuth.isAuthenticated &&
+          currentAuth.user?.uid === user.uid &&
+          currentAuth.authGeneration === authGeneration
+        ) {
+          return registerPushToken(user.uid);
+        }
+      });
     }
+    return () => {
+      isCurrentEffect = false;
+    };
   }, [isAuthenticated, user?.uid]);
 
   // Push-token deactivation on sign-out is owned by authStore.signOut (it runs
@@ -610,15 +623,27 @@ function AppContent() {
 
   // Listen for push token refreshes and re-register with the updated token.
   useEffect(() => {
+    let isMounted = true;
     const subscription = Notifications.addPushTokenListener((devicePushToken) => {
-      const currentUser = useAuthStore.getState().user;
+      const { user: currentUser, authGeneration } = useAuthStore.getState();
       if (currentUser?.uid) {
-        void import('./src/services/notifications').then(({ registerPushToken }) =>
-          registerPushToken(currentUser.uid, devicePushToken)
-        );
+        void import('./src/services/notifications').then(({ registerPushToken }) => {
+          const currentAuth = useAuthStore.getState();
+          if (
+            isMounted &&
+            currentAuth.isAuthenticated &&
+            currentAuth.user?.uid === currentUser.uid &&
+            currentAuth.authGeneration === authGeneration
+          ) {
+            return registerPushToken(currentUser.uid, devicePushToken);
+          }
+        });
       }
     });
-    return () => subscription.remove();
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
   }, []);
 
   return (

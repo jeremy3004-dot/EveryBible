@@ -4,6 +4,7 @@ import { URL } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import type { User } from '../../types';
 
 function queueHarness(seed?: string) {
   const disk = new Map<string, string>();
@@ -11,6 +12,8 @@ function queueHarness(seed?: string) {
   const calls: Array<{ body: { events: Array<Record<string, unknown>> } }> = [];
   let send: () => Promise<unknown> = async () => ({ data: { ok: true }, error: null });
   let nextId = 0;
+  let user: User | null = null;
+  const dependencies: string[] = [];
   const exports = {} as typeof import('./usageQueue');
   const timers = new Map<number, () => void>();
   const compiled = ts.transpileModule(
@@ -31,8 +34,11 @@ function queueHarness(seed?: string) {
     clearTimeout: (id: number) => timers.delete(id),
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(++nextId).padStart(12, '0')}` },
     require: (name: string) => {
+      dependencies.push(name);
       if (name === 'react-native') return { Platform: { OS: 'ios' } };
       if (name === 'expo-constants') return { default: { expoConfig: { version: '1.0.7' } } };
+      if (name === '../../stores/authStore')
+        return { useAuthStore: { getState: () => ({ user }) } };
       if (name === '../../stores/mmkvStorage')
         return {
           mmkvInstance: {
@@ -68,11 +74,72 @@ function queueHarness(seed?: string) {
     disk,
     calls,
     timers,
+    dependencies,
+    setUser: (value: User | null) => {
+      user = value;
+    },
     setSend: (fn: typeof send) => {
       send = fn;
     },
   };
 }
+
+function signedInUser(uid: string): User {
+  return {
+    uid,
+    email: null,
+    displayName: null,
+    photoURL: null,
+    createdAt: 0,
+    lastActive: 0,
+  };
+}
+
+test('signed-in events capture the production user uid at enqueue without eager auth loading', async () => {
+  const h = queueHarness();
+  assert.equal(h.dependencies.includes('../../stores/authStore'), false);
+  h.setUser(signedInUser('original-user'));
+  h.api.enqueueUsageEvent('session_started', {}, 'session');
+
+  const persisted = JSON.parse(h.disk.get('analytics-usage-queue-v1') ?? '[]');
+  assert.equal(persisted[0].attribution_user_id, 'original-user');
+  assert.equal(h.dependencies.includes('../../stores/authStore'), true);
+  await h.api.flushUsageQueue();
+  assert.equal(h.calls[0].body.events[0].attribution_user_id, 'original-user');
+});
+
+test('guest events remain anonymous when a user signs in before delivery', async () => {
+  const h = queueHarness();
+  h.api.enqueueUsageEvent('session_started', {}, 'session');
+  h.setUser(signedInUser('later-user'));
+
+  await h.api.flushUsageQueue();
+  assert.equal(h.calls[0].body.events[0].attribution_user_id, null);
+});
+
+for (const nextUser of [signedInUser('next-user'), null]) {
+  test(`queued identity survives ${nextUser ? 'account changes' : 'signout'} before delivery`, async () => {
+    const h = queueHarness();
+    h.setUser(signedInUser('original-user'));
+    h.api.enqueueUsageEvent('session_started', {}, 'session');
+    h.setUser(nextUser);
+
+    await h.api.flushUsageQueue();
+    assert.equal(h.calls[0].body.events[0].attribution_user_id, 'original-user');
+  });
+}
+
+test('queued identity survives a restart with another account signed in', async () => {
+  const original = queueHarness();
+  original.setUser(signedInUser('original-user'));
+  original.api.enqueueUsageEvent('session_started', {}, 'session');
+  const restarted = queueHarness(original.disk.get('analytics-usage-queue-v1'));
+  restarted.setUser(signedInUser('next-user'));
+
+  await restarted.api.flushUsageQueue();
+  assert.equal(restarted.calls[0].body.events[0].attribution_user_id, 'original-user');
+  assert.equal(restarted.dependencies.includes('../../stores/authStore'), false);
+});
 
 test('in-flight events stay durable until the server acknowledges them', async () => {
   const h = queueHarness();

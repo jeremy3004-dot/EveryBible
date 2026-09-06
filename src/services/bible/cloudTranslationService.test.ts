@@ -7,13 +7,6 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('cloud translation downloads stage the sqlite file before activating it', () => {
-  const source = readRelativeSource('./cloudTranslationService.ts');
-
-  assert.match(source, /const stagingDatabaseName = `\$\{translationId\}\.staging\.db`;/);
-  assert.match(source, /await FileSystem\.moveAsync\(\{ from: stagingDbPath, to: finalDbPath \}\);/);
-});
-
 test('cloud translation downloads avoid building an FTS index during install', () => {
   const source = readRelativeSource('./cloudTranslationService.ts');
 
@@ -62,7 +55,7 @@ test('cloud translation downloads force a self-contained sqlite file before acti
   assert.match(
     source,
     /await verifyInstalledTranslationDatabase\(\{[\s\S]*expectedVerseCount:\s*allVerses\.length[\s\S]*\}\);/,
-    'downloaded translation installs should reopen the activated sqlite file and verify the verses table before marking the translation as installed'
+    'downloaded translation installs should reopen the staging sqlite file and verify the verses table before marking the translation as installed'
   );
 });
 

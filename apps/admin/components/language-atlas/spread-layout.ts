@@ -156,3 +156,11 @@ export function nearestSpreadPoint(
   }
   return nearest;
 }
+
+/** Global views preserve geography, even when the optional spread mode is selected. */
+export function layoutSpreadPointsAtZoom(
+  anchors: ScreenAnchor[], width: number, height: number, zoom: number
+): SpreadPoint[] {
+  if (zoom < 5) return anchors.map(point => ({ ...point, anchorX: point.x, anchorY: point.y, spacing: 8.5 }));
+  return layoutSpreadPoints(anchors, width, height, Math.min(8.5, 2.3 + (zoom - 2) * 1.15));
+}

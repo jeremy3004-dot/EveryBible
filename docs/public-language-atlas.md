@@ -2,16 +2,46 @@
 
 The public homepage opens on the same interactive MapLibre engine as the admin
 atlas. It defaults to Field's dark theme and the closer globe camera (65°E,
-25°N, zoom 2.75), with spread Scripture-colored dots and the Language varieties
+25°N, zoom 2.75), with overlapping Scripture-colored dots at recorded locations and the Language varieties
 collection (languages plus dialects, excluding people groups). The search, record
 list, filters, hover summaries, and selected profiles operate on research
 records; these counts are not the app's available Bible catalog.
 
+Recorded locations is the default and allows overlap at source positions. Optional
 Spread mode shows one representative point per mapped record and separates
-crowded dots on screen for visibility. Recorded locations restore the retained
-source positions, and Clusters groups those positions while zoomed out. The
+crowded dots only at regional zoom (5 and above); global views remain unshifted, and Clusters groups those positions while zoomed out. The
 collection control also exposes People groups and All collections. Filtered totals
 count source records; unresolved source identities may remain separate.
+
+## Mobile controls
+
+At widths up to 760px, the default view keeps overlapping dots, a slim search
+bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
+typing opens the filtered record list. Legend contains Scripture filters, the
+unknown-status explanation, and About the data. Settings contains projection,
+Spread dots, Recorded locations and Clusters controls, the source-aware record
+count, zoom, Fit results, and Reset view.
+
+Only one mobile panel opens at a time. Close buttons, Escape, and tapping
+outside dismiss it without clearing the active filters. Overlapping map dots
+in Recorded locations or Clusters open a paginated group list; choosing a record
+replaces that list with its profile. Spread dots select their individual record.
+Hover summaries are disabled on mobile to avoid duplicate popups.
+The floating QR/app card, direct store links, provider credit, and research
+availability note stay visible while panels are open. Desktop controls retain
+their expanded layout.
+
+The shared map accepts an optional controls target for the public mobile
+Settings panel, a group-selection callback for the single-panel flow, and a
+hover-summary switch. Without these options, the admin map retains its existing
+controls, groups, and hover summaries.
+
+Local browser regression: run `npm run dev --workspace @everybible/site --
+--hostname 127.0.0.1 --port 3100`, then pass
+`scripts/browser-tests/public-atlas-mobile.js` to the managed Playwright
+`browser_run_code_unsafe` tool's `filename` argument. The regression checks collapsed
+defaults, panel replacement/dismissal, Settings actions, QR preservation,
+320px overflow/overlap, and desktop controls.
 
 Field branding is defined in `packages/brand/tokens.css` and mirrored by the
 existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
@@ -64,7 +94,7 @@ store buttons as well as the QR, with a white quiet zone for reliable scanning.
 Run workspace lint, typechecks and tests, public-snapshot regeneration checks,
 and both production builds. Inspect the site API trace for the exact public
 snapshot and absence of private shards. Check desktop/mobile first load,
-search/filter/profile interactions, map/globe and cluster switches, source
+search/filter/profile interactions, map/globe and spread/recorded/cluster switches, source
 attribution, download routing, and unauthenticated admin API rejection.
 The deployment task owns main integration and both Vercel deployments.
 
@@ -87,6 +117,6 @@ The deployment task owns main integration and both Vercel deployments.
 
 ### Spread-view update 2026-09-06
 
-The shared canvas overlay projects one representative location per record. Overlapping anchors separate into deterministic compact spirals in screen pixels; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
+The shared canvas overlay projects one representative location per record. Overlapping anchors move to the nearest free position on a deterministic hexagonal screen lattice; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
 
 The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Current public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.
