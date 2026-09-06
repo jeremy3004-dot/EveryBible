@@ -8,6 +8,8 @@ import {
   safeSourceUrl,
   SCRIPTURE_LABELS,
   scriptureStatus,
+  scriptureLabel,
+  atlasBiography,
 } from '../../../admin/lib/language-atlas/model';
 import {
   SCRIPTURE_COLORS,
@@ -69,21 +71,15 @@ export function AtlasRecordProfile({
       <div className="pa-scripture-status">
         <i
           className="pa-dot"
-          style={{ background: SCRIPTURE_COLORS.dark[scriptureVisualCategory(status, record.kind)] }}
+          style={{ background: SCRIPTURE_COLORS.dark[scriptureVisualCategory(status)] }}
         />
         <strong>
-          {record.kind === 'dialect' && status === 'unknown' ? 'Unverified' : SCRIPTURE_LABELS[status]}
+          {scriptureLabel(record)}
         </strong>
       </div>
       {record.kind === 'people-group' && (
         <p className="pa-scope">
           Scripture status describes this people group’s reported primary language.
-        </p>
-      )}
-      {record.kind === 'dialect' && record.scriptureScope !== 'dialect' && (
-        <p className="pa-scope">
-          Scripture coverage is not verified for this exact variety. A shared language code does not
-          establish dialect coverage.
         </p>
       )}
       {isApproximate(record) && (
@@ -95,7 +91,7 @@ export function AtlasRecordProfile({
           .
         </p>
       )}
-      <p className="pa-biography">{record.summary}</p>
+      <p className="pa-biography">{atlasBiography(record)}</p>
       <dl className="pa-identifiers">
         {record.population !== null && (
           <div>
@@ -181,7 +177,7 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
         count of distinct living languages.
       </p>
       <p>
-        Red means no known Scripture and includes unverified dialects. It does not confirm absence. Dialect status requires evidence for the exact variety.
+        Red means no known Scripture in the available records. Dialect coverage is tracked separately from its parent language.
         Mixed clusters use a neutral color.
       </p>
       <p>People-group research is retained for a future, separate map overlay.</p>

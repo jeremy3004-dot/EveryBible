@@ -94,7 +94,6 @@ export function AtlasLegend({
         ))}
       </div>
       <div className="pa-collection-note">
-        <span>Red includes unverified dialects</span>
         <button type="button" onClick={onSources}>
           About the data ↗
         </button>

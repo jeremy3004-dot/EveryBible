@@ -127,7 +127,7 @@ export function MapControls({
           })}
         </div>
         <p className="la-fine">
-          Red means No known Scripture, including unverified dialects. Exact status and evidence
+          Red means No known Scripture in the available records. Source status and evidence
           remain visible in the profile.
         </p>
       </section>
@@ -261,7 +261,7 @@ export function RecordsPanel({
       )}
       <div className="la-result-list" aria-busy={queryPending}>
         {filtered.slice(currentPage * 30, (currentPage + 1) * 30).map((record) => {
-          const category = scriptureVisualCategory(scriptureStatus(record), record.kind);
+          const category = scriptureVisualCategory(scriptureStatus(record));
           return (
             <button
               className="la-result"

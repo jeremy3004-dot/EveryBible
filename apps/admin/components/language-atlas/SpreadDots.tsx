@@ -6,8 +6,9 @@ import {
   formatCount,
   KIND_LABELS,
   PRECISION_LABELS,
-  SCRIPTURE_LABELS,
   scriptureStatus,
+  scriptureLabel,
+  atlasBiography,
 } from '../../lib/language-atlas/model';
 import {
   SCRIPTURE_COLORS,
@@ -68,7 +69,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       ])
     );
     const categories = new Map(
-      points.map((point) => [point.id, scriptureVisualCategory(scriptureStatus(point.record), point.record.kind)])
+      points.map((point) => [point.id, scriptureVisualCategory(scriptureStatus(point.record))])
     );
     const popup = new maplibregl.Popup({
       closeButton: false,
@@ -233,9 +234,9 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       const title = document.createElement('strong');
       title.textContent = record.name;
       const status = document.createElement('small');
-      status.textContent = `${KIND_LABELS[record.kind]} · ${SCRIPTURE_LABELS[scriptureStatus(record)]}${record.kind === 'people-group' ? ' (primary language)' : ''}`;
+      status.textContent = `${KIND_LABELS[record.kind]} · ${scriptureLabel(record)}${record.kind === 'people-group' ? ' (primary language)' : ''}`;
       const bio = document.createElement('p');
-      bio.textContent = record.summary;
+      bio.textContent = atlasBiography(record);
       const position = document.createElement('small');
       position.textContent = `${wasSeparating ? 'Spaced for visibility' : 'Recorded reference location'} · ${PRECISION_LABELS[location.precision]}. Reference: ${location.latitude.toFixed(3)}°, ${location.longitude.toFixed(3)}°.`;
       node.append(title, status, bio, position);

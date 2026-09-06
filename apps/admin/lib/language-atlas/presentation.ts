@@ -1,4 +1,4 @@
-import type { AtlasRecordKind, ScriptureStatus } from './types';
+import type { ScriptureStatus } from './types';
 
 export type ScriptureVisualCategory =
   | 'bible'
@@ -12,7 +12,6 @@ export const SCRIPTURE_VISUAL_ORDER: ScriptureVisualCategory[] = [
   'nt',
   'portions',
   'no-scripture',
-  'unknown',
 ];
 
 // Hex mirrors of the canonical FIELD data tokens. MapLibre cannot consume the
@@ -49,11 +48,10 @@ export const SCRIPTURE_PRESENTATION: Record<
 };
 
 export function scriptureVisualCategory(
-  status: ScriptureStatus,
-  kind?: AtlasRecordKind
+  status: ScriptureStatus
 ): ScriptureVisualCategory {
-  // Red is a presentation default, not a claim that an unverified dialect has no Scripture.
-  if (kind === 'dialect' && status === 'unknown') return 'no-scripture';
+  // No known Scripture is a display category; source evidence remains unchanged.
+  if (status === 'unknown') return 'no-scripture';
   if (status === 'started' || status === 'needed') return 'no-scripture';
   return status;
 }

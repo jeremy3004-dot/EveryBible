@@ -13,7 +13,6 @@ test('Scripture presentation uses FIELD labels and canonical theme colors', () =
     'nt',
     'portions',
     'no-scripture',
-    'unknown',
   ]);
   assert.deepEqual(SCRIPTURE_PRESENTATION, {
     bible: { label: 'Full Bible', color: '#1e8a7a' },
@@ -31,18 +30,16 @@ test('Scripture presentation uses FIELD labels and canonical theme colors', () =
   });
 });
 
-test('stored progress states share presentation without turning unknown red', () => {
+test('unknown and progress states share the red display category', () => {
   assert.equal(scriptureVisualCategory('started'), 'no-scripture');
   assert.equal(scriptureVisualCategory('needed'), 'no-scripture');
-  assert.equal(scriptureVisualCategory('unknown'), 'unknown');
+  assert.equal(scriptureVisualCategory('unknown'), 'no-scripture');
 });
 
 
-test('unverified dialects start red while exact verified availability determines their color', () => {
-  assert.equal(scriptureVisualCategory('unknown', 'dialect'), 'no-scripture');
+test('confirmed Scripture availability retains its own color', () => {
+  assert.equal(scriptureVisualCategory('unknown'), 'no-scripture');
   for (const status of ['bible', 'nt', 'portions'] as const) {
-    assert.equal(scriptureVisualCategory(status, 'dialect'), status);
+    assert.equal(scriptureVisualCategory(status), status);
   }
-  assert.equal(scriptureVisualCategory('unknown', 'language'), 'unknown');
-  assert.equal(scriptureVisualCategory('unknown', 'people-group'), 'unknown');
 });

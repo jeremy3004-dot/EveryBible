@@ -10,6 +10,8 @@ import {
   safeSourceUrl,
   SCRIPTURE_LABELS,
   scriptureStatus,
+  scriptureLabel,
+  atlasBiography,
 } from '@/lib/language-atlas/model';
 import type { AtlasDetail, AtlasRecord, AtlasSource } from '@/lib/language-atlas/types';
 
@@ -127,17 +129,15 @@ function Profile({
           'Country not recorded'}
       </p>
       <div className="la-status">
-        <i className={`la-dot la-dot--${scriptureVisualCategory(status, record.kind)}`} />
+        <i className={`la-dot la-dot--${scriptureVisualCategory(status)}`} />
         <strong>
-          {record.kind === 'dialect' && status === 'unknown' ? 'Unverified' : SCRIPTURE_LABELS[status]}
+          {scriptureLabel(record)}
         </strong>
         {record.kind === 'people-group' && <span>Primary-language context</span>}
       </div>
-      {record.kind === 'dialect' && (
+      {record.kind === 'dialect' && status !== 'unknown' && (
         <p className="la-scope-note">
-          {status === 'unknown'
-            ? 'Scripture coverage has not been verified for this exact variety.'
-            : 'This claim is scoped to this variety.'}
+          This claim is scoped to this variety.
         </p>
       )}
       {record.languageContextStatus && (
@@ -152,7 +152,7 @@ function Profile({
       )}
       <section className="la-profile-section">
         <h3>About this record</h3>
-        <p>{detail?.biography || record.summary}</p>
+        <p>{atlasBiography(record, detail?.biography || record.summary)}</p>
         {record.aliases.length > 0 && (
           <details>
             <summary>

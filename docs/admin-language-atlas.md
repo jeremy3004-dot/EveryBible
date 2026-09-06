@@ -56,7 +56,7 @@ ROLV match is verified.
   with separate light and dark values shared by map dots and legends. Started and needed
   records and unverified dialects share the red **No known Scripture** display category.
   This is a visual default, not verified absence. Exact status remains in profiles and
-  exports; unknown languages and people groups remain neutral. Legend filters follow
+  exports; unknown languages and people groups also use red. Legend filters follow
   these displayed categories.
   Labels accompany every legend swatch. Mixed clusters use a neutral color.
 - **Unknown does not mean no Scripture.** Dialect coverage is not inferred from
@@ -184,3 +184,13 @@ record's `scriptureStatus` and `scriptureScope: "dialect"` from attributed evide
 then rebuild both snapshots. Parent-language status never changes a dialect's color.
 The atlas currently has no inline status editor; snapshot files are generated and
 should not be hand-edited.
+
+### No known Scripture presentation
+
+All unknown-status records now use red alongside started/needed records under
+**No known Scripture**. There is no separate gray Unknown legend filter.
+Profiles and hover biographies say **No known Scripture in this language/dialect**;
+Agbirigba's identity, classification and country remain visible. This wording is
+applied at presentation time so provider statuses and evidence remain unchanged.
+Confirmed portions, NT and full-Bible records retain their corresponding colors.
+Neutral cluster circles still represent mixed groups, not Scripture status.

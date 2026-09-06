@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildFeatures,
+  atlasBiography,
+  scriptureLabel,
   countRecords,
   DEFAULT_FILTERS,
   exportCsv,
@@ -105,13 +107,13 @@ test('red legend filter includes unverified dialects without changing their evid
     filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'no-scripture' }).map(
       (row) => row.id
     ),
-    ['started', 'needed', 'inherited-dialect']
+    ['started', 'needed', 'unknown', 'inherited-dialect']
   );
   assert.deepEqual(
     filterRecords(rows, { ...DEFAULT_FILTERS, kind: 'all', scripture: 'unknown' }).map(
       (row) => row.id
     ),
-    ['unknown']
+    []
   );
 });
 
@@ -233,4 +235,18 @@ test('an exact dialect status update changes its point and legend filter without
     assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: status}).length, 1);
     assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: 'no-scripture'}).length, 0);
   }
+});
+
+
+test('unknown Scripture uses requested wording without discarding identity or changing evidence', () => {
+  const language = record({name:'Agbirigba', scriptureStatus:'unknown', summary:'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. Language-level Scripture status is unreported.'});
+  assert.equal(atlasBiography(language), 'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. No known Scripture in this language.');
+  assert.equal(scriptureLabel(language), 'No known Scripture in this language');
+  const dialect = record({kind:'dialect', scriptureStatus:'unknown', summary:'Bhalu is a Glottolog dialect associated with Sampang. Scripture availability for this specific variety is unconfirmed.'});
+  assert.equal(atlasBiography(dialect), 'Bhalu is a Glottolog dialect associated with Sampang. No known Scripture in this dialect.');
+  assert.equal(scriptureLabel(dialect), 'No known Scripture in this dialect');
+  assert.equal(language.scriptureStatus, 'unknown');
+  const verified = record({kind:'dialect', scriptureScope:'dialect', scriptureStatus:'nt', summary:'Confirmed NT.'});
+  assert.equal(atlasBiography(verified), 'Confirmed NT.');
+  assert.equal(scriptureLabel(verified), 'New Testament');
 });

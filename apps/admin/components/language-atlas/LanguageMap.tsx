@@ -12,8 +12,9 @@ import {
   PRECISION_LABELS,
   recordLocations,
   resolveMapHitRecords,
-  SCRIPTURE_LABELS,
   scriptureStatus,
+  scriptureLabel,
+  atlasBiography,
 } from '../../lib/language-atlas/model';
 import { SCRIPTURE_COLORS, scriptureVisualCategory } from '../../lib/language-atlas/presentation';
 import type {
@@ -341,9 +342,9 @@ export function LanguageMap({
       const title = document.createElement('strong');
       title.textContent = record.name;
       const category = document.createElement('small');
-      category.textContent = `${KIND_LABELS[record.kind]} · ${SCRIPTURE_LABELS[scriptureStatus(record)]}${record.kind === 'people-group' ? ' (primary language)' : ''}`;
+      category.textContent = `${KIND_LABELS[record.kind]} · ${scriptureLabel(record)}${record.kind === 'people-group' ? ' (primary language)' : ''}`;
       const bio = document.createElement('p');
-      bio.textContent = record.summary;
+      bio.textContent = atlasBiography(record);
       node.append(title, category, bio);
       const location = recordLocations(record)[Number(feature.properties.locationIndex)];
       if (location) {
@@ -585,7 +586,7 @@ export function LanguageMap({
                   onClick={() => onSelect(record.id)}
                 >
                   <i
-                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record), record.kind)}`}
+                    className={`la-dot la-dot--${scriptureVisualCategory(scriptureStatus(record))}`}
                   />
                   <span>
                     {record.name}

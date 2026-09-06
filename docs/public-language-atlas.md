@@ -18,7 +18,7 @@ count source records; unresolved source identities may remain separate.
 At widths up to 760px, the default view keeps overlapping dots, a slim search
 bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
 typing opens the filtered record list. Legend contains Scripture filters, the
-unknown-status explanation, and About the data. Settings contains projection,
+and About the data. Settings contains projection,
 Spread dots, Recorded locations and Clusters controls, zoom, Fit results, and
 Reset view. The public explorer omits the technical record-count/display note.
 
@@ -48,7 +48,7 @@ existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains
 Mono labels, warm charcoal/cream surfaces, and blue accents. Scripture status
 uses reef, ochre, clay, danger and neutral. Unverified dialects default to red
 (**No known Scripture**) without asserting verified absence or altering source data.
-Unknown languages remain neutral. Exact-variety portions, NT and Bible evidence
+Unknown languages also use red. Exact-variety portions, NT and Bible evidence
 sets the corresponding dialect color; profiles distinguish unverified coverage.
 
 Map panels use fully opaque surfaces. Hover popups stack above the spread-dot
@@ -126,3 +126,13 @@ The deployment task owns main integration and both Vercel deployments.
 The shared canvas overlay projects one representative location per record. Overlapping anchors move to the nearest free position on a deterministic hexagonal screen lattice; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
 
 The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Current public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.
+
+### No known Scripture presentation
+
+All unknown-status records now use red alongside started/needed records under
+**No known Scripture**. There is no separate gray Unknown legend filter.
+Profiles and hover biographies say **No known Scripture in this language/dialect**;
+Agbirigba's identity, classification and country remain visible. This wording is
+applied at presentation time so provider statuses and evidence remain unchanged.
+Confirmed portions, NT and full-Bible records retain their corresponding colors.
+Neutral cluster circles still represent mixed groups, not Scripture status.

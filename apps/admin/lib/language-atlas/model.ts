@@ -45,6 +45,21 @@ export function scriptureStatus(record: AtlasRecord): ScriptureStatus {
     : record.scriptureStatus;
 }
 
+/** Product wording only: stored provider statuses and evidence stay intact. */
+export function scriptureLabel(record: AtlasRecord): string {
+  const status = scriptureStatus(record);
+  if (status !== 'unknown') return SCRIPTURE_LABELS[status];
+  const subject = record.kind === 'dialect' ? 'dialect' : record.kind === 'people-group' ? 'primary language' : 'language';
+  return `No known Scripture in this ${subject}`;
+}
+
+export function atlasBiography(record: AtlasRecord, biography = record.summary): string {
+  if (scriptureStatus(record) !== 'unknown') return biography;
+  return biography
+    .replace('Language-level Scripture status is unreported.', `${scriptureLabel(record)}.`)
+    .replace('Scripture availability for this specific variety is unconfirmed.', `${scriptureLabel(record)}.`);
+}
+
 function validLocation(location: AtlasLocation | null): location is AtlasLocation {
   return (
     !!location &&
@@ -83,7 +98,7 @@ export function filterRecords(records: AtlasRecord[], filters: AtlasFilters): At
     if (
       filters.scripture !== 'all' &&
       (filters.scripture === 'no-scripture' || filters.scripture === 'unknown'
-        ? scriptureVisualCategory(status, record.kind) !== filters.scripture
+        ? scriptureVisualCategory(status) !== filters.scripture
         : status !== filters.scripture)
     )
       return false;
@@ -147,7 +162,7 @@ export function buildFeatures(records: AtlasRecord[]): AtlasFeatures {
         properties: {
           recordId: record.id,
           locationIndex: index,
-          category: scriptureVisualCategory(scriptureStatus(record), record.kind),
+          category: scriptureVisualCategory(scriptureStatus(record)),
         },
       }))
     ),
