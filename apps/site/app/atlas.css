@@ -48,7 +48,6 @@
 .pa-segment button { color: hsl(var(--muted-foreground)); background: transparent; padding: 7px 12px; border: 0; border-radius: 5px; font-size: 12px; }
 .pa-segment button[aria-pressed=true] { color: hsl(var(--foreground)); background: hsl(var(--secondary)); }
 .pa-segment--display button { white-space: nowrap; }
-.pa-display-note { margin: 0; padding: 10px 18px; border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.45; flex-shrink: 0; }
 .pa-download { position: absolute; left: 24px; bottom: 65px; width: 352px; border: 1px solid hsl(var(--border)); background: var(--panel); border-radius: 12px; display: flex; align-items: center; gap: 16px; padding: 16px; z-index: 3; scroll-margin-top: 100px; }
 .pa-qr { flex-shrink: 0; display: block; background: #fff; padding: 9px; border-radius: 6px; }
 .pa-qr img { display: block; width: 82px; height: 82px; }
@@ -170,7 +169,6 @@
   .pa-settings-controls { display: flex; flex-wrap: wrap; gap: 10px; }
   .pa-segment button { min-height: 44px; padding: 8px 12px; }
   .pa-settings-controls .pa-segment--display { flex: 1 1 100%; flex-wrap: wrap; }
-  .pa-tool-panel .pa-display-note { margin-top: 12px; padding: 10px 0 0; }
   .pa-settings-actions .la-map-actions { position: static; display: flex; flex-wrap: wrap; margin-top: 12px; box-shadow: none; }
   .pa-settings-actions .la-text-button { min-height: 44px; min-width: 44px; }
   .pa-browse { min-height: 44px; }

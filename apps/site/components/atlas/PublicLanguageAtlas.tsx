@@ -198,17 +198,6 @@ export function PublicLanguageAtlas() {
       onSources={() => openPanel('sources')}
     />
   );
-  const displayNote = (
-    <p className="pa-display-note" role="status">
-      {index ? `${formatCount(records.length)} matching source records. ` : ''}
-      {displayMode === 'spread'
-        ? 'One dot per mapped record. Zoom in to separate overlaps.'
-        : displayMode === 'individual'
-          ? 'Recorded locations may overlap.'
-          : 'Recorded locations grouped as you zoom out.'}{' '}
-      Some identities still need review.
-    </p>
-  );
 
   return (
     <section
@@ -298,7 +287,6 @@ export function PublicLanguageAtlas() {
                 </button>
               </div>
               {mapSettings}
-              {displayNote}
               <div className="pa-settings-actions" ref={setControlsTarget} />
             </section>
           ) : mobile && panel === 'legend' ? (
@@ -485,12 +473,7 @@ export function PublicLanguageAtlas() {
           )}
         </div>
 
-        {!mobile && (
-          <>
-            {displayNote}
-            {legend}
-          </>
-        )}
+        {!mobile && legend}
       </aside>
 
       <div className="pa-download-dock">

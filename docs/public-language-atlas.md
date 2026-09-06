@@ -19,8 +19,8 @@ At widths up to 760px, the default view keeps overlapping dots, a slim search
 bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
 typing opens the filtered record list. Legend contains Scripture filters, the
 unknown-status explanation, and About the data. Settings contains projection,
-Spread dots, Recorded locations and Clusters controls, the source-aware record
-count, zoom, Fit results, and Reset view.
+Spread dots, Recorded locations and Clusters controls, zoom, Fit results, and
+Reset view. The public explorer omits the technical record-count/display note.
 
 Only one mobile panel opens at a time. Close buttons, Escape, and tapping
 outside dismiss it without clearing the active filters. Overlapping map dots
