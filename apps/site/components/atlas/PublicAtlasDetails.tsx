@@ -9,13 +9,19 @@ import {
   SCRIPTURE_LABELS,
   scriptureStatus,
   scriptureLabel,
-  atlasBiography,
 } from '../../../admin/lib/language-atlas/model';
 import {
   SCRIPTURE_COLORS,
   scriptureVisualCategory,
 } from '../../../admin/lib/language-atlas/presentation';
 import type { AtlasIndex, AtlasRecord, AtlasSource } from '../../../admin/lib/language-atlas/types';
+import {
+  parentRecord,
+  profileCountryGroups,
+  profileIdentity,
+  profilePopulation,
+  profileSpokenLocations,
+} from '../../lib/public-atlas-profile';
 
 function SourceLink({ source, record }: { source: AtlasSource; record?: AtlasRecord }) {
   // These exact record URL patterns are also used by the snapshot importer.
@@ -38,6 +44,27 @@ function SourceLink({ source, record }: { source: AtlasSource; record?: AtlasRec
   );
 }
 
+function CountryList({
+  countries,
+}: {
+  countries: ReturnType<typeof profileCountryGroups>['visible'];
+}) {
+  return (
+    <ul className="pa-profile-countries">
+      {countries.map((country, index) => (
+        <li key={`${country.code}-${index}`}>
+          {country.flag && (
+            <span className="pa-country-flag" aria-hidden="true">
+              {country.flag}
+            </span>
+          )}
+          <span>{country.name}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function AtlasRecordProfile({
   record,
   index,
@@ -52,9 +79,10 @@ export function AtlasRecordProfile({
     titleRef.current?.focus({ preventScroll: true });
   }, [record.id]);
   const status = scriptureStatus(record);
-  const countries = record.countryCodes.map(
-    (code) => index.countries.find((country) => country.code === code)?.name ?? code
-  );
+  const countryGroups = profileCountryGroups(record, index);
+  const parent = parentRecord(record, index);
+  const population = profilePopulation(record);
+  const spokenLocations = profileSpokenLocations(record, index);
   const locations = recordLocations(record);
   return (
     <article className="pa-profile" aria-label={`${record.name} profile`}>
@@ -67,7 +95,30 @@ export function AtlasRecordProfile({
       <h2 ref={titleRef} tabIndex={-1}>
         {record.name}
       </h2>
-      <p className="pa-profile-country">{countries.join(' · ') || 'Country not recorded'}</p>
+      <p className="pa-profile-identity">{profileIdentity(record, index)}</p>
+      <section className="pa-profile-where" aria-labelledby="pa-where-spoken-heading">
+        <h3 id="pa-where-spoken-heading">Where spoken</h3>
+        {countryGroups.visible.length ? (
+          <CountryList countries={countryGroups.visible} />
+        ) : (
+          <p className="pa-scope">Country not recorded.</p>
+        )}
+        {countryGroups.remaining.length > 0 && (
+          <details key={record.id} className="pa-profile-country-more">
+            <summary>
+              {countryGroups.remaining.length} more{' '}
+              {countryGroups.remaining.length === 1 ? 'country' : 'countries'}
+            </summary>
+            <CountryList countries={countryGroups.remaining} />
+          </details>
+        )}
+        {spokenLocations.length > 0 && (
+          <p className="pa-profile-spoken-locations">
+            <span className="pa-profile-spoken-label">Area:</span>{' '}
+            {spokenLocations.join(' · ')}
+          </p>
+        )}
+      </section>
       <div className="pa-scripture-status">
         <i
           className="pa-dot"
@@ -77,6 +128,12 @@ export function AtlasRecordProfile({
           {scriptureLabel(record)}
         </strong>
       </div>
+      {record.languageContextStatus && record.languageContextStatus !== 'unknown' && (
+        <p className="pa-biography pa-profile-parent-context">
+          {SCRIPTURE_LABELS[record.languageContextStatus]} reported for parent language
+          {parent ? ` ${parent.name}` : ''}.
+        </p>
+      )}
       {record.kind === 'people-group' && (
         <p className="pa-scope">
           Scripture status describes this people group’s reported primary language.
@@ -91,12 +148,11 @@ export function AtlasRecordProfile({
           .
         </p>
       )}
-      <p className="pa-biography">{atlasBiography(record)}</p>
       <dl className="pa-identifiers">
-        {record.population !== null && (
+        {population && (
           <div>
-            <dt>Reported population</dt>
-            <dd>{formatCount(record.population)}</dd>
+            <dt>{population.label}</dt>
+            <dd>{population.value}</dd>
           </div>
         )}
         {record.family && (
@@ -124,15 +180,6 @@ export function AtlasRecordProfile({
           </div>
         )}
       </dl>
-      {record.languageContextStatus && (
-        <div className="pa-context">
-          <h3>Parent-language context</h3>
-          <p>
-            {SCRIPTURE_LABELS[record.languageContextStatus]}. This does not establish coverage for
-            this exact variety.
-          </p>
-        </div>
-      )}
       <details className="pa-detail-section">
         <summary>Reference locations · {formatCount(locations.length)}</summary>
         <p>Points show reference areas, not exact community boundaries.</p>

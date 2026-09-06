@@ -16,6 +16,51 @@ class SourceRules(unittest.TestCase):
         self.assertIsNone(normalize_rolv(0))
         self.assertIsNone(normalize_rolv("eng"))
 
+    def test_exact_rolv_location_is_preserved_as_spoken_location(self):
+        row = {
+            "LanguageCode": "aab", "LanguageName": "Alumu-Tesu", "ROLVCode": 7262,
+            "LanguageTag": "aab-x-HIS07262", "VarietyName": "Alumu-Tesu: Alumu",
+            "CountryCode": "NG", "LocationName": "Nigeria, Nassarawa",
+        }
+        builder = AtlasBuilder(
+            {"raw_rolv": [row]},
+            {"country_records": [], "language_records": []},
+            {"data": {"ROLVCodes": [row]}},
+            [],
+        )
+        builder.add_rolv()
+        self.assertEqual(builder.records["rolv:07262"]["spokenLocations"], [{
+            "label": "Nigeria, Nassarawa", "countryCode": "NG", "sourceId": "grn",
+        }])
+
+    def test_spoken_location_survives_every_language_rolv_dedup_without_parent_inheritance(self):
+        row = {
+            "LanguageCode": "aab", "LanguageName": "Alumu-Tesu", "ROLVCode": 7262,
+            "LanguageTag": "aab-x-HIS07262", "VarietyName": "Alumu-Tesu: Alumu",
+            "CountryCode": "NG", "LocationName": "Nigeria, Nassarawa",
+        }
+        builder = AtlasBuilder(
+            {"raw_rolv": [row]},
+            {"country_records": [], "language_records": []},
+            {"data": {"ROLVCodes": [row]}},
+            [],
+        )
+        builder.add_rolv()
+        parent = builder.records["iso:aab"]
+        parent["spokenLocations"] = [{"label": "Nigeria", "countryCode": "NG", "sourceId": "parent"}]
+        enrich_everylanguage(builder, {
+            "language-entities": [{"id": "parent", "parent_id": None, "name": "Alumu-Tesu", "level": "language"},
+                                   {"id": "child", "parent_id": "parent", "name": "Alumu-Tesu: Alumu", "level": "dialect"}],
+            "language-entity-sources": [{"language_entity_id": "parent", "source": "SIL", "external_id_type": "iso-639-3", "external_id": "aab", "version": "2025"},
+                                         {"language_entity_id": "child", "source": "GRN", "external_id_type": "rolv_code", "external_id": "7262", "version": "2025"}],
+        })
+        record = builder.records["rolv:07262"]
+        self.assertEqual(builder.el_ids["child"], "rolv:07262")
+        self.assertEqual(record["spokenLocations"], [{
+            "label": "Nigeria, Nassarawa", "countryCode": "NG", "sourceId": "grn",
+        }])
+        self.assertNotEqual(record["spokenLocations"], parent["spokenLocations"])
+
     def test_joshua_unspecified_is_not_translation_needed(self):
         self.assertEqual(scripture_status("0"), "unknown")
         self.assertEqual(scripture_status("1"), "needed")

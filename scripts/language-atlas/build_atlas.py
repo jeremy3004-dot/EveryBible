@@ -233,6 +233,14 @@ class AtlasBuilder:
                 record["family"] = parent["family"]
                 record["languageContextStatus"] = parent["scriptureStatus"]
                 self.link(record_id, parent_id, "Associated ISO language", "ROLV variety")
+            spoken_label = text(row.get("LocationName"))
+            spoken_countries = iso_codes(row.get("CountryCode"))
+            if spoken_label and len(spoken_countries) == 1:
+                record["spokenLocations"] = [{
+                    "label": spoken_label,
+                    "countryCode": spoken_countries[0],
+                    "sourceId": "grn",
+                }]
             url = f"https://globalrecordings.net/en/language/{code}"
             for label, key in [("ROLV code", "ROLVCode"), ("Language tag", "LanguageTag"), ("Registry location", "LocationName")]:
                 self.evidence(record_id, label, code if key == "ROLVCode" else row[key], "grn", url)

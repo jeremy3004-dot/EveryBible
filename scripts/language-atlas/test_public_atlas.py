@@ -37,6 +37,16 @@ class PublicBoundary(unittest.TestCase):
         self.assertEqual(record["locations"][0]["latitude"], 28)
         self.assertEqual(source, before)
 
+    def test_projection_allowlists_exact_spoken_locations(self):
+        source = self.fixture()
+        source["records"][0]["spokenLocations"] = [{
+            "label": "Nepal, Bagmati", "countryCode": "NP", "sourceId": "grn", "private": "drop",
+        }]
+        record = public_projection(source)["records"][0]
+        self.assertEqual(record["spokenLocations"], [{
+            "label": "Nepal, Bagmati", "countryCode": "NP", "sourceId": "grn",
+        }])
+
     def test_source_urls_cannot_publish_credentials_or_unsafe_schemes(self):
         for url in ("javascript:alert(1)", "file:///private/source", "https://user:password@example.com"):
             source = self.fixture()

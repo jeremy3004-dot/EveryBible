@@ -10,6 +10,7 @@ SOURCE = ROOT / "apps/admin/data/language-atlas/index.json.gz"
 TARGET = ROOT / "apps/site/data/language-atlas/index.json.gz"
 RECORD_FIELDS = "id kind name aliases iso6393 glottocode rolvCode parentId family countryCodes population scriptureStatus scriptureScope languageContextStatus sourceIds summary needsReview".split()
 LOCATION_FIELDS = "sourceRecordId latitude longitude precision sourceId label countryCode".split()
+SPOKEN_LOCATION_FIELDS = "label countryCode sourceId".split()
 SOURCE_FIELDS = "id name url retrievedAt version license attribution note recordCount".split()
 COUNT_FIELDS = "records languages dialects peopleGroups mapped approximate unmapped needsReview".split()
 PUBLIC_NOTES = [
@@ -33,6 +34,8 @@ def public_projection(index):
         public["location"] = pick(record["location"], LOCATION_FIELDS) if record.get("location") else None
         if "locations" in record:
             public["locations"] = [pick(point, LOCATION_FIELDS) for point in record["locations"]]
+        if "spokenLocations" in record:
+            public["spokenLocations"] = [pick(point, SPOKEN_LOCATION_FIELDS) for point in record["spokenLocations"]]
         records.append(public)
     sources = []
     for source in index["sources"]:

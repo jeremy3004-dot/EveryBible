@@ -126,7 +126,7 @@ The deployment task owns main integration and both Vercel deployments.
 
 The shared canvas overlay projects one representative location per record. Overlapping anchors move to the nearest free position on a deterministic hexagonal screen lattice; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
 
-The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Current public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.
+The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Historical public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.
 
 ### No known Scripture presentation
 
@@ -137,3 +137,32 @@ Agbirigba's identity, classification and country remain visible. This wording is
 applied at presentation time so provider statuses and evidence remain unchanged.
 Confirmed portions, NT and full-Bible records retain their corresponding colors.
 Neutral cluster circles still represent mixed groups, not Scripture status.
+
+### Public profile overview
+
+Selected profiles begin with a concise identity line. A dialect or variety with
+a resolved parent is described as a variety of that parent, followed by a
+wrapping **Where spoken** area that lists each associated country with a flag
+when its two-letter code is valid. Country names remain visible when a flag
+cannot be derived.
+
+When a selected record carries source-reported spoken-region labels, the
+profile shows those exact labels below the country chips. Identical labels are
+collapsed, exact country-name duplicates already shown in the chips are
+suppressed, and no labels are inferred from a parent language or another
+record.
+
+The overview renders a reported population only when that record has a
+non-null, finite source value. It does not inherit a parent's population or
+turn a people-group estimate into a speaker count. The public snapshot
+currently has no supported population value for Momveda.
+
+When a variety has a known parent-language Scripture status, the profile keeps
+that information in a short, explicitly parent-scoped sentence. Exact-variety
+status remains separate and unconfirmed when the record does not contain
+variety-specific evidence. Approximate map placement remains labeled in the
+profile, and identifiers, source records and reference locations remain
+available below the overview.
+
+The regenerated public snapshot used by the current overview has SHA-256
+`5d6c003cf6d8179329e805fd422e09e249c3479859c5a3eb8594d31982f83151`.

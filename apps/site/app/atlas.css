@@ -78,9 +78,20 @@
 .pa-loading, .pa-load-error { padding: 12px 20px; }
 .pa-load-error button { background: none; color: hsl(var(--primary)); border: 0; text-decoration: underline; }
 .pa-profile h2 { font: 600 30px/1.05 var(--font-display); letter-spacing: -.04em; margin: 0 0 10px; overflow-wrap: anywhere; }
-.pa-profile-country { color: hsl(var(--muted-foreground)); font-size: 12px; }
+.pa-profile-identity { margin: 0; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.45; }
+.pa-profile-where { margin-top: 14px; }
+.pa-profile-where h3 { font-size: 12px; font-weight: 500; margin: 0 0 7px; }
+.pa-profile-countries { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.pa-profile-countries li { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: hsl(var(--secondary)); font-size: 12px; }
+.pa-country-flag { font-size: 15px; line-height: 1; }
+.pa-profile-country-more { margin-top: 7px; }
+.pa-profile-country-more summary { color: hsl(var(--primary)); font-size: 11px; cursor: pointer; }
+.pa-profile-country-more .pa-profile-countries { margin-top: 7px; }
+.pa-profile-spoken-locations { margin: 8px 0 0; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.pa-profile-spoken-label { color: hsl(var(--foreground)); }
 .pa-scripture-status { display: flex; align-items: center; gap: 9px; padding: 13px 0; border-block: 1px solid hsl(var(--border)); margin-top: 18px; font-size: 12px; }
 .pa-biography, .pa-sources > p { font-size: 12px; line-height: 1.75; color: hsl(var(--muted-foreground)); }
+.pa-profile-parent-context { margin: 8px 0 0; }
 .pa-scope { font-size: 12px; color: hsl(var(--muted-foreground)); }
 .pa-identifiers { margin: 18px 0; font-size: 12px; }
 .pa-identifiers > div { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
@@ -175,6 +186,7 @@
   .pa-settings-actions .la-text-button { min-height: 44px; min-width: 44px; }
   .pa-browse { min-height: 44px; }
   .pa-profile h2 { font-size: 27px; }
+  .pa-profile-where { margin-top: 13px; }
   .pa-download-dock { left: 12px; right: 12px; bottom: 30px; width: auto; gap: 7px; }
   .pa-download { padding: 11px 14px; gap: 12px; }
   .pa-qr { padding: 6px; }

@@ -29,6 +29,13 @@ export interface AtlasLocation {
   countryCode: string | null;
 }
 
+/** Exact source-reported spoken placement labels, separate from map coordinates. */
+export interface AtlasSpokenLocation {
+  label: string;
+  countryCode: string | null;
+  sourceId: string;
+}
+
 /** Search/map fields only. Source evidence is loaded separately on selection. */
 export interface AtlasRecord {
   id: string;
@@ -48,6 +55,8 @@ export interface AtlasRecord {
   location: AtlasLocation | null;
   /** Additional source placements; includes the primary location when present. */
   locations?: AtlasLocation[];
+  /** Exact source-reported spoken locations; never inherited from parent context. */
+  spokenLocations?: AtlasSpokenLocation[];
   sourceIds: string[];
   summary: string;
   needsReview: boolean;
