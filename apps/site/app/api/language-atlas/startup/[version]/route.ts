@@ -25,6 +25,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
   // Browsers advertise at least gzip. If a simple client omits the header,
   // gzip remains the broadly supported, cacheable response.
   const encoding = acceptsEncoding(acceptEncoding, 'br') ? 'br' : 'gzip';
+  if (acceptEncoding && encoding === 'gzip' && !acceptsEncoding(acceptEncoding, 'gzip')) {
+    return new Response(null, {
+      status: 406,
+      headers: { 'Cache-Control': 'no-store', Vary: 'Accept-Encoding' },
+    });
+  }
 
   const filename = path.join(
     process.cwd(),

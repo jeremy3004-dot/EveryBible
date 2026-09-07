@@ -24,6 +24,9 @@ test('versioned public snapshots negotiate compression and cache only existing i
       params: Promise.resolve({ version: '../../index' }),
     });
     assert.equal(unsafe.status, 404);
+    const unsupported = await GET(request('br;q=0, gzip;q=0'), { params });
+    assert.equal(unsupported.status, 406);
+    assert.equal(unsupported.headers.get('cache-control'), 'no-store');
     const directory = path.join(temporary, 'data/language-atlas');
     await mkdir(directory, { recursive: true });
     const body = Buffer.from('{"schemaVersion":2,"records":["complete profile"]}');
