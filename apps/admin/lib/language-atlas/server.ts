@@ -25,7 +25,7 @@ export function getAtlasIndex(): Promise<AtlasIndex> {
   return indexPromise;
 }
 
-export async function getAtlasDetail(id: string): Promise<AtlasDetail | null> {
+async function readDetail(id: string): Promise<AtlasDetail | null> {
   // Only a hexadecimal hash selects a fixed shard. IDs remain exact map keys.
   const shard = createHash('sha256').update(id).digest('hex')[0];
   let pending = detailShards.get(shard);
@@ -41,4 +41,12 @@ export async function getAtlasDetail(id: string): Promise<AtlasDetail | null> {
   detailShards.set(shard, pending);
   if (detailShards.size > 2) detailShards.delete(detailShards.keys().next().value!);
   return (await pending).get(id) ?? null;
+}
+
+export async function getAtlasDetail(id: string): Promise<AtlasDetail | null> {
+  const detail = await readDetail(id);
+  if (detail) return detail;
+  const index = await getAtlasIndex();
+  const canonical = index.records.find((record) => record.alternateIds?.includes(id));
+  return canonical ? readDetail(canonical.id) : null;
 }

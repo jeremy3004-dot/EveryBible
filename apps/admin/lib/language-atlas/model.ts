@@ -111,6 +111,7 @@ export function filterRecords(records: AtlasRecord[], filters: AtlasFilters): At
         record.name,
         ...record.aliases,
         record.id,
+        ...(record.alternateIds ?? []),
         record.iso6393,
         record.glottocode,
         record.rolvCode,

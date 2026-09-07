@@ -14,22 +14,22 @@ keyboard-accessible suggestions, with the complete filtered list in Records.
 Profiles replace the inspector contents and keep source evidence in an expandable
 section. Back, close, and Escape restore access to the list/search.
 
-## Collection reconciled 2026-09-06
+## Collection reconciled 2026-09-07
 
 | Record kind / placement                        | Records |
 | ---------------------------------------------- | ------: |
 | Languages                                      |   9,795 |
-| Dialects and varieties                         |  30,790 |
+| Dialects and varieties                         |  25,220 |
 | People groups in countries                     |  16,471 |
-| Total                                          |  57,056 |
-| With a reference or approximate placement      |  55,550 |
-| Approximate placements within the mapped total |  29,081 |
+| Total                                          |  51,486 |
+| With a reference or approximate placement      |  49,980 |
+| Approximate placements within the mapped total |  23,514 |
 | Without a supported placement                  |   1,506 |
-| Flagged for source review                      |   1,790 |
+| Flagged for source review                      |   1,791 |
 
 These are registry records, not a definitive count of distinct living languages.
-Different registries remain separate where no verified identifier crosswalk
-establishes identity. A people group is not necessarily a distinct language.
+Different registries remain separate unless an identifier crosswalk or an
+explicitly reviewed contextual correspondence supports reconciliation. A people group is not necessarily a distinct language.
 
 The source audit preserves every saved DIALECTS language ID (8,327), all Glottolog
 5.3 languages (8,618) and dialects (13,706), and the union of saved/current ROLV
@@ -91,6 +91,26 @@ without obtaining a REST API key.
 
 The 2026-09-06 identity reconciliation joined 5,776 duplicate Every Language variety records through globally unique GRN identifiers and retained ROLV codes. Explicit parent-language conflicts are excluded; ambiguous links remain flagged. All 12,407 ROLV records, 35,348 Every Language entity IDs, 70,232 external-ID evidence rows, and 8,590 language-coordinate source references remain represented. Surviving Scripture status, scope, and parent-context values are unchanged.
 
+The 2026-09-07 global audit reconciled a further 2,512 Glottolog/ROLV pairs.
+Of these, 2,509 belong to reviewed exact-name sibling cohorts with matching
+immediate parents, record kinds, overlapping countries and unique aliases in both
+directions; two Jumli spelling variants and Mwini received separate lead review.
+These contextual inferences are explicitly distinguished from independent ID
+crosswalks. Mwini retains its disputed country claims and a review flag.
+All original IDs remain searchable through `alternateIds`, including authenticated
+detail lookups and public project references. A second conservative pass with Astra agents at low reasoning reconciled 12 more
+pairs after individual source review: five Northern Ghale village varieties, three
+Seke village varieties and four Australian alias correspondences. That pass left 5,151 unique candidate pairs (5,534 audit rows) for review.
+The subsequent atlas-wide naming pass reconciled 3,046 additional pairs across
+Glottolog, ROLV and Every Language. It applies source-attested parent-name
+equivalence, label formatting and controlled whole-leaf directional adjectives,
+preserving phonemic symbols and distinct scope. The original candidate queue now
+has 2,959 unresolved unique pairs (3,284 rows); the naming audit separately records
+554 excluded pairs, with overlap between these queues. Neither queue is a count
+of established duplicates. The initial 5,550 rows included repeated pairs across
+audit dispositions. See the
+[lead review](research/language-atlas/reconciliation-lead-review.md).
+
 Current Joshua Project language claims take precedence over saved language
 claims. Conflicting values are retained. No name-only join merges entities.
 ROLV IDs remain five-digit strings. Joshua Project ROG codes are mapped through
@@ -121,6 +141,16 @@ The build is offline and reproducible. `atlas:check` runs importer regressions a
 compares regenerated files byte-for-byte. `apps/admin/data/language-atlas/build-report.json`
 records input counts, discrepancies, source SHA-256 hashes, and artifact hashes.
 The installed `world-countries` dependency supplies labeled country centers.
+
+Reviewed identity decisions live in `data/language-atlas/reconciliation-decisions.json`.
+Each names exact canonical/duplicate IDs, rationale and evidence URLs. The build
+validates all groups before mutation and fails on conflicting identifiers,
+Scripture claims or incompatible hierarchy. It never discovers merges at runtime.
+The report records the decision-file hash. Audit scripts and dated candidate
+reports are under `scripts/language-atlas/audit_*identities.py`,
+`scripts/language-atlas/audit_glottolog_rolv.py` and
+`docs/research/language-atlas/reconciliation-*`. Audit-time counts describe the
+input snapshot, while the lead review describes final outcomes.
 
 Refresh providers explicitly; a page visit never scrapes them. Use the acquisition
 scripts documented in the three research reports. Every Language's refresh reads
@@ -194,3 +224,14 @@ Agbirigba's identity, classification and country remain visible. This wording is
 applied at presentation time so provider statuses and evidence remain unchanged.
 Confirmed portions, NT and full-Bible records retain their corresponding colors.
 Neutral cluster circles still represent mixed groups, not Scripture status.
+
+## Naming equivalence review
+
+The user-requested atlas-wide pass is documented in
+[the naming completion report](research/language-atlas/reconciliation-naming-completion.md).
+`audit_naming_equivalence.py` generates review candidates only; explicit approved
+IDs remain the sole build-time merge input. `verify_reconciliation_conservation.py`
+compares a saved baseline with regenerated data to check identity, Scripture,
+people-group and source-position preservation. Use `--before` and `--after` gzip
+index paths. Its report distinguishes replaced approximation-only attribution
+from lost source evidence.

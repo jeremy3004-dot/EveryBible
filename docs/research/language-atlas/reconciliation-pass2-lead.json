@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-07",
+  "groups": [
+    {
+      "canonicalId": "rolv:10196",
+      "duplicateIds": [
+        "glottolog:jaga1246"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:10196~glottolog:jaga1246",
+      "rationale": "Second-pass lead and Astra-low review: Jagat is a uniquely corresponding named village variety under Northern Ghale (ghh), Nepal, in both registries. GRN enumerates the five distinct varieties Jagat, Khorla, Nyak, Philim and Uiya; the Glottolog-indexed Webster survey corroborates those village varieties (Korla spelling in the survey bibliography). Earlier generic-label exclusion arose from Northern in the parent name, not the leaf. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Preserve all five distinct dialects while consolidating each repeated source identity.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/10196",
+        "https://globalrecordings.net/en/language/ghh",
+        "https://glottolog.org/resource/languoid/id/jaga1246",
+        "https://glottolog.org/resource/languoid/id/nort2709",
+        "https://glottolog.org/resource/reference/id/649669"
+      ]
+    },
+    {
+      "canonicalId": "rolv:10197",
+      "duplicateIds": [
+        "glottolog:khor1243"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:10197~glottolog:khor1243",
+      "rationale": "Second-pass lead and Astra-low review: Khorla is a uniquely corresponding named village variety under Northern Ghale (ghh), Nepal, in both registries. GRN enumerates the five distinct varieties Jagat, Khorla, Nyak, Philim and Uiya; the Glottolog-indexed Webster survey corroborates those village varieties (Korla spelling in the survey bibliography). Earlier generic-label exclusion arose from Northern in the parent name, not the leaf. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Preserve all five distinct dialects while consolidating each repeated source identity.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/10197",
+        "https://globalrecordings.net/en/language/ghh",
+        "https://glottolog.org/resource/languoid/id/khor1243",
+        "https://glottolog.org/resource/languoid/id/nort2709",
+        "https://glottolog.org/resource/reference/id/649669"
+      ]
+    },
+    {
+      "canonicalId": "rolv:10198",
+      "duplicateIds": [
+        "glottolog:nyak1258"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:10198~glottolog:nyak1258",
+      "rationale": "Second-pass lead and Astra-low review: Nyak is a uniquely corresponding named village variety under Northern Ghale (ghh), Nepal, in both registries. GRN enumerates the five distinct varieties Jagat, Khorla, Nyak, Philim and Uiya; the Glottolog-indexed Webster survey corroborates those village varieties (Korla spelling in the survey bibliography). Earlier generic-label exclusion arose from Northern in the parent name, not the leaf. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Preserve all five distinct dialects while consolidating each repeated source identity.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/10198",
+        "https://globalrecordings.net/en/language/ghh",
+        "https://glottolog.org/resource/languoid/id/nyak1258",
+        "https://glottolog.org/resource/languoid/id/nort2709",
+        "https://glottolog.org/resource/reference/id/649669"
+      ]
+    },
+    {
+      "canonicalId": "rolv:10199",
+      "duplicateIds": [
+        "glottolog:phil1244"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:10199~glottolog:phil1244",
+      "rationale": "Second-pass lead and Astra-low review: Philim is a uniquely corresponding named village variety under Northern Ghale (ghh), Nepal, in both registries. GRN enumerates the five distinct varieties Jagat, Khorla, Nyak, Philim and Uiya; the Glottolog-indexed Webster survey corroborates those village varieties (Korla spelling in the survey bibliography). Earlier generic-label exclusion arose from Northern in the parent name, not the leaf. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Preserve all five distinct dialects while consolidating each repeated source identity.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/10199",
+        "https://globalrecordings.net/en/language/ghh",
+        "https://glottolog.org/resource/languoid/id/phil1244",
+        "https://glottolog.org/resource/languoid/id/nort2709",
+        "https://glottolog.org/resource/reference/id/649669"
+      ]
+    },
+    {
+      "canonicalId": "rolv:10200",
+      "duplicateIds": [
+        "glottolog:uiya1236"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:10200~glottolog:uiya1236",
+      "rationale": "Second-pass lead and Astra-low review: Uiya is a uniquely corresponding named village variety under Northern Ghale (ghh), Nepal, in both registries. GRN enumerates the five distinct varieties Jagat, Khorla, Nyak, Philim and Uiya; the Glottolog-indexed Webster survey corroborates those village varieties (Korla spelling in the survey bibliography). Earlier generic-label exclusion arose from Northern in the parent name, not the leaf. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Preserve all five distinct dialects while consolidating each repeated source identity.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/10200",
+        "https://globalrecordings.net/en/language/ghh",
+        "https://glottolog.org/resource/languoid/id/uiya1236",
+        "https://glottolog.org/resource/languoid/id/nort2709",
+        "https://glottolog.org/resource/reference/id/649669"
+      ]
+    },
+    {
+      "canonicalId": "rolv:26424",
+      "duplicateIds": [
+        "glottolog:chuk1269"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:26424~glottolog:chuk1269",
+      "rationale": "Second-pass lead and Astra-low review: Chuksang is a uniquely corresponding village variety under Seke (skj), Nepal. GRN explicitly equates Seke with Seke (Nepal) and enumerates Chuksang, Tangbe and Tetang. Glottolog has the same direct leaves; ELA independently documents distinct village dialects including Chhusang, Tangbe and Tetang. This resolves the parent-name prefix exclusion without treating the three registry leaves as an exhaustive dialect inventory. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Keep the distinct village dialects separate.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/26424",
+        "https://globalrecordings.net/en/language/skj",
+        "https://glottolog.org/resource/languoid/id/chuk1269",
+        "https://glottolog.org/resource/languoid/id/seke1240",
+        "https://www.elalliance.org/languages/seke"
+      ]
+    },
+    {
+      "canonicalId": "rolv:26425",
+      "duplicateIds": [
+        "glottolog:tang1333"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:26425~glottolog:tang1333",
+      "rationale": "Second-pass lead and Astra-low review: Tangbe is a uniquely corresponding village variety under Seke (skj), Nepal. GRN explicitly equates Seke with Seke (Nepal) and enumerates Chuksang, Tangbe and Tetang. Glottolog has the same direct leaves; ELA independently documents distinct village dialects including Chhusang, Tangbe and Tetang. This resolves the parent-name prefix exclusion without treating the three registry leaves as an exhaustive dialect inventory. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Keep the distinct village dialects separate.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/26425",
+        "https://globalrecordings.net/en/language/skj",
+        "https://glottolog.org/resource/languoid/id/tang1333",
+        "https://glottolog.org/resource/languoid/id/seke1240",
+        "https://www.elalliance.org/languages/seke"
+      ]
+    },
+    {
+      "canonicalId": "rolv:26426",
+      "duplicateIds": [
+        "glottolog:teta1238"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:26426~glottolog:teta1238",
+      "rationale": "Second-pass lead and Astra-low review: Tetang is a uniquely corresponding village variety under Seke (skj), Nepal. GRN explicitly equates Seke with Seke (Nepal) and enumerates Chuksang, Tangbe and Tetang. Glottolog has the same direct leaves; ELA independently documents distinct village dialects including Chhusang, Tangbe and Tetang. This resolves the parent-name prefix exclusion without treating the three registry leaves as an exhaustive dialect inventory. Same immediate parent/kind, unique competing-name checks, no children or scalar/Scripture conflicts. Keep the distinct village dialects separate.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/26426",
+        "https://globalrecordings.net/en/language/skj",
+        "https://glottolog.org/resource/languoid/id/teta1238",
+        "https://glottolog.org/resource/languoid/id/seke1240",
+        "https://www.elalliance.org/languages/seke"
+      ]
+    },
+    {
+      "canonicalId": "rolv:09317",
+      "duplicateIds": [
+        "glottolog:ngal1294"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:09317~glottolog:ngal1294",
+      "rationale": "Second-pass Astra-low source review and separate lead/conflict review: official GRN code and alternate-name rows bind Ngaliwerra, Ngaliwurru, Ngaliwuru to ROLV 09317; the Glottolog dialect profile independently lists the corresponding aliases and Australia. GRN snapshot hashes were checked against the September 5 source manifest. Both records are unique corresponding dialect leaves under djd, with no competing leaf aliases, children, scalar or Scripture conflicts. This supports a contextual identity correspondence, not a provider-declared identifier crosswalk. Retain all aliases, source identities and precise dialect coordinates; parent-language approximations are not identity proof.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/09317",
+        "https://gql.globalrecordings.net/graphql",
+        "https://glottolog.org/resource/languoid/id/ngal1294"
+      ]
+    },
+    {
+      "canonicalId": "rolv:14875",
+      "duplicateIds": [
+        "glottolog:bili1250"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:14875~glottolog:bili1250",
+      "rationale": "Second-pass Astra-low source review and separate lead/conflict review: official GRN code and alternate-name rows bind Bilinara, Bilinarra, Pilinara to ROLV 14875; the Glottolog dialect profile independently lists the corresponding aliases and Australia. GRN snapshot hashes were checked against the September 5 source manifest. Both records are unique corresponding dialect leaves under nbj, with no competing leaf aliases, children, scalar or Scripture conflicts. This supports a contextual identity correspondence, not a provider-declared identifier crosswalk. Retain all aliases, source identities and precise dialect coordinates; parent-language approximations are not identity proof.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/14875",
+        "https://gql.globalrecordings.net/graphql",
+        "https://glottolog.org/resource/languoid/id/bili1250"
+      ]
+    },
+    {
+      "canonicalId": "rolv:18137",
+      "duplicateIds": [
+        "glottolog:djuw1238"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:18137~glottolog:djuw1238",
+      "rationale": "Second-pass Astra-low source review and separate lead/conflict review: official GRN code and alternate-name rows bind Djuwarliny, Juwaliny, Tjuwalinj to ROLV 18137; the Glottolog dialect profile independently lists the corresponding aliases and Australia. GRN snapshot hashes were checked against the September 5 source manifest. Both records are unique corresponding dialect leaves under wmt, with no competing leaf aliases, children, scalar or Scripture conflicts. This supports a contextual identity correspondence, not a provider-declared identifier crosswalk. Retain all aliases, source identities and precise dialect coordinates; parent-language approximations are not identity proof.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/18137",
+        "https://gql.globalrecordings.net/graphql",
+        "https://glottolog.org/resource/languoid/id/djuw1238"
+      ]
+    },
+    {
+      "canonicalId": "rolv:18142",
+      "duplicateIds": [
+        "glottolog:binb1242"
+      ],
+      "reviewPass": 2,
+      "evidenceBasis": "individually-reviewed-contextual-correspondence",
+      "auditCandidateId": "rolv:18142~glottolog:binb1242",
+      "rationale": "Second-pass Astra-low source review and separate lead/conflict review: official GRN code and alternate-name rows bind Binbinga, Binbinka to ROLV 18142; the Glottolog dialect profile independently lists the corresponding aliases and Australia. GRN snapshot hashes were checked against the September 5 source manifest. Both records are unique corresponding dialect leaves under wmb, with no competing leaf aliases, children, scalar or Scripture conflicts. This supports a contextual identity correspondence, not a provider-declared identifier crosswalk. Retain all aliases, source identities and precise dialect coordinates; parent-language approximations are not identity proof.",
+      "evidence": [
+        "https://globalrecordings.net/en/language/18142",
+        "https://gql.globalrecordings.net/graphql",
+        "https://glottolog.org/resource/languoid/id/binb1242"
+      ]
+    }
+  ],
+  "retainedExamples": [
+    {
+      "ids": [
+        "rolv:00673",
+        "glottolog:solu1238",
+        "glottolog:khum1246"
+      ],
+      "reason": "Solukhumbu overlaps Solu and Khumbu; no unique identity correspondence."
+    },
+    {
+      "ids": [
+        "rolv:15082",
+        "glottolog:lhoo1238"
+      ],
+      "reason": "Nubri/Lho immediate hierarchy differs; retain classification context."
+    },
+    {
+      "ids": [
+        "rolv:02692",
+        "glottolog:bagl1238"
+      ],
+      "reason": "Baglung appears at different immediate hierarchy depths; preserve separately."
+    }
+  ]
+}

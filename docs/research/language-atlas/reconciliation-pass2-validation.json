@@ -1,0 +1,27 @@
+{
+  "before": {
+    "approximate": 26571,
+    "dialects": 28278,
+    "languages": 9795,
+    "mapped": 53038,
+    "needsReview": 1791,
+    "peopleGroups": 16471,
+    "records": 54544,
+    "unmapped": 1506
+  },
+  "after": {
+    "approximate": 26559,
+    "dialects": 28266,
+    "languages": 9795,
+    "mapped": 53026,
+    "needsReview": 1791,
+    "peopleGroups": 16471,
+    "records": 54532,
+    "unmapped": 1506
+  },
+  "originalCanonicalIdsResolved": 54544,
+  "currentCanonicalRecords": 54532,
+  "retainedAlternateIds": 2524,
+  "sourcePointsChecked": 51668,
+  "failures": []
+}

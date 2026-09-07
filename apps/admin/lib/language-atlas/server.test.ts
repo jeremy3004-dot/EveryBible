@@ -23,6 +23,9 @@ function loadServer(failFirst = false) {
     'node:fs/promises': { readFile: async (filename: string) => {
       calls.push(filename);
       if (failFirst && calls.length === 1) throw new Error('temporary read failure');
+      if (filename.endsWith('index.json.gz')) return zlib.gzipSync(JSON.stringify({
+        records: [{ id: 'iso:eng', alternateIds: ['legacy:english'] }],
+      }));
       return zlib.gzipSync(JSON.stringify({ 'iso:eng': { id: 'iso:eng' } }));
     } },
   };
@@ -38,7 +41,12 @@ test('profile reads select a fixed hash shard and perform exact key lookup', asy
   assert.equal((await get('iso:eng'))?.id, 'iso:eng');
   assert.equal(await get('../../secret'), null);
   assert.equal(await get('__proto__'), null);
-  assert.ok(calls.every((filename) => /^\/atlas-admin\/data\/language-atlas\/details-[a-f0-9]\.json\.gz$/.test(filename)));
+  assert.ok(calls.every((filename) => /^\/atlas-admin\/data\/language-atlas\/(details-[a-f0-9]|index)\.json\.gz$/.test(filename)));
+});
+
+test('a retired source ID opens the reconciled canonical profile', async () => {
+  const { get } = loadServer();
+  assert.equal((await get('legacy:english'))?.id, 'iso:eng');
 });
 
 test('profile shard cache retains only the two most recently used shards', async () => {
@@ -50,9 +58,9 @@ test('profile shard cache retains only the two most recently used shards', async
   }
   const [a, b, c] = [...keys.values()];
   await get(a); await get(b); await get(a);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.filter((filename) => filename.includes('details-')).length, 2);
   await get(c); await get(b);
-  assert.equal(calls.length, 4, 'least-recently-used shard should be read again');
+  assert.equal(calls.filter((filename) => filename.includes('details-')).length, 4, 'least-recently-used shard should be read again');
 });
 
 test('a failed profile read is retried instead of poisoning the cache', async () => {

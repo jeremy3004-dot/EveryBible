@@ -39,6 +39,8 @@ export interface AtlasSpokenLocation {
 /** Search/map fields only. Source evidence is loaded separately on selection. */
 export interface AtlasRecord {
   id: string;
+  /** Retained source record IDs reconciled into this canonical identity. */
+  alternateIds?: string[];
   kind: AtlasRecordKind;
   name: string;
   aliases: string[];

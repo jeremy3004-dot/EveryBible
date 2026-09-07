@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "apps/admin/data/language-atlas/index.json.gz"
 TARGET = ROOT / "apps/site/data/language-atlas/index.json.gz"
-RECORD_FIELDS = "id kind name aliases iso6393 glottocode rolvCode parentId family countryCodes population scriptureStatus scriptureScope languageContextStatus sourceIds summary needsReview".split()
+RECORD_FIELDS = "id alternateIds kind name aliases iso6393 glottocode rolvCode parentId family countryCodes population scriptureStatus scriptureScope languageContextStatus sourceIds summary needsReview".split()
 LOCATION_FIELDS = "sourceRecordId latitude longitude precision sourceId label countryCode".split()
 SPOKEN_LOCATION_FIELDS = "label countryCode sourceId".split()
 SOURCE_FIELDS = "id name url retrievedAt version license attribution note recordCount".split()

@@ -62,10 +62,10 @@ canvas so dots cannot paint over their text; keep this order when changing map l
 and explicitly selects public identity, search, summary, Scripture-scope,
 location, country and source fields. The public artifact is
 `apps/site/data/language-atlas/index.json.gz`. New fields added upstream do not
-automatically become public. The compatibility artifact retains all 57,056
-reviewed records and 80,749 source placements. The versioned startup artifact
+automatically become public. The compatibility artifact retains all 51,486
+reviewed records and 75,182 source placements. The versioned startup artifact
 (`startup-<sha256>.json.br` or `.json.gz`) keeps the same fields and placements
-for the 40,585 language and dialect records used by the public map, while
+for the 35,015 language and dialect records used by the public map, while
 omitting the separate people-group overlay from the initial download. Locations
 are stored once and referenced by index, so every dot and profile location is
 restored exactly in the browser. Original source evidence shards, raw imports,
@@ -184,7 +184,7 @@ and exact-variety evidence remain unchanged; confirmed statuses are never inheri
 from the parent. Identifiers and reference locations remain below the overview.
 No pilot research claims or population estimates were imported by this change.
 
-The regenerated public snapshot used by the current overview has SHA-256
+The historical public snapshot for the initial overview update had SHA-256
 `5d6c003cf6d8179329e805fd422e09e249c3479859c5a3eb8594d31982f83151`.
 
 ### Startup performance verification
@@ -194,7 +194,7 @@ matching the browser fetch, and includes the map module in its initial script
 loading graph. Keep these aligned: a mismatched preload can create two requests.
 The public map suppresses its empty-selection message until data is ready.
 
-The September 2026 snapshot is 1,991,632 Brotli bytes (2,494,993 gzip bytes),
+The initial September 2026 startup snapshot was 1,991,632 Brotli bytes (2,494,993 gzip bytes),
 down from 4,604,051 gzip bytes; decoded JSON falls from 51,719,404 to 17,149,655
 bytes. Complete public profiles remain available immediately after startup.
 The compatibility endpoint and authenticated admin data remain unchanged.
@@ -255,3 +255,48 @@ evidence shards are not imported by the public application.
 Browser regression: `scripts/browser-tests/public-atlas-projects.js` verifies
 all 23 project rows, source metrics, source-date labeling, project-name search,
 map selection, Dots/Clusters, reduced motion and 320/390px mobile controls.
+
+## Global identity reconciliation — 2026-09-07
+
+The reviewed build consolidates 2,512 additional Glottolog/ROLV duplicate records,
+including Paachsai/Paanchsai and Sinja. The public map now contains 38,073 language
+and dialect records. People groups remain a separate collection. Original source
+IDs are retained as `alternateIds` in both public artifacts and search; reviewed
+project references resolve to their canonical record. Source names, evidence,
+locations and exact-variety Scripture scopes are preserved.
+
+The final startup version is
+`d3c458414205d37b277a61c2c7d1d51237ed718ffc9ea010fd990db0d88da7a8`: 1,950,480
+Brotli bytes, 2,433,309 gzip bytes and 16,517,901 decoded bytes.
+
+These are reviewed contextual identity inferences, with ambiguous names and
+classification conflicts retained separately. See the
+[lead review](research/language-atlas/reconciliation-lead-review.md) and its
+machine-readable outcomes for scope, retained cases and validation.
+
+### Conservative second pass
+
+Astra agents at low reasoning reviewed the remaining candidates, with final lead
+adjudication. Twelve additional source pairs were reconciled using fresh primary
+source corroboration and verified GRN snapshot aliases. The map now has 38,061
+language/dialect records. Uncertain identities remain separate; all original IDs,
+source locations and Scripture claims survive. See the
+[second-pass review](research/language-atlas/reconciliation-pass2-review.md).
+
+Current startup version:
+`ec3548b24a76c988dd0437e8f330266a401b9f3479537e120a49bdbaeff7ee66`
+(1,950,829 Brotli bytes; 2,432,898 gzip bytes; 16,514,780 decoded bytes).
+
+### Atlas-wide naming equivalence
+
+The next reviewed pass consolidates 3,046 additional cross-registry identity
+pairs, including Kyrgyz: Northern / Northern Kirghiz and the Southern pair.
+North and South remain distinct; Kyrgyz: China is retained separately despite its
+confusing Northern alias. Matching uses source-attested parent labels and exact
+scoped names; phonemic punctuation and nested directions are preserved.
+
+The current public map has 35,015 language/dialect records. Startup version:
+`66821d6102ebe7712d6117768f4b9486a67b712667daa312bfe49b81f41245bf`
+(1,901,629 Brotli bytes; 2,355,025 gzip bytes; 15,742,669 decoded bytes).
+See the [completion report](research/language-atlas/reconciliation-naming-completion.md)
+for approved groups, exclusions and conservation checks.

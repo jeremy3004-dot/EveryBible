@@ -50,6 +50,11 @@ test('search finds aliases and exact identifier strings without losing ROLV zero
   assert.equal(filterRecords([record()], { ...DEFAULT_FILTERS, query: 'missing' }).length, 0);
 });
 
+test('reconciled source IDs find one canonical variety', () => {
+  const row = record({ alternateIds: ['glottolog:paac1238'] });
+  assert.deepEqual(filterRecords([row], { ...DEFAULT_FILTERS, query: 'glottolog:paac1238' }), [row]);
+});
+
 test('country uses source associations, not representative dot country, and filters combine', () => {
   const row = record({ countryCodes: ['IN', 'NP'] });
   assert.equal(

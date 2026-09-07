@@ -421,6 +421,7 @@ def write_output(name, data, check):
 def main():
     from everylanguage import enrich_everylanguage
     from grn import enrich_grn
+    from reconciliation import reconcile_records
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify the snapshots reproduce exactly without writing")
@@ -453,13 +454,31 @@ def main():
     builder.add_people_groups()
     enrich_everylanguage(builder, bundle)
     enrich_grn(builder, load_json(SOURCES / "grn-rolv-alternate-names-20260905.json"), load_json(SOURCES / "grn-mapapp-language-variety-index-20260905.json"))
+    decisions_path = ROOT / "data/language-atlas/reconciliation-decisions.json"
+    decisions = load_json(decisions_path)
+    if decisions.get("schemaVersion") != 1:
+        raise ValueError("Unsupported reconciliation decision schema")
+    reconcile_records(builder, decisions["groups"])
+    for group in decisions["groups"]:
+        if group.get("needsReview"):
+            builder.records[group["canonicalId"]]["needsReview"] = True
+    builder.report["reconciliation"]["decisionFile"] = {
+        "file": str(decisions_path.relative_to(ROOT)),
+        "sha256": hashlib.sha256(decisions_path.read_bytes()).hexdigest(),
+        "reviewedAt": decisions["reviewedAt"],
+    }
     index, details, report = builder.finish(sources, snapshot_date)
+    retained_ids = {identity for record in index["records"]
+                    for identity in [record["id"], *record.get("alternateIds", [])]}
     for row in table_rows(registry["language_crosswalk"]):
-        if row["Canonical Entity ID"] not in builder.records:
+        if row["Canonical Entity ID"] not in retained_ids:
             raise ValueError("A saved language record was lost")
     for row in table_rows(registry["raw_glottolog_5_3"]):
         if row.get("level") in {"language", "dialect"} and row["id"] not in builder.glottolog_ids:
             raise ValueError("A Glottolog language or dialect was lost")
+    for mapping in (builder.glottolog_ids, builder.iso_ids, builder.el_ids):
+        if any(record_id not in builder.records for record_id in mapping.values()):
+            raise ValueError("A source identifier no longer resolves to an atlas record")
     report["artifacts"] = {"index.json.gz": write_output("index.json.gz", encode_snapshot(index), args.check)}
     shards = {format(value, "x"): {} for value in range(16)}
     for record_id, detail in details.items():

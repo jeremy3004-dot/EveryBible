@@ -32,6 +32,13 @@ class PublicProjectsTests(unittest.TestCase):
         self.assertEqual(len(result['projects']),1)
         self.assertIsNone(result['projects'][0]['recordId'])
 
+    def test_reviewed_project_link_resolves_retained_source_identifier(self):
+        rows, stamp, source = parse_portfolio(self.csv)
+        records = [dict(self.records[0], id='canonical:byh', alternateIds=['iso:byh'])]
+        result = project_projection(rows, self.links, records, stamp, source)
+        self.assertEqual(result['projects'][0]['recordId'], 'canonical:byh')
+        self.assertEqual(result['projects'][0]['recordedPercentage'], 38.9)
+
     def test_boundary_and_missing_activity(self):
         rows, stamp, source = parse_portfolio(self.csv)
         for activity, expected in [('30d ago',1),('31d ago',0),('',0),('0d ago',1)]:

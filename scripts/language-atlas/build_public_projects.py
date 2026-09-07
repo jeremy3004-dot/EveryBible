@@ -56,7 +56,12 @@ def recent_row(row):
 
 
 def project_projection(rows, links, records, generated_at, source):
-    records_by_id = {record["id"]: record for record in records}
+    records_by_id = {}
+    for record in records:
+        for record_id in [record["id"], *record.get("alternateIds", [])]:
+            if record_id in records_by_id:
+                raise ValueError(f"Ambiguous atlas identity: {record_id}")
+            records_by_id[record_id] = record
     projects = []
     for row in rows:
         if not recent_row(row):
@@ -68,6 +73,8 @@ def project_projection(rows, links, records, generated_at, source):
         record_id = link.get("recordId") if link else None
         if record_id and record_id not in records_by_id:
             raise ValueError(f"Atlas link does not exist: {name}")
+        if record_id:
+            record_id = records_by_id[record_id]["id"]
         chapters = _number(row["Chapters Recorded"], "Chapters Recorded", name, integer=True)
         total_chapters = _number(row["Total Chapters"], "Total Chapters", name, integer=True)
         if total_chapters <= 0 or chapters > total_chapters:

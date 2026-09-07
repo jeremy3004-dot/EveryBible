@@ -48,6 +48,12 @@ class PublicBoundary(unittest.TestCase):
             "label": "Nepal, Bagmati", "countryCode": "NP", "sourceId": "grn",
         }])
 
+    def test_projection_retains_reconciled_identifiers(self):
+        source = self.fixture()
+        source["records"][0]["alternateIds"] = ["glottolog:paac1238"]
+        self.assertEqual(public_projection(source)["records"][0].get("alternateIds"),
+                         ["glottolog:paac1238"])
+
     def test_source_urls_cannot_publish_credentials_or_unsafe_schemes(self):
         for url in ("javascript:alert(1)", "file:///private/source", "https://user:password@example.com"):
             source = self.fixture()
