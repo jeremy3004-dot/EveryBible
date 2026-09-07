@@ -7,6 +7,10 @@ const nextConfig = {
   outputFileTracingRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
   outputFileTracingIncludes: {
     '/api/language-atlas': ['./data/language-atlas/index.json.gz'],
+    '/api/language-atlas/startup/*': [
+      './data/language-atlas/startup-*.json.br',
+      './data/language-atlas/startup-*.json.gz',
+    ],
   },
   eslint: {
     ignoreDuringBuilds: true,

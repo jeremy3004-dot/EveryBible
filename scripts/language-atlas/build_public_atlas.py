@@ -1,7 +1,9 @@
 """Publish only the reviewed map/search projection, never admin evidence shards."""
 import argparse
 import gzip
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -66,17 +68,70 @@ def encoded_projection():
     return bytes(compressed), index
 
 
+def startup_projection(index):
+    """Lossless table encoding; profiles and every source placement stay local."""
+    record_fields, location_fields, locations = [], [], []
+    location_ids = {}
+
+    def row(value, layouts):
+        fields = sorted(value)
+        if fields not in layouts:
+            layouts.append(fields)
+        return [layouts.index(fields), *[value[field] for field in fields]]
+
+    def location_id(location):
+        if location is None:
+            return None
+        key = json.dumps(location, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        if key not in location_ids:
+            location_ids[key] = len(locations)
+            locations.append(row(location, location_fields))
+        return location_ids[key]
+
+    records = []
+    for record in index["records"]:
+        if record["kind"] not in ("language", "dialect"):
+            continue
+        compact = {**record, "location": location_id(record["location"])}
+        if "locations" in record:
+            compact["locations"] = [location_id(location) for location in record["locations"]]
+        records.append(row(compact, record_fields))
+    return {
+        **index, "schemaVersion": 2, "records": records,
+        "recordFields": record_fields, "locationFields": location_fields, "locations": locations,
+    }
+
+
+def startup_artifacts(index):
+    payload = json.dumps(startup_projection(index), ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    version = hashlib.sha256(payload).hexdigest()
+    compressed = bytearray(gzip.compress(payload, mtime=0))
+    compressed[9] = 255
+    # Node's built-in Brotli keeps generation dependency-free alongside the site's runtime.
+    brotli = subprocess.run([
+        "node", "--input-type=commonjs", "-e",
+        "const z=require('node:zlib');const fs=require('node:fs');process.stdout.write(z.brotliCompressSync(fs.readFileSync(0),{params:{[z.constants.BROTLI_PARAM_QUALITY]:9}}));",
+    ], input=payload, stdout=subprocess.PIPE, check=True).stdout
+    return {
+        TARGET.parent / f"startup-{version}.json.gz": bytes(compressed),
+        TARGET.parent / f"startup-{version}.json.br": brotli,
+        ROOT / "apps/site/lib/public-atlas-version.json": (json.dumps({"version": version}, indent=2) + "\n").encode(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     encoded, index = encoded_projection()
+    artifacts = {TARGET: encoded, **startup_artifacts(index)}
     if args.check:
-        if not TARGET.exists() or TARGET.read_bytes() != encoded:
+        if any(not filename.exists() or filename.read_bytes() != content for filename, content in artifacts.items()):
             raise SystemExit("Public atlas snapshot is stale; run build_public_atlas.py")
     else:
-        TARGET.parent.mkdir(parents=True, exist_ok=True)
-        TARGET.write_bytes(encoded)
+        for filename, content in artifacts.items():
+            filename.parent.mkdir(parents=True, exist_ok=True)
+            filename.write_bytes(content)
     print(f"Public atlas: {len(index['records']):,} records; {len(encoded):,} compressed bytes; {'verified' if args.check else 'written'}")
 
 

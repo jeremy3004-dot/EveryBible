@@ -56,6 +56,8 @@ interface Props {
   controlsTarget?: HTMLElement | null;
   onSelectGroup?: (ids: string[]) => void;
   showHoverSummary?: boolean;
+  /** Keeps the empty-map message hidden while the public startup snapshot is loading. */
+  dataReady?: boolean;
 }
 
 export function LanguageMap({
@@ -68,13 +70,26 @@ export function LanguageMap({
   controlsTarget,
   onSelectGroup,
   showHoverSummary = true,
+  dataReady = true,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
   const readyMapRef = useRef<LibreMap | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const clickedLocation = useRef<{ id: string; coordinates: [number, number] } | null>(null);
-  const data = useMemo(() => buildFeatures(records), [records]);
+  // Dots mode renders records on the canvas and keeps the MapLibre source empty.
+  // Avoid building a second 40k-feature GeoJSON collection on that startup path.
+  const data = useMemo(
+    () => (displayMode === 'spread' ? EMPTY_ATLAS_FEATURES : buildFeatures(records)),
+    [records, displayMode]
+  );
+  const hasMapResults = useMemo(
+    () =>
+      displayMode === 'spread'
+        ? records.some((record) => recordLocations(record)[0])
+        : data.features.length > 0,
+    [records, displayMode, data]
+  );
   const byId = useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
   const current = useRef({ data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary });
   const [ready, setReady] = useState(false);
@@ -116,7 +131,7 @@ export function LanguageMap({
 
   const fit = useCallback(() => {
     const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
-    if (!map || !data.features.length) return;
+    if (!map || !hasMapResults) return;
     const bounds = new maplibregl.LngLatBounds();
     if (displayMode === 'spread') {
       representativePoints(records).forEach(({ location }) =>
@@ -138,7 +153,7 @@ export function LanguageMap({
       );
     }
     map.fitBounds(bounds, { padding: paddingRef.current, maxZoom: 8, duration: duration() });
-  }, [data, displayMode, records]);
+  }, [data, displayMode, hasMapResults, records]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -487,7 +502,7 @@ export function LanguageMap({
       <button
         className="la-text-button"
         type="button"
-        disabled={!ready || !data.features.length}
+        disabled={!ready || !hasMapResults}
         onClick={fit}
       >
         Fit results
@@ -556,7 +571,7 @@ export function LanguageMap({
             </button>
           </div>
         )}
-        {ready && !failed && !data.features.length && (
+        {ready && !failed && dataReady && !hasMapResults && (
           <p className="la-map-message">
             No mapped records in this selection. Explore the Records panel.
           </p>

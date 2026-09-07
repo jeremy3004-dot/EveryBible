@@ -1,6 +1,6 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import { LanguageMap } from '../../../admin/components/language-atlas/LanguageMap';
 import Image from 'next/image';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -21,24 +21,12 @@ import type {
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
 import { selectPublicAtlasRecords } from '../../lib/public-atlas-records';
+import { decodePublicAtlas } from '../../lib/public-atlas-transport';
+import atlasVersionData from '../../lib/public-atlas-version.json';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../../lib/site-links';
 
-const LanguageMap = dynamic(
-  () =>
-    import('../../../admin/components/language-atlas/LanguageMap').then(
-      (module) => module.LanguageMap
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <p className="pa-map-loading" role="status">
-        Opening the atlas…
-      </p>
-    ),
-  }
-);
 const EMPTY_RECORDS: AtlasIndex['records'] = [];
 const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
@@ -78,13 +66,12 @@ export function PublicLanguageAtlas() {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch('/api/language-atlas', { signal: controller.signal })
+    void fetch(`/api/language-atlas/startup/${atlasVersionData.version}`, {
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error('Atlas unavailable');
-        const data = (await response.json()) as AtlasIndex;
-        if (data.schemaVersion !== 1 || !Array.isArray(data.records))
-          throw new Error('Invalid atlas');
-        setIndex(data);
+        setIndex(decodePublicAtlas(await response.json()));
       })
       .catch(() => {
         if (!controller.signal.aborted) setLoadError(true);
@@ -212,6 +199,7 @@ export function PublicLanguageAtlas() {
         displayMode={displayMode}
         projection={projection}
         padding={padding}
+        dataReady={Boolean(index)}
         controlsTarget={mobile ? controlsTarget : undefined}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}

@@ -18,8 +18,8 @@ count source records; unresolved source identities may remain separate.
 
 At widths up to 760px, the default view keeps overlapping dots, a slim search
 bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
-typing opens the filtered record list. Legend contains Scripture filters, the
-and About the data. Settings contains projection,
+typing opens the filtered record list. Legend contains Scripture filters and
+About the data. Settings contains projection,
 Dots and Clusters controls, zoom, Fit results, and
 Reset view. The public explorer omits the technical record-count/display note.
 The spread record-count caption is also hidden on mobile so it does not obscure the map.
@@ -62,15 +62,26 @@ canvas so dots cannot paint over their text; keep this order when changing map l
 and explicitly selects public identity, search, summary, Scripture-scope,
 location, country and source fields. The public artifact is
 `apps/site/data/language-atlas/index.json.gz`. New fields added upstream do not
-automatically become public. All 57,056 records and 80,749 source placements
-are retained. Original source evidence shards, raw imports, active-project
-data, identities and operational APIs are not included in the site endpoint.
+automatically become public. The compatibility artifact retains all 57,056
+reviewed records and 80,749 source placements. The versioned startup artifact
+(`startup-<sha256>.json.br` or `.json.gz`) keeps the same fields and placements
+for the 40,585 language and dialect records used by the public map, while
+omitting the separate people-group overlay from the initial download. Locations
+are stored once and referenced by index, so every dot and profile location is
+restored exactly in the browser. Original source evidence shards, raw imports,
+active-project data, identities and operational APIs are not included in the
+site endpoint.
 
-`GET /api/language-atlas` streams this gzip snapshot with public caching. The
-admin endpoints independently continue to require an authorized identity and
-return private/no-store responses. Next tracing must include the site's exact
-snapshot, never the admin detail shards. Root `/data` remains excluded from
-Vercel uploads; nested app runtime data must remain included.
+`GET /api/language-atlas/startup/<sha256>` serves the immutable startup artifact
+with Brotli negotiation and a one-year cache lifetime. The homepage uses the
+version imported from `apps/site/lib/public-atlas-version.json`; a new snapshot
+gets a new URL, so repeat visits can reuse the compressed response without a
+five-minute freshness expiry. `GET /api/language-atlas` remains as a compatible
+gzip endpoint. The admin endpoints independently continue to require an
+authorized identity and return private/no-store responses. Next tracing must
+include the site's startup artifacts and compatibility snapshot, never the
+admin detail shards. Root `/data` remains excluded from Vercel uploads; nested
+app runtime data must remain included.
 
 Regenerate after any admin snapshot update:
 
@@ -167,3 +178,28 @@ available below the overview.
 
 The regenerated public snapshot used by the current overview has SHA-256
 `5d6c003cf6d8179329e805fd422e09e249c3479859c5a3eb8594d31982f83151`.
+
+### Startup performance verification
+
+The homepage preloads the versioned snapshot with anonymous CORS credentials,
+matching the browser fetch, and includes the map module in its initial script
+loading graph. Keep these aligned: a mismatched preload can create two requests.
+The public map suppresses its empty-selection message until data is ready.
+
+The September 2026 snapshot is 1,991,632 Brotli bytes (2,494,993 gzip bytes),
+down from 4,604,051 gzip bytes; decoded JSON falls from 51,719,404 to 17,149,655
+bytes. Complete public profiles remain available immediately after startup.
+The compatibility endpoint and authenticated admin data remain unchanged.
+
+`public-atlas-transport.test.ts` verifies the content hash, compression parity,
+all public fields, every placement, representative dots, and search results
+against the compatibility snapshot. The version route tests cover negotiation,
+invalid/missing versions and immutable cache headers. Run `npm run verify:workspace`,
+the atlas Python tests, `npm run atlas:public:check`, and `npm run site:build`.
+Browser checks should include cold and repeat loading, a failed snapshot followed
+by retry, hover and dot selection, full profiles, search/filter/pagination,
+Dots/Clusters and Globe/Map switching, and 320/390 px mobile layouts.
+
+Before release, desktop (1200 × 837) and mobile (390 × 844 at DPR 3) screenshots
+were pixel-identical to the previous live site. This confirms those tested
+views; it is not a guarantee about every device, camera position or network.
