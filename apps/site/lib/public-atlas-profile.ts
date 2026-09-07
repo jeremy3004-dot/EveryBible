@@ -1,4 +1,4 @@
-import { formatCount, scriptureLabel, scriptureStatus } from '../../admin/lib/language-atlas/model';
+import { formatCount } from '../../admin/lib/language-atlas/model';
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
 
 export interface PublicProfileCountry {
@@ -17,9 +17,7 @@ export const PROFILE_COUNTRY_PREVIEW_LIMIT = 3;
 /** Return a flag only for a valid uppercase ISO-style country code. */
 export function countryFlag(code: string): string {
   if (!/^[A-Z]{2}$/.test(code)) return '';
-  return String.fromCodePoint(
-    ...code.split('').map((character) => 127397 + character.charCodeAt(0))
-  );
+  return String.fromCodePoint(...code.split('').map((character) => 127397 + character.charCodeAt(0)));
 }
 
 export function profileCountries(record: AtlasRecord, index: AtlasIndex): PublicProfileCountry[] {
@@ -33,10 +31,7 @@ export function profileCountries(record: AtlasRecord, index: AtlasIndex): Public
   });
 }
 
-export function profileCountryGroups(
-  record: AtlasRecord,
-  index: AtlasIndex
-): {
+export function profileCountryGroups(record: AtlasRecord, index: AtlasIndex): {
   visible: PublicProfileCountry[];
   remaining: PublicProfileCountry[];
 } {
@@ -82,19 +77,4 @@ export function profileSpokenLocations(record: AtlasRecord, index: AtlasIndex): 
 export function profilePopulation(record: AtlasRecord): PublicProfilePopulation | null {
   if (record.population === null || !Number.isFinite(record.population)) return null;
   return { label: 'Reported population', value: formatCount(record.population) };
-}
-
-/** Shorten only a known parent prefix; retain the canonical name in source data. */
-export function profileDisplayName(record: AtlasRecord, index: AtlasIndex): string {
-  const parent = record.kind === 'dialect' ? parentRecord(record, index) : null;
-  const prefix = parent ? `${parent.name}:` : '';
-  return prefix && record.name.startsWith(prefix)
-    ? record.name.slice(prefix.length).trim() || record.name
-    : record.name;
-}
-
-export function profileScriptureLabel(record: AtlasRecord, index: AtlasIndex): string {
-  return scriptureStatus(record) === 'unknown'
-    ? `No known Scripture in ${profileDisplayName(record, index)}`
-    : scriptureLabel(record);
 }

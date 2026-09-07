@@ -50,6 +50,17 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
       .evaluate((el) => getComputedStyle(el, '::after').animationName)) !== 'none'
   )
     throw Error('Reduced motion must disable pulse');
+  const search = page.getByRole('searchbox', { name: 'Search languages and dialects' });
+  await search.fill('Singaporean');
+  await page.waitForFunction(() => document.querySelectorAll('.pa-project-list .pa-record-list > button').length === 1);
+  await page.locator('.pa-project-list .pa-record-list > button').click();
+  await page.getByRole('button', { name: 'Close project', exact: true }).waitFor();
+  const unmapped = await page.locator('.pa-project-progress').innerText();
+  if (!unmapped.includes('12 chapters recorded') || !unmapped.includes('1%')) throw Error('Unmapped project must retain progress');
+  await page.getByRole('button', { name: 'Close project', exact: true }).click();
+  await search.fill('');
+  await page.getByRole('button', { name: 'Records', exact: true }).click();
+  await page.locator('.pa-record-list > button').filter({ hasText: 'Bhujel' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Close profile', exact: true }).click();
   await page.getByRole('button', { name: 'Our languages' }).click();

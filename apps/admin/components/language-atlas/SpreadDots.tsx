@@ -16,7 +16,7 @@ import {
   scriptureVisualCategory,
 } from '../../lib/language-atlas/presentation';
 import { normalizeAdminTheme } from '../../lib/theme';
-import type { AtlasLocation, AtlasRecord } from '../../lib/language-atlas/types';
+import type { AtlasRecord } from '../../lib/language-atlas/types';
 import { createProjectHighlight } from './project-highlight';
 import { ATLAS_BASEMAP_COLORS } from './map-rendering';
 import {
@@ -35,7 +35,6 @@ interface Props {
   onSelect: (id: string) => void;
   inset: { left: number; bottom: number };
   showHoverSummary?: boolean;
-  renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
 }
 
 /** Screen-space presentation; all source coordinates and map camera targets stay intact. */
@@ -46,7 +45,6 @@ export function SpreadDots({
   onSelect,
   inset,
   showHoverSummary = true,
-  renderHoverSummary,
   highlightedIds,
 }: Props) {
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -55,10 +53,6 @@ export function SpreadDots({
   const selectedRef = useRef(selectedId);
   const selectRef = useRef(onSelect);
   const hoverSummaryRef = useRef(showHoverSummary);
-  const renderHoverRef = useRef(renderHoverSummary);
-  useEffect(() => {
-    renderHoverRef.current = renderHoverSummary;
-  }, [renderHoverSummary]);
   const repaint = useRef<() => void>(() => {});
   const [visibleCount, setVisibleCount] = useState(0);
   const [separating, setSeparating] = useState(false);
@@ -281,7 +275,7 @@ export function SpreadDots({
       popup
         .setLngLat([location.longitude, location.latitude])
         .setOffset([hit.x - hit.anchorX, hit.y - hit.anchorY])
-        .setDOMContent(renderHoverRef.current?.(record, location) ?? node)
+        .setDOMContent(node)
         .addTo(map);
       request();
     };

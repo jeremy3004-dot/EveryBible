@@ -15,14 +15,11 @@ import {
   scriptureVisualCategory,
 } from '../../../admin/lib/language-atlas/presentation';
 import type {
-  AtlasLocation,
-  AtlasRecord,
   AtlasDisplayMode,
   AtlasFilters,
   AtlasIndex,
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
-import { publicAtlasHover } from '../../lib/public-atlas-hover';
 import { selectPublicAtlasRecords } from '../../lib/public-atlas-records';
 import { decodePublicAtlas } from '../../lib/public-atlas-transport';
 import {
@@ -43,11 +40,6 @@ const PAGE_SIZE = 30;
 
 export function PublicLanguageAtlas() {
   const [index, setIndex] = useState<AtlasIndex | null>(null);
-  const renderHoverSummary = useCallback(
-    (record: AtlasRecord, location: AtlasLocation | undefined) =>
-      publicAtlasHover(record, location, index!),
-    [index]
-  );
   const [loadError, setLoadError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [selectedProject, setSelectedProject] = useState<AtlasProject | null>(null);
@@ -240,7 +232,6 @@ export function PublicLanguageAtlas() {
         controlsTarget={mobile ? controlsTarget : undefined}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}
-        renderHoverSummary={index ? renderHoverSummary : undefined}
       />
 
       {!mobile && mapSettings}

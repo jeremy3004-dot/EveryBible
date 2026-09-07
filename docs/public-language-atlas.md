@@ -170,19 +170,12 @@ non-null, finite source value. It does not inherit a parent's population or
 turn a people-group estimate into a speaker count. The public snapshot
 currently has no supported population value for Momveda.
 
-Public hover cards show a short name, country flags and names, a plain-language
-identity, and Scripture status naming the selected language or variety. A parent
-prefix is removed only when it matches the resolved parent name. Missing country
-information is omitted, and longer country lists show three countries plus a count.
-The location note distinguishes approximate placement from a mapped reference area.
-Clicking the dot opens the profile; the hover hint describes that action explicitly.
-Both Dots and Clusters use this preview, and mobile continues to open profiles directly.
-
-The profile uses the same short name and named Scripture wording. It omits the
-parent-language Scripture paragraph. Stored parent context, original identities,
-and exact-variety evidence remain unchanged; confirmed statuses are never inherited
-from the parent. Identifiers and reference locations remain below the overview.
-No pilot research claims or population estimates were imported by this change.
+When a variety has a known parent-language Scripture status, the profile keeps
+that information in a short, explicitly parent-scoped sentence. Exact-variety
+status remains separate and unconfirmed when the record does not contain
+variety-specific evidence. Approximate map placement remains labeled in the
+profile, and identifiers, source records and reference locations remain
+available below the overview.
 
 The regenerated public snapshot used by the current overview has SHA-256
 `5d6c003cf6d8179329e805fd422e09e249c3479859c5a3eb8594d31982f83151`.
@@ -211,10 +204,6 @@ Dots/Clusters and Globe/Map switching, and 320/390 px mobile layouts.
 Before release, desktop (1200 × 837) and mobile (390 × 844 at DPR 3) screenshots
 were pixel-identical to the previous live site. This confirms those tested
 views; it is not a guarantee about every device, camera position or network.
-
-On desktop, opening a profile temporarily hides the fixed legend and gives the
-profile more height so its country and Scripture status remain visible on shorter
-windows. Closing the profile restores the legend. The download card stays visible.
 
 ## Our languages and project progress
 

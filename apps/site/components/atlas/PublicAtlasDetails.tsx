@@ -7,7 +7,9 @@ import {
   PRECISION_LABELS,
   recordLocations,
   safeSourceUrl,
+  SCRIPTURE_LABELS,
   scriptureStatus,
+  scriptureLabel,
 } from '../../../admin/lib/language-atlas/model';
 import {
   SCRIPTURE_COLORS,
@@ -15,8 +17,7 @@ import {
 } from '../../../admin/lib/language-atlas/presentation';
 import type { AtlasIndex, AtlasRecord, AtlasSource } from '../../../admin/lib/language-atlas/types';
 import {
-  profileDisplayName,
-  profileScriptureLabel,
+  parentRecord,
   profileCountryGroups,
   profileIdentity,
   profilePopulation,
@@ -80,6 +81,7 @@ export function AtlasRecordProfile({
   }, [record.id]);
   const status = scriptureStatus(record);
   const countryGroups = profileCountryGroups(record, index);
+  const parent = parentRecord(record, index);
   const population = profilePopulation(record);
   const spokenLocations = profileSpokenLocations(record, index);
   const locations = recordLocations(record);
@@ -92,7 +94,7 @@ export function AtlasRecordProfile({
         </button>
       </div>
       <h2 ref={titleRef} tabIndex={-1}>
-        {profileDisplayName(record, index)}
+        {record.name}
       </h2>
       <p className="pa-profile-identity">{profileIdentity(record, index)}</p>
       <ProjectProgress recordId={record.id} />
@@ -114,7 +116,8 @@ export function AtlasRecordProfile({
         )}
         {spokenLocations.length > 0 && (
           <p className="pa-profile-spoken-locations">
-            <span className="pa-profile-spoken-label">Area:</span> {spokenLocations.join(' · ')}
+            <span className="pa-profile-spoken-label">Area:</span>{' '}
+            {spokenLocations.join(' · ')}
           </p>
         )}
       </section>
@@ -123,14 +126,30 @@ export function AtlasRecordProfile({
           className="pa-dot"
           style={{ background: SCRIPTURE_COLORS.dark[scriptureVisualCategory(status)] }}
         />
-        <strong>{profileScriptureLabel(record, index)}</strong>
+        <strong>
+          {scriptureLabel(record)}
+        </strong>
       </div>
+      {record.languageContextStatus && record.languageContextStatus !== 'unknown' && (
+        <p className="pa-biography pa-profile-parent-context">
+          {SCRIPTURE_LABELS[record.languageContextStatus]} reported for parent language
+          {parent ? ` ${parent.name}` : ''}.
+        </p>
+      )}
       {record.kind === 'people-group' && (
         <p className="pa-scope">
           Scripture status describes this people group’s reported primary language.
         </p>
       )}
-      {isApproximate(record) && <p className="pa-scope">Approximate map location</p>}
+      {isApproximate(record) && (
+        <p className="pa-scope">
+          Approximate placement:{' '}
+          {record.location
+            ? PRECISION_LABELS[record.location.precision].toLowerCase()
+            : 'reference area'}
+          .
+        </p>
+      )}
       <dl className="pa-identifiers">
         {population && (
           <div>
@@ -203,18 +222,18 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
       </div>
       <p>
         The main map brings together {formatCount(index.counts.languages)} languages and{' '}
-        {formatCount(index.counts.dialects)} dialects and varieties. These registry records are not
-        a count of distinct living languages.
+        {formatCount(index.counts.dialects)} dialects and varieties. These registry records are not a
+        count of distinct living languages.
       </p>
       <p>
-        Red means no known Scripture in the available records. Dialect coverage is tracked
-        separately from its parent language. Mixed clusters use a neutral color.
+        Red means no known Scripture in the available records. Dialect coverage is tracked separately from its parent language.
+        Mixed clusters use a neutral color.
       </p>
       <p>People-group research is retained for a future, separate map overlay.</p>
       <p>
         Dots show one representative point per mapped record and separate only at regional zoom for
-        visibility. Source coordinates remain unchanged. Some locations are approximate, and records
-        without a supported placement remain searchable.
+        visibility. Source coordinates remain unchanged. Some locations are
+        approximate, and records without a supported placement remain searchable.
       </p>
       <p>
         Records stay separate where source identities cannot be verified. The totals are source
