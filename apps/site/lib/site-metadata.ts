@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 
 export const siteMetadata: Metadata = {
-  title: 'Every language. Every person. | EveryBible',
+  title: 'God’s Word. In your heart language. | EveryBible',
   description:
-    'Explore the world’s languages and dialects. Discover Scripture coverage and get EveryBible to read and listen for free.',
+    'Read, listen, and grow closer to God through Scripture in your own language. Explore Every Language’s vision for the whole Bible in every language, in this generation.',
 };
 
 /** Browser chrome matches the default FIELD dark surface. */

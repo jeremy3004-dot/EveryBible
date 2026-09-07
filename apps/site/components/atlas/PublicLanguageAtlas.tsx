@@ -416,16 +416,29 @@ export function PublicLanguageAtlas() {
           ) : !mobile ? (
             <div className="pa-intro">
               <p className="pa-eyebrow">
-                <span /> A WORLD OF LANGUAGES
+                <span /> EVERYBIBLE
               </p>
               <h1>
-                Every language.
+                God’s Word.
                 <br />
-                <em>Every person.</em>
+                <em>In your heart language.</em>
               </h1>
               <p className="pa-intro-copy">
-                A world to discover. A Word to share. Explore the languages and dialects that make
-                our world.
+                Read, listen, and grow closer to God through Scripture in your own language.
+                EveryBible is part of Every Language’s vision for the whole Bible in every language,
+                in this generation.
+              </p>
+              <div className="pa-intro-actions">
+                <a href="/download">Get the app</a>
+                <button type="button" onClick={(event) => openPanel('records', event.currentTarget)}>
+                  Explore the atlas
+                </button>
+              </div>
+              <h2>Explore the languages still waiting for Scripture.</h2>
+              <p className="pa-intro-copy">
+                Discover languages and dialects around the world and explore what is known about
+                Scripture availability in each. Red marks those for which our sources have no
+                documented Scripture.
               </p>
               <div className="pa-collection-stats" aria-label="Atlas collection counts">
                 <div>
@@ -486,9 +499,11 @@ export function PublicLanguageAtlas() {
             />
           </a>
           <div>
-            <p className="pa-eyebrow">TAKE THE WORD WITH YOU</p>
-            <h2>Meet EveryBible.</h2>
-            <p>Read. Listen. Grow. Free.</p>
+            <p className="pa-eyebrow">EVERYBIBLE</p>
+            <h2>Built for the heart of Africa and the heights of the Himalayas.</h2>
+            <p>
+              Download available Scripture to read or listen wherever you are, even without a signal.
+            </p>
             <div className="pa-store-links">
               <a href={EVERYBIBLE_APP_STORE_URL}>iPhone ↗</a>
               <a href={EVERYBIBLE_GOOGLE_PLAY_URL}>Android ↗</a>

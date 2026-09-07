@@ -31,6 +31,9 @@
 .pa-eyebrow > span { width: 5px; height: 5px; border-radius: 50%; background: hsl(var(--primary)); }
 .pa-intro h1 { font: 600 clamp(32px, 3.1vw, 42px)/1.02 var(--font-display); letter-spacing: -.05em; margin: 18px 0 17px; }
 .pa-intro h1 em { font-style: normal; color: hsl(var(--primary)); }
+.pa-intro h2 { font: 600 22px/1.15 var(--font-display); letter-spacing: -.03em; margin: 24px 0 12px; }
+.pa-intro-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.pa-intro-actions a, .pa-intro-actions button { color: hsl(var(--primary)); font-size: 13px; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
 .pa-intro-copy { color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.65; margin: 0; max-width: 270px; }
 .pa-collection-stats { display: grid; grid-template-columns: 1fr 1fr; margin-top: 22px; padding-top: 18px; border-top: 1px solid hsl(var(--border)); }
 .pa-collection-stats > div { display: flex; flex-direction: column; gap: 4px; }
@@ -51,7 +54,7 @@
 .pa-download { position: absolute; left: 24px; bottom: 65px; width: 352px; border: 1px solid hsl(var(--border)); background: var(--panel); border-radius: 12px; display: flex; align-items: center; gap: 16px; padding: 16px; z-index: 3; scroll-margin-top: 100px; }
 .pa-qr { flex-shrink: 0; display: block; background: #fff; padding: 9px; border-radius: 6px; }
 .pa-qr img { display: block; width: 82px; height: 82px; }
-.pa-download h2 { font: 600 22px/1.1 var(--font-display); letter-spacing: -.035em; margin: 5px 0; }
+.pa-download h2 { font: 600 18px/1.15 var(--font-display); letter-spacing: -.035em; margin: 5px 0; }
 .pa-download > div > p:not(.pa-eyebrow) { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .pa-store-links { display: flex; gap: 16px; margin-top: 9px; }
 .pa-store-links a { color: hsl(var(--primary)); font-size: 12px; text-decoration: none; }
@@ -155,7 +158,7 @@
 .pa-download-dock .pa-provider-credit { position: static; align-self: flex-start; padding: 0; background: hsl(var(--background) / .9); }
 .pa-download-dock .pa-download { position: relative; inset: auto; width: 100%; }
 .pa-download-dock .pa-atlas-disclaimer { position: static; max-width: 100%; padding: 0; line-height: 1.4; }
-.pa-explorer { max-height: calc(100% - 280px); }
+.pa-explorer { max-height: calc(100% - 360px); }
 
 
 /* Mobile tools share a single panel; the download dock stays in place. */
@@ -163,7 +166,7 @@
 @media (max-width: 760px) {
   .public-atlas { min-height: 620px; }
   .pa-intro, .pa-explorer > .pa-legend, .pa-explorer > .pa-collection-note, .public-atlas > .pa-map-toolbar, .public-atlas .la-map-view > .la-map-actions, .public-atlas .la-spread-caption { display: none; }
-  .pa-explorer { top: 12px; bottom: 200px; left: 12px; right: 12px; width: auto; max-height: none; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; pointer-events: none; }
+  .pa-explorer { top: 12px; bottom: 310px; left: 12px; right: 12px; width: auto; max-height: none; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; pointer-events: none; }
   .pa-search-wrap { padding: 6px 12px; min-height: 48px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: var(--panel); box-shadow: 0 4px 12px #0002; pointer-events: auto; }
   .pa-search input { font-size: 16px; }
   .pa-mobile-tools { position: absolute; display: flex; gap: 8px; top: 58px; right: 0; z-index: 5; pointer-events: auto; }
@@ -192,7 +195,7 @@
   .pa-qr { padding: 6px; }
   .pa-qr img { width: 56px; height: 56px; }
   .pa-download .pa-eyebrow { font-size: 12px !important; }
-  .pa-download h2 { font-size: 20px; margin: 3px 0; }
+  .pa-download h2 { font-size: 18px; margin: 3px 0; }
   .pa-download > div { position: relative; flex: 1; }
   .pa-store-links { gap: 14px; margin-top: 5px; }
   .public-atlas .la-map-message { left: 20%; transform: translateY(-50%); max-width: 60%; }

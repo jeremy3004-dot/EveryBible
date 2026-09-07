@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import { EVERY_LANGUAGE_URL } from '../../lib/site-links';
 
 export const metadata: Metadata = {
   title: 'About EveryBible',
@@ -12,39 +13,45 @@ export default function AboutPage() {
   return (
     <StaticPageLayout
       eyebrow="About"
-      title="A digital ministry working toward free Bible access in every language."
-      intro="EveryBible exists to help people read, listen to, and share Scripture in their own language, with a simple experience that works online or offline."
+      title="God’s Word. In your heart language."
+      intro="EveryBible helps people engage with God’s Word in their heart language. It is part of Every Language, serving local churches and language communities working toward the whole Bible in every language, in this generation."
     >
       <section id="mission">
         <h2>Our mission</h2>
         <p>
-          EveryBible is building toward a future where every person can encounter God’s Word free
-          of charge, in the language they understand best, without advertising, paywalls, or
-          technical complexity getting in the way.
+          Encouraging and equipping every person to seek intimacy with God every day in their own
+          language.
         </p>
         <p>
-          The product starts with a mobile-first Bible experience and is now being expanded with a
-          public web presence and internal operational tooling so distribution and ministry support
-          can scale responsibly.
+          Local churches and language communities are at the heart of this work. EveryBible helps
+          people read, listen, and grow closer to God through Scripture in the language they
+          understand best.
         </p>
       </section>
 
       <section id="languages">
-        <h2>Language reach</h2>
+        <h2>The whole Bible in every language</h2>
         <p>
-          The current platform direction is designed around broad Scripture access, with support
-          for 233 Bible translations across 174 languages and a long-term goal of
-          making the whole Bible available in every language where people are still waiting.
+          The language atlas helps you explore languages and dialects around the world and what is
+          known about Scripture availability in each. Red marks those for which our sources have no
+          documented Scripture. The atlas is a research collection; translations available in the
+          app are a separate collection.
+        </p>
+        <p>
+          Learn more about the vision and how your church can take part at{' '}
+          <a href={EVERY_LANGUAGE_URL}>Every Language</a>.
         </p>
       </section>
 
-      <section>
-        <h2>What makes EveryBible different</h2>
+      <section id="offline">
+        <h2>Built for the heart of Africa and the heights of the Himalayas.</h2>
+        <p>
+          Download available Scripture to read or listen wherever you are, even without a signal.
+        </p>
         <ul>
           <li>Free access without ads or in-app purchases.</li>
-          <li>Offline-friendly reading and listening for low-connectivity contexts.</li>
+          <li>Offline reading and listening for downloaded Scripture.</li>
           <li>Simple daily Scripture, sharing, and discipleship-oriented features.</li>
-          <li>Operational tooling that helps the team ship content and translation availability safely.</li>
         </ul>
       </section>
     </StaticPageLayout>
