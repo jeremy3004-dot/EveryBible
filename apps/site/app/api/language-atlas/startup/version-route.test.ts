@@ -33,6 +33,7 @@ test('versioned public snapshots negotiate compression and cache only existing i
       ['gzip, deflate, br', 'br'],
       ['gzip', 'gzip'],
       ['br;q=0, gzip', 'gzip'],
+      ['', 'gzip'],
     ]) {
       const response = await GET(request(accept), { params });
       assert.equal(response.status, 200);

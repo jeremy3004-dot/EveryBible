@@ -12,7 +12,7 @@ class PublicBoundary(unittest.TestCase):
             "records": [{"id": "dialect:a", "kind": "dialect", "name": "Variety",
                 "scriptureStatus": "unknown", "scriptureScope": "unknown",
                 "languageContextStatus": "bible", "secret": "private",
-            "location": {"latitude": 27, "longitude": 85, "precision": "parent-language",
+                "location": {"latitude": 27, "longitude": 85, "precision": "parent-language",
                     "sourceId": "glottolog", "label": "Approximate", "countryCode": "NP",
                     "contact": "private"},
                 "locations": [{"latitude": 28, "longitude": 84, "precision": "dialect-area",

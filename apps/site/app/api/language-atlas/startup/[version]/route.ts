@@ -22,17 +22,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
   }
 
   const acceptEncoding = request.headers.get('accept-encoding') ?? '';
-  const encoding = acceptsEncoding(acceptEncoding, 'br')
-    ? 'br'
-    : acceptsEncoding(acceptEncoding, 'gzip')
-      ? 'gzip'
-      : null;
-  if (!encoding) {
-    return new Response('This atlas snapshot requires gzip or Brotli support.', {
-      status: 406,
-      headers: { 'Cache-Control': 'no-store', Vary: 'Accept-Encoding' },
-    });
-  }
+  // Browsers advertise at least gzip. If a simple client omits the header,
+  // gzip remains the broadly supported, cacheable response.
+  const encoding = acceptsEncoding(acceptEncoding, 'br') ? 'br' : 'gzip';
 
   const filename = path.join(
     process.cwd(),
