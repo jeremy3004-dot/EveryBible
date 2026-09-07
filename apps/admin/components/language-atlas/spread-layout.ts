@@ -1,6 +1,8 @@
 import { recordLocations } from '../../lib/language-atlas/model';
 import type { AtlasLocation, AtlasRecord } from '../../lib/language-atlas/types';
 
+export const ATLAS_SPREAD_MIN_ZOOM = 4;
+
 export interface RepresentativePoint {
   id: string;
   record: AtlasRecord;
@@ -161,6 +163,6 @@ export function nearestSpreadPoint(
 export function layoutSpreadPointsAtZoom(
   anchors: ScreenAnchor[], width: number, height: number, zoom: number
 ): SpreadPoint[] {
-  if (zoom < 5) return anchors.map(point => ({ ...point, anchorX: point.x, anchorY: point.y, spacing: 8.5 }));
+  if (zoom < ATLAS_SPREAD_MIN_ZOOM) return anchors.map(point => ({ ...point, anchorX: point.x, anchorY: point.y, spacing: 8.5 }));
   return layoutSpreadPoints(anchors, width, height, Math.min(8.5, 2.3 + (zoom - 2) * 1.15));
 }

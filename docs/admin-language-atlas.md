@@ -46,7 +46,7 @@ ROLV match is verified.
 
 - **Recorded locations** is the default. It retains source positions and allows
   overlap, including additional positions for a record. Optional **Spread dots**
-  shows one representative point per record and separates overlaps only at zoom 5
+  shows one representative point per record and separates overlaps starting at zoom 4
   and above. Global views retain their geography even in this optional mode. **Clusters** groups recorded positions as the user zooms
   out. Map and Globe change projection while retaining the current view. Zoom,
   Fit results, and Reset view stay above the mobile sheet and clear of the desktop inspector.

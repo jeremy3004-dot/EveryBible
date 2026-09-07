@@ -20,6 +20,7 @@ import type { AtlasLocation, AtlasRecord } from '../../lib/language-atlas/types'
 import { createProjectHighlight } from './project-highlight';
 import { ATLAS_BASEMAP_COLORS } from './map-rendering';
 import {
+  ATLAS_SPREAD_MIN_ZOOM,
   layoutSpreadPointsAtZoom,
   nearestSpreadPoint,
   projectSpreadPoints,
@@ -140,7 +141,7 @@ export function SpreadDots({
       lastFrame = now;
       lastView = viewKey();
       const started = performance.now();
-      const separate = map.getZoom() >= 5;
+      const separate = map.getZoom() >= ATLAS_SPREAD_MIN_ZOOM;
       if (separate !== wasSeparating) dirtyLayout = true;
       wasSeparating = separate;
       setSeparating(separate);

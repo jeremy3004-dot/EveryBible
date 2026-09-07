@@ -39,11 +39,11 @@ const record = (id: string): AtlasRecord => ({
 
 test('global views retain overlap; optional separation begins only at regional zoom', () => {
   const anchors = [{ id: 'a', x: 200, y: 200 }, { id: 'b', x: 200, y: 200 }];
-  for (const zoom of [0.6, 2.75, 4.99]) {
+  for (const zoom of [0.6, 2.75, 3.99]) {
     const points = layoutSpreadPointsAtZoom(anchors, 800, 600, zoom);
     assert.deepEqual(points.map(({x,y})=>({x,y})), anchors.map(({x,y})=>({x,y})));
   }
-  const regional = layoutSpreadPointsAtZoom(anchors, 800, 600, 6);
+  const regional = layoutSpreadPointsAtZoom(anchors, 800, 600, 4);
   assert.notDeepEqual([regional[0].x,regional[0].y], [regional[1].x,regional[1].y]);
 });
 
