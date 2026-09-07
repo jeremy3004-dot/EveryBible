@@ -27,6 +27,8 @@ Pull requests run the reusable **Verify Workspace** workflow. Main pushes and ma
 - Verify Apple sign-in on iOS and Google sign-in on a supported build path, and confirm the shared auth screen dismisses correctly after success.
 - Read scripture offline, restore reading position, and confirm daily scripture still degrades gracefully when optional content is unavailable.
 - Stream audio, pause/seek, and confirm offline download playback still works after reconnects and app backgrounding.
+- In a daily rhythm, finish Proverb of the Day with book repeat enabled and with another audio item queued. Confirm playback stops on the assigned proverb. For a multi-chapter item, confirm playback follows only that item’s chapters.
+- Leave a plan or rhythm reader, return to ordinary Bible reading, and scroll to hide/show the controls. Confirm the tab capsule stays at the bottom and never overlaps the status bar on iOS and Android.
 - Open the Harvest tab, confirm local groups remain visible, and verify synced-group session completion only appears when backend and sign-in prerequisites are satisfied.
 - Reconnect from offline to online and confirm sync resumes without duplicate progress or broken preference state.
 - Select an Every Language audio translation, download a book, fully quit, and relaunch offline. Confirm the selection and download markers remain. Reconnect with one catalog source unavailable and confirm the other source's cached entries remain visible; retry when the source recovers.

@@ -581,6 +581,34 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
     }
 
+    // A plan or rhythm owns playback until its last chapter finishes.
+    // Global repeat and queue preferences must not escape that session.
+    const nextSequenceEntry =
+      bookId && chapterNum
+        ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum, 1)
+        : null;
+    if (nextSequenceEntry && playChapterForTranslationRef.current) {
+      isChapterTransitioningRef.current = true;
+      await playChapterForTranslationRef.current(
+        store.currentTranslationId ?? translationId,
+        nextSequenceEntry.bookId,
+        nextSequenceEntry.chapter
+      );
+      return;
+    }
+
+    const reachedPlaybackSequenceBoundary =
+      bookId && chapterNum
+        ? playbackSequence.length > 0 &&
+          hasAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum)
+        : false;
+    if (reachedPlaybackSequenceBoundary) {
+      void clearBibleNowPlaying();
+      clearAudioReturnTarget();
+      setStatus('idle');
+      return;
+    }
+
     const currentBook = bookId ? getBookById(bookId) : null;
     const repeatTarget = resolveRepeatPlaybackTarget({
       repeatMode: activeRepeatMode,
@@ -607,32 +635,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         nextQueuedEntry.entry.bookId,
         nextQueuedEntry.entry.chapter
       );
-      return;
-    }
-
-    const nextSequenceEntry =
-      bookId && chapterNum
-        ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum, 1)
-        : null;
-    if (nextSequenceEntry && playChapterForTranslationRef.current) {
-      isChapterTransitioningRef.current = true;
-      await playChapterForTranslationRef.current(
-        store.currentTranslationId ?? translationId,
-        nextSequenceEntry.bookId,
-        nextSequenceEntry.chapter
-      );
-      return;
-    }
-
-    const reachedPlaybackSequenceBoundary =
-      bookId && chapterNum
-        ? playbackSequence.length > 0 &&
-          hasAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum)
-        : false;
-    if (reachedPlaybackSequenceBoundary) {
-      void clearBibleNowPlaying();
-      clearAudioReturnTarget();
-      setStatus('idle');
       return;
     }
 

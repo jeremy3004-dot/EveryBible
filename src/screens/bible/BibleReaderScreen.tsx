@@ -1230,13 +1230,13 @@ export function BibleReaderScreen() {
 
       return () => {
         rootTabNavigation.setOptions({
-          tabBarStyle: undefined,
+          tabBarStyle: getRootTabBarStyle(0),
         });
       };
     }
 
     return undefined;
-  }, [getRootTabNavigation, showPlanSessionChrome]);
+  }, [getRootTabBarStyle, getRootTabNavigation, showPlanSessionChrome]);
   useEffect(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
       return;

@@ -772,8 +772,8 @@ test('BibleReaderScreen routes tab-bar control through RootTab id lookups and ha
 
   assert.match(
     source,
-    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*undefined,\s*\}\)/s,
-    'BibleReaderScreen should release the hard tab-bar override when leaving plan-session chrome'
+    /rootTabNavigation\.setOptions\(\{\s*tabBarStyle:\s*getRootTabBarStyle\(0\),\s*\}\)/s,
+    'BibleReaderScreen should restore bottom capsule positioning when leaving plan-session chrome'
   );
 
   assert.match(
