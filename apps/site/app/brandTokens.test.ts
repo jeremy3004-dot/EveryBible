@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 // The marketing site carries the Every Language design system: a vellum paper
-// canvas, ONE EL blue accent, and Bricolage Grotesque / Archivo / JetBrains
+// canvas, ONE EL blue accent, and Alte Haas Grotesk / Archivo / JetBrains
 // Mono. apps/site and apps/admin deploy as separate Vercel projects with
 // different root directories, so each mirrors packages/brand/tokens.css rather
 // than importing it. These assertions fail loudly if the mirror drifts, or if
@@ -33,13 +33,18 @@ test('site globals.css defines the EL blue accent on the vellum paper canvas', a
 test('site globals.css uses the three EL type families', async () => {
   const css = await readSiteCss();
 
-  assert.match(css, /--font-display:\s*'Bricolage Grotesque'/, 'display font is Bricolage Grotesque');
+  assert.match(css, /--font-display:\s*'Alte Haas Grotesk'/, 'display font is Alte Haas Grotesk');
   assert.match(css, /--font-ui:\s*'Archivo'/, 'UI and reading font is Archivo');
   assert.match(css, /--font-mono:\s*'JetBrains Mono'/, 'mono font is JetBrains Mono');
   assert.ok(
-    css.includes('fonts.googleapis.com/css2?family=Bricolage+Grotesque'),
-    'the three families must be loaded from Google Fonts'
+    css.includes("src: url('/fonts/AlteHaasGrotesk-Bold.ttf')"),
+    'Alte Haas Grotesk is self-hosted; it is not on Google Fonts'
   );
+  assert.ok(
+    css.includes('fonts.googleapis.com/css2?family=Archivo'),
+    'Archivo and JetBrains Mono load from Google Fonts'
+  );
+  assert.ok(!css.includes('Bricolage'), 'the Field-kit Bricolage face is retired on the site');
 });
 
 test('site globals.css ships the paper materiality and both theme scopes', async () => {
@@ -79,7 +84,7 @@ test('the canonical brand token package stays the documented source of truth', a
 
   assert.match(tokens, /--primary:\s*200 100% 45%;/, 'canonical EL blue token present');
   assert.match(tokens, /--vellum:\s*40 26% 92%;/, 'canonical vellum token present');
-  assert.match(tokens, /--font-display:\s*'Bricolage Grotesque'/, 'canonical display font present');
+  assert.match(tokens, /--font-display:\s*'Alte Haas Grotesk'/, 'canonical display font present');
   // Brand red is a brand asset colour, NOT the product error colour.
   assert.match(tokens, /--brand-red:\s*354 65% 47%;/, 'raw brand red present');
   assert.match(tokens, /--danger:\s*354 65% 47%;/, 'product danger is its own token');

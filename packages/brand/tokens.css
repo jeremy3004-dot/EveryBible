@@ -29,12 +29,15 @@
    update both apps and re-run their brand tests.
    ================================================================ */
 
-/* Webfonts. Field loads all three families from Google Fonts; there are no
-   local binaries in the source kit (see readme.md → Fonts). */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Webfonts. Archivo and JetBrains Mono load from Google Fonts. The display
+   face is Alte Haas Grotesk, the Every Language brand typeface (used on
+   everylanguage.com and bundled in the mobile app at assets/fonts). It is
+   not on Google Fonts: each app self-hosts AlteHaasGrotesk-Regular.ttf (400)
+   and AlteHaasGrotesk-Bold.ttf (700) with its own @font-face rules. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --font-display: 'Bricolage Grotesque', 'Archivo', system-ui, sans-serif; /* @kind font */
+  --font-display: 'Alte Haas Grotesk', 'Archivo', system-ui, sans-serif; /* @kind font */
   --font-name: var(--font-display); /* @kind font */
   --font-ui: 'Archivo', system-ui, -apple-system, sans-serif; /* @kind font */
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; /* @kind font */

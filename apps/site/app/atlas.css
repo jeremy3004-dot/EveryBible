@@ -1349,9 +1349,8 @@
   }
   .pa-story h1 {
     margin: 18px 0;
-    font: 800 clamp(44px, 5.4vw, 74px) / 0.95 var(--font-display);
-    font-optical-sizing: auto;
-    letter-spacing: -0.04em;
+    font: 700 clamp(44px, 5.4vw, 74px) / 0.95 var(--font-display);
+    letter-spacing: -0.03em;
     text-shadow: 0 2px 24px hsl(var(--background) / 0.8);
   }
   .pa-story h1 em {
@@ -1420,7 +1419,7 @@
     gap: 28px;
   }
   .pa-collection-stats strong {
-    font: 800 26px/1 var(--font-display);
+    font: 700 26px/1 var(--font-display);
     letter-spacing: -0.03em;
   }
 
@@ -1515,8 +1514,8 @@
   }
   .pa-story h1 {
     margin: 10px 0;
-    font: 800 36px/0.98 var(--font-display);
-    letter-spacing: -0.04em;
+    font: 700 36px/0.98 var(--font-display);
+    letter-spacing: -0.03em;
   }
   .pa-story h1 em {
     font-style: normal;

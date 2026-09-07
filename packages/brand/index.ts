@@ -184,7 +184,7 @@ export const brandRaw = {
 } as const;
 
 export const font = {
-  display: "'Bricolage Grotesque', 'Archivo', system-ui, sans-serif",
+  display: "'Alte Haas Grotesk', 'Archivo', system-ui, sans-serif",
   ui: "'Archivo', system-ui, -apple-system, sans-serif",
   mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
 } as const;

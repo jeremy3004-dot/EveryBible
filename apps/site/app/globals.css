@@ -1,7 +1,7 @@
 /* ================================================================
    EveryBible marketing site — Every Language design system
    ----------------------------------------------------------------
-   Vellum paper canvas, ONE EL blue accent, Bricolage Grotesque /
+   Vellum paper canvas, ONE EL blue accent, Alte Haas Grotesk /
    Archivo / JetBrains Mono. Token values mirror
    packages/brand/tokens.css (canonical source), which is ported from
    the Every Language Design System kit and byte-verified against the
@@ -12,7 +12,25 @@
    --brand-* ones. Kept in sync by app/brandTokens.test.ts.
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Alte Haas Grotesk is the Every Language brand display face (used on
+   everylanguage.com and bundled in the mobile app). It is not on Google
+   Fonts, so the site self-hosts the same two binaries the app ships. */
+@font-face {
+  font-family: 'Alte Haas Grotesk';
+  src: url('/fonts/AlteHaasGrotesk-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alte Haas Grotesk';
+  src: url('/fonts/AlteHaasGrotesk-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* ── Tokens ─────────────────────────────────────────────────────── */
 
@@ -88,7 +106,7 @@
   --sage: 90 23% 46%;
 
   /* Type */
-  --font-display: 'Bricolage Grotesque', 'Archivo', system-ui, sans-serif;
+  --font-display: 'Alte Haas Grotesk', 'Archivo', system-ui, sans-serif;
   --font-ui: 'Archivo', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -101,7 +119,7 @@
   --text-eyebrow: 11px;
   --text-min: 12px;
 
-  --tracking-display: -0.04em;
+  --tracking-display: -0.03em;
   --tracking-heading: -0.025em;
   --tracking-eyebrow: 0.18em;
   --leading-display: 0.92;
@@ -254,7 +272,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-heading);
   line-height: var(--leading-heading);
   text-wrap: balance;
@@ -395,7 +413,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: 1.0625rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-heading);
   white-space: nowrap;
   flex-shrink: 0;
@@ -569,8 +587,7 @@ img { display: block; max-width: 100%; }
      column at 1440. Same curve, capped where "Every Language." still fits on
      one line. */
   font-size: clamp(36px, 4.8vw, 64px);
-  font-weight: 800;
-  font-optical-sizing: auto;
+  font-weight: 700;
   line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
 }
@@ -679,8 +696,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: clamp(2.25rem, 4.4vw, 3.25rem);
-  font-weight: 800;
-  font-optical-sizing: auto;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
@@ -717,7 +733,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: clamp(2rem, 4vw, 3.15rem);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-display);
   line-height: 1.02;
 }
@@ -783,8 +799,7 @@ img { display: block; max-width: 100%; }
 .static-page__content h2 {
   color: hsl(var(--foreground));
   font-family: var(--font-display);
-  font-weight: 800;
-  font-optical-sizing: auto;
+  font-weight: 700;
   letter-spacing: var(--tracking-display);
 }
 
@@ -836,8 +851,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: 1.3rem;
-  font-weight: 800;
-  font-optical-sizing: auto;
+  font-weight: 700;
   letter-spacing: var(--tracking-heading);
   line-height: 1.2;
 }
@@ -886,8 +900,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: clamp(1.85rem, 4vw, 2.85rem);
-  font-weight: 800;
-  font-optical-sizing: auto;
+  font-weight: 700;
   line-height: 1.14;
   letter-spacing: var(--tracking-display);
   text-wrap: balance;
@@ -1060,7 +1073,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-heading);
 }
 
@@ -1256,7 +1269,7 @@ img { display: block; max-width: 100%; }
   color: hsl(var(--foreground));
   font-family: var(--font-display);
   font-size: var(--text-h3);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-heading);
 }
 

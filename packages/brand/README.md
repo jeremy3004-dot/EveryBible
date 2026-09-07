@@ -12,8 +12,9 @@ values are byte-verified against the live Field product at
 The canvas is **vellum, not white** (`hsl(40 26% 92%)`); panels are lit paper
 (`hsl(44 40% 97%)`); ink is a warm off-black (`hsl(48 13% 9%)`) — never `#000`,
 never a cool grey. There is **one accent, EL blue** `hsl(200 100% 45%)`, with
-`hsl(200 100% 28%)` for blue text on pale fills. Type is three Google-served
-families: **Bricolage Grotesque** (display, 800, tight negative tracking),
+`hsl(200 100% 28%)` for blue text on pale fills. Type is three
+families: **Alte Haas Grotesk** (display, bold 700, tight negative tracking;
+the Every Language brand face, self-hosted because it is not on Google Fonts),
 **Archivo** (all reading and UI), **JetBrains Mono** (eyebrows, timestamps,
 technical metadata). Surfaces are bordered paper with a whisper of warm shadow
 and an inset edge light — not floating, not borderless. A 3.5%-opacity grain
