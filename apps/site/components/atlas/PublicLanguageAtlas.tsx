@@ -1,13 +1,13 @@
 'use client';
 
 import { LanguageMap } from '../../../admin/components/language-atlas/LanguageMap';
-import Image from 'next/image';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_FILTERS,
   filterRecords,
   formatCount,
   KIND_LABELS,
+  safeSourceUrl,
   scriptureStatus,
 } from '../../../admin/lib/language-atlas/model';
 import {
@@ -35,11 +35,18 @@ import { ProjectList } from './ProjectList';
 import { UnmappedProjectProfile } from './ProjectProgress';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
-import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../../lib/site-links';
 
 const EMPTY_RECORDS: AtlasIndex['records'] = [];
 const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
+/* Example searches shown under the search box. Each name is a real record. */
+const SEARCH_HINTS = ['Tamang', 'Yoruba', 'Quechua', 'Hmong'];
+/* Sources credited on the map itself; the full list lives in the sources panel. */
+const CREDITED_SOURCES = [
+  { id: 'joshua', label: 'Joshua Project' },
+  { id: 'grn', label: 'Global Recordings Network' },
+  { id: 'glottolog', label: 'Glottolog' },
+];
 
 export function PublicLanguageAtlas() {
   const [index, setIndex] = useState<AtlasIndex | null>(null);
@@ -60,6 +67,7 @@ export function PublicLanguageAtlas() {
   >('intro');
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
+  const [railTarget, setRailTarget] = useState<HTMLDivElement | null>(null);
   const explorerRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const skipSearchFocus = useRef(false);
@@ -145,7 +153,7 @@ export function PublicLanguageAtlas() {
             bottom: 210,
             left: 24,
           }
-        : { top: 60, right: 50, bottom: 70, left: 410 },
+        : { top: 110, right: 70, bottom: 130, left: 240 },
     [mobile]
   );
   const select = useCallback((id: string) => {
@@ -237,13 +245,18 @@ export function PublicLanguageAtlas() {
         padding={padding}
         dataReady={Boolean(index)}
         highlightedIds={focusOurs ? highlightedProjectIds : undefined}
-        controlsTarget={mobile ? controlsTarget : undefined}
+        controlsTarget={mobile ? controlsTarget : railTarget}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}
         renderHoverSummary={index ? renderHoverSummary : undefined}
       />
 
-      {!mobile && mapSettings}
+      {!mobile && (
+        <div className="pa-rail" aria-label="Map controls">
+          {mapSettings}
+          <div className="pa-rail-actions" ref={setRailTarget} />
+        </div>
+      )}
 
       <aside className="pa-explorer" ref={explorerRef} aria-label="Language explorer">
         <div className="pa-search-wrap">
@@ -283,26 +296,38 @@ export function PublicLanguageAtlas() {
                 setPanel(panel === 'records' ? 'intro' : 'records');
               }}
             >
-              Records
+              Browse all
             </button>
           )}
         </div>
 
-        <div className="pa-project-focus">
-          <button
-            type="button"
-            aria-pressed={focusOurs}
-            onClick={() => {
-              setFocusOurs(!focusOurs);
-              setPage(0);
-              setSelectedProject(null);
-              setSelectedId(null);
-              setPanel('records');
-            }}
-          >
-            Our languages <span>{projectSnapshot.projects.length}</span>
-          </button>
-          {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
+        <div className="pa-search-hints">
+          {!mobile && (
+            <p>
+              <span>Try</span>
+              {SEARCH_HINTS.map((hint) => (
+                <button type="button" key={hint} onClick={() => updateFilter('query', hint)}>
+                  {hint}
+                </button>
+              ))}
+            </p>
+          )}
+          <div className="pa-project-focus">
+            <button
+              type="button"
+              aria-pressed={focusOurs}
+              onClick={() => {
+                setFocusOurs(!focusOurs);
+                setPage(0);
+                setSelectedProject(null);
+                setSelectedId(null);
+                setPanel('records');
+              }}
+            >
+              Our languages <span>{projectSnapshot.projects.length}</span>
+            </button>
+            {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
+          </div>
         </div>
 
         <div className="pa-mobile-tools" aria-label="Atlas tools">
@@ -485,48 +510,6 @@ export function PublicLanguageAtlas() {
                 Clear all filters
               </button>
             </section>
-          ) : !mobile ? (
-            <div className="pa-intro">
-              <p className="pa-eyebrow">
-                <span /> EVERYBIBLE
-              </p>
-              <h1>
-                God’s Word.
-                <br />
-                <em>In your heart language.</em>
-              </h1>
-              <p className="pa-intro-copy">
-                Read, listen, and grow closer to God through Scripture in your own language.
-                EveryBible is part of Every Language’s vision for the whole Bible in every language,
-                in this generation.
-              </p>
-              <div className="pa-intro-actions">
-                <a href="/download">Get the app</a>
-                <button
-                  type="button"
-                  onClick={(event) => openPanel('records', event.currentTarget)}
-                >
-                  Explore the atlas
-                </button>
-              </div>
-              <h2>Explore the languages still waiting for Scripture.</h2>
-              <p className="pa-intro-copy">
-                Discover languages and dialects around the world and explore what is known about
-                Scripture availability in each. Red marks those for which our sources have no
-                documented Scripture.
-              </p>
-              <div className="pa-collection-stats" aria-label="Atlas collection counts">
-                <div>
-                  <strong>{index ? formatCount(index.counts.languages) : '—'}</strong>
-                  <span>language records</span>
-                </div>
-                <div>
-                  <strong>{index ? formatCount(index.counts.dialects) : '—'}</strong>
-                  <span>dialects & varieties</span>
-                </div>
-              </div>
-              <p className="pa-map-hint">Choose a dot. Discover its story.</p>
-            </div>
           ) : null}
           {loadError && (
             <div className="pa-load-error" role="alert">
@@ -548,46 +531,96 @@ export function PublicLanguageAtlas() {
             </p>
           )}
         </div>
-
-        {!mobile && legend}
       </aside>
 
-      <div className="pa-download-dock">
-        {index?.sources.some((source) => /joshua/i.test(source.name)) && (
-          <a
-            className="pa-provider-credit"
-            href="https://joshuaproject.net"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Data provided by Joshua Project
-          </a>
-        )}
-        <section className="pa-download" id="download" aria-label="Download EveryBible">
-          <a className="pa-qr" href="/download" aria-label="Download EveryBible for your phone">
-            <Image
-              src="/everybible/download-qr.svg"
-              alt="Scan to download EveryBible"
-              width={84}
-              height={84}
-              unoptimized
-            />
-          </a>
-          <div>
-            <p className="pa-eyebrow">EVERYBIBLE</p>
-            <h2>Built for the heart of Africa and the heights of the Himalayas.</h2>
-            <p>
-              Download available Scripture to read or listen wherever you are, even without a
-              signal.
-            </p>
-            <div className="pa-store-links">
-              <a href={EVERYBIBLE_APP_STORE_URL}>iPhone ↗</a>
-              <a href={EVERYBIBLE_GOOGLE_PLAY_URL}>Android ↗</a>
+      {!expanded && (
+        <div className="pa-story">
+          <p className="pa-eyebrow">
+            <span /> An Every Language project
+          </p>
+          <h1>
+            God’s Word.
+            <br />
+            <em>In your heart language.</em>
+          </h1>
+          <p className="pa-story-copy">
+            Explore the languages of the world and what is known about Scripture in each. Red marks
+            the ones still waiting.
+          </p>
+          <div className="pa-story-actions">
+            <a className="pa-button pa-button--primary" href="/download">
+              Get the free app
+            </a>
+            <button
+              type="button"
+              className="pa-button pa-button--ghost"
+              aria-pressed={filters.scripture === 'no-scripture'}
+              onClick={() => {
+                setFilters((current) => ({
+                  ...current,
+                  scripture: current.scripture === 'no-scripture' ? 'all' : 'no-scripture',
+                }));
+                setPage(0);
+              }}
+            >
+              {filters.scripture === 'no-scripture'
+                ? 'Show all languages'
+                : 'Show languages without Scripture'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!mobile && (
+        <div className="pa-dock">
+          {legend}
+          <div className="pa-collection-stats" aria-label="Atlas collection counts">
+            <div>
+              <strong>{index ? formatCount(index.counts.languages) : '—'}</strong>
+              <span>language records</span>
+            </div>
+            <div>
+              <strong>{index ? formatCount(index.counts.dialects) : '—'}</strong>
+              <span>dialects &amp; varieties</span>
+            </div>
+            <div>
+              <strong>{projectSnapshot.projects.length}</strong>
+              <span>languages in the app</span>
             </div>
           </div>
-        </section>
-        <p className="pa-atlas-disclaimer">Research atlas. App translation availability differs.</p>
-      </div>
+        </div>
+      )}
+
+      {!mobile && (
+        <div className="pa-provenance">
+          <p className="pa-map-hint">
+            <i className="pa-dot" /> Choose a dot. Discover its story.
+          </p>
+          <p className="pa-provider-credit">
+            Data from{' '}
+            {CREDITED_SOURCES.map((credit, position) => {
+              const source = index?.sources.find((entry) => entry.id === credit.id);
+              const url = source ? safeSourceUrl(source.url) : undefined;
+              return (
+                <span key={credit.id}>
+                  {position > 0 && ' · '}
+                  {url ? (
+                    <a href={url} target="_blank" rel="noreferrer">
+                      {credit.label}
+                    </a>
+                  ) : (
+                    credit.label
+                  )}
+                </span>
+              );
+            })}
+            {' · '}
+            <button type="button" onClick={(event) => openPanel('sources', event.currentTarget)}>
+              About the data
+            </button>
+          </p>
+        </div>
+      )}
     </section>
   );
 }

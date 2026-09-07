@@ -5,11 +5,15 @@ import { EVERYBIBLE_SMART_DOWNLOAD_PATH } from '../lib/site-links';
 
 /**
  * Shared marketing header. Used by the homepage and every static page so the
- * whole site carries the same navigation and brand chrome.
+ * whole site carries the same navigation and brand chrome. `overlay` floats
+ * it over the homepage map on a gradient instead of a solid glass bar.
  */
-export function SiteHeader() {
+export function SiteHeader({ overlay = false }: { overlay?: boolean } = {}) {
   return (
-    <header className="site-header" aria-label="EveryBible navigation">
+    <header
+      className={overlay ? 'site-header site-header--overlay' : 'site-header'}
+      aria-label="EveryBible navigation"
+    >
       <div className="site-header__inner">
         <a className="site-wordmark" href="/" aria-label="EveryBible">
           <Image

@@ -1407,6 +1407,17 @@ html.dark .static-page__content a,
 html.dark .static-page__backlink { color: hsl(var(--primary)); }
 html.dark .site-header { background: hsl(var(--background) / .96); box-shadow: none; }
 
+/* Homepage: the header floats over the full-screen map on a gradient. */
+.site-header.site-header--overlay,
+html.dark .site-header.site-header--overlay {
+  border-bottom: 0;
+  background: linear-gradient(hsl(var(--background) / 0.92), hsl(var(--background) / 0));
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.site-header--overlay .site-header__inner { max-width: none; }
+
 @media (max-width: 380px) {
   .site-header__inner { gap: 12px; padding-inline: 16px; }
   .site-mobile-menu { gap: 0; }

@@ -84,6 +84,7 @@ export interface HomepageContent {
 
 export const siteNavigation: SiteNavigationItem[] = [
   { label: 'Language atlas', href: '/' },
+  { label: 'The app', href: '/#app' },
   { label: 'Mission', href: '/about' },
   { label: 'About the data', href: '/#atlas-sources' },
   { label: 'Support', href: '/support' },
