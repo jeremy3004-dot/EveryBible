@@ -18,6 +18,7 @@ import {
 } from '../../lib/language-atlas/model';
 import { SCRIPTURE_COLORS, scriptureVisualCategory } from '../../lib/language-atlas/presentation';
 import type {
+  AtlasLocation,
   AtlasDisplayMode,
   AtlasMapPadding,
   AtlasProjection,
@@ -58,6 +59,7 @@ interface Props {
   controlsTarget?: HTMLElement | null;
   onSelectGroup?: (ids: string[]) => void;
   showHoverSummary?: boolean;
+  renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
   /** Keeps the empty-map message hidden while the public startup snapshot is loading. */
   dataReady?: boolean;
 }
@@ -72,6 +74,7 @@ export function LanguageMap({
   controlsTarget,
   onSelectGroup,
   showHoverSummary = true,
+  renderHoverSummary,
   dataReady = true,
   highlightedIds,
 }: Props) {
@@ -101,7 +104,8 @@ export function LanguageMap({
     displayMode,
     onSelectGroup,
     showHoverSummary,
-    });
+    renderHoverSummary,
+  });
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -132,9 +136,10 @@ export function LanguageMap({
       displayMode,
       onSelectGroup,
       showHoverSummary,
-        };
+      renderHoverSummary,
+    };
     if (!showHoverSummary) popupRef.current?.remove();
-  }, [data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary]);
+  }, [data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary, renderHoverSummary]);
   useEffect(() => {
     projectionRef.current = projection;
   }, [projection]);
@@ -386,7 +391,7 @@ export function LanguageMap({
       }
       popup
         .setLngLat(feature.geometry.coordinates as [number, number])
-        .setDOMContent(node)
+        .setDOMContent(current.current.renderHoverSummary?.(record, location) ?? node)
         .addTo(map);
     });
     for (const layer of [HIT, CLUSTERS]) {
@@ -593,7 +598,7 @@ export function LanguageMap({
             onSelect={selectSpreadPoint}
             inset={controlInsets}
             showHoverSummary={showHoverSummary}
-
+            renderHoverSummary={renderHoverSummary}
           />
         )}
         {controlsTarget === undefined
