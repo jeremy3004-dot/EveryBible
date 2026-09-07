@@ -236,4 +236,4 @@ people-group and source-position preservation. Use `--before` and `--after` gzip
 index paths. Its report distinguishes replaced approximation-only attribution
 from lost source evidence.
 
-Coastal spread uses loaded basemap water polygons, a 24-pixel movement limit, and land-only paths. Overflow + markers open the existing paginated group list. During camera movement or incomplete tile loading, reference positions are retained. No source coordinates or identities are modified.
+Coastal spread uses loaded basemap water polygons, a 24-pixel movement limit, and land-only paths. Overflow dots overlap at their original references; there are no automatic clickable groups in Dots mode. During camera movement or incomplete tile loading, reference positions are retained. No source coordinates or identities are modified.

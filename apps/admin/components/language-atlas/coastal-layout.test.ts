@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { coastalLayout, compactAnchors, MAX_SPREAD_DISTANCE } from './coastal-layout';
+import { coastalLayout, referenceDots, MAX_SPREAD_DISTANCE } from './coastal-layout';
 const anchors = Array.from({ length: 300 }, (_, i) => ({ id: String(i), x: 96, y: 100 }));
-test('coastal overflow stays on land and nearby, conserving every record in clickable groups', () => {
+test('coastal overflow stays on land and nearby, retaining overlapping individual dots', () => {
   const before = JSON.stringify(anchors);
   const points = coastalLayout(anchors, 300, 200, (x) => x < 100);
-  assert.equal(points.flatMap((p) => p.ids).length, 300);
-  assert.equal(new Set(points.flatMap((p) => p.ids)).size, 300);
-  assert.ok(points.some((p) => p.ids.length > 1));
+  assert.equal(points.map((p) => p.id).length, 300);
+  assert.equal(new Set(points.map((p) => p.id)).size, 300);
+  assert.equal(points.length, 300);
+  assert.ok(points.filter((p) => p.x === 96 && p.y === 100).length > 1);
   for (const p of points) {
     assert.ok(p.x < 100);
     assert.ok(Math.hypot(p.x - p.anchorX, p.y - p.anchorY) <= MAX_SPREAD_DISTANCE);
@@ -20,10 +21,12 @@ test('a nearby island across a narrow water channel is never used for overflow',
 });
 test('offshore or unavailable coastal evidence leaves sources at their references', () => {
   const points = coastalLayout(anchors, 300, 200, () => false);
-  assert.equal(points.length, 1);
+  assert.equal(points.length, 300);
   assert.equal(points[0].x, 96);
-  assert.equal(points[0].ids.length, 300);
-  assert.deepEqual(new Set(compactAnchors(anchors)[0].ids), new Set(points[0].ids));
+  assert.deepEqual(
+    new Set(referenceDots(anchors).map((p) => p.id)),
+    new Set(points.map((p) => p.id))
+  );
 });
 test('zooming creates more land space and exposes individual records', () => {
   const small = coastalLayout(anchors.slice(0, 30), 300, 200, (x) => x < 100);
@@ -35,10 +38,12 @@ test('zooming creates more land space and exposes individual records', () => {
     200,
     (x) => x < 100
   );
-  assert.ok(wide.length > small.length);
+  assert.ok(
+    new Set(wide.map((p) => `${p.x},${p.y}`)).size > new Set(small.map((p) => `${p.x},${p.y}`)).size
+  );
 });
 
-test('mixed anchors retain each ID once and every grouped member stays within its movement budget', () => {
+test('mixed anchors retain each ID once and every dot stays within its movement budget', () => {
   const input = Array.from({ length: 2000 }, (_, i) => ({
     id: `id-${i}`,
     x: 50 + (i % 80),
@@ -46,18 +51,14 @@ test('mixed anchors retain each ID once and every grouped member stays within it
   }));
   const byId = new Map(input.map((p) => [p.id, p]));
   const output = coastalLayout(input, 300, 250, (x) => x < 120);
-  assert.equal(new Set(output.flatMap((p) => p.ids)).size, input.length);
-  assert.equal(
-    output.reduce((n, p) => n + p.ids.length, 0),
-    input.length
-  );
-  for (const point of output)
-    for (const id of point.ids) {
-      const source = byId.get(id)!;
-      assert.ok(Math.hypot(point.x - source.x, point.y - source.y) <= MAX_SPREAD_DISTANCE);
-      if (source.x < 120) assert.ok(point.x < 120);
-      else assert.deepEqual([point.x, point.y], [source.x, source.y]);
-    }
+  assert.equal(new Set(output.map((p) => p.id)).size, input.length);
+  assert.equal(output.length, input.length);
+  for (const point of output) {
+    const source = byId.get(point.id)!;
+    assert.ok(Math.hypot(point.x - source.x, point.y - source.y) <= MAX_SPREAD_DISTANCE);
+    if (source.x < 120) assert.ok(point.x < 120);
+    else assert.deepEqual([point.x, point.y], [source.x, source.y]);
+  }
   assert.deepEqual(
     coastalLayout([...input].reverse(), 300, 250, (x) => x < 120),
     output

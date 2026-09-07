@@ -1,12 +1,12 @@
 import type { ScreenAnchor, SpreadPoint } from './spread-layout';
 
 export const MAX_SPREAD_DISTANCE = 24;
-export interface CoastalPoint extends SpreadPoint {
+interface CoastalPoint extends SpreadPoint {
   ids: string[];
 }
 
 /** Keep reference locations intact when coast data is unavailable or the camera moves. */
-export function compactAnchors(anchors: ScreenAnchor[]): CoastalPoint[] {
+function compactAnchors(anchors: ScreenAnchor[]): CoastalPoint[] {
   const groups = new Map<string, CoastalPoint>();
   for (const anchor of anchors) {
     const key = `${anchor.x},${anchor.y}`;
@@ -24,16 +24,16 @@ export function compactAnchors(anchors: ScreenAnchor[]): CoastalPoint[] {
   return [...groups.values()];
 }
 
-/** Only short paths entirely on land can move a dot. Overflow shares a nearby marker. */
+/** Only short paths entirely on land can move a dot. Overflow stays at its original anchor and may overlap. */
 export function coastalLayout(
   anchors: ScreenAnchor[],
   width: number,
   height: number,
   isLand: (x: number, y: number) => boolean,
   spacing = 7
-): CoastalPoint[] {
-  const occupied = new Map<string, CoastalPoint>();
-  const groups: CoastalPoint[] = [];
+): SpreadPoint[] {
+  const occupied = new Set<string>();
+  const groups: SpreadPoint[] = [];
   const offsets: { x: number; y: number; distance: number }[] = [];
   const reach = Math.ceil(MAX_SPREAD_DISTANCE / spacing);
   for (let y = -reach; y <= reach; y++)
@@ -72,38 +72,36 @@ export function coastalLayout(
       : [];
     for (const id of anchorGroup.ids) {
       const anchor = { ...anchorGroup, id };
-      let fallback: CoastalPoint | undefined;
       let placed = false;
       for (const { x, y, key } of candidates) {
-        const existing = occupied.get(key);
-        if (existing) {
-          fallback ??= existing;
-          continue;
-        }
+        if (occupied.has(key)) continue;
         const point = {
-          ...anchor,
+          id,
           x,
           y,
           anchorX: anchor.x,
           anchorY: anchor.y,
           spacing,
-          ids: [id],
         };
-        occupied.set(key, point);
+        occupied.add(key);
         groups.push(point);
         placed = true;
         break;
       }
       if (placed) continue;
-      // A source point already offshore is retained, never silently relocated onto an island.
-      if (!fallback)
-        fallback = groups.find(
-          (p) =>
-            p.anchorX === anchor.x && p.anchorY === anchor.y && p.x === anchor.x && p.y === anchor.y
-        );
-      if (fallback) fallback.ids.push(id);
-      else groups.push({ ...anchor, anchorX: anchor.x, anchorY: anchor.y, spacing, ids: [id] });
+      // Keep overflow at its reference rather than creating a group or moving farther.
+      groups.push({ id, x: anchor.x, y: anchor.y, anchorX: anchor.x, anchorY: anchor.y, spacing });
     }
   }
   return groups;
+}
+
+/** Each record stays an individual colored dot, even when coordinates overlap. */
+export function referenceDots(anchors: ScreenAnchor[]): SpreadPoint[] {
+  return anchors.map((anchor) => ({
+    ...anchor,
+    anchorX: anchor.x,
+    anchorY: anchor.y,
+    spacing: 8.5,
+  }));
 }

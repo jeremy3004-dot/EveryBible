@@ -24,8 +24,9 @@ import {
   nearestSpreadPoint,
   projectSpreadPoints,
   representativePoints,
+  type SpreadPoint,
 } from './spread-layout';
-import { coastalLayout, compactAnchors, type CoastalPoint } from './coastal-layout';
+import { coastalLayout, referenceDots } from './coastal-layout';
 import { createCoastMask } from './coast-mask';
 
 interface Props {
@@ -34,7 +35,6 @@ interface Props {
   records: AtlasRecord[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onSelectGroup: (ids: string[]) => void;
   inset: { left: number; bottom: number };
   showHoverSummary?: boolean;
   renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
@@ -46,7 +46,6 @@ export function SpreadDots({
   records,
   selectedId,
   onSelect,
-  onSelectGroup,
   inset,
   showHoverSummary = true,
   renderHoverSummary,
@@ -57,10 +56,6 @@ export function SpreadDots({
   const points = useMemo(() => representativePoints(records), [records]);
   const selectedRef = useRef(selectedId);
   const selectRef = useRef(onSelect);
-  const groupRef = useRef(onSelectGroup);
-  useEffect(() => {
-    groupRef.current = onSelectGroup;
-  }, [onSelectGroup]);
   const hoverSummaryRef = useRef(showHoverSummary);
   const renderHoverRef = useRef(renderHoverSummary);
   useEffect(() => {
@@ -112,7 +107,7 @@ export function SpreadDots({
       maxWidth: '290px',
       className: 'language-atlas-popup',
     });
-    let displayed: CoastalPoint[] = [];
+    let displayed: SpreadPoint[] = [];
     let hovered: string | null = null;
     let frame = 0;
     let dirtyLayout = true;
@@ -176,20 +171,19 @@ export function SpreadDots({
       );
       if (dirtyLayout || changedView) {
         const land = separate && !map.isMoving() ? createCoastMask(map, width, height) : null;
-        displayed = land ? coastalLayout(anchors, width, height, land) : compactAnchors(anchors);
+        displayed = land ? coastalLayout(anchors, width, height, land) : referenceDots(anchors);
         dirtyLayout = false;
       }
-      const recordCount = displayed.reduce((sum, point) => sum + point.ids.length, 0);
+      const recordCount = displayed.length;
       setVisibleCount((count) => (count === recordCount ? count : recordCount));
       canvas.dataset.pointCount = String(recordCount);
-      canvas.dataset.groupCount = String(displayed.filter((point) => point.ids.length > 1).length);
       const theme = normalizeAdminTheme(document.documentElement.dataset.theme);
       const colors = SCRIPTURE_COLORS[theme];
       const basemap = ATLAS_BASEMAP_COLORS[theme];
       context.globalAlpha = highlightedIds ? 0.18 : 1;
       for (const element of markers.values()) element.style.display = 'none';
       for (const point of displayed) {
-        const marker = point.ids.map((id) => markers.get(id)).find(Boolean);
+        const marker = markers.get(point.id);
         if (!marker) continue;
         marker.style.display = 'block';
         marker.style.left = `${point.x}px`;
@@ -198,7 +192,7 @@ export function SpreadDots({
       for (const category of SCRIPTURE_VISUAL_ORDER) {
         context.beginPath();
         for (const point of displayed) {
-          if (point.ids.length > 1 || categories.get(point.id) !== category) continue;
+          if (categories.get(point.id) !== category) continue;
           const radius = Math.min(3.05, point.spacing * 0.36);
           context.moveTo(point.x + radius, point.y);
           context.arc(point.x, point.y, radius, 0, Math.PI * 2);
@@ -210,24 +204,8 @@ export function SpreadDots({
         context.stroke();
       }
       context.globalAlpha = 1;
-      // Overflow groups use a compact neutral marker; clicking opens every member.
       for (const point of displayed) {
-        if (point.ids.length < 2) continue;
-        context.beginPath();
-        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
-        context.fillStyle = basemap.label;
-        context.fill();
-        context.strokeStyle = basemap.canvas;
-        context.lineWidth = 1;
-        context.stroke();
-        context.fillStyle = basemap.canvas;
-        context.font = 'bold 8px sans-serif';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText('+', point.x, point.y);
-      }
-      for (const point of displayed) {
-        if (point.id !== hovered && !point.ids.includes(selectedRef.current ?? '')) continue;
+        if (point.id !== hovered && point.id !== selectedRef.current) continue;
         context.strokeStyle = basemap.label;
         context.lineWidth = 1;
         context.setLineDash([3, 3]);
@@ -263,11 +241,7 @@ export function SpreadDots({
     };
     const hover = (event: MapMouseEvent) => {
       if (map.isMoving()) return;
-      const hit = nearestSpreadPoint(
-        displayed,
-        event.point.x,
-        event.point.y
-      ) as CoastalPoint | null;
+      const hit = nearestSpreadPoint(displayed, event.point.x, event.point.y);
       if (!hit) {
         if (hovered) leave();
         return;
@@ -276,18 +250,6 @@ export function SpreadDots({
       hovered = hit.id;
       map.getCanvas().style.cursor = 'pointer';
       if (!hoverSummaryRef.current) {
-        request();
-        return;
-      }
-      if (hit.ids.length > 1) {
-        const node = document.createElement('div');
-        node.textContent = `${formatCount(hit.ids.length)} records · Click to explore this group`;
-        const location = byId.get(hit.id)!.location;
-        popup
-          .setLngLat([location.longitude, location.latitude])
-          .setOffset([hit.x - hit.anchorX, hit.y - hit.anchorY])
-          .setDOMContent(node)
-          .addTo(map);
         request();
         return;
       }
@@ -310,15 +272,10 @@ export function SpreadDots({
       request();
     };
     const click = (event: MapMouseEvent) => {
-      const hit = nearestSpreadPoint(
-        displayed,
-        event.point.x,
-        event.point.y
-      ) as CoastalPoint | null;
+      const hit = nearestSpreadPoint(displayed, event.point.x, event.point.y);
       if (hit) {
         leave();
-        if (hit.ids.length > 1) groupRef.current(hit.ids);
-        else selectRef.current(hit.id);
+        selectRef.current(hit.id);
       }
     };
     map.on('render', render);
@@ -389,7 +346,7 @@ export function SpreadDots({
         <strong>{formatCount(visibleCount)} records in view</strong>
         <br />
         {separating
-          ? 'Nearby dots · Click + to explore groups'
+          ? 'Nearby dots · Crowded locations overlap'
           : 'Overlaps retained · Zoom in to separate'}
       </div>
     </>

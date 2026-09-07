@@ -212,9 +212,10 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
       </p>
       <p>People-group research is retained for a future, separate map overlay.</p>
       <p>
-        Dots separate nearby on land at regional zoom. Where space is limited, click a + group to
-        explore its records. Source coordinates remain unchanged. Some locations are approximate,
-        and records without a supported placement remain searchable.
+        Dots separate nearby on land at regional zoom. Where space is limited, dots overlap at their
+        reference locations. Zoom closer or use search to explore them. Source coordinates remain
+        unchanged. Some locations are approximate, and records without a supported placement remain
+        searchable.
       </p>
       <p>
         Records stay separate where source identities cannot be verified. The totals are source
