@@ -137,7 +137,7 @@ The deployment task owns main integration and both Vercel deployments.
 
 ### Spread-view update 2026-09-06
 
-The shared canvas overlay projects one representative location per record. Overlapping anchors move to the nearest free position on a deterministic hexagonal screen lattice; actual coordinates remain unchanged. Dot spacing grows with zoom, and the overlay uses MapLibre's globe occlusion check. Hover and selection show a line to the recorded reference point. The in-view count includes projected records in the map viewport, including areas covered by panels. Dense overview dots are small; zooming in exposes each point more clearly.
+The shared canvas overlay projects one representative location per record. Starting at zoom 4, dots can move up to 24 screen pixels along a land-only path, using a mask of the loaded basemap water polygons. Nearby land must have room for the dot; records that cannot fit share a compact neutral + marker that opens the existing paginated group list. Every source ID remains accessible and counts include all group members. During camera motion or incomplete basemap loading, points stay at their recorded references. Source points already offshore are not silently relocated. Globe occlusion remains in use; actual coordinates and reconciled identities remain unchanged.
 
 The source reconciliation removes 5,776 proven duplicate variety records while preserving source evidence and exact Scripture scopes. Remaining ambiguous registry identities are still identified as source records, not asserted to be a definitive count of distinct living languages. Historical public snapshot SHA-256: `3402fe0e8eb27591072b371b88ce62d78ebac3169d159e45568df44e1e5b35ac`.
 

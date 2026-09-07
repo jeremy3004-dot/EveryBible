@@ -596,6 +596,17 @@ export function LanguageMap({
             highlightedIds={highlightedIds}
             selectedId={selected?.id ?? null}
             onSelect={selectSpreadPoint}
+            onSelectGroup={(ids) => {
+              if (onSelectGroup) onSelectGroup(ids);
+              else {
+                setGroup({
+                  records: ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
+                  data,
+                });
+                setGroupPage(0);
+                setGroupError(false);
+              }
+            }}
             inset={controlInsets}
             showHoverSummary={showHoverSummary}
             renderHoverSummary={renderHoverSummary}

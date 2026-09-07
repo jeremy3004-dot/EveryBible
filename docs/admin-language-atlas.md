@@ -235,3 +235,5 @@ compares a saved baseline with regenerated data to check identity, Scripture,
 people-group and source-position preservation. Use `--before` and `--after` gzip
 index paths. Its report distinguishes replaced approximation-only attribution
 from lost source evidence.
+
+Coastal spread uses loaded basemap water polygons, a 24-pixel movement limit, and land-only paths. Overflow + markers open the existing paginated group list. During camera movement or incomplete tile loading, reference positions are retained. No source coordinates or identities are modified.
