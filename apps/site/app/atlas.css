@@ -1246,21 +1246,6 @@
     color: hsl(var(--primary));
     border-color: hsl(var(--primary));
   }
-  .pa-search-hints .pa-project-focus {
-    padding: 0;
-    border: 0;
-  }
-  .pa-search-hints .pa-project-focus button {
-    width: auto;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .pa-search-hints .pa-project-focus small {
-    display: none;
-  }
   .public-atlas--expanded .pa-search-hints {
     border-bottom: 1px solid hsl(var(--border));
     padding-top: 10px;
@@ -1277,10 +1262,58 @@
     gap: 10px;
     z-index: 3;
   }
+  .pa-rail-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
   .pa-map-toolbar {
     position: static;
     display: flex;
     gap: 8px;
+  }
+  /* "Our languages" sits with the view switches so the project filter reads as a map mode. */
+  .pa-rail .pa-project-focus {
+    padding: 0;
+    border: 0;
+  }
+  .pa-rail .pa-project-focus button {
+    height: 100%;
+    width: auto;
+    gap: 8px;
+    padding: 0 6px 0 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: hsl(var(--foreground));
+    background: hsl(var(--background) / 0.78);
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    box-shadow: var(--shadow-md), var(--edge-light);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .pa-rail .pa-project-focus button span {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 7px;
+    background: hsl(var(--foreground) / 0.1);
+    font-size: 12px;
+  }
+  .pa-rail .pa-project-focus button:hover {
+    border-color: hsl(var(--foreground) / 0.3);
+  }
+  .pa-rail .pa-project-focus button[aria-pressed='true'] {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
+  .pa-rail .pa-project-focus button[aria-pressed='true'] span {
+    background: hsl(var(--primary) / 0.18);
+  }
+  .pa-rail .pa-project-focus small {
+    display: none;
   }
   .pa-segment {
     border-radius: 10px;

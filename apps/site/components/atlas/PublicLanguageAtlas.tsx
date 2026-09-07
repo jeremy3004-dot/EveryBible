@@ -221,6 +221,24 @@ export function PublicLanguageAtlas() {
       onDisplayModeChange={setDisplayMode}
     />
   );
+  const projectFocus = (
+    <div className="pa-project-focus">
+      <button
+        type="button"
+        aria-pressed={focusOurs}
+        onClick={() => {
+          setFocusOurs(!focusOurs);
+          setPage(0);
+          setSelectedProject(null);
+          setSelectedId(null);
+          setPanel('records');
+        }}
+      >
+        Our languages <span>{projectSnapshot.projects.length}</span>
+      </button>
+      {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
+    </div>
+  );
   const legend = (
     <AtlasLegend
       scripture={filters.scripture}
@@ -253,7 +271,10 @@ export function PublicLanguageAtlas() {
 
       {!mobile && (
         <div className="pa-rail" aria-label="Map controls">
-          {mapSettings}
+          <div className="pa-rail-row">
+            {mapSettings}
+            {projectFocus}
+          </div>
           <div className="pa-rail-actions" ref={setRailTarget} />
         </div>
       )}
@@ -312,22 +333,7 @@ export function PublicLanguageAtlas() {
               ))}
             </p>
           )}
-          <div className="pa-project-focus">
-            <button
-              type="button"
-              aria-pressed={focusOurs}
-              onClick={() => {
-                setFocusOurs(!focusOurs);
-                setPage(0);
-                setSelectedProject(null);
-                setSelectedId(null);
-                setPanel('records');
-              }}
-            >
-              Our languages <span>{projectSnapshot.projects.length}</span>
-            </button>
-            {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
-          </div>
+          {mobile && projectFocus}
         </div>
 
         <div className="pa-mobile-tools" aria-label="Atlas tools">
