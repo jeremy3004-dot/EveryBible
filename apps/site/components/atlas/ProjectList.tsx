@@ -13,9 +13,9 @@ export function ProjectList({
   onShowAll: () => void;
 }) {
   return (
-    <section className="pa-records pa-project-list" aria-label="Our projects">
+    <section className="pa-records pa-project-list" aria-label="EL Translations">
       <div className="pa-section-top">
-        <h2>Our languages</h2>
+        <h2>EL Translations</h2>
         <button type="button" aria-label="Close projects" onClick={onClose}>
           ×
         </button>
@@ -48,7 +48,7 @@ export function ProjectList({
       </div>
       {!projects.length && <p className="pa-empty">No projects match your filters.</p>}
       <button className="pa-browse" type="button" onClick={onShowAll}>
-        Show all 23 projects
+        Show all 23 translations
       </button>
     </section>
   );

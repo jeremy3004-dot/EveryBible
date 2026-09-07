@@ -234,9 +234,9 @@ export function PublicLanguageAtlas() {
           setPanel('records');
         }}
       >
-        Our languages <span>{projectSnapshot.projects.length}</span>
+        EL Translations <span>{projectSnapshot.projects.length}</span>
       </button>
-      {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
+      {focusOurs && <small>EL translations pulse. Other languages stay faded.</small>}
     </div>
   );
   const legend = (

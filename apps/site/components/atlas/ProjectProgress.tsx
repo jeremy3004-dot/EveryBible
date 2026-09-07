@@ -101,7 +101,7 @@ export function UnmappedProjectProfile({
   return (
     <article className="pa-profile" aria-label={`${project.name} project`}>
       <div className="pa-section-top">
-        <span className="pa-eyebrow">Our languages</span>
+        <span className="pa-eyebrow">EL Translations</span>
         <button type="button" aria-label="Close project" onClick={onClose}>
           ×
         </button>
