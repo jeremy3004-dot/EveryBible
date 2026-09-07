@@ -3,6 +3,8 @@ import test from 'node:test';
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
 import {
   countryFlag,
+  profileDisplayName,
+  profileScriptureLabel,
   parentRecord,
   profileCountryGroups,
   profileCountries,
@@ -136,8 +138,14 @@ test('country preview keeps the first three in source order and groups the remai
   const atlas = index([language]);
   atlas.countries.push({ code: 'US', name: 'United States' });
   const groups = profileCountryGroups(language, atlas);
-  assert.deepEqual(groups.visible.map((country) => country.code), ['CD', 'NP', 'BAD']);
-  assert.deepEqual(groups.remaining.map((country) => country.code), ['US']);
+  assert.deepEqual(
+    groups.visible.map((country) => country.code),
+    ['CD', 'NP', 'BAD']
+  );
+  assert.deepEqual(
+    groups.remaining.map((country) => country.code),
+    ['US']
+  );
   assert.equal(profileCountryGroups(record(), index([record()])).remaining.length, 0);
 });
 
@@ -148,7 +156,10 @@ test('language identity uses its known family while keeping a concise fallback',
     parentId: null,
     family: 'Atlantic-Congo',
   });
-  assert.equal(profileIdentity(language, index([language])), 'A language in the Atlantic-Congo family.');
+  assert.equal(
+    profileIdentity(language, index([language])),
+    'A language in the Atlantic-Congo family.'
+  );
   const unclassified = { ...language, family: null };
   assert.equal(profileIdentity(unclassified, index([unclassified])), 'A language.');
 });
@@ -173,4 +184,27 @@ test('population stays omitted when unsupported and does not inherit from parent
   const momveda = record({ population: null });
   assert.equal(profilePopulation(momveda), null);
   assert.equal(profilePopulation(parent)?.value, '8,000');
+});
+
+test('public names remove only a resolved parent prefix and status stays exact-variety scoped', () => {
+  const parent = record({ id: 'iso:dty', kind: 'language', name: 'Dotyali', parentId: null });
+  const variety = record({
+    name: 'Dotyali: Baitadeli',
+    parentId: parent.id,
+    scriptureStatus: 'nt',
+    scriptureScope: 'language',
+  });
+  const data = index([parent, variety]);
+  assert.equal(profileDisplayName(variety, data), 'Baitadeli');
+  assert.equal(profileScriptureLabel(variety, data), 'No known Scripture in Baitadeli');
+  assert.equal(
+    profileScriptureLabel({ ...variety, scriptureScope: 'dialect' }, data),
+    'New Testament'
+  );
+  assert.equal(
+    profileDisplayName({ ...variety, name: 'Other: Baitadeli' }, data),
+    'Other: Baitadeli'
+  );
+  assert.equal(profileDisplayName(variety, index([variety])), 'Dotyali: Baitadeli');
+  assert.equal(variety.scriptureStatus, 'nt');
 });

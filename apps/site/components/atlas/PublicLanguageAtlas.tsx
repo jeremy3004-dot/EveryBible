@@ -15,14 +15,24 @@ import {
   scriptureVisualCategory,
 } from '../../../admin/lib/language-atlas/presentation';
 import type {
+  AtlasLocation,
+  AtlasRecord,
   AtlasDisplayMode,
   AtlasFilters,
   AtlasIndex,
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
+import { publicAtlasHover } from '../../lib/public-atlas-hover';
 import { selectPublicAtlasRecords } from '../../lib/public-atlas-records';
 import { decodePublicAtlas } from '../../lib/public-atlas-transport';
+import {
+  projectSnapshot,
+  filterProjects,
+  type AtlasProject,
+} from '../../lib/public-atlas-projects';
 import atlasVersionData from '../../lib/public-atlas-version.json';
+import { ProjectList } from './ProjectList';
+import { UnmappedProjectProfile } from './ProjectProgress';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../../lib/site-links';
@@ -33,8 +43,15 @@ const PAGE_SIZE = 30;
 
 export function PublicLanguageAtlas() {
   const [index, setIndex] = useState<AtlasIndex | null>(null);
+  const renderHoverSummary = useCallback(
+    (record: AtlasRecord, location: AtlasLocation | undefined) =>
+      publicAtlasHover(record, location, index!),
+    [index]
+  );
   const [loadError, setLoadError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [selectedProject, setSelectedProject] = useState<AtlasProject | null>(null);
+  const [focusOurs, setFocusOurs] = useState(false);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const deferredFilters = useDeferredValue(filters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -55,7 +72,7 @@ export function PublicLanguageAtlas() {
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
-  }, [selectedId, panel, page, deferredFilters]);
+  }, [selectedId, selectedProject, panel, page, deferredFilters]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)');
@@ -81,6 +98,7 @@ export function PublicLanguageAtlas() {
   useEffect(() => {
     const openSources = () => {
       if (window.location.hash === '#atlas-sources') {
+        setSelectedProject(null);
         setSelectedId(null);
         setPanel('sources');
       }
@@ -98,6 +116,18 @@ export function PublicLanguageAtlas() {
     () => filterRecords(publicRecords, deferredFilters),
     [publicRecords, deferredFilters]
   );
+  const projects = useMemo(
+    () => filterProjects(publicRecords, deferredFilters),
+    [publicRecords, deferredFilters]
+  );
+  const highlightedProjectIds = useMemo(
+    () => new Set(projects.flatMap((p) => (p.recordId ? [p.recordId] : []))),
+    [projects]
+  );
+  const mapRecords = useMemo(
+    () => (focusOurs ? filterRecords(publicRecords, { ...deferredFilters, query: '' }) : records),
+    [publicRecords, deferredFilters, focusOurs, records]
+  );
   const byId = useMemo(
     () => new Map(publicRecords.map((record) => [record.id, record])),
     [publicRecords]
@@ -105,7 +135,7 @@ export function PublicLanguageAtlas() {
   const selected = selectedId ? (byId.get(selectedId) ?? null) : null;
   const searching = Boolean(filters.query.trim());
   const showRecords = panel === 'records';
-  const expanded = Boolean(selected || panel !== 'intro');
+  const expanded = Boolean(selectedProject || selected || panel !== 'intro');
   const padding = useMemo(
     () =>
       mobile
@@ -119,10 +149,12 @@ export function PublicLanguageAtlas() {
     [mobile]
   );
   const select = useCallback((id: string) => {
+    setSelectedProject(null);
     setSelectedId(id);
     setPanel('intro');
   }, []);
   const selectGroup = useCallback((ids: string[]) => {
+    setSelectedProject(null);
     setSelectedId(null);
     setGroupIds(ids);
     setPage(0);
@@ -131,12 +163,14 @@ export function PublicLanguageAtlas() {
   const updateFilter = <Key extends keyof AtlasFilters>(key: Key, value: AtlasFilters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }));
     setPage(0);
+    setSelectedProject(null);
     setSelectedId(null);
     setPanel(key === 'query' && !String(value).trim() ? 'search' : 'records');
   };
   const closePanel = useCallback((restoreFocus = true) => {
     if (window.location.hash === '#atlas-sources')
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    setSelectedProject(null);
     setSelectedId(null);
     setPanel('intro');
     const trigger = triggerRef.current ?? searchRef.current;
@@ -148,6 +182,7 @@ export function PublicLanguageAtlas() {
 
   const openPanel = (next: typeof panel, trigger?: HTMLElement) => {
     if (trigger) triggerRef.current = trigger;
+    setSelectedProject(null);
     setSelectedId(null);
     setPanel(next);
   };
@@ -190,19 +225,22 @@ export function PublicLanguageAtlas() {
     <section
       className={`public-atlas ${expanded ? 'public-atlas--expanded' : ''}`}
       data-mobile-panel={panel}
+      data-project-focus={focusOurs}
       aria-label="Explore the world's languages"
     >
       <LanguageMap
-        records={records}
+        records={mapRecords}
         selected={selected}
         onSelect={select}
         displayMode={displayMode}
         projection={projection}
         padding={padding}
         dataReady={Boolean(index)}
+        highlightedIds={focusOurs ? highlightedProjectIds : undefined}
         controlsTarget={mobile ? controlsTarget : undefined}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}
+        renderHoverSummary={index ? renderHoverSummary : undefined}
       />
 
       {!mobile && mapSettings}
@@ -240,6 +278,7 @@ export function PublicLanguageAtlas() {
               className="pa-browse"
               aria-pressed={panel === 'records'}
               onClick={() => {
+                setSelectedProject(null);
                 setSelectedId(null);
                 setPanel(panel === 'records' ? 'intro' : 'records');
               }}
@@ -247,6 +286,23 @@ export function PublicLanguageAtlas() {
               Records
             </button>
           )}
+        </div>
+
+        <div className="pa-project-focus">
+          <button
+            type="button"
+            aria-pressed={focusOurs}
+            onClick={() => {
+              setFocusOurs(!focusOurs);
+              setPage(0);
+              setSelectedProject(null);
+              setSelectedId(null);
+              setPanel('records');
+            }}
+          >
+            Our languages <span>{projectSnapshot.projects.length}</span>
+          </button>
+          {focusOurs && <small>Our projects pulse. Other languages stay faded.</small>}
         </div>
 
         <div className="pa-mobile-tools" aria-label="Atlas tools">
@@ -309,10 +365,26 @@ export function PublicLanguageAtlas() {
               onSelect={select}
               onClose={() => closePanel()}
             />
+          ) : selectedProject ? (
+            <UnmappedProjectProfile project={selectedProject} onClose={closePanel} />
           ) : selected && index ? (
             <AtlasRecordProfile record={selected} index={index} onClose={closePanel} />
           ) : panel === 'sources' && index ? (
             <AtlasSources index={index} onClose={closePanel} />
+          ) : showRecords && focusOurs ? (
+            <ProjectList
+              projects={projects}
+              onClose={closePanel}
+              onShowAll={() => setFilters(INITIAL_FILTERS)}
+              onSelect={(project) => {
+                if (project.recordId) select(project.recordId);
+                else {
+                  setSelectedId(null);
+                  setSelectedProject(project);
+                  setPanel('intro');
+                }
+              }}
+            />
           ) : showRecords ? (
             <section className="pa-records" aria-label="Records">
               <div className="pa-section-top">
@@ -430,7 +502,10 @@ export function PublicLanguageAtlas() {
               </p>
               <div className="pa-intro-actions">
                 <a href="/download">Get the app</a>
-                <button type="button" onClick={(event) => openPanel('records', event.currentTarget)}>
+                <button
+                  type="button"
+                  onClick={(event) => openPanel('records', event.currentTarget)}
+                >
                   Explore the atlas
                 </button>
               </div>
@@ -502,7 +577,8 @@ export function PublicLanguageAtlas() {
             <p className="pa-eyebrow">EVERYBIBLE</p>
             <h2>Built for the heart of Africa and the heights of the Himalayas.</h2>
             <p>
-              Download available Scripture to read or listen wherever you are, even without a signal.
+              Download available Scripture to read or listen wherever you are, even without a
+              signal.
             </p>
             <div className="pa-store-links">
               <a href={EVERYBIBLE_APP_STORE_URL}>iPhone ↗</a>

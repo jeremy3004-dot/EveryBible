@@ -1,0 +1,91 @@
+{
+  "reviewedAt": "2026-09-07",
+  "note": "Only explicit reviewed links. Missing links preserve project progress without guessing a map position. Shared ISO/parent membership never propagates to other dialects.",
+  "links": {
+    "Bhujel": {
+      "recordId": "iso:byh",
+      "languageName": "Bhujel: Andimul",
+      "evidence": "Existing Every Language active-project entity link in September 5 snapshot."
+    },
+    "Santhali": {
+      "recordId": "iso:sat",
+      "languageName": "Santali: Manjhi",
+      "evidence": "Existing Every Language active-project entity link in September 5 snapshot."
+    },
+    "Rasuwa Tamang": {
+      "recordId": "rolv:04094",
+      "languageName": "Tamang, Western: Northeastern",
+      "evidence": "Existing Every Language active-project entity link in September 5 snapshot."
+    },
+    "Birat Rajbanshi": {
+      "recordId": "rolv:21057",
+      "languageName": "Rajbanshi: Eastern",
+      "evidence": "Existing Every Language active-project entity link in September 5 snapshot."
+    },
+    "Bajika": {
+      "recordId": "iso:vjk",
+      "languageName": "Bajjika",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Bajjika"
+    },
+    "Berom Fan": {
+      "recordId": "rolv:07994",
+      "languageName": "Berom: Fan",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Berom: Fan, Berom: Fan-foron-heikpang, Fan, Fan-foron-heikpang"
+    },
+    "Central Thai SPV": {
+      "recordId": "el:136c7c6e-facd-46af-893a-55cd5c4fbdff",
+      "languageName": "Thai: Central",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Thai: Central"
+    },
+    "Dawan Amanuban": {
+      "recordId": "rolv:04653",
+      "languageName": "Uab Meto: Amanuban",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Uab Meto: Amanuban, Amanatun, Amnatun Utara, Amnuban, Atoni: Amanuban-Amanatun, Atoni: Soe, Mainland Timor, So'e, Timor: Besar"
+    },
+    "Desauri Tharu": {
+      "recordId": "rolv:06345",
+      "languageName": "Tharu: Dasauria",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Tharu: Dasauria, Desauriya"
+    },
+    "Dhimal": {
+      "recordId": "iso:dhi",
+      "languageName": "Dhimal",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Dhimal, Dhimal: Western"
+    },
+    "Dhut magar": {
+      "recordId": "rolv:27630",
+      "languageName": "Magar, Eastern: Dhut",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Magar, Eastern: Dhut, Khang, Magar, Eastern: Khang"
+    },
+    "Halbi": {
+      "recordId": "iso:hlb",
+      "languageName": "Halbi",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Halbi, Halbi: Kunbi"
+    },
+    "Javanese": {
+      "recordId": "iso:jav",
+      "languageName": "Javanese",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Javanese, Javanese: Surakarta"
+    },
+    "Koro-Miamiya": {
+      "recordId": "rolv:23932",
+      "languageName": "Koro Wachi: Miamia",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Koro Wachi: Miamia, Koro Miamia, Koro: Miya, Miamia, Miyamiya"
+    },
+    "Meche": {
+      "recordId": "rolv:03838",
+      "languageName": "Bodo: Chote",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Bodo: Chote, Bara, Bodi, Boro, Boroni, Chote, Kachari, Mache, Mech, Meche, Mechi, Meci, \u092c\u094b\u0921\u094b: \u091b\u094b\u091f\u0947"
+    },
+    "Ninkyob": {
+      "recordId": "rolv:04255",
+      "languageName": "Nikyob-Nindem: Nikyob",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Nikyob-Nindem: Nikyob, Kaningdom-Nindem, Kaningdon-Nindem, Kaningkom, Kaningkom-Nindem, Kaningkon, Kaningkon-Nindem, Kaningkwom, Kaninkom-Nindem, Kaninkon, Kaninkon-Nindem, Nikyob, Nikyob-Nindem, Nikyob: Kaningdom, Ninkyob, Ninkyob-Nindem, Ninkyop"
+    },
+    "Tyap Sholio (Atyap)": {
+      "recordId": "rolv:04544",
+      "languageName": "Tyap: Sholyio",
+      "evidence": "Reviewed project spelling/variety match to saved atlas name or aliases: Tyap: Sholyio, Aholio, Asholio, Asholyio, Asolio, Katab: Sholio, Maroa, Maruwa, Marwa, Moro'a, Moroa, Morwa, Osholio, Sholio, Sholyia, Sholyia\u0320, Sholyio, Tyap: Sholio"
+    }
+  }
+}

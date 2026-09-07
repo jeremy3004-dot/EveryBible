@@ -69,8 +69,9 @@ for the 40,585 language and dialect records used by the public map, while
 omitting the separate people-group overlay from the initial download. Locations
 are stored once and referenced by index, so every dot and profile location is
 restored exactly in the browser. Original source evidence shards, raw imports,
-active-project data, identities and operational APIs are not included in the
-site endpoint.
+raw active-project data, identities and operational APIs are not included in the
+site endpoint. A separate explicitly selected public project summary powers the
+Our languages view (see below).
 
 `GET /api/language-atlas/startup/<sha256>` serves the immutable startup artifact
 with Brotli negotiation and a one-year cache lifetime. The homepage uses the
@@ -169,12 +170,19 @@ non-null, finite source value. It does not inherit a parent's population or
 turn a people-group estimate into a speaker count. The public snapshot
 currently has no supported population value for Momveda.
 
-When a variety has a known parent-language Scripture status, the profile keeps
-that information in a short, explicitly parent-scoped sentence. Exact-variety
-status remains separate and unconfirmed when the record does not contain
-variety-specific evidence. Approximate map placement remains labeled in the
-profile, and identifiers, source records and reference locations remain
-available below the overview.
+Public hover cards show a short name, country flags and names, a plain-language
+identity, and Scripture status naming the selected language or variety. A parent
+prefix is removed only when it matches the resolved parent name. Missing country
+information is omitted, and longer country lists show three countries plus a count.
+The location note distinguishes approximate placement from a mapped reference area.
+Clicking the dot opens the profile; the hover hint describes that action explicitly.
+Both Dots and Clusters use this preview, and mobile continues to open profiles directly.
+
+The profile uses the same short name and named Scripture wording. It omits the
+parent-language Scripture paragraph. Stored parent context, original identities,
+and exact-variety evidence remain unchanged; confirmed statuses are never inherited
+from the parent. Identifiers and reference locations remain below the overview.
+No pilot research claims or population estimates were imported by this change.
 
 The regenerated public snapshot used by the current overview has SHA-256
 `5d6c003cf6d8179329e805fd422e09e249c3479859c5a3eb8594d31982f83151`.
@@ -203,3 +211,47 @@ Dots/Clusters and Globe/Map switching, and 320/390 px mobile layouts.
 Before release, desktop (1200 × 837) and mobile (390 × 844 at DPR 3) screenshots
 were pixel-identical to the previous live site. This confirms those tested
 views; it is not a guarantee about every device, camera position or network.
+
+On desktop, opening a profile temporarily hides the fixed legend and gives the
+profile more height so its country and Scripture status remain visible on shorter
+windows. Closing the profile restores the legend. The download card stays visible.
+
+## Our languages and project progress
+
+**Our languages** opens a project-first list with the 23 projects the owner
+approved from the September 7 LangQuest portfolio: activity reported within
+30 days of the snapshot. Search includes project names, not just atlas names.
+Other map records fade; reviewed project language matches pulse in Dots and
+Clusters. CSS animates only the small rings, and reduced motion disables it.
+Every project remains discoverable even when its exact map link is unconfirmed;
+those profiles say “Map location awaiting confirmation” instead of guessing a
+related dialect. The existing Scripture colors retain their original meaning.
+
+The primary metric is the CSV's **Chapters Recorded %**, preserved verbatim as
+a number. It is not recomputed from **Total Chapters**, which covers a different
+scope. Bhujel therefore shows **38.9%**, **463 chapters recorded**, and **677
+chapters listed in the project**. Gospels, NT, and OT percentages remain separate;
+blank values display “Not reported,” never zero. Recording activity expands to
+show source counts and last activity relative to the snapshot. Recording does
+not establish review, approval, publication, or availability in EveryBible.
+
+The public summary is `apps/site/data/language-atlas/projects.json`. Regenerate:
+
+```sh
+python3 scripts/language-atlas/build_public_projects.py
+python3 scripts/language-atlas/build_public_projects.py --check
+```
+
+The exporter reads the preserved owner-supplied
+`data/language-atlas/sources/langquest-status-2026-09-07.csv` and reviewed
+`langquest-project-atlas-links.json`. The CSV retains its generated timestamp
+and “live, unaudited — NOT a pay artifact” provenance. This is a dated snapshot,
+not a live API. Link evidence is kept separately from source metrics. Existing
+Every Language entity links are reused; additional spelling/variety matches
+are explicitly recorded for review, never inferred at runtime. Missing links
+remain null and do not remove a project from the list. Raw sources and admin
+evidence shards are not imported by the public application.
+
+Browser regression: `scripts/browser-tests/public-atlas-projects.js` verifies
+all 23 project rows, source metrics, source-date labeling, project-name search,
+map selection, Dots/Clusters, reduced motion and 320/390px mobile controls.

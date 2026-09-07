@@ -16,7 +16,8 @@ import {
   scriptureVisualCategory,
 } from '../../lib/language-atlas/presentation';
 import { normalizeAdminTheme } from '../../lib/theme';
-import type { AtlasRecord } from '../../lib/language-atlas/types';
+import type { AtlasLocation, AtlasRecord } from '../../lib/language-atlas/types';
+import { createProjectHighlight } from './project-highlight';
 import { ATLAS_BASEMAP_COLORS } from './map-rendering';
 import {
   layoutSpreadPointsAtZoom,
@@ -27,21 +28,37 @@ import {
 } from './spread-layout';
 
 interface Props {
+  highlightedIds?: ReadonlySet<string>;
   map: LibreMap;
   records: AtlasRecord[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   inset: { left: number; bottom: number };
   showHoverSummary?: boolean;
+  renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
 }
 
 /** Screen-space presentation; all source coordinates and map camera targets stay intact. */
-export function SpreadDots({ map, records, selectedId, onSelect, inset, showHoverSummary = true }: Props) {
+export function SpreadDots({
+  map,
+  records,
+  selectedId,
+  onSelect,
+  inset,
+  showHoverSummary = true,
+  renderHoverSummary,
+  highlightedIds,
+}: Props) {
+  const highlightRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const points = useMemo(() => representativePoints(records), [records]);
   const selectedRef = useRef(selectedId);
   const selectRef = useRef(onSelect);
   const hoverSummaryRef = useRef(showHoverSummary);
+  const renderHoverRef = useRef(renderHoverSummary);
+  useEffect(() => {
+    renderHoverRef.current = renderHoverSummary;
+  }, [renderHoverSummary]);
   const repaint = useRef<() => void>(() => {});
   const [visibleCount, setVisibleCount] = useState(0);
   const [separating, setSeparating] = useState(false);
@@ -61,6 +78,17 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
+    const highlightContainer = highlightRef.current;
+    const markers = new Map(
+      points
+        .filter((point) => highlightedIds?.has(point.id))
+        .map((point) => {
+          const element = createProjectHighlight(point.record, (id) => selectRef.current(id));
+          element.style.display = 'none';
+          highlightContainer?.appendChild(element);
+          return [point.id, element] as const;
+        })
+    );
     const byId = new Map(points.map((point) => [point.id, point]));
     const coordinates = new Map(
       points.map((point) => [
@@ -166,6 +194,15 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       const theme = normalizeAdminTheme(document.documentElement.dataset.theme);
       const colors = SCRIPTURE_COLORS[theme];
       const basemap = ATLAS_BASEMAP_COLORS[theme];
+      context.globalAlpha = highlightedIds ? 0.18 : 1;
+      for (const element of markers.values()) element.style.display = 'none';
+      for (const point of displayed) {
+        const marker = markers.get(point.id);
+        if (!marker) continue;
+        marker.style.display = 'block';
+        marker.style.left = `${point.x}px`;
+        marker.style.top = `${point.y}px`;
+      }
       for (const category of SCRIPTURE_VISUAL_ORDER) {
         context.beginPath();
         for (const point of displayed) {
@@ -180,6 +217,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
         context.lineWidth = 0.65;
         context.stroke();
       }
+      context.globalAlpha = 1;
       for (const point of displayed) {
         if (point.id !== hovered && point.id !== selectedRef.current) continue;
         context.strokeStyle = basemap.label;
@@ -243,7 +281,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       popup
         .setLngLat([location.longitude, location.latitude])
         .setOffset([hit.x - hit.anchorX, hit.y - hit.anchorY])
-        .setDOMContent(node)
+        .setDOMContent(renderHoverRef.current?.(record, location) ?? node)
         .addTo(map);
       request();
     };
@@ -269,6 +307,7 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
     });
     request(true);
     return () => {
+      for (const marker of markers.values()) marker.remove();
       alive = false;
       cancelAnimationFrame(frame);
       repaint.current = () => {};
@@ -284,10 +323,11 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       observer.disconnect();
       popup.remove();
     };
-  }, [map, points]);
+  }, [map, points, highlightedIds]);
 
   return (
     <>
+      <div ref={highlightRef} className="la-project-overlay" />
       <canvas
         ref={canvasRef}
         aria-hidden="true"
@@ -319,7 +359,9 @@ export function SpreadDots({ map, records, selectedId, onSelect, inset, showHove
       >
         <strong>{formatCount(visibleCount)} records in view</strong>
         <br />
-        {separating ? 'One dot per record · Spaced for visibility' : 'Overlaps retained · Zoom in to separate'}
+        {separating
+          ? 'One dot per record · Spaced for visibility'
+          : 'Overlaps retained · Zoom in to separate'}
       </div>
     </>
   );

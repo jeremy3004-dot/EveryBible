@@ -18,6 +18,7 @@ import {
 } from '../../lib/language-atlas/model';
 import { SCRIPTURE_COLORS, scriptureVisualCategory } from '../../lib/language-atlas/presentation';
 import type {
+  AtlasLocation,
   AtlasDisplayMode,
   AtlasMapPadding,
   AtlasProjection,
@@ -34,6 +35,7 @@ import {
   atlasSourceOptions,
   resolveReadyAtlasMap,
 } from './map-rendering';
+import { createProjectHighlight } from './project-highlight';
 import { SpreadDots } from './SpreadDots';
 import { representativePoints } from './spread-layout';
 
@@ -46,6 +48,7 @@ const INITIAL_CAMERA = { center: [65, 25] as [number, number], zoom: 2.75 };
 const duration = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450);
 
 interface Props {
+  highlightedIds?: ReadonlySet<string>;
   records: AtlasRecord[];
   selected: AtlasRecord | null;
   onSelect: (id: string) => void;
@@ -56,6 +59,7 @@ interface Props {
   controlsTarget?: HTMLElement | null;
   onSelectGroup?: (ids: string[]) => void;
   showHoverSummary?: boolean;
+  renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
   /** Keeps the empty-map message hidden while the public startup snapshot is loading. */
   dataReady?: boolean;
 }
@@ -70,7 +74,9 @@ export function LanguageMap({
   controlsTarget,
   onSelectGroup,
   showHoverSummary = true,
+  renderHoverSummary,
   dataReady = true,
+  highlightedIds,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
@@ -91,7 +97,15 @@ export function LanguageMap({
     [records, displayMode, data]
   );
   const byId = useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
-  const current = useRef({ data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary });
+  const current = useRef({
+    data,
+    byId,
+    onSelect,
+    displayMode,
+    onSelectGroup,
+    showHoverSummary,
+    renderHoverSummary,
+  });
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -115,9 +129,17 @@ export function LanguageMap({
   );
 
   useEffect(() => {
-    current.current = { data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary };
+    current.current = {
+      data,
+      byId,
+      onSelect,
+      displayMode,
+      onSelectGroup,
+      showHoverSummary,
+      renderHoverSummary,
+    };
     if (!showHoverSummary) popupRef.current?.remove();
-  }, [data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary]);
+  }, [data, byId, onSelect, displayMode, onSelectGroup, showHoverSummary, renderHoverSummary]);
   useEffect(() => {
     projectionRef.current = projection;
   }, [projection]);
@@ -369,7 +391,7 @@ export function LanguageMap({
       }
       popup
         .setLngLat(feature.geometry.coordinates as [number, number])
-        .setDOMContent(node)
+        .setDOMContent(current.current.renderHoverSummary?.(record, location) ?? node)
         .addTo(map);
     });
     for (const layer of [HIT, CLUSTERS]) {
@@ -407,6 +429,37 @@ export function LanguageMap({
       map.remove();
     };
   }, [retry]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const map = resolveReadyAtlasMap(mapRef.current, readyMapRef.current);
+    if (!map) return;
+    for (const layer of [DOTS, CLUSTERS]) {
+      map.setPaintProperty(
+        layer,
+        'circle-opacity',
+        highlightedIds ? 0.18 : layer === DOTS ? 0.92 : 0.94
+      );
+      map.setPaintProperty(layer, 'circle-stroke-opacity', highlightedIds ? 0.18 : 1);
+    }
+    map.setPaintProperty(COUNTS, 'text-opacity', highlightedIds ? 0.25 : 1);
+    if (!highlightedIds || displayMode === 'spread') return;
+    const markers = records
+      .filter((record) => highlightedIds.has(record.id))
+      .flatMap((record) =>
+        recordLocations(record).map((location) =>
+          new maplibregl.Marker({
+            element: createProjectHighlight(record, (id) => current.current.onSelect(id)),
+            opacityWhenCovered: '0',
+          })
+            .setLngLat([location.longitude, location.latitude])
+            .addTo(map)
+        )
+      );
+    return () => {
+      for (const marker of markers) marker.remove();
+    };
+  }, [ready, records, highlightedIds, displayMode]);
 
   useEffect(() => {
     if (!ready) return;
@@ -540,10 +593,12 @@ export function LanguageMap({
           <SpreadDots
             map={mapRef.current}
             records={records}
+            highlightedIds={highlightedIds}
             selectedId={selected?.id ?? null}
             onSelect={selectSpreadPoint}
             inset={controlInsets}
             showHoverSummary={showHoverSummary}
+            renderHoverSummary={renderHoverSummary}
           />
         )}
         {controlsTarget === undefined
