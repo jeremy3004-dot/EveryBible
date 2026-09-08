@@ -111,7 +111,7 @@ test('PlanDetailScreen derives ledger cells and ledger rows from one completion 
     'The shared helper should read the same completed_entries key the cell grid files days under'
   );
   assert.equal(
-    (source.match(/isLedgerDayComplete\(\{/g) ?? []).length,
+    (source.match(/= isLedgerDayComplete\(\{/g) ?? []).length,
     2,
     'Both the cell grid and the ledger rows should derive done/missed state from the shared helper'
   );
