@@ -205,8 +205,8 @@ test('HomeScreen closes the sheet with the reading ledger below the Gather card'
 
   assert.match(
     source,
-    /useState<HomeReadingPeriod>\('allTime'\)/,
-    'the ledger should open on the all-time scope'
+    /useState<HomeReadingPeriod>\('week'\)/,
+    'a cold open should land on the current week, the scope a reader can still act on'
   );
 
   assert.match(

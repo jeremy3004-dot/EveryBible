@@ -290,7 +290,8 @@ export function HomeScreen() {
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
   const streakDays = useProgressStore((state) => state.streakDays);
-  const [ledgerPeriod, setLedgerPeriod] = useState<HomeReadingPeriod>('allTime');
+  // Cold start lands on the current week: the period a reader can still act on.
+  const [ledgerPeriod, setLedgerPeriod] = useState<HomeReadingPeriod>('week');
 
   const ledgerSegments = useMemo(
     () => [
