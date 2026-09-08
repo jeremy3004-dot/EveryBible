@@ -1,5 +1,3 @@
-import Image from 'next/image';
-
 import { siteNavigation } from '../lib/site-content';
 import { EVERYBIBLE_SMART_DOWNLOAD_PATH } from '../lib/site-links';
 
@@ -16,20 +14,16 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean } = {}) {
     >
       <div className="site-header__inner">
         <a className="site-wordmark" href="/" aria-label="EveryBible">
-          <Image
-            className="site-wordmark__mark"
-            src="/everybible/app-icon.png"
-            alt=""
-            width={34}
-            height={34}
-            priority
-          />
           <span>EveryBible</span>
         </a>
 
         <nav className="site-nav" aria-label="Primary">
           {siteNavigation.map((item) => (
-            <a key={item.label} href={item.href} className="site-nav__link">
+            <a
+              key={item.label}
+              href={item.href}
+              className={item.href === '/give' ? 'site-nav__link site-nav__link--give' : 'site-nav__link'}
+            >
               {item.label}
             </a>
           ))}
