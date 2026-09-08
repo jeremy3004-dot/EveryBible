@@ -30,7 +30,7 @@ export default function GivePage() {
       <section>
         <h2>Give by bank transfer</h2>
         <p>
-          <a href="https://everylanguage.com/wp-content/uploads/2025/12/EVERY-LANGUAGE-Morgan-Stanley-Bank-ACH-and-Wire-Transfer-Details-DEC-2025.pdf">
+          <a href="/giving/every-language-ach-and-wire-transfer.pdf">
             View ACH and wire transfer instructions
           </a>
         </p>
