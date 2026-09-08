@@ -201,49 +201,26 @@ export function AtlasSources({ index, onClose }: { index: AtlasIndex; onClose: (
           ×
         </button>
       </div>
+      <p>Explore languages and dialects. Select a dot or search to learn more.</p>
       <p>
-        The main map brings together {formatCount(index.counts.languages)} languages and{' '}
-        {formatCount(index.counts.dialects)} dialects and varieties. These registry records are not
-        a count of distinct living languages.
+        Red means no known Scripture in our sources, not confirmed absence. Dialect coverage may
+        differ from its parent language. Some locations are approximate.
       </p>
-      <p>
-        Red means no known Scripture in the available records. Dialect coverage is tracked
-        separately from its parent language. Mixed clusters use a neutral color.
-      </p>
-      <p>People-group research is retained for a future, separate map overlay.</p>
-      <p>
-        Dots separate nearby on land at regional zoom. Where space is limited, dots overlap at their
-        reference locations. Zoom closer or use search to explore them. Source coordinates remain
-        unchanged. Some locations are approximate, and records without a supported placement remain
-        searchable.
-      </p>
-      <p>
-        Records stay separate where source identities cannot be verified. The totals are source
-        records, not a definitive count of distinct living languages.
-      </p>
-      <p>
-        This atlas describes research coverage. It is separate from the translations available to
-        read or hear in EveryBible.
-      </p>
-      {index.sources.map((source) => (
-        <article key={source.id} className="pa-source">
-          <SourceLink source={source} />
-          <p>{source.attribution}</p>
-          <small>
-            {source.version} · Retrieved {source.retrievedAt.slice(0, 10)}
-          </small>
-          <details>
-            <summary>Source & reuse notes</summary>
-            <p>{source.license}</p>
-            <p>{source.note}</p>
-          </details>
-        </article>
-      ))}
-      {index.notes.map((note, position) => (
-        <p key={position} className="pa-source-note">
-          {note}
+      <p>Map entries do not indicate which Bibles are available in the EveryBible app.</p>
+      <details>
+        <summary>Sources & credits</summary>
+        {index.sources.map((source) => (
+          <article key={source.id} className="pa-source">
+            <SourceLink source={source} />
+            <p>{source.attribution}</p>
+            <small>{source.license}</small>
+          </article>
+        ))}
+        <p className="pa-source-note">
+          Joshua Project data is used with permission for noncommercial ministry research and
+          education.
         </p>
-      ))}
+      </details>
     </section>
   );
 }

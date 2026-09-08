@@ -63,6 +63,14 @@ sets the corresponding dialect color; profiles distinguish unverified coverage.
 Map panels use fully opaque surfaces. Hover popups stack above the spread-dot
 canvas so dots cannot paint over their text; keep this order when changing map layers.
 
+## About the data copy
+
+“Behind the map” contains brief exploration guidance, the meaning of red,
+approximate-location and app-availability caveats, and collapsed Sources & credits.
+Source attribution and license text remain available there. Import details,
+registry totals, retrieval metadata, and internal research notes are omitted from
+this visitor-facing panel; the underlying source metadata is unchanged.
+
 ## Public data boundary
 
 `scripts/language-atlas/build_public_atlas.py` reads the reviewed admin index
