@@ -160,34 +160,34 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
   );
 });
 
-test('TabNavigator fills the floating capsule with opaque EL paper, not blur or glass', () => {
+test('TabNavigator fills the floating capsule with liquid glass, not opaque paper', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  // The EL reskin replaces the frosted material with a paper sheet: card fill,
-  // 1px card border, the shared hairline card shadow.
+  // Native glass on iOS 26+, a tinted blur elsewhere; the tint is the paper
+  // colour at partial alpha so the page shows through in both scopes.
+  assert.match(source, /isLiquidGlassAvailable\(\) && isGlassEffectAPIAvailable\(\)/);
+  assert.match(source, /<GlassView[\s\S]*?glassEffectStyle="clear"/);
+  assert.match(source, /<BlurView[\s\S]*?tint=\{isDark \? 'dark' : 'light'\}/);
   assert.match(
+    source,
+    /const capsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.cardBackground, 0\.62\)/,
+    'the capsule tint should be the card surface at partial alpha'
+  );
+  assert.match(
+    source,
+    /const readerCapsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.bibleSurface, 0\.62\)/,
+    'the reader variant should tint off the reading surface'
+  );
+  assert.match(
+    source,
+    /capsule:\s*\{[\s\S]*?overflow: 'hidden',/,
+    'the capsule should clip its glass to the rounded shape'
+  );
+  assert.doesNotMatch(
     source,
     /const capsuleFill = colors\.cardBackground;/,
-    'the capsule should be filled with the opaque card surface'
+    'the capsule must not be an opaque sheet'
   );
-  assert.match(
-    source,
-    /const readerCapsuleFill = colors\.bibleSurface;/,
-    'the reader variant should be the opaque reading surface, not a tinted alpha wash'
-  );
-  assert.match(
-    source,
-    /capsule:\s*\{[\s\S]*?borderWidth: 1,[\s\S]*?\.\.\.shadows\.card,/,
-    'the capsule should carry a 1px border and the shared card shadow'
-  );
-
-  for (const banned of ['BlurView', 'expo-blur', 'GlassView', 'expo-glass-effect', 'withAlpha']) {
-    assert.equal(
-      source.includes(banned),
-      false,
-      `TabNavigator should no longer reference ${banned} — the capsule is opaque paper`
-    );
-  }
 });
 
 test('TabNavigator uses Bible reader colors while the reader is focused', () => {
@@ -206,12 +206,12 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
     'the capsule edge should follow the reader divider while the reader is focused'
   );
 
-  // The selected glyph sits on the accent-surface pill, so it uses the accent's
-  // own foreground ink on every surface — the reader included.
+  // The selected glyph sits on a neutral ink pill, so it reads in the scope's
+  // primary text — the reader's own primary text while the reader is focused.
   assert.match(
     source,
-    /tabBarActiveTintColor: colors\.tabActive,/,
-    'the selected tab glyph should use the accent foreground that reads on the accent pill'
+    /tabBarActiveTintColor: isBibleReader \? colors\.biblePrimaryText : colors\.primaryText,/,
+    'the selected tab glyph should use primary text, not the accent'
   );
 
   assert.match(
@@ -227,7 +227,7 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
   );
 });
 
-test('TabNavigator renders the tab bar as a floating paper capsule', () => {
+test('TabNavigator renders the tab bar as a floating glass capsule', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
   // Home stays on the standard (non-collapsing) style — only the reader drives
@@ -256,7 +256,7 @@ test('TabNavigator renders the tab bar as a floating paper capsule', () => {
   );
   assert.match(
     source,
-    /<TabBarBackground\s+fill=/,
+    /<TabBarBackground\s+isDark=\{isDark\}\s+fill=/,
     'the capsule material should be supplied by the opaque paper background component'
   );
 
@@ -404,16 +404,18 @@ test('the tab bar capsule geometry is defined in exactly one place', () => {
   }
 });
 
-test('the selected tab is an accent-surface pill inside the capsule padding', () => {
+test('the selected tab is a neutral ink pill inside the capsule padding', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
   const selectionSource = readRelativeSource('./TabBarSelection.tsx');
   const capsuleSource = readRelativeSource('./tabBarCapsuleStyle.ts');
 
+  // Primary text at low alpha: a grey that belongs to the scope, never the accent.
   assert.match(
     source,
-    /const pillColor = colors\.accentSurface;/,
-    'the sliding selection pill should be filled with the accent surface'
+    /const pillColor = withAlpha\(isReader \? colors\.biblePrimaryText : colors\.primaryText, 0\.1\);/,
+    'the sliding selection pill should be a neutral ink wash, not the accent surface'
   );
+  assert.doesNotMatch(source, /pillColor = colors\.accentSurface/);
 
   // 6pt of paper on every side of a 64pt capsule leaves a 52pt pill, radius 26.
   assert.match(capsuleSource, /TAB_BAR_CAPSULE_ROW_INSET = 6;/);

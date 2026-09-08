@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { ViewStyle } from 'react-native';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarButtonProps, BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -27,7 +29,7 @@ import { rootTabManifest } from './tabManifest';
 import type { RootTabIconName } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
-import { shadows, typography } from '../design/system';
+import { typography } from '../design/system';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks';
 import { lightHaptic } from '../utils';
 
@@ -49,16 +51,52 @@ function TabBarIcon({ icon: Icon, color }: { icon: LucideIcon; color: string }) 
   return <Icon size={TAB_BAR_ICON_SIZE} color={color} strokeWidth={TAB_BAR_ICON_STROKE_WIDTH} />;
 }
 
-// EL paper: the capsule is an opaque sheet — card fill, 1px card border and the
-// same hairline card shadow every other surface carries. No blur, no glass; the
-// bar reads as a piece of paper floating over the page.
-function TabBarBackground({ fill, stroke }: { fill: string; stroke: string }) {
+// Liquid glass capsule. Native glass supplies its own material on iOS 26+;
+// older platforms get a tinted blur so the page still shows through. The
+// tint is the paper colour at partial alpha so the bar belongs to the scope.
+function TabBarBackground({
+  isDark,
+  fill,
+  stroke,
+}: {
+  isDark: boolean;
+  fill: string;
+  stroke: string;
+}) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
+    return (
+      <GlassView
+        pointerEvents="none"
+        glassEffectStyle="clear"
+        colorScheme={isDark ? 'dark' : 'light'}
+        style={styles.capsule}
+      />
+    );
+  }
   return (
-    <View
-      style={[styles.capsule, { backgroundColor: fill, borderColor: stroke }]}
-      pointerEvents="none"
-    />
+    <View style={styles.capsule} pointerEvents="none">
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 40 : 24}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+      <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
+    </View>
   );
+}
+
+// Hex -> rgba, so a theme token can carry the capsule's translucency and the
+// neutral selection pill without a second palette entry per scope.
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '');
+  if (value.length !== 6) {
+    return hex;
+  }
+  const red = parseInt(value.slice(0, 2), 16);
+  const green = parseInt(value.slice(2, 4), 16);
+  const blue = parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 // Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
@@ -74,8 +112,11 @@ const styles = StyleSheet.create({
   capsule: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: TAB_BAR_CAPSULE_RADIUS,
-    borderWidth: 1,
-    ...shadows.card,
+    overflow: 'hidden',
+  },
+  capsuleStroke: {
+    borderRadius: TAB_BAR_CAPSULE_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   tabButton: {
     flex: 1,
@@ -204,8 +245,10 @@ function ReaderAwareTabBar(props: BottomTabBarProps) {
     transform: [{ translateY: followsScroll ? getReaderTabBarTranslation(progress.value) : 0 }],
   }));
   const originalBackground = descriptor.options.tabBarBackground;
-  // The selected tab is an accent-surface pill on both scopes and in the reader.
-  const pillColor = colors.accentSurface;
+  // The selected tab is a neutral ink pill — the scope's own text colour at a
+  // low alpha — so the accent stays reserved for content, not chrome.
+  const isReader = activeRoute.name === 'Bible' && nestedRouteName === 'BibleReader';
+  const pillColor = withAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
 
   return (
     <Animated.View
@@ -254,12 +297,18 @@ function getBibleTabResumeState() {
 }
 
 export function TabNavigator() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useTranslation();
-  // Opaque paper. The reader variant swaps in the reading surface so the bar
-  // sits on the same material as the page behind it — still fully opaque.
-  const capsuleFill = colors.cardBackground;
-  const readerCapsuleFill = colors.bibleSurface;
+  // Translucent paper tint over the glass. The reader variant tints off the
+  // reading surface so the bar sits on the same material as the page behind it.
+  const capsuleFill = useMemo(
+    () => withAlpha(colors.cardBackground, 0.62),
+    [colors.cardBackground]
+  );
+  const readerCapsuleFill = useMemo(
+    () => withAlpha(colors.bibleSurface, 0.62),
+    [colors.bibleSurface]
+  );
   const {
     bottomPadding: tabBarBottomPadding,
     barHeight: tabBarBarHeight,
@@ -333,17 +382,18 @@ export function TabNavigator() {
         return {
           headerShown: false,
           freezeOnBlur: true,
-          // The selected glyph sits on the accent-surface pill, so it reads in
-          // the accent's own foreground ink on both scopes.
-          tabBarActiveTintColor: colors.tabActive,
+          // The selected glyph sits on a neutral ink pill, so it reads in the
+          // scope's primary text rather than the accent.
+          tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
           tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.secondaryText,
           tabBarStyle,
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
-          // The paper capsule. In the reader it is filled with the reading
-          // surface so the bar sits on the same material as the page behind it.
+          // The glass capsule. In the reader it tints off the reading surface so
+          // the bar sits on the same material as the page behind it.
           tabBarBackground: () => (
             <TabBarBackground
+              isDark={isDark}
               fill={isBibleReader ? readerCapsuleFill : capsuleFill}
               stroke={isBibleReader ? colors.bibleDivider : colors.cardBorder}
             />
