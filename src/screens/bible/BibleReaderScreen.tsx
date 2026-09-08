@@ -3771,7 +3771,9 @@ export function BibleReaderScreen() {
       return;
     }
 
-    await playChapter(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
+    if (useAudioStore.getState().status !== 'paused') {
+      await playChapter(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
+    }
     syncReaderReference(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
   };
 
@@ -3788,7 +3790,9 @@ export function BibleReaderScreen() {
       return;
     }
 
-    await playChapter(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
+    if (useAudioStore.getState().status !== 'paused') {
+      await playChapter(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
+    }
     syncReaderReference(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
   };
 
