@@ -62,8 +62,8 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Recorded locations is hidden on the public site'
   );
   check(
-    await page.getByRole('button', { name: 'Fit results', exact: true }).isVisible(),
-    'Settings contains map actions'
+    (await page.getByRole('button', { name: 'Fit results', exact: true }).count()) === 0,
+    'Public Settings omits map actions'
   );
   await page.keyboard.press('Tab');
   check(
@@ -72,7 +72,6 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
       .evaluate((button) => button === document.activeElement),
     'Keyboard navigation enters Settings without reopening Search'
   );
-  await page.waitForFunction(() => !document.querySelector('[aria-label="Zoom in"]')?.disabled);
   await page.getByRole('button', { name: 'Map', exact: true }).click();
   check(
     (await page.getByRole('button', { name: 'Map', exact: true }).getAttribute('aria-pressed')) ===
@@ -90,7 +89,6 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     (await page.getByRole('button', { name: 'Dots', exact: true }).getAttribute('aria-pressed')) === 'true',
     'Dots can be restored'
   );
-  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   check(
     !(await page.getByRole('button', { name: 'Fit results', exact: true }).isVisible()),
@@ -155,8 +153,8 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByRole('button', { name: 'Globe', exact: true }).waitFor();
   check(
-    await spreadCaption.evaluate((element) => getComputedStyle(element).display !== 'none'),
-    'Desktop spread record-count caption remains visible'
+    await spreadCaption.evaluate((element) => getComputedStyle(element).display === 'none'),
+    'Desktop spread record-count caption stays hidden'
   );
   check(
     await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
@@ -166,5 +164,18 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     await page.getByRole('button', { name: 'Full Bible', exact: true }).isVisible(),
     'Desktop legend remains visible'
   );
-  return 'PASS: language/dialect collection, mobile collapse, exclusivity, dismissal, dot default, QR preservation, narrow phone and desktop controls';
+  const atlasBounds = await page.locator('.public-atlas').boundingBox();
+  check(atlasBounds.x >= 48, 'Desktop map leaves a clear left scroll gutter');
+  check(
+    1440 - atlasBounds.x - atlasBounds.width >= 48,
+    'Desktop map leaves a clear right scroll gutter'
+  );
+  for (const x of [24, 1416]) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.mouse.move(x, 450);
+    await page.mouse.wheel(0, 550);
+    await page.waitForFunction(() => window.scrollY > 100);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  return 'PASS: language/dialect collection, mobile collapse, exclusivity, dismissal, dot default, QR preservation, narrow phone, removed public map chrome and desktop gutters';
 }

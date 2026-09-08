@@ -7,7 +7,6 @@ import {
   filterRecords,
   formatCount,
   KIND_LABELS,
-  safeSourceUrl,
   scriptureStatus,
 } from '../../../admin/lib/language-atlas/model';
 import {
@@ -41,13 +40,6 @@ const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
 /* Example searches shown under the search box. Each name is a real record. */
 const SEARCH_HINTS = ['Tamang', 'Yoruba', 'Quechua', 'Hmong'];
-/* Sources credited on the map itself; the full list lives in the sources panel. */
-const CREDITED_SOURCES = [
-  { id: 'joshua', label: 'Joshua Project' },
-  { id: 'grn', label: 'Global Recordings Network' },
-  { id: 'glottolog', label: 'Glottolog' },
-];
-
 export function PublicLanguageAtlas() {
   const [index, setIndex] = useState<AtlasIndex | null>(null);
   const renderHoverSummary = useCallback(
@@ -66,8 +58,6 @@ export function PublicLanguageAtlas() {
     'intro' | 'search' | 'records' | 'sources' | 'legend' | 'settings' | 'group'
   >('intro');
   const [groupIds, setGroupIds] = useState<string[]>([]);
-  const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
-  const [railTarget, setRailTarget] = useState<HTMLDivElement | null>(null);
   const explorerRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const skipSearchFocus = useRef(false);
@@ -263,7 +253,7 @@ export function PublicLanguageAtlas() {
         padding={padding}
         dataReady={Boolean(index)}
         highlightedIds={focusOurs ? highlightedProjectIds : undefined}
-        controlsTarget={mobile ? controlsTarget : railTarget}
+        controlsTarget={null}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}
         renderHoverSummary={index ? renderHoverSummary : undefined}
@@ -275,7 +265,6 @@ export function PublicLanguageAtlas() {
             {mapSettings}
             {projectFocus}
           </div>
-          <div className="pa-rail-actions" ref={setRailTarget} />
         </div>
       )}
 
@@ -362,7 +351,6 @@ export function PublicLanguageAtlas() {
                 </button>
               </div>
               {mapSettings}
-              <div className="pa-settings-actions" ref={setControlsTarget} />
             </section>
           ) : mobile && panel === 'legend' ? (
             <section className="pa-tool-panel" aria-label="Legend">
@@ -597,36 +585,6 @@ export function PublicLanguageAtlas() {
         </div>
       )}
 
-      {!mobile && (
-        <div className="pa-provenance">
-          <p className="pa-map-hint">
-            <i className="pa-dot" /> Choose a dot. Discover its story.
-          </p>
-          <p className="pa-provider-credit">
-            Data from{' '}
-            {CREDITED_SOURCES.map((credit, position) => {
-              const source = index?.sources.find((entry) => entry.id === credit.id);
-              const url = source ? safeSourceUrl(source.url) : undefined;
-              return (
-                <span key={credit.id}>
-                  {position > 0 && ' · '}
-                  {url ? (
-                    <a href={url} target="_blank" rel="noreferrer">
-                      {credit.label}
-                    </a>
-                  ) : (
-                    credit.label
-                  )}
-                </span>
-              );
-            })}
-            {' · '}
-            <button type="button" onClick={(event) => openPanel('sources', event.currentTarget)}>
-              About the data
-            </button>
-          </p>
-        </div>
-      )}
     </section>
   );
 }

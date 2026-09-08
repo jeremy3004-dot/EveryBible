@@ -14,24 +14,30 @@ crowded dots at regional zoom (4 and above), one zoom level earlier than before;
 collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
 
+At desktop widths (1024px and above), the atlas sits inside 48–80px page-background
+gutters on both sides. Wheel scrolling in either gutter scrolls the page; map
+zoom gestures stay confined to the inset map. A subtle border marks the boundary.
+
 ## Mobile controls
 
 At widths up to 760px, the default view keeps overlapping dots, a slim search
 bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
 typing opens the filtered record list. Legend contains Scripture filters and
 About the data. Settings contains projection,
-Dots and Clusters controls, zoom, Fit results, and
-Reset view. The public explorer omits the technical record-count/display note.
-The spread record-count caption is also hidden on mobile so it does not obscure the map.
+Dots and Clusters controls. Zoom buttons, Fit results, and Reset view are omitted
+from the public website; map gestures remain available. The public explorer omits the technical record-count/display note.
+The spread record-count caption is hidden at every viewport size. The desktop
+“Choose a dot” prompt and inline provider-credit row are also removed; source
+details remain available through About the data.
 
 Only one mobile panel opens at a time. Close buttons, Escape, and tapping
 outside dismiss it without clearing the active filters. Overlapping map dots
 in Clusters open a paginated group list; choosing a record
 replaces that list with its profile. Dots select their individual record.
 Hover summaries are disabled on mobile to avoid duplicate popups.
-The floating QR/app card, direct store links, provider credit, and research
-availability note stay visible while panels are open. Desktop controls retain
-their expanded layout.
+The floating QR/app card, direct store links, and research availability note stay
+visible while panels are open. Provider source details remain available through
+About the data. Desktop controls retain their expanded layout.
 
 The shared map accepts an optional controls target for the public mobile
 Settings panel, a group-selection callback for the single-panel flow, and a
@@ -43,7 +49,7 @@ Local browser regression: run `npm run dev --workspace @everybible/site --
 `scripts/browser-tests/public-atlas-mobile.js` to the managed Playwright
 `browser_run_code_unsafe` tool's `filename` argument. The regression checks collapsed
 defaults, panel replacement/dismissal, Settings actions, QR preservation,
-320px overflow/overlap, and desktop controls.
+320px overflow/overlap, removed public map chrome, and desktop gutters.
 
 Field branding is defined in `packages/brand/tokens.css` and mirrored by the
 existing app stylesheets: Bricolage Grotesque headings, Archivo UI, JetBrains

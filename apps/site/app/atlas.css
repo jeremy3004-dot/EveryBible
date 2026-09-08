@@ -1715,3 +1715,18 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep the public map free of the technical viewport-count overlay. */
+.public-atlas .la-spread-caption {
+  display: none;
+}
+
+/* Page-background gutters provide a wheel-scroll target outside the desktop map. */
+@media (min-width: 1024px) {
+  .public-atlas {
+    margin-inline: clamp(48px, 4vw, 80px);
+    border-inline: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
+    border-radius: 0 0 20px 20px;
+  }
+}
