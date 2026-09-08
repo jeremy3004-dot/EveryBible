@@ -2,6 +2,9 @@
 // A key or feature area alone never exempts new English text from translation.
 export const sharedTranslationValues: Record<string, Record<string, string>> = {
   es: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'readingPlans.plansCount_one': '{{count}} plan',
     'interface.minutesShort': '{{count}} min',
     'interface.daysShort': '{{count}} d',
     'interface.music.piano.label': 'Piano',
@@ -20,6 +23,10 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.kathisma.title': 'Kathisma',
   },
   fr: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'readingPlans.plansCount_one': '{{count}} plan',
+    'readingPlans.plansCount_other': '{{count}} plans',
     'interface.minutesShort': '{{count}} min',
     'interface.music.piano.label': 'Piano',
     'interface.music.sitar.label': 'Sitar',
@@ -51,6 +58,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'plans.rhythmComposer.tradition': 'Tradition',
   },
   pt: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'interface.minutesShort': '{{count}} min',
     'interface.daysShort': '{{count}} d',
     'interface.music.piano.label': 'Piano',
@@ -66,6 +75,10 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'engagement.minutes': 'min',
   },
   de: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.groupApp': 'App',
+    'more.translationsValue': '{{abbreviation}} · {{count}} offline',
     'interface.music.sitar.label': 'Sitar',
     'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
     'interface.rhythmPresets.orthodox-morning-rule.tradition': 'Orthodox',
@@ -88,9 +101,14 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'plans.rhythmComposer.tradition': 'Tradition',
   },
   ru: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   tr: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'readingPlans.plansCount_one': '{{count}} plan',
     'interface.music.sitar.label': 'Sitar',
     'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
     'home.plan': 'Plan',
@@ -107,24 +125,36 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'auth.emailPlaceholder': 'you@example.com',
   },
   zh: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   hi: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ar: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   bn: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ur: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   id: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
     'interface.music.piano.label': 'Piano',
@@ -144,29 +174,45 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'bible.books.TIT': 'Titus',
   },
   ja: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   pa: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   mr: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   te: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ta: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ko: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   ne: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   vi: {
+    // Brand names only: the app name and the Every Language organization name.
+    'more.footerVersion': 'EveryBible {{version}} · Every Language',
     'readingPlans.kathisma.title': 'Kathisma',
   },
 };
