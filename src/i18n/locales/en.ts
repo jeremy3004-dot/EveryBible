@@ -328,7 +328,6 @@ export const en = {
     comingSoon: 'Coming Soon',
     available: 'Available',
     notSet: 'Not set',
-    or: 'or',
     unexpectedError: "We're sorry, but something unexpected happened. Please try again.",
     somethingWentWrong: 'Something went wrong',
     tryAgain: 'Try Again',
@@ -380,8 +379,6 @@ export const en = {
     defaultReference: 'Open the Bible',
   },
   onboarding: {
-    title: 'Set Up Your Bible Experience',
-    stepProgress: 'Step {{current}} of {{count}}',
     stepCountry: 'Step 1 of {{count}}',
     stepLanguage: 'Step 2 of {{count}}',
     stepPrivacy: 'Step 3 of 3',
@@ -784,7 +781,6 @@ export const en = {
     noReading: 'No reading on this day',
     noReadingHint: 'Open a chapter to start filling your calendar.',
     sessionWindow: '{{start}} – {{end}} · {{duration}}',
-    selectDay: 'Select {{date}}',
   },
   auth: {
     welcomeBack: 'Welcome back',
@@ -820,7 +816,6 @@ export const en = {
     createAnAccount: 'Create an account',
     forgotPassword: 'Forgot?',
     noAccount: "Don't have an account?",
-    dontHaveAccount: "Don't have an account?",
     newHere: 'New here?',
     haveAccount: 'Already have an account?',
     alreadyHaveAccount: 'Already have an account?',
@@ -1095,7 +1090,6 @@ export const en = {
     dailyTargetCompleteTitle: 'Daily reading complete',
     dailyTargetCompleteBody:
       "You finished today's plan reading. We'll take you back to your plan so you can see your progress.",
-    searchPlansPlaceholder: 'Search plans',
     noPlanSearchResults: 'No plans matched your search',
     middayLabel: 'Midday',
     sessionDone: 'done',

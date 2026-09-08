@@ -310,7 +310,10 @@ export function TabNavigator() {
           }
 
           const shouldHideNestedBibleScreen =
-            (route.name === 'Bible' || route.name === 'Learn' || route.name === 'Plans') &&
+            (route.name === 'Bible' ||
+              route.name === 'Learn' ||
+              route.name === 'Plans' ||
+              route.name === 'More') &&
             shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
           const routeCollapseProgress =
             typeof nestedRouteParams?.tabBarCollapseProgress === 'number'

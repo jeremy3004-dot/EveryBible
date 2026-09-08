@@ -474,3 +474,13 @@ test('tab labels are 11pt semibold on top of the shared tabLabel token', () => {
     'tab labels should override the shared token down to the EL 11/14 size'
   );
 });
+
+test('TabNavigator collapses the tab bar for hidden nested routes in the More stack too', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+  // LocalePreferences (the nation/Bible flow) carries its own pinned footer, so
+  // the More stack must feed shouldHideTabBarOnNestedRoute like the other tabs.
+  assert.match(
+    source,
+    /route\.name === 'Bible' \|\|\s*route\.name === 'Learn' \|\|\s*route\.name === 'Plans' \|\|\s*route\.name === 'More'/
+  );
+});
