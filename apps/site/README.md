@@ -10,3 +10,7 @@ The homepage and About copy connect EveryBible to Every Language's vision and
 helping people engage with Scripture in their heart language. Atlas copy describes
 red as no documented Scripture in the sources, not confirmed absence. App download
 copy refers to available Scripture rather than promising every translation or format.
+
+Giving: `/give` links to Every Language's PayPal donation form and official ACH/wire
+instructions, sourced from https://everylanguage.com/give/. Keep giving in the
+primary navigation; app help stays at `/support` via the small footer button.

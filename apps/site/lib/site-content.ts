@@ -87,7 +87,7 @@ export const siteNavigation: SiteNavigationItem[] = [
   { label: 'The app', href: '/#app' },
   { label: 'Mission', href: '/about' },
   { label: 'About the data', href: '/#atlas-sources' },
-  { label: 'Support', href: '/support' },
+  { label: 'Give', href: '/give' },
 ];
 
 export const appStoreScreenshots: AppStoreScreenshot[] = [
@@ -195,7 +195,7 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: 'About', href: '/about' },
       { label: 'Mission', href: '/about#mission' },
-      { label: 'Contact', href: '/support' },
+      { label: 'Give', href: '/give' },
     ],
   },
   {
@@ -215,7 +215,7 @@ export const footerSocialLinks: Array<{ label: string; href: string }> = [];
 export const mobileTabs: MobileTabItem[] = [
   { label: 'Home', href: '#top', icon: 'home', active: true },
   { label: 'Mission', href: '#mission', icon: 'bible' },
-  { label: 'Support', href: '/support', icon: 'plans' },
+  { label: 'Give', href: '/give', icon: 'plans' },
   { label: 'Get app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH, icon: 'videos' },
 ];
 

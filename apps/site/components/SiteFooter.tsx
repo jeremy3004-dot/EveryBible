@@ -57,6 +57,7 @@ export function SiteFooter() {
         <div className="site-footer__bottom">
           <p className="site-footer__meta">A digital ministry. Free to use, free to share.</p>
           <div className="site-footer__legal">
+            <a className="site-footer__support" href="/support">App support</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
           </div>

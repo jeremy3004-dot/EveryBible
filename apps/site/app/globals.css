@@ -1437,3 +1437,25 @@ html.dark .site-header.site-header--overlay {
   .site-mobile-menu > a:not(.site-mobile-menu__cta) { display: none; }
   .site-mobile-menu__cta { min-height: 44px; padding-inline: 14px; }
 }
+
+/* Giving and quiet app-help access. */
+.site-footer__legal { align-items: center; flex-wrap: wrap; }
+.site-footer__support {
+  padding: 7px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  font-size: 12px;
+}
+.static-page__content a.giving-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 8px;
+  background: hsl(var(--primary-deep));
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+}
+.static-page__content a.giving-button:hover { background: hsl(var(--primary)); }
