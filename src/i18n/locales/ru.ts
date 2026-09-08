@@ -352,10 +352,10 @@ export const ru = {
   },
   "home": {
     "allTime": "За всё время",
+    "ledgerChapters": "Главы",
+    "ledgerChaptersCaption": "Прочитано или прослушано",
     "ledgerBooksFinished": "Прочитанные книги",
-    "ledgerBooksFinishedCaption": "Прочитано или прослушано от начала до конца",
-    "ledgerChaptersListened": "Глав прослушано",
-    "ledgerChaptersRead": "Глав прочитано",
+    "ledgerBooksFinishedCaption": "От начала до конца",
     "ledgerNextUp": "Далее · {{reference}} из {{total}}",
     "ledgerNoBooksFinished": "Пока нет",
     "ledgerNoChapters": "Пока нет глав",

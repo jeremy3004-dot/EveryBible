@@ -72,10 +72,10 @@ export const ta = {
   },
   "home": {
     "allTime": "மொத்தம்",
+    "ledgerChapters": "அதிகாரங்கள்",
+    "ledgerChaptersCaption": "வாசித்தவை அல்லது கேட்டவை",
     "ledgerBooksFinished": "முடித்த புத்தகங்கள்",
-    "ledgerBooksFinishedCaption": "முதல் முதல் இறுதி வரை வாசித்தது அல்லது கேட்டது",
-    "ledgerChaptersListened": "கேட்ட அதிகாரங்கள்",
-    "ledgerChaptersRead": "வாசித்த அதிகாரங்கள்",
+    "ledgerBooksFinishedCaption": "முதல் முதல் இறுதி வரை",
     "ledgerNextUp": "அடுத்து · {{reference}}, மொத்தம் {{total}}",
     "ledgerNoBooksFinished": "இன்னும் இல்லை",
     "ledgerNoChapters": "இன்னும் அதிகாரங்கள் இல்லை",

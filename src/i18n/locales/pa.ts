@@ -72,10 +72,10 @@ export const pa = {
   },
   "home": {
     "allTime": "ਕੁੱਲ",
+    "ledgerChapters": "ਅਧਿਆਇ",
+    "ledgerChaptersCaption": "ਪੜ੍ਹੇ ਜਾਂ ਸੁਣੇ",
     "ledgerBooksFinished": "ਪੂਰੀਆਂ ਕੀਤੀਆਂ ਪੁਸਤਕਾਂ",
-    "ledgerBooksFinishedCaption": "ਪੜ੍ਹ ਕੇ ਜਾਂ ਸੁਣ ਕੇ, ਸ਼ੁਰੂ ਤੋਂ ਅੰਤ ਤੱਕ",
-    "ledgerChaptersListened": "ਸੁਣੇ ਗਏ ਅਧਿਆਇ",
-    "ledgerChaptersRead": "ਪੜ੍ਹੇ ਗਏ ਅਧਿਆਇ",
+    "ledgerBooksFinishedCaption": "ਸ਼ੁਰੂ ਤੋਂ ਅੰਤ ਤੱਕ",
     "ledgerNextUp": "ਅੱਗੇ · {{reference}}, ਕੁੱਲ {{total}}",
     "ledgerNoBooksFinished": "ਹਾਲੇ ਕੋਈ ਨਹੀਂ",
     "ledgerNoChapters": "ਹਾਲੇ ਕੋਈ ਅਧਿਆਇ ਨਹੀਂ",

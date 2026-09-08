@@ -350,10 +350,10 @@ export const fr = {
   },
   "home": {
     "allTime": "Depuis le début",
+    "ledgerChapters": "Chapitres",
+    "ledgerChaptersCaption": "Lus ou écoutés",
     "ledgerBooksFinished": "Livres terminés",
-    "ledgerBooksFinishedCaption": "Lus ou écoutés, du début à la fin",
-    "ledgerChaptersListened": "Chapitres écoutés",
-    "ledgerChaptersRead": "Chapitres lus",
+    "ledgerBooksFinishedCaption": "Du début à la fin",
     "ledgerNextUp": "À suivre · {{reference}} sur {{total}}",
     "ledgerNoBooksFinished": "Aucun pour l’instant",
     "ledgerNoChapters": "Aucun chapitre pour l’instant",

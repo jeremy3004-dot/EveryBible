@@ -74,24 +74,16 @@ test('period counts include only the chapters covered inside their own boundarie
     },
   };
 
+  // The ledger reports one chapter number: read and heard chapters, deduped.
   const week = getHomeReadingStats(activity, 'week', NOW);
-  assert.equal(week.chaptersReadCount, 2);
-  assert.equal(week.chaptersListenedCount, 1);
-  assert.equal(week.listeningMinutes, 20);
-  assert.equal(week.chaptersCovered, 3);
+  assert.equal(week.chaptersCovered, 3); // GEN_3, GEN_4 read + MRK_1 heard
   assert.equal(week.activeDays, 3);
 
   const month = getHomeReadingStats(activity, 'month', NOW);
-  assert.equal(month.chaptersReadCount, 3);
-  assert.equal(month.chaptersListenedCount, 1);
-  assert.equal(month.listeningMinutes, 60);
   assert.equal(month.chaptersCovered, 4);
   assert.equal(month.activeDays, 4);
 
   const allTime = getHomeReadingStats(activity, 'allTime', NOW);
-  assert.equal(allTime.chaptersReadCount, 4);
-  assert.equal(allTime.chaptersListenedCount, 2);
-  assert.equal(allTime.listeningMinutes, 150);
   assert.equal(allTime.chaptersCovered, 6);
   assert.equal(allTime.firstActivityAt, at(2026, 8, 20));
 });
@@ -140,9 +132,6 @@ test('a book is attributed to the period that covered its last missing chapter',
 test('an empty store yields a zeroed ledger rather than NaN or undefined', () => {
   for (const period of ['week', 'month', 'allTime'] as const) {
     const stats = getHomeReadingStats(emptyActivity(), period, NOW);
-    assert.equal(stats.chaptersReadCount, 0);
-    assert.equal(stats.chaptersListenedCount, 0);
-    assert.equal(stats.listeningMinutes, 0);
     assert.deepEqual(stats.booksFinished, []);
     assert.equal(stats.chaptersCovered, 0);
     assert.equal(stats.activeDays, 0);
@@ -158,9 +147,11 @@ test('unknown books and malformed records never reach the ledger', () => {
   } as unknown as HomeReadingActivity;
 
   const stats = getHomeReadingStats(activity, 'week', NOW);
-  assert.equal(stats.chaptersReadCount, 1);
-  assert.equal(stats.chaptersListenedCount, 0);
-  assert.equal(stats.listeningMinutes, 0);
+  // Only EXO_2 survives: GEN_1's timestamp is NaN, ZZZ is not a book, and the
+  // bare "GEN" key carries no chapter.
+  assert.equal(stats.chaptersCovered, 1);
+  assert.deepEqual(stats.booksFinished, []);
+  assert.equal(stats.activeDays, 1);
 });
 
 test('the day denominator is the whole week but only the elapsed part of a month', () => {

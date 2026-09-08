@@ -348,10 +348,10 @@ export const vi = {
   },
   "home": {
     "allTime": "Toàn thời gian",
+    "ledgerChapters": "Chương",
+    "ledgerChaptersCaption": "Đã đọc hoặc đã nghe",
     "ledgerBooksFinished": "Sách đã hoàn thành",
-    "ledgerBooksFinishedCaption": "Đọc hoặc nghe trọn vẹn từ đầu đến cuối",
-    "ledgerChaptersListened": "Chương đã nghe",
-    "ledgerChaptersRead": "Chương đã đọc",
+    "ledgerBooksFinishedCaption": "Từ đầu đến cuối",
     "ledgerNextUp": "Tiếp theo · {{reference}} / {{total}}",
     "ledgerNoBooksFinished": "Chưa có",
     "ledgerNoChapters": "Chưa có chương nào",

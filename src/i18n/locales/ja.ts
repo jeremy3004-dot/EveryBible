@@ -348,10 +348,10 @@ export const ja = {
   },
   "home": {
     "allTime": "全期間",
+    "ledgerChapters": "章",
+    "ledgerChaptersCaption": "読んだ、または聴いた",
     "ledgerBooksFinished": "読み終えた書",
-    "ledgerBooksFinishedCaption": "通読または通聴した書",
-    "ledgerChaptersListened": "聴いた章",
-    "ledgerChaptersRead": "読んだ章",
+    "ledgerBooksFinishedCaption": "最初から最後まで",
     "ledgerNextUp": "次 · {{reference}} / {{total}}",
     "ledgerNoBooksFinished": "まだありません",
     "ledgerNoChapters": "まだ章がありません",

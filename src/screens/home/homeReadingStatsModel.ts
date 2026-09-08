@@ -30,12 +30,6 @@ export interface HomeReadingPeriodRange {
 export interface HomeReadingStats {
   period: HomeReadingPeriod;
   range: HomeReadingPeriodRange;
-  /** Distinct chapters with a read record inside the period. */
-  chaptersReadCount: number;
-  /** Distinct chapters with a completed listen inside the period. */
-  chaptersListenedCount: number;
-  /** Completed listening time inside the period, rounded to whole minutes. */
-  listeningMinutes: number;
   /** Book ids finished inside the period, in canonical order. */
   booksFinished: string[];
   /** Distinct chapters covered by reading or listening inside the period. */
@@ -46,23 +40,11 @@ export interface HomeReadingStats {
   firstActivityAt: number | null;
 }
 
-const MS_PER_MINUTE = 60_000;
-
 const pad = (value: number): string => value.toString().padStart(2, '0');
 
 const toLocalDateKey = (timestamp: number): string => {
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
-
-const isLocalDateKeyInRange = (dateKey: string, range: HomeReadingPeriodRange): boolean => {
-  const [year, month, day] = dateKey.split('-').map((part) => Number.parseInt(part, 10));
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-    return false;
-  }
-  // Midday avoids DST edges pulling a day key across its own boundary.
-  const noon = new Date(year, month - 1, day, 12).getTime();
-  return noon >= range.start && noon < range.end;
 };
 
 export interface ParsedChapterKey {
@@ -115,16 +97,6 @@ export const getHomeReadingPeriodRange = (
 
 const isInRange = (timestamp: number, range: HomeReadingPeriodRange): boolean =>
   Number.isFinite(timestamp) && timestamp >= range.start && timestamp < range.end;
-
-const countInRange = (records: Record<string, number>, range: HomeReadingPeriodRange): number => {
-  let count = 0;
-  for (const [key, timestamp] of Object.entries(records)) {
-    if (isInRange(timestamp, range) && parseChapterKey(key)) {
-      count += 1;
-    }
-  }
-  return count;
-};
 
 /**
  * Earliest moment each chapter was covered by either eye or ear. Reading and
@@ -201,9 +173,6 @@ export const getHomeReadingStats = (
   now: Date
 ): HomeReadingStats => {
   const range = getHomeReadingPeriodRange(period, now);
-  const chaptersRead = activity.chaptersRead ?? {};
-  const chaptersListened = activity.chaptersListened ?? {};
-  const listeningMsByDate = activity.listeningMsByDate ?? {};
 
   const coverage = getChapterCoverageTimes(activity);
   const activeDayKeys = new Set<string>();
@@ -220,16 +189,6 @@ export const getHomeReadingStats = (
     }
   }
 
-  let listeningMs = 0;
-  for (const [dateKey, ms] of Object.entries(listeningMsByDate)) {
-    if (!Number.isFinite(ms) || ms <= 0) {
-      continue;
-    }
-    if (period === 'allTime' || isLocalDateKeyInRange(dateKey, range)) {
-      listeningMs += ms;
-    }
-  }
-
   const booksFinished = [...getBookCompletionTimes(activity).entries()]
     .filter(([, completedAt]) => isInRange(completedAt, range))
     .map(([bookId]) => bookId)
@@ -238,9 +197,6 @@ export const getHomeReadingStats = (
   return {
     period,
     range,
-    chaptersReadCount: countInRange(chaptersRead, range),
-    chaptersListenedCount: countInRange(chaptersListened, range),
-    listeningMinutes: Math.round(listeningMs / MS_PER_MINUTE),
     booksFinished,
     chaptersCovered,
     activeDays: activeDayKeys.size,

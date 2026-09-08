@@ -72,10 +72,10 @@ export const mr = {
   },
   "home": {
     "allTime": "एकूण",
+    "ledgerChapters": "अध्याय",
+    "ledgerChaptersCaption": "वाचलेले किंवा ऐकलेले",
     "ledgerBooksFinished": "पूर्ण केलेली पुस्तके",
-    "ledgerBooksFinishedCaption": "वाचून किंवा ऐकून, सुरुवातीपासून शेवटपर्यंत",
-    "ledgerChaptersListened": "ऐकलेले अध्याय",
-    "ledgerChaptersRead": "वाचलेले अध्याय",
+    "ledgerBooksFinishedCaption": "सुरुवातीपासून शेवटपर्यंत",
     "ledgerNextUp": "पुढे · {{reference}}, एकूण {{total}}",
     "ledgerNoBooksFinished": "अजून काही नाही",
     "ledgerNoChapters": "अजून अध्याय नाहीत",

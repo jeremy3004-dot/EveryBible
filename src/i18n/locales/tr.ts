@@ -348,10 +348,10 @@ export const tr = {
   },
   "home": {
     "allTime": "Tüm zamanlar",
+    "ledgerChapters": "Bölümler",
+    "ledgerChaptersCaption": "Okundu ya da dinlendi",
     "ledgerBooksFinished": "Bitirilen kitaplar",
-    "ledgerBooksFinishedCaption": "Baştan sona okundu ya da dinlendi",
-    "ledgerChaptersListened": "Dinlenen bölümler",
-    "ledgerChaptersRead": "Okunan bölümler",
+    "ledgerBooksFinishedCaption": "Baştan sona",
     "ledgerNextUp": "Sırada · {{reference}} / {{total}}",
     "ledgerNoBooksFinished": "Henüz yok",
     "ledgerNoChapters": "Henüz bölüm yok",

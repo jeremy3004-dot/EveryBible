@@ -22,7 +22,6 @@ import {
   ChevronRight,
   CircleCheck,
   Flame,
-  Headphones,
   Play,
   Share as ShareGlyph,
 } from 'lucide-react-native';
@@ -69,7 +68,6 @@ import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
-import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
 
@@ -312,10 +310,7 @@ export function HomeScreen() {
     [chaptersRead, chaptersListened, ledgerPeriod, listeningMsByDate]
   );
 
-  const finishedBookNames = useMemo(
-    () => readingStats.booksFinished.map((bookId) => getTranslatedBookName(bookId, t)),
-    [readingStats.booksFinished, t]
-  );
+  const finishedBookCount = readingStats.booksFinished.length;
 
   // Intl formatters are built here rather than at module scope so the JS thread
   // never pays for them at import time, and so they follow a language change.
@@ -969,70 +964,40 @@ export function HomeScreen() {
               </View>
 
               <View>
+                {/* One chapter count, however it was covered. Reading and
+                    listening were split until a listener with years of audio saw
+                    a zero: the listen record only starts at this build, while the
+                    union has always been populated by reading. */}
                 <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
                   <BookOpen size={18} color={colors.secondaryText} strokeWidth={2} />
                   <View style={styles.ledgerRowCopy}>
                     <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
-                      {t('home.ledgerChaptersRead')}
+                      {t('home.ledgerChapters')}
+                    </Text>
+                    <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
+                      {t('home.ledgerChaptersCaption')}
                     </Text>
                   </View>
                   <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
-                    {readingStats.chaptersReadCount}
+                    {readingStats.chaptersCovered}
                   </Text>
                 </View>
 
                 <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
-                  <Headphones size={18} color={colors.secondaryText} strokeWidth={2} />
+                  <CircleCheck size={18} color={colors.success} strokeWidth={2} />
                   <View style={styles.ledgerRowCopy}>
                     <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
-                      {t('home.ledgerChaptersListened')}
+                      {t('home.ledgerBooksFinished')}
                     </Text>
                     <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
-                      {formatListeningTime(readingStats.listeningMinutes, t)}
+                      {finishedBookCount > 0
+                        ? t('home.ledgerBooksFinishedCaption')
+                        : t('home.ledgerNoBooksFinished')}
                     </Text>
                   </View>
                   <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
-                    {readingStats.chaptersListenedCount}
+                    {finishedBookCount}
                   </Text>
-                </View>
-
-                <View style={[styles.ledgerFinished, { borderTopColor: colors.borderStrong }]}>
-                  <View style={styles.ledgerFinishedRow}>
-                    <CircleCheck size={18} color={colors.success} strokeWidth={2} />
-                    <View style={styles.ledgerRowCopy}>
-                      <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
-                        {t('home.ledgerBooksFinished')}
-                      </Text>
-                      <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
-                        {finishedBookNames.length > 0
-                          ? t('home.ledgerBooksFinishedCaption')
-                          : t('home.ledgerNoBooksFinished')}
-                      </Text>
-                    </View>
-                    <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
-                      {finishedBookNames.length}
-                    </Text>
-                  </View>
-                  {finishedBookNames.length > 0 ? (
-                    <View style={styles.ledgerChips}>
-                      {finishedBookNames.map((bookName) => (
-                        <Text
-                          key={bookName}
-                          style={[
-                            styles.ledgerChip,
-                            displayFont.regular,
-                            {
-                              backgroundColor: colors.successSoft,
-                              color: colors.onSuccessSoft,
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {bookName}
-                        </Text>
-                      ))}
-                    </View>
-                  ) : null}
                 </View>
               </View>
 
@@ -1305,29 +1270,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22,
     letterSpacing: -0.88,
-  },
-  ledgerFinished: {
-    borderTopWidth: 1,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
-    gap: 10,
-  },
-  ledgerFinishedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  ledgerChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  ledgerChip: {
-    ...typography.monoSmall,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
   },
   // Stacked so the period summary never has to ellipsise beside the next-up line.
   ledgerFooter: {

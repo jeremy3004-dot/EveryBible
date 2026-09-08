@@ -356,10 +356,10 @@ export const ar = {
   },
   "home": {
     "allTime": "كل الوقت",
+    "ledgerChapters": "إصحاحات",
+    "ledgerChaptersCaption": "مقروءة أو مسموعة",
     "ledgerBooksFinished": "أسفار مكتملة",
-    "ledgerBooksFinishedCaption": "قراءةً أو استماعًا، من البداية إلى النهاية",
-    "ledgerChaptersListened": "إصحاحات مسموعة",
-    "ledgerChaptersRead": "إصحاحات مقروءة",
+    "ledgerBooksFinishedCaption": "من البداية إلى النهاية",
     "ledgerNextUp": "التالي · {{reference}} من {{total}}",
     "ledgerNoBooksFinished": "لا شيء بعد",
     "ledgerNoChapters": "لا إصحاحات بعد",

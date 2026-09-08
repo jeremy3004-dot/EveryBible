@@ -211,7 +211,7 @@ test('HomeScreen closes the sheet with the reading ledger below the Gather card'
 
   assert.match(
     source,
-    /t\('home\.ledgerChaptersRead'\)[\s\S]*t\('home\.ledgerChaptersListened'\)[\s\S]*t\('home\.ledgerBooksFinished'\)/,
+    /t\('home\.ledgerChapters'\)[\s\S]*t\('home\.ledgerChaptersCaption'\)[\s\S]*t\('home\.ledgerBooksFinished'\)/,
     'the ledger should list read, listened and finished rows in that order, all localized'
   );
 

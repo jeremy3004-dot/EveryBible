@@ -348,10 +348,10 @@ export const ur = {
   },
   "home": {
     "allTime": "کل وقت",
+    "ledgerChapters": "ابواب",
+    "ledgerChaptersCaption": "پڑھے یا سنے",
     "ledgerBooksFinished": "مکمل کتابیں",
-    "ledgerBooksFinishedCaption": "پڑھ کر یا سن کر، شروع سے آخر تک",
-    "ledgerChaptersListened": "سنے گئے ابواب",
-    "ledgerChaptersRead": "پڑھے گئے ابواب",
+    "ledgerBooksFinishedCaption": "شروع سے آخر تک",
     "ledgerNextUp": "اگلا · {{reference}} از {{total}}",
     "ledgerNoBooksFinished": "ابھی کوئی نہیں",
     "ledgerNoChapters": "ابھی کوئی باب نہیں",

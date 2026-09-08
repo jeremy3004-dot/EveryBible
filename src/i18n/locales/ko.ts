@@ -348,10 +348,10 @@ export const ko = {
   },
   "home": {
     "allTime": "전체 기간",
+    "ledgerChapters": "장",
+    "ledgerChaptersCaption": "읽거나 들음",
     "ledgerBooksFinished": "완독한 책",
-    "ledgerBooksFinishedCaption": "처음부터 끝까지 읽거나 들음",
-    "ledgerChaptersListened": "들은 장",
-    "ledgerChaptersRead": "읽은 장",
+    "ledgerBooksFinishedCaption": "처음부터 끝까지",
     "ledgerNextUp": "다음 · {{reference}} / {{total}}",
     "ledgerNoBooksFinished": "아직 없음",
     "ledgerNoChapters": "아직 장이 없음",

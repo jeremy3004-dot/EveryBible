@@ -72,10 +72,10 @@ export const te = {
   },
   "home": {
     "allTime": "మొత్తం",
+    "ledgerChapters": "అధ్యాయాలు",
+    "ledgerChaptersCaption": "చదివినవి లేదా విన్నవి",
     "ledgerBooksFinished": "పూర్తి చేసిన గ్రంథాలు",
-    "ledgerBooksFinishedCaption": "చదివి లేదా విని, మొదటి నుండి చివరి వరకు",
-    "ledgerChaptersListened": "విన్న అధ్యాయాలు",
-    "ledgerChaptersRead": "చదివిన అధ్యాయాలు",
+    "ledgerBooksFinishedCaption": "మొదటి నుండి చివరి వరకు",
     "ledgerNextUp": "తర్వాత · {{reference}}, మొత్తం {{total}}",
     "ledgerNoBooksFinished": "ఇంకా లేవు",
     "ledgerNoChapters": "ఇంకా అధ్యాయాలు లేవు",

@@ -348,10 +348,10 @@ export const id = {
   },
   "home": {
     "allTime": "Sepanjang waktu",
+    "ledgerChapters": "Pasal",
+    "ledgerChaptersCaption": "Dibaca atau didengar",
     "ledgerBooksFinished": "Kitab selesai",
-    "ledgerBooksFinishedCaption": "Dibaca atau didengar, dari awal sampai akhir",
-    "ledgerChaptersListened": "Pasal didengar",
-    "ledgerChaptersRead": "Pasal dibaca",
+    "ledgerBooksFinishedCaption": "Dari awal sampai akhir",
     "ledgerNextUp": "Berikutnya · {{reference}} dari {{total}}",
     "ledgerNoBooksFinished": "Belum ada",
     "ledgerNoChapters": "Belum ada pasal",

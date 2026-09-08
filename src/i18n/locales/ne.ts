@@ -72,10 +72,10 @@ export const ne = {
   },
   "home": {
     "allTime": "सबै समय",
+    "ledgerChapters": "अध्यायहरू",
+    "ledgerChaptersCaption": "पढिएका वा सुनिएका",
     "ledgerBooksFinished": "पूरा गरिएका पुस्तकहरू",
-    "ledgerBooksFinishedCaption": "पढेर वा सुनेर, सुरुदेखि अन्त्यसम्म",
-    "ledgerChaptersListened": "सुनिएका अध्यायहरू",
-    "ledgerChaptersRead": "पढिएका अध्यायहरू",
+    "ledgerBooksFinishedCaption": "सुरुदेखि अन्त्यसम्म",
     "ledgerNextUp": "अर्को · {{reference}}, जम्मा {{total}}",
     "ledgerNoBooksFinished": "अहिलेसम्म छैन",
     "ledgerNoChapters": "अहिलेसम्म अध्याय छैन",

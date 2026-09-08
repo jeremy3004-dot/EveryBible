@@ -72,10 +72,10 @@ export const hi = {
   },
   "home": {
     "allTime": "कुल",
+    "ledgerChapters": "अध्याय",
+    "ledgerChaptersCaption": "पढ़े या सुने",
     "ledgerBooksFinished": "पूरी की गई पुस्तकें",
-    "ledgerBooksFinishedCaption": "पढ़कर या सुनकर, शुरू से अंत तक",
-    "ledgerChaptersListened": "सुने गए अध्याय",
-    "ledgerChaptersRead": "पढ़े गए अध्याय",
+    "ledgerBooksFinishedCaption": "शुरू से अंत तक",
     "ledgerNextUp": "आगे · {{reference}}, कुल {{total}}",
     "ledgerNoBooksFinished": "अभी कोई नहीं",
     "ledgerNoChapters": "अभी कोई अध्याय नहीं",

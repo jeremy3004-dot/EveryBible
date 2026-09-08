@@ -72,10 +72,10 @@ export const bn = {
   },
   "home": {
     "allTime": "সর্বকাল",
+    "ledgerChapters": "অধ্যায়",
+    "ledgerChaptersCaption": "পড়া বা শোনা",
     "ledgerBooksFinished": "সম্পূর্ণ বই",
-    "ledgerBooksFinishedCaption": "পড়া বা শোনা, শুরু থেকে শেষ",
-    "ledgerChaptersListened": "শোনা অধ্যায়",
-    "ledgerChaptersRead": "পড়া অধ্যায়",
+    "ledgerBooksFinishedCaption": "শুরু থেকে শেষ",
     "ledgerNextUp": "পরবর্তী · {{reference}}, মোট {{total}}",
     "ledgerNoBooksFinished": "এখনও নেই",
     "ledgerNoChapters": "এখনও কোনো অধ্যায় নেই",

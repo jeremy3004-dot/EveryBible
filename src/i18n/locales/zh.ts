@@ -348,10 +348,10 @@ export const zh = {
   },
   "home": {
     "allTime": "全部时间",
+    "ledgerChapters": "章",
+    "ledgerChaptersCaption": "已读或已听",
     "ledgerBooksFinished": "读完的书卷",
-    "ledgerBooksFinishedCaption": "通读或听完整卷",
-    "ledgerChaptersListened": "已听章数",
-    "ledgerChaptersRead": "已读章数",
+    "ledgerBooksFinishedCaption": "从头到尾",
     "ledgerNextUp": "接下来 · {{reference}}，共 {{total}} 章",
     "ledgerNoBooksFinished": "暂无",
     "ledgerNoChapters": "还没有章节",
