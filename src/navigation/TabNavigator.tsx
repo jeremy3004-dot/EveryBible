@@ -385,7 +385,8 @@ export function TabNavigator() {
           // The selected glyph sits on a neutral ink pill, so it reads in the
           // scope's primary text rather than the accent.
           tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
-          tabBarInactiveTintColor: isBibleReader ? colors.bibleSecondaryText : colors.secondaryText,
+          // Inactive glyphs are full ink too; the neutral pill alone carries selection.
+          tabBarInactiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
           tabBarStyle,
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,

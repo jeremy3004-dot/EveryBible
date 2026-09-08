@@ -214,10 +214,12 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
     'the selected tab glyph should use primary text, not the accent'
   );
 
+  // Inactive glyphs are full ink — the pill alone carries selection — and they
+  // follow the reader's own ink while the reader is focused.
   assert.match(
     source,
-    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.bibleSecondaryText[\s\S]*: colors\.secondaryText/s,
-    'TabNavigator should switch inactive tab text and icons to Bible reader secondary text colors'
+    /tabBarInactiveTintColor: isBibleReader \? colors\.biblePrimaryText : colors\.primaryText,/,
+    'TabNavigator should keep inactive tab glyphs in primary ink, reader ink in the reader'
   );
 
   assert.match(

@@ -64,7 +64,6 @@ type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 // vellum scope too. These are the literal on-photo values the design spec names.
 const ON_PHOTO_INK = '#FDFAF5';
 const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.82)';
-const ON_PHOTO_AVATAR_BORDER = 'rgba(253, 250, 245, 0.45)';
 const ON_PHOTO_PILL_FILL = 'rgba(253, 250, 245, 0.92)';
 const ON_PHOTO_PILL_INK = '#1A1914';
 const ON_PHOTO_PLACEHOLDER = 'rgba(253, 250, 245, 0.18)';
@@ -88,7 +87,6 @@ const HERO_ACTION_OVERHANG = 9;
 /** Gap between the status bar and the date eyebrow over the photograph. */
 const HERO_TOP_PADDING = 14;
 const HERO_PILL_HEIGHT = 36;
-const HERO_AVATAR_SIZE = 36;
 const SHEET_PADDING_TOP = 20;
 const SHEET_GUTTER = spacing.xl;
 const SHEET_GAP = spacing.md;
@@ -239,7 +237,6 @@ export function HomeScreen() {
     ? `${currentBookName} ${currentChapter}`
     : t('home.defaultReference');
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
-  const greetingInitial = greetingName.trim().charAt(0).toUpperCase();
   const greetingKey = useMemo(() => getGreetingKey(), []);
   const greetingLabel = t('home.greetingWithName', {
     greeting: t(greetingKey),
@@ -580,9 +577,6 @@ export function HomeScreen() {
               {greetingLabel}
             </Text>
           </View>
-          <View style={styles.heroAvatar}>
-            <Text style={[styles.heroAvatarInitial, displayFont.bold]}>{greetingInitial}</Text>
-          </View>
         </View>
 
         <View style={[styles.heroFooter, showActions ? null : styles.heroFooterCapture]}>
@@ -912,20 +906,6 @@ const styles = StyleSheet.create({
   // fontSize/lineHeight come from getHomeScreenLayout so narrow phones drop to 18pt.
   heroGreeting: {
     letterSpacing: -0.66,
-    color: ON_PHOTO_INK,
-  },
-  heroAvatar: {
-    width: HERO_AVATAR_SIZE,
-    height: HERO_AVATAR_SIZE,
-    borderRadius: HERO_AVATAR_SIZE / 2,
-    borderWidth: 1,
-    borderColor: ON_PHOTO_AVATAR_BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroAvatarInitial: {
-    fontSize: 14,
-    lineHeight: 18,
     color: ON_PHOTO_INK,
   },
   heroFooter: {

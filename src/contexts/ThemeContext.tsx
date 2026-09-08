@@ -169,7 +169,9 @@ const baseLightColors: ThemeColors = {
   tabInactive: '#69624F',
   bibleBackground: '#F0ECE5',
   bibleSurface: '#FAF9F4',
-  bibleElevatedSurface: '#FCFBF8', // --popover 44 44% 98%
+  // Reader controls (chapter pill, transport discs) sit a step DARKER than the
+  // vellum page so they read as pressed into the paper rather than lifted off it.
+  bibleElevatedSurface: '#E3DED5',
   bibleDivider: '#CAC5B9',
   biblePrimaryText: '#1A1914',
   bibleSecondaryText: '#69624F',
