@@ -736,29 +736,18 @@ export function HomeScreen() {
             >
               {featuredPlanDuration > 0 ? (
                 <>
-                  <View style={styles.cardEyebrowRow}>
-                    <Text
-                      style={[
-                        styles.cardEyebrow,
-                        styles.cardEyebrowName,
-                        displayFont.regular,
-                        { color: colors.secondaryText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {featuredPlanTitle}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cardEyebrow,
-                        displayFont.regular,
-                        { color: colors.secondaryText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {` · ${t('home.dayEyebrow')}`}
-                    </Text>
-                  </View>
+                  {/* One Text so a long plan title wraps to a second line instead of
+                      ellipsising mid-word before the " · Day" suffix. */}
+                  <Text
+                    style={[
+                      styles.cardEyebrow,
+                      displayFont.regular,
+                      { color: colors.secondaryText },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {`${featuredPlanTitle} · ${t('home.dayEyebrow')}`}
+                  </Text>
                   <View style={styles.cardBody}>
                     <View style={styles.numeralRow}>
                       <Text style={[styles.numeral, { color: colors.primaryText }]}>
@@ -1000,10 +989,6 @@ const styles = StyleSheet.create({
   },
   cardEyebrow: {
     ...typography.eyebrow,
-  },
-  cardEyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   cardEyebrowName: {
     flexShrink: 1,

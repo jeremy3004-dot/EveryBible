@@ -52,6 +52,8 @@ import {
   isCalendarDayOfWeekPlan,
   isRecurringPlan,
   isMultiSessionPlan,
+  resolvePlanLedgerDayState,
+  type ReadingPlanLedgerDayState,
 } from '../../services/plans/readingPlanModel';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import type {
@@ -206,6 +208,46 @@ function isLedgerDayComplete({
   return dayNumber === currentDay && isCurrentDayComplete;
 }
 
+/**
+ * The one place a plan day's ledger state is decided.
+ *
+ * The cell grid, the ledger rows and the read/missed tally are three pictures of
+ * the same record, so all three resolve a day here — otherwise the squares and
+ * the rows can disagree about the same date.
+ */
+function getLedgerDayState({
+  plan,
+  progress,
+  dayNumber,
+  currentDay,
+  isCurrentDayComplete,
+  today,
+}: {
+  plan: ReadingPlan | null;
+  progress: UserReadingPlanProgress | null;
+  dayNumber: number;
+  currentDay: number;
+  isCurrentDayComplete: boolean;
+  today: Date;
+}): ReadingPlanLedgerDayState {
+  return resolvePlanLedgerDayState({
+    dayNumber,
+    currentDay,
+    isCompleted: isLedgerDayComplete({
+      plan,
+      progress,
+      dayNumber,
+      currentDay,
+      isCurrentDayComplete,
+      today,
+    }),
+    // A recurring cycle's early days can sit before the enrolment date; a
+    // sequential plan starts counting from it, so it has no such day.
+    dayDate: plan ? getRecurringLedgerDayDate(plan, dayNumber, today) : null,
+    startedAt: progress?.started_at ?? null,
+  });
+}
+
 /** Short cycle date for a ledger row ("7 Sep"), in the in-app language. */
 function formatLedgerCycleDate(date: Date, locale?: string): string {
   return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
@@ -254,9 +296,7 @@ const coverImageStyles = StyleSheet.create({
 // Cell ledger — one square per plan day
 // ---------------------------------------------------------------------------
 
-type LedgerCellState = 'done' | 'missed' | 'today' | 'future';
-
-function LedgerCells({ states }: { states: LedgerCellState[] }) {
+function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
   const [innerWidth, setInnerWidth] = useState(0);
@@ -275,7 +315,7 @@ function LedgerCells({ states }: { states: LedgerCellState[] }) {
         )
       : 0;
 
-  const palette: Record<LedgerCellState, ViewStyle> = {
+  const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = {
     done: { backgroundColor: colors.accentPrimary },
     missed: { backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning },
     today: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.accentPrimary },
@@ -341,10 +381,10 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
   const totalDays = plan.duration_days;
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
 
-  const cellStates = useMemo<LedgerCellState[]>(() => {
-    const states: LedgerCellState[] = [];
+  const cellStates = useMemo<ReadingPlanLedgerDayState[]>(() => {
+    const states: ReadingPlanLedgerDayState[] = [];
     for (let day = 1; day <= totalDays; day += 1) {
-      const isDone = isLedgerDayComplete({
+      const ledgerState = getLedgerDayState({
         plan,
         progress,
         dayNumber: day,
@@ -352,9 +392,7 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
         isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
         today,
       });
-      states.push(
-        isDone ? 'done' : day === currentDay ? 'today' : day < currentDay ? 'missed' : 'future'
-      );
+      states.push(ledgerState);
     }
     return states;
   }, [currentDay, currentDaySummary?.isComplete, plan, progress, today, totalDays]);
@@ -1097,7 +1135,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
       // Rows and cells read the same record, so a recurring plan's past days
       // carry their real done/missed state instead of collapsing to today.
-      const isCompleted = isLedgerDayComplete({
+      const ledgerState = getLedgerDayState({
         plan,
         progress,
         dayNumber,
@@ -1105,6 +1143,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
         today,
       });
+      const isCompleted = ledgerState === 'done';
       const isCurrent = dayNumber === currentDay;
       const recurringCycleDate =
         plan && isRecurringPlan(plan) ? getRecurringLedgerDayDate(plan, dayNumber, today) : null;
@@ -1149,8 +1188,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         isCompleted,
         isCurrent: isCurrent && isEnrolled,
         // Before enrolling nothing is behind or ahead of you yet, so the ledger
-        // stays uniform rather than greying out most of the plan.
-        isFuture: isEnrolled && dayNumber > currentDay,
+        // stays uniform rather than greying out most of the plan. Once enrolled,
+        // "future" also covers a recurring cycle's days that ran before you
+        // joined: they carry their date but none of the missed weight.
+        isFuture: isEnrolled && ledgerState === 'future',
         isNext: isEnrolled && dayNumber === nextDayNumber,
         sessionActions,
       };
@@ -1251,7 +1292,13 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         {heroCoverSource ? (
           <Image source={heroCoverSource} style={styles.coverImage} resizeMode="cover" />
         ) : (
-          <View style={[styles.coverImage, { backgroundColor: colors.accentSecondary }]}>
+          <View
+            style={[
+              styles.coverImage,
+              styles.coverFallback,
+              { backgroundColor: colors.accentSecondary },
+            ]}
+          >
             <BookOpen size={60} color={colors.secondaryText} strokeWidth={2} />
           </View>
         )}
@@ -1466,8 +1513,18 @@ const styles = StyleSheet.create({
   cover: {
     height: COVER_HEIGHT,
   },
+  // The asset registry stamps a required image's intrinsic size onto its style,
+  // and inset-only positioning does not override it — a 320×180 cover would draw
+  // at 320×180 in the corner. The hero states its own frame instead, so the photo
+  // fills the full width and bleeds up under the status bar.
   coverImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: COVER_HEIGHT,
+  },
+  coverFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },

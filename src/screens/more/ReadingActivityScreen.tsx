@@ -211,7 +211,7 @@ export function ReadingActivityScreen() {
             <View style={styles.heroStreakRow}>
               <Text style={styles.heroStreakNumber}>{streakDays}</Text>
               <Text style={[styles.heroStreakUnit, displayFont.bold]}>
-                {t('readingActivity.days')}
+                {t('readingActivity.streakUnit', { count: streakDays })}
               </Text>
             </View>
           </View>

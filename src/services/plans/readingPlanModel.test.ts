@@ -18,6 +18,7 @@ import {
   mergePlanProgress,
   planCompletionPercent,
   reconcileFetchedPlanProgress,
+  resolvePlanLedgerDayState,
   getVisiblePlanDayNumbers,
 } from './readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from './types';
@@ -357,6 +358,100 @@ test('getVisibleCompletedEntryCount can use Monday-start weekly rhythms', () => 
   );
 });
 
+// ---------------------------------------------------------------------------
+// resolvePlanLedgerDayState
+// ---------------------------------------------------------------------------
+
+test('resolvePlanLedgerDayState never counts a cycle day before enrolment as missed', () => {
+  // Enrolled on 8 September; the 31-day Proverbs cycle's days 1-7 already have
+  // dates, but they ran before the user joined.
+  const startedAt = new Date(2026, 8, 8, 9, 30).toISOString();
+
+  for (let dayNumber = 1; dayNumber <= 7; dayNumber += 1) {
+    assert.equal(
+      resolvePlanLedgerDayState({
+        dayNumber,
+        currentDay: 8,
+        isCompleted: false,
+        dayDate: new Date(2026, 8, dayNumber),
+        startedAt,
+      }),
+      'future',
+      `day ${dayNumber} ran before enrolment, so it is neither missed nor completed`
+    );
+  }
+});
+
+test('resolvePlanLedgerDayState still marks skipped days after enrolment as missed', () => {
+  const startedAt = new Date(2026, 8, 1, 9, 30).toISOString();
+
+  assert.equal(
+    resolvePlanLedgerDayState({
+      dayNumber: 3,
+      currentDay: 8,
+      isCompleted: false,
+      dayDate: new Date(2026, 8, 3),
+      startedAt,
+    }),
+    'missed'
+  );
+  // The enrolment day itself is yours to read, so it can be missed.
+  assert.equal(
+    resolvePlanLedgerDayState({
+      dayNumber: 1,
+      currentDay: 8,
+      isCompleted: false,
+      dayDate: new Date(2026, 8, 1),
+      startedAt,
+    }),
+    'missed'
+  );
+});
+
+test('resolvePlanLedgerDayState reads done and today ahead of any date comparison', () => {
+  const startedAt = new Date(2026, 8, 8, 9, 30).toISOString();
+
+  assert.equal(
+    resolvePlanLedgerDayState({
+      dayNumber: 3,
+      currentDay: 8,
+      isCompleted: true,
+      dayDate: new Date(2026, 8, 3),
+      startedAt,
+    }),
+    'done',
+    'a day read during an earlier cycle stays read'
+  );
+  assert.equal(
+    resolvePlanLedgerDayState({ dayNumber: 8, currentDay: 8, isCompleted: false, startedAt }),
+    'today'
+  );
+  assert.equal(
+    resolvePlanLedgerDayState({ dayNumber: 9, currentDay: 8, isCompleted: false, startedAt }),
+    'future'
+  );
+});
+
+test('resolvePlanLedgerDayState treats a sequential plan without dates as before/after today', () => {
+  // A sequential plan schedules day 1 on the enrolment date, so no day can
+  // precede it and the ledger falls back to the plain behind/ahead reading.
+  assert.equal(
+    resolvePlanLedgerDayState({ dayNumber: 2, currentDay: 5, isCompleted: false }),
+    'missed'
+  );
+  assert.equal(
+    resolvePlanLedgerDayState({
+      dayNumber: 2,
+      currentDay: 5,
+      isCompleted: false,
+      startedAt: 'not-a-date',
+      dayDate: new Date(2026, 8, 2),
+    }),
+    'missed',
+    'an unparseable enrolment stamp must not silently erase the missed record'
+  );
+});
+
 test('isMultiSessionPlan only returns true for explicitly multi-session plans', () => {
   assert.equal(isMultiSessionPlan(makePlan()), false);
   assert.equal(
@@ -604,10 +699,7 @@ test('reconcileFetchedPlanProgress preserves a recent unsynced local enrollment 
     progress.map((entry) => entry.plan_id),
     ['plan-local-only', 'plan-remote']
   );
-  assert.equal(
-    progress.find((entry) => entry.plan_id === 'plan-local-only')?.user_id,
-    undefined
-  );
+  assert.equal(progress.find((entry) => entry.plan_id === 'plan-local-only')?.user_id, undefined);
   assert.deepEqual(
     localOnlyProgress.map((entry) => entry.plan_id),
     ['plan-local-only']

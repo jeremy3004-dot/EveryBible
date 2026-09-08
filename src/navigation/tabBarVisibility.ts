@@ -7,6 +7,7 @@ export function shouldHideTabBarOnNestedRoute(
     routeName === 'BiblePicker' ||
     routeName === 'LessonDetail' ||
     routeName === 'PlanDetail' ||
+    routeName === 'LocalePreferences' ||
     (routeName === 'BibleReader' && typeof routeParams?.planId === 'string')
   );
 }

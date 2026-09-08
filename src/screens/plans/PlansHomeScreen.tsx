@@ -125,7 +125,9 @@ function CoverImage({
 }) {
   const source = getReadingPlanCoverSource(plan);
   if (source) {
-    return <Image source={source} style={StyleSheet.absoluteFill} resizeMode="cover" />;
+    // RN injects the asset's intrinsic 320×180 size into the style unless the
+    // style states its own frame, so absoluteFill alone would draw a fixed tile.
+    return <Image source={source} style={coverStyles.image} resizeMode="cover" />;
   }
   // No artwork: a warm accent gradient with the plan's serif initial — a cover,
   // distinct from the icon-led empty state.
@@ -152,6 +154,13 @@ function CoverImage({
 }
 
 const coverStyles = StyleSheet.create({
+  image: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
   fallback: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -369,30 +378,33 @@ function MyPlansSection({
     );
   };
 
+  // Nothing started yet: show the empty state alone. A section header above an
+  // empty list reads as a broken section, so no headers render in this state.
+  if (activePlans.length === 0) {
+    return (
+      <View style={styles.content}>
+        <EmptyState
+          icon="book-outline"
+          title={t('readingPlans.noActivePlans')}
+          body={t('readingPlans.findPlans')}
+          cta={{ label: t('readingPlans.addFirstPlan'), onPress: onAddPlan }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.content}>
-      <View style={styles.sectionBlock}>
-        <SectionHeader
-          title={t('readingPlans.dailyReadings')}
-          eyebrow={
-            dailyReadingPlans.length > 0
-              ? t('readingPlans.plansCount', { count: dailyReadingPlans.length })
-              : undefined
-          }
-          style={styles.sectionHeader}
-        />
-
-        {activePlans.length === 0 ? (
-          <EmptyState
-            icon="book-outline"
-            title={t('readingPlans.noActivePlans')}
-            body={t('readingPlans.findPlans')}
-            cta={{ label: t('readingPlans.addFirstPlan'), onPress: onAddPlan }}
+      {dailyReadingPlans.length > 0 ? (
+        <View style={styles.sectionBlock}>
+          <SectionHeader
+            title={t('readingPlans.dailyReadings')}
+            eyebrow={t('readingPlans.plansCount', { count: dailyReadingPlans.length })}
+            style={styles.sectionHeader}
           />
-        ) : (
-          dailyReadingPlans.map(renderPlanCard)
-        )}
-      </View>
+          {dailyReadingPlans.map(renderPlanCard)}
+        </View>
+      ) : null}
 
       {dailyRhythmPlans.length > 0 ? (
         <View style={styles.sectionBlock}>

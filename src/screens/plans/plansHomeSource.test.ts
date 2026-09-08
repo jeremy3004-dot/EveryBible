@@ -413,3 +413,35 @@ test('PlansHomeScreen renders bundled plans before remote plan-progress hydratio
     'PlansHomeScreen should only keep the loading spinner up while the bundled plan catalog itself is still empty'
   );
 });
+
+test('PlansHomeScreen renders no section header when the My Plans tab is empty', () => {
+  const emptyStateBranch = source.match(/if \(activePlans\.length === 0\) \{[\s\S]*?\n {2}\}/)?.[0];
+  assert.ok(
+    emptyStateBranch,
+    'PlansHomeScreen should short-circuit MyPlansSection to the empty state before any section renders'
+  );
+  assert.match(
+    emptyStateBranch,
+    /<EmptyState/,
+    'the empty My Plans branch should render the shared EmptyState'
+  );
+  assert.doesNotMatch(
+    emptyStateBranch,
+    /<SectionHeader/,
+    'PlansHomeScreen should not render a section header above the empty My Plans state'
+  );
+  assert.match(
+    source,
+    /\{dailyReadingPlans\.length > 0 \? \([\s\S]*?<SectionHeader\s+title=\{t\('readingPlans\.dailyReadings'\)\}/s,
+    'PlansHomeScreen should only render the Daily Readings header when that section has plans'
+  );
+  const completedSection = source.match(
+    /function CompletedPlansSection\([\s\S]*?const createCompletedStyles/
+  )?.[0];
+  assert.ok(completedSection, 'CompletedPlansSection should be present');
+  assert.match(
+    completedSection,
+    /if \(completedPlans\.length === 0\) \{\s*return \(\s*<EmptyState/s,
+    'PlansHomeScreen should render the completed tab empty state without a section header'
+  );
+});

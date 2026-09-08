@@ -196,6 +196,67 @@ export function getPlanCompletionEntryKey(
   return isRecurringPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
 }
 
+/** The four states a plan day can hold in the ledger. Cells and rows share them. */
+export type ReadingPlanLedgerDayState = 'done' | 'today' | 'missed' | 'future';
+
+/**
+ * Whether a plan day fell before the user enrolled, and so was never theirs to read.
+ *
+ * `startedAt` is the ISO enrolment timestamp; both sides collapse to a local
+ * calendar day before comparing, because "the 7th" is a local date, not an instant.
+ */
+function isPlanDayBeforeEnrolment(dayDate: Date | null, startedAt: string | null): boolean {
+  if (!dayDate || !startedAt) {
+    return false;
+  }
+
+  const enrolledAt = new Date(startedAt);
+  if (Number.isNaN(enrolledAt.getTime())) {
+    return false;
+  }
+
+  return formatLocalDateKey(dayDate) < formatLocalDateKey(enrolledAt);
+}
+
+/**
+ * The ledger state of one plan day — the single derivation the cell grid, the
+ * ledger rows and the read/missed tally all read, so the three cannot disagree.
+ *
+ * "Missed" means the day was yours and you did not read it, which requires it to
+ * fall on or after the day you enrolled. A recurring rhythm carries its whole
+ * cycle behind it — enrol in the Proverbs plan on the 8th and days 1–7 already
+ * hold dates in the past — but those days were never offered to you, so they read
+ * as neutral future cells instead of a week of failure on your first afternoon.
+ * (A sequential plan schedules day 1 on the enrolment date itself, so none of its
+ * days can precede it and `dayDate` may simply be omitted.)
+ */
+export function resolvePlanLedgerDayState({
+  dayNumber,
+  currentDay,
+  isCompleted,
+  dayDate = null,
+  startedAt = null,
+}: {
+  dayNumber: number;
+  currentDay: number;
+  isCompleted: boolean;
+  /** The local date this day falls on, when the plan can name one. */
+  dayDate?: Date | null;
+  /** ISO enrolment timestamp, from `progress.started_at`. */
+  startedAt?: string | null;
+}): ReadingPlanLedgerDayState {
+  if (isCompleted) {
+    return 'done';
+  }
+  if (dayNumber === currentDay) {
+    return 'today';
+  }
+  if (dayNumber > currentDay) {
+    return 'future';
+  }
+  return isPlanDayBeforeEnrolment(dayDate, startedAt) ? 'future' : 'missed';
+}
+
 export function getVisibleCompletedEntryCount(
   plan: Pick<ReadingPlan, 'scheduleMode' | 'weekStartsOn'>,
   completedEntries: Record<string, string>,

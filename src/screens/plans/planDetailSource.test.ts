@@ -111,14 +111,32 @@ test('PlanDetailScreen derives ledger cells and ledger rows from one completion 
     'The shared helper should read the same completed_entries key the cell grid files days under'
   );
   assert.equal(
-    (source.match(/= isLedgerDayComplete\(\{/g) ?? []).length,
+    (source.match(/= getLedgerDayState\(\{/g) ?? []).length,
     2,
-    'Both the cell grid and the ledger rows should derive done/missed state from the shared helper'
+    'Both the cell grid and the ledger rows should derive their day state from the shared helper'
   );
   assert.match(
     source,
     /function getRecurringLedgerDayDate\(plan: ReadingPlan, dayNumber: number, today: Date\): Date \| null/,
     'PlanDetailScreen should resolve the cycle date a recurring plan day falls on'
+  );
+});
+
+test('PlanDetailScreen never counts days before enrolment as missed', () => {
+  assert.match(
+    source,
+    /resolvePlanLedgerDayState\(\{[\s\S]*startedAt: progress\?\.started_at \?\? null,/s,
+    'The shared day-state helper should hand the enrolment date to the ledger state resolver, so a cycle day that ran before the user joined is not counted as missed'
+  );
+  assert.match(
+    source,
+    /dayDate: plan \? getRecurringLedgerDayDate\(plan, dayNumber, today\) : null,/,
+    'The shared day-state helper should resolve the cycle date a recurring day falls on before comparing it to the enrolment date'
+  );
+  assert.match(
+    source,
+    /isFuture: isEnrolled && ledgerState === 'future',/,
+    'A pre-enrolment ledger row should render in the neutral future style rather than carrying missed weight'
   );
 });
 
@@ -194,8 +212,8 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
   );
   assert.match(
     source,
-    /type LedgerCellState = 'done' \| 'missed' \| 'today' \| 'future';/,
-    'PlanDetailScreen should classify every plan day into one of the four ledger cell states'
+    /const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = \{/,
+    'PlanDetailScreen should paint a cell for every one of the four shared ledger day states'
   );
   assert.match(
     source,
@@ -234,6 +252,11 @@ test('PlanDetailScreen overlays the plan title on the hero image and removes the
     source,
     /durationBadge|durationText|metaRow/,
     'PlanDetailScreen should remove the small duration badge row from beneath the cover'
+  );
+  assert.match(
+    source,
+    /coverImage: \{\s*\n\s*position: 'absolute',\s*\n\s*top: 0,\s*\n\s*left: 0,\s*\n\s*width: '100%',\s*\n\s*height: COVER_HEIGHT,/,
+    'The hero photo must state its own frame: a required asset carries its intrinsic size into the style, so inset-only positioning leaves a small tile in the corner instead of a full-bleed cover'
   );
 });
 
