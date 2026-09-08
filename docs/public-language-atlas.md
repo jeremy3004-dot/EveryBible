@@ -14,9 +14,10 @@ crowded dots at regional zoom (4 and above), one zoom level earlier than before;
 collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
 
-At desktop widths (1024px and above), the atlas sits inside 48–80px page-background
-gutters on both sides. Wheel scrolling in either gutter scrolls the page; map
-zoom gestures stay confined to the inset map. A subtle border marks the boundary.
+At desktop widths (1024px and above), transparent 48–80px hit areas cover the
+map edges on both sides. Wheel scrolling in either area scrolls the page. The
+map stays visually full-width, without gutter backgrounds, borders, or an inset.
+The edge hit areas sit below the search and other interactive website controls.
 
 ## Mobile controls
 

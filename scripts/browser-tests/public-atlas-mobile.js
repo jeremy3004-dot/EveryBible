@@ -165,10 +165,10 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Desktop legend remains visible'
   );
   const atlasBounds = await page.locator('.public-atlas').boundingBox();
-  check(atlasBounds.x >= 48, 'Desktop map leaves a clear left scroll gutter');
+  check(atlasBounds.x === 0, 'Desktop map remains visually full-width');
   check(
-    1440 - atlasBounds.x - atlasBounds.width >= 48,
-    'Desktop map leaves a clear right scroll gutter'
+    atlasBounds.width === 1440,
+    'Invisible scroll gutters do not inset the map'
   );
   for (const x of [24, 1416]) {
     await page.evaluate(() => window.scrollTo(0, 0));
