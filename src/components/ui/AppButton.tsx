@@ -13,12 +13,26 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, motion, radius, spacing, typography } from '../../design/system';
+import { layout, motion, shadows, spacing, typography } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
-export type AppButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+/**
+ * - `primary`  accent fill, the one CTA per view.
+ * - `secondary` paper strip — the icon-button surface stretched (Google sign-in).
+ * - `ink`      inverted page fill, reserved for Apple sign-in.
+ * - `outline`  hairline only, no fill — the "Complete" toggle.
+ * - `ghost`    text only.
+ * - `destructive` error fill.
+ */
+export type AppButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ink'
+  | 'outline'
+  | 'ghost'
+  | 'destructive';
 export type AppButtonSize = 'lg' | 'md';
 
 export interface AppButtonProps {
@@ -28,17 +42,23 @@ export interface AppButtonProps {
   size?: AppButtonSize;
   loading?: boolean;
   disabled?: boolean;
-  leadingIcon?: keyof typeof Ionicons.glyphMap;
+  leadingIcon?: LucideIcon;
+  trailingIcon?: LucideIcon;
   fullWidth?: boolean;
   haptic?: HapticFeedback;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }
 
+// EL pills: 50pt for the primary CTA, 40pt for inline actions. The radius is
+// always half the height, so both are fully rounded.
 const SIZE_HEIGHT: Record<AppButtonSize, number> = {
-  lg: 52,
-  md: 44,
+  lg: layout.pillHeight,
+  md: layout.iconButton,
 };
+
+const ICON_SIZE = 18;
+const ICON_STROKE = 2;
 
 // Once the spinner appears it stays for at least this long, so a fast-resolving
 // action never flashes it for a single frame.
@@ -51,7 +71,8 @@ export function AppButton({
   size = 'lg',
   loading = false,
   disabled = false,
-  leadingIcon,
+  leadingIcon: LeadingIcon,
+  trailingIcon: TrailingIcon,
   fullWidth = true,
   haptic = 'medium',
   style,
@@ -81,18 +102,32 @@ export function AppButton({
     variant === 'primary'
       ? colors.accentPrimary
       : variant === 'secondary'
-        ? colors.accentSoft
-        : variant === 'destructive'
-          ? colors.error
-          : 'transparent';
+        ? colors.cardBackground
+        : variant === 'ink'
+          ? colors.primaryText
+          : variant === 'destructive'
+            ? colors.error
+            : 'transparent';
 
   const contentColor: string =
     variant === 'primary'
       ? colors.onAccent
-      : variant === 'destructive'
-        ? '#FFFFFF'
-        : colors.accentPrimary;
+      : variant === 'ink'
+        ? colors.background
+        : variant === 'secondary' || variant === 'outline'
+          ? colors.primaryText
+          : variant === 'destructive'
+            ? '#FFFFFF'
+            : colors.accentPrimary;
 
+  const borderStyle: ViewStyle =
+    variant === 'secondary'
+      ? { borderWidth: 1, borderColor: colors.cardBorder }
+      : variant === 'outline'
+        ? { borderWidth: 1, borderColor: colors.borderStrong }
+        : {};
+
+  const height = SIZE_HEIGHT[size];
   const isInteractive = !disabled && !loading;
 
   return (
@@ -103,21 +138,37 @@ export function AppButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
       accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={Math.max(0, Math.round((layout.minTouchTarget - height) / 2))}
       style={[
         styles.base,
-        { height: SIZE_HEIGHT[size], backgroundColor },
+        { height, borderRadius: height / 2, backgroundColor },
+        borderStyle,
+        variant === 'secondary' ? shadows.card : null,
         fullWidth && styles.fullWidth,
         disabled && !loading && styles.disabled,
         style,
       ]}
     >
       <Animated.View style={[styles.content, labelStyle]}>
-        {leadingIcon ? (
-          <Ionicons name={leadingIcon} size={18} color={contentColor} style={styles.icon} />
+        {LeadingIcon ? (
+          <LeadingIcon
+            size={ICON_SIZE}
+            color={contentColor}
+            strokeWidth={ICON_STROKE}
+            style={styles.leadingIcon}
+          />
         ) : null}
-        <Text style={[typography.button, { color: contentColor }]} numberOfLines={1}>
+        <Text style={[typography.bodyStrong, { color: contentColor }]} numberOfLines={1}>
           {label}
         </Text>
+        {TrailingIcon ? (
+          <TrailingIcon
+            size={ICON_SIZE}
+            color={contentColor}
+            strokeWidth={ICON_STROKE}
+            style={styles.trailingIcon}
+          />
+        ) : null}
       </Animated.View>
       <Animated.View style={[styles.spinner, spinnerStyle]} pointerEvents="none">
         <ActivityIndicator color={contentColor} />
@@ -128,11 +179,9 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    minHeight: layout.minTouchTarget,
+    paddingHorizontal: spacing.xl,
   },
   fullWidth: {
     alignSelf: 'stretch',
@@ -145,8 +194,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
+  leadingIcon: {
     marginRight: spacing.sm,
+  },
+  trailingIcon: {
+    marginLeft: spacing.sm,
   },
   spinner: {
     ...StyleSheet.absoluteFillObject,

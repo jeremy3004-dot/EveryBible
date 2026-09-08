@@ -10,9 +10,11 @@ import { getReaderTabBarTranslation } from './readerTabBarMotion';
 // capsule now goes through here.
 
 /**
- * Keeps the five tab centers aligned with the reference's inset capsule.
+ * Inner padding of the capsule. The EL tab bar leaves 6pt of paper around the
+ * selection pill on every side, so the pill is 52pt tall inside a 64pt capsule
+ * and the five tab centers stay aligned with the reference.
  */
-export const TAB_BAR_CAPSULE_ROW_INSET = 8;
+export const TAB_BAR_CAPSULE_ROW_INSET = 6;
 
 export interface TabBarCapsuleStyleOptions {
   sideInset: number;

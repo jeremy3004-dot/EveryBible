@@ -1,41 +1,49 @@
 import { type ReactNode } from 'react';
 import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { spacing, typography } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
-const LEADING_SIZE = 32;
+const LEADING_ICON_SIZE = 18;
+const LEADING_GAP = spacing.md;
+const CHEVRON_SIZE = 16;
+const ICON_STROKE = 2;
+const ROW_MIN_HEIGHT = 52;
 
 export interface ListRowProps {
   title: string;
   subtitle?: string;
-  leadingIcon?: keyof typeof Ionicons.glyphMap;
-  /** Right-aligned value text (muted). */
+  /** A plain Lucide glyph in `secondaryText` — no tinted well behind it. */
+  leadingIcon?: LucideIcon;
+  /** Right-aligned value text, set in the mono/tabular metadata style. */
   value?: string;
   /** Custom trailing content (e.g. a Switch). Takes precedence over chevron/value. */
   trailing?: ReactNode;
   showChevron?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
   destructive?: boolean;
+  /** Row titles are medium by default; pass '600' where a row is a heading. */
+  titleWeight?: '500' | '600';
   /** Hide the bottom separator on the final row of a group. */
   isLast?: boolean;
   haptic?: HapticFeedback;
   accessibilityLabel?: string;
 }
 
-// The one row recipe for More / Settings / pickers: 52pt min height, optional
-// tinted leading icon, title/subtitle, and a trailing chevron | value | control,
-// with inset hairline separators between rows.
+// The one row recipe for More / Settings / pickers: 52pt min height, a plain
+// leading glyph, title/subtitle, and a trailing chevron | value | control, with
+// separators inset past the glyph so the text column reads as one edge.
 export function ListRow({
   title,
   subtitle,
-  leadingIcon,
+  leadingIcon: LeadingIcon,
   value,
   trailing,
   showChevron = false,
   onPress,
   destructive = false,
+  titleWeight = '500',
   isLast = false,
   haptic = 'selection',
   accessibilityLabel,
@@ -45,17 +53,23 @@ export function ListRow({
 
   const content = (
     <View style={styles.row}>
-      {leadingIcon ? (
-        <View style={[styles.leading, { backgroundColor: colors.accentSoft }]}>
-          <Ionicons name={leadingIcon} size={18} color={colors.accentPrimary} />
-        </View>
+      {LeadingIcon ? (
+        <LeadingIcon
+          size={LEADING_ICON_SIZE}
+          color={destructive ? colors.error : colors.secondaryText}
+          strokeWidth={ICON_STROKE}
+          style={styles.leading}
+        />
       ) : null}
       <View style={styles.textColumn}>
-        <Text style={[typography.bodyStrong, { color: titleColor }]} numberOfLines={1}>
+        <Text
+          style={[typography.rowTitle, { color: titleColor, fontWeight: titleWeight }]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[typography.micro, { color: colors.secondaryText }]} numberOfLines={2}>
+          <Text style={[typography.caption, { color: colors.secondaryText }]} numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
@@ -63,17 +77,18 @@ export function ListRow({
       <View style={styles.trailing}>
         {trailing ??
           (value ? (
-            <Text style={[typography.body, { color: colors.secondaryText }]} numberOfLines={1}>
+            <Text style={[typography.mono, { color: colors.secondaryText }]} numberOfLines={1}>
               {value}
             </Text>
           ) : null)}
         {showChevron && !trailing ? (
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={colors.textTertiary}
-            style={value ? styles.chevronAfterValue : undefined}
-          />
+          <View style={value ? styles.chevronAfterValue : undefined}>
+            <ChevronRight
+              size={CHEVRON_SIZE}
+              color={colors.textTertiary}
+              strokeWidth={ICON_STROKE}
+            />
+          </View>
         ) : null}
       </View>
     </View>
@@ -84,8 +99,8 @@ export function ListRow({
       style={[
         styles.separator,
         {
-          backgroundColor: colors.cardBorder,
-          marginLeft: leadingIcon ? LEADING_SIZE + spacing.md : 0,
+          backgroundColor: colors.borderStrong,
+          marginLeft: LeadingIcon ? LEADING_ICON_SIZE + LEADING_GAP : 0,
         },
       ]}
     />
@@ -96,6 +111,7 @@ export function ListRow({
       <View>
         <PressableScale
           onPress={onPress}
+          pressEffect="translate"
           haptic={haptic}
           accessibilityRole="button"
           accessibilityLabel={accessibilityLabel ?? title}
@@ -119,16 +135,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: layout.minTouchTarget + spacing.sm,
+    minHeight: ROW_MIN_HEIGHT,
     paddingVertical: spacing.sm,
   },
   leading: {
-    width: LEADING_SIZE,
-    height: LEADING_SIZE,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
+    marginRight: LEADING_GAP,
   },
   textColumn: {
     flex: 1,
@@ -140,9 +151,9 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
   },
   chevronAfterValue: {
-    marginLeft: spacing.xs,
+    marginLeft: spacing.sm,
   },
   separator: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
   },
 });

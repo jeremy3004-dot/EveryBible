@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+// Dependency-free, so importing it does not drag react-native into the runner.
+import { APPEARANCE_PALETTES } from '../constants/appearancePalettes';
 
 // ---------------------------------------------------------------------------
 // Read theme source directly — avoids importing React / RN at test time
@@ -126,9 +128,10 @@ test('ThemeContext ships exactly the two scopes the EL design system defines', (
   }
 });
 
-test('a persisted theme retired by the EL reskin falls back to Field dark', () => {
+test('a persisted theme retired by the EL reskin falls back to vellum', () => {
   // Narrowing the validation list is the migration: anything outside it resolves
-  // to 'dark' rather than leaving the provider in a scope it cannot render.
+  // to the default scope rather than leaving the provider in a scope it cannot
+  // render.
   const source = readThemeSource();
 
   // All three boundaries share one resolver so they cannot drift apart.
@@ -147,7 +150,11 @@ test('a persisted theme retired by the EL reskin falls back to Field dark', () =
     /return value === 'parchment' \? 'light' : DEFAULT_THEME_MODE;/,
     'parchment was a light-paper mode and should resolve to vellum, not Field dark'
   );
-  assert.match(modeSource, /DEFAULT_THEME_MODE: ThemeMode = 'dark'/, 'default should be dark');
+  assert.match(
+    modeSource,
+    /DEFAULT_THEME_MODE: ThemeMode = 'light'/,
+    'the EL redesign makes vellum the default scope'
+  );
 
   const sanitizerSource = readFileSync(
     fileURLToPath(new URL('../stores/persistedStateSanitizers.ts', import.meta.url).href),
@@ -203,6 +210,70 @@ test('Light-family accents (primaryDeep) stay readable on vellum surfaces', () =
   }
 });
 
+test('every palette ships a scope-specific selected-surface pair', () => {
+  // accentSurface/onAccentSurface are the "you are here" fill and its foreground
+  // (active tab pill, chips, avatar wells). They must travel with the palette so
+  // switching accents cannot leave a terracotta well under a blue glyph.
+  const source = readThemeSource();
+
+  for (const key of [
+    'lightAccentSurface',
+    'lightOnAccentSurface',
+    'darkAccentSurface',
+    'darkOnAccentSurface',
+  ]) {
+    for (const palette of APPEARANCE_PALETTES) {
+      assert.equal(
+        typeof palette.swatches[key as keyof typeof palette.swatches],
+        'string',
+        `${palette.id} must define ${key}`
+      );
+    }
+  }
+
+  assert.match(
+    source,
+    /const accentSurface = isLightFamily\s*\?\s*palette\.lightAccentSurface\s*:\s*palette\.darkAccentSurface/,
+    'accentSurface must be resolved per palette, not frozen into the base scopes'
+  );
+  assert.match(
+    source,
+    /const onAccentSurface = isLightFamily\s*\?\s*palette\.lightOnAccentSurface\s*:\s*palette\.darkOnAccentSurface/,
+    'onAccentSurface must be resolved per palette too'
+  );
+  assert.match(
+    source,
+    /tabActive: onAccentSurface/,
+    'the active tab glyph is the accent-surface foreground, not a second copy of the accent'
+  );
+});
+
+test('both scopes declare the EL status and muted tokens the redesign added', () => {
+  const source = readThemeSource();
+
+  const expected: Record<string, [string, string]> = {
+    // token: [light value, dark value]
+    muted: ['#EAE6DD', '#221F19'],
+    successSoft: ['#C9EBD3', '#12321E'],
+    onSuccessSoft: ['#1F6A3F', '#8FD8A6'],
+    warningSoft: ['#F6E3CC', '#3A2A12'],
+    onAccentSurface: ['#9F503B', '#F0C8B8'],
+  };
+
+  for (const [token, [light, dark]] of Object.entries(expected)) {
+    assert.equal(
+      extractColorToken(source, 'baseLightColors', token),
+      light,
+      `vellum ${token} should be ${light}`
+    );
+    assert.equal(
+      extractColorToken(source, 'baseDarkColors', token),
+      dark,
+      `Field dark ${token} should be ${dark}`
+    );
+  }
+});
+
 test('the terracotta palette preserves the stored id and retired ids stay retired', () => {
   // The palette definition lives in appearancePalettes.ts; ThemeContext no
   // longer carries a picker-options list (it was dead code with stale copy).
@@ -212,6 +283,16 @@ test('the terracotta palette preserves the stored id and retired ids stay retire
   );
 
   assert.match(paletteSource, /id:\s*'el-blue'/, 'The existing storage id should be preserved');
+  assert.match(
+    paletteSource,
+    /id:\s*'el-blue-brand'/,
+    'the EL brand blue ships alongside terracotta so the accent can be A/B tested'
+  );
+  assert.match(
+    paletteSource,
+    /DEFAULT_APPEARANCE_PALETTE: AppearancePaletteId = 'el-blue'/,
+    'terracotta stays the default accent'
+  );
   for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
     assert.doesNotMatch(
       paletteSource,
@@ -229,7 +310,7 @@ test('ThemeContext exposes the isDark flag', () => {
   assert.doesNotMatch(source, /isLowLight/, 'isLowLight should be retired with the low-light mode');
 });
 
-test('ThemeContext resolves themeMode from stored preference with Field dark fallback', () => {
+test('ThemeContext resolves themeMode from stored preference with a vellum fallback', () => {
   const source = readThemeSource();
 
   assert.match(source, /preferences\.theme/, 'should read theme from stored preferences');
@@ -245,8 +326,8 @@ test('ThemeContext resolves themeMode from stored preference with Field dark fal
   );
   assert.match(
     modeSource,
-    /DEFAULT_THEME_MODE: ThemeMode = 'dark'/,
-    'new users should default to Field dark'
+    /DEFAULT_THEME_MODE: ThemeMode = 'light'/,
+    'new users should open on vellum, the canonical EL scope'
   );
 });
 

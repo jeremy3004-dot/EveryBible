@@ -1,10 +1,4 @@
-import {
-  type StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
@@ -27,8 +21,9 @@ export interface EmptyStateProps {
 
 const CIRCLE_SIZE = 64;
 
-// One voice for every empty state: a soft accent halo around an icon, a serif
-// heading, calm body copy, and an optional CTA.
+// One voice for every empty state: a soft accent halo around an icon, an eyebrow
+// heading, calm body copy, and an optional CTA. The heading is deliberately
+// quiet — an empty state should not shout louder than the screen title above it.
 export function EmptyState({ icon, title, body, cta, style }: EmptyStateProps) {
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
@@ -38,11 +33,18 @@ export function EmptyState({ icon, title, body, cta, style }: EmptyStateProps) {
       <View style={[styles.iconCircle, { backgroundColor: colors.accentSoft }]}>
         <Ionicons name={icon} size={30} color={colors.accentPrimary} />
       </View>
-      <Text style={[typography.pageTitle, displayFont.bold, styles.title, { color: colors.primaryText }]}>
+      <Text
+        style={[
+          typography.eyebrow,
+          displayFont.regular,
+          styles.title,
+          { color: colors.secondaryText },
+        ]}
+      >
         {title}
       </Text>
       {body ? (
-        <Text style={[typography.body, styles.body, { color: colors.secondaryText }]}>{body}</Text>
+        <Text style={[typography.body, styles.body, { color: colors.primaryText }]}>{body}</Text>
       ) : null}
       {cta ? (
         <View style={styles.cta}>
@@ -79,7 +81,7 @@ const styles = StyleSheet.create({
   },
   body: {
     textAlign: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     maxWidth: 320,
   },
   cta: {

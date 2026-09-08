@@ -28,10 +28,19 @@ export interface ThemeColors {
   accentSoft: string;
   /** EL `--accent`: a real selected-surface fill, not an alpha wash. */
   accentSurface: string;
+  /** EL `--accent-foreground`: the glyph/label colour on `accentSurface`. */
+  onAccentSurface: string;
   onAccent: string;
+  /** EL `--muted`: an inert, un-tinted well — empty ledger cells, segment tracks. */
+  muted: string;
   error: string;
   success: string;
+  /** EL `--success-soft` pair: a status chip fill and its own foreground. */
+  successSoft: string;
+  onSuccessSoft: string;
   warning: string;
+  /** EL `--warning-soft`: a missed-day fill, always paired with a `warning` border. */
+  warningSoft: string;
   overlay: string;
   tabActive: string;
   tabInactive: string;
@@ -106,12 +115,19 @@ const baseDarkColors: ThemeColors = {
   secondaryText: '#B0A99B', // --muted-foreground 40 12% 65%
   textTertiary: '#9A9384', // --text-faint 40 10% 56%
   ...defaultPaletteColors,
+  muted: '#221F19', // --muted 45 10% 10%
   error: '#E34F5B', // --danger 355 73% 60%
   success: '#62C082', // --success 140 43% 57%
+  successSoft: '#12321E', // --success-soft 147 47% 13%
+  onSuccessSoft: '#8FD8A6', // --success-soft-foreground 140 47% 71%
   warning: '#E9A23F', // --warning 35 79% 58%
+  warningSoft: '#3A2A12', // --warning-soft 36 53% 15%
   overlay: 'rgba(17, 17, 13, 0.62)',
-  accentSurface: '#492B22', // Terracotta selected surface
-  tabActive: '#F0C8B8', // --accent-foreground, the active tab pill glyph
+  // accentSurface/onAccentSurface are the terracotta defaults; createThemeColors
+  // replaces both with the active palette's dark pair.
+  accentSurface: '#492B22',
+  onAccentSurface: '#F0C8B8',
+  tabActive: '#F0C8B8', // mirrors onAccentSurface — the active tab pill glyph
   tabInactive: '#B0A99B',
   bibleBackground: '#11110D',
   bibleSurface: '#201E18',
@@ -137,12 +153,19 @@ const baseLightColors: ThemeColors = {
   secondaryText: '#69624F', // --graphite 45 14% 36%
   textTertiary: '#6F6958', // --text-faint 45 12% 39%
   ...defaultPaletteColors,
+  muted: '#EAE6DD', // --muted 42 22% 89%
   error: '#C62A3A', // --danger 354 65% 47%
   success: '#2E8E5A', // --success 147 51% 37%
+  successSoft: '#C9EBD3', // --success-soft 140 47% 85%
+  onSuccessSoft: '#1F6A3F', // --success-soft-foreground 147 55% 27%
   warning: '#D27519', // --warning 30 79% 46%
+  warningSoft: '#F6E3CC', // --warning-soft 36 68% 88%
   overlay: 'rgba(26, 25, 20, 0.34)',
-  accentSurface: '#F4E1D8', // Terracotta selected surface
-  tabActive: '#9F503B', // --accent-foreground, the active tab pill glyph
+  // accentSurface/onAccentSurface are the terracotta defaults; createThemeColors
+  // replaces both with the active palette's light pair.
+  accentSurface: '#F4E1D8',
+  onAccentSurface: '#9F503B',
+  tabActive: '#9F503B', // mirrors onAccentSurface — the active tab pill glyph
   tabInactive: '#69624F',
   bibleBackground: '#F0ECE5',
   bibleSurface: '#FAF9F4',
@@ -163,6 +186,13 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
 
   const isLightFamily = LIGHT_FAMILY_MODES.has(mode);
   const accentBase = isLightFamily ? palette.primaryDeep : palette.primary;
+  // The selected-surface pair travels with the palette, so switching accents
+  // moves the tab pill, chips and avatar wells together instead of leaving a
+  // terracotta well under a blue glyph.
+  const accentSurface = isLightFamily ? palette.lightAccentSurface : palette.darkAccentSurface;
+  const onAccentSurface = isLightFamily
+    ? palette.lightOnAccentSurface
+    : palette.darkOnAccentSurface;
 
   const accentTokens = {
     accentPrimary: accentBase,
@@ -170,7 +200,12 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
     accentGreen: accentBase,
     accentTertiary: palette.tertiary,
     accentSoft: withAlpha(accentBase, ACCENT_SOFT_ALPHA),
+    accentSurface,
+    onAccentSurface,
     onAccent: isLightFamily ? onAccentLight : onAccentDark,
+    // The active tab pill is an accentSurface well, so its glyph is the surface
+    // foreground — not a second, drift-prone copy of the accent.
+    tabActive: onAccentSurface,
     bibleAccent: accentBase,
   };
 

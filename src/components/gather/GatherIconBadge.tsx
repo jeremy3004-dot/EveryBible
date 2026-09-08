@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import type { LucideIcon } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -26,7 +27,13 @@ type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 interface GatherIconBadgeProps {
   artworkKey?: string;
+  /** Ionicons fallback, kept for callers that have not moved to Lucide yet. */
   iconName?: IoniconName;
+  /**
+   * Lucide fallback glyph, used when no artwork resolves. Takes precedence over
+   * `iconName` so a screen can move to Lucide one badge at a time.
+   */
+  fallbackIcon?: LucideIcon;
   size: number;
   iconSize: number;
   backgroundColor?: string;
@@ -37,6 +44,7 @@ interface GatherIconBadgeProps {
 export function GatherIconBadge({
   artworkKey,
   iconName,
+  fallbackIcon: FallbackIcon,
   size,
   iconSize,
   backgroundColor,
@@ -78,8 +86,16 @@ export function GatherIconBadge({
     const width = Number.parseFloat(widthMatch?.[1] ?? '200');
     const height = Number.parseFloat(heightMatch?.[1] ?? '200');
     const viewBox = viewBoxMatch?.[1] ?? `0 0 ${width} ${height}`;
-    const [, minXString = '0', minYString = '0', viewBoxWidthString = String(width), viewBoxHeightString = String(height)] =
-      viewBox.match(/(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)/i) ?? [];
+    const [
+      ,
+      minXString = '0',
+      minYString = '0',
+      viewBoxWidthString = String(width),
+      viewBoxHeightString = String(height),
+    ] =
+      viewBox.match(
+        /(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)\s+(-?\d*\.?\d+(?:e[+-]?\d+)?)/i
+      ) ?? [];
     const minX = Number.parseFloat(minXString);
     const minY = Number.parseFloat(minYString);
     const viewBoxWidth = Number.parseFloat(viewBoxWidthString);
@@ -140,6 +156,8 @@ export function GatherIconBadge({
         />
       ) : themedArtworkXml ? (
         <SvgXml xml={themedArtworkXml} width={artworkSize} height={artworkSize} />
+      ) : FallbackIcon ? (
+        <FallbackIcon size={iconSize} color={resolvedColor} strokeWidth={2} />
       ) : (
         <Ionicons name={iconName ?? 'book-outline'} size={iconSize} color={resolvedColor} />
       )}

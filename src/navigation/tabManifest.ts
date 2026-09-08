@@ -1,45 +1,48 @@
-import type { ComponentProps } from 'react';
-import type { Ionicons } from '@expo/vector-icons';
 import type { RootTabParamList } from './types';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
+/**
+ * The Lucide glyph each root tab draws. Kept as a literal union rather than the
+ * component itself so this manifest stays a pure data module — importing
+ * `lucide-react-native` here would drag `react-native` into every consumer,
+ * including the Node test runner. `TAB_BAR_ICONS` in TabNavigator binds each
+ * name to its component.
+ */
+export type RootTabIconName = 'house' | 'book-open' | 'users' | 'calendar' | 'ellipsis';
 
 export interface RootTabManifestEntry {
   name: keyof RootTabParamList;
   labelKey: string;
-  focusedIcon: IconName;
-  unfocusedIcon: IconName;
+  /**
+   * Lucide ships one stroke weight per glyph, so the selected state is carried
+   * by the accent pill behind the icon rather than a filled variant.
+   */
+  iconName: RootTabIconName;
 }
 
 export const rootTabManifest: RootTabManifestEntry[] = [
   {
     name: 'Home',
     labelKey: 'tabs.home',
-    focusedIcon: 'home',
-    unfocusedIcon: 'home-outline',
+    iconName: 'house',
   },
   {
     name: 'Bible',
     labelKey: 'tabs.bible',
-    focusedIcon: 'book',
-    unfocusedIcon: 'book-outline',
+    iconName: 'book-open',
   },
   {
     name: 'Learn',
     labelKey: 'tabs.gather',
-    focusedIcon: 'people',
-    unfocusedIcon: 'people-outline',
+    iconName: 'users',
   },
   {
     name: 'Plans',
     labelKey: 'tabs.plans',
-    focusedIcon: 'calendar',
-    unfocusedIcon: 'calendar-outline',
+    iconName: 'calendar',
   },
   {
     name: 'More',
     labelKey: 'tabs.more',
-    focusedIcon: 'ellipsis-horizontal',
-    unfocusedIcon: 'ellipsis-horizontal-outline',
+    iconName: 'ellipsis',
   },
 ];

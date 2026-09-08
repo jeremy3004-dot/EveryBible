@@ -39,3 +39,28 @@ test('useTabBarHeight derives the bottom gutter from the device safe area instea
     'the capsule height should be exposed separately from the occupied space'
   );
 });
+
+test('the capsule carries the EL geometry: 64pt tall, 16pt side inset, radius 32', () => {
+  const source = readRelativeSource('./useTabBarHeight.ts');
+
+  assert.match(source, /export const TAB_BAR_CAPSULE_HEIGHT = 64;/);
+  assert.match(source, /export const TAB_BAR_CAPSULE_SIDE_INSET = 16;/);
+  assert.match(
+    source,
+    /export const TAB_BAR_CAPSULE_RADIUS = TAB_BAR_CAPSULE_HEIGHT \/ 2;/,
+    'a 64pt capsule is fully rounded at radius 32'
+  );
+});
+
+test('contentClearance leaves scrolling screens a gap above the capsule', () => {
+  const source = readRelativeSource('./useTabBarHeight.ts');
+
+  // 22 (home-indicator gap) + 64 (capsule) + 16 (breathing room) = 102pt, so a
+  // screen's last row still ends clear of the floating bar.
+  assert.match(source, /export const TAB_BAR_CONTENT_GAP = spacing\.lg;/);
+  assert.match(
+    source,
+    /contentClearance: bottomPadding \+ TAB_BAR_CAPSULE_HEIGHT \+ TAB_BAR_CONTENT_GAP,/,
+    'screens should get a single number to pad their scroll content with'
+  );
+});

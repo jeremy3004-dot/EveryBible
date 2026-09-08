@@ -53,21 +53,29 @@ const serifItalic = serifFamily(400, true);
 export const typography = {
   displayHero: {
     fontFamily: displayBold,
-    fontSize: 30,
-    lineHeight: 31, // EL --leading-display 0.92, floored so descenders clear
-    letterSpacing: -1.2, // EL --tracking-display -0.04em at 30px
+    fontSize: 32,
+    lineHeight: 31, // EL --leading-display 0.95, floored so descenders clear
+    letterSpacing: -1.28, // EL --tracking-display -0.04em at 32px
   } satisfies TextStyle,
   screenTitle: {
     fontFamily: displayBold,
     fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.98, // EL --tracking-heading -0.035em
+    lineHeight: 27, // 0.95
+    letterSpacing: -1.12, // -0.04em at 28px
   } satisfies TextStyle,
   pageTitle: {
     fontFamily: displayBold,
     fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: -0.84,
+    lineHeight: 23, // 0.95
+    letterSpacing: -0.96, // -0.04em at 24px
+  } satisfies TextStyle,
+  // Group heading inside a screen — "Daily rhythms", "September 2026". One step
+  // down from pageTitle and the only display token that is not a screen title.
+  sectionHeading: {
+    fontFamily: displayBold,
+    fontSize: 18,
+    lineHeight: 18,
+    letterSpacing: -0.45, // -0.025em at 18px
   } satisfies TextStyle,
   serifQuote: {
     fontFamily: displayRegular,
@@ -95,10 +103,36 @@ export const typography = {
     lineHeight: 22,
     fontWeight: '400',
   } satisfies TextStyle,
+  bodyMedium: {
+    fontFamily: uiFontFamily,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
+  } satisfies TextStyle,
   bodyStrong: {
     fontFamily: uiFontFamily,
     fontSize: 15,
     lineHeight: 22,
+    fontWeight: '600',
+  } satisfies TextStyle,
+  // The settings/list row title. Tighter leading than `body` so a 52pt row still
+  // has room for a subtitle. Callers may drop it to 500 (ListRow's default).
+  rowTitle: {
+    fontFamily: uiFontFamily,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  } satisfies TextStyle,
+  caption: {
+    fontFamily: uiFontFamily,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
+  } satisfies TextStyle,
+  captionStrong: {
+    fontFamily: uiFontFamily,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '600',
   } satisfies TextStyle,
   label: {
@@ -115,13 +149,45 @@ export const typography = {
     fontWeight: '500',
     letterSpacing: 0.2,
   } satisfies TextStyle,
+  // Metadata label. EL sets eyebrows in Alte Haas *Regular* at weight 600 — the
+  // 700 face renders, and the wide 0.18em tracking is metric-matched to it, so
+  // this must not fall back to the platform UI font. Colour is the caller's
+  // (`secondaryText` almost everywhere).
   eyebrow: {
-    fontFamily: uiFontFamily,
+    fontFamily: displayRegular,
     fontSize: 11,
-    lineHeight: 17,
+    lineHeight: 15,
     fontWeight: '600',
     letterSpacing: 1.98, // EL --tracking-eyebrow 0.18em at 11px
     textTransform: 'uppercase',
+  } satisfies TextStyle,
+  // Same face and tracking, sentence case preserved — for metadata that carries
+  // real casing ("EveryBible 1.14 (250) · Every Language", "Source: this device").
+  eyebrowPlain: {
+    fontFamily: displayRegular,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    letterSpacing: 1.98,
+  } satisfies TextStyle,
+  // Right-hand values and counters — "Day 30 / 31", "6-day streak", "1 / 9".
+  // Not a true monospace: the display face with tabular figures, which is what
+  // EL means by mono.
+  mono: {
+    fontFamily: displayRegular,
+    fontSize: 12.5,
+    lineHeight: 16,
+    letterSpacing: 0.5, // 0.04em
+    fontVariant: ['tabular-nums'],
+  } satisfies TextStyle,
+  // Soft status chips — "ENROLLED", "SUGGESTED", "DAY 30 OF 31".
+  monoSmall: {
+    fontFamily: displayRegular,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.88, // 0.08em
+    textTransform: 'uppercase',
+    fontVariant: ['tabular-nums'],
   } satisfies TextStyle,
   button: {
     fontFamily: uiFontFamily,
@@ -146,6 +212,38 @@ export const typography = {
     fontSize: 64,
     lineHeight: 62,
     letterSpacing: -2.56,
+  } satisfies TextStyle,
+  // Big-numeral scale. EL sets numerals in the display face at a tight optical
+  // line-height so the digit block reads as a mark, not a line of text. Every
+  // one carries tabular figures: these numbers tick in place (streaks, day
+  // counts, chapter totals) and must not reflow as digits change.
+  numeralRow: {
+    fontFamily: displayBold,
+    fontSize: 26,
+    lineHeight: 25,
+    letterSpacing: -1.04, // -0.04em
+    fontVariant: ['tabular-nums'],
+  } satisfies TextStyle,
+  numeralXL: {
+    fontFamily: displayBold,
+    fontSize: 44,
+    lineHeight: 40, // 0.9
+    letterSpacing: -1.76, // -0.04em
+    fontVariant: ['tabular-nums'],
+  } satisfies TextStyle,
+  numeralHero: {
+    fontFamily: displayBold,
+    fontSize: 72,
+    lineHeight: 61, // 0.85
+    letterSpacing: -3.6, // -0.05em
+    fontVariant: ['tabular-nums'],
+  } satisfies TextStyle,
+  numeralStreak: {
+    fontFamily: displayBold,
+    fontSize: 84,
+    lineHeight: 71, // 0.85
+    letterSpacing: -4.2, // -0.05em
+    fontVariant: ['tabular-nums'],
   } satisfies TextStyle,
   readingHeading: {
     fontFamily: serifSemiBold,
@@ -179,12 +277,13 @@ export const numeric: TextStyle = {
 // entrance choreography. All motion must respect useReducedMotion().
 export const motion = {
   duration: {
-    fast: 140,
-    base: 220,
+    fast: 150,
+    base: 240,
     slow: 320,
   },
-  // Standard "decelerate" curve — cubic-bezier(0.2, 0, 0, 1).
-  easing: [0.2, 0, 0, 1] as const,
+  // EL's own curve — cubic-bezier(0.22, 1, 0.36, 1). A fast, confident settle
+  // with a touch of overshoot in the velocity, not a linear decelerate.
+  easing: [0.22, 1, 0.36, 1] as const,
   spring: {
     damping: 20,
     stiffness: 260,
@@ -196,9 +295,15 @@ export const layout = {
   sectionGap: spacing.xl,
   cardGap: spacing.lg,
   compactGap: spacing.md,
-  cardPadding: 20,
+  cardPadding: 16,
+  /** Cards whose content needs breathing room at the sides (hero/progress cards). */
+  cardPaddingWide: 18,
   denseCardPadding: spacing.lg,
   minTouchTarget: 44,
+  /** The paper circle used for back / share / more / secondary play. */
+  iconButton: 40,
+  /** Primary CTA pill height; its radius is half this. */
+  pillHeight: 50,
   tabBarBaseHeight: 52,
 } as const;
 

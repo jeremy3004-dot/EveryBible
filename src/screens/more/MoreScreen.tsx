@@ -4,6 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  BookOpen,
+  Bookmark,
+  Calendar,
+  Info,
+  LogOut,
+  Settings,
+  User,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
@@ -21,7 +31,7 @@ type MenuItem = {
   id: string;
   titleKey?: string;
   title?: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: LucideIcon;
   screen?: keyof MoreStackParamList;
   action?: () => void;
 };
@@ -35,17 +45,17 @@ const menuGroups: MenuGroup[] = [
   {
     id: 'account',
     items: [
-      { id: 'profile', titleKey: 'more.profile', icon: 'person-outline', screen: 'Profile' },
+      { id: 'profile', titleKey: 'more.profile', icon: User, screen: 'Profile' },
       {
         id: 'readingActivity',
         titleKey: 'more.readingActivity',
-        icon: 'calendar-outline',
+        icon: Calendar,
         screen: 'ReadingActivity',
       },
       {
         id: 'annotations',
         titleKey: 'annotations.title',
-        icon: 'bookmarks-outline',
+        icon: Bookmark,
         screen: 'Annotations',
       },
     ],
@@ -56,7 +66,7 @@ const menuGroups: MenuGroup[] = [
       {
         id: 'translations',
         titleKey: 'translations.title',
-        icon: 'book-outline',
+        icon: BookOpen,
         screen: 'TranslationBrowser',
       },
     ],
@@ -64,8 +74,8 @@ const menuGroups: MenuGroup[] = [
   {
     id: 'app',
     items: [
-      { id: 'settings', titleKey: 'more.settings', icon: 'settings-outline', screen: 'Settings' },
-      { id: 'about', titleKey: 'more.about', icon: 'information-circle-outline', screen: 'About' },
+      { id: 'settings', titleKey: 'more.settings', icon: Settings, screen: 'Settings' },
+      { id: 'about', titleKey: 'more.about', icon: Info, screen: 'About' },
     ],
   },
 ];
@@ -117,7 +127,9 @@ export function MoreScreen() {
       edges={['top']}
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]}>{t('more.title')}</Text>
+        <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]}>
+          {t('more.title')}
+        </Text>
 
         {/* Profile card */}
         <AppCard
@@ -176,7 +188,7 @@ export function MoreScreen() {
           <AppCard padding={0} style={styles.groupCard}>
             <ListRow
               title={t('more.signOut')}
-              leadingIcon="log-out-outline"
+              leadingIcon={LogOut}
               destructive
               isLast
               onPress={handleSignOut}

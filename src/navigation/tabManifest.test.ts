@@ -15,3 +15,10 @@ test('learn tab uses the gather localization key', () => {
   assert.ok(learnTab);
   assert.equal(learnTab.labelKey, 'tabs.gather');
 });
+
+test('every tab names its EL Lucide glyph', () => {
+  assert.deepEqual(
+    rootTabManifest.map((tab) => tab.iconName),
+    ['house', 'book-open', 'users', 'calendar', 'ellipsis']
+  );
+});

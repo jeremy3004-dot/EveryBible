@@ -38,19 +38,22 @@ export function TabBarSelection({
     >
       {width > 0 && (
         <Animated.View
-          style={[styles.pill, { width: itemWidth + 8, backgroundColor: color }, animatedStyle]}
+          style={[styles.pill, { width: itemWidth, backgroundColor: color }, animatedStyle]}
         />
       )}
     </View>
   );
 }
 
+// 52pt tall inside the 64pt capsule's 6pt padding, radius 26.
+export const TAB_BAR_SELECTION_PILL_RADIUS = 26;
+
 const styles = StyleSheet.create({
   pill: {
     position: 'absolute',
-    top: 3,
-    bottom: 3,
-    start: TAB_BAR_CAPSULE_ROW_INSET - 4,
-    borderRadius: 27,
+    top: TAB_BAR_CAPSULE_ROW_INSET,
+    bottom: TAB_BAR_CAPSULE_ROW_INSET,
+    start: TAB_BAR_CAPSULE_ROW_INSET,
+    borderRadius: TAB_BAR_SELECTION_PILL_RADIUS,
   },
 });

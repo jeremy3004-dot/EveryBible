@@ -81,7 +81,14 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
           >
             <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
             {title ? (
-              <Text style={[typography.pageTitle, displayFont.bold, styles.title, { color: colors.primaryText }]}>
+              <Text
+                style={[
+                  typography.pageTitle,
+                  displayFont.bold,
+                  styles.title,
+                  { color: colors.primaryText },
+                ]}
+              >
                 {title}
               </Text>
             ) : null}

@@ -30,9 +30,7 @@ function extractColorToken(source: string, objectName: string, tokenName: string
     new RegExp(`const ${objectName}(?::[^=]+)?\\s*=\\s*\\{([^}]+)\\}`, 's')
   );
   assert.ok(objectMatch, `could not find ${objectName} in ThemeContext`);
-  const tokenMatch = objectMatch[1].match(
-    new RegExp(`${tokenName}:\\s*['"](#[A-Fa-f0-9]{6})['"]`)
-  );
+  const tokenMatch = objectMatch[1].match(new RegExp(`${tokenName}:\\s*['"](#[A-Fa-f0-9]{6})['"]`));
   assert.ok(tokenMatch, `could not find ${tokenName} in ${objectName}`);
   return tokenMatch[1];
 }
@@ -69,6 +67,18 @@ for (const palette of APPEARANCE_PALETTES) {
     const secondaryText = extractColorToken(source, mode.object, 'secondaryText');
     const accent = mode.lightFamily ? palette.swatches.primaryDeep : palette.swatches.primary;
     const onAccent = mode.lightFamily ? ON_ACCENT_LIGHT : ON_ACCENT_DARK;
+    // The selected-surface pair is per palette per scope: the "you are here"
+    // fill (active tab pill, chips) and the glyph that sits on it.
+    const accentSurface = mode.lightFamily
+      ? palette.swatches.lightAccentSurface
+      : palette.swatches.darkAccentSurface;
+    const onAccentSurface = mode.lightFamily
+      ? palette.swatches.lightOnAccentSurface
+      : palette.swatches.darkOnAccentSurface;
+    // Status-chip pairs are scope tokens, not palette tokens, so they come from
+    // the base palettes in ThemeContext.
+    const successSoft = extractColorToken(source, mode.object, 'successSoft');
+    const onSuccessSoft = extractColorToken(source, mode.object, 'onSuccessSoft');
 
     test(`contrast: ${palette.id} on ${mode.name}`, () => {
       const checks: Array<[string, string, string]> = [
@@ -78,6 +88,8 @@ for (const palette of APPEARANCE_PALETTES) {
         ['accent on background', accent, background],
         ['accent on cardBackground', accent, cardBackground],
         ['onAccent on accent fill', onAccent, accent],
+        ['onAccentSurface on accentSurface', onAccentSurface, accentSurface],
+        ['onSuccessSoft on successSoft', onSuccessSoft, successSoft],
       ];
 
       for (const [label, fg, bg] of checks) {
@@ -90,3 +102,43 @@ for (const palette of APPEARANCE_PALETTES) {
     });
   }
 }
+
+// The missed-day ledger cell is a `warningSoft` fill inside a 1px `warning`
+// border, so the border is what carries the state. `warning` is a saturated
+// mid-tone that only clears 2.83:1 against vellum itself, and lightening the
+// fill far enough to reach 3:1 against it lands on a near-white that no longer
+// reads as a tint on `cardBackground` (1.03:1). The pair is locked here at the
+// design's own values so a future edit has to make the trade deliberately.
+test('warningSoft stays a legible tint under its warning border', () => {
+  for (const mode of MODES) {
+    const warning = extractColorToken(source, mode.object, 'warning');
+    const warningSoft = extractColorToken(source, mode.object, 'warningSoft');
+    const cardBackground = extractColorToken(source, mode.object, 'cardBackground');
+
+    const borderOnFill = contrastRatio(warning, warningSoft);
+    assert.ok(
+      borderOnFill >= 2.5,
+      `${mode.name} — warning border on warningSoft: ${borderOnFill.toFixed(2)}:1 (need 2.5:1)`
+    );
+    assert.notEqual(
+      warningSoft,
+      cardBackground,
+      `${mode.name} — warningSoft must be distinguishable from the card it sits on`
+    );
+  }
+});
+
+// `muted` is the inert well behind empty ledger cells and segmented-control
+// tracks. It has to sit *between* the page and the card, or the track disappears.
+test('muted reads as a well against both the page and card surfaces', () => {
+  for (const mode of MODES) {
+    const muted = extractColorToken(source, mode.object, 'muted');
+    const primaryText = extractColorToken(source, mode.object, 'primaryText');
+
+    const ratio = contrastRatio(primaryText, muted);
+    assert.ok(
+      ratio >= AA_TEXT,
+      `${mode.name} — primaryText on muted: ${ratio.toFixed(2)}:1 (need ${AA_TEXT}:1)`
+    );
+  }
+});

@@ -1,9 +1,13 @@
 export { PressableScale } from './PressableScale';
-export type { PressableScaleProps, HapticFeedback } from './PressableScale';
+export type { PressableScaleProps, HapticFeedback, PressEffect } from './PressableScale';
 export { AppButton } from './AppButton';
 export type { AppButtonProps, AppButtonVariant, AppButtonSize } from './AppButton';
 export { AppCard } from './AppCard';
 export type { AppCardProps } from './AppCard';
+export { IconButton } from './IconButton';
+export type { IconButtonProps, IconButtonVariant } from './IconButton';
+export { TabSwitch } from './TabSwitch';
+export type { TabSwitchProps, TabSwitchSegment, TabSwitchSize } from './TabSwitch';
 export { ListRow } from './ListRow';
 export type { ListRowProps } from './ListRow';
 export { SectionHeader } from './SectionHeader';

@@ -160,14 +160,34 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
   );
 });
 
-test('TabNavigator blends the bar into the screen background instead of a separate card surface', () => {
+test('TabNavigator fills the floating capsule with opaque EL paper, not blur or glass', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.equal(
-    source.includes('backgroundColor: colors.cardBackground'),
-    false,
-    'TabNavigator should use the screen background so the bottom bar does not read like a dark slab'
+  // The EL reskin replaces the frosted material with a paper sheet: card fill,
+  // 1px card border, the shared hairline card shadow.
+  assert.match(
+    source,
+    /const capsuleFill = colors\.cardBackground;/,
+    'the capsule should be filled with the opaque card surface'
   );
+  assert.match(
+    source,
+    /const readerCapsuleFill = colors\.bibleSurface;/,
+    'the reader variant should be the opaque reading surface, not a tinted alpha wash'
+  );
+  assert.match(
+    source,
+    /capsule:\s*\{[\s\S]*?borderWidth: 1,[\s\S]*?\.\.\.shadows\.card,/,
+    'the capsule should carry a 1px border and the shared card shadow'
+  );
+
+  for (const banned of ['BlurView', 'expo-blur', 'GlassView', 'expo-glass-effect', 'withAlpha']) {
+    assert.equal(
+      source.includes(banned),
+      false,
+      `TabNavigator should no longer reference ${banned} — the capsule is opaque paper`
+    );
+  }
 });
 
 test('TabNavigator uses Bible reader colors while the reader is focused', () => {
@@ -186,16 +206,17 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
     'the capsule edge should follow the reader divider while the reader is focused'
   );
 
-  // A neutral translucent selection uses each surface's readable ink.
+  // The selected glyph sits on the accent-surface pill, so it uses the accent's
+  // own foreground ink on every surface — the reader included.
   assert.match(
     source,
-    /tabBarActiveTintColor: isBibleReader \? colors\.biblePrimaryText : colors\.primaryText,/,
-    'the selected tab glyph should use surface-aware primary text'
+    /tabBarActiveTintColor: colors\.tabActive,/,
+    'the selected tab glyph should use the accent foreground that reads on the accent pill'
   );
 
   assert.match(
     source,
-    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.bibleSecondaryText[\s\S]*: colors\.tabInactive/s,
+    /route\.name === 'Bible' && nestedRouteName === 'BibleReader'[\s\S]*\? colors\.bibleSecondaryText[\s\S]*: colors\.secondaryText/s,
     'TabNavigator should switch inactive tab text and icons to Bible reader secondary text colors'
   );
 
@@ -206,7 +227,7 @@ test('TabNavigator uses Bible reader colors while the reader is focused', () => 
   );
 });
 
-test('TabNavigator renders the tab bar as a floating glass capsule', () => {
+test('TabNavigator renders the tab bar as a floating paper capsule', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
   // Home stays on the standard (non-collapsing) style — only the reader drives
@@ -233,7 +254,11 @@ test('TabNavigator renders the tab bar as a floating glass capsule', () => {
     /buildTabBarCapsuleStyle\(\{/,
     'TabNavigator should build its bar from the shared capsule style'
   );
-  assert.match(source, /<BlurView/, 'the capsule should use a real blur material');
+  assert.match(
+    source,
+    /<TabBarBackground\s+fill=/,
+    'the capsule material should be supplied by the opaque paper background component'
+  );
 
   // Keep all React Navigation v7 accessibility and interaction props intact.
   assert.match(
@@ -377,4 +402,75 @@ test('the tab bar capsule geometry is defined in exactly one place', () => {
       `${file} must not re-inline a full-width, flush-to-bottom tab bar`
     );
   }
+});
+
+test('the selected tab is an accent-surface pill inside the capsule padding', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+  const selectionSource = readRelativeSource('./TabBarSelection.tsx');
+  const capsuleSource = readRelativeSource('./tabBarCapsuleStyle.ts');
+
+  assert.match(
+    source,
+    /const pillColor = colors\.accentSurface;/,
+    'the sliding selection pill should be filled with the accent surface'
+  );
+
+  // 6pt of paper on every side of a 64pt capsule leaves a 52pt pill, radius 26.
+  assert.match(capsuleSource, /TAB_BAR_CAPSULE_ROW_INSET = 6;/);
+  assert.match(selectionSource, /TAB_BAR_SELECTION_PILL_RADIUS = 26;/);
+  assert.match(
+    selectionSource,
+    /pill:\s*\{[\s\S]*?top: TAB_BAR_CAPSULE_ROW_INSET,[\s\S]*?bottom: TAB_BAR_CAPSULE_ROW_INSET,[\s\S]*?start: TAB_BAR_CAPSULE_ROW_INSET,[\s\S]*?borderRadius: TAB_BAR_SELECTION_PILL_RADIUS,/,
+    'the pill should be inset by the capsule padding on every side'
+  );
+
+  // Keep the sliding animation and its reduced-motion gate.
+  assert.match(selectionSource, /withSpring\(selectedIndex, motion\.spring\)/);
+  assert.match(selectionSource, /useReducedMotion\(\)/);
+});
+
+test('tab glyphs are 22pt Lucide strokes taken from the manifest', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+  const manifestSource = readRelativeSource('./tabManifest.ts');
+
+  assert.equal(
+    source.includes('Ionicons'),
+    false,
+    'the tab bar should no longer draw Ionicons glyphs'
+  );
+  assert.match(source, /const TAB_BAR_ICON_SIZE = 22;/);
+  assert.match(source, /const TAB_BAR_ICON_STROKE_WIDTH = 2;/);
+  assert.match(
+    source,
+    /<TabBarIcon icon=\{TAB_BAR_ICONS\[tab\.iconName\]\} color=\{color\} \/>/,
+    'the navigator should render whichever Lucide glyph the manifest names'
+  );
+  assert.match(
+    source,
+    /const TAB_BAR_ICONS: Record<RootTabIconName, LucideIcon> = \{\s*house: House,\s*'book-open': BookOpen,\s*users: Users,\s*calendar: Calendar,\s*ellipsis: Ellipsis,\s*\}/,
+    'every glyph the manifest can name must be bound to a Lucide component'
+  );
+
+  // The manifest stays a pure data module so it remains importable in Node.
+  assert.equal(
+    manifestSource.includes("from 'lucide-react-native'"),
+    false,
+    'tabManifest should not pull react-native in through the Lucide barrel'
+  );
+  assert.match(
+    manifestSource,
+    /export type RootTabIconName =\s*'house' \| 'book-open' \| 'users' \| 'calendar' \| 'ellipsis';/,
+    'the manifest stays the single source of truth for which glyph each tab draws'
+  );
+});
+
+test('tab labels are 11pt semibold on top of the shared tabLabel token', () => {
+  const source = readRelativeSource('./TabNavigator.tsx');
+
+  assert.match(source, /tabBarLabelStyle: styles\.tabLabel,/);
+  assert.match(
+    source,
+    /tabLabel:\s*\{\s*\.\.\.typography\.tabLabel,\s*fontSize: 11,\s*lineHeight: 14,\s*fontWeight: '600',\s*\}/,
+    'tab labels should override the shared token down to the EL 11/14 size'
+  );
 });

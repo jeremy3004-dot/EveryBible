@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
-import { motion, radius } from '../../design/system';
+import { motion } from '../../design/system';
 
 export interface ProgressBarProps {
   /** 0..1 */
@@ -23,11 +23,15 @@ export interface ProgressBarProps {
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-// Rounded pill track with an animated accent fill. One progress recipe for
-// plans, downloads, and reading goals.
+const BAR_HEIGHT = 4;
+const BAR_RADIUS = 2;
+
+// A 4pt rule with an animated accent fill — EL draws progress as a measured
+// line, not a lozenge, so the corners are a 2pt softening rather than a pill.
+// One progress recipe for plans, downloads, and reading goals.
 export function ProgressBar({
   progress,
-  height = 6,
+  height = BAR_HEIGHT,
   trackColor,
   fillColor,
   gradient = false,
@@ -50,11 +54,7 @@ export function ProgressBar({
 
   return (
     <View
-      style={[
-        styles.track,
-        { height, backgroundColor: trackColor ?? colors.borderStrong },
-        style,
-      ]}
+      style={[styles.track, { height, backgroundColor: trackColor ?? colors.borderStrong }, style]}
       accessibilityRole="progressbar"
       accessibilityValue={{ now: Math.round(clamp01(progress) * 100), min: 0, max: 100 }}
     >
@@ -76,12 +76,12 @@ export function ProgressBar({
 
 const styles = StyleSheet.create({
   track: {
-    borderRadius: radius.pill,
+    borderRadius: BAR_RADIUS,
     overflow: 'hidden',
     width: '100%',
   },
   fill: {
-    borderRadius: radius.pill,
+    borderRadius: BAR_RADIUS,
     overflow: 'hidden',
   },
   gradientFill: {

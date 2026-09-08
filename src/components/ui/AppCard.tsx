@@ -10,6 +10,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, shadows } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
+const ACCENT_RULE_WIDTH = 3;
+
 export interface AppCardProps {
   children: ReactNode;
   /** Wrap in PressableScale so the whole card responds to taps. */
@@ -17,6 +19,13 @@ export interface AppCardProps {
   onPress?: (event: GestureResponderEvent) => void;
   /** Lift the card with the floating shadow. Rare — for surfaces that truly float. */
   elevated?: boolean;
+  /**
+   * Draw a 3pt accent rule down the left edge. Reserved for "you are here":
+   * the up-next lesson, today's plan row, the selected day, the suggested
+   * nation. Never decorative — if more than one card on a screen carries it,
+   * one of them is wrong.
+   */
+  accentRule?: boolean;
   padding?: number;
   haptic?: HapticFeedback;
   style?: StyleProp<ViewStyle>;
@@ -38,6 +47,7 @@ export function AppCard({
   pressable = false,
   onPress,
   elevated = false,
+  accentRule = false,
   padding = layout.cardPadding,
   haptic,
   style,
@@ -68,16 +78,28 @@ export function AppCard({
     />
   );
 
+  // Inset by the hairline border like the edge light, and rounded on its own
+  // left corners so it follows the card radius without needing overflow:hidden
+  // (which would kill the card's shadow — see the note on styles.card).
+  const rule = accentRule ? (
+    <View
+      pointerEvents="none"
+      style={[styles.accentRule, { backgroundColor: colors.accentPrimary }]}
+    />
+  ) : null;
+
   if (pressable || onPress) {
     return (
       <PressableScale
         onPress={onPress}
+        pressEffect="translate"
         haptic={haptic}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         style={cardStyle}
       >
         {edgeLight}
+        {rule}
         {children}
       </PressableScale>
     );
@@ -86,6 +108,7 @@ export function AppCard({
   return (
     <View style={cardStyle} accessibilityLabel={accessibilityLabel}>
       {edgeLight}
+      {rule}
       {children}
     </View>
   );
@@ -108,5 +131,14 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth * 2,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
+  },
+  accentRule: {
+    position: 'absolute',
+    top: 1,
+    bottom: 1,
+    left: 1,
+    width: ACCENT_RULE_WIDTH,
+    borderTopLeftRadius: radius.lg,
+    borderBottomLeftRadius: radius.lg,
   },
 });

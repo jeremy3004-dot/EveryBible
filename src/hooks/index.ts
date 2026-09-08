@@ -12,5 +12,6 @@ export {
   TAB_BAR_CAPSULE_HEIGHT,
   TAB_BAR_CAPSULE_SIDE_INSET,
   TAB_BAR_CAPSULE_RADIUS,
+  TAB_BAR_CONTENT_GAP,
   type TabBarHeightMetrics,
 } from './useTabBarHeight';

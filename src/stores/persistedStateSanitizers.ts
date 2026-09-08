@@ -28,7 +28,7 @@ import type {
   UserPreferences,
 } from '../types';
 import { sanitizeBibleAssetReference } from '../services/bible/bibleAssetBaseUrl';
-import { resolveThemeMode } from '../design/themeMode';
+import { DEFAULT_THEME_MODE, resolveThemeMode } from '../design/themeMode';
 import { normalizeCatalogTranslationId } from '../services/translations/translationCatalogModel';
 
 const supportedBibleTranslationIds = new Set(
@@ -589,9 +589,10 @@ const sanitizeBibleTranslations = (value: unknown): BibleTranslation[] => {
 
 export const defaultAuthPreferences: UserPreferences = {
   fontSize: 'medium',
-  // New installs default to warm-ink dark. Existing users' persisted theme is
-  // untouched (their sanitized preferences already carry an explicit value).
-  theme: 'dark',
+  // New installs open on vellum. This has to be the resolver's own default, not
+  // a second copy of it — the two drifting apart is how a "default theme" change
+  // silently fails to reach new users.
+  theme: DEFAULT_THEME_MODE,
   appearancePalette: DEFAULT_APPEARANCE_PALETTE,
   language: 'en',
   countryCode: null,

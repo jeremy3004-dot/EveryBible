@@ -10,8 +10,12 @@ export type ThemeMode = 'dark' | 'light';
 
 export const THEME_MODES: readonly ThemeMode[] = ['dark', 'light'];
 
-/** New installs, and anything unrecognisable, land on Field dark. */
-export const DEFAULT_THEME_MODE: ThemeMode = 'dark';
+/**
+ * New installs, and anything unrecognisable, land on vellum. The EL redesign
+ * makes warm paper the canonical scope — Field dark is the opt-in second scope,
+ * not the front door.
+ */
+export const DEFAULT_THEME_MODE: ThemeMode = 'light';
 
 export function isThemeMode(value: unknown): value is ThemeMode {
   return typeof value === 'string' && (THEME_MODES as readonly string[]).includes(value);
@@ -19,9 +23,8 @@ export function isThemeMode(value: unknown): value is ThemeMode {
 
 /**
  * Fold any stored theme preference onto a live scope. Parchment was a
- * light-paper mode, so it resolves to vellum rather than flipping those users to
- * a near-black screen; every other retired mode was an ink mode and lands on
- * Field dark.
+ * light-paper mode, so it resolves to vellum explicitly rather than relying on
+ * the default; every other unrecognised value lands on the default (vellum).
  */
 export function resolveThemeMode(value: unknown): ThemeMode {
   if (isThemeMode(value)) {
