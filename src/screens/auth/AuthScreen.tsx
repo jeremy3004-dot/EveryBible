@@ -8,12 +8,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { CircleAlert, Eye, EyeOff, MailOpen, X } from 'lucide-react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -21,8 +20,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
-import { motion, radius, spacing, typography } from '../../design/system';
-import { AppButton } from '../../components/ui';
+import { layout, motion, radius, shadows, spacing, typography } from '../../design/system';
+import { AppButton, AppCard, IconButton, PressableScale } from '../../components/ui';
 import { errorHaptic } from '../../utils/haptics';
 import type { AuthScreenMode, AuthStackParamList } from '../../navigation/types';
 import {
@@ -41,6 +40,17 @@ import { useAuthStore } from '../../stores/authStore';
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'AuthScreen'>;
 type ScreenRouteProp = RouteProp<AuthStackParamList, 'AuthScreen'>;
 
+// The app mark, shown at 52pt above the title. Same asset the About screen uses.
+const APP_ICON = require('../../../assets/icon.png');
+// Google's official multicolour "G". It is a brand asset, not an icon we may
+// recolour or replace with a Lucide glyph.
+const GOOGLE_MARK = require('../../../assets/icons/google-g.png');
+
+const APP_ICON_SIZE = 52;
+const GOOGLE_MARK_SIZE = 18;
+const FIELD_HEIGHT = 48;
+const PROVIDER_GAP = 10;
+
 interface FormErrors {
   email?: string;
   password?: string;
@@ -49,7 +59,7 @@ interface FormErrors {
 function getModeCopy(t: (key: string) => string, mode: AuthScreenMode) {
   if (mode === 'signUp') {
     return {
-      title: t('auth.createAccount'),
+      title: t('auth.createAnAccount'),
       subtitle: t('auth.signUpSubtitle'),
       primaryLabel: t('auth.createAccount'),
       switchLead: t('auth.alreadyHaveAccount'),
@@ -63,11 +73,49 @@ function getModeCopy(t: (key: string) => string, mode: AuthScreenMode) {
     title: t('auth.welcomeBack'),
     subtitle: t('auth.signInSubtitle'),
     primaryLabel: t('auth.signIn'),
-    switchLead: t('auth.dontHaveAccount'),
-    switchAction: t('auth.createAccount'),
+    switchLead: t('auth.newHere'),
+    switchAction: t('auth.createAnAccount'),
     successTitle: '',
     successBody: '',
   };
+}
+
+// The Google strip: geometrically the `secondary` AppButton (50pt paper pill,
+// hairline border, card shadow), but its leading mark is a brand bitmap rather
+// than a LucideIcon, which AppButton cannot take. Kept screen-local so the
+// shared primitive stays icon-typed.
+function GoogleButton({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled: boolean;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      haptic={disabled ? undefined : 'medium'}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={[
+        googleStyles.button,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+        shadows.card,
+        disabled && googleStyles.disabled,
+      ]}
+    >
+      <Image source={GOOGLE_MARK} style={googleStyles.mark} />
+      <Text style={[typography.bodyStrong, { color: colors.primaryText }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
 }
 
 export function AuthScreen() {
@@ -277,7 +325,7 @@ export function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -287,81 +335,81 @@ export function AuthScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <IconButton icon={X} onPress={dismiss} accessibilityLabel={t('interface.close')} />
+            <Text style={[styles.headerEyebrow, displayFont.regular]}>
+              {t('auth.accountEyebrow')}
+            </Text>
             <View style={styles.headerSpacer} />
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={dismiss}
-              hitSlop={8}
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={28} color={colors.primaryText} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
+            <Image source={APP_ICON} style={styles.appIcon} accessibilityIgnoresInvertColors />
+
             <Text style={[styles.title, displayFont.bold]}>{copy.title}</Text>
             <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
             {verificationNotice ? (
-              <View style={styles.noticeCard}>
+              <AppCard style={styles.noticeCard}>
                 <View style={styles.noticeHeader}>
-                  <Ionicons name="mail-open-outline" size={20} color={colors.accentPrimary} />
+                  <MailOpen size={18} color={colors.accentPrimary} strokeWidth={2} />
                   <Text style={styles.noticeTitle}>{copy.successTitle}</Text>
                 </View>
                 <Text style={styles.noticeBody}>{copy.successBody}</Text>
-                <TouchableOpacity
-                  style={styles.noticeButton}
+                <AppButton
+                  label={t('auth.signIn')}
+                  variant="ghost"
+                  size="md"
+                  fullWidth={false}
                   onPress={() => handleModeChange('signIn')}
                   disabled={isLoading}
-                >
-                  <Text style={styles.noticeButtonText}>{t('auth.signIn')}</Text>
-                </TouchableOpacity>
-              </View>
+                  style={styles.noticeButton}
+                />
+              </AppCard>
             ) : null}
 
             <View style={styles.providerSection}>
               {Platform.OS === 'ios' ? (
+                // Apple requires its own button for Sign in with Apple, so the
+                // spec's plain ink pill is rendered by the native control: same
+                // 50pt height and 25pt radius, and the only place in this screen
+                // allowed to branch on `isDark` — the control takes a style enum,
+                // not a theme colour, and BLACK/WHITE are the two that match the
+                // ink pill in each scope.
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={
                     mode === 'signUp'
                       ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
-                      : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                      : AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
                   }
                   buttonStyle={
                     isDark
                       ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                      : AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+                      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                   }
-                  cornerRadius={radius.lg}
+                  cornerRadius={layout.pillHeight / 2}
                   style={styles.appleButton}
                   onPress={handleAppleAuth}
                 />
               ) : null}
 
-              <TouchableOpacity
-                style={styles.googleButton}
+              <GoogleButton
+                label={t('auth.continueWithGoogle')}
                 onPress={handleGoogleAuth}
                 disabled={isLoading}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-              >
-                <Image
-                  source={require('../../../assets/icons/google-g.png')}
-                  style={styles.googleLogo}
-                />
-                <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
-              </TouchableOpacity>
+              />
             </View>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>{t('common.or')}</Text>
+              <Text style={[styles.dividerText, displayFont.regular]}>{t('auth.orWithEmail')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('auth.email')}</Text>
+                <View style={styles.labelRow}>
+                  <Text style={[styles.label, displayFont.regular]}>{t('auth.email')}</Text>
+                </View>
                 <TextInput
                   style={[styles.input, errors.email && styles.inputError]}
                   value={email}
@@ -370,9 +418,10 @@ export function AuthScreen() {
                     setErrors((current) => ({ ...current, email: undefined }));
                   }}
                   placeholder={t('auth.emailPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="none"
                   autoComplete="email"
+                  textContentType="emailAddress"
                   keyboardType="email-address"
                   editable={!isLoading}
                   returnKeyType="next"
@@ -381,14 +430,28 @@ export function AuthScreen() {
                 />
                 {errors.email ? (
                   <Animated.View entering={errorEntering} style={styles.errorRow}>
-                    <Ionicons name="alert-circle" size={14} color={colors.error} />
+                    <CircleAlert size={14} color={colors.error} strokeWidth={2} />
                     <Text style={styles.errorText}>{errors.email}</Text>
                   </Animated.View>
                 ) : null}
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('auth.password')}</Text>
+                <View style={styles.labelRow}>
+                  <Text style={[styles.label, displayFont.regular]}>{t('auth.password')}</Text>
+                  {mode === 'signIn' ? (
+                    <PressableScale
+                      onPress={handleForgotPassword}
+                      disabled={isLoading}
+                      hitSlop={8}
+                      haptic="light"
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isLoading }}
+                    >
+                      <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
+                    </PressableScale>
+                  ) : null}
+                </View>
                 <View style={styles.passwordContainer}>
                   <TextInput
                     ref={passwordInputRef}
@@ -405,70 +468,93 @@ export function AuthScreen() {
                     placeholder={
                       mode === 'signUp' ? t('auth.passwordHint') : t('auth.passwordPlaceholder')
                     }
-                    placeholderTextColor={colors.secondaryText}
+                    placeholderTextColor={colors.textTertiary}
                     secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
+                    textContentType={mode === 'signUp' ? 'newPassword' : 'password'}
                     editable={!isLoading}
                     returnKeyType={mode === 'signUp' ? 'next' : 'go'}
                     onSubmitEditing={handleEmailSubmit}
                   />
-                  <TouchableOpacity
+                  <PressableScale
                     style={styles.eyeButton}
                     onPress={() => setShowPassword((current) => !current)}
                     disabled={isLoading}
                     hitSlop={8}
+                    haptic="light"
                     accessibilityRole="button"
+                    accessibilityLabel={
+                      showPassword ? t('auth.hidePassword') : t('auth.showPassword')
+                    }
                   >
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={22}
-                      color={colors.secondaryText}
-                    />
-                  </TouchableOpacity>
+                    {showPassword ? (
+                      <EyeOff size={18} color={colors.secondaryText} strokeWidth={2} />
+                    ) : (
+                      <Eye size={18} color={colors.secondaryText} strokeWidth={2} />
+                    )}
+                  </PressableScale>
                 </View>
                 {errors.password ? (
                   <Animated.View entering={errorEntering} style={styles.errorRow}>
-                    <Ionicons name="alert-circle" size={14} color={colors.error} />
+                    <CircleAlert size={14} color={colors.error} strokeWidth={2} />
                     <Text style={styles.errorText}>{errors.password}</Text>
                   </Animated.View>
                 ) : null}
               </View>
-
-              {mode === 'signIn' ? (
-                <TouchableOpacity
-                  onPress={handleForgotPassword}
-                  disabled={isLoading}
-                  hitSlop={8}
-                  style={styles.forgotPasswordButton}
-                >
-                  <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
-                </TouchableOpacity>
-              ) : null}
 
               <AppButton
                 label={copy.primaryLabel}
                 onPress={handleEmailSubmit}
                 loading={isLoading}
                 disabled={isLoading}
+                style={styles.primaryButton}
               />
             </View>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>{copy.switchLead} </Text>
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => handleModeChange(mode === 'signIn' ? 'signUp' : 'signIn')}
                 disabled={isLoading}
                 hitSlop={8}
-                style={styles.footerLinkButton}
+                haptic="light"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading }}
               >
                 <Text style={styles.footerLink}>{copy.switchAction}</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
+
+            <Text style={[styles.tagline, displayFont.regular]}>{t('auth.tagline')}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const googleStyles = StyleSheet.create({
+  button: {
+    height: layout.pillHeight,
+    borderRadius: layout.pillHeight / 2,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    alignSelf: 'stretch',
+    paddingHorizontal: spacing.xl,
+  },
+  mark: {
+    width: GOOGLE_MARK_SIZE,
+    height: GOOGLE_MARK_SIZE,
+    resizeMode: 'contain',
+  },
+  disabled: {
+    opacity: 0.45,
+  },
+});
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
@@ -484,39 +570,54 @@ const createStyles = (colors: ThemeColors) =>
     },
     header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      padding: spacing.lg,
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.lg,
     },
-    headerSpacer: {
-      width: 36,
-    },
-    closeButton: {
-      padding: spacing.xs,
-    },
-    content: {
+    headerEyebrow: {
+      ...typography.eyebrow,
+      color: colors.secondaryText,
       flex: 1,
-      padding: spacing.xl,
-      paddingTop: 0,
+      textAlign: 'center',
     },
+    // Balances the 40pt icon button so the eyebrow is optically centred.
+    headerSpacer: {
+      width: layout.iconButton,
+    },
+    // `flexGrow`, not `flex`: the column fills a tall screen so the tagline can
+    // settle on the bottom edge, but keeps its intrinsic height once the
+    // keyboard is up, so the form scrolls instead of compressing.
+    content: {
+      flexGrow: 1,
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.lg,
+    },
+    appIcon: {
+      width: APP_ICON_SIZE,
+      height: APP_ICON_SIZE,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    // One step above `displayHero` — the sign-in title is the largest type in
+    // the app after the streak numeral. -0.04em tracking at 36px.
     title: {
-      ...typography.screenTitle,
+      ...typography.displayHero,
+      fontSize: 36,
+      lineHeight: 35,
+      letterSpacing: -1.44,
       color: colors.primaryText,
-      marginBottom: spacing.sm,
+      marginTop: spacing.lg,
     },
     subtitle: {
       ...typography.body,
       color: colors.secondaryText,
-      marginBottom: spacing.xl,
+      marginTop: spacing.md,
     },
     noticeCard: {
-      backgroundColor: colors.cardBackground,
-      borderColor: colors.cardBorder,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      padding: spacing.lg,
+      marginTop: spacing.xl,
       gap: spacing.sm,
-      marginBottom: spacing.lg,
     },
     noticeHeader: {
       flexDirection: 'row',
@@ -533,37 +634,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     noticeButton: {
       alignSelf: 'flex-start',
-      paddingVertical: spacing.sm,
-    },
-    noticeButtonText: {
-      ...typography.bodyStrong,
-      color: colors.accentPrimary,
+      paddingHorizontal: 0,
     },
     providerSection: {
-      gap: spacing.md,
+      gap: PROVIDER_GAP,
+      marginTop: spacing.xl,
     },
     appleButton: {
-      height: 52,
-    },
-    googleButton: {
-      height: 52,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-    },
-    googleLogo: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-    },
-    googleButtonText: {
-      ...typography.button,
-      color: colors.primaryText,
+      height: layout.pillHeight,
     },
     divider: {
       flexDirection: 'row',
@@ -574,33 +652,37 @@ const createStyles = (colors: ThemeColors) =>
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: colors.cardBorder,
+      backgroundColor: colors.borderStrong,
     },
     dividerText: {
-      ...typography.micro,
+      ...typography.eyebrow,
       color: colors.secondaryText,
-      textTransform: 'uppercase',
     },
     form: {
       gap: spacing.lg,
     },
     inputContainer: {
-      gap: spacing.xs,
+      gap: spacing.sm,
+    },
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     label: {
-      ...typography.micro,
-      color: colors.primaryText,
-      fontWeight: '600',
+      ...typography.eyebrow,
+      color: colors.secondaryText,
     },
     input: {
+      height: FIELD_HEIGHT,
       backgroundColor: colors.cardBackground,
       borderColor: colors.cardBorder,
       borderRadius: radius.md,
       borderWidth: 1,
       color: colors.primaryText,
-      fontSize: 16,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      fontSize: 15,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 0,
     },
     inputError: {
       borderColor: colors.error,
@@ -610,11 +692,11 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
     },
     passwordInput: {
-      paddingRight: spacing.xxxl,
+      paddingRight: spacing.xxl + spacing.md,
     },
     eyeButton: {
       position: 'absolute',
-      right: spacing.md,
+      right: spacing.lg,
       top: 0,
       bottom: 0,
       justifyContent: 'center',
@@ -623,35 +705,18 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      marginTop: spacing.xs,
     },
     errorText: {
-      ...typography.micro,
+      ...typography.caption,
       color: colors.error,
       flex: 1,
     },
-    forgotPasswordButton: {
-      alignSelf: 'flex-end',
-      paddingVertical: spacing.sm,
-    },
     forgotPassword: {
-      ...typography.bodyStrong,
+      ...typography.captionStrong,
       color: colors.accentPrimary,
-      textAlign: 'right',
     },
     primaryButton: {
-      backgroundColor: colors.bibleControlBackground,
-      borderRadius: radius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.lg,
-    },
-    primaryButtonText: {
-      ...typography.button,
-      color: colors.bibleBackground,
-    },
-    buttonDisabled: {
-      opacity: 0.7,
+      marginTop: spacing.sm,
     },
     footer: {
       flexDirection: 'row',
@@ -661,14 +726,24 @@ const createStyles = (colors: ThemeColors) =>
       flexWrap: 'wrap',
     },
     footerText: {
-      ...typography.body,
+      ...typography.captionStrong,
+      fontWeight: '400',
+      fontSize: 13.5,
       color: colors.secondaryText,
     },
-    footerLinkButton: {
-      paddingVertical: spacing.xs,
-    },
     footerLink: {
-      ...typography.bodyStrong,
+      ...typography.captionStrong,
+      fontSize: 13.5,
       color: colors.accentPrimary,
+    },
+    // Sits on the bottom edge of the page on tall screens, a comfortable gap
+    // below the footer on short ones.
+    tagline: {
+      ...typography.eyebrow,
+      color: colors.secondaryText,
+      textAlign: 'center',
+      marginTop: 'auto',
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.lg,
     },
   });

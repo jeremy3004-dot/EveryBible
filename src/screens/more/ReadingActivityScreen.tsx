@@ -1,18 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { buildCalendarLocale, formatListeningTime } from '../../i18n/interfaceFormatting';
+import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { useDisplayFont, useTabBarHeight } from '../../hooks';
 import { useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
+import { getBookById, getTranslatedBookName } from '../../constants/books';
 import type { MoreStackParamList } from '../../navigation/types';
+import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
-  buildReadingActivityMonthView,
   formatLocalDateKey,
   parseLocalDateKey,
   summarizeReadingActivity,
@@ -20,10 +28,30 @@ import {
 import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
-import { StatCard } from '../../components/ui/StatCard';
+import { describeSyncStatus } from '../../utils/syncStatus';
+import { AppCard, IconButton } from '../../components/ui';
+import {
+  buildReadingActivityGrid,
+  buildWeekdayInitials,
+  CALENDAR_COLUMN_COUNT,
+  firstChapterOfDay,
+  shiftMonth,
+  summarizeDayChapters,
+  type ReadingActivityGridCell,
+} from './readingActivityCalendarModel';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
+
+const CELL_GAP = spacing.sm - 2; // 6pt gutter between calendar squares
+const CELL_RADIUS = radius.sm; // 6
+const SELECTED_RING_GAP = 2;
+const SELECTED_RING_WIDTH = 1.5;
+const TODAY_BORDER_WIDTH = 1.5;
+const LEGEND_SWATCH = 12;
+const LEADING_DAY_OPACITY = 0.4;
+/** Pre-measurement cell size, so the card does not jump on first layout. */
+const ESTIMATED_CELL_SIZE = 40;
+const MINUTE_MS = 60_000;
 
 const getMonthSelectionKey = (
   viewDate: Date,
@@ -37,45 +65,35 @@ const getMonthSelectionKey = (
   return monthDays[0]?.dateKey ?? null;
 };
 
-const formatLongDate = (dateKey: string, language: string): string => {
-  return parseLocalDateKey(dateKey).toLocaleDateString(language, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
+const formatMonthTitle = (viewDate: Date, language: string): string =>
+  viewDate.toLocaleDateString(language, { month: 'long', year: 'numeric' });
 
-const formatTime = (timestamp: number, language: string): string => {
-  return new Date(timestamp).toLocaleTimeString(language, {
-    hour: 'numeric',
-    minute: '2-digit',
+const formatDayEyebrow = (dateKey: string, language: string): string =>
+  parseLocalDateKey(dateKey).toLocaleDateString(language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
   });
-};
+
+const formatTime = (timestamp: number, language: string): string =>
+  new Date(timestamp).toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' });
 
 export function ReadingActivityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
-  const calendarLocale = useMemo(
-    () => buildCalendarLocale(i18n.language, t('home.today')),
-    [i18n.language, t]
-  );
-  const [calendarLanguage, setCalendarLanguage] = useState<string | null>(null);
-  useEffect(() => {
-    LocaleConfig.locales[i18n.language] = calendarLocale;
-    LocaleConfig.defaultLocale = i18n.language;
-    // Calendar reads this external registry only when it mounts; wait for registration.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCalendarLanguage(i18n.language);
-  }, [calendarLocale, i18n.language]);
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  // The More tab's capsule floats over this screen, so the scroll has to clear it.
+  const { contentClearance } = useTabBarHeight();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const streakDays = useProgressStore((state) => state.streakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
+  const [gridWidth, setGridWidth] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -98,178 +116,311 @@ export function ReadingActivityScreen() {
     };
   }, [isAuthenticated]);
 
-  const activitySummary = summarizeReadingActivity(chaptersRead);
-  // Streak milestones escalate the flame color at 7 / 30 / 100 days.
-  const streakTint =
-    streakDays >= 100
-      ? colors.warning
-      : streakDays >= 30
-        ? colors.accentPrimary
-        : streakDays >= 7
-          ? colors.success
-          : undefined;
+  const activitySummary = useMemo(() => summarizeReadingActivity(chaptersRead), [chaptersRead]);
   const effectiveSelectedDateKey =
     selectedDateKey ?? getMonthSelectionKey(viewDate, activitySummary.daysByDateKey);
-  const monthView = buildReadingActivityMonthView(chaptersRead, viewDate, effectiveSelectedDateKey);
-  const markedDates = Object.values(activitySummary.daysByDateKey).reduce<Record<string, object>>(
-    (acc, day) => {
-      const isSelected = day.dateKey === effectiveSelectedDateKey;
-      acc[day.dateKey] = {
-        marked: true,
-        dotColor: colors.accentPrimary,
-        selected: isSelected,
-        selectedColor: colors.accentPrimary,
-        selectedTextColor: colors.onAccent,
-      };
-      return acc;
-    },
-    {}
+  const grid = useMemo(
+    () =>
+      buildReadingActivityGrid({
+        daysByDateKey: activitySummary.daysByDateKey,
+        viewDate,
+        selectedDateKey: effectiveSelectedDateKey,
+      }),
+    [activitySummary.daysByDateKey, viewDate, effectiveSelectedDateKey]
   );
+  const weekdayInitials = useMemo(() => buildWeekdayInitials(i18n.language), [i18n.language]);
+  const selectedDay = effectiveSelectedDateKey
+    ? (activitySummary.daysByDateKey[effectiveSelectedDateKey] ?? null)
+    : null;
 
-  const handleDayPress = (dateKey: string) => {
-    setSelectedDateKey(dateKey);
+  const syncStatus = describeSyncStatus({
+    isAuthenticated,
+    lastSyncedAt: preferencesUpdatedAt,
+    t,
+  });
+
+  // Cloud engagement is the authority when it has loaded; local progress keeps
+  // the row honest offline.
+  const chapterTotal = engagement?.total_chapters_read ?? activitySummary.totalChapterReads;
+  const listeningLabel = formatListeningTime(engagement?.total_listening_minutes ?? 0, t);
+
+  // Exact, not floored: the grid, the weekday headers and the card's right edge
+  // all have to line up, and 7 floored cells can leave a visible strip of slack.
+  const cellSize =
+    gridWidth > 0
+      ? (gridWidth - CELL_GAP * (CALENDAR_COLUMN_COUNT - 1)) / CALENDAR_COLUMN_COUNT
+      : 0;
+  const measuredCell = cellSize || ESTIMATED_CELL_SIZE;
+
+  const handleGridLayout = useCallback((event: LayoutChangeEvent) => {
+    setGridWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  const goToMonth = (delta: number) => {
+    setSelectedDateKey(null);
+    setViewDate((current) => shiftMonth(current, delta));
   };
 
-  const selectedDayLabel = monthView.selectedDay
-    ? formatLongDate(monthView.selectedDay.dateKey, i18n.language)
-    : t('profile.noReadingActivityTitle');
+  const resolveBook = (bookId: string) => ({
+    name: getTranslatedBookName(bookId, t as (key: string) => string),
+    order: getBookById(bookId)?.order ?? Number.MAX_SAFE_INTEGER,
+  });
+  const selectedBooks = selectedDay
+    ? summarizeDayChapters(selectedDay.chapterKeys, resolveBook)
+    : '';
+  const sessionMinutes = selectedDay
+    ? Math.round((selectedDay.lastReadAt - selectedDay.firstReadAt) / MINUTE_MS)
+    : 0;
+  // The card's chevron has to lead somewhere: it reopens the day's first
+  // chapter, the same cross-tab jump the annotations list makes.
+  const selectedChapter = selectedDay
+    ? firstChapterOfDay(selectedDay.chapterKeys, resolveBook)
+    : null;
+
+  const openSelectedChapter = () => {
+    if (!selectedChapter || !rootNavigationRef.isReady()) return;
+    rootNavigationRef.navigate('Bible', {
+      screen: 'BibleReader',
+      params: { bookId: selectedChapter.bookId, chapter: selectedChapter.chapter },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
+        <View style={styles.header}>
+          <IconButton
+            icon={ArrowLeft}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
+          <Text style={[styles.headerEyebrow, displayFont.regular]}>
+            {t('readingActivity.eyebrow')}
+          </Text>
+        </View>
+
+        {/* Hero: the streak is the headline, totals ride the right rail. */}
+        <View style={styles.hero}>
+          <View style={styles.heroStreak}>
+            <Text style={[styles.heroEyebrow, displayFont.regular]}>
+              {t('readingActivity.currentStreak')}
+            </Text>
+            <View style={styles.heroStreakRow}>
+              <Text style={styles.heroStreakNumber}>{streakDays}</Text>
+              <Text style={[styles.heroStreakUnit, displayFont.bold]}>
+                {t('readingActivity.days')}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.heroTotals}>
+            <Text style={styles.heroTotalValue}>{chapterTotal}</Text>
+            <Text style={[styles.heroTotalLabel, displayFont.regular]}>
+              {t('readingActivity.chapters')}
+            </Text>
+            <Text style={[styles.heroTotalValue, styles.heroTotalValueSpaced]}>
+              {listeningLabel}
+            </Text>
+            <Text style={[styles.heroTotalLabel, displayFont.regular]}>
+              {t('readingActivity.listening')}
+            </Text>
+          </View>
+        </View>
+
+        <AppCard padding={0} style={styles.calendarCard}>
+          <View style={styles.calendarHeader}>
+            <Text style={[styles.monthTitle, displayFont.bold]} numberOfLines={2}>
+              {formatMonthTitle(viewDate, i18n.language)}
+            </Text>
+            <View style={styles.monthNav}>
+              <IconButton
+                icon={ChevronLeft}
+                size={30}
+                iconSize={14}
+                onPress={() => goToMonth(-1)}
+                accessibilityLabel={t('readingActivity.previousMonth')}
+              />
+              <IconButton
+                icon={ChevronRight}
+                size={30}
+                iconSize={14}
+                onPress={() => goToMonth(1)}
+                accessibilityLabel={t('readingActivity.nextMonth')}
+              />
+            </View>
+          </View>
+
+          <View style={styles.weekdayRow}>
+            {weekdayInitials.map((initial, index) => (
+              <Text
+                key={`weekday-${index}`}
+                style={[styles.weekday, displayFont.regular, { width: measuredCell }]}
+              >
+                {initial}
+              </Text>
+            ))}
+          </View>
+
+          <View
+            testID="reading-activity-calendar"
+            style={[
+              styles.grid,
+              { minHeight: grid.rowCount * (measuredCell + CELL_GAP) - CELL_GAP },
+            ]}
+            onLayout={handleGridLayout}
+          >
+            {grid.cells.map((cell) => (
+              <CalendarCell
+                key={cell.dateKey}
+                cell={cell}
+                size={cellSize}
+                colors={colors}
+                styles={styles}
+                label={formatDayEyebrow(cell.dateKey, i18n.language)}
+                onPress={() => setSelectedDateKey(cell.dateKey)}
+              />
+            ))}
+          </View>
+
+          <View style={styles.legend}>
+            <View style={[styles.legendSwatch, { backgroundColor: colors.accentPrimary }]} />
+            <Text style={[styles.legendLabel, displayFont.regular]}>
+              {t('readingActivity.legendRead')}
+            </Text>
+            <View style={[styles.legendSwatch, styles.legendSwatchToday, styles.legendSpacer]} />
+            <Text style={[styles.legendLabel, displayFont.regular]}>
+              {t('readingActivity.legendToday')}
+            </Text>
+            <Text style={[styles.legendProgress, displayFont.regular]}>
+              {t('readingActivity.legendProgress', {
+                read: grid.readDays,
+                elapsed: grid.elapsedDays,
+              })}
+            </Text>
+          </View>
+        </AppCard>
+
+        <AppCard
+          accentRule
+          padding={layout.cardPadding}
+          style={styles.dayCard}
+          pressable={Boolean(selectedChapter)}
+          onPress={selectedChapter ? openSelectedChapter : undefined}
+          accessibilityLabel={
+            effectiveSelectedDateKey
+              ? formatDayEyebrow(effectiveSelectedDateKey, i18n.language)
+              : undefined
+          }
         >
-          <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('profile.readingActivity')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>{t('profile.readingActivity')}</Text>
-          <Text style={styles.heroBody}>{t('profile.readingActivitySubtitle')}</Text>
-
-          {engagement && (
-            <View style={styles.engagementRow}>
-              <View style={styles.engagementChip}>
-                <Ionicons name="book-outline" size={14} color={colors.accentPrimary} />
-                <Text style={styles.engagementChipValue}>{engagement.total_chapters_read}</Text>
-                <Text style={styles.engagementChipLabel}>{t('engagement.totalChapters')}</Text>
-              </View>
-              <View style={styles.engagementDivider} />
-              <View style={styles.engagementChip}>
-                <Ionicons name="headset-outline" size={14} color={colors.accentPrimary} />
-                <Text style={styles.engagementChipValue}>
-                  {formatListeningTime(engagement.total_listening_minutes, t)}
-                </Text>
-                <Text style={styles.engagementChipLabel}>{t('engagement.totalListening')}</Text>
-              </View>
+          <View style={styles.dayRow}>
+            <View style={styles.dayCopy}>
+              <Text style={[styles.dayEyebrow, displayFont.regular]}>
+                {effectiveSelectedDateKey
+                  ? formatDayEyebrow(effectiveSelectedDateKey, i18n.language)
+                  : t('readingActivity.legendToday')}
+              </Text>
+              {selectedDay ? (
+                <>
+                  <Text style={styles.daySummary}>
+                    {t('readingActivity.dayChapters', {
+                      count: selectedDay.chapterCount,
+                      books: selectedBooks,
+                    })}
+                  </Text>
+                  {sessionMinutes > 0 ? (
+                    <Text style={styles.dayWindow}>
+                      {t('readingActivity.sessionWindow', {
+                        start: formatTime(selectedDay.firstReadAt, i18n.language),
+                        end: formatTime(selectedDay.lastReadAt, i18n.language),
+                        duration: formatListeningTime(sessionMinutes, t),
+                      })}
+                    </Text>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.daySummary}>{t('readingActivity.noReading')}</Text>
+                  <Text style={styles.dayWindow}>{t('readingActivity.noReadingHint')}</Text>
+                </>
+              )}
             </View>
-          )}
-
-          <View style={styles.statsRow}>
-            <StatCard
-              icon="flame"
-              value={streakDays}
-              label={t('profile.streak')}
-              tint={streakTint}
-              style={styles.statCardFlex}
-            />
-            <StatCard
-              icon="calendar-clear-outline"
-              value={monthView.totalReadDays}
-              label={t('profile.readingDays')}
-              style={styles.statCardFlex}
-            />
-            <StatCard
-              icon="book-outline"
-              value={monthView.totalChapterReads}
-              label={t('profile.chaptersRead')}
-              style={styles.statCardFlex}
-            />
+            {selectedChapter ? (
+              <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
+            ) : null}
           </View>
-        </View>
+        </AppCard>
 
-        <View style={styles.calendarCard}>
-          {calendarLanguage === i18n.language && (
-            <Calendar
-              key={i18n.language}
-              testID="reading-activity-calendar"
-              current={`${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-01`}
-              markedDates={markedDates}
-              onDayPress={(day) => handleDayPress(day.dateString)}
-              onMonthChange={(month: { year: number; month: number }) => {
-                setSelectedDateKey(null);
-                setViewDate(new Date(month.year, month.month - 1, 1));
-              }}
-              hideExtraDays={false}
-              enableSwipeMonths
-              theme={{
-                backgroundColor: colors.cardBackground,
-                calendarBackground: colors.cardBackground,
-                textSectionTitleColor: colors.secondaryText,
-                dayTextColor: colors.primaryText,
-                monthTextColor: colors.primaryText,
-                textDayFontWeight: '600',
-                textMonthFontWeight: '700',
-                textDayHeaderFontWeight: '600',
-                selectedDayBackgroundColor: colors.accentPrimary,
-                selectedDayTextColor: colors.onAccent,
-                todayTextColor: colors.accentPrimary,
-                arrowColor: colors.primaryText,
-                dotColor: colors.accentPrimary,
-                textDisabledColor: hexWithAlpha(colors.secondaryText, 0.33),
-              }}
-            />
-          )}
-        </View>
-
-        <View style={styles.detailCard}>
-          <View style={styles.detailHeader}>
-            <View style={styles.detailCopy}>
-              <Text style={styles.detailTitle}>{t('profile.selectedDay')}</Text>
-              <Text style={styles.detailSubtitle}>
-                {monthView.selectedDay ? selectedDayLabel : t('profile.tapDayHint')}
-              </Text>
-            </View>
-            <Ionicons name="today-outline" size={24} color={colors.accentPrimary} />
-          </View>
-
-          {monthView.selectedDay ? (
-            <View style={styles.detailBody}>
-              <Text style={styles.detailCount}>
-                {monthView.selectedDay.chapterCount}{' '}
-                {monthView.selectedDay.chapterCount === 1
-                  ? t('profile.chapterRead')
-                  : t('profile.chaptersRead')}
-              </Text>
-              <Text style={styles.detailMeta}>
-                {t('profile.firstReadAt', {
-                  time: formatTime(monthView.selectedDay.firstReadAt, i18n.language),
-                })}
-              </Text>
-              <Text style={styles.detailMeta}>
-                {t('profile.lastReadAt', {
-                  time: formatTime(monthView.selectedDay.lastReadAt, i18n.language),
-                })}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={32} color={colors.secondaryText} />
-              <Text style={styles.emptyTitle}>{t('profile.noReadingActivityTitle')}</Text>
-              <Text style={styles.emptyBody}>{t('profile.noReadingActivityBody')}</Text>
-            </View>
-          )}
-        </View>
+        <Text style={[styles.footer, displayFont.regular]}>{syncStatus.sourceLabel}</Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+interface CalendarCellProps {
+  cell: ReadingActivityGridCell;
+  size: number;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+  label: string;
+  onPress: () => void;
+}
+
+// One square. Read days carry the accent fill, today is outlined in a dashed
+// accent hairline, everything else is an inert `muted` well. The selection ring
+// is drawn as two nested borders bleeding into the 6pt gutter so it never
+// changes the cell's own size.
+function CalendarCell({ cell, size, colors, styles, label, onPress }: CalendarCellProps) {
+  const isRead = cell.state === 'read';
+  const isToday = cell.state === 'today';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.cellSlot, { width: size, height: size }, !cell.inMonth && styles.cellLeading]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: cell.isSelected }}
+    >
+      <View
+        style={[
+          styles.cell,
+          {
+            backgroundColor: isRead ? colors.accentPrimary : isToday ? 'transparent' : colors.muted,
+          },
+          isToday && { borderColor: colors.accentPrimary },
+          isToday && styles.cellToday,
+        ]}
+      >
+        <Text
+          style={[
+            styles.cellLabel,
+            {
+              color: isRead
+                ? colors.onAccent
+                : isToday
+                  ? colors.accentPrimary
+                  : colors.textTertiary,
+            },
+          ]}
+        >
+          {cell.day}
+        </Text>
+      </View>
+      {cell.isSelected ? (
+        <>
+          <View
+            pointerEvents="none"
+            style={[styles.selectionInnerRing, { borderColor: colors.cardBackground }]}
+          />
+          <View
+            pointerEvents="none"
+            style={[styles.selectionOuterRing, { borderColor: colors.primaryText }]}
+          />
+        </>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -279,170 +430,214 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: layout.screenPadding,
-      paddingVertical: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.cardBorder,
-    },
-    backButton: {
-      padding: 4,
-    },
-    headerTitle: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-    },
-    headerSpacer: {
-      width: 32,
-    },
     scrollView: {
       flex: 1,
     },
     content: {
-      padding: layout.screenPadding,
-      gap: layout.cardGap,
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.sm,
     },
-    heroCard: {
-      borderRadius: radius.lg,
-      padding: layout.cardPadding,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: spacing.lg,
+      marginBottom: spacing.xl,
     },
-    heroTitle: {
-      ...typography.sectionTitle,
-      color: colors.primaryText,
-    },
-    heroBody: {
-      ...typography.body,
-      lineHeight: 21,
-      color: colors.secondaryText,
-    },
-    engagementRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-    },
-    engagementChip: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    engagementChipValue: {
-      ...typography.label,
-      color: colors.primaryText,
-      fontVariant: ['tabular-nums'],
-    },
-    engagementChipLabel: {
-      ...typography.micro,
+    headerEyebrow: {
+      ...typography.eyebrow,
       color: colors.secondaryText,
       flexShrink: 1,
     },
-    engagementDivider: {
-      width: 1,
-      height: 20,
-      backgroundColor: colors.cardBorder,
-      marginHorizontal: spacing.md,
-    },
-    statsRow: {
+    hero: {
       flexDirection: 'row',
-      gap: spacing.md,
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: spacing.lg,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 1.5,
+      borderBottomColor: colors.primaryText,
+      marginBottom: spacing.xl,
     },
-    statCardFlex: {
-      flex: 1,
+    heroStreak: {
+      flexShrink: 1,
     },
-    statChip: {
-      flex: 1,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.background,
-      paddingVertical: 14,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    statNumber: {
-      ...typography.cardTitle,
-      fontSize: 22,
-      lineHeight: 26,
-      color: colors.primaryText,
-      fontVariant: ['tabular-nums'],
-    },
-    statLabel: {
-      ...typography.micro,
-      textAlign: 'center',
+    heroEyebrow: {
+      ...typography.eyebrow,
       color: colors.secondaryText,
+      marginBottom: spacing.sm,
+    },
+    heroStreakRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: spacing.sm,
+    },
+    heroStreakNumber: {
+      ...typography.numeralStreak,
+      color: colors.primaryText,
+    },
+    heroStreakUnit: {
+      ...typography.sectionHeading,
+      fontSize: 20,
+      lineHeight: 20,
+      letterSpacing: -0.5,
+      color: colors.secondaryText,
+    },
+    heroTotals: {
+      alignItems: 'flex-end',
+    },
+    heroTotalValue: {
+      ...typography.numeralRow,
+      fontSize: 22,
+      lineHeight: 22,
+      letterSpacing: -0.88,
+      color: colors.primaryText,
+      textAlign: 'right',
+    },
+    heroTotalValueSpaced: {
+      marginTop: spacing.md,
+    },
+    heroTotalLabel: {
+      ...typography.eyebrow,
+      color: colors.secondaryText,
+      marginTop: spacing.xs,
+      textAlign: 'right',
     },
     calendarCard: {
-      borderRadius: radius.lg,
-      padding: spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
+      paddingTop: 14,
+      paddingHorizontal: layout.cardPadding,
+      paddingBottom: layout.cardPadding,
+      marginBottom: layout.cardGap,
     },
-    detailCard: {
-      borderRadius: radius.lg,
-      padding: layout.denseCardPadding,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBackground,
+    calendarHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    monthTitle: {
+      ...typography.sectionHeading,
+      color: colors.primaryText,
+      flexShrink: 1,
+    },
+    monthNav: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    weekdayRow: {
+      flexDirection: 'row',
+      gap: CELL_GAP,
+      marginBottom: spacing.sm,
+    },
+    weekday: {
+      ...typography.eyebrow,
+      letterSpacing: 0,
+      color: colors.secondaryText,
+      textAlign: 'center',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: CELL_GAP,
+    },
+    cellSlot: {
+      alignItems: 'stretch',
+      justifyContent: 'center',
+    },
+    cellLeading: {
+      opacity: LEADING_DAY_OPACITY,
+    },
+    cell: {
+      flex: 1,
+      borderRadius: CELL_RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cellToday: {
+      borderWidth: TODAY_BORDER_WIDTH,
+      borderStyle: 'dashed',
+    },
+    cellLabel: {
+      ...typography.mono,
+      letterSpacing: 0,
+    },
+    selectionInnerRing: {
+      position: 'absolute',
+      top: -SELECTED_RING_GAP,
+      left: -SELECTED_RING_GAP,
+      right: -SELECTED_RING_GAP,
+      bottom: -SELECTED_RING_GAP,
+      borderWidth: SELECTED_RING_GAP,
+      borderRadius: CELL_RADIUS + SELECTED_RING_GAP,
+    },
+    selectionOuterRing: {
+      position: 'absolute',
+      top: -(SELECTED_RING_GAP * 2),
+      left: -(SELECTED_RING_GAP * 2),
+      right: -(SELECTED_RING_GAP * 2),
+      bottom: -(SELECTED_RING_GAP * 2),
+      borderWidth: SELECTED_RING_WIDTH,
+      borderRadius: CELL_RADIUS + SELECTED_RING_GAP * 2,
+    },
+    legend: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: layout.cardPadding,
+    },
+    legendSwatch: {
+      width: LEGEND_SWATCH,
+      height: LEGEND_SWATCH,
+      borderRadius: radius.xs,
+    },
+    legendSwatchToday: {
+      borderWidth: TODAY_BORDER_WIDTH,
+      borderStyle: 'dashed',
+      borderColor: colors.accentPrimary,
+    },
+    legendSpacer: {
+      marginLeft: spacing.sm,
+    },
+    legendLabel: {
+      ...typography.eyebrow,
+      color: colors.secondaryText,
+    },
+    legendProgress: {
+      ...typography.eyebrow,
+      color: colors.secondaryText,
+      marginLeft: 'auto',
+      textAlign: 'right',
+    },
+    dayCard: {
+      marginBottom: spacing.xl,
+    },
+    dayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: spacing.md,
     },
-    detailHeader: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    detailCopy: {
+    dayCopy: {
       flex: 1,
+      paddingLeft: spacing.sm,
       gap: spacing.xs,
     },
-    detailTitle: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-    },
-    detailSubtitle: {
-      ...typography.micro,
-      color: colors.secondaryText,
-      lineHeight: 18,
-    },
-    detailBody: {
-      gap: spacing.sm,
-    },
-    detailCount: {
-      ...typography.cardTitle,
-      color: colors.primaryText,
-    },
-    detailMeta: {
-      ...typography.micro,
-      lineHeight: 18,
+    dayEyebrow: {
+      ...typography.eyebrow,
       color: colors.secondaryText,
     },
-    emptyState: {
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      gap: spacing.sm,
-    },
-    emptyTitle: {
-      ...typography.cardTitle,
+    daySummary: {
+      ...typography.bodyStrong,
+      fontSize: 16,
+      lineHeight: 21,
       color: colors.primaryText,
     },
-    emptyBody: {
-      ...typography.micro,
-      lineHeight: 18,
+    dayWindow: {
+      ...typography.mono,
+      color: colors.secondaryText,
+    },
+    footer: {
+      ...typography.eyebrowPlain,
+      color: colors.secondaryText,
       textAlign: 'center',
-      color: colors.secondaryText,
     },
   });

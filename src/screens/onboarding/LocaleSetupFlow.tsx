@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -7,14 +7,24 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  type TextStyle,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  MapPin,
+  Search,
+} from 'lucide-react-native';
 import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import {
   LANGUAGES,
@@ -45,9 +55,13 @@ import {
   type SetupMode,
   type SetupStep,
 } from './localeSetupModel';
-import { radius, spacing } from '../../design/system';
-import { serifFamily } from '../../design/fonts';
-import { ProgressBar } from '../../components/ui/ProgressBar';
+import { layout, radius, spacing, typography } from '../../design/system';
+import { AppButton, AppCard, IconButton, PressableScale, ProgressBar } from '../../components/ui';
+// Import the hooks from their own modules rather than the hooks barrel: the
+// barrel re-exports useSync, which transitively evaluates the Supabase client.
+// A barrel import here would undo the deferred-import work below.
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
 import type { BibleTranslation } from '../../types';
 import {
   filterTranslationsBySearchQuery,
@@ -64,6 +78,12 @@ interface LocaleSetupFlowProps {
   mode?: SetupMode;
   onClose?: () => void;
   onComplete?: () => void;
+  /**
+   * Accepted for API compatibility with LocalePreferencesScreen. The redesigned
+   * header carries the step indicator instead of a screen title, and each step
+   * already names itself in its own display title, so this is no longer
+   * rendered.
+   */
   titleKey?: string;
 }
 
@@ -87,6 +107,18 @@ const syncPreferencesAfterOnboarding = (): void => {
 // debounced value.
 const SEARCH_DEBOUNCE_MS = 150;
 
+// EL geometry for this screen. The step bar is a fixed 120pt rail regardless of
+// how many segments it carries, so the header reads the same on every step.
+const STEP_BAR_WIDTH = 120;
+const STEP_BAR_HEIGHT = 3;
+const SEARCH_FIELD_HEIGHT = 46;
+const ROW_MIN_HEIGHT = 54;
+const RADIO_SIZE = 22;
+const SUGGESTED_MARK_SIZE = 24;
+// Fallback footer height used for the first frame, before onLayout reports the
+// real one: 24 top pad + 50 pill + 8 gap + 15 hint + 16 bottom pad.
+const ESTIMATED_FOOTER_HEIGHT = 113;
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -106,6 +138,139 @@ const getFlagEmoji = (countryCode: string): string => {
   return String.fromCodePoint(...countryCode.split('').map((char) => 127397 + char.charCodeAt(0)));
 };
 
+// The 22pt selection mark used by every option row: a hairline ring when empty,
+// an accent disc with a check when chosen. Never a tinted row background — the
+// EL system reserves fills for chips and the accent rule.
+interface SelectionMarkProps {
+  isSelected: boolean;
+  colors: ThemeColors;
+  size?: number;
+}
+
+function SelectionMark({ isSelected, colors, size = RADIO_SIZE }: SelectionMarkProps) {
+  if (isSelected) {
+    return (
+      <View
+        style={[
+          styles.selectionMark,
+          { width: size, height: size, borderRadius: size / 2 },
+          { backgroundColor: colors.accentPrimary },
+        ]}
+      >
+        <Check size={14} color={colors.onAccent} strokeWidth={2} />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.selectionMark,
+        styles.selectionMarkEmpty,
+        { width: size, height: size, borderRadius: size / 2 },
+        { borderColor: colors.borderStrong },
+      ]}
+    />
+  );
+}
+
+// One row recipe for every list on this flow: title over subtitle on the left,
+// a caller-supplied trailing slot on the right, hairline dividers between rows,
+// and the 1pt EL press translate.
+interface OptionRowProps {
+  title: string;
+  subtitle?: string | null;
+  trailing?: ReactNode;
+  isLast?: boolean;
+  disabled?: boolean;
+  colors: ThemeColors;
+  accessibilityLabel?: string;
+  testID?: string;
+  onPress: () => void;
+}
+
+function OptionRow({
+  title,
+  subtitle,
+  trailing,
+  isLast = false,
+  disabled = false,
+  colors,
+  accessibilityLabel,
+  testID,
+  onPress,
+}: OptionRowProps) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      pressEffect="translate"
+      haptic="selection"
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      testID={testID}
+      style={[
+        styles.optionRow,
+        !isLast && { borderBottomWidth: 1, borderBottomColor: colors.borderStrong },
+      ]}
+    >
+      <View style={styles.optionRowCopy}>
+        <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={1}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text
+            style={[styles.optionRowSubtitle, { color: colors.secondaryText }]}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {trailing}
+    </PressableScale>
+  );
+}
+
+// Soft status chip — "SUGGESTED", "RECOMMENDED", "DOWNLOAD". Accent surface fill
+// with its own foreground token so it stays legible in both scopes.
+interface StatusChipProps {
+  label: string;
+  colors: ThemeColors;
+  eyebrowFont: TextStyle;
+}
+
+function StatusChip({ label, colors, eyebrowFont }: StatusChipProps) {
+  return (
+    <View style={[styles.chip, { backgroundColor: colors.accentSurface }]}>
+      <Text style={[typography.monoSmall, eyebrowFont, { color: colors.onAccentSurface }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+interface SectionEyebrowProps {
+  label: string;
+  colors: ThemeColors;
+  eyebrowFont: TextStyle;
+}
+
+function SectionEyebrow({ label, colors, eyebrowFont }: SectionEyebrowProps) {
+  return (
+    <Text
+      style={[
+        typography.eyebrow,
+        eyebrowFont,
+        styles.sectionEyebrow,
+        { color: colors.secondaryText },
+      ]}
+    >
+      {label}
+    </Text>
+  );
+}
+
 // Row components are extracted and memoized (keyed by stable id) so a keystroke
 // that only changes one row's selection — or leaves the visible set unchanged —
 // doesn't re-render every row in the non-virtualized ScrollView. Props are kept
@@ -114,7 +279,9 @@ const getFlagEmoji = (countryCode: string): string => {
 interface CountryRowProps {
   countryCode: string;
   countryName: string;
+  countrySubtitle: string;
   isSelected: boolean;
+  isLast: boolean;
   colors: ThemeColors;
   onSelect: (countryCode: string) => void;
 }
@@ -122,35 +289,21 @@ interface CountryRowProps {
 const CountryRow = memo(function CountryRow({
   countryCode,
   countryName,
+  countrySubtitle,
   isSelected,
+  isLast,
   colors,
   onSelect,
 }: CountryRowProps) {
-  const flag = getFlagEmoji(countryCode);
-
   return (
-    <TouchableOpacity
-      style={[
-        styles.optionCard,
-        {
-          backgroundColor: isSelected ? colors.accentSoft : colors.cardBackground,
-          borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-        },
-      ]}
+    <OptionRow
+      title={countryName}
+      subtitle={countrySubtitle}
+      isLast={isLast}
+      colors={colors}
+      trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
       onPress={() => onSelect(countryCode)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.optionCopy}>
-        <View style={styles.countryTitleRow}>
-          {flag ? <Text style={styles.flagEmoji}>{flag}</Text> : null}
-          <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{countryName}</Text>
-        </View>
-        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{countryCode}</Text>
-      </View>
-      {isSelected ? (
-        <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-      ) : null}
-    </TouchableOpacity>
+    />
   );
 });
 
@@ -158,8 +311,10 @@ interface LanguageRowProps {
   language: LocaleLanguage;
   isRecommended: boolean;
   isSelected: boolean;
+  isLast: boolean;
   recommendedBadgeLabel: string;
   colors: ThemeColors;
+  eyebrowFont: TextStyle;
   onSelect: (languageCode: string) => void;
 }
 
@@ -167,49 +322,28 @@ const LanguageRow = memo(function LanguageRow({
   language,
   isRecommended,
   isSelected,
+  isLast,
   recommendedBadgeLabel,
   colors,
+  eyebrowFont,
   onSelect,
 }: LanguageRowProps) {
   return (
-    <TouchableOpacity
-      style={[
-        styles.optionCard,
-        {
-          backgroundColor: isSelected ? colors.accentSoft : colors.cardBackground,
-          borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-        },
-      ]}
-      onPress={() => onSelect(language.code)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.optionCopy}>
-        <Text style={[styles.optionTitle, { color: colors.primaryText }]}>
-          {language.nativeName}
-        </Text>
-        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>{language.name}</Text>
-        <View style={styles.badgeRow}>
+    <OptionRow
+      title={language.nativeName}
+      subtitle={language.name}
+      isLast={isLast}
+      colors={colors}
+      trailing={
+        <View style={styles.optionRowTrailing}>
           {isRecommended ? (
-            <View
-              style={[
-                styles.badge,
-                {
-                  backgroundColor: colors.accentGreen + '18',
-                  borderColor: colors.accentGreen + '44',
-                },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                {recommendedBadgeLabel}
-              </Text>
-            </View>
+            <StatusChip label={recommendedBadgeLabel} colors={colors} eyebrowFont={eyebrowFont} />
           ) : null}
+          <SelectionMark isSelected={isSelected} colors={colors} />
         </View>
-      </View>
-      {isSelected ? (
-        <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
-      ) : null}
-    </TouchableOpacity>
+      }
+      onPress={() => onSelect(language.code)}
+    />
   );
 });
 
@@ -223,8 +357,10 @@ interface OnboardingLanguageRowProps {
   downloadingLabel: string;
   isRecommended: boolean;
   isInstalling: boolean;
+  isLast: boolean;
   progress: number | null;
   colors: ThemeColors;
+  eyebrowFont: TextStyle;
   onPress: (translation: BibleTranslation) => void;
 }
 
@@ -238,83 +374,82 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
   downloadingLabel,
   isRecommended,
   isInstalling,
+  isLast,
   progress,
   colors,
+  eyebrowFont,
   onPress,
 }: OnboardingLanguageRowProps) {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.optionCard,
-        {
-          backgroundColor: isRecommended ? colors.accentGreen + '10' : colors.cardBackground,
-          borderColor: isRecommended ? colors.accentGreen : colors.cardBorder,
-        },
-      ]}
-      onPress={() => onPress(translation)}
-      disabled={isInstalling}
-      activeOpacity={0.85}
-    >
-      <View style={styles.optionCopy}>
-        <Text style={[styles.optionTitle, { color: colors.primaryText }]}>{optionLabel}</Text>
-        <Text style={[styles.optionMeta, { color: colors.secondaryText }]} numberOfLines={1}>
-          {translationLabel}
-        </Text>
-        <Text style={[styles.optionMeta, { color: colors.secondaryText }]}>
-          {availabilitySummary}
-        </Text>
-        <View style={styles.badgeRow}>
-          {isRecommended ? (
-            <View
-              style={[
-                styles.badge,
-                {
-                  backgroundColor: colors.accentGreen + '18',
-                  borderColor: colors.accentGreen + '44',
-                },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-                {recommendedBadgeLabel}
-              </Text>
-            </View>
-          ) : null}
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor: colors.accentGreen + '18',
-                borderColor: colors.accentGreen + '44',
-              },
-            ]}
-          >
-            <Text style={[styles.badgeText, { color: colors.accentGreen }]}>
-              {isInstalling && progress != null ? `${downloadingLabel} ${progress}%` : statusLabel}
-            </Text>
-          </View>
-        </View>
+  const trailing = isInstalling ? (
+    progress != null ? (
+      <View style={styles.downloadProgress}>
+        <ProgressBar progress={progress / 100} />
       </View>
-      {isInstalling && progress != null ? (
-        <View style={styles.downloadProgress}>
-          <ProgressBar progress={progress / 100} />
-        </View>
-      ) : isInstalling ? (
-        <ActivityIndicator color={colors.accentGreen} />
-      ) : (
-        <Ionicons name="chevron-forward" size={22} color={colors.secondaryText} />
-      )}
-    </TouchableOpacity>
+    ) : (
+      <ActivityIndicator color={colors.accentPrimary} />
+    )
+  ) : (
+    <View style={styles.optionRowTrailing}>
+      <StatusChip
+        label={isRecommended ? recommendedBadgeLabel : statusLabel}
+        colors={colors}
+        eyebrowFont={eyebrowFont}
+      />
+      <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
+    </View>
+  );
+
+  return (
+    <OptionRow
+      title={optionLabel}
+      subtitle={
+        isInstalling && progress != null
+          ? `${downloadingLabel} ${progress}%`
+          : `${translationLabel} · ${availabilitySummary}`
+      }
+      isLast={isLast}
+      disabled={isInstalling}
+      colors={colors}
+      trailing={trailing}
+      onPress={() => onPress(translation)}
+    />
   );
 });
 
-export function LocaleSetupFlow({
-  mode = 'initial',
-  onClose,
-  onComplete,
-  titleKey,
-}: LocaleSetupFlowProps) {
+interface InterfaceLanguageRowProps {
+  language: Language;
+  isSelected: boolean;
+  isLast: boolean;
+  colors: ThemeColors;
+  onSelect: (language: Language) => void;
+}
+
+const InterfaceLanguageRow = memo(function InterfaceLanguageRow({
+  language,
+  isSelected,
+  isLast,
+  colors,
+  onSelect,
+}: InterfaceLanguageRowProps) {
+  return (
+    <OptionRow
+      title={language.nativeName}
+      subtitle={language.nativeName !== language.name ? language.name : null}
+      isLast={isLast}
+      colors={colors}
+      accessibilityLabel={language.appLanguageLabel}
+      trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
+      onPress={() => onSelect(language)}
+    />
+  );
+});
+
+export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: LocaleSetupFlowProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const displayFont = useDisplayFont();
+  const insets = useSafeAreaInsets();
+  const keyboardBottomInset = useKeyboardBottomInset();
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const translations = useBibleStore((state) => state.translations);
@@ -356,6 +491,7 @@ export function LocaleSetupFlow({
   const [runtimeCatalogHydrationAttempt, setRuntimeCatalogHydrationAttempt] = useState(0);
   const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
+  const [footerHeight, setFooterHeight] = useState(ESTIMATED_FOOTER_HEIGHT);
 
   // Debounced mirrors of the raw search inputs. The result memos below consume
   // these so keystrokes don't trigger a filter/search + full list re-render on
@@ -546,6 +682,29 @@ export function LocaleSetupFlow({
         ? localeSearchEngine.searchCountries(debouncedCountryQuery, selectedInterfaceLanguageCode)
         : [],
     [debouncedCountryQuery, selectedInterfaceLanguageCode, step]
+  );
+
+  const countryCatalogSize = useMemo(
+    () => (step === 'country' ? localeSearchEngine.countries.length : 0),
+    [step]
+  );
+
+  // The device-suggested nation is pinned above the list while the search field
+  // is empty; once the user searches, the results speak for themselves.
+  const suggestedCountry = useMemo(
+    () =>
+      step === 'country' && !debouncedCountryQuery.trim()
+        ? localeSearchEngine.getCountryByCode(deviceCountryCode)
+        : null,
+    [debouncedCountryQuery, deviceCountryCode, step]
+  );
+
+  const listedCountries = useMemo(
+    () =>
+      suggestedCountry
+        ? countryResults.filter((country) => country.code !== suggestedCountry.code)
+        : countryResults,
+    [countryResults, suggestedCountry]
   );
 
   const languageResults = useMemo(
@@ -771,7 +930,7 @@ export function LocaleSetupFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, steps]);
 
-  const handleInterfaceLanguageSelect = async (language: Language) => {
+  const handleInterfaceLanguageSelectImpl = async (language: Language) => {
     setSelectedInterfaceLanguageCode(language.code);
     try {
       const result = await getInterfaceLanguageSelectionResult(language.code, changeLanguage);
@@ -785,37 +944,33 @@ export function LocaleSetupFlow({
     }
   };
 
-  const renderInterfaceLanguageButton = (language: Language) => {
-    const isSelected = selectedInterfaceLanguageCode === language.code;
+  const handleInterfaceLanguageSelectRef = useRef(handleInterfaceLanguageSelectImpl);
+  handleInterfaceLanguageSelectRef.current = handleInterfaceLanguageSelectImpl;
+  const handleInterfaceLanguageSelect = useCallback((language: Language) => {
+    void handleInterfaceLanguageSelectRef.current(language);
+  }, []);
 
-    return (
-      <TouchableOpacity
-        key={language.code}
-        style={[
-          styles.languageButton,
-          {
-            backgroundColor: isSelected ? colors.accentGreen + '18' : colors.cardBackground,
-            borderColor: isSelected ? colors.accentGreen : colors.cardBorder,
-          },
-        ]}
-        onPress={() => void handleInterfaceLanguageSelect(language)}
-        activeOpacity={0.85}
-      >
-        <Text style={[styles.languageButtonNative, { color: colors.primaryText }]}>
-          {language.nativeName}
-        </Text>
-        {language.nativeName !== language.name ? (
-          <Text style={[styles.languageButtonEnglish, { color: colors.secondaryText }]}>
-            {language.name}
-          </Text>
-        ) : null}
-      </TouchableOpacity>
-    );
-  };
+  const renderInterfaceLanguageList = (testID?: string) => (
+    <View testID={testID}>
+      <AppCard padding={0}>
+        {SUPPORTED_LANGUAGES.map((language, index) => (
+          <InterfaceLanguageRow
+            key={language.code}
+            language={language}
+            isSelected={selectedInterfaceLanguageCode === language.code}
+            isLast={index === SUPPORTED_LANGUAGES.length - 1}
+            colors={colors}
+            onSelect={handleInterfaceLanguageSelect}
+          />
+        ))}
+      </AppCard>
+    </View>
+  );
 
   const renderOnboardingLanguageRow = (
     option: InitialOnboardingLanguageOption<BibleTranslation>,
-    isRecommended = false
+    isRecommended = false,
+    isLast = true
   ) => {
     const translation = option.primaryTranslation;
     const isInstalling = installingTranslationId === translation.id;
@@ -854,14 +1009,29 @@ export function LocaleSetupFlow({
         downloadingLabel={t('translations.downloading')}
         isRecommended={isRecommended}
         isInstalling={isInstalling}
+        isLast={isLast}
         progress={progress}
         colors={colors}
+        eyebrowFont={displayFont.regular}
         onPress={handleTranslationSelect}
       />
     );
   };
 
-  const renderCountryRow = (countryCode: string) => {
+  // "Nepal · 123 languages" under the localized nation name. The English name is
+  // dropped when it is the same string the title already shows.
+  const getCountrySubtitle = (countryCode: string, displayName: string): string => {
+    const country = localeSearchEngine.getCountryByCode(countryCode);
+    const languageCount = t('onboarding.countryLanguageCount', {
+      count: country?.languageCodes.length ?? 0,
+    });
+
+    return country && country.name !== displayName
+      ? `${country.name} · ${languageCount}`
+      : languageCount;
+  };
+
+  const renderCountryRow = (countryCode: string, isLast: boolean) => {
     const isSelected = selectedCountryCode === countryCode;
     const countryName = localeSearchEngine.getCountryDisplayName(
       countryCode,
@@ -873,14 +1043,16 @@ export function LocaleSetupFlow({
         key={countryCode}
         countryCode={countryCode}
         countryName={countryName}
+        countrySubtitle={getCountrySubtitle(countryCode, countryName)}
         isSelected={isSelected}
+        isLast={isLast}
         colors={colors}
         onSelect={handleCountrySelect}
       />
     );
   };
 
-  const renderLanguageRow = (language: LocaleLanguage, isRecommended: boolean) => {
+  const renderLanguageRow = (language: LocaleLanguage, isRecommended: boolean, isLast: boolean) => {
     const isSelected = selectedLanguageCode === language.code;
 
     return (
@@ -889,21 +1061,62 @@ export function LocaleSetupFlow({
         language={language}
         isRecommended={isRecommended}
         isSelected={isSelected}
+        isLast={isLast}
         recommendedBadgeLabel={t('onboarding.recommendedBadge')}
         colors={colors}
+        eyebrowFont={displayFont.regular}
         onSelect={handleLanguageSelect}
       />
     );
   };
 
-  const stepSubtitle =
-    mode === 'initial'
-      ? ''
-      : t('onboarding.stepProgress', {
-          current: currentStepNumber,
-          count: totalSteps,
-        });
+  const renderSearchField = (
+    value: string,
+    onChangeText: (next: string) => void,
+    placeholder: string,
+    testID: string
+  ) => (
+    <View
+      style={[
+        styles.searchField,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
+    >
+      <Search size={17} color={colors.secondaryText} strokeWidth={2} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        testID={testID}
+        accessibilityLabel={placeholder}
+        placeholder={placeholder}
+        placeholderTextColor={colors.secondaryText}
+        style={[styles.searchInput, { color: colors.primaryText }]}
+        autoCapitalize="words"
+        autoCorrect={false}
+      />
+    </View>
+  );
+
+  const renderEmptyCard = (title: string, body: string, retry?: () => void) => (
+    <AppCard padding={layout.cardPaddingWide} style={styles.emptyCard}>
+      <Text style={[typography.cardTitle, { color: colors.primaryText }]}>{title}</Text>
+      <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>{body}</Text>
+      {retry ? (
+        <View style={styles.emptyCta} testID="onboarding-runtime-catalog-retry">
+          <AppButton
+            label={t('common.retry')}
+            variant="secondary"
+            size="md"
+            fullWidth={false}
+            onPress={retry}
+          />
+        </View>
+      ) : null}
+    </AppCard>
+  );
+
   const canUseHeaderBack = mode === 'settings' || step !== steps[0];
+  const showStepProgress = totalSteps > 1;
   const handleHeaderBack = () => {
     if (mode === 'settings') {
       onClose?.();
@@ -913,177 +1126,186 @@ export function LocaleSetupFlow({
     goToPreviousStep();
   };
 
+  const suggestedCountryName = suggestedCountry
+    ? localeSearchEngine.getCountryDisplayName(suggestedCountry.code, selectedInterfaceLanguageCode)
+    : '';
+
+  const isCountryStep = step === 'country';
+  const canAdvance = isCountryStep ? Boolean(selectedCountry) : Boolean(selectedLanguage);
+  const primaryActionLabel = isCountryStep
+    ? selectedCountry
+      ? t('onboarding.continueWithNation', { name: selectedCountryDisplayName })
+      : t('common.continue')
+    : isFinalStep
+      ? t('onboarding.finish')
+      : t('common.continue');
+  // The iOS keyboard frame includes the home-indicator inset that SafeAreaView
+  // already reserves, so subtract it or the footer floats too high.
+  const keyboardOffset = Math.max(0, keyboardBottomInset - insets.bottom);
+  const showFooter = mode === 'settings';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-        {canUseHeaderBack ? (
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleHeaderBack}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.primaryText} />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerButton} />
-        )}
-
-        <View style={styles.headerCopy}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
-            {t(titleKey ?? 'onboarding.title')}
-          </Text>
-          {stepSubtitle ? (
-            <Text style={[styles.headerStep, { color: colors.secondaryText }]}>{stepSubtitle}</Text>
+      <View style={styles.header}>
+        <View style={styles.headerSide}>
+          {canUseHeaderBack ? (
+            <IconButton
+              icon={ArrowLeft}
+              onPress={handleHeaderBack}
+              accessibilityLabel={t('common.back')}
+            />
           ) : null}
         </View>
 
-        {mode === 'settings' ? (
-          <TouchableOpacity style={styles.headerButton} onPress={completeSetup}>
-            <Text style={[styles.headerAction, { color: colors.accentGreen }]}>
-              {t('common.done')}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerButton} />
-        )}
+        <View style={styles.headerCenter}>
+          {showStepProgress ? (
+            <>
+              <Text
+                style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}
+              >
+                {t('onboarding.stepEyebrow', { step: currentStepNumber, total: totalSteps })}
+              </Text>
+              <View style={styles.stepBar}>
+                {steps.map((stepKey, index) => (
+                  <View
+                    key={stepKey}
+                    style={[
+                      styles.stepSegment,
+                      {
+                        backgroundColor:
+                          index < currentStepNumber ? colors.accentPrimary : colors.borderStrong,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
+        </View>
+
+        <View style={[styles.headerSide, styles.headerSideEnd]}>
+          {mode === 'settings' ? (
+            <TouchableOpacity
+              onPress={() => void completeSetup()}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.done')}
+              hitSlop={12}
+            >
+              <Text style={[typography.captionStrong, { color: colors.accentPrimary }]}>
+                {t('common.done')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: (showFooter ? footerHeight : 0) + keyboardOffset + spacing.xxl },
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        {mode === 'initial' && step === steps[0] ? (
-          <Text style={[styles.brandWordmark, { color: colors.accentPrimary }]}>EveryBible</Text>
-        ) : null}
         {step === 'interfaceLanguage' ? (
           <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('onboarding.interfaceLanguageTitle')}
             </Text>
             <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
               {t('onboarding.interfaceLanguageBody')}
             </Text>
 
-            <View style={styles.languageButtonGrid}>
-              {SUPPORTED_LANGUAGES.map((language) => renderInterfaceLanguageButton(language))}
-            </View>
+            <SectionEyebrow
+              label={t('onboarding.availableInterfaceLanguages')}
+              colors={colors}
+              eyebrowFont={displayFont.regular}
+            />
+            {renderInterfaceLanguageList()}
           </>
         ) : step === 'translation' ? (
           <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('onboarding.languageTitle')}
             </Text>
 
             {mode === 'initial' ? (
               <>
-                <TouchableOpacity
-                  style={[
-                    styles.inlinePreferenceButton,
-                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                  ]}
-                  testID="onboarding-interface-language-toggle"
-                  accessibilityRole="button"
-                  accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
-                  onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.inlinePreferenceCopy}>
-                    <Text style={[styles.inlinePreferenceLabel, { color: colors.secondaryText }]}>
-                      {selectedInterfaceLanguage.appLanguageLabel}
-                    </Text>
-                    <Text style={[styles.inlinePreferenceValue, { color: colors.primaryText }]}>
-                      {selectedInterfaceLanguage.nativeName}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={showInterfaceLanguagePicker ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.secondaryText}
-                  />
-                </TouchableOpacity>
-
-                {showInterfaceLanguagePicker ? (
-                  <View
-                    style={styles.languageButtonGrid}
-                    testID="onboarding-interface-language-inline-picker"
+                <View testID="onboarding-interface-language-toggle">
+                  <AppCard
+                    pressable
+                    padding={14}
+                    style={styles.inlinePreferenceCard}
+                    accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
+                    onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
                   >
-                    {SUPPORTED_LANGUAGES.map((language) => renderInterfaceLanguageButton(language))}
-                  </View>
-                ) : null}
+                    <View style={styles.inlinePreferenceRow}>
+                      <View style={styles.inlinePreferenceCopy}>
+                        <Text
+                          style={[
+                            typography.eyebrow,
+                            displayFont.regular,
+                            { color: colors.secondaryText },
+                          ]}
+                        >
+                          {selectedInterfaceLanguage.appLanguageLabel}
+                        </Text>
+                        <Text style={[styles.inlinePreferenceValue, { color: colors.primaryText }]}>
+                          {selectedInterfaceLanguage.nativeName}
+                        </Text>
+                      </View>
+                      {showInterfaceLanguagePicker ? (
+                        <ChevronUp size={18} color={colors.textTertiary} strokeWidth={2} />
+                      ) : (
+                        <ChevronDown size={18} color={colors.textTertiary} strokeWidth={2} />
+                      )}
+                    </View>
+                  </AppCard>
+                </View>
+
+                {showInterfaceLanguagePicker
+                  ? renderInterfaceLanguageList('onboarding-interface-language-inline-picker')
+                  : null}
               </>
             ) : null}
 
-            {bibleLanguageListState.showsSearch ? (
-              <TextInput
-                value={translationQuery}
-                onChangeText={setTranslationQuery}
-                testID="onboarding-translation-search"
-                accessibilityLabel={t('onboarding.languageSearchPlaceholder')}
-                placeholder={t('onboarding.languageSearchPlaceholder')}
-                placeholderTextColor={colors.secondaryText}
-                style={[
-                  styles.searchInput,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                    color: colors.primaryText,
-                  },
-                ]}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            ) : null}
+            {bibleLanguageListState.showsSearch
+              ? renderSearchField(
+                  translationQuery,
+                  setTranslationQuery,
+                  t('onboarding.languageSearchPlaceholder'),
+                  'onboarding-translation-search'
+                )
+              : null}
 
             {isHydratingRuntimeCatalog ? (
               <View style={styles.loadingRow}>
-                <ActivityIndicator color={colors.accentGreen} />
+                <ActivityIndicator color={colors.accentPrimary} />
               </View>
             ) : null}
 
-            {runtimeCatalogLoadFailed ? (
-              <View
-                style={[
-                  styles.emptyCard,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-                  {t('common.somethingWentWrong')}
-                </Text>
-                <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-                  {t('onboarding.noLanguagesFoundBody')}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.secondaryWideButton,
-                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                  ]}
-                  testID="onboarding-runtime-catalog-retry"
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.retry')}
-                  onPress={() =>
-                    setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
-                  }
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.secondaryWideButtonText, { color: colors.primaryText }]}>
-                    {t('common.retry')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
+            {runtimeCatalogLoadFailed
+              ? renderEmptyCard(
+                  t('common.somethingWentWrong'),
+                  t('onboarding.noLanguagesFoundBody'),
+                  () => setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
+                )
+              : null}
 
             {mode === 'initial' && primaryOnboardingLanguageOption ? (
               <View testID="onboarding-primary-recommendation">
-                {renderOnboardingLanguageRow(
-                  primaryOnboardingLanguageOption,
-                  bibleLanguageListState.pinsRecommendedOption
-                )}
+                <SectionEyebrow
+                  label={t('onboarding.recommendedBadge')}
+                  colors={colors}
+                  eyebrowFont={displayFont.regular}
+                />
+                <AppCard accentRule padding={0}>
+                  {renderOnboardingLanguageRow(
+                    primaryOnboardingLanguageOption,
+                    bibleLanguageListState.pinsRecommendedOption
+                  )}
+                </AppCard>
               </View>
             ) : null}
 
@@ -1102,69 +1324,116 @@ export function LocaleSetupFlow({
 
                   return (
                     <View key={section.groupLabel} style={styles.listSection}>
-                      <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                        {section.groupLabel}
-                      </Text>
-                      {sectionOptions.map((option) => renderOnboardingLanguageRow(option))}
+                      <SectionEyebrow
+                        label={section.groupLabel}
+                        colors={colors}
+                        eyebrowFont={displayFont.regular}
+                      />
+                      <AppCard padding={0}>
+                        {sectionOptions.map((option, index) =>
+                          renderOnboardingLanguageRow(
+                            option,
+                            false,
+                            index === sectionOptions.length - 1
+                          )
+                        )}
+                      </AppCard>
                     </View>
                   );
                 })
               : null}
 
-            {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyCard,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-                  {t('onboarding.noLanguagesFound')}
-                </Text>
-                <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-                  {t('onboarding.noLanguagesFoundBody')}
-                </Text>
-              </View>
-            ) : null}
+            {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0
+              ? renderEmptyCard(
+                  t('onboarding.noLanguagesFound'),
+                  t('onboarding.noLanguagesFoundBody')
+                )
+              : null}
           </>
         ) : step === 'country' ? (
           <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('onboarding.countryTitle')}
             </Text>
             <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
               {t('onboarding.countryBody')}
             </Text>
 
-            <TextInput
-              value={countryQuery}
-              onChangeText={setCountryQuery}
-              testID="onboarding-country-search"
-              accessibilityLabel={t('onboarding.countrySearchPlaceholder')}
-              placeholder={t('onboarding.countrySearchPlaceholder')}
-              placeholderTextColor={colors.secondaryText}
-              style={[
-                styles.searchInput,
-                {
-                  backgroundColor: colors.cardBackground,
-                  borderColor: colors.cardBorder,
-                  color: colors.primaryText,
-                },
-              ]}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {renderSearchField(
+              countryQuery,
+              setCountryQuery,
+              t('onboarding.countrySearchPlaceholderCount', { total: countryCatalogSize }),
+              'onboarding-country-search'
+            )}
+
+            {suggestedCountry ? (
+              <View style={styles.listSection}>
+                <SectionEyebrow
+                  label={t('onboarding.suggestedFromDevice')}
+                  colors={colors}
+                  eyebrowFont={displayFont.regular}
+                />
+                <AppCard
+                  accentRule
+                  pressable
+                  padding={layout.cardPadding}
+                  accessibilityLabel={suggestedCountryName}
+                  onPress={() => handleCountrySelect(suggestedCountry.code)}
+                >
+                  <View style={styles.suggestedRow}>
+                    <View style={styles.optionRowCopy}>
+                      <Text
+                        style={[styles.suggestedTitle, { color: colors.primaryText }]}
+                        numberOfLines={1}
+                      >
+                        {suggestedCountryName}
+                      </Text>
+                      <Text
+                        style={[styles.suggestedSubtitle, { color: colors.secondaryText }]}
+                        numberOfLines={1}
+                      >
+                        {getCountrySubtitle(suggestedCountry.code, suggestedCountryName)}
+                      </Text>
+                    </View>
+                    <StatusChip
+                      label={t('onboarding.suggestedBadge')}
+                      colors={colors}
+                      eyebrowFont={displayFont.regular}
+                    />
+                    <SelectionMark
+                      isSelected={selectedCountryCode === suggestedCountry.code}
+                      colors={colors}
+                      size={SUGGESTED_MARK_SIZE}
+                    />
+                  </View>
+                </AppCard>
+              </View>
+            ) : null}
 
             <View style={styles.listSection}>
-              {countryResults.map((country) => renderCountryRow(country.code))}
+              <SectionEyebrow
+                label={
+                  debouncedCountryQuery.trim()
+                    ? t('onboarding.searchResults')
+                    : t('onboarding.allNations')
+                }
+                colors={colors}
+                eyebrowFont={displayFont.regular}
+              />
+              {listedCountries.length > 0 ? (
+                <AppCard padding={0}>
+                  {listedCountries.map((country, index) =>
+                    renderCountryRow(country.code, index === listedCountries.length - 1)
+                  )}
+                </AppCard>
+              ) : (
+                renderEmptyCard(t('onboarding.noNationsFound'), t('onboarding.noNationsFoundBody'))
+              )}
             </View>
           </>
         ) : step === 'contentLanguage' ? (
           <>
-            <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('onboarding.languageTitle')}
             </Text>
             <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
@@ -1179,133 +1448,114 @@ export function LocaleSetupFlow({
                   styles.countryPill,
                   { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel={selectedCountryDisplayName}
                 onPress={() => goToStep('country')}
+                activeOpacity={0.85}
               >
-                <Ionicons name="location-outline" size={16} color={colors.accentGreen} />
+                <MapPin size={16} color={colors.accentPrimary} strokeWidth={2} />
                 {selectedCountry ? (
                   <Text style={styles.pillFlagEmoji}>{getFlagEmoji(selectedCountry.code)}</Text>
                 ) : null}
-                <Text style={[styles.countryPillText, { color: colors.primaryText }]}>
+                <Text style={[typography.captionStrong, { color: colors.primaryText }]}>
                   {selectedCountryDisplayName}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              value={languageQuery}
-              onChangeText={setLanguageQuery}
-              testID="onboarding-language-search"
-              accessibilityLabel={t('onboarding.languageSearchPlaceholder')}
-              placeholder={t('onboarding.languageSearchPlaceholder')}
-              placeholderTextColor={colors.secondaryText}
-              style={[
-                styles.searchInput,
-                {
-                  backgroundColor: colors.cardBackground,
-                  borderColor: colors.cardBorder,
-                  color: colors.primaryText,
-                },
-              ]}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {renderSearchField(
+              languageQuery,
+              setLanguageQuery,
+              t('onboarding.languageSearchPlaceholder'),
+              'onboarding-language-search'
+            )}
 
             {languageResults.recommended.length > 0 ? (
               <View style={styles.listSection}>
-                <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                  {t('onboarding.recommendedLanguages', {
+                <SectionEyebrow
+                  label={t('onboarding.recommendedLanguages', {
                     country: selectedCountryDisplayName,
                   })}
-                </Text>
-                {languageResults.recommended.map((language) => renderLanguageRow(language, true))}
+                  colors={colors}
+                  eyebrowFont={displayFont.regular}
+                />
+                <AppCard padding={0}>
+                  {languageResults.recommended.map((language, index) =>
+                    renderLanguageRow(
+                      language,
+                      true,
+                      index === languageResults.recommended.length - 1
+                    )
+                  )}
+                </AppCard>
               </View>
             ) : null}
 
             {languageResults.global.length > 0 ? (
               <View style={styles.listSection}>
-                <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-                  {t('onboarding.moreLanguages')}
-                </Text>
-                {languageResults.global.map((language) => renderLanguageRow(language, false))}
+                <SectionEyebrow
+                  label={t('onboarding.moreLanguages')}
+                  colors={colors}
+                  eyebrowFont={displayFont.regular}
+                />
+                <AppCard padding={0}>
+                  {languageResults.global.map((language, index) =>
+                    renderLanguageRow(language, false, index === languageResults.global.length - 1)
+                  )}
+                </AppCard>
               </View>
             ) : null}
 
-            {languageResults.recommended.length === 0 && languageResults.global.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyCard,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-                  {t('onboarding.noLanguagesFound')}
-                </Text>
-                <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-                  {t('onboarding.noLanguagesFoundBody')}
-                </Text>
-              </View>
-            ) : null}
+            {languageResults.recommended.length === 0 && languageResults.global.length === 0
+              ? renderEmptyCard(
+                  t('onboarding.noLanguagesFound'),
+                  t('onboarding.noLanguagesFoundBody')
+                )
+              : null}
           </>
         ) : null}
       </ScrollView>
 
-      {mode === 'settings' ? (
-        <View style={[styles.footer, { borderTopColor: colors.cardBorder }]}>
-          {step !== steps[0] ? (
-            <TouchableOpacity
-              style={[
-                styles.secondaryButton,
-                { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-              ]}
-              testID="onboarding-secondary-action"
-              accessibilityRole="button"
-              accessibilityLabel={t('common.back')}
-              onPress={goToPreviousStep}
-            >
-              <Text style={[styles.secondaryButtonText, { color: colors.primaryText }]}>
-                {t('common.back')}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.footerSpacer} />
-          )}
-
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              {
-                backgroundColor: colors.bibleControlBackground,
-                opacity:
-                  step === 'country' ? (selectedCountry ? 1 : 0.45) : selectedLanguage ? 1 : 0.45,
-              },
-            ]}
-            testID="onboarding-primary-action"
-            accessibilityRole="button"
-            accessibilityLabel={isFinalStep ? t('onboarding.finish') : t('common.continue')}
-            onPress={async () => {
-              if (step === 'country') {
-                if (selectedCountry) {
-                  goToNextStep();
+      {showFooter ? (
+        <View
+          style={[styles.footer, { bottom: keyboardOffset }]}
+          onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+        >
+          <LinearGradient
+            pointerEvents="none"
+            colors={['transparent', colors.background, colors.background]}
+            locations={[0, 0.3, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View testID="onboarding-primary-action">
+            <AppButton
+              label={primaryActionLabel}
+              variant="primary"
+              size="lg"
+              trailingIcon={ChevronRight}
+              disabled={!canAdvance}
+              accessibilityLabel={primaryActionLabel}
+              onPress={() => {
+                if (step === 'country') {
+                  if (selectedCountry) {
+                    goToNextStep();
+                  }
+                  return;
                 }
-                return;
-              }
 
-              if (step === 'contentLanguage') {
-                if (selectedLanguage) {
-                  void completeSetup();
+                if (step === 'contentLanguage') {
+                  if (selectedLanguage) {
+                    void completeSetup();
+                  }
                 }
-                return;
-              }
-            }}
-            disabled={step === 'country' ? !selectedCountry : !selectedLanguage}
+              }}
+            />
+          </View>
+          <Text
+            style={[typography.captionStrong, styles.footerHint, { color: colors.secondaryText }]}
           >
-            <Text style={[styles.primaryButtonText, { color: colors.bibleBackground }]}>
-              {isFinalStep ? t('onboarding.finish') : t('common.continue')}
-            </Text>
-          </TouchableOpacity>
+            {t('onboarding.searchAboveHint')}
+          </Text>
         </View>
       ) : null}
     </SafeAreaView>
@@ -1320,250 +1570,181 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
-  headerButton: {
+  headerSide: {
     width: 56,
-    minHeight: 44,
+    minHeight: layout.iconButton,
     justifyContent: 'center',
   },
-  headerCopy: {
+  headerSideEnd: {
+    alignItems: 'flex-end',
+  },
+  headerCenter: {
+    flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  stepBar: {
+    flexDirection: 'row',
+    width: STEP_BAR_WIDTH,
+    gap: spacing.xs,
   },
-  headerStep: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  headerAction: {
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'right',
+  stepSegment: {
+    flex: 1,
+    height: STEP_BAR_HEIGHT,
+    borderRadius: STEP_BAR_HEIGHT / 2,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 32,
-  },
-  brandWordmark: {
-    fontFamily: serifFamily(400, true),
-    fontSize: 20,
-    marginBottom: spacing.sm,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
   },
   heroTitle: {
-    fontSize: 30,
-    fontWeight: '700',
-    marginBottom: 10,
+    ...typography.displayHero,
+    fontSize: 34,
+    lineHeight: 37,
+    letterSpacing: -1.36,
+    marginBottom: spacing.sm,
   },
   heroBody: {
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    ...typography.body,
+    lineHeight: 22,
     marginBottom: spacing.lg,
   },
-  languageButtonGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  languageButton: {
-    minWidth: '30%',
-    flexGrow: 1,
+  searchField: {
+    height: SEARCH_FIELD_HEIGHT,
     borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  languageButtonNative: {
-    fontSize: 16,
-    fontWeight: '700',
+  searchInput: {
+    ...typography.body,
+    flex: 1,
+    paddingVertical: 0,
   },
-  languageButtonEnglish: {
-    fontSize: 12,
-    fontWeight: '600',
+  inlinePreferenceCard: {
+    marginBottom: spacing.md,
   },
-  inlinePreferenceButton: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 16,
+  inlinePreferenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   inlinePreferenceCopy: {
     flex: 1,
-    gap: 3,
-  },
-  inlinePreferenceLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    gap: 2,
   },
   inlinePreferenceValue: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.cardTitle,
   },
-  secondaryWideButton: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  loadingRow: {
+    paddingTop: spacing.lg,
+  },
+  listSection: {
+    marginTop: spacing.lg,
+  },
+  sectionEyebrow: {
+    marginBottom: 10,
+  },
+  optionRow: {
+    minHeight: ROW_MIN_HEIGHT,
+    paddingHorizontal: layout.cardPadding,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  optionRowCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  optionRowTitle: {
+    ...typography.bodyStrong,
+    fontSize: 15.5,
+  },
+  optionRowSubtitle: {
+    ...typography.caption,
+  },
+  optionRowTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  suggestedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  suggestedTitle: {
+    ...typography.cardTitle,
+  },
+  suggestedSubtitle: {
+    ...typography.captionStrong,
+    fontWeight: '400',
+  },
+  selectionMark: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryWideButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+  selectionMarkEmpty: {
+    borderWidth: 1.5,
   },
-  loadingRow: {
-    paddingTop: 20,
-  },
-  listSection: {
-    marginTop: 20,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+  chip: {
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   downloadProgress: {
     width: 72,
   },
-  optionCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  optionCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  countryTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  optionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  flagEmoji: {
-    fontSize: 20,
-  },
-  optionMeta: {
-    fontSize: 14,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  badge: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   countryPillRow: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
     flexDirection: 'row',
   },
   countryPill: {
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  countryPillText: {
-    fontSize: 14,
-    fontWeight: '600',
+    gap: spacing.sm,
   },
   pillFlagEmoji: {
     fontSize: 16,
   },
   emptyCard: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 20,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
   emptyBody: {
-    fontSize: 14,
+    ...typography.body,
     lineHeight: 22,
   },
+  emptyCta: {
+    marginTop: spacing.sm,
+    alignItems: 'flex-start',
+  },
   footer: {
-    borderTopWidth: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    flexDirection: 'row',
-    gap: 12,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
-  footerSpacer: {
-    flex: 1,
-  },
-  secondaryButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    flex: 1.35,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
+  footerHint: {
+    textAlign: 'center',
   },
 });

@@ -61,11 +61,21 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
   );
 });
 
-test('PlanDetailScreen only renders the active day for recurring rhythm plans', () => {
+test('PlanDetailScreen lists the whole plan in the ledger, recurring rhythms included', () => {
   assert.match(
     source,
-    /getVisiblePlanDayNumbers\(plan,\s*entries,\s*progress,\s*today\)/,
-    'PlanDetailScreen should collapse recurring plans to the active chapter set for today'
+    /function getLedgerDayNumbers\(entries: ReadingPlanEntry\[\]\): number\[\]/,
+    'PlanDetailScreen should derive the ledger day universe from every day the plan has entries for'
+  );
+  assert.match(
+    source,
+    /const ledgerDayNumbers = React\.useMemo\(\(\) => getLedgerDayNumbers\(entries\), \[entries\]\);/,
+    'PlanDetailScreen should build the ledger from the plan-wide day list'
+  );
+  assert.doesNotMatch(
+    source,
+    /getVisiblePlanDayNumbers/,
+    'The ledger must show a recurring plan every day of its cycle, not collapse it to today'
   );
   assert.match(
     source,
@@ -74,13 +84,41 @@ test('PlanDetailScreen only renders the active day for recurring rhythm plans', 
   );
   assert.match(
     source,
-    /visibleDayNumbers\.map\(\(dayNumber\) => \{/,
-    'PlanDetailScreen should render only the visible day numbers'
+    /ledgerDayNumbers\.map\(\(dayNumber\) => \{/,
+    'PlanDetailScreen should build one row view model per ledger day'
   );
   assert.match(
     source,
     /isRecurringPlan\(plan\)/,
     'PlanDetailScreen should treat all recurring cadence plans as daily rhythms when deciding completion state and date labels'
+  );
+  assert.match(
+    source,
+    /return isRecurringPlan\(plan\) \? \(ledgerDayNumbers\[0\] \?\? currentDay \+ 1\) : currentDay \+ 1;/,
+    'A recurring cycle should wrap back to its first day when today is the last one, so "tomorrow" still has a row'
+  );
+});
+
+test('PlanDetailScreen derives ledger cells and ledger rows from one completion record', () => {
+  assert.match(
+    source,
+    /function isLedgerDayComplete\(\{/,
+    'PlanDetailScreen should resolve day completion in one shared helper'
+  );
+  assert.match(
+    source,
+    /if \(getLedgerDayCompletionKey\(plan, dayNumber, today\) in progress\.completed_entries\)/,
+    'The shared helper should read the same completed_entries key the cell grid files days under'
+  );
+  assert.equal(
+    (source.match(/isLedgerDayComplete\(\{/g) ?? []).length,
+    2,
+    'Both the cell grid and the ledger rows should derive done/missed state from the shared helper'
+  );
+  assert.match(
+    source,
+    /function getRecurringLedgerDayDate\(plan: ReadingPlan, dayNumber: number, today: Date\): Date \| null/,
+    'PlanDetailScreen should resolve the cycle date a recurring plan day falls on'
   );
 });
 
@@ -149,15 +187,25 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
     /<ProgressCard[\s\S]*plan=\{plan\}[\s\S]*progress=\{progress\}[\s\S]*currentDaySummary=\{currentDaySummary\}[\s\S]*today=\{today\}[\s\S]*\/>/,
     'PlanDetailScreen should pass the stable today value into the progress card'
   );
-  assert.match(
+  assert.doesNotMatch(
     source,
     /from 'react-native-svg'/,
-    'PlanDetailScreen should render the progress ring through react-native-svg so the arc matches the displayed percentage'
+    'The ring gauge is gone: progress reads as the day numeral plus the cell ledger, not an arc'
   );
   assert.match(
     source,
-    /strokeDasharray=\{circumference\}[\s\S]*strokeDashoffset=\{strokeDashoffset\}/s,
-    'PlanDetailScreen should derive the progress arc from stroke dash math instead of a placeholder dot'
+    /type LedgerCellState = 'done' \| 'missed' \| 'today' \| 'future';/,
+    'PlanDetailScreen should classify every plan day into one of the four ledger cell states'
+  );
+  assert.match(
+    source,
+    /<LedgerCells states=\{cellStates\} \/>/,
+    'PlanDetailScreen should render the per-day cell ledger inside the progress card'
+  );
+  assert.match(
+    source,
+    /Math\.floor\(\(innerWidth - LEDGER_CELL_GAP \* \(LEDGER_COLUMNS - 1\)\) \/ LEDGER_COLUMNS\)/,
+    'PlanDetailScreen should size ledger cells from the measured card width instead of a hardcoded cell size'
   );
 });
 
@@ -169,8 +217,18 @@ test('PlanDetailScreen overlays the plan title on the hero image and removes the
   );
   assert.match(
     source,
-    /coverTitle:\s*{[\s\S]*typography\.pageTitle[\s\S]*color:\s*'#ffffff'/s,
+    /coverTitle:\s*{[\s\S]*typography\.screenTitle[\s\S]*color:\s*ON_PHOTO_TEXT/s,
     'PlanDetailScreen should style the hero title for image-overlay contrast'
+  );
+  assert.match(
+    source,
+    /const ON_PHOTO_TEXT = '#FDFAF5';/,
+    'On-photo text is a fixed value in both scopes, so it must be a named constant rather than a theme token'
+  );
+  assert.match(
+    source,
+    /<Text\s*\n?\s*style=\{\[styles\.coverEyebrow, displayFont\.regular\]\}/s,
+    'PlanDetailScreen should set the cadence/length/book eyebrow over the cover in the display face'
   );
   assert.doesNotMatch(
     source,

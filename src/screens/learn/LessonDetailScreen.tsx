@@ -1,28 +1,42 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, Check, Minus, Pause, Play, Plus, Type } from 'lucide-react-native';
 import { Audio, type AVPlaybackStatus } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import type { LessonDetailScreenProps } from '../../navigation/types';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { layout, shadows, spacing, typography } from '../../design/system';
+import { getReadingFontFamily } from '../../design/fonts';
 import { gatherFoundations, FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
-import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
+import {
+  gatherWisdomCategories,
+  WISDOM_LESSON_TITLE_KEYS,
+  WISDOM_TITLE_KEYS,
+} from '../../data/gatherWisdom';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
+import {
+  AppButton,
+  AppCard,
+  IconButton,
+  PressableScale,
+  ProgressBar,
+  Sheet,
+  TabSwitch,
+} from '../../components/ui';
 import {
   getPassageText,
   getPrimaryAudioReference,
@@ -42,6 +56,24 @@ import { useFontSize } from '../../hooks/useFontSize';
 // ---------------------------------------------------------------------------
 
 const LESSON_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
+
+// The floating listen capsule: a 44pt play disc with 10pt of paper above and
+// below it. Content has to clear this plus the gap under it.
+const STRIP_CONTROL_SIZE = 44;
+const STRIP_PADDING_VERTICAL = 10;
+const STRIP_HEIGHT = STRIP_CONTROL_SIZE + STRIP_PADDING_VERTICAL * 2;
+const STRIP_SIDE_INSET = 16;
+/** Gap between the capsule's lower edge and the screen bottom. */
+const STRIP_BOTTOM_WITH_INDICATOR = 26;
+
+const MIN_FONT_MULTIPLIER = 0.7;
+const MAX_FONT_MULTIPLIER = 1.3;
+
+/** Story passage metrics — Lora 17/27 at 1.0×, scaled by the text-size stepper. */
+const PASSAGE_FONT_SIZE = 17;
+const PASSAGE_LINE_HEIGHT = 27;
+
+const padLessonNumber = (value: number) => String(value).padStart(2, '0');
 
 // ---------------------------------------------------------------------------
 // Component
@@ -94,6 +126,17 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     ? t(lessonTitleKey as Parameters<typeof t>[0])
     : (lesson?.title ?? '');
 
+  // "FOUNDATIONS 1" for a foundation, the wisdom's own title otherwise — the
+  // wisdom track has no ordinal to show.
+  const parentLabel = (() => {
+    if (!parent) return '';
+    if ('number' in parent) {
+      return t('gather.foundationLabel', { number: parent.number });
+    }
+    const wisdomTitleKey = WISDOM_TITLE_KEYS[parent.id];
+    return wisdomTitleKey ? t(wisdomTitleKey as Parameters<typeof t>[0]) : parent.title;
+  })();
+
   // -------------------------------------------------------------------------
   // State
   // -------------------------------------------------------------------------
@@ -102,9 +145,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const unmarkLessonComplete = useGatherStore((s) => s.unmarkLessonComplete);
   const isComplete = useGatherStore((s) => s.isLessonComplete(parentId, lessonId));
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const translations = useBibleStore((state) => state.translations);
+  const translationInfo = translations.find((item) => item.id === currentTranslation);
+  // Reading-surface serif for this translation's script. Latin → Lora;
+  // Devanagari and other unsupported scripts → undefined = platform serif.
+  const readingFontFamily = getReadingFontFamily(translationInfo?.language);
+  const readingHeadingFontFamily = getReadingFontFamily(translationInfo?.language, 600);
 
   const [activeSection, setActiveSection] = useState<MeetingSectionType>('fellowship');
-  const [headerTitle, setHeaderTitle] = useState<string>(lessonTitle);
   const [passageBlocks, setPassageBlocks] = useState<PassageBlock[]>([]);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -120,6 +168,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const progressWidthRef = useRef(0);
   const sectionYRef = useRef<{ fellowship: number; story: number; application: number }>({
     fellowship: 0,
     story: 0,
@@ -206,14 +255,6 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     };
   }, []);
 
-  // Sync header title when lesson changes
-  useEffect(() => {
-    if (lesson) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setHeaderTitle(lessonTitle);
-    }
-  }, [lesson, lessonTitle]);
-
   // Mirror the global Settings font-size preference until the user manually
   // adjusts the lesson-local stepper (L23).
   useEffect(() => {
@@ -275,29 +316,6 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     setIsAudioPlaying(false);
   }, []);
 
-  const seekBackward = useCallback(async () => {
-    const newPosition = Math.max(0, audioPosition - 10000);
-    try {
-      await soundRef.current?.setPositionAsync(newPosition);
-    } catch {
-      // Ignore
-    }
-    setAudioPosition(newPosition);
-  }, [audioPosition]);
-
-  const seekForward = useCallback(async () => {
-    const newPosition = Math.min(
-      audioDuration > 0 ? audioDuration : audioPosition + 10000,
-      audioPosition + 10000
-    );
-    try {
-      await soundRef.current?.setPositionAsync(newPosition);
-    } catch {
-      // Ignore
-    }
-    setAudioPosition(newPosition);
-  }, [audioPosition, audioDuration]);
-
   const togglePlayPause = useCallback(async () => {
     if (isAudioPlaying) {
       await pauseAudio();
@@ -305,6 +323,20 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       await playAudio();
     }
   }, [isAudioPlaying, playAudio, pauseAudio]);
+
+  // The two-row transport bar's ±10s arrows are gone with the redesign, so the
+  // progress rule itself carries scrubbing: tap anywhere along it to seek.
+  const seekToLocation = useCallback(
+    (locationX: number) => {
+      const width = progressWidthRef.current;
+      if (!width || audioDuration <= 0 || !soundRef.current) return;
+      const fraction = Math.min(1, Math.max(0, locationX / width));
+      const target = Math.round(fraction * audioDuration);
+      void soundRef.current.setPositionAsync(target).catch(() => undefined);
+      setAudioPosition(target);
+    },
+    [audioDuration]
+  );
 
   // -------------------------------------------------------------------------
   // Section scrolling
@@ -328,45 +360,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         newSection = 'fellowship';
       }
 
-      setActiveSection(newSection);
-
-      // Update header title based on section
-      if (!lesson) return;
-      if (y + 120 >= application) {
-        setHeaderTitle(t('gather.application'));
-      } else if (y + 120 >= story) {
-        setHeaderTitle(formatBibleReferenceLabel(lesson.references, resolveBookName));
-      } else {
-        setHeaderTitle(lessonTitle);
-      }
+      setActiveSection((prev) => (prev !== newSection ? newSection : prev));
     },
-    [lesson, lessonTitle, resolveBookName, t]
+    [setActiveSection]
   );
-
-  // -------------------------------------------------------------------------
-  // Arrow button behavior (contextual)
-  // -------------------------------------------------------------------------
-
-  const handleLeftArrow = useCallback(() => {
-    if (activeSection === 'fellowship') {
-      // no-op
-    } else if (activeSection === 'story') {
-      seekBackward();
-    } else {
-      // application
-      scrollToSection('story');
-    }
-  }, [activeSection, seekBackward, scrollToSection]);
-
-  const handleRightArrow = useCallback(() => {
-    if (activeSection === 'fellowship') {
-      scrollToSection('story');
-    } else if (activeSection === 'story') {
-      seekForward();
-    } else {
-      // application — no-op
-    }
-  }, [activeSection, seekForward, scrollToSection]);
 
   // -------------------------------------------------------------------------
   // Settings: playback speed and font size
@@ -384,9 +381,27 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const adjustFontSize = useCallback((delta: number) => {
     hasManualFontOverride.current = true;
     setFontSizeMultiplier((prev) =>
-      Math.min(1.3, Math.max(0.7, Math.round((prev + delta) * 100) / 100))
+      Math.min(
+        MAX_FONT_MULTIPLIER,
+        Math.max(MIN_FONT_MULTIPLIER, Math.round((prev + delta) * 100) / 100)
+      )
     );
   }, []);
+
+  const toggleComplete = useCallback(() => {
+    if (isComplete) {
+      lightHaptic();
+      unmarkLessonComplete(parentId, lessonId);
+    } else {
+      successHaptic();
+      markLessonComplete(parentId, lessonId);
+    }
+  }, [isComplete, lessonId, markLessonComplete, parentId, unmarkLessonComplete]);
+
+  const verseCount = useMemo(
+    () => passageBlocks.reduce((total, block) => total + block.verses.length, 0),
+    [passageBlocks]
+  );
 
   // -------------------------------------------------------------------------
   // Lesson not found
@@ -399,9 +414,11 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         edges={['top']}
       >
         <View style={styles.notFoundContainer}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
+          <IconButton
+            icon={ArrowLeft}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
           <Text style={[styles.notFoundText, { color: colors.secondaryText }]}>
             {t('harvest.lessonNotFound')}
           </Text>
@@ -411,22 +428,30 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   }
 
   // -------------------------------------------------------------------------
-  // Progress bar
+  // Derived render values
   // -------------------------------------------------------------------------
 
+  const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
   const progressFraction = audioDuration > 0 ? audioPosition / audioDuration : 0;
+  const stripBottom = insets.bottom > 0 ? STRIP_BOTTOM_WITH_INDICATOR : spacing.lg;
+  const contentClearance = STRIP_HEIGHT + stripBottom + spacing.lg;
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
-  const SECTIONS: { key: MeetingSectionType; label: string }[] = [
+  const sections: { key: MeetingSectionType; label: string }[] = [
     { key: 'fellowship', label: t('gather.fellowship') },
     { key: 'story', label: t('gather.story') },
     { key: 'application', label: t('gather.application') },
   ];
 
-  const speedPercent = Math.round(playbackSpeed * 100);
+  const headerEyebrow = [
+    parentLabel,
+    t('gather.lessonOfCount', { number: lesson.number, total: parent?.lessons.length ?? 0 }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const heroEyebrow = [referenceLabel, translationInfo?.name].filter(Boolean).join(' · ');
+  // Elapsed time once playback has moved; the chapter length before that.
+  const stripTime = formatPlaybackTime(audioPosition > 0 ? audioPosition : audioDuration);
   const fontPercent = Math.round(fontSizeMultiplier * 100);
 
   return (
@@ -436,63 +461,91 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <IconButton
+          icon={ArrowLeft}
           onPress={() => navigation.goBack()}
-          style={[
-            styles.headerIconButton,
-            {
-              backgroundColor: colors.cardBackground,
-              borderColor: colors.cardBorder,
-              borderWidth: 1,
-            },
-          ]}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
           accessibilityLabel={t('common.back')}
+        />
+        <Text
+          style={[
+            typography.eyebrow,
+            displayFont.regular,
+            styles.headerEyebrow,
+            { color: colors.secondaryText },
+          ]}
+          numberOfLines={1}
         >
-          <Ionicons name="arrow-back" size={18} color={colors.primaryText} />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]} numberOfLines={1}>
-          {headerTitle}
+          {headerEyebrow}
         </Text>
-
-        <View style={styles.headerSpacer} />
+        <IconButton
+          icon={Type}
+          onPress={() => setShowSettings(true)}
+          accessibilityLabel={t('learn.playbackAndText')}
+        />
       </View>
 
       {/* Continuous scrollable content */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: contentClearance }]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={handleScroll}
       >
         {/* Hero */}
-        <View style={styles.heroContainer}>
+        <View style={styles.hero}>
+          <Text
+            style={[typography.numeralHero, styles.heroNumeral, { color: colors.accentPrimary }]}
+          >
+            {padLessonNumber(lesson.number)}
+          </Text>
+          <View style={styles.heroColumn}>
+            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+              {lessonTitle}
+            </Text>
+            <Text
+              style={[
+                typography.eyebrow,
+                displayFont.regular,
+                styles.heroEyebrow,
+                { color: colors.secondaryText },
+              ]}
+            >
+              {heroEyebrow}
+            </Text>
+          </View>
           <GatherIconBadge
             artworkKey={parent?.iconImage}
-            size={100}
-            iconSize={54}
-            style={styles.heroIconCircle}
+            size={40}
+            iconSize={40}
+            iconColor={colors.secondaryText}
+            style={styles.heroBadge}
           />
-          <Text style={[styles.heroLessonTitle, displayFont.bold, { color: colors.primaryText }]}>{lessonTitle}</Text>
-          <Text style={[styles.heroReference, { color: colors.secondaryText }]}>
-            {formatBibleReferenceLabel(lesson.references, resolveBookName)}
-          </Text>
         </View>
+
+        {/* Section switch — drives the scroll, and follows it back */}
+        <TabSwitch
+          segments={sections}
+          value={activeSection}
+          onChange={(key) => {
+            const next = key as MeetingSectionType;
+            setActiveSection(next);
+            scrollToSection(next);
+          }}
+          fullWidth
+          size="md"
+          style={styles.tabSwitch}
+        />
 
         {/* Fellowship section */}
         <View
           onLayout={(e) => {
             sectionYRef.current.fellowship = e.nativeEvent.layout.y;
           }}
+          style={styles.sectionBlock}
         >
-          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
-            {t('gather.fellowship')}
-          </Text>
-          <FellowshipSection questions={translatedFellowshipQuestions} colors={colors} />
+          <QuestionList questions={translatedFellowshipQuestions} colors={colors} />
         </View>
 
         {/* Story section */}
@@ -500,15 +553,37 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           onLayout={(e) => {
             sectionYRef.current.story = e.nativeEvent.layout.y;
           }}
+          style={styles.sectionBlock}
         >
-          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
-            {formatBibleReferenceLabel(lesson.references, resolveBookName)}
-          </Text>
+          <SectionRule colors={colors} />
+          <View style={styles.sectionEyebrowRow}>
+            <Text
+              style={[
+                typography.eyebrow,
+                displayFont.regular,
+                styles.sectionEyebrow,
+                { color: colors.secondaryText },
+              ]}
+              numberOfLines={1}
+            >
+              {`${t('gather.story')} · ${referenceLabel}`}
+            </Text>
+            {verseCount > 0 ? (
+              <Text
+                style={[typography.eyebrow, displayFont.regular, { color: colors.textTertiary }]}
+              >
+                {t('bible.verseCount', { count: verseCount })}
+              </Text>
+            ) : null}
+          </View>
           <StorySection
             isLoading={isLoadingPassage}
             passageBlocks={passageBlocks}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
+            readingFontFamily={readingFontFamily}
+            readingHeadingFontFamily={readingHeadingFontFamily}
+            displayFont={displayFont}
           />
         </View>
 
@@ -517,316 +592,166 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           onLayout={(e) => {
             sectionYRef.current.application = e.nativeEvent.layout.y;
           }}
+          style={styles.sectionBlock}
         >
-          <Text style={[styles.sectionHeading, displayFont.bold, { color: colors.primaryText, paddingTop: 32 }]}>
-            {t('gather.application')}
-          </Text>
-          <ApplicationSection
+          <SectionRule colors={colors} />
+          <View style={styles.sectionEyebrowRow}>
+            <Text
+              style={[
+                typography.eyebrow,
+                displayFont.regular,
+                styles.sectionEyebrow,
+                { color: colors.secondaryText },
+              ]}
+              numberOfLines={1}
+            >
+              {t('gather.application')}
+            </Text>
+          </View>
+          <QuestionList
             questions={translatedApplicationQuestions}
             colors={colors}
-            onListenAgain={() => {
-              scrollToSection('story');
-              playAudio();
-            }}
-            onShareApp={() => {
-              Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
+            actionForIndex={(idx) => {
+              if (idx === 0) {
+                return {
+                  label: t('learn.listenToStoryAgain'),
+                  onPress: () => {
+                    scrollToSection('story');
+                    void playAudio();
+                  },
+                };
+              }
+              if (idx === 5) {
+                return {
+                  label: t('learn.shareApp'),
+                  onPress: () => {
+                    Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
+                  },
+                };
+              }
+              return undefined;
             }}
           />
         </View>
-
-        {/* Mark as Completed button */}
-        <TouchableOpacity
-          onPress={() => {
-            if (isComplete) {
-              lightHaptic();
-              unmarkLessonComplete(parentId, lessonId);
-            } else {
-              successHaptic();
-              markLessonComplete(parentId, lessonId);
-            }
-          }}
-          style={[
-            styles.completeButton,
-            {
-              backgroundColor: isComplete ? colors.cardBackground : colors.accentGreen,
-              borderColor: isComplete ? colors.accentGreen : 'transparent',
-              borderWidth: isComplete ? 1.5 : 0,
-            },
-          ]}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-        >
-          <Ionicons
-            name={isComplete ? 'checkmark-circle' : 'checkmark-circle-outline'}
-            size={22}
-            color={isComplete ? colors.accentGreen : colors.onAccent}
-          />
-          <Text
-            style={[
-              styles.completeButtonText,
-              { color: isComplete ? colors.accentGreen : colors.onAccent },
-            ]}
-          >
-            {isComplete ? t('gather.completed') : t('gather.markComplete')}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Bottom padding so last content isn't hidden behind bottom bar */}
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Fixed bottom bar */}
-      <View
-        style={[
-          styles.bottomBar,
-          {
-            backgroundColor: colors.cardBackground,
-            borderTopColor: colors.cardBorder,
-            paddingBottom: insets.bottom + spacing.sm,
-          },
-        ]}
-      >
-        {/* Section tabs */}
-        <View style={styles.tabRow}>
-          {SECTIONS.map((section) => {
-            const isActive = activeSection === section.key;
-            return (
-              <TouchableOpacity
-                key={section.key}
-                onPress={() => {
-                  setActiveSection(section.key);
-                  scrollToSection(section.key);
-                }}
-                style={[styles.tabPill, isActive && { backgroundColor: colors.accentPrimary }]}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.tabPillLabel,
-                    { color: isActive ? colors.onAccent : colors.secondaryText },
-                  ]}
-                >
-                  {section.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      {/* Floating listen + complete capsule */}
+      <View style={[styles.strip, { bottom: stripBottom }]} pointerEvents="box-none">
+        <View
+          style={[
+            styles.stripInner,
+            shadows.floating,
+            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          ]}
+        >
+          <IconButton
+            icon={isAudioPlaying ? Pause : Play}
+            variant="accent"
+            size={STRIP_CONTROL_SIZE}
+            iconSize={20}
+            onPress={() => void togglePlayPause()}
+            disabled={!audioUrl}
+            accessibilityLabel={
+              isAudioPlaying ? t('interface.pauseChapterAudio') : t('interface.playChapterAudio')
+            }
+          />
 
-        {/* Progress bar with time labels */}
-        <View style={styles.progressSection}>
-          <Text style={[styles.timeText, { color: colors.secondaryText }]}>
-            {formatPlaybackTime(audioPosition)}
-          </Text>
-          <View style={styles.progressTrackWrapper}>
-            <View style={[styles.progressTrack, { backgroundColor: colors.cardBorder }]}>
-              <View
+          <View style={styles.stripColumn}>
+            <View style={styles.stripLabelRow}>
+              <Text
                 style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: colors.accentPrimary,
-                    width: `${Math.min(100, progressFraction * 100)}%`,
-                  },
+                  typography.eyebrow,
+                  displayFont.regular,
+                  styles.stripEyebrow,
+                  { color: colors.secondaryText },
                 ]}
-              />
+                numberOfLines={2}
+              >
+                {`${t('bible.listen')} · ${referenceLabel}`}
+              </Text>
+              <Text style={[typography.mono, styles.stripTime, { color: colors.secondaryText }]}>
+                {stripTime}
+              </Text>
             </View>
-            {/* Thumb dot */}
-            <View
-              style={[
-                styles.progressThumb,
-                {
-                  backgroundColor: colors.accentPrimary,
-                  left: `${Math.min(100, progressFraction * 100)}%`,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.timeText, { color: colors.secondaryText }]}>
-            {formatPlaybackTime(audioDuration)}
-          </Text>
-        </View>
-
-        {/* Controls row */}
-        <View style={styles.controlsRow}>
-          {/* Left placeholder balances the dots on the right */}
-          <View style={styles.settingsButton} />
-
-          {/* Centered: back · play · forward */}
-          <View style={styles.controlsCenter}>
-            <TouchableOpacity
-              onPress={handleLeftArrow}
-              disabled={!audioUrl && activeSection === 'story'}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ opacity: !audioUrl && activeSection === 'story' ? 0.35 : 1 }}
-            >
-              <View style={{ transform: [{ scaleX: -1 }] }}>
-                <Ionicons name="refresh-outline" size={30} color={colors.accentPrimary} />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={togglePlayPause}
+            <Pressable
+              onLayout={(e: LayoutChangeEvent) => {
+                progressWidthRef.current = e.nativeEvent.layout.width;
+              }}
+              onPress={(e) => seekToLocation(e.nativeEvent.locationX)}
               disabled={!audioUrl}
-              style={[
-                styles.playButton,
-                { backgroundColor: colors.accentPrimary, opacity: audioUrl ? 1 : 0.4 },
-              ]}
+              hitSlop={10}
+              accessibilityRole="adjustable"
+              accessibilityLabel={t('bible.listen')}
             >
-              <Ionicons
-                name={isAudioPlaying ? 'pause' : 'play'}
-                size={30}
-                color={colors.onAccent}
-                style={isAudioPlaying ? undefined : { marginLeft: 3 }}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleRightArrow}
-              disabled={!audioUrl && activeSection === 'story'}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ opacity: !audioUrl && activeSection === 'story' ? 0.35 : 1 }}
-            >
-              <Ionicons name="refresh-outline" size={30} color={colors.accentPrimary} />
-            </TouchableOpacity>
+              <ProgressBar progress={progressFraction} height={4} />
+            </Pressable>
           </View>
 
-          {/* Settings dots — far right */}
-          <TouchableOpacity
-            onPress={() => setShowSettings(true)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={styles.settingsButton}
-          >
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.secondaryText} />
-          </TouchableOpacity>
+          <CompleteToggle isComplete={isComplete} onPress={toggleComplete} colors={colors} />
         </View>
       </View>
 
-      {/* Settings bottom sheet */}
-      <Modal
+      {/* Playback speed + text size */}
+      <Sheet
         visible={showSettings}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSettings(false)}
+        onClose={() => setShowSettings(false)}
+        title={t('learn.playbackAndText')}
+        closeLabel={t('interface.close')}
       >
-        <TouchableOpacity
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          activeOpacity={1}
-          onPress={() => setShowSettings(false)}
-        />
-        <View
-          style={[
-            styles.bottomSheet,
-            {
-              backgroundColor: colors.cardBackground,
-              paddingBottom: insets.bottom + spacing.md,
-            },
-          ]}
-        >
-          <View style={[styles.sheetHandle, { backgroundColor: colors.secondaryText + '55' }]} />
-          <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.primaryText }]}>
-              {t('learn.playbackAndText')}
-            </Text>
-            <TouchableOpacity
-              style={[styles.sheetIconCloseButton, { backgroundColor: colors.background }]}
-              onPress={() => setShowSettings(false)}
-              accessibilityRole="button"
-              accessibilityLabel={t('interface.close')}
-            >
-              <Ionicons name="close" size={18} color={colors.secondaryText} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.sheetSection}>
+          <Text
+            style={[
+              typography.eyebrow,
+              displayFont.regular,
+              styles.sheetSectionLabel,
+              { color: colors.secondaryText },
+            ]}
+          >
+            {t('learn.playbackSpeed')}
+          </Text>
+          <TabSwitch
+            segments={LESSON_PLAYBACK_RATES.map((rate) => ({
+              key: String(rate),
+              label: `${rate}×`,
+            }))}
+            value={String(playbackSpeed)}
+            onChange={(key) => void setPlaybackSpeedValue(Number(key))}
+            fullWidth
+            size="md"
+            accessibilityLabel={t('learn.playbackSpeed')}
+          />
+        </View>
 
-          <View style={styles.editorSection}>
-            <View style={styles.editorSectionHeader}>
-              <Ionicons name="flash" size={18} color={colors.accentPrimary} />
-              <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                {t('learn.playbackSpeed')}
-              </Text>
-              <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
-                {speedPercent}%
-              </Text>
-            </View>
-            <View style={styles.speedChipRow}>
-              {LESSON_PLAYBACK_RATES.map((rate) => {
-                const isActive = rate === playbackSpeed;
-
-                return (
-                  <TouchableOpacity
-                    key={rate}
-                    style={[
-                      styles.speedChip,
-                      {
-                        backgroundColor: isActive ? colors.accentPrimary : colors.background,
-                        borderColor: isActive ? colors.accentPrimary : colors.cardBorder,
-                      },
-                    ]}
-                    onPress={() => void setPlaybackSpeedValue(rate)}
-                    activeOpacity={0.82}
-                  >
-                    <Text
-                      style={[
-                        styles.speedChipText,
-                        { color: isActive ? colors.onAccent : colors.primaryText },
-                      ]}
-                    >
-                      {rate}x
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.editorSection}>
-            <View style={styles.editorSectionHeader}>
-              <Text style={[styles.fontSectionIcon, { color: colors.primaryText }]}>Tt</Text>
-              <Text style={[styles.editorSectionTitle, { color: colors.primaryText }]}>
-                {t('learn.fontSizeLabel')}
-              </Text>
-              <Text style={[styles.editorSectionValue, { color: colors.secondaryText }]}>
-                {fontPercent}%
-              </Text>
-            </View>
-            <View style={styles.fontStepperRow}>
-              <TouchableOpacity
-                onPress={() => adjustFontSize(-0.1)}
-                style={[styles.fontStepperButton, { backgroundColor: colors.background }]}
-                activeOpacity={0.82}
-              >
-                <Text
-                  style={[
-                    styles.fontStepperText,
-                    styles.fontStepperSmallText,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  A
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => adjustFontSize(0.1)}
-                style={[
-                  styles.fontStepperButton,
-                  styles.fontStepperButtonLarge,
-                  { backgroundColor: colors.background },
-                ]}
-                activeOpacity={0.82}
-              >
-                <Text
-                  style={[
-                    styles.fontStepperText,
-                    styles.fontStepperLargeText,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  A
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.sheetSection}>
+          <Text
+            style={[
+              typography.eyebrow,
+              displayFont.regular,
+              styles.sheetSectionLabel,
+              { color: colors.secondaryText },
+            ]}
+          >
+            {t('learn.fontSizeLabel')}
+          </Text>
+          <View style={styles.fontStepperRow}>
+            <IconButton
+              icon={Minus}
+              onPress={() => adjustFontSize(-0.1)}
+              disabled={fontSizeMultiplier <= MIN_FONT_MULTIPLIER}
+              accessibilityLabel={t('learn.decreaseTextSize')}
+            />
+            <Text
+              style={[typography.mono, styles.fontStepperValue, { color: colors.primaryText }]}
+            >{`${fontPercent}%`}</Text>
+            <IconButton
+              icon={Plus}
+              onPress={() => adjustFontSize(0.1)}
+              disabled={fontSizeMultiplier >= MAX_FONT_MULTIPLIER}
+              accessibilityLabel={t('learn.increaseTextSize')}
+            />
           </View>
         </View>
-      </Modal>
+      </Sheet>
     </SafeAreaView>
   );
 }
@@ -836,46 +761,99 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 // ---------------------------------------------------------------------------
 
 type ThemeColors = ReturnType<typeof import('../../contexts/ThemeContext').useTheme>['colors'];
+type DisplayFont = ReturnType<typeof useDisplayFont>;
 
-interface QuestionCardProps {
-  number: number;
-  text: string;
-  colors: ThemeColors;
-  actionButton?: React.ReactNode;
+/** The 1.5px ink rule that opens Story and Application. */
+function SectionRule({ colors }: { colors: ThemeColors }) {
+  return <View style={[styles.sectionRule, { backgroundColor: colors.primaryText }]} />;
 }
 
-function QuestionCard({ number, text, colors, actionButton }: QuestionCardProps) {
+interface QuestionAction {
+  label: string;
+  onPress: () => void;
+}
+
+interface QuestionListProps {
+  questions: string[];
+  colors: ThemeColors;
+  actionForIndex?: (index: number) => QuestionAction | undefined;
+}
+
+// One paper panel holding every question as a hairline-divided row: a mono
+// ordinal in the accent and the question beside it. Fellowship and Application
+// share the recipe exactly.
+function QuestionList({ questions, colors, actionForIndex }: QuestionListProps) {
   return (
-    <View
-      style={[
-        styles.questionCard,
-        {
-          backgroundColor: colors.cardBackground,
-          borderColor: colors.cardBorder,
-        },
-      ]}
-    >
-      <View style={[styles.questionBadge, { backgroundColor: colors.accentPrimary + '18' }]}>
-        <Text style={[styles.questionBadgeText, { color: colors.accentPrimary }]}>{number}</Text>
-      </View>
-      <Text style={[styles.questionText, { color: colors.primaryText }]}>{text}</Text>
-      {actionButton}
-    </View>
+    <AppCard padding={0} style={styles.questionCard}>
+      {questions.map((question, idx) => {
+        const action = actionForIndex?.(idx);
+        return (
+          <View
+            key={idx}
+            style={[
+              styles.questionRow,
+              idx > 0 && { borderTopWidth: 1, borderTopColor: colors.borderStrong },
+            ]}
+          >
+            <Text
+              style={[typography.mono, styles.questionOrdinal, { color: colors.accentPrimary }]}
+            >
+              {padLessonNumber(idx + 1)}
+            </Text>
+            <View style={styles.questionBody}>
+              <Text style={[styles.questionText, { color: colors.primaryText }]}>{question}</Text>
+              {action ? (
+                <AppButton
+                  label={action.label}
+                  onPress={action.onPress}
+                  variant="outline"
+                  size="md"
+                  fullWidth={false}
+                  style={styles.questionAction}
+                />
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+    </AppCard>
   );
 }
 
-interface FellowshipSectionProps {
-  questions: string[];
+interface CompleteToggleProps {
+  isComplete: boolean;
+  onPress: () => void;
   colors: ThemeColors;
 }
 
-function FellowshipSection({ questions, colors }: FellowshipSectionProps) {
+// The one control AppButton cannot express: its completed state is a
+// `successSoft` fill with `onSuccessSoft` ink, and AppButton's content colour is
+// variant-derived. Geometry matches AppButton `md` (40pt, fully rounded).
+function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
+  const { t } = useTranslation();
+  const contentColor = isComplete ? colors.onSuccessSoft : colors.primaryText;
+
   return (
-    <View style={styles.sectionContainer}>
-      {questions.map((q, idx) => {
-        return <QuestionCard key={idx} number={idx + 1} text={q} colors={colors} />;
-      })}
-    </View>
+    <PressableScale
+      onPress={onPress}
+      pressEffect="translate"
+      haptic="light"
+      accessibilityRole="button"
+      accessibilityState={{ checked: isComplete }}
+      accessibilityLabel={isComplete ? t('gather.markIncomplete') : t('gather.markComplete')}
+      style={[
+        styles.completeToggle,
+        {
+          backgroundColor: isComplete ? colors.successSoft : 'transparent',
+          borderColor: isComplete ? colors.successSoft : colors.borderStrong,
+        },
+      ]}
+    >
+      <Check size={16} color={contentColor} strokeWidth={2} />
+      <Text style={[typography.captionStrong, { color: contentColor }]} numberOfLines={1}>
+        {isComplete ? t('gather.completed') : t('gather.complete')}
+      </Text>
+    </PressableScale>
   );
 }
 
@@ -884,9 +862,20 @@ interface StorySectionProps {
   passageBlocks: PassageBlock[];
   colors: ThemeColors;
   fontSizeMultiplier: number;
+  readingFontFamily: string | undefined;
+  readingHeadingFontFamily: string | undefined;
+  displayFont: DisplayFont;
 }
 
-function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: StorySectionProps) {
+function StorySection({
+  isLoading,
+  passageBlocks,
+  colors,
+  fontSizeMultiplier,
+  readingFontFamily,
+  readingHeadingFontFamily,
+  displayFont,
+}: StorySectionProps) {
   const { t } = useTranslation();
   if (isLoading) {
     return (
@@ -906,18 +895,35 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
     );
   }
 
-  const scaledFontSize = typography.readingBody.fontSize * fontSizeMultiplier;
-  const scaledLineHeight = typography.readingBody.lineHeight * fontSizeMultiplier;
+  const scaledFontSize = PASSAGE_FONT_SIZE * fontSizeMultiplier;
+  const scaledLineHeight = PASSAGE_LINE_HEIGHT * fontSizeMultiplier;
+  const showBlockLabels = passageBlocks.length > 1;
 
   return (
-    <View style={styles.sectionContainer}>
+    <View>
       {passageBlocks.map((block, blockIdx) => (
         <View key={blockIdx} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
-          <Text style={[styles.passageLabel, { color: colors.primaryText }]}>{block.label}</Text>
+          {showBlockLabels ? (
+            <Text
+              style={[
+                typography.eyebrow,
+                displayFont.regular,
+                styles.passageLabel,
+                { color: colors.secondaryText },
+              ]}
+            >
+              {block.label}
+            </Text>
+          ) : null}
           <Text
             style={[
               styles.versesParagraph,
-              { color: colors.primaryText, fontSize: scaledFontSize, lineHeight: scaledLineHeight },
+              {
+                color: colors.primaryText,
+                fontFamily: readingFontFamily,
+                fontSize: scaledFontSize,
+                lineHeight: scaledLineHeight,
+              },
             ]}
           >
             {block.verses.map((verse, verseIdx) => {
@@ -926,7 +932,12 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
               return (
                 <React.Fragment key={verse.id}>
                   {hasHeading && (
-                    <Text style={[styles.verseHeading, { color: colors.secondaryText }]}>
+                    <Text
+                      style={[
+                        styles.verseHeading,
+                        { color: colors.secondaryText, fontFamily: readingHeadingFontFamily },
+                      ]}
+                    >
                       {'\n'}
                       {verse.heading}
                       {'\n'}
@@ -940,7 +951,10 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
                         { color: colors.accentPrimary, lineHeight: scaledLineHeight },
                       ]}
                     >
-                      {verse.verse}{' '}
+                      {/* RN has no baseline shift, so the marker is approximated
+                          with a small mono figure and a thin space. */}
+                      {verse.verse}
+                      {' '}
                     </Text>
                     <Text style={{ color: colors.primaryText, lineHeight: scaledLineHeight }}>
                       {verse.text}
@@ -956,65 +970,6 @@ function StorySection({ isLoading, passageBlocks, colors, fontSizeMultiplier }: 
   );
 }
 
-interface ApplicationSectionProps {
-  questions: string[];
-  colors: ThemeColors;
-  onListenAgain: () => void;
-  onShareApp: () => void;
-}
-
-function ApplicationSection({
-  questions,
-  colors,
-  onListenAgain,
-  onShareApp,
-}: ApplicationSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.sectionContainer}>
-      {questions.map((q, idx) => {
-        let actionButton: React.ReactNode | undefined;
-
-        if (idx === 0) {
-          actionButton = (
-            <TouchableOpacity
-              style={[styles.actionButton, { borderColor: colors.accentPrimary }]}
-              onPress={onListenAgain}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-                {t('learn.listenToStoryAgain')}
-              </Text>
-            </TouchableOpacity>
-          );
-        } else if (idx === 5) {
-          actionButton = (
-            <TouchableOpacity
-              style={[styles.actionButton, { borderColor: colors.accentPrimary }]}
-              onPress={onShareApp}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.actionButtonText, { color: colors.accentPrimary }]}>
-                {t('learn.shareApp')}
-              </Text>
-            </TouchableOpacity>
-          );
-        }
-
-        return (
-          <QuestionCard
-            key={idx}
-            number={idx + 1}
-            text={q}
-            colors={colors}
-            actionButton={actionButton}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
@@ -1023,29 +978,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  completeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginHorizontal: layout.screenPadding,
-    marginTop: spacing.xxl,
-    paddingVertical: 16,
-    borderRadius: radius.lg,
-  },
-  completeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
   notFoundContainer: {
     flex: 1,
     padding: layout.screenPadding,
     gap: spacing.lg,
-  },
-  backButton: {
-    padding: spacing.xs,
-    alignSelf: 'flex-start',
   },
   notFoundText: {
     ...typography.body,
@@ -1057,23 +993,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: layout.screenPadding,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  headerIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    ...typography.bodyStrong,
+  headerEyebrow: {
     flex: 1,
     textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 32,
-    height: 32,
   },
 
   // Scroll
@@ -1082,80 +1006,91 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.lg,
   },
 
-  // Hero (inside scroll)
-  heroContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
+  // Hero
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.lg,
+    paddingVertical: 22,
   },
-  heroIconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+  heroNumeral: {
+    // The 0.85 optical line-height clips the cap slightly; nudge it back down so
+    // the numeral's top aligns with the title's.
+    marginTop: 2,
   },
-  heroLessonTitle: {
+  heroColumn: {
+    flex: 1,
+  },
+  heroTitle: {
     ...typography.pageTitle,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
+    fontSize: 26,
+    lineHeight: 27,
+    letterSpacing: -0.91, // -0.035em at 26px
   },
-  heroReference: {
-    ...typography.body,
-    textAlign: 'center',
+  heroEyebrow: {
+    marginTop: spacing.md,
+  },
+  heroBadge: {
+    marginTop: spacing.xs,
   },
 
-  // Section headings inside scroll
-  sectionHeading: {
-    ...typography.screenTitle,
+  tabSwitch: {
     marginBottom: spacing.lg,
   },
 
-  // Questions
-  sectionContainer: {
+  // Sections
+  sectionBlock: {
+    marginBottom: spacing.lg,
+  },
+  sectionRule: {
+    height: 1.5,
+    opacity: 0.8,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  sectionEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: spacing.md,
+    marginBottom: spacing.md,
   },
+  sectionEyebrow: {
+    flexShrink: 1,
+  },
+
+  // Questions
   questionCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: layout.denseCardPadding,
-    gap: spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 18,
   },
-  questionBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.lg,
+    paddingVertical: 14,
   },
-  questionBadgeText: {
-    ...typography.label,
+  questionOrdinal: {
+    fontSize: 13,
+    width: 22,
+    lineHeight: 22,
+  },
+  questionBody: {
+    flex: 1,
   },
   questionText: {
     ...typography.body,
-    lineHeight: 24,
+    lineHeight: 22.5,
   },
-
-  // Action buttons inside question cards
-  actionButton: {
+  questionAction: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  actionButtonText: {
-    ...typography.label,
+    marginTop: spacing.md,
   },
 
   // Story / Passage
   centerContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxxl,
@@ -1167,7 +1102,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   passageLabel: {
-    ...typography.cardTitle,
     marginBottom: spacing.sm,
   },
   versesParagraph: {
@@ -1177,197 +1111,67 @@ const styles = StyleSheet.create({
     ...typography.readingHeading,
   },
   verseNumber: {
-    ...typography.readingVerseNumber,
-    color: undefined, // color applied inline
+    ...typography.mono,
+    fontSize: 10,
   },
 
-  // Bottom bar
-  bottomBar: {
-    borderTopWidth: 1,
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.sm,
-  },
-
-  // Section tab pills
-  tabRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  tabPill: {
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 6,
-  },
-  tabPillLabel: {
-    ...typography.label,
-  },
-
-  // Progress bar
-  progressSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  progressTrackWrapper: {
-    flex: 1,
-    height: 3,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  progressTrack: {
-    height: 3,
-    borderRadius: radius.xs,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radius.xs,
-  },
-  progressThumb: {
+  // Floating listen capsule
+  strip: {
     position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginLeft: -5,
-    top: -3.5,
+    left: STRIP_SIDE_INSET,
+    right: STRIP_SIDE_INSET,
   },
-  timeText: {
-    ...typography.micro,
-    minWidth: 40,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-
-  // Controls row
-  controlsRow: {
+  stripInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  controlsCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-  },
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Settings bottom sheet
-  modalOverlay: {
-    flex: 1,
-  },
-  bottomSheet: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    gap: spacing.lg,
-  },
-  sheetHandle: {
-    width: 44,
-    height: 4,
-    borderRadius: radius.pill,
-    alignSelf: 'center',
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  sheetIconCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editorSection: {
-    gap: 12,
-  },
-  editorSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  editorSectionTitle: {
-    ...typography.bodyStrong,
-    flex: 1,
-  },
-  editorSectionValue: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  fontSectionIcon: {
-    fontSize: 18,
-    width: 18,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  speedChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  speedChip: {
-    flexGrow: 1,
-    minWidth: 78,
-    minHeight: 44,
-    borderRadius: radius.sm,
+    borderRadius: 32,
     borderWidth: 1,
+    paddingVertical: STRIP_PADDING_VERTICAL,
+    paddingHorizontal: spacing.md,
+  },
+  stripColumn: {
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: STRIP_CONTROL_SIZE,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  stripLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  stripEyebrow: {
+    flex: 1,
+  },
+  stripTime: {
+    textAlign: 'right',
+  },
+  completeToggle: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    gap: spacing.sm,
+    height: layout.iconButton,
+    borderRadius: layout.iconButton / 2,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
   },
-  speedChipText: {
-    fontSize: 15,
-    fontWeight: '700',
+
+  // Playback + text sheet
+  sheetSection: {
+    marginBottom: spacing.xl,
+  },
+  sheetSectionLabel: {
+    marginBottom: spacing.md,
   },
   fontStepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.md,
   },
-  fontStepperButton: {
+  fontStepperValue: {
     flex: 1,
-    minHeight: 64,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fontStepperButtonLarge: {
-    flex: 1.2,
-  },
-  fontStepperText: {
-    fontWeight: '500',
-  },
-  fontStepperSmallText: {
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  fontStepperLargeText: {
-    fontSize: 42,
-    lineHeight: 48,
+    textAlign: 'center',
   },
 });

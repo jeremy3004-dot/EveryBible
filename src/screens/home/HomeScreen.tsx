@@ -5,7 +5,6 @@ import {
   ImageBackground,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   InteractionManager,
   useWindowDimensions,
   Share,
@@ -14,23 +13,28 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { ChevronRight, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import { gatherFoundations } from '../../data/gatherFoundations';
+import {
+  FOUNDATION_LESSON_TITLE_KEYS,
+  FOUNDATION_TITLE_KEYS,
+  gatherFoundations,
+} from '../../data/gatherFoundations';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
@@ -43,8 +47,10 @@ import { listReadingPlans } from '../../services/plans/readingPlanService';
 import { getVisibleCompletedEntryCount } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
 import { AppCard } from '../../components/ui/AppCard';
-import { CardSkeleton } from '../../components/skeleton/CardSkeleton';
+import { IconButton } from '../../components/ui/IconButton';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { ProgressBar } from '../../components/ui/ProgressBar';
+import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { motion, radius, spacing, typography } from '../../design/system';
@@ -52,6 +58,41 @@ import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
+
+// The hero is a photograph in both scopes, so its foreground cannot come from
+// theme tokens — light ink on a dark scrim is the only readable pairing on the
+// vellum scope too. These are the literal on-photo values the design spec names.
+const ON_PHOTO_INK = '#FDFAF5';
+const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.82)';
+const ON_PHOTO_AVATAR_BORDER = 'rgba(253, 250, 245, 0.45)';
+const ON_PHOTO_PILL_FILL = 'rgba(253, 250, 245, 0.92)';
+const ON_PHOTO_PILL_INK = '#1A1914';
+const ON_PHOTO_PLACEHOLDER = 'rgba(253, 250, 245, 0.18)';
+const ON_PHOTO_TEXT_SHADOW = 'rgba(0, 0, 0, 0.25)';
+
+// The scrim darkens the top for the greeting, opens up over the horizon, then
+// closes down again under the verse. Its final stop is the page colour, so the
+// photograph dissolves into the sheet instead of ending on a hard edge.
+const HERO_SCRIM_STOPS = [
+  'rgba(12, 11, 9, 0.42)',
+  'rgba(12, 11, 9, 0.05)',
+  'rgba(12, 11, 9, 0.35)',
+  'rgba(12, 11, 9, 0.72)',
+] as const;
+const HERO_SCRIM_LOCATIONS = [0, 0.28, 0.55, 0.78, 1] as const;
+
+// The action pills hang slightly past the photograph's lower edge. The scrim has
+// already dissolved to the page colour there, so the overlap is invisible and
+// the sheet's 20pt top padding is measured from the pills, as in the reference.
+const HERO_ACTION_OVERHANG = 9;
+/** Gap between the status bar and the date eyebrow over the photograph. */
+const HERO_TOP_PADDING = 14;
+const HERO_PILL_HEIGHT = 36;
+const HERO_AVATAR_SIZE = 36;
+const SHEET_PADDING_TOP = 20;
+const SHEET_GUTTER = spacing.xl;
+const SHEET_GAP = spacing.md;
+const SHEET_CARD_MIN_HEIGHT = 120;
 
 function getFirstName(displayName: string | null | undefined): string | null {
   const trimmed = displayName?.trim();
@@ -98,16 +139,19 @@ export function HomeScreen() {
     []
   );
   useEffect(() => () => homeReadyReporter.cancel(), [homeReadyReporter]);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
+  const isFocused = useIsFocused();
+  const insets = useSafeAreaInsets();
   // Top-to-bottom entrance choreography on first mount; opacity-only when the
   // system asks for reduced motion.
   const sectionEntering = (step: number) =>
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const bottomTabBarHeight = useBottomTabBarHeight();
+  const tabBar = useTabBarHeight();
+  const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
@@ -138,18 +182,30 @@ export function HomeScreen() {
 
   // Find the active foundation: first one that has started but isn't fully complete.
   // Falls back to foundation-1 if none started yet.
-  const activeFoundation = (() => {
-    const inProgress = gatherFoundations.find((f) => {
-      const done = completedLessons[f.id]?.length ?? 0;
-      return done > 0 && done < f.lessons.length;
+  const foundation = (() => {
+    const inProgress = gatherFoundations.find((item) => {
+      const done = completedLessons[item.id]?.length ?? 0;
+      return done > 0 && done < item.lessons.length;
     });
     if (inProgress) return inProgress;
     // All complete? Show the last one. Nothing started? Show the first.
     const allDone = gatherFoundations.every(
-      (f) => (completedLessons[f.id]?.length ?? 0) >= f.lessons.length
+      (item) => (completedLessons[item.id]?.length ?? 0) >= item.lessons.length
     );
     return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
   })();
+  const foundationCompletedLessons = completedLessons[foundation.id] ?? [];
+  const nextLesson =
+    foundation.lessons.find((lesson) => !foundationCompletedLessons.includes(lesson.id)) ??
+    foundation.lessons[0];
+  const foundationTitleKey = FOUNDATION_TITLE_KEYS[foundation.id];
+  const foundationTitle = foundationTitleKey
+    ? t(foundationTitleKey as Parameters<typeof t>[0])
+    : foundation.title;
+  const nextLessonTitleKey = nextLesson ? FOUNDATION_LESSON_TITLE_KEYS[nextLesson.id] : undefined;
+  const nextLessonTitle = nextLessonTitleKey
+    ? t(nextLessonTitleKey as Parameters<typeof t>[0])
+    : (nextLesson?.title ?? '');
   const continuePlans = useMemo(
     () => selectHomeContinuePlans(readingPlans, progressByPlanId),
     [progressByPlanId, readingPlans]
@@ -178,25 +234,37 @@ export function HomeScreen() {
     featuredPlanDuration > 0 ? featuredPlanCompletedCount / featuredPlanDuration : 0;
   const currentBookName = getTranslatedBookName(currentBook, t);
   const currentBookInfo = getBookById(currentBook);
-  const currentPassageLabel =
-    hasReaderHistory && currentBookInfo
-      ? `${currentBookName} ${currentChapter}`
-      : t('home.defaultReference');
+  const hasContinuePassage = hasReaderHistory && currentBookInfo != null;
+  const currentPassageLabel = hasContinuePassage
+    ? `${currentBookName} ${currentChapter}`
+    : t('home.defaultReference');
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
+  const greetingInitial = greetingName.trim().charAt(0).toUpperCase();
   const greetingKey = useMemo(() => getGreetingKey(), []);
   const greetingLabel = t('home.greetingWithName', {
     greeting: t(greetingKey),
     name: greetingName,
   });
-  const todayLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      }).format(new Date()),
-    [i18n.language]
-  );
+  // "TUESDAY · 8 SEPTEMBER": the weekday is split off its own way so every
+  // locale keeps the EL separator instead of the locale's own comma.
+  const todayLabel = useMemo(() => {
+    const parts = new Intl.DateTimeFormat(i18n.language, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).formatToParts(new Date());
+    const weekday = parts
+      .filter((part) => part.type === 'weekday')
+      .map((part) => part.value)
+      .join('');
+    const rest = parts
+      .filter((part) => part.type !== 'weekday')
+      .map((part) => part.value)
+      .join('')
+      .replace(/^[\s,.·、，]+/, '')
+      .replace(/[\s,.·、，]+$/, '');
+    return weekday && rest ? `${weekday} · ${rest}` : weekday || rest;
+  }, [i18n.language]);
 
   const loadVerseOfDay = useCallback(
     async ({
@@ -333,6 +401,9 @@ export function HomeScreen() {
         dailyScripture.verseEnd
       )
     : null;
+  const dailyPassageLabel = dailyScripture
+    ? `${getTranslatedBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}`
+    : null;
   const dailyAudioAvailability =
     dailyScripture && currentTranslationInfo
       ? getAudioAvailability({
@@ -353,6 +424,7 @@ export function HomeScreen() {
         ? 'verse-audio'
         : 'section-audio'
       : dailyScripture?.kind;
+  const canListenToDailyScripture = dailyScripture != null && dailyAudioAvailability?.canPlayAudio;
   const verseCardTitleLabel =
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
   const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
@@ -370,37 +442,61 @@ export function HomeScreen() {
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
-  const verseShareButtonSize = Math.max(40, Math.round(44 * homeLayout.scale));
-  const verseShareIconSize = Math.max(18, Math.round(20 * homeLayout.scale));
-  // The verse card is always a photographic hero image, so we keep a dark scrim
-  // with light text in every theme. This avoids low-contrast "light on light"
-  // text in the light/parchment themes while matching the dark card treatment.
-  const verseCardImageOpacity = isDark ? 0.34 : 0.42;
-  const verseCardOverlayColors = ['rgba(12, 11, 9, 0.18)', 'rgba(12, 11, 9, 0.78)'] as const;
-  const verseCardTextColor = '#FDFAF5';
-  const verseCardEyebrowColor = 'rgba(253, 250, 245, 0.88)';
+  const verseScriptureEyebrow = `${t('home.todaysScripture')} · ${verseShareReferenceLabel}`;
+  // Scripture is content, not interface: it renders in the translation's own
+  // language, so Lora is swapped for the platform serif on scripts it lacks.
+  const verseFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
+  const heroScrimColors = useMemo(
+    () => [...HERO_SCRIM_STOPS, colors.background] as const,
+    [colors.background]
+  );
+
+  const handlePlayDailyAudio = () => {
+    if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
+      return;
+    }
+
+    lightHaptic();
+    navigation.navigate('Bible', {
+      screen: 'BibleReader',
+      params: {
+        bookId: dailyScripture.bookId,
+        chapter: dailyScripture.chapter,
+        autoplayAudio: true,
+        preferredMode: 'listen',
+        focusVerse: dailyScripture.verse,
+      },
+    });
+  };
+
+  const handleReadDailyScripture = () => {
+    lightHaptic();
+    if (!dailyScripture) {
+      navigation.navigate('Bible', { screen: 'BibleBrowser' });
+      return;
+    }
+
+    navigation.navigate('Bible', {
+      screen: 'BibleReader',
+      params: {
+        bookId: dailyScripture.bookId,
+        chapter: dailyScripture.chapter,
+        focusVerse: dailyScripture.verse,
+      },
+    });
+  };
 
   const renderVerseShareButton = () => (
-    <TouchableOpacity
-      style={[
-        styles.verseShareButton,
-        {
-          backgroundColor: colors.accentPrimary,
-          width: verseShareButtonSize,
-          height: verseShareButtonSize,
-          borderRadius: verseShareButtonSize / 2,
-          opacity: isSharingVerse ? 0.72 : 1,
-        },
-      ]}
+    <IconButton
+      icon={ShareGlyph}
       onPress={handleShareVerseOfTheDay}
-      activeOpacity={0.85}
+      size={HERO_PILL_HEIGHT}
+      iconSize={16}
+      variant="onPhoto"
       disabled={isSharingVerse}
-      accessibilityRole="button"
       accessibilityLabel={t('groups.share')}
-      hitSlop={8}
-    >
-      <Ionicons name="share-outline" size={verseShareIconSize} color={colors.onAccent} />
-    </TouchableOpacity>
+      style={styles.heroShareButton}
+    />
   );
 
   const handleShareVerseOfTheDay = async () => {
@@ -442,100 +538,132 @@ export function HomeScreen() {
   };
 
   const renderVerseOfTheDayCard = (showActions: boolean) => (
-    <ImageBackground
-      source={verseBackgroundSource}
+    <View
       style={[
-        styles.card,
-        styles.verseCard,
+        styles.hero,
         {
-          flex: 1,
-          minHeight: homeLayout.verseCardMinHeight,
-          backgroundColor: colors.cardBackground,
-          borderColor: colors.cardBorder,
+          height: homeLayout.heroPhotoHeight + (showActions ? HERO_ACTION_OVERHANG : 0),
         },
       ]}
-      imageStyle={[styles.verseCardImage, { opacity: verseCardImageOpacity }]}
-      resizeMode="cover"
     >
-      <LinearGradient
-        colors={verseCardOverlayColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.verseCardOverlay}
-      />
-      <View
-        style={[
-          styles.verseCardContent,
-          { padding: homeLayout.cardPadding, gap: homeLayout.bodyGap },
-        ]}
+      <ImageBackground
+        source={verseBackgroundSource}
+        style={[styles.heroPhoto, { height: homeLayout.heroPhotoHeight }]}
+        resizeMode="cover"
       >
-        <View style={styles.heroEyebrowRow}>
-          <Ionicons
-            name="book-outline"
-            size={Math.max(20, Math.round(22 * homeLayout.scale))}
-            color={verseCardEyebrowColor}
-          />
-          <Text
-            style={[styles.heroEyebrow, { color: verseCardEyebrowColor }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.78}
-          >
-            {t('home.todaysScripture')}
-          </Text>
+        <LinearGradient
+          colors={heroScrimColors}
+          locations={HERO_SCRIM_LOCATIONS}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.heroScrim}
+        />
+      </ImageBackground>
+
+      <View style={[styles.heroContent, { paddingTop: insets.top + HERO_TOP_PADDING }]}>
+        <View style={styles.heroHeaderRow}>
+          <View style={styles.heroHeaderCopy}>
+            <Text style={[styles.heroDate, displayFont.regular]} numberOfLines={1}>
+              {todayLabel}
+            </Text>
+            <Text style={[styles.heroGreeting, displayFont.bold]} numberOfLines={2}>
+              {greetingLabel}
+            </Text>
+          </View>
+          <View style={styles.heroAvatar}>
+            <Text style={[styles.heroAvatarInitial, displayFont.bold]}>{greetingInitial}</Text>
+          </View>
         </View>
-        <Text
-          style={[
-            styles.verseText,
-            displayFont.regular,
-            {
-              color: verseCardTextColor,
-              fontSize: homeLayout.verseTextFontSize,
-              lineHeight: homeLayout.verseTextLineHeight,
-            },
-          ]}
-          numberOfLines={homeLayout.verseTextLines}
-          adjustsFontSizeToFit
-          minimumFontScale={0.66}
-        >
-          {verseShareBodyText}
-        </Text>
-        <Text
-          style={[
-            styles.reference,
-            {
-              color: verseCardEyebrowColor,
-              fontSize: homeLayout.verseReferenceFontSize,
-              lineHeight: homeLayout.verseReferenceLineHeight,
-            },
-          ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.82}
-        >
-          {verseShareReferenceLabel}
-        </Text>
-        {showActions ? <View style={styles.verseShareRow}>{renderVerseShareButton()}</View> : null}
+
+        <View style={[styles.heroFooter, showActions ? null : styles.heroFooterCapture]}>
+          {isLoadingVerse && !dailyScripture ? (
+            <View style={styles.heroPlaceholder}>
+              <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderEyebrow]} />
+              <View style={styles.heroPlaceholderBar} />
+              <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderBarShort]} />
+            </View>
+          ) : (
+            <>
+              <Text style={[styles.heroEyebrow, displayFont.regular]} numberOfLines={1}>
+                {verseScriptureEyebrow}
+              </Text>
+              <Text
+                style={[
+                  styles.verseText,
+                  {
+                    fontFamily: verseFontFamily,
+                    fontSize: homeLayout.verseTextFontSize,
+                    lineHeight: homeLayout.verseTextLineHeight,
+                  },
+                ]}
+                numberOfLines={homeLayout.verseTextLines}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+              >
+                {verseShareBodyText}
+              </Text>
+            </>
+          )}
+          {showActions ? (
+            <View style={styles.heroActionRow}>
+              {canListenToDailyScripture ? (
+                <PressableScale
+                  onPress={handlePlayDailyAudio}
+                  pressEffect="translate"
+                  haptic="light"
+                  accessibilityRole="button"
+                  accessibilityLabel={t('bible.listen')}
+                  style={styles.heroPill}
+                >
+                  <Play
+                    size={14}
+                    color={ON_PHOTO_PILL_INK}
+                    fill={ON_PHOTO_PILL_INK}
+                    strokeWidth={2}
+                  />
+                  <Text style={styles.heroPillLabel} numberOfLines={1}>
+                    {t('bible.listen')}
+                  </Text>
+                </PressableScale>
+              ) : null}
+              <PressableScale
+                onPress={handleReadDailyScripture}
+                pressEffect="translate"
+                haptic="light"
+                accessibilityRole="button"
+                accessibilityLabel={
+                  dailyPassageLabel
+                    ? t('home.readPassage', { passage: dailyPassageLabel })
+                    : t('bible.read')
+                }
+                style={styles.heroPill}
+              >
+                <Text style={styles.heroPillLabel} numberOfLines={1}>
+                  {dailyPassageLabel
+                    ? t('home.readPassage', { passage: dailyPassageLabel })
+                    : t('bible.read')}
+                </Text>
+              </PressableScale>
+              {renderVerseShareButton()}
+            </View>
+          ) : null}
+        </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top']}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* The photograph bleeds under the status bar, so its glyphs go light while
+          Home owns the screen and revert to the app default on the next tab. */}
+      {isFocused ? <StatusBar style="light" /> : null}
       <ScrollView
         onLayout={homeReadyReporter.onLayout}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
           {
-            paddingHorizontal: homeLayout.screenPadding,
-            paddingTop: Math.max(spacing.sm, homeLayout.screenPadding - spacing.sm),
-            paddingBottom:
-              bottomTabBarHeight + Math.max(spacing.sm, homeLayout.screenPadding - spacing.xs),
-            gap: homeLayout.sectionGap,
+            paddingBottom: tabBar.contentClearance,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -544,76 +672,48 @@ export function HomeScreen() {
         overScrollMode="always"
         contentInsetAdjustmentBehavior="never"
       >
-        <View style={[styles.homeStack, { gap: homeLayout.sectionGap }]}>
-          <Animated.View entering={sectionEntering(0)} style={styles.headerRow}>
-            <Text style={[styles.dateLine, { color: colors.secondaryText }]}>{todayLabel}</Text>
-            <Text
-              style={[styles.greetingLine, displayFont.bold, { color: colors.primaryText }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.72}
-            >
-              {greetingLabel}
-            </Text>
-          </Animated.View>
+        {renderVerseOfTheDayCard(true)}
 
-          {isLoadingVerse ? (
-            <CardSkeleton
-              lines={3}
-              style={{
-                flex: 1,
-                minHeight: homeLayout.verseCardMinHeight,
-              }}
-            />
-          ) : (
-            <>
-              {renderVerseOfTheDayCard(true)}
-              <View
-                ref={verseSharePreviewRef}
-                collapsable={false}
-                pointerEvents="none"
-                style={[
-                  styles.sharePreviewMount,
-                  {
-                    width: screenWidth - homeLayout.screenPadding * 2,
-                  },
-                ]}
-              >
-                {renderVerseOfTheDayCard(false)}
-              </View>
-            </>
-          )}
-
-          <Animated.View entering={sectionEntering(1)} style={styles.progressGrid}>
+        <View style={styles.sheet}>
+          <Animated.View entering={sectionEntering(0)} style={styles.sheetCardRow}>
             <AppCard
               pressable
               onPress={handleContinueReading}
               padding={spacing.lg}
-              style={styles.smallCard}
+              style={styles.sheetCard}
               accessibilityLabel={`${t('common.continue')} ${currentPassageLabel}`}
             >
-              <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.secondaryText }]}>
-                  {t('common.continue')}
+              <Text
+                style={[styles.cardEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {t('common.continue')}
+              </Text>
+              <View style={styles.cardBody}>
+                {hasContinuePassage ? (
+                  <View style={styles.numeralRow}>
+                    <Text style={[styles.numeral, { color: colors.primaryText }]}>
+                      {currentChapter}
+                    </Text>
+                    <Text
+                      style={[styles.numeralCaption, { color: colors.primaryText }]}
+                      numberOfLines={1}
+                    >
+                      {currentBookName}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.cardBodyText, { color: colors.primaryText }]}>
+                    {t('home.defaultReference')}
+                  </Text>
+                )}
+                <Text
+                  style={[styles.cardFooter, { color: colors.secondaryText }]}
+                  numberOfLines={1}
+                >
+                  {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
                 </Text>
-                <Ionicons name="bookmark-outline" size={22} color={colors.accentPrimary} />
               </View>
-              <Text
-                style={[styles.smallCardTitle, { color: colors.primaryText }]}
-                numberOfLines={1}
-              >
-                {currentPassageLabel}
-              </Text>
-              <Text
-                style={[
-                  styles.smallCardMeta,
-                  styles.smallCardMetaBottom,
-                  { color: colors.secondaryText },
-                ]}
-                numberOfLines={1}
-              >
-                {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
-              </Text>
             </AppCard>
 
             <AppCard
@@ -624,105 +724,149 @@ export function HomeScreen() {
                   : navigation.navigate('Plans', { screen: 'PlansHome' })
               }
               padding={spacing.lg}
-              style={styles.smallCard}
+              style={styles.sheetCard}
+              accessibilityLabel={
+                featuredPlanDuration > 0
+                  ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
+                      current: featuredPlanDay,
+                      total: featuredPlanDuration,
+                    })}`
+                  : t('readingPlans.browsePlans')
+              }
             >
-              <View style={styles.smallCardHeader}>
-                <Text style={[styles.smallCardEyebrow, { color: colors.secondaryText }]}>
-                  {t('home.plan')}
-                </Text>
-                <Ionicons name="calendar-outline" size={22} color={colors.accentPrimary} />
-              </View>
-              <Text
-                style={[styles.smallCardTitle, { color: colors.primaryText }]}
-                // Plan names run long ("Daily Proverbs Chapter a Day") and the
-                // card already reserves space below the title, so let them wrap
-                // rather than truncating against empty space.
-                numberOfLines={2}
-              >
-                {featuredPlanTitle}
-              </Text>
-              <View style={styles.smallCardMetaBottom}>
-                <Text
-                  style={[styles.smallCardMeta, { color: colors.secondaryText }]}
-                  numberOfLines={1}
-                >
-                  {featuredPlanDuration > 0
-                    ? t('readingPlans.dayOf', {
-                        current: featuredPlanDay,
-                        total: featuredPlanDuration,
-                      })
-                    : t('readingPlans.browsePlans')}
-                </Text>
-                {featuredPlanDuration > 0 ? (
-                  <ProgressBar progress={featuredPlanFraction} style={styles.planProgressBar} />
-                ) : null}
-              </View>
+              {featuredPlanDuration > 0 ? (
+                <>
+                  <View style={styles.cardEyebrowRow}>
+                    <Text
+                      style={[
+                        styles.cardEyebrow,
+                        styles.cardEyebrowName,
+                        displayFont.regular,
+                        { color: colors.secondaryText },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {featuredPlanTitle}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.cardEyebrow,
+                        displayFont.regular,
+                        { color: colors.secondaryText },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {` · ${t('home.dayEyebrow')}`}
+                    </Text>
+                  </View>
+                  <View style={styles.cardBody}>
+                    <View style={styles.numeralRow}>
+                      <Text style={[styles.numeral, { color: colors.primaryText }]}>
+                        {featuredPlanDay}
+                      </Text>
+                      <Text style={[styles.numeralDenominator, { color: colors.secondaryText }]}>
+                        {`/${featuredPlanDuration}`}
+                      </Text>
+                    </View>
+                    <ProgressBar progress={featuredPlanFraction} style={styles.planProgressBar} />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.cardEyebrow,
+                      displayFont.regular,
+                      { color: colors.secondaryText },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {t('home.plan')}
+                  </Text>
+                  <View style={styles.cardBody}>
+                    <Text style={[styles.cardBodyText, { color: colors.primaryText }]}>
+                      {t('readingPlans.browsePlans')}
+                    </Text>
+                  </View>
+                </>
+              )}
             </AppCard>
           </Animated.View>
 
-          <Animated.View entering={sectionEntering(2)}>
+          <Animated.View entering={sectionEntering(1)}>
             <AppCard
               pressable
               padding={spacing.lg}
-              style={styles.gatherStrip}
+              style={styles.gatherCard}
+              accessibilityLabel={`${t('tabs.gather')} · ${foundationTitle}`}
               onPress={() =>
                 navigation.navigate('Learn', {
                   screen: 'FoundationDetail',
-                  params: { foundationId: activeFoundation.id },
+                  params: { foundationId: foundation.id },
                 })
               }
             >
-              <View style={styles.gatherStripHeader}>
-                <Text style={[styles.gatherTitle, { color: colors.accentTertiary }]}>
-                  {t('tabs.gather')}
+              <View style={styles.gatherHeader}>
+                <Text
+                  style={[
+                    styles.cardEyebrow,
+                    styles.cardEyebrowName,
+                    displayFont.regular,
+                    { color: colors.secondaryText },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {`${t('tabs.gather')} · ${t('gather.foundationLabel', {
+                    number: foundation.number,
+                  })}`}
                 </Text>
-                <View style={styles.gatherHeaderCta}>
-                  <Text style={[styles.gatherFoundationLabel, { color: colors.primaryText }]}>
-                    {t('gather.foundationLabel', { number: activeFoundation.number })}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={22} color={colors.primaryText} />
-                </View>
+                <Text
+                  style={[styles.gatherCount, displayFont.regular, { color: colors.secondaryText }]}
+                  numberOfLines={1}
+                >
+                  {t('home.lessonsProgress', {
+                    completed: foundationCompletedLessons.length,
+                    total: foundation.lessons.length,
+                  })}
+                </Text>
               </View>
-              <View style={styles.gatherPath}>
-                {gatherFoundations.slice(0, 4).map((foundation, index, visibleFoundations) => {
-                  const done = completedLessons[foundation.id]?.length ?? 0;
-                  const isActive = foundation.id === activeFoundation.id;
-
-                  return (
-                    <View key={foundation.id} style={styles.gatherNodeWrap}>
-                      <View style={styles.gatherNodeRow}>
-                        {index > 0 ? (
-                          <View
-                            style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
-                          />
-                        ) : null}
-                        <GatherIconBadge
-                          artworkKey={foundation.iconImage}
-                          size={58}
-                          iconSize={34}
-                          style={[
-                            styles.gatherNode,
-                            {
-                              borderColor: 'transparent',
-                              opacity: done > 0 || isActive ? 1 : 0.6,
-                            },
-                          ]}
-                        />
-                        {index < visibleFoundations.length - 1 ? (
-                          <View
-                            style={[styles.gatherConnector, { backgroundColor: colors.cardBorder }]}
-                          />
-                        ) : null}
-                      </View>
-                    </View>
-                  );
-                })}
+              <View style={styles.gatherRow}>
+                <GatherIconBadge
+                  artworkKey={foundation.iconImage}
+                  size={28}
+                  iconSize={20}
+                  iconColor={colors.accentPrimary}
+                />
+                <View style={styles.gatherCopy}>
+                  <Text
+                    style={[styles.gatherTitle, { color: colors.primaryText }]}
+                    numberOfLines={1}
+                  >
+                    {foundationTitle}
+                  </Text>
+                  <Text
+                    style={[styles.gatherSubtitle, { color: colors.secondaryText }]}
+                    numberOfLines={1}
+                  >
+                    {t('home.nextLesson', { title: nextLessonTitle })}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
               </View>
             </AppCard>
           </Animated.View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      <View
+        ref={verseSharePreviewRef}
+        collapsable={false}
+        pointerEvents="none"
+        style={[styles.sharePreviewMount, { width: screenWidth }]}
+      >
+        {renderVerseOfTheDayCard(false)}
+      </View>
+    </View>
   );
 }
 
@@ -736,183 +880,198 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
   },
-  greeting: {
-    ...typography.screenTitle,
+  hero: {
+    width: '100%',
   },
-  card: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
+  heroPhoto: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
-  verseCard: {
-    padding: 0,
-    overflow: 'hidden',
-    flexGrow: 1,
-    flexShrink: 1,
-    minHeight: 0,
-    borderRadius: radius.xl,
-  },
-  verseCardImage: {
-    borderRadius: radius.xl,
-  },
-  verseCardOverlay: {
+  heroScrim: {
     ...StyleSheet.absoluteFillObject,
   },
-  verseCardContent: {
+  heroContent: {
     flex: 1,
+    paddingHorizontal: SHEET_GUTTER,
   },
-  heroEyebrowRow: {
+  heroHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  heroHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  heroDate: {
+    ...typography.eyebrow,
+    color: ON_PHOTO_EYEBROW,
+  },
+  heroGreeting: {
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: -0.66,
+    color: ON_PHOTO_INK,
+  },
+  heroAvatar: {
+    width: HERO_AVATAR_SIZE,
+    height: HERO_AVATAR_SIZE,
+    borderRadius: HERO_AVATAR_SIZE / 2,
+    borderWidth: 1,
+    borderColor: ON_PHOTO_AVATAR_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroAvatarInitial: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: ON_PHOTO_INK,
+  },
+  heroFooter: {
+    marginTop: 'auto',
+    gap: spacing.md,
+  },
+  heroFooterCapture: {
+    paddingBottom: spacing.xxl,
+  },
+  heroEyebrow: {
+    ...typography.eyebrow,
+    color: ON_PHOTO_EYEBROW,
+  },
+  verseText: {
+    color: ON_PHOTO_INK,
+    letterSpacing: -0.2,
+    textShadowColor: ON_PHOTO_TEXT_SHADOW,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 12,
+  },
+  heroPlaceholder: {
+    gap: spacing.md,
+  },
+  heroPlaceholderBar: {
+    height: 18,
+    borderRadius: radius.xs,
+    backgroundColor: ON_PHOTO_PLACEHOLDER,
+  },
+  heroPlaceholderEyebrow: {
+    height: 10,
+    width: '58%',
+  },
+  heroPlaceholderBarShort: {
+    width: '72%',
+  },
+  heroActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  heroPill: {
+    height: HERO_PILL_HEIGHT,
+    borderRadius: HERO_PILL_HEIGHT / 2,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: ON_PHOTO_PILL_FILL,
+  },
+  heroPillLabel: {
+    ...typography.captionStrong,
+    color: ON_PHOTO_PILL_INK,
+  },
+  heroShareButton: {
+    marginLeft: 'auto',
+  },
+  sheet: {
+    paddingTop: SHEET_PADDING_TOP,
+    paddingHorizontal: SHEET_GUTTER,
+    gap: SHEET_GAP,
+  },
+  sheetCardRow: {
+    flexDirection: 'row',
+    gap: SHEET_GAP,
+  },
+  sheetCard: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: SHEET_CARD_MIN_HEIGHT,
+  },
+  cardEyebrow: {
+    ...typography.eyebrow,
+  },
+  cardEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardEyebrowName: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  cardBody: {
+    marginTop: 'auto',
+    gap: spacing.xs,
+  },
+  cardBodyText: {
+    ...typography.bodyStrong,
+  },
+  numeralRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.xs,
+  },
+  numeral: {
+    ...typography.numeralXL,
+  },
+  numeralCaption: {
+    ...typography.bodyStrong,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  numeralDenominator: {
+    ...typography.numeralRow,
+    fontSize: 18,
+    lineHeight: 22,
+    letterSpacing: -0.36,
+  },
+  cardFooter: {
+    ...typography.caption,
+  },
+  planProgressBar: {
+    marginTop: spacing.xs,
+  },
+  gatherCard: {
+    gap: 14,
+  },
+  gatherHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  gatherCount: {
+    ...typography.mono,
+  },
+  gatherRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  heroEyebrow: {
-    ...typography.bodyStrong,
-    fontSize: 16,
-    lineHeight: 22,
+  gatherCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
-  verseShareRow: {
-    marginTop: 'auto',
-    alignItems: 'flex-end',
+  gatherTitle: {
+    ...typography.rowTitle,
   },
-  verseShareButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cardTitle: {
-    ...typography.eyebrow,
-    marginBottom: 0,
-  },
-  sectionHeading: {
-    ...typography.sectionTitle,
-  },
-  verseText: {
-    ...typography.serifQuote,
-    marginBottom: 0,
-  },
-  reference: {
-    ...typography.eyebrow,
-  },
-  audioFallbackBody: {
-    ...typography.bodyStrong,
-    fontSize: 17,
-    lineHeight: 26,
-    marginBottom: 0,
+  gatherSubtitle: {
+    ...typography.caption,
   },
   sharePreviewMount: {
     position: 'absolute',
     left: -10000,
     top: 0,
-  },
-  headerRow: {
-    gap: spacing.xs,
-  },
-  greetingLine: {
-    ...typography.displayHero,
-  },
-  dateLine: {
-    ...typography.eyebrow,
-  },
-  beginTitle: {
-    ...typography.readingHeading,
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  progressGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  smallCard: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 154,
-    gap: spacing.md,
-  },
-  smallCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  smallCardEyebrow: {
-    ...typography.eyebrow,
-  },
-  smallCardTitle: {
-    // Card sub-head, not reading copy — keep it in the UI face so it sits with
-    // the EL display heading rather than clashing with it.
-    ...typography.cardTitle,
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  smallCardMeta: {
-    ...typography.body,
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  smallCardMetaBottom: {
-    marginTop: 'auto',
-    gap: spacing.sm,
-  },
-  planProgressBar: {
-    marginTop: spacing.xs,
-  },
-  gatherStrip: {
-    gap: spacing.lg,
-  },
-  gatherStripHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  gatherTitle: {
-    ...typography.bodyStrong,
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  gatherHeaderCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  gatherFoundationLabel: {
-    ...typography.bodyStrong,
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  gatherPath: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  gatherNodeWrap: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  gatherNodeRow: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gatherConnector: {
-    flex: 1,
-    height: 1,
-  },
-  gatherNode: {
-    borderWidth: 1,
-  },
-  gatherFieldLabel: {
-    ...typography.micro,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    textAlign: 'center',
-  },
-  homeStack: {
-    flex: 1,
-    minHeight: 0,
   },
 });

@@ -7,21 +7,34 @@ import { dirname, resolve } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'PlansHomeScreen.tsx'), 'utf8');
-const tabRowBlockMatch = source.match(/tabRow:\s*\{[\s\S]*?\n\s*\},/);
-const planCardMetaBlockMatch = source.match(/planCardMeta:\s*\{[\s\S]*?\n\s*\},/);
 const tabsBlockMatch = source.match(/const tabs:[\s\S]*?\n\s*\];/);
-const planCardBlockMatch = source.match(/planCard:\s*\{[\s\S]*?\n\s*\},/);
+const planRowBlockMatch = source.match(/planRow:\s*\{[\s\S]*?\n\s*\},/);
+const startButtonBlockMatch = source.match(/startButton:\s*\{[\s\S]*?\n\s*\},/);
+const softChipBlockMatch = source.match(/chip:\s*\{[\s\S]*?\n\s*\},/);
+const rhythmCardBlockMatch = source.match(/rhythmCard:\s*\{[\s\S]*?\n\s*\},/);
+const rhythmCoverBlockMatch = source.match(/rhythmCoverFrame:\s*\{[\s\S]*?\n\s*\},/);
+const searchStripBlockMatch = source.match(/searchStrip:\s*\{[\s\S]*?\n\s*\},/);
 const swipeableRowMatches = source.match(/SwipeablePlanRow/g) ?? [];
 
-test('PlansHomeScreen renders the tab control as a single horizontal row', () => {
+test('PlansHomeScreen renders the tab control as one full-width segmented switch', () => {
   assert.match(
     source,
-    /<View style=\{\[styles\.tabRow,/,
-    'PlansHomeScreen should render the tabs inside a plain View so flex:1 can bound the control to the screen width'
+    /<TabSwitch\b/,
+    'PlansHomeScreen should render the three plan tabs through the shared EL TabSwitch primitive'
+  );
+  assert.match(
+    source,
+    /<TabSwitch\s+fullWidth\s+size="md"/,
+    'The plans switch is the full-width, three-equal-segment form of TabSwitch (13px labels, 7pt vertical padding)'
   );
   assert.doesNotMatch(
     source,
-    /<ScrollView\s+horizontal[\s\S]*contentContainerStyle=\{styles\.tabRow\}/s,
+    /tabUnderline|styles\.tabRow/,
+    'PlansHomeScreen should no longer draw the old underline tab strip'
+  );
+  assert.doesNotMatch(
+    source,
+    /<ScrollView\s+horizontal/s,
     'PlansHomeScreen should not wrap the tab row in a horizontal ScrollView that would let it overflow the screen'
   );
   assert.match(
@@ -29,17 +42,46 @@ test('PlansHomeScreen renders the tab control as a single horizontal row', () =>
     /stickyHeaderIndices=\{\[1\]\}/,
     'PlansHomeScreen should keep the tab strip in a sticky header so the title can scroll away without covering content'
   );
-  assert.ok(tabRowBlockMatch, 'PlansHomeScreen should define a tabRow style block');
-  assert.doesNotMatch(
-    tabRowBlockMatch?.[0] ?? '',
-    /flexWrap:\s*'wrap'/,
-    'PlansHomeScreen should not wrap the plan tabs into multiple rows'
-  );
   assert.ok(tabsBlockMatch, 'PlansHomeScreen should define the top tab list');
   assert.doesNotMatch(
     tabsBlockMatch?.[0] ?? '',
     /key:\s*'saved'/,
     'PlansHomeScreen should not show the saved tab in the top navigation anymore'
+  );
+  for (const key of ["'my-plans'", "'find-plans'", "'completed'"]) {
+    assert.match(
+      tabsBlockMatch?.[0] ?? '',
+      new RegExp(`key:\\s*${key}`),
+      `PlansHomeScreen should keep the ${key} segment in the plans switch`
+    );
+  }
+});
+
+test('PlansHomeScreen leads with the plan-status eyebrow above the display title', () => {
+  assert.match(
+    source,
+    /t\('readingPlans\.activeCount', \{ count: activeCount \}\)/,
+    'The header eyebrow should count active plans from the user\u2019s own progress'
+  );
+  assert.match(
+    source,
+    /t\('readingPlans\.completedCount', \{ count: completedCount \}\)/,
+    'The header eyebrow should count completed plans from the user\u2019s own progress'
+  );
+  assert.match(
+    source,
+    /return allPlans\.length > 0 \? t\('readingPlans\.plansCount', \{ count: allPlans\.length \}\) : '';/,
+    'With nothing enrolled the eyebrow should fall back to the catalog size rather than reading "0 ACTIVE"'
+  );
+  assert.match(
+    source,
+    /\.\.\.typography\.displayHero,/,
+    'The plans title is the 32px EL display hero, not the old 34px screenTitle override'
+  );
+  assert.match(
+    source,
+    /paddingBottom: contentClearance/,
+    'The plans scroll surface must clear the floating tab bar via useTabBarHeight()'
   );
 });
 
@@ -85,38 +127,102 @@ test('PlansHomeScreen does not render a duplicate featured hero above the find-p
   );
 });
 
-test('PlansHomeScreen keeps the plan day badge and action badge on one row', () => {
-  assert.ok(planCardMetaBlockMatch, 'PlansHomeScreen should define a planCardMeta style block');
+test('PlansHomeScreen renders browse plans as rows with a Start outline or an Enrolled soft chip', () => {
+  assert.ok(planRowBlockMatch, 'PlansHomeScreen should define a planRow style block');
   assert.match(
-    planCardMetaBlockMatch?.[0] ?? '',
-    /justifyContent:\s*'space-between'/,
-    'PlansHomeScreen should push the action badge to the right edge of the card row'
+    planRowBlockMatch?.[0] ?? '',
+    /paddingVertical:\s*10/,
+    'Browse rows are 10pt vertical / 12pt horizontal inside one paper card'
+  );
+  assert.match(planRowBlockMatch?.[0] ?? '', /paddingHorizontal:\s*12/);
+  assert.match(
+    source,
+    /planRowDivider:\s*\{[\s\S]*?borderTopColor:\s*colors\.borderStrong/,
+    'Rows are separated by 1px borderStrong hairlines, not gaps between cards'
+  );
+  assert.match(
+    source,
+    /const ROW_COVER_SIZE = 52;/,
+    'Row covers are 52x52 with a 1px frame at the small radius'
+  );
+
+  assert.ok(startButtonBlockMatch, 'PlansHomeScreen should define the Start outline button');
+  assert.match(startButtonBlockMatch?.[0] ?? '', /borderWidth:\s*1/);
+  assert.match(startButtonBlockMatch?.[0] ?? '', /borderRadius:\s*radius\.md/);
+  assert.match(startButtonBlockMatch?.[0] ?? '', /paddingVertical:\s*6/);
+  assert.match(startButtonBlockMatch?.[0] ?? '', /paddingHorizontal:\s*12/);
+  assert.match(
+    source,
+    /styles\.startButton,\s*\{ borderColor: colors\.accentPrimary \}/,
+    'Start is accent text inside an accent hairline, never a filled pill'
+  );
+
+  assert.ok(softChipBlockMatch, 'PlansHomeScreen should define the soft status chip');
+  assert.match(softChipBlockMatch?.[0] ?? '', /paddingVertical:\s*5/);
+  assert.match(softChipBlockMatch?.[0] ?? '', /paddingHorizontal:\s*9/);
+  assert.match(softChipBlockMatch?.[0] ?? '', /borderRadius:\s*radius\.sm/);
+  assert.match(
+    source,
+    /backgroundColor: colors\.successSoft/,
+    'Enrolled/completed read as a soft success chip, not a filled accent pill'
+  );
+  assert.match(source, /color: colors\.onSuccessSoft/);
+  assert.match(
+    source,
+    /typography\.monoSmall/,
+    'The soft chip carries the 11px uppercase mono token'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /durationBadge|enrollBadge/,
+    'PlansHomeScreen should have dropped the old "31d" duration pill and the filled Enrolled pill'
   );
   assert.doesNotMatch(
-    planCardMetaBlockMatch?.[0] ?? '',
-    /flexWrap:\s*'wrap'/,
-    'PlansHomeScreen should keep the day badge and action badge on a single line'
+    source,
+    /interface\.daysShort/,
+    'The compact "365d" pill copy is gone; rows carry a "365 DAYS" eyebrow instead'
   );
   assert.match(
     source,
     /flexShrink:\s*0/,
-    'PlansHomeScreen should keep both badges from collapsing or wrapping when the day value gets longer'
+    'The trailing chip/button must keep its natural width rather than collapsing when the title runs long'
   );
-  assert.ok(planCardBlockMatch, 'PlansHomeScreen should define a planCard style block');
+});
+
+test('PlansHomeScreen renders daily rhythms as a two-up cover grid', () => {
+  assert.ok(rhythmCardBlockMatch, 'PlansHomeScreen should define the two-up rhythm card');
   assert.match(
-    planCardBlockMatch?.[0] ?? '',
-    /minHeight:\s*228/,
-    'PlansHomeScreen should reserve extra vertical space so the action row sits lower in cards with shorter titles'
+    rhythmCardBlockMatch?.[0] ?? '',
+    /flexBasis:\s*'48%'/,
+    'Rhythm cards sit two to a row and wrap'
   );
   assert.match(
     source,
-    /planCardBody:\s*\{\s*flex:\s*1,/s,
-    'PlansHomeScreen should give the card body flexible space so the badge row can anchor to the bottom'
+    /rhythmGrid:\s*\{[\s\S]*?flexWrap:\s*'wrap'[\s\S]*?gap:\s*10/,
+    'The rhythm grid is a 10pt-gap wrapping row'
+  );
+  assert.ok(rhythmCoverBlockMatch, 'PlansHomeScreen should frame the rhythm cover');
+  assert.match(
+    rhythmCoverBlockMatch?.[0] ?? '',
+    /aspectRatio:\s*RHYTHM_COVER_ASPECT/,
+    'Rhythm covers are 16:10 inside a 1px cardBorder frame'
+  );
+  assert.match(rhythmCoverBlockMatch?.[0] ?? '', /borderColor:\s*colors\.cardBorder/);
+  assert.match(
+    source,
+    /const RHYTHM_COVER_ASPECT = 16 \/ 10;/,
+    'The rhythm cover aspect ratio is 16:10'
   );
   assert.match(
-    planCardMetaBlockMatch?.[0] ?? '',
-    /marginTop:\s*'auto'/,
-    'PlansHomeScreen should pin the action row toward the bottom of the card body instead of letting it float upward'
+    source,
+    /<Check size=\{12\} color=\{colors\.success\} strokeWidth=\{2\} \/>/,
+    'Enrolled rhythms show a 12pt success check ahead of the eyebrow'
+  );
+  assert.doesNotMatch(
+    source,
+    /Ionicons/,
+    'PlansHomeScreen renders Lucide glyphs now, not Ionicons'
   );
 });
 
@@ -201,12 +307,12 @@ test('PlansHomeScreen splits repeating plans into a Daily Rhythms section', () =
   );
   assert.match(
     source,
-    /<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.dailyReadings'\)\}<\/Text>/,
+    /<SectionHeader\s+title=\{t\('readingPlans\.dailyReadings'\)\}/,
     'PlansHomeScreen should relabel the primary active-plans section to Daily Readings'
   );
   assert.match(
     source,
-    /dailyRhythmPlans\.length > 0[\s\S]*<Text style=\{styles\.sectionTitle\}>\{t\('readingPlans\.dailyRhythms'\)\}<\/Text>/s,
+    /dailyRhythmPlans\.length > 0[\s\S]*<SectionHeader\s+title=\{t\('readingPlans\.dailyRhythms'\)\}/s,
     'PlansHomeScreen should render a second section for recurring plans called Daily Rhythms'
   );
 });
@@ -229,13 +335,26 @@ test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
   );
   assert.match(
     source,
-    /<TextInput[\s\S]*placeholder=\{t\('readingPlans\.searchPlansPlaceholder'\)\}/s,
-    'PlansHomeScreen should render a search field at the top of Find Plans'
+    /<TextInput[\s\S]*placeholder=\{t\('readingPlans\.searchPlansCount', \{ count: allPlans\.length \}\)\}/s,
+    'The Find Plans search strip should name the catalog size ("Search 24 plans")'
   );
   assert.match(
     source,
     /searchQuery\.trim\(\) \? t\('readingPlans\.noPlanSearchResults'\) : t\('readingPlans\.noPlans'\)/,
     'PlansHomeScreen should show a dedicated empty state when a search yields no matches'
+  );
+  assert.ok(searchStripBlockMatch, 'PlansHomeScreen should define the 44pt search strip');
+  assert.match(
+    searchStripBlockMatch?.[0] ?? '',
+    /height:\s*44/,
+    'The Find Plans search strip is a 44pt paper strip, not a 48pt input well'
+  );
+  assert.match(searchStripBlockMatch?.[0] ?? '', /borderRadius:\s*radius\.lg/);
+  assert.match(searchStripBlockMatch?.[0] ?? '', /borderColor:\s*colors\.cardBorder/);
+  assert.match(
+    source,
+    /<Search size=\{17\} color=\{colors\.secondaryText\} strokeWidth=\{2\} \/>/,
+    'The search strip leads with a 17pt Lucide search glyph in secondaryText'
   );
   assert.match(
     source,
@@ -249,7 +368,7 @@ test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
   );
   assert.match(
     source,
-    /dailyRhythmPlans\.length > 0[\s\S]*<Text style=\{styles\.categoryHeader\}>\{t\('readingPlans\.dailyRhythms'\)\}<\/Text>/s,
+    /dailyRhythmPlans\.length > 0[\s\S]*<SectionHeader\s+title=\{t\('readingPlans\.dailyRhythms'\)\}[\s\S]*eyebrow=\{t\('readingPlans\.plansCount'/s,
     'PlansHomeScreen should show a Daily Rhythms section inside Find Plans when repeating plans are available'
   );
 });

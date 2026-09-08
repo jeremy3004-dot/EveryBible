@@ -1,106 +1,180 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import {
   BookOpen,
   Bookmark,
   Calendar,
+  ChevronRight,
   Info,
-  LogOut,
+  Languages,
   Settings,
   User,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont, useTabBarHeight } from '../../hooks';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
+import { useBibleStore } from '../../stores/bibleStore';
+import { useProgressStore } from '../../stores/progressStore';
+import { useAnnotationStore } from '../../stores/annotationStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, spacing, typography } from '../../design/system';
-import { serifFamily } from '../../design/fonts';
-import { AppButton, AppCard, Avatar, ListRow } from '../../components/ui';
+import { describeSyncStatus } from '../../utils/syncStatus';
+import { AppCard, ListRow, PressableScale } from '../../components/ui';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
+const AVATAR_SIZE = 48;
+const SYNC_DOT_SIZE = 6;
+const CHEVRON_SIZE = 18;
+const ICON_STROKE = 2;
+
 type MenuItem = {
   id: string;
-  titleKey?: string;
-  title?: string;
+  titleKey: string;
   icon: LucideIcon;
-  screen?: keyof MoreStackParamList;
-  action?: () => void;
+  screen: keyof MoreStackParamList;
+  value?: string;
 };
 
 type MenuGroup = {
   id: string;
+  eyebrowKey: string;
   items: MenuItem[];
 };
 
-const menuGroups: MenuGroup[] = [
-  {
-    id: 'account',
-    items: [
-      { id: 'profile', titleKey: 'more.profile', icon: User, screen: 'Profile' },
-      {
-        id: 'readingActivity',
-        titleKey: 'more.readingActivity',
-        icon: Calendar,
-        screen: 'ReadingActivity',
-      },
-      {
-        id: 'annotations',
-        titleKey: 'annotations.title',
-        icon: Bookmark,
-        screen: 'Annotations',
-      },
-    ],
-  },
-  {
-    id: 'content',
-    items: [
-      {
-        id: 'translations',
-        titleKey: 'translations.title',
-        icon: BookOpen,
-        screen: 'TranslationBrowser',
-      },
-    ],
-  },
-  {
-    id: 'app',
-    items: [
-      { id: 'settings', titleKey: 'more.settings', icon: Settings, screen: 'Settings' },
-      { id: 'about', titleKey: 'more.about', icon: Info, screen: 'About' },
-    ],
-  },
-];
+// The build number only exists in a real native binary; keep the require lazy so
+// importing this screen stays side-effect-free in tests.
+function getBuildNumber(): string | null {
+  try {
+    const Constants = require('expo-constants').default as {
+      nativeBuildVersion?: string | null;
+      expoConfig?: { ios?: { buildNumber?: string | null } } | null;
+    };
+    return Constants?.nativeBuildVersion ?? Constants?.expoConfig?.ios?.buildNumber ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function MoreScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
+  const { contentClearance } = useTabBarHeight();
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const preferences = useAuthStore((state) => state.preferences);
+  const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const signOut = useAuthStore((state) => state.signOut);
+  const streakDays = useProgressStore((state) => state.streakDays);
+  const annotations = useAnnotationStore((state) => state.annotations);
+  const translations = useBibleStore((state) => state.translations);
+  const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
   const displayName = isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser');
-  const profileSubtitle = isAuthenticated && user?.email ? user.email : t('more.signInToSync');
+  const email = isAuthenticated && user?.email ? user.email : null;
+  const initials = useMemo(() => initialsFrom(displayName), [displayName]);
 
-  const handleMenuPress = (item: MenuItem) => {
-    if (item.screen) {
-      navigation.navigate(item.screen);
-    } else if (item.action) {
-      item.action();
+  const syncStatus = describeSyncStatus({
+    isAuthenticated,
+    lastSyncedAt: preferencesUpdatedAt,
+    t,
+  });
+
+  // Right-hand row values are metadata, not decoration: each one answers the
+  // question the row would otherwise make you tap to find out.
+  const annotationCount = annotations.filter((annotation) => !annotation.deleted_at).length;
+  const offlineCount = translations.filter((translation) => translation.isDownloaded).length;
+  const currentAbbreviation =
+    translations.find((translation) => translation.id === currentTranslation)?.abbreviation ??
+    currentTranslation;
+  const localeValue =
+    [preferences.countryName, preferences.contentLanguageNativeName].filter(Boolean).join(' · ') ||
+    undefined;
+  const reminderValue =
+    preferences.notificationsEnabled && preferences.reminderTime
+      ? t('more.reminderValue', { time: preferences.reminderTime })
+      : undefined;
+
+  const menuGroups: MenuGroup[] = [
+    {
+      id: 'account',
+      eyebrowKey: 'more.groupAccount',
+      items: [
+        { id: 'profile', titleKey: 'more.profile', icon: User, screen: 'Profile' },
+        {
+          id: 'readingActivity',
+          titleKey: 'more.readingActivity',
+          icon: Calendar,
+          screen: 'ReadingActivity',
+          value: streakDays > 0 ? t('more.streakValue', { count: streakDays }) : undefined,
+        },
+        {
+          id: 'annotations',
+          titleKey: 'more.highlightsAndNotes',
+          icon: Bookmark,
+          screen: 'Annotations',
+          value: annotationCount > 0 ? String(annotationCount) : undefined,
+        },
+      ],
+    },
+    {
+      id: 'content',
+      eyebrowKey: 'more.groupContent',
+      items: [
+        {
+          id: 'translations',
+          titleKey: 'more.translations',
+          icon: BookOpen,
+          screen: 'TranslationBrowser',
+          value: t('more.translationsValue', {
+            abbreviation: currentAbbreviation,
+            count: offlineCount,
+          }),
+        },
+        {
+          id: 'locale',
+          titleKey: 'settings.nationAndLanguage',
+          icon: Languages,
+          screen: 'LocalePreferences',
+          value: localeValue,
+        },
+      ],
+    },
+    {
+      id: 'app',
+      eyebrowKey: 'more.groupApp',
+      items: [
+        {
+          id: 'settings',
+          titleKey: 'more.settings',
+          icon: Settings,
+          screen: 'Settings',
+          value: reminderValue,
+        },
+        { id: 'about', titleKey: 'more.about', icon: Info, screen: 'About' },
+      ],
+    },
+  ];
+
+  const buildNumber = getBuildNumber();
+  const versionLabel = t('more.footerVersion', {
+    version: buildNumber ? `${config.version} (${buildNumber})` : config.version,
+  });
+
+  const handleAccountPress = () => {
+    if (isAuthenticated) {
+      navigation.navigate('Profile');
+      return;
     }
-  };
-
-  const handleSignIn = () => {
     openAuthFlow('signIn');
   };
 
@@ -126,86 +200,139 @@ export function MoreScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
         <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]}>
           {t('more.title')}
         </Text>
 
-        {/* Profile card */}
+        {/* Account — identity, address, and whether the cloud has caught up. */}
         <AppCard
           pressable
-          onPress={() => navigation.navigate('Profile')}
-          style={styles.profileCard}
+          onPress={handleAccountPress}
+          padding={layout.cardPaddingWide}
+          style={styles.accountCard}
           accessibilityLabel={displayName}
         >
-          <View style={styles.profileRow}>
-            <Avatar name={displayName} imageUri={user?.photoURL ?? null} size={56} />
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.primaryText }]} numberOfLines={1}>
+          <View style={styles.accountRow}>
+            {user?.photoURL ? (
+              <Image
+                source={{ uri: user.photoURL }}
+                style={styles.avatar}
+                accessibilityIgnoresInvertColors
+              />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.accentSurface }]}>
+                <Text
+                  style={[
+                    styles.avatarInitials,
+                    displayFont.bold,
+                    { color: colors.onAccentSurface },
+                  ]}
+                >
+                  {initials}
+                </Text>
+              </View>
+            )}
+            <View style={styles.accountInfo}>
+              <Text style={[styles.accountName, { color: colors.primaryText }]} numberOfLines={1}>
                 {displayName}
               </Text>
-              <Text
-                style={[styles.profileEmail, { color: colors.secondaryText }]}
-                numberOfLines={1}
-              >
-                {profileSubtitle}
-              </Text>
+              {email ? (
+                <Text
+                  style={[styles.accountEmail, { color: colors.secondaryText }]}
+                  numberOfLines={1}
+                >
+                  {email}
+                </Text>
+              ) : null}
+              <View style={styles.syncRow}>
+                {syncStatus.isSynced ? (
+                  <View style={[styles.syncDot, { backgroundColor: colors.success }]} />
+                ) : null}
+                <Text
+                  style={[styles.syncLabel, displayFont.regular, { color: colors.secondaryText }]}
+                  numberOfLines={1}
+                >
+                  {syncStatus.label}
+                </Text>
+              </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            <ChevronRight
+              size={CHEVRON_SIZE}
+              color={colors.textTertiary}
+              strokeWidth={ICON_STROKE}
+            />
           </View>
         </AppCard>
 
-        {!isAuthenticated ? (
-          <AppButton
-            label={t('more.syncYourProgress')}
-            onPress={handleSignIn}
-            style={styles.authButton}
-          />
-        ) : null}
-
-        {/* Grouped menu — visually separated cards */}
         {menuGroups.map((group) => (
           <View key={group.id} style={styles.group}>
+            <Text
+              style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+            >
+              {t(group.eyebrowKey as Parameters<typeof t>[0])}
+            </Text>
             <AppCard padding={0} style={styles.groupCard}>
               {group.items.map((item, index) => (
-                <ListRow
-                  key={item.id}
-                  title={
-                    item.titleKey ? t(item.titleKey as Parameters<typeof t>[0]) : (item.title ?? '')
-                  }
-                  leadingIcon={item.icon}
-                  showChevron
-                  onPress={() => handleMenuPress(item)}
-                  isLast={index === group.items.length - 1}
-                />
+                <React.Fragment key={item.id}>
+                  {index > 0 ? (
+                    <View style={[styles.rowSeparator, { backgroundColor: colors.borderStrong }]} />
+                  ) : null}
+                  {/* ListRow insets its own separator past the leading glyph; the
+                      design runs the rule the full width of the card, so the
+                      rows are drawn as last and the rule is drawn here. */}
+                  <ListRow
+                    title={t(item.titleKey as Parameters<typeof t>[0])}
+                    leadingIcon={item.icon}
+                    value={item.value}
+                    titleWeight="500"
+                    showChevron
+                    onPress={() => navigation.navigate(item.screen)}
+                    isLast
+                  />
+                </React.Fragment>
               ))}
             </AppCard>
           </View>
         ))}
 
-        {/* Sign out */}
-        {isAuthenticated ? (
-          <AppCard padding={0} style={styles.groupCard}>
-            <ListRow
-              title={t('more.signOut')}
-              leadingIcon={LogOut}
-              destructive
-              isLast
-              onPress={handleSignOut}
-            />
-          </AppCard>
-        ) : null}
-
-        {/* Footer wordmark */}
+        {/* Footer: the destructive action and the build stamp share one line. */}
         <View style={styles.footer}>
-          <Text style={[styles.wordmark, { color: colors.textTertiary }]}>EveryBible</Text>
-          <Text style={[styles.version, { color: colors.textTertiary }]}>
-            {t('about.version', { version: config.version })}
+          {isAuthenticated ? (
+            <PressableScale
+              onPress={handleSignOut}
+              pressEffect="translate"
+              haptic="selection"
+              accessibilityRole="button"
+              accessibilityLabel={t('more.signOut')}
+              hitSlop={8}
+            >
+              <Text style={[styles.signOut, { color: colors.error }]}>{t('more.signOut')}</Text>
+            </PressableScale>
+          ) : (
+            <View />
+          )}
+          <Text
+            style={[styles.version, displayFont.regular, { color: colors.textTertiary }]}
+            numberOfLines={2}
+          >
+            {versionLabel}
           </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function initialsFrom(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('');
 }
 
 const styles = StyleSheet.create({
@@ -216,52 +343,91 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: layout.screenPadding,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.sm,
   },
   title: {
-    ...typography.pageTitle,
-    marginBottom: layout.sectionGap,
+    ...typography.displayHero,
+    marginBottom: spacing.xl,
   },
-  profileCard: {
-    marginBottom: spacing.lg,
+  accountCard: {
+    marginBottom: spacing.xl,
   },
-  profileRow: {
+  accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
-  profileInfo: {
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarInitials: {
+    ...typography.sectionHeading,
+    fontSize: 17,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  accountInfo: {
     flex: 1,
+    gap: 2,
   },
-  profileName: {
-    fontFamily: serifFamily(600),
-    fontSize: 20,
-    lineHeight: 26,
-    marginBottom: spacing.xs,
+  accountName: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    lineHeight: 21,
   },
-  profileEmail: {
-    ...typography.micro,
+  accountEmail: {
+    ...typography.captionStrong,
+    fontWeight: '400',
   },
-  authButton: {
-    marginBottom: spacing.lg,
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  syncDot: {
+    width: SYNC_DOT_SIZE,
+    height: SYNC_DOT_SIZE,
+    borderRadius: SYNC_DOT_SIZE / 2,
+  },
+  syncLabel: {
+    ...typography.eyebrow,
+    flexShrink: 1,
   },
   group: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  groupEyebrow: {
+    ...typography.eyebrow,
+    marginBottom: spacing.md,
   },
   groupCard: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: layout.cardPadding,
+  },
+  rowSeparator: {
+    height: 1,
   },
   footer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
-    gap: spacing.xs,
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    marginTop: spacing.xs,
   },
-  wordmark: {
-    fontFamily: serifFamily(400, true),
-    fontSize: 18,
+  signOut: {
+    ...typography.captionStrong,
+    fontSize: 14,
+    lineHeight: 19,
   },
   version: {
-    ...typography.micro,
-    textAlign: 'center',
+    ...typography.eyebrowPlain,
+    flexShrink: 1,
+    textAlign: 'right',
   },
 });

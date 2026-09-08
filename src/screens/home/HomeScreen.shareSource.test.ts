@@ -78,14 +78,14 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /accessibilityLabel=\{t\('groups\.share'\)\}[\s\S]*Ionicons[\s\S]*name="share-outline"/,
-    'The verse card should expose an icon-only share button with a shared translation label for accessibility'
+    /<IconButton\s+icon=\{ShareGlyph\}[\s\S]*variant="onPhoto"[\s\S]*accessibilityLabel=\{t\('groups\.share'\)\}/,
+    'The hero should expose an icon-only on-photo share button with a shared translation label for accessibility'
   );
 
   assert.match(
     source,
-    /styles\.verseShareRow[\s\S]*\{renderVerseShareButton\(\)\}/,
-    'The verse card should render the share button inside verseShareRow when showActions is true'
+    /styles\.heroActionRow[\s\S]*\{renderVerseShareButton\(\)\}/,
+    'The hero should render the share button at the end of the action row when showActions is true'
   );
 
   assert.equal(
@@ -119,27 +119,27 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
   );
 });
 
-test('HomeScreen keeps light-theme verse artwork visible behind readable light text', () => {
+test('HomeScreen keeps the hero photograph visible behind readable light text', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 
-  // The verse card is a photographic hero image. It must keep a dark readability
+  // The hero is a photograph in both scopes. It must keep a dark readability
   // scrim with light text in every theme so the text never washes out
-  // "light on light" in the light/parchment themes.
+  // "light on light" on the vellum scope.
   assert.match(
     source,
-    /const verseCardImageOpacity = isDark \? 0\.34 : 0\.42;/,
-    'Light theme should keep the verse background image visible instead of fading it into a washed-out card'
+    /'rgba\(12, 11, 9, 0\.72\)',/,
+    'The hero should close the scrim down under the verse so the Scripture stays readable in every theme'
+  );
+
+  assert.equal(
+    /imageStyle=\{[^}]*opacity/.test(source),
+    false,
+    'The hero photograph runs at full strength — readability comes from the scrim, not from fading the image'
   );
 
   assert.match(
     source,
-    /const verseCardOverlayColors = \['rgba\(12, 11, 9, 0\.18\)', 'rgba\(12, 11, 9, 0\.78\)'\] as const;/,
-    'The verse card should use a consistent dark readability gradient in every theme'
-  );
-
-  assert.match(
-    source,
-    /const verseCardTextColor = '#FDFAF5';/,
+    /const ON_PHOTO_INK = '#FDFAF5';/,
     'Verse text should use a fixed light color so it reads over the dark scrim in every theme'
   );
 });

@@ -61,13 +61,29 @@ function makeDateLabelHarness() {
 
 test('HomeScreen formats its date in French when the device locale is English', () => {
   const renderDate = makeDateLabelHarness();
-  assert.equal(renderDate('fr'), '5 septembre 2026');
+  assert.equal(renderDate('fr'), 'samedi \u00b7 5 septembre');
 });
 
 test('HomeScreen refreshes its memoized date after the interface language changes', () => {
   const renderDate = makeDateLabelHarness();
-  assert.equal(renderDate('en'), 'September 5, 2026');
-  assert.equal(renderDate('fr'), '5 septembre 2026');
+  assert.equal(renderDate('en'), 'Saturday \u00b7 September 5');
+  assert.equal(renderDate('fr'), 'samedi \u00b7 5 septembre');
+});
+
+// The eyebrow reads "TUESDAY \u00b7 8 SEPTEMBER": the weekday is split off its own
+// way so every locale keeps the EL separator rather than the locale's own comma.
+test('HomeScreen joins the weekday and the date with the EL separator, never a comma', () => {
+  const renderDate = makeDateLabelHarness();
+
+  for (const language of ['en', 'fr', 'de', 'es']) {
+    const label = renderDate(language);
+    assert.match(label, /^[^,]+ \u00b7 [^,]+$/, `${language} should render "weekday \u00b7 date"`);
+    assert.equal(
+      /\d{4}/.test(label),
+      false,
+      `${language} should not carry the year in the eyebrow`
+    );
+  }
 });
 
 test('HomeScreen refreshes the verse of the day on foreground and at midnight', () => {

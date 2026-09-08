@@ -1,25 +1,29 @@
 /* eslint-disable react/prop-types -- screen is fully typed via PlanDetailScreenProps; rule false-positives on navigation/route after the FlashList refactor (matches BibleReaderScreen P1 pattern) */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   I18nManager,
   Image,
+  type ColorValue,
+  type LayoutChangeEvent,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import { ArrowLeft, ArrowRight, BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import Svg, { Circle } from 'react-native-svg';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { layout, motion, radius, spacing, typography } from '../../design/system';
+import { AppButton, AppCard, IconButton, PressableScale, SectionHeader } from '../../components/ui';
 import {
   useBibleStore,
   useLibraryStore,
@@ -31,6 +35,7 @@ import {
   getPlansByCategory,
   getPlanEntries,
   listReadingPlans,
+  unenrollFromPlan,
 } from '../../services/plans/readingPlanService';
 import {
   getCurrentPlanDaySummary,
@@ -43,14 +48,16 @@ import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAsset
 import {
   getActivePlanDayNumber,
   getDaySessionEntries,
-  getVisibleCompletedEntryCount,
-  getVisiblePlanDayNumbers,
+  isCalendarDayOfMonthPlan,
+  isCalendarDayOfWeekPlan,
   isRecurringPlan,
   isMultiSessionPlan,
 } from '../../services/plans/readingPlanModel';
+import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import type {
   PlanSessionKey,
   ReadingPlan,
+  ReadingPlanCategory,
   ReadingPlanEntry,
   UserReadingPlanProgress,
 } from '../../services/plans/types';
@@ -58,6 +65,50 @@ import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { lightHaptic, successHaptic } from '../../utils';
+
+// ---------------------------------------------------------------------------
+// Geometry the design fixes in absolute points
+// ---------------------------------------------------------------------------
+
+/** The photographic hero. Its lower third fades into the page background. */
+const COVER_HEIGHT = 360;
+/** How far the content column rises into the cover's fade. */
+const COVER_CONTENT_OVERLAP = 71;
+/** Distance from the cover's lower edge to the baseline block of the hero text. */
+const HERO_TEXT_BOTTOM = 94;
+/** Back / more controls float this far down the cover on a standard notch. */
+const COVER_CONTROL_TOP = 62;
+
+// The hero sits over a photograph, so these two cannot come from the theme:
+// they must read identically in both scopes or they vanish against the image.
+const ON_PHOTO_TEXT = '#FDFAF5';
+const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.82)';
+// Readability scrim: dark at the very top (so the controls hold), almost clear
+// through the photograph's subject, then deepening into the page background.
+const COVER_SCRIM_STOPS = [
+  'rgba(12, 11, 9, 0.4)',
+  'rgba(12, 11, 9, 0.05)',
+  'rgba(12, 11, 9, 0.55)',
+  'rgba(12, 11, 9, 0.82)',
+] as const;
+const COVER_SCRIM_LOCATIONS: readonly [number, number, ...number[]] = [0, 0.25, 0.52, 0.78, 1];
+
+/** Cell ledger: one square per plan day, sixteen to a row. */
+const LEDGER_COLUMNS = 16;
+const LEDGER_CELL_GAP = spacing.xs;
+const LEDGER_CELL_RADIUS = 3;
+/** Last cell starts drawing in by here, so the whole grid lands inside 1.5s. */
+const LEDGER_DRAW_IN_MAX_DELAY = 1350;
+const LEDGER_DRAW_IN_STEP = 30;
+/** The mono day column in a ledger row. */
+const LEDGER_DAY_WIDTH = 56;
+
+const CATEGORY_LABEL_KEYS: Partial<Record<ReadingPlanCategory, string>> = {
+  chronological: 'readingPlans.categoryChronological',
+  'book-study': 'readingPlans.categoryBookStudy',
+  topical: 'readingPlans.categoryTopical',
+  devotional: 'readingPlans.categoryDevotional',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers (self-contained to avoid cross-screen dep)
@@ -82,6 +133,82 @@ function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlan
     map.set(entry.day_number, existing);
   });
   return map;
+}
+
+/**
+ * Every day the ledger accounts for: the plan's whole day universe.
+ *
+ * A recurring rhythm still has a full cycle behind it — the Proverbs plan is
+ * thirty-one days whether or not you are standing on day thirty — so the ledger
+ * lists the cycle even though navigation only ever resumes today's chapter.
+ */
+function getLedgerDayNumbers(entries: ReadingPlanEntry[]): number[] {
+  return Array.from(new Set(entries.map((entry) => entry.day_number))).sort(
+    (left, right) => left - right
+  );
+}
+
+/**
+ * The local date a recurring plan's day falls on, or `null` for a sequential
+ * plan (whose days are scheduled from the enrolment date instead).
+ *
+ * A day-of-month plan resolves against this month; a day-of-week plan against
+ * this week.
+ */
+function getRecurringLedgerDayDate(plan: ReadingPlan, dayNumber: number, today: Date): Date | null {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return new Date(today.getFullYear(), today.getMonth(), dayNumber);
+  }
+  if (isCalendarDayOfWeekPlan(plan)) {
+    const offset = dayNumber - 1 - today.getDay();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+  }
+  return null;
+}
+
+/**
+ * The key a given plan day would be filed under in `completed_entries`.
+ *
+ * Sequential plans key by day number; recurring rhythms key by the local date
+ * the day falls on.
+ */
+function getLedgerDayCompletionKey(plan: ReadingPlan, dayNumber: number, today: Date): string {
+  const cycleDate = getRecurringLedgerDayDate(plan, dayNumber, today);
+  return cycleDate ? formatLocalDateKey(cycleDate) : String(dayNumber);
+}
+
+/**
+ * Whether a plan day counts as read. The cell grid and the ledger rows are two
+ * pictures of the same record, so both must resolve it here — otherwise a
+ * recurring plan's squares and its rows disagree about the same day.
+ */
+function isLedgerDayComplete({
+  plan,
+  progress,
+  dayNumber,
+  currentDay,
+  isCurrentDayComplete,
+  today,
+}: {
+  plan: ReadingPlan | null;
+  progress: UserReadingPlanProgress | null;
+  dayNumber: number;
+  currentDay: number;
+  isCurrentDayComplete: boolean;
+  today: Date;
+}): boolean {
+  if (!plan || !progress) {
+    return false;
+  }
+  if (getLedgerDayCompletionKey(plan, dayNumber, today) in progress.completed_entries) {
+    return true;
+  }
+  return dayNumber === currentDay && isCurrentDayComplete;
+}
+
+/** Short cycle date for a ledger row ("7 Sep"), in the in-app language. */
+function formatLedgerCycleDate(date: Date, locale?: string): string {
+  return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +236,7 @@ function PlanCoverImage({
           { width, height, borderRadius, backgroundColor: colors.accentSecondary },
         ]}
       >
-        <Ionicons name="book-outline" size={width * 0.3} color={colors.secondaryText} />
+        <BookOpen size={Math.round(width * 0.28)} color={colors.secondaryText} strokeWidth={2} />
       </View>
     );
   }
@@ -124,103 +251,74 @@ const coverImageStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
-// Progress ring
+// Cell ledger — one square per plan day
 // ---------------------------------------------------------------------------
 
-function ProgressRing({
-  fraction,
-  size,
-  strokeWidth,
-  color,
-  trackColor,
-  children,
-}: {
-  fraction: number;
-  size: number;
-  strokeWidth: number;
-  color: string;
-  trackColor: string;
-  children?: React.ReactNode;
-}) {
-  const clamped = Math.min(1, Math.max(0, fraction));
-  const pct = Math.round(clamped * 100);
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - clamped * circumference;
+type LedgerCellState = 'done' | 'missed' | 'today' | 'future';
+
+function LedgerCells({ states }: { states: LedgerCellState[] }) {
+  const { colors } = useTheme();
+  const reduceMotion = useReducedMotion();
+  const [innerWidth, setInnerWidth] = useState(0);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    setInnerWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  // Measured, never hardcoded: the grid has to divide whatever width the card's
+  // padding leaves it, on every device size.
+  const cellSize =
+    innerWidth > 0
+      ? Math.max(
+          6,
+          Math.floor((innerWidth - LEDGER_CELL_GAP * (LEDGER_COLUMNS - 1)) / LEDGER_COLUMNS)
+        )
+      : 0;
+
+  const palette: Record<LedgerCellState, ViewStyle> = {
+    done: { backgroundColor: colors.accentPrimary },
+    missed: { backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning },
+    today: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.accentPrimary },
+    future: { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.borderStrong },
+  };
 
   return (
     <View
-      style={[
-        progressRingStyles.outer,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: trackColor,
-        },
-      ]}
+      style={cellStyles.grid}
+      onLayout={handleLayout}
+      // The read/missed tally above already says this in words; the squares are
+      // a picture of it, so screen readers should not walk 365 of them.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     >
-      <Svg
-        width={size}
-        height={size}
-        style={progressRingStyles.progressRing}
-        viewBox={`0 0 ${size} ${size}`}
-      >
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={trackColor}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          fill="none"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View
-        style={[
-          progressRingStyles.inner,
-          {
-            width: size - strokeWidth * 2,
-            height: size - strokeWidth * 2,
-            borderRadius: (size - strokeWidth * 2) / 2,
-          },
-        ]}
-      >
-        {children ?? <Text style={[progressRingStyles.pctText, { color }]}>{pct}%</Text>}
-      </View>
+      {cellSize > 0
+        ? states.map((state, index) => (
+            <Animated.View
+              key={`${state}-${index}`}
+              entering={
+                reduceMotion
+                  ? undefined
+                  : FadeIn.duration(motion.duration.fast).delay(
+                      Math.min(index * LEDGER_DRAW_IN_STEP, LEDGER_DRAW_IN_MAX_DELAY)
+                    )
+              }
+              style={[cellStyles.cell, { width: cellSize, height: cellSize }, palette[state]]}
+            />
+          ))
+        : null}
     </View>
   );
 }
 
-const progressRingStyles = StyleSheet.create({
-  outer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+const cellStyles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: LEDGER_CELL_GAP,
+    marginTop: spacing.lg,
   },
-  inner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-  },
-  pctText: {
-    ...typography.cardTitle,
-    fontVariant: ['tabular-nums'],
-  },
-  progressRing: {
-    position: 'absolute',
+  cell: {
+    borderRadius: LEDGER_CELL_RADIUS,
   },
 });
 
@@ -237,141 +335,111 @@ interface ProgressCardProps {
 
 function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCardProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
 
   const totalDays = plan.duration_days;
-  const isRecurringSchedulePlan = isRecurringPlan(plan);
-  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress);
-  const completedCount = progress
-    ? getVisibleCompletedEntryCount(plan, progress.completed_entries, today)
-    : 0;
-  const fraction =
-    totalDays > 0
-      ? isRecurringSchedulePlan
-        ? currentDay / totalDays
-        : completedCount / totalDays
-      : 0;
-  const completionBadgeLabel =
-    progress?.is_completed && !isRecurringSchedulePlan
-      ? t('readingPlans.completed')
-      : currentDaySummary?.isComplete
-        ? t('readingPlans.dailyTargetCompleteTitle')
-        : null;
+  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
+
+  const cellStates = useMemo<LedgerCellState[]>(() => {
+    const states: LedgerCellState[] = [];
+    for (let day = 1; day <= totalDays; day += 1) {
+      const isDone = isLedgerDayComplete({
+        plan,
+        progress,
+        dayNumber: day,
+        currentDay,
+        isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
+        today,
+      });
+      states.push(
+        isDone ? 'done' : day === currentDay ? 'today' : day < currentDay ? 'missed' : 'future'
+      );
+    }
+    return states;
+  }, [currentDay, currentDaySummary?.isComplete, plan, progress, today, totalDays]);
+
+  const doneCount = cellStates.filter((state) => state === 'done').length;
+  const missedCount = cellStates.filter((state) => state === 'missed').length;
+  const tallyLabel =
+    missedCount > 0
+      ? t('readingPlans.readMissedSummary', { read: doneCount, missed: missedCount })
+      : t('readingPlans.readSummary', { read: doneCount });
 
   return (
-    <View
-      style={[
-        progressCardStyles.card,
-        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-      ]}
-    >
-      <View style={progressCardStyles.row}>
-        <ProgressRing
-          fraction={fraction}
-          size={72}
-          strokeWidth={5}
-          color={colors.accentPrimary}
-          trackColor={colors.cardBorder}
-        >
-          <Text style={[progressCardStyles.pct, { color: colors.accentPrimary }]}>
-            {Math.round(fraction * 100)}%
+    <AppCard padding={layout.cardPaddingWide}>
+      <View style={progressCardStyles.headRow}>
+        <View>
+          <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+            {t('readingPlans.day')}
           </Text>
-        </ProgressRing>
+          <View style={progressCardStyles.numeralRow}>
+            <Text style={[typography.numeralXL, { color: colors.primaryText }]}>{currentDay}</Text>
+            <Text style={[progressCardStyles.numeralTotal, { color: colors.secondaryText }]}>
+              /{totalDays}
+            </Text>
+          </View>
+        </View>
 
-        <View style={progressCardStyles.stats}>
-          <Text style={[progressCardStyles.dayLabel, { color: colors.primaryText }]}>
-            {t('readingPlans.dayOf', { current: currentDay, total: totalDays })}
+        <View style={progressCardStyles.tally}>
+          <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+            {t('readingPlans.completed')}
           </Text>
-          {!isRecurringSchedulePlan ? (
-            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-              {completedCount} / {totalDays} {t('engagement.days', { defaultValue: 'days' })}{' '}
-              {t('readingPlans.completed').toLowerCase()}
-            </Text>
-          ) : null}
-          {currentDaySummary ? (
-            <Text style={[progressCardStyles.subLabel, { color: colors.secondaryText }]}>
-              {t('readingPlans.todayTargetProgress', {
-                completed: currentDaySummary.completedChapterCount,
-                target: currentDaySummary.targetChapterCount,
-                defaultValue: `Today's target: ${currentDaySummary.completedChapterCount}/${currentDaySummary.targetChapterCount} chapters`,
-              })}
-            </Text>
-          ) : null}
-          {completionBadgeLabel ? (
-            <View style={[progressCardStyles.completeBadge, { backgroundColor: colors.success }]}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.onAccent} />
-              <Text style={[progressCardStyles.completeBadgeText, { color: colors.onAccent }]}>
-                {completionBadgeLabel}
-              </Text>
-            </View>
-          ) : null}
+          <Text
+            style={[
+              progressCardStyles.tallyValue,
+              displayFont.regular,
+              { color: colors.primaryText },
+            ]}
+          >
+            {tallyLabel}
+          </Text>
         </View>
       </View>
-    </View>
+
+      <LedgerCells states={cellStates} />
+    </AppCard>
   );
 }
 
 const progressCardStyles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: layout.cardPadding,
-  },
-  row: {
+  headRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.xl,
+    justifyContent: 'space-between',
+    gap: spacing.lg,
   },
-  pct: {
-    ...typography.cardTitle,
-    fontVariant: ['tabular-nums'],
+  numeralRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: spacing.sm,
   },
-  stats: {
+  numeralTotal: {
+    ...typography.sectionHeading,
+    fontSize: 18,
+    letterSpacing: -0.45,
+  },
+  tally: {
     flex: 1,
+    alignItems: 'flex-end',
     gap: spacing.sm,
   },
-  dayLabel: {
-    ...typography.bodyStrong,
-    fontVariant: ['tabular-nums'],
-  },
-  subLabel: {
-    ...typography.micro,
-  },
-  completeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.lg,
-    alignSelf: 'flex-start',
-  },
-  completeBadgeText: {
-    ...typography.micro,
+  tallyValue: {
+    ...typography.mono,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+    textAlign: 'right',
   },
 });
 
 // ---------------------------------------------------------------------------
-// Day row
+// Day row — the accent "today" card and the ledger slices below it
 // ---------------------------------------------------------------------------
 
-interface DayRowProps {
-  dayNumber: number;
-  dateLabel: string | null;
-  entries: ReadingPlanEntry[];
-  launchSessionKey?: PlanSessionKey;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  sessionBadges?: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
-  sessionActions?: Array<{
-    sessionKey: PlanSessionKey;
-    label: string;
-    state: 'done' | 'next' | 'upcoming' | 'available';
-  }>;
-  onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
-}
-
 export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
+
+type PlanDaySessionState = 'done' | 'next' | 'upcoming' | 'available';
 
 interface PlanDayViewModel {
   dayNumber: number;
@@ -380,12 +448,36 @@ interface PlanDayViewModel {
   launchSessionKey?: PlanSessionKey;
   isCompleted: boolean;
   isCurrent: boolean;
-  sessionBadges: Array<{ label: string; state: 'done' | 'next' | 'upcoming' | 'available' }>;
+  isFuture: boolean;
+  isNext: boolean;
   sessionActions: Array<{
     sessionKey: PlanSessionKey;
     label: string;
-    state: 'done' | 'next' | 'upcoming' | 'available';
+    state: PlanDaySessionState;
   }>;
+}
+
+interface DayRowProps {
+  dayNumber: number;
+  dateLabel: string | null;
+  entries: ReadingPlanEntry[];
+  launchSessionKey?: PlanSessionKey;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  isFuture: boolean;
+  isNext: boolean;
+  isFirst?: boolean;
+  isLast?: boolean;
+  /** Today card only: "Today's target: 1/3 chapters" or the chapter count. */
+  subtitle?: string | null;
+  audioAvailable?: boolean;
+  sessionActions?: Array<{
+    sessionKey: PlanSessionKey;
+    label: string;
+    state: PlanDaySessionState;
+  }>;
+  onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
+  onListen?: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
 }
 
 const DayRow = React.memo(function DayRow({
@@ -395,237 +487,279 @@ const DayRow = React.memo(function DayRow({
   launchSessionKey,
   isCompleted,
   isCurrent,
-  sessionBadges = [],
+  isFuture,
+  isNext,
+  isFirst = false,
+  isLast = false,
+  subtitle,
+  audioAvailable = false,
   sessionActions = [],
   onPress,
+  onListen,
 }: DayRowProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
 
   const { t } = useTranslation();
   const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
   const accessibilityLabel = isCurrent
     ? `${t('interface.currentPlanDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
     : `${t('interface.planDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
-  const surfaceStyle = {
-    backgroundColor: colors.cardBackground,
-    borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
-    borderWidth: isCurrent ? 1.5 : 1,
-  } as const;
   const hasSessionActions = sessionActions.length > 0;
 
-  return (
-    <View style={[dayRowStyles.container, surfaceStyle]}>
-      <TouchableOpacity
-        testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-        onPress={() => onPress(dayNumber, launchSessionKey)}
-        activeOpacity={0.85}
-        style={[dayRowStyles.row, hasSessionActions ? dayRowStyles.rowWithActions : null]}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-      >
-        <View
-          style={[
-            dayRowStyles.badge,
-            {
-              backgroundColor: isCompleted ? colors.accentPrimary : colors.background,
-              borderColor: isCurrent ? colors.accentPrimary : colors.cardBorder,
-              borderWidth: isCompleted ? 0 : 1,
-            },
-          ]}
-        >
-          {isCompleted ? (
-            <Ionicons name="checkmark" size={14} color={colors.onAccent} />
-          ) : (
+  const sessionActionRow = hasSessionActions ? (
+    <View style={dayRowStyles.sessionActionRow}>
+      {sessionActions.map((action) => {
+        const isFilled = action.state === 'done' || action.state === 'next';
+        return (
+          <PressableScale
+            key={`${dayNumber}-${action.sessionKey}`}
+            pressEffect="translate"
+            haptic="light"
+            onPress={() => onPress(dayNumber, action.sessionKey)}
+            accessibilityRole="button"
+            accessibilityLabel={t('interface.planSessionForDay', {
+              session: action.label,
+              day: dayNumber,
+            })}
+            style={[
+              dayRowStyles.sessionActionButton,
+              {
+                backgroundColor: isFilled ? colors.accentSurface : colors.background,
+                borderColor: isFilled ? colors.accentSurface : colors.borderStrong,
+              },
+            ]}
+          >
             <Text
               style={[
-                dayRowStyles.badgeText,
-                { color: isCurrent ? colors.accentPrimary : colors.secondaryText },
+                dayRowStyles.sessionActionLabel,
+                displayFont.regular,
+                { color: isFilled ? colors.onAccentSurface : colors.secondaryText },
               ]}
             >
-              {dayNumber}
+              {action.label}
             </Text>
-          )}
-        </View>
+          </PressableScale>
+        );
+      })}
+    </View>
+  ) : null;
 
-        <View style={dayRowStyles.content}>
-          {dateLabel ? (
-            <Text style={[dayRowStyles.dateLabel, { color: colors.secondaryText }]}>
-              {dateLabel}
+  // ---- Today: the one accent-ruled card on the screen ----------------------
+  if (isCurrent) {
+    return (
+      <AppCard accentRule padding={spacing.lg} style={dayRowStyles.todayCard}>
+        <View style={dayRowStyles.todayRow}>
+          <PressableScale
+            pressEffect="translate"
+            haptic="light"
+            onPress={() => onPress(dayNumber, launchSessionKey)}
+            testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
+            accessibilityLabel={accessibilityLabel}
+            accessibilityRole="button"
+            style={dayRowStyles.todayContent}
+          >
+            <Text
+              style={[typography.eyebrow, displayFont.regular, { color: colors.accentPrimary }]}
+              numberOfLines={1}
+            >
+              {`${t('home.today')} · ${t('readingPlans.dayLabel', { day: dayNumber })}`}
             </Text>
-          ) : null}
-          <Text style={[dayRowStyles.refs, { color: colors.primaryText }]} numberOfLines={2}>
-            {refs}
-          </Text>
-          {!hasSessionActions && sessionBadges.length > 0 ? (
-            <View style={dayRowStyles.sessionBadgeRow}>
-              {sessionBadges.map((badge) => {
-                const palette =
-                  badge.state === 'done'
-                    ? {
-                        backgroundColor: colors.accentPrimary,
-                        borderColor: colors.accentPrimary,
-                        textColor: colors.onAccent,
-                      }
-                    : badge.state === 'next'
-                      ? {
-                          backgroundColor: colors.cardBackground,
-                          borderColor: colors.accentPrimary,
-                          textColor: colors.accentPrimary,
-                        }
-                      : {
-                          backgroundColor: colors.background,
-                          borderColor: colors.cardBorder,
-                          textColor: colors.secondaryText,
-                        };
-
-                return (
-                  <View
-                    key={`${dayNumber}-${badge.label}`}
-                    style={[
-                      dayRowStyles.sessionBadge,
-                      {
-                        backgroundColor: palette.backgroundColor,
-                        borderColor: palette.borderColor,
-                      },
-                    ]}
-                  >
-                    <Text style={[dayRowStyles.sessionBadgeText, { color: palette.textColor }]}>
-                      {badge.label}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-        </View>
-
-        <Ionicons
-          name={isCompleted ? 'chevron-forward' : 'chevron-forward-outline'}
-          size={16}
-          color={colors.secondaryText}
-        />
-      </TouchableOpacity>
-
-      {hasSessionActions ? (
-        <View style={dayRowStyles.sessionActionRow}>
-          {sessionActions.map((action) => {
-            const palette =
-              action.state === 'done'
-                ? {
-                    backgroundColor: colors.accentPrimary,
-                    borderColor: colors.accentPrimary,
-                    textColor: colors.onAccent,
-                  }
-                : action.state === 'next'
-                  ? {
-                      backgroundColor: colors.accentPrimary,
-                      borderColor: colors.accentPrimary,
-                      textColor: colors.onAccent,
-                    }
-                  : {
-                      backgroundColor: colors.background,
-                      borderColor: colors.cardBorder,
-                      textColor: colors.primaryText,
-                    };
-
-            return (
-              <TouchableOpacity
-                key={`${dayNumber}-${action.sessionKey}`}
-                onPress={() => onPress(dayNumber, action.sessionKey)}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.planSessionForDay', {
-                  session: action.label,
-                  day: dayNumber,
-                })}
-                style={[
-                  dayRowStyles.sessionActionButton,
-                  {
-                    backgroundColor: palette.backgroundColor,
-                    borderColor: palette.borderColor,
-                  },
-                ]}
+            <Text
+              style={[dayRowStyles.todayTitle, { color: colors.primaryText }]}
+              numberOfLines={1}
+            >
+              {refs}
+            </Text>
+            {subtitle ? (
+              <Text
+                style={[dayRowStyles.todaySubtitle, { color: colors.secondaryText }]}
+                numberOfLines={1}
               >
-                <Text style={[dayRowStyles.sessionActionLabel, { color: palette.textColor }]}>
-                  {action.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                {subtitle}
+              </Text>
+            ) : null}
+          </PressableScale>
+
+          <View style={dayRowStyles.todayActions}>
+            <AppButton
+              label={t('bible.read')}
+              size="md"
+              fullWidth={false}
+              onPress={() => onPress(dayNumber, launchSessionKey)}
+              style={dayRowStyles.todayReadButton}
+            />
+            {audioAvailable && onListen ? (
+              <IconButton
+                icon={Play}
+                variant="paper"
+                onPress={() => onListen(dayNumber, launchSessionKey)}
+                accessibilityLabel={t('bible.listen')}
+              />
+            ) : null}
+          </View>
         </View>
+        {sessionActionRow}
+      </AppCard>
+    );
+  }
+
+  // ---- Ledger slice --------------------------------------------------------
+  const trailing = isNext ? (
+    <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+      {t('readingPlans.tomorrow')}
+    </Text>
+  ) : isCompleted ? (
+    <View style={dayRowStyles.ledgerTrailingGroup}>
+      <Check size={12} color={colors.success} strokeWidth={2} />
+      {dateLabel ? (
+        <Text style={[typography.eyebrow, { color: colors.secondaryText }]}>{dateLabel}</Text>
       ) : null}
     </View>
+  ) : dateLabel ? (
+    <Text style={[typography.eyebrow, { color: colors.textTertiary }]}>{dateLabel}</Text>
+  ) : null;
+
+  return (
+    <PressableScale
+      pressEffect="translate"
+      haptic="light"
+      onPress={() => onPress(dayNumber, launchSessionKey)}
+      testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      style={[
+        dayRowStyles.ledgerSlice,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+        isFirst ? dayRowStyles.ledgerSliceFirst : null,
+        isLast ? dayRowStyles.ledgerSliceLast : null,
+      ]}
+    >
+      <View
+        style={[
+          dayRowStyles.ledgerRow,
+          isFirst ? null : { borderTopWidth: 1, borderTopColor: colors.borderStrong },
+        ]}
+      >
+        <Text
+          style={[
+            dayRowStyles.ledgerDay,
+            { color: isFuture ? colors.textTertiary : colors.secondaryText },
+          ]}
+          numberOfLines={1}
+        >
+          {t('readingPlans.dayLabel', { day: dayNumber })}
+        </Text>
+        <Text
+          style={[
+            dayRowStyles.ledgerRef,
+            { color: isFuture ? colors.textTertiary : colors.primaryText },
+          ]}
+          numberOfLines={1}
+        >
+          {refs}
+        </Text>
+        <View style={dayRowStyles.ledgerTrailing}>{trailing}</View>
+      </View>
+      {hasSessionActions && !isFuture ? (
+        <View style={dayRowStyles.ledgerSessions}>{sessionActionRow}</View>
+      ) : null}
+    </PressableScale>
   );
 });
 
 const dayRowStyles = StyleSheet.create({
-  container: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
+  // Today card
+  todayCard: {
+    paddingVertical: 14,
   },
-  row: {
+  todayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 72,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
   },
-  rowWithActions: {
-    paddingBottom: spacing.sm,
-  },
-  badge: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    ...typography.label,
-  },
-  content: {
+  todayContent: {
     flex: 1,
-    gap: 2,
-  },
-  dateLabel: {
-    ...typography.micro,
-  },
-  refs: {
-    ...typography.bodyStrong,
-  },
-  sessionBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.xs,
-    marginTop: spacing.xs,
   },
-  sessionBadge: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+  todayTitle: {
+    ...typography.cardTitle,
   },
-  sessionBadgeText: {
-    ...typography.micro,
+  todaySubtitle: {
+    ...typography.captionStrong,
+    fontWeight: '400',
   },
+  todayActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  todayReadButton: {
+    paddingHorizontal: spacing.lg,
+  },
+
+  // Ledger slice
+  ledgerSlice: {
+    marginHorizontal: layout.screenPadding,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+  },
+  ledgerSliceFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+  },
+  ledgerSliceLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+  },
+  ledgerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 48,
+    marginHorizontal: spacing.lg,
+  },
+  ledgerDay: {
+    ...typography.mono,
+    fontWeight: '600',
+    width: LEDGER_DAY_WIDTH,
+  },
+  ledgerRef: {
+    ...typography.bodyMedium,
+    fontSize: 14.5,
+    lineHeight: 20,
+    flex: 1,
+  },
+  ledgerTrailing: {
+    alignItems: 'flex-end',
+  },
+  ledgerTrailingGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  ledgerSessions: {
+    marginHorizontal: spacing.lg,
+  },
+
+  // Session actions (multi-session plans)
   sessionActionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    marginTop: spacing.md,
   },
   sessionActionButton: {
-    minHeight: layout.minTouchTarget,
-    borderRadius: radius.lg,
+    minHeight: 32,
+    borderRadius: radius.sm,
     borderWidth: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
   sessionActionLabel: {
-    ...typography.micro,
+    ...typography.monoSmall,
   },
 });
 
@@ -643,33 +777,31 @@ function RelatedPlanCard({ plan, onPress }: RelatedPlanCardProps) {
   const { t } = useTranslation();
 
   return (
-    <TouchableOpacity
+    <AppCard
+      pressable
+      padding={0}
       onPress={() => onPress(plan.id)}
-      activeOpacity={0.85}
-      style={[
-        relatedCardStyles.card,
-        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-      ]}
-      accessibilityRole="button"
+      style={relatedCardStyles.card}
+      accessibilityLabel={t(plan.title_key as Parameters<typeof t>[0], {
+        defaultValue: plan.title_key,
+      })}
     >
-      <PlanCoverImage plan={plan} width={120} height={80} borderRadius={radius.md} />
+      <PlanCoverImage plan={plan} width={172} height={92} borderRadius={0} />
       <View style={relatedCardStyles.info}>
         <Text style={[relatedCardStyles.title, { color: colors.primaryText }]} numberOfLines={2}>
           {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
         </Text>
         <Text style={[relatedCardStyles.duration, { color: colors.secondaryText }]}>
-          {plan.duration_days} {t('engagement.days', { defaultValue: 'days' })}
+          {t('readingPlans.durationDays', { count: plan.duration_days })}
         </Text>
       </View>
-    </TouchableOpacity>
+    </AppCard>
   );
 }
 
 const relatedCardStyles = StyleSheet.create({
   card: {
     width: 172,
-    borderRadius: radius.lg,
-    borderWidth: 1,
     overflow: 'hidden',
   },
   info: {
@@ -677,10 +809,10 @@ const relatedCardStyles = StyleSheet.create({
     gap: spacing.xs,
   },
   title: {
-    ...typography.label,
+    ...typography.captionStrong,
   },
   duration: {
-    ...typography.micro,
+    ...typography.caption,
   },
 });
 
@@ -688,14 +820,13 @@ const relatedCardStyles = StyleSheet.create({
 // Main screen
 // ---------------------------------------------------------------------------
 
-const COVER_HEIGHT = 220;
-
 export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { planId } = route.params;
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBar = useTabBarHeight();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
@@ -711,10 +842,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
   const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
   const today = React.useMemo(() => new Date(), []);
-  const visibleDayNumbers = React.useMemo(
-    () => getVisiblePlanDayNumbers(plan, entries, progress, today),
-    [entries, plan, progress, today]
-  );
+  // The ledger accounts for the whole plan, recurring rhythms included: the
+  // reference design lists a 31-day Proverbs cycle even on day 30.
+  const ledgerDayNumbers = React.useMemo(() => getLedgerDayNumbers(entries), [entries]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -768,6 +898,12 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
+  const translations = useBibleStore((state) => state.translations);
+  const currentTranslationId = useBibleStore((state) => state.currentTranslation);
+  const audioAvailable = React.useMemo(
+    () => translations.find((entry) => entry.id === currentTranslationId)?.hasAudio ?? false,
+    [currentTranslationId, translations]
+  );
   const currentDaySummary = React.useMemo(() => {
     if (!plan || !progress) {
       return null;
@@ -785,16 +921,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const isEnrolled = progress !== null;
   const multiSessionPlan = isMultiSessionPlan(plan);
 
-  const handleOpenChapter = useCallback(
+  // Resolves everything a plan-day launch needs — enrolling first when the user
+  // taps a day before starting the plan — so read and listen share one path.
+  const resolvePlanDayLaunch = useCallback(
     async (dayNumber: number, sessionKey?: PlanSessionKey) => {
-      if (!rootNavigationRef.isReady()) return;
+      if (!rootNavigationRef.isReady()) return null;
 
       lightHaptic();
 
       if (!progress) {
         const enrollResult = await enrollInPlan(planId);
         if (!enrollResult.success || !enrollResult.data) {
-          return;
+          return null;
         }
       }
 
@@ -805,7 +943,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           : plannedDayEntries;
       const fallbackEntry = dayEntries[0] ?? plannedDayEntries[0];
       if (!fallbackEntry) {
-        return;
+        return null;
       }
 
       const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
@@ -814,6 +952,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         bookId: fallbackEntry.book,
         chapter: fallbackEntry.chapter_start,
       };
+
+      return { playbackSequenceEntries, playbackStartEntry };
+    },
+    [entriesByDay, getPlanDayResume, multiSessionPlan, planId, progress]
+  );
+
+  const handleOpenChapter = useCallback(
+    async (dayNumber: number, sessionKey?: PlanSessionKey) => {
+      const launch = await resolvePlanDayLaunch(dayNumber, sessionKey);
+      if (!launch) return;
+
+      const { playbackSequenceEntries, playbackStartEntry } = launch;
 
       rootNavigationRef.navigate('Bible', {
         screen: 'BibleReader',
@@ -830,7 +980,32 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         },
       });
     },
-    [entriesByDay, getPlanDayResume, multiSessionPlan, planId, preferredChapterLaunchMode, progress]
+    [planId, preferredChapterLaunchMode, resolvePlanDayLaunch]
+  );
+
+  // The play button is an explicit "listen to this day", so it overrides the
+  // persisted launch preference rather than reading it.
+  const handleListenToDay = useCallback(
+    async (dayNumber: number, sessionKey?: PlanSessionKey) => {
+      const launch = await resolvePlanDayLaunch(dayNumber, sessionKey);
+      if (!launch) return;
+
+      rootNavigationRef.navigate('Bible', {
+        screen: 'BibleReader',
+        params: {
+          bookId: launch.playbackStartEntry.bookId,
+          chapter: launch.playbackStartEntry.chapter,
+          autoplayAudio: true,
+          preferredMode: 'listen',
+          playbackSequenceEntries: launch.playbackSequenceEntries,
+          planId,
+          planDayNumber: dayNumber,
+          ...(sessionKey ? { planSessionKey: sessionKey } : {}),
+          returnToPlanOnComplete: true,
+        },
+      });
+    },
+    [planId, resolvePlanDayLaunch]
   );
 
   const handleStartPlan = useCallback(async () => {
@@ -841,6 +1016,26 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       successHaptic();
     }
   }, [planId, progress]);
+
+  const handleLeavePlan = useCallback(() => {
+    lightHaptic();
+    Alert.alert(t('readingPlans.leavePlan'), t('readingPlans.leavePlanConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('readingPlans.leavePlan'),
+        style: 'destructive',
+        onPress: async () => {
+          const result = await unenrollFromPlan(planId);
+          if (!result.success) {
+            Alert.alert(t('common.error'), t('common.unexpectedError'));
+            return;
+          }
+          successHaptic();
+          navigation.goBack();
+        },
+      },
+    ]);
+  }, [navigation, planId, t]);
 
   const handleRelatedPlanPress = useCallback(
     (relatedPlanId: string) => {
@@ -854,24 +1049,68 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     : t('readingPlans.title');
   const heroCoverSource = plan ? getReadingPlanCoverSource(plan) : null;
 
+  // "DAILY RHYTHM · 31 DAYS · PROVERBS" — cadence, length, and the book the plan
+  // is actually about, when one dominates it.
+  const heroEyebrow = React.useMemo(() => {
+    if (!plan) return null;
+    const cadenceKey = isRecurringPlan(plan)
+      ? 'readingPlans.dailyRhythm'
+      : plan.category
+        ? CATEGORY_LABEL_KEYS[plan.category]
+        : undefined;
+
+    const counts = new Map<string, number>();
+    entries.forEach((entry) => counts.set(entry.book, (counts.get(entry.book) ?? 0) + 1));
+    const ranked = Array.from(counts.entries()).sort((left, right) => right[1] - left[1]);
+    const dominant = ranked[0];
+    const bookLabel =
+      dominant && entries.length > 0 && dominant[1] / entries.length >= 0.6
+        ? getTranslatedBookName(dominant[0], t)
+        : null;
+
+    return [
+      cadenceKey ? t(cadenceKey as Parameters<typeof t>[0]) : null,
+      t('readingPlans.durationDays', { count: plan.duration_days }),
+      bookLabel,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [entries, plan, t]);
+
+  // The day the ledger marks "tomorrow". A recurring cycle wraps back to its
+  // first day once you are standing on the last one.
+  const nextDayNumber = React.useMemo(() => {
+    const index = ledgerDayNumbers.indexOf(currentDay);
+    if (index === -1) {
+      return currentDay + 1;
+    }
+    const following = ledgerDayNumbers[index + 1];
+    if (following != null) {
+      return following;
+    }
+    return isRecurringPlan(plan) ? (ledgerDayNumbers[0] ?? currentDay + 1) : currentDay + 1;
+  }, [currentDay, ledgerDayNumbers, plan]);
+
   const dayViewModels = React.useMemo<PlanDayViewModel[]>(() => {
-    return visibleDayNumbers.map((dayNumber) => {
+    return ledgerDayNumbers.map((dayNumber) => {
       const dayEntries = entriesByDay.get(dayNumber) ?? [];
       const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
-      const isCompleted = progress
-        ? isRecurringPlan(plan)
-          ? dayNumber === currentDay &&
-            Boolean(
-              (currentDaySummary?.dateKey &&
-                currentDaySummary.dateKey in progress.completed_entries) ||
-              currentDaySummary?.isComplete
-            )
-          : String(dayNumber) in progress.completed_entries ||
-            (dayNumber === currentDay && Boolean(currentDaySummary?.isComplete))
-        : false;
+      // Rows and cells read the same record, so a recurring plan's past days
+      // carry their real done/missed state instead of collapsing to today.
+      const isCompleted = isLedgerDayComplete({
+        plan,
+        progress,
+        dayNumber,
+        currentDay,
+        isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
+        today,
+      });
       const isCurrent = dayNumber === currentDay;
-      const dateLabel =
-        progress && !isRecurringPlan(plan)
+      const recurringCycleDate =
+        plan && isRecurringPlan(plan) ? getRecurringLedgerDayDate(plan, dayNumber, today) : null;
+      const dateLabel = recurringCycleDate
+        ? formatLedgerCycleDate(recurringCycleDate, i18n.language)
+        : progress && !isRecurringPlan(plan)
           ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
           : null;
       const launchSessionKey = multiSessionPlan
@@ -879,27 +1118,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           ? (currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey)
           : daySessionGroups[0]?.sessionKey
         : undefined;
-      const sessionBadges = daySessionGroups.map((group) => {
-        const matchingSummary =
-          isCurrent && isEnrolled
-            ? (currentDaySummary?.sessionSummaries.find(
-                (session) => session.sessionKey === group.sessionKey
-              ) ?? null)
-            : null;
-        const state =
-          !isCurrent || !isEnrolled
-            ? 'available'
-            : matchingSummary?.isComplete
-              ? 'done'
-              : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
-                ? 'next'
-                : 'upcoming';
-
-        return {
-          label: group.title,
-          state,
-        } as const;
-      });
       const sessionActions = daySessionGroups.map((group) => {
         const matchingSummary =
           isCurrent && isEnrolled
@@ -930,7 +1148,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         launchSessionKey,
         isCompleted,
         isCurrent: isCurrent && isEnrolled,
-        sessionBadges,
+        // Before enrolling nothing is behind or ahead of you yet, so the ledger
+        // stays uniform rather than greying out most of the plan.
+        isFuture: isEnrolled && dayNumber > currentDay,
+        isNext: isEnrolled && dayNumber === nextDayNumber,
         sessionActions,
       };
     });
@@ -939,15 +1160,51 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     currentDaySummary,
     entries,
     entriesByDay,
+    i18n.language,
     isEnrolled,
+    ledgerDayNumbers,
     multiSessionPlan,
+    nextDayNumber,
     plan,
     progress,
-    visibleDayNumbers,
+    today,
   ]);
 
+  const todayViewModel = React.useMemo(
+    () => (isEnrolled ? (dayViewModels.find((item) => item.isCurrent) ?? null) : null),
+    [dayViewModels, isEnrolled]
+  );
+
+  // The ledger reads the way the design does: tomorrow at the top, then the
+  // record behind you newest-first, then the rest of the plan ahead of you.
+  const ledgerRows = React.useMemo<PlanDayViewModel[]>(() => {
+    if (!todayViewModel) {
+      return dayViewModels;
+    }
+    const rest = dayViewModels.filter((item) => item.dayNumber !== currentDay);
+    return [
+      ...rest.filter((item) => item.isNext),
+      ...rest
+        .filter((item) => !item.isNext && item.dayNumber < currentDay)
+        .sort((left, right) => right.dayNumber - left.dayNumber),
+      ...rest.filter((item) => !item.isNext && item.dayNumber > currentDay),
+    ];
+  }, [currentDay, dayViewModels, todayViewModel]);
+
+  const todaySubtitle = React.useMemo(() => {
+    if (!todayViewModel) return null;
+    if (currentDaySummary && currentDaySummary.targetChapterCount > 1) {
+      return t('readingPlans.todayTargetProgress', {
+        completed: currentDaySummary.completedChapterCount,
+        target: currentDaySummary.targetChapterCount,
+      });
+    }
+    if (todayViewModel.entries.length === 0) return null;
+    return t('readingPlans.dayChapterCount', { count: todayViewModel.entries.length });
+  }, [currentDaySummary, t, todayViewModel]);
+
   const renderDayRow = useCallback(
-    ({ item }: { item: PlanDayViewModel }) => (
+    ({ item, index }: { item: PlanDayViewModel; index: number }) => (
       <DayRow
         dayNumber={item.dayNumber}
         dateLabel={item.dateLabel}
@@ -955,124 +1212,159 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         launchSessionKey={item.launchSessionKey}
         isCompleted={item.isCompleted}
         isCurrent={item.isCurrent}
-        sessionBadges={item.sessionBadges}
+        isFuture={item.isFuture}
+        isNext={item.isNext}
+        isFirst={index === 0}
+        isLast={index === ledgerRows.length - 1}
         sessionActions={item.sessionActions}
         onPress={handleOpenChapter}
       />
     ),
-    [handleOpenChapter]
+    [handleOpenChapter, ledgerRows.length]
   );
 
   const keyExtractorDay = useCallback((item: PlanDayViewModel) => String(item.dayNumber), []);
 
-  const renderDaySeparator = useCallback(() => <View style={styles.daySeparator} />, []);
+  const scrimColors = React.useMemo(
+    () =>
+      [...COVER_SCRIM_STOPS, colors.background] as readonly [
+        ColorValue,
+        ColorValue,
+        ...ColorValue[],
+      ],
+    [colors.background]
+  );
+  const controlTop = Math.max(insets.top + spacing.sm, COVER_CONTROL_TOP);
+  const listContentStyle = React.useMemo(
+    () => ({ paddingBottom: tabBar.contentClearance }),
+    [tabBar.contentClearance]
+  );
+
+  const BackGlyph = I18nManager.isRTL ? ArrowRight : ArrowLeft;
 
   const listHeader = (
     <View>
       {/* ------------------------------------------------------------------ */}
-      {/* Cover image header                                                  */}
+      {/* Cover hero                                                          */}
       {/* ------------------------------------------------------------------ */}
-      <View style={styles.coverContainer}>
+      <View style={styles.cover}>
         {heroCoverSource ? (
           <Image source={heroCoverSource} style={styles.coverImage} resizeMode="cover" />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: colors.accentSecondary }]}>
-            <Ionicons name="book-outline" size={60} color={colors.secondaryText} />
+            <BookOpen size={60} color={colors.secondaryText} strokeWidth={2} />
           </View>
         )}
 
-        {/* The cover is always a photographic hero image, so we keep a fixed dark
-            readability scrim with light title text in every theme (matching the
-            HomeScreen verse card treatment) rather than themed surface tokens. */}
-        <LinearGradient colors={['transparent', colors.overlay]} style={styles.coverGradient} />
+        {/* The cover is always a photographic hero, so the scrim and the text on
+            it are fixed on-photo values in both scopes; only the final stop is
+            themed, so the image dissolves into the page. */}
+        <LinearGradient
+          colors={scrimColors}
+          locations={COVER_SCRIM_LOCATIONS}
+          style={styles.coverScrim}
+        />
+
+        <View style={[styles.coverControls, { top: controlTop }]} pointerEvents="box-none">
+          <IconButton
+            icon={BackGlyph}
+            variant="paper"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
+          {isEnrolled ? (
+            <IconButton
+              icon={Ellipsis}
+              variant="paper"
+              onPress={handleLeavePlan}
+              accessibilityLabel={t('readingPlans.planOptions')}
+            />
+          ) : null}
+        </View>
 
         <View style={styles.coverTitleWrap}>
-          <Text style={[styles.coverTitle, displayFont.bold]} numberOfLines={3}>
+          {heroEyebrow ? (
+            <Text
+              style={[styles.coverEyebrow, displayFont.regular]}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              {heroEyebrow}
+            </Text>
+          ) : null}
+          <Text style={[styles.coverTitle, displayFont.bold]} numberOfLines={1}>
             {planTitle}
           </Text>
         </View>
-
-        {/* Floating back button */}
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.85}
-          style={[
-            styles.floatingBack,
-            {
-              top: insets.top + spacing.sm,
-              backgroundColor: colors.overlay,
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Ionicons
-            name={I18nManager.isRTL ? 'arrow-forward' : 'arrow-back'}
-            size={20}
-            color="#ffffff"
-          />
-        </TouchableOpacity>
       </View>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* CTA row: Start Plan                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      {!isEnrolled ? (
-        <View style={styles.ctaRow}>
-          <TouchableOpacity
-            onPress={handleStartPlan}
-            disabled={enrolling}
-            activeOpacity={0.85}
-            style={[styles.ctaPrimary, { backgroundColor: colors.accentPrimary }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('readingPlans.startPlan')}
-          >
-            {enrolling ? (
-              <ActivityIndicator size="small" color={colors.onAccent} />
-            ) : (
-              <Text style={[styles.ctaPrimaryText, { color: colors.onAccent }]}>
-                {t('readingPlans.startPlan')}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Plan description                                                    */}
-      {/* ------------------------------------------------------------------ */}
-      {plan?.description_key ? (
-        <Text style={[styles.description, { color: colors.secondaryText }]}>
-          {t(plan.description_key as Parameters<typeof t>[0], {
-            defaultValue: plan.description_key,
-          })}
-        </Text>
-      ) : null}
-
-      {/* Progress card (only if enrolled) */}
-      {plan && isEnrolled ? (
-        <View style={styles.headerProgressCardWrap}>
+      <View style={styles.headerBody}>
+        {/* Progress card (only if enrolled) */}
+        {plan && isEnrolled ? (
           <ProgressCard
             plan={plan}
             progress={progress}
             currentDaySummary={currentDaySummary}
             today={today}
           />
-        </View>
-      ) : null}
+        ) : null}
+
+        {/* Today */}
+        {todayViewModel ? (
+          <View style={styles.todayWrap}>
+            <DayRow
+              dayNumber={todayViewModel.dayNumber}
+              dateLabel={todayViewModel.dateLabel}
+              entries={todayViewModel.entries}
+              launchSessionKey={todayViewModel.launchSessionKey}
+              isCompleted={todayViewModel.isCompleted}
+              isCurrent={todayViewModel.isCurrent}
+              isFuture={todayViewModel.isFuture}
+              isNext={todayViewModel.isNext}
+              subtitle={todaySubtitle}
+              audioAvailable={audioAvailable}
+              sessionActions={todayViewModel.sessionActions}
+              onPress={handleOpenChapter}
+              onListen={handleListenToDay}
+            />
+          </View>
+        ) : null}
+
+        {/* Not enrolled: description + the one CTA */}
+        {!isEnrolled ? (
+          <View style={styles.introBlock}>
+            {plan?.description_key ? (
+              <Text style={[styles.description, { color: colors.secondaryText }]}>
+                {t(plan.description_key as Parameters<typeof t>[0], {
+                  defaultValue: plan.description_key,
+                })}
+              </Text>
+            ) : null}
+            <AppButton
+              label={t('readingPlans.startPlan')}
+              onPress={handleStartPlan}
+              loading={enrolling}
+              disabled={enrolling}
+            />
+          </View>
+        ) : null}
+
+        {ledgerRows.length > 0 ? (
+          <Text
+            style={[styles.ledgerEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+          >
+            {t('readingPlans.ledger')}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 
   const listFooter = (
     <View>
-      {/* ------------------------------------------------------------------ */}
-      {/* Related Plans                                                       */}
-      {/* ------------------------------------------------------------------ */}
       {relatedPlans.length > 0 ? (
         <View style={styles.relatedSection}>
-          <Text style={[styles.relatedTitle, { color: colors.primaryText }]}>
-            {t('readingPlans.relatedPlans')}
-          </Text>
+          <SectionHeader title={t('readingPlans.relatedPlans')} style={styles.relatedHeader} />
           <FlatList
             data={relatedPlans}
             horizontal
@@ -1086,25 +1378,19 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           />
         </View>
       ) : null}
-
-      {/* Bottom breathing room */}
-      <View style={styles.footerSpacer} />
     </View>
   );
 
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.loadingHeader, { paddingTop: insets.top }]}>
-          <TouchableOpacity
+        <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
+          <IconButton
+            icon={BackGlyph}
+            variant="paper"
             onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-            style={styles.backButton}
-            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
+          />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accentPrimary} />
@@ -1116,29 +1402,17 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   if (error) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.loadingHeader, { paddingTop: insets.top }]}>
-          <TouchableOpacity
+        <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
+          <IconButton
+            icon={BackGlyph}
+            variant="paper"
             onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-            style={styles.backButton}
-            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
+          />
         </View>
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity
-            onPress={load}
-            activeOpacity={0.85}
-            style={[styles.retryButton, { borderColor: colors.accentPrimary }]}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.retryText, { color: colors.accentPrimary }]}>
-              {t('common.retry')}
-            </Text>
-          </TouchableOpacity>
+          <AppButton label={t('common.retry')} variant="outline" onPress={load} fullWidth={false} />
         </View>
       </View>
     );
@@ -1147,15 +1421,14 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlashList
-        data={dayViewModels}
+        data={ledgerRows}
         renderItem={renderDayRow}
         keyExtractor={keyExtractorDay}
-        ItemSeparatorComponent={renderDaySeparator}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
-        contentContainerStyle={styles.dayListContent}
+        contentContainerStyle={listContentStyle}
         showsVerticalScrollIndicator={false}
-        estimatedItemSize={96}
+        estimatedItemSize={48}
         extraData={colors}
       />
     </View>
@@ -1166,17 +1439,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  dayListContent: {
-    // Horizontal padding applies to the virtualized day rows and the
-    // header/footer content. Cover image overrides this with negative
-    // margins so it stays edge-to-edge.
-    paddingHorizontal: layout.screenPadding,
-  },
 
   // Loading / error states
-  loadingHeader: {
+  plainHeader: {
     paddingHorizontal: layout.screenPadding,
-    paddingVertical: spacing.md,
+    paddingBottom: spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -1194,121 +1461,76 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlign: 'center',
   },
-  retryButton: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  retryText: {
-    ...typography.label,
-  },
 
-  // Cover image
-  coverContainer: {
+  // Cover hero
+  cover: {
     height: COVER_HEIGHT,
-    marginHorizontal: -layout.screenPadding,
-    overflow: 'hidden',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   coverImage: {
-    width: '100%',
-    height: COVER_HEIGHT,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coverGradient: {
+  coverScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  coverControls: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
+    left: layout.screenPadding,
+    right: layout.screenPadding,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   coverTitleWrap: {
     position: 'absolute',
     left: layout.screenPadding,
     right: layout.screenPadding,
-    bottom: spacing.lg,
+    bottom: HERO_TEXT_BOTTOM,
+    gap: spacing.sm,
+  },
+  coverEyebrow: {
+    ...typography.eyebrow,
+    color: ON_PHOTO_EYEBROW,
   },
   coverTitle: {
-    ...typography.pageTitle,
-    color: '#ffffff',
-  },
-  floatingBack: {
-    position: 'absolute',
-    start: spacing.lg,
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderRadius: layout.minTouchTarget / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // CTA row
-  ctaRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingTop: spacing.lg,
-  },
-  ctaPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    minHeight: layout.minTouchTarget,
-  },
-  ctaPrimaryText: {
-    ...typography.button,
+    ...typography.screenTitle,
+    color: ON_PHOTO_TEXT,
   },
 
-  // Description
+  // Content column
+  headerBody: {
+    marginTop: -COVER_CONTENT_OVERLAP,
+    paddingHorizontal: layout.screenPadding,
+  },
+  todayWrap: {
+    marginTop: spacing.lg,
+  },
+  introBlock: {
+    marginTop: spacing.lg,
+    gap: spacing.lg,
+  },
   description: {
     ...typography.body,
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
   },
-
-  // Day list section
-  daySeparator: {
-    height: spacing.md,
-  },
-  headerProgressCardWrap: {
-    paddingTop: spacing.sm,
+  ledgerEyebrow: {
+    ...typography.eyebrow,
+    marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
 
   // Related plans
   relatedSection: {
-    marginHorizontal: -layout.screenPadding,
     paddingTop: spacing.xxl,
-    paddingBottom: spacing.md,
     gap: spacing.md,
   },
-  relatedTitle: {
-    ...typography.sectionTitle,
+  relatedHeader: {
     paddingHorizontal: layout.screenPadding,
   },
   relatedList: {
     paddingHorizontal: layout.screenPadding,
   },
   relatedSeparator: {
-    width: spacing.sm,
-  },
-  footerSpacer: {
-    height: spacing.xxxl,
-  },
-
-  // Back button (loading/error states only)
-  backButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -spacing.sm,
+    width: spacing.md,
   },
 });

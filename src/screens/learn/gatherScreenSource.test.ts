@@ -35,6 +35,18 @@ test('GatherScreen uses translation keys for all visible section labels', () => 
   );
 
   assert.equal(
+    source.includes("t('gather.discoveryBibleStudy')"),
+    true,
+    'GatherScreen should use a translation key for the header eyebrow'
+  );
+
+  assert.equal(
+    source.includes("t('gather.foundationsSummary'"),
+    true,
+    'GatherScreen should use a translation key for the foundations count eyebrow'
+  );
+
+  assert.equal(
     source.includes('GatherIconBadge'),
     true,
     'GatherScreen should render gather icons through the shared vector badge'
@@ -58,18 +70,72 @@ test('GatherScreen navigates into FoundationDetail for both foundations and wisd
   );
 });
 
-test('GatherScreen renders accessible tab controls with role and selected state', () => {
+test('GatherScreen resumes the first incomplete lesson from the up-next card', () => {
   const source = readRelativeSource('./GatherScreen.tsx');
 
   assert.equal(
-    source.includes('accessibilityRole="tab"'),
+    source.includes("navigate('LessonDetail'"),
     true,
-    'GatherScreen should mark the sub-tabs with accessibilityRole="tab"'
+    'the up-next card should open the lesson itself, not the foundation index'
   );
 
   assert.equal(
-    source.includes('accessibilityState={{ selected:'),
+    source.includes("t('gather.upNextLesson'"),
     true,
-    'GatherScreen should report the selected tab for assistive technology'
+    'the up-next card should label its position in the path from a translation key'
+  );
+
+  assert.match(
+    source,
+    /completedLessons\[foundation\.id\]/,
+    'up next should be derived from the gather store completion map'
+  );
+});
+
+test('GatherScreen delegates the sub-tabs to the shared TabSwitch primitive', () => {
+  const source = readRelativeSource('./GatherScreen.tsx');
+
+  // TabSwitch owns accessibilityRole="tab" and the selected state for both
+  // segments, so the screen must not hand-roll a second tab control beside it.
+  assert.match(source, /<TabSwitch\b/, 'GatherScreen should render the shared TabSwitch');
+
+  assert.equal(
+    source.includes('accessibilityRole="tab"'),
+    false,
+    'GatherScreen should not hand-roll tab semantics alongside TabSwitch'
+  );
+});
+
+test('GatherScreen renders the numbered path instead of tinted cards and rings', () => {
+  const source = readRelativeSource('./GatherScreen.tsx');
+
+  assert.equal(
+    source.includes('ProgressRing'),
+    false,
+    'the redesigned Gather path uses segmented lesson ledgers, not progress rings'
+  );
+
+  assert.equal(
+    source.includes("accentPrimary + '15'"),
+    false,
+    'the first foundation card no longer gets a tinted background'
+  );
+
+  assert.match(
+    source,
+    /accentRule/,
+    'the up-next card should carry the 3pt accent rule that marks "you are here"'
+  );
+
+  assert.match(
+    source,
+    /pressEffect="translate"/,
+    'path rows press with a 1pt translate, never a scale-down'
+  );
+
+  assert.match(
+    source,
+    /contentClearance/,
+    'the path must clear the floating tab bar via useTabBarHeight()'
   );
 });

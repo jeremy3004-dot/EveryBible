@@ -218,7 +218,7 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
   );
 
   assert.equal(
-    appSource.includes("import { LocaleSetupFlow } from"),
+    appSource.includes('import { LocaleSetupFlow } from'),
     false,
     'App.tsx should not statically import LocaleSetupFlow onto the boot render path'
   );
@@ -236,8 +236,84 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
   );
 
   assert.equal(
-    flowSource.includes("accessMode"),
+    flowSource.includes('accessMode'),
     false,
     'LocaleSetupFlow completion should not route onboarding handoff through accessMode'
+  );
+});
+
+test('LocaleSetupFlow renders the Every Language nation step: step rail, suggested card, gradient footer', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  assert.equal(
+    flowSource.includes("from '@expo/vector-icons'"),
+    false,
+    'The locale flow should draw Lucide glyphs, not Ionicons'
+  );
+
+  assert.match(
+    flowSource,
+    /from 'lucide-react-native'/,
+    'The locale flow should import its glyphs from lucide-react-native'
+  );
+
+  assert.match(
+    flowSource,
+    /const STEP_BAR_WIDTH = 120;[\s\S]*const STEP_BAR_HEIGHT = 3;/,
+    'The header should carry the 120x3pt segmented step rail from the design system'
+  );
+
+  assert.match(
+    flowSource,
+    /t\('onboarding\.stepEyebrow', \{ step: currentStepNumber, total: totalSteps \}\)/,
+    'The step eyebrow should be driven by the real step index and step count, not a hardcoded "2 of 3"'
+  );
+
+  assert.match(
+    flowSource,
+    /index < currentStepNumber \? colors\.accentPrimary : colors\.borderStrong/,
+    'Completed step segments should fill with accentPrimary and the rest stay borderStrong'
+  );
+
+  assert.match(
+    flowSource,
+    /t\('onboarding\.suggestedFromDevice'\)[\s\S]*<AppCard\s+accentRule/,
+    'The device-suggested nation should sit in an accent-rule card under its own eyebrow'
+  );
+
+  assert.equal(
+    flowSource.includes("t('onboarding.suggestedBadge')"),
+    true,
+    'The suggested nation should carry the SUGGESTED chip'
+  );
+
+  assert.match(
+    flowSource,
+    /<LinearGradient[\s\S]*colors=\{\['transparent', colors\.background, colors\.background\]\}[\s\S]*locations=\{\[0, 0\.3, 1\]\}/,
+    'The footer should fade the scrolling list out over its top 30% instead of sitting on a hard rule'
+  );
+
+  assert.match(
+    flowSource,
+    /t\('onboarding\.continueWithNation', \{ name: selectedCountryDisplayName \}\)/,
+    'The primary action should name the chosen nation'
+  );
+
+  assert.equal(
+    flowSource.includes('languageButtonGrid'),
+    false,
+    'The interface-language tile grid should be replaced by the shared option-row list'
+  );
+
+  assert.equal(
+    flowSource.includes('testID="onboarding-secondary-action"'),
+    false,
+    'The in-body Back button should be gone — the header icon-button owns backward navigation'
+  );
+
+  assert.match(
+    flowSource,
+    /import \{ useKeyboardBottomInset \} from '\.\.\/\.\.\/hooks\/useKeyboardBottomInset';/,
+    'The pinned footer should lift clear of the keyboard, and the hook must be imported directly rather than through the hooks barrel (which pulls Supabase onto this screen)'
   );
 });

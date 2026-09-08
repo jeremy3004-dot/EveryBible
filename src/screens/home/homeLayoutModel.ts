@@ -8,6 +8,7 @@ export const HOME_SCREEN_BASE_SECTION_GAP = 18;
 export const HOME_SCREEN_BASE_CARD_PADDING = 20;
 export const HOME_SCREEN_BASE_DENSE_CARD_PADDING = 16;
 export const HOME_SCREEN_BASE_CARD_GAP = 16;
+export const HOME_SCREEN_BASE_HERO_PHOTO_HEIGHT = 430;
 export const HOME_SCREEN_BASE_SPACE_SM = 8;
 export const HOME_SCREEN_BASE_SPACE_MD = 12;
 
@@ -50,12 +51,15 @@ export function getHomeScreenLayout(
     foundationCardGap: scaleDimension(HOME_SCREEN_BASE_CARD_GAP, scale, 10, 18),
     foundationIconSize: scaleDimension(62, scale, 52, 70),
     verseCardMinHeight: scaleDimension(285, scale, 250, 320),
-    greetingFontSize: scaleDimension(32, scale, 24, 34),
-    greetingLineHeight: scaleDimension(38, scale, 28, 40),
+    // The full-bleed hero photograph. 430pt on the 390×844 reference frame; it
+    // has to shrink on short phones or the sheet cards fall under the tab bar.
+    heroPhotoHeight: scaleDimension(HOME_SCREEN_BASE_HERO_PHOTO_HEIGHT, scale, 340, 470),
+    greetingFontSize: scaleDimension(22, scale, 18, 24),
+    greetingLineHeight: scaleDimension(26, scale, 22, 28),
     subtitleFontSize: scaleDimension(15, scale, 13, 17),
     subtitleLineHeight: scaleDimension(22, scale, 18, 24),
-    verseTextFontSize: scaleDimension(24, scale, 19, 26),
-    verseTextLineHeight: scaleDimension(33, scale, 27, 35),
+    verseTextFontSize: scaleDimension(28, scale, 21, 30),
+    verseTextLineHeight: scaleDimension(36, scale, 27, 38),
     verseBodyFontSize: scaleDimension(17, scale, 14, 18),
     verseBodyLineHeight: scaleDimension(26, scale, 21, 28),
     verseReferenceFontSize: scaleDimension(16, scale, 14, 18),
@@ -70,7 +74,7 @@ export function getHomeScreenLayout(
     statsRowGap: scaleDimension(HOME_SCREEN_BASE_SPACE_SM, scale, 6, 12),
     foundationTitleLines: isTightHeight ? 1 : 2,
     foundationSubtitleLines: isTightHeight ? 1 : 2,
-    verseTextLines: isTightHeight ? 5 : 6,
+    verseTextLines: isTightHeight ? 3 : 4,
     verseBodyLines: isTightHeight ? 3 : 4,
   };
 }
