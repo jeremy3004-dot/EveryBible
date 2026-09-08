@@ -28,6 +28,7 @@ import {
 } from './spread-layout';
 import { coastalLayout, referenceDots } from './coastal-layout';
 import { createCoastMask } from './coast-mask';
+import { captureSpreadPositions, movingSpreadPoints } from './spread-motion';
 
 interface Props {
   highlightedIds?: ReadonlySet<string>;
@@ -108,6 +109,7 @@ export function SpreadDots({
       className: 'language-atlas-popup',
     });
     let displayed: SpreadPoint[] = [];
+    let spreadPositions: ReturnType<typeof captureSpreadPositions> = new Map();
     let hovered: string | null = null;
     let frame = 0;
     let dirtyLayout = true;
@@ -171,7 +173,20 @@ export function SpreadDots({
       );
       if (dirtyLayout || changedView) {
         const land = separate && !map.isMoving() ? createCoastMask(map, width, height) : null;
-        displayed = land ? coastalLayout(anchors, width, height, land) : referenceDots(anchors);
+        if (!separate) {
+          spreadPositions = new Map();
+          displayed = referenceDots(anchors);
+        } else if (land) {
+          displayed = coastalLayout(anchors, width, height, land);
+          spreadPositions = captureSpreadPositions(displayed, (point) =>
+            map.unproject([point.x, point.y])
+          );
+        } else {
+          // Keep the last land-checked arrangement through gestures and tile loading.
+          displayed = movingSpreadPoints(anchors, spreadPositions, (coordinate) =>
+            map.project(coordinate)
+          );
+        }
         dirtyLayout = false;
       }
       const recordCount = displayed.length;

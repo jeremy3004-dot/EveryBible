@@ -10,7 +10,12 @@ records; these counts are not the app's available Bible catalog.
 Dots is the default on each fresh page visit and uses spread mode. The public
 controls offer only Dots and Clusters; Recorded locations is hidden for now and
 remains available in the admin atlas. Spread mode shows one representative point per mapped record and separates
-crowded dots at regional zoom (4 and above), one zoom level earlier than before; global views remain unshifted, and Clusters groups those positions while zoomed out. The public
+crowded dots at regional zoom (4 and above), one zoom level earlier than before; global views remain unshifted, and Clusters groups those positions while zoomed out. During camera gestures and tile loading, separated dots retain their last
+land-checked geographic presentation positions instead of collapsing onto source
+anchors. The layout refreshes once the camera and coastline tiles are ready;
+source coordinates are unchanged.
+
+The public
 collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
 
