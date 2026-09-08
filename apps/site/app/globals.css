@@ -1416,7 +1416,7 @@ img { display: block; max-width: 100%; }
 }
 
 /* Dark-default pages retain readable links and FIELD surfaces. */
-html.dark .static-page__content a,
+html.dark .static-page__content a:not(.giving-button),
 html.dark .static-page__backlink { color: hsl(var(--primary)); }
 html.dark .site-header { background: hsl(var(--background) / .96); box-shadow: none; }
 
@@ -1458,4 +1458,8 @@ html.dark .site-header.site-header--overlay {
   font-weight: 600;
   text-decoration: none;
 }
-.static-page__content a.giving-button:hover { background: hsl(var(--primary)); }
+.static-page__content a.giving-button:hover {
+  background: hsl(var(--primary-deep));
+  color: white;
+  filter: brightness(0.9);
+}
