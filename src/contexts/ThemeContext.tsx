@@ -52,6 +52,10 @@ export interface ThemeColors {
   bibleSecondaryText: string;
   bibleAccent: string;
   bibleControlBackground: string;
+  /** Band behind the verse being read aloud. A cool neutral: it separates from
+   *  the warm page far better than a warm grey of the same darkness, and keeps
+   *  the accent for controls rather than competing with scripture. */
+  bibleFollowHighlight: string;
 }
 
 interface ThemeContextValue {
@@ -140,6 +144,7 @@ const baseDarkColors: ThemeColors = {
   // Page-inverse fill for primary CTAs (onboarding Continue, sign-in). Callers
   // pair it with `bibleBackground` as the label colour, so it must stay inverted.
   bibleControlBackground: '#EFEBE1',
+  bibleFollowHighlight: '#334152', // 1.8:1 against the near-black page
 };
 
 // Vellum — the canonical EL canvas. Warm paper, never white; lit-paper panels on
@@ -176,6 +181,7 @@ const baseLightColors: ThemeColors = {
   biblePrimaryText: '#1A1914',
   bibleSecondaryText: '#69624F',
   bibleControlBackground: '#1A1914',
+  bibleFollowHighlight: '#B2BDC9', // 1.6:1 against vellum; text stays 9:1
 };
 
 // The vellum scope uses the deep accent so terracotta reads on warm paper; Field

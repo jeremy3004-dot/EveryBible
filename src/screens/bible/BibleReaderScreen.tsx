@@ -4859,7 +4859,7 @@ export function BibleReaderScreen() {
       {
         fontSize: verseNumberSize,
         lineHeight: verseLineHeight,
-        color: colors.bibleAccent,
+        color: colors.bibleSecondaryText,
       },
     ];
     const structuredVerseIndentSize = scaleValue(spacing.lg);
@@ -4873,7 +4873,7 @@ export function BibleReaderScreen() {
       );
       const isFocused = verse.verse === readerInlineActiveVerse;
       const verseBackgroundColor = isFocused
-        ? colors.bibleAccent + '30'
+        ? colors.bibleFollowHighlight
         : highlightAnnotation?.color
           ? highlightAnnotation.color + '33'
           : undefined;
@@ -4988,7 +4988,7 @@ export function BibleReaderScreen() {
             style={[
               textStyle,
               isSelected ? selectedVerseDecorationStyle : null,
-              isFocused ? { backgroundColor: colors.bibleAccent + '30' } : null,
+              isFocused ? { backgroundColor: colors.bibleFollowHighlight } : null,
             ]}
           >
             <Text style={verseNumberStyle}>{verse.verse}</Text>
@@ -7111,19 +7111,15 @@ const styles = StyleSheet.create({
   },
   inlineVerseNumber: {
     fontWeight: '600',
-    opacity: 0.75,
   },
   premiumVerseNumber: {
     ...typography.readingVerseNumber,
-    opacity: 0.72,
   },
   premiumParagraphText: {
     includeFontPadding: false,
   },
   premiumInlineVerse: {},
-  premiumInlineVerseNumber: {
-    opacity: 0.78,
-  },
+  premiumInlineVerseNumber: {},
   feedbackCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
