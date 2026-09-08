@@ -36,6 +36,7 @@ async function finishSession(repeatMode: string, queued: boolean, chapters = [7]
     stopAudioProgressTelemetryTimer: () => {},
     trackAnonymousUsageEvent: () => {},
     useLibraryStore: { getState: () => ({ recordHistory: () => {} }) },
+    useProgressStore: { getState: () => ({ markChapterListened: () => {} }) },
     getBookById: () => ({ chapters: 31 }),
     resolveRepeatPlaybackTarget,
     advanceAudioQueue: () => (queued ? { queueIndex: 0, entry: state.queue[0] } : null),

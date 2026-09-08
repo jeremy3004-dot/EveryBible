@@ -60,6 +60,9 @@ function mountPlayer() {
       '../stores/libraryStore': {
         useLibraryStore: { getState: () => ({ recordHistory: () => {} }) },
       },
+      '../stores/progressStore': {
+        useProgressStore: { getState: () => ({ markChapterListened: () => {} }) },
+      },
       '../services/audio': {
         audioPlayer: {
           stop: async () => {

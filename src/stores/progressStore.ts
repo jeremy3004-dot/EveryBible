@@ -41,6 +41,15 @@ function debouncedSyncProgress() {
 
 interface ProgressState {
   chaptersRead: Record<string, number>; // { "GEN_1": timestamp, ... }
+  // Completed listens, keyed like chaptersRead: { "GEN_1": timestamp }. Written
+  // only when a chapter's audio plays to its end, so the Home ledger can count
+  // chapters covered by ear as well as by eye. Local-only and offline-first —
+  // the sync payload still carries reading progress alone.
+  chaptersListened: Record<string, number>;
+  // Completed listening milliseconds accumulated per local calendar day
+  // ({ "2026-09-08": 1_260_000 }). A day key is tiny, survives re-listens that a
+  // chapter-keyed map would collapse, and lets any period sum its own minutes.
+  listeningMsByDate: Record<string, number>;
   streakDays: number;
   lastReadDate: string | null;
 
@@ -52,6 +61,7 @@ interface ProgressState {
 
   // Actions
   markChapterRead: (bookId: string, chapter: number) => void;
+  markChapterListened: (bookId: string, chapter: number, durationMs: number) => void;
   isChapterRead: (bookId: string, chapter: number) => boolean;
   updateStreak: () => void;
   applySyncedProgress: (progress: {
@@ -67,9 +77,11 @@ interface ProgressState {
 
 const initialProgressState: Pick<
   ProgressState,
-  'chaptersRead' | 'streakDays' | 'lastReadDate'
+  'chaptersRead' | 'chaptersListened' | 'listeningMsByDate' | 'streakDays' | 'lastReadDate'
 > = {
   chaptersRead: {},
+  chaptersListened: {},
+  listeningMsByDate: {},
   streakDays: 0,
   lastReadDate: null,
 };
@@ -155,6 +167,26 @@ export const useProgressStore = create<ProgressState>()(
         debouncedSyncProgress();
       },
 
+      markChapterListened: (bookId, chapter, durationMs) => {
+        const key = `${bookId}_${chapter}`;
+        const now = Date.now();
+        const dateKey = formatLocalDateKey(new Date(now));
+        const listenedMs =
+          Number.isFinite(durationMs) && durationMs > 0 ? Math.round(durationMs) : 0;
+        set((state) => ({
+          chaptersListened: {
+            ...state.chaptersListened,
+            [key]: now,
+          },
+          listeningMsByDate: listenedMs
+            ? {
+                ...state.listeningMsByDate,
+                [dateKey]: (state.listeningMsByDate[dateKey] ?? 0) + listenedMs,
+              }
+            : state.listeningMsByDate,
+        }));
+      },
+
       isChapterRead: (bookId, chapter) => {
         const { chaptersRead } = get();
         const key = `${bookId}_${chapter}`;
@@ -198,7 +230,9 @@ export const useProgressStore = create<ProgressState>()(
           state.streakDays !== progress.streakDays ||
           state.lastReadDate !== progress.lastReadDate ||
           Object.keys(state.chaptersRead).length !== Object.keys(progress.chaptersRead).length ||
-          Object.entries(progress.chaptersRead).some(([key, value]) => state.chaptersRead[key] !== value);
+          Object.entries(progress.chaptersRead).some(
+            ([key, value]) => state.chaptersRead[key] !== value
+          );
 
         if (!hasChanged) {
           return;

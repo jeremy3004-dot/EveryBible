@@ -185,6 +185,43 @@ test('HomeScreen renders the sheet cards at the spec geometry', () => {
   );
 });
 
+test('HomeScreen closes the sheet with the reading ledger below the Gather card', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  const gatherCardIndex = source.indexOf('style={styles.gatherCard}');
+  const ledgerCardIndex = source.indexOf('style={styles.ledgerCard}');
+
+  assert.ok(gatherCardIndex > 0, 'the Gather card should still render');
+  assert.ok(
+    ledgerCardIndex > gatherCardIndex,
+    'the reading ledger is the final card on Home, so it must render below the Gather card'
+  );
+
+  assert.match(
+    source,
+    /<TabSwitch\s+segments=\{ledgerSegments\}\s+value=\{ledgerPeriod\}/,
+    'the ledger period is chosen with the shared TabSwitch, not a bespoke control'
+  );
+
+  assert.match(
+    source,
+    /useState<HomeReadingPeriod>\('allTime'\)/,
+    'the ledger should open on the all-time scope'
+  );
+
+  assert.match(
+    source,
+    /t\('home\.ledgerChaptersRead'\)[\s\S]*t\('home\.ledgerChaptersListened'\)[\s\S]*t\('home\.ledgerBooksFinished'\)/,
+    'the ledger should list read, listened and finished rows in that order, all localized'
+  );
+
+  assert.match(
+    source,
+    /getHomeReadingStats\(\s*\{ chaptersRead, chaptersListened, listeningMsByDate \},/,
+    'ledger figures must come from the pure stats model, not from inline maths in the screen'
+  );
+});
+
 test('HomeScreen replaces Ionicons with Lucide glyphs', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 

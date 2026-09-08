@@ -731,11 +731,10 @@ export const sanitizePersistedBibleState = (value: unknown) => {
   };
 };
 
-export const sanitizePersistedProgressState = (value: unknown) => {
-  const persisted = isRecord(value) ? value : {};
-  const chaptersReadSource = isRecord(persisted.chaptersRead) ? persisted.chaptersRead : {};
-  const chaptersRead = Object.fromEntries(
-    Object.entries(chaptersReadSource).filter(([key, timestamp]) => {
+const sanitizeChapterTimestampMap = (value: unknown): Record<string, number> => {
+  const source = isRecord(value) ? value : {};
+  return Object.fromEntries(
+    Object.entries(source).filter(([key, timestamp]) => {
       if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp <= 0) {
         return false;
       }
@@ -750,9 +749,35 @@ export const sanitizePersistedProgressState = (value: unknown) => {
       return Boolean(getBookById(bookId)) && Number.isInteger(chapter) && chapter > 0;
     })
   ) as Record<string, number>;
+};
+
+// "YYYY-MM-DD" -> accumulated milliseconds. Anything that is not a plain local
+// date key with a positive finite duration is dropped, so a corrupted or
+// pre-upgrade payload degrades to an empty ledger rather than NaN totals.
+const LOCAL_DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const sanitizeDailyDurationMap = (value: unknown): Record<string, number> => {
+  const source = isRecord(value) ? value : {};
+  return Object.fromEntries(
+    Object.entries(source).filter(
+      ([key, ms]) =>
+        LOCAL_DATE_KEY_PATTERN.test(key) && typeof ms === 'number' && Number.isFinite(ms) && ms > 0
+    )
+  ) as Record<string, number>;
+};
+
+export const sanitizePersistedProgressState = (value: unknown) => {
+  const persisted = isRecord(value) ? value : {};
+  const chaptersRead = sanitizeChapterTimestampMap(persisted.chaptersRead);
+  // Both listening fields default to empty, so installs that persisted progress
+  // before the Home ledger shipped hydrate cleanly instead of crashing on undefined.
+  const chaptersListened = sanitizeChapterTimestampMap(persisted.chaptersListened);
+  const listeningMsByDate = sanitizeDailyDurationMap(persisted.listeningMsByDate);
 
   return {
     chaptersRead,
+    chaptersListened,
+    listeningMsByDate,
     streakDays:
       typeof persisted.streakDays === 'number' &&
       Number.isFinite(persisted.streakDays) &&

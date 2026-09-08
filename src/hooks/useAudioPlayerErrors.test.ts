@@ -63,6 +63,9 @@ async function mountPlayer(failure: 'unavailable' | 'lookup' | 'playback') {
     '../stores/libraryStore': {
       useLibraryStore: { getState: () => ({ recordHistory: () => {} }) },
     },
+    '../stores/progressStore': {
+      useProgressStore: { getState: () => ({ markChapterListened: () => {} }) },
+    },
     '../services/audio': {
       audioPlayer: {
         stop: async () => {},

@@ -17,7 +17,15 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Play, Share as ShareGlyph } from 'lucide-react-native';
+import {
+  BookOpen,
+  ChevronRight,
+  CircleCheck,
+  Flame,
+  Headphones,
+  Play,
+  Share as ShareGlyph,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
@@ -29,6 +37,7 @@ import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
+import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   FOUNDATION_LESSON_TITLE_KEYS,
@@ -38,6 +47,11 @@ import {
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
+import {
+  getHomeReadingPeriodDayTotal,
+  getHomeReadingStats,
+  type HomeReadingPeriod,
+} from './homeReadingStatsModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { formatDailyScriptureReferenceLabel } from '../../services/bible/presentation';
@@ -50,10 +64,12 @@ import { AppCard } from '../../components/ui/AppCard';
 import { IconButton } from '../../components/ui/IconButton';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { ProgressBar } from '../../components/ui/ProgressBar';
+import { TabSwitch } from '../../components/ui/TabSwitch';
 import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
-import { motion, radius, spacing, typography } from '../../design/system';
+import { layout, motion, radius, spacing, typography } from '../../design/system';
+import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
 
@@ -91,6 +107,8 @@ const SHEET_PADDING_TOP = 20;
 const SHEET_GUTTER = spacing.xl;
 const SHEET_GAP = spacing.md;
 const SHEET_CARD_MIN_HEIGHT = 120;
+/** Ledger rows are separated by hairline rules and hold a 48pt tap-free rhythm. */
+const LEDGER_ROW_MIN_HEIGHT = 48;
 
 function getFirstName(displayName: string | null | undefined): string | null {
   const trimmed = displayName?.trim();
@@ -262,6 +280,80 @@ export function HomeScreen() {
       .replace(/[\s,.·、，]+$/, '');
     return weekday && rest ? `${weekday} · ${rest}` : weekday || rest;
   }, [i18n.language]);
+
+  // ---- Reading ledger -------------------------------------------------------
+  // The streak is the store's own count, unaffected by the period switch; every
+  // other figure is derived in homeReadingStatsModel so the boundaries stay
+  // testable. The chosen period is screen state: Home has no preferences store,
+  // and a switch that always opens on "All time" reads the same on every launch.
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
+  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  const streakDays = useProgressStore((state) => state.streakDays);
+  const [ledgerPeriod, setLedgerPeriod] = useState<HomeReadingPeriod>('allTime');
+
+  const ledgerSegments = useMemo(
+    () => [
+      { key: 'week', label: t('home.week') },
+      { key: 'month', label: t('home.month') },
+      { key: 'allTime', label: t('home.allTime') },
+    ],
+    [t]
+  );
+
+  const readingStats = useMemo(
+    () =>
+      getHomeReadingStats(
+        { chaptersRead, chaptersListened, listeningMsByDate },
+        ledgerPeriod,
+        new Date()
+      ),
+    [chaptersRead, chaptersListened, ledgerPeriod, listeningMsByDate]
+  );
+
+  const finishedBookNames = useMemo(
+    () => readingStats.booksFinished.map((bookId) => getTranslatedBookName(bookId, t)),
+    [readingStats.booksFinished, t]
+  );
+
+  // Intl formatters are built here rather than at module scope so the JS thread
+  // never pays for them at import time, and so they follow a language change.
+  const ledgerFooterLabel = useMemo(() => {
+    if (ledgerPeriod === 'allTime') {
+      if (readingStats.firstActivityAt === null) {
+        return t('home.ledgerNoChapters');
+      }
+
+      return t('home.ledgerSince', {
+        date: new Intl.DateTimeFormat(i18n.language, {
+          day: 'numeric',
+          month: 'long',
+        }).format(new Date(readingStats.firstActivityAt)),
+        count: readingStats.chaptersCovered,
+      });
+    }
+
+    const now = new Date();
+    const total = getHomeReadingPeriodDayTotal(ledgerPeriod, now);
+
+    if (ledgerPeriod === 'week') {
+      return t('home.ledgerThisWeek', { active: readingStats.activeDays, total });
+    }
+
+    return t('home.ledgerThisMonth', {
+      month: new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(now),
+      active: readingStats.activeDays,
+      total,
+    });
+  }, [i18n.language, ledgerPeriod, readingStats, t]);
+
+  const ledgerNextUpLabel =
+    hasContinuePassage && currentBookInfo
+      ? t('home.ledgerNextUp', {
+          reference: `${currentBookName} ${currentChapter}`,
+          total: currentBookInfo.chapters,
+        })
+      : null;
 
   const loadVerseOfDay = useCallback(
     async ({
@@ -848,6 +940,127 @@ export function HomeScreen() {
               </View>
             </AppCard>
           </Animated.View>
+
+          {/* Reading ledger: the streak, then one rule-separated row per way a
+              chapter can be covered, then the period's own footer. */}
+          <Animated.View entering={sectionEntering(2)}>
+            <AppCard padding={layout.cardPadding} style={styles.ledgerCard}>
+              <View style={styles.ledgerHeader}>
+                <View style={styles.ledgerStreak}>
+                  <Flame size={18} color={colors.accentPrimary} strokeWidth={2} />
+                  <Text style={[styles.ledgerStreakCount, { color: colors.primaryText }]}>
+                    {streakDays}
+                  </Text>
+                  <Text
+                    style={[styles.ledgerStreakUnit, { color: colors.primaryText }]}
+                    numberOfLines={2}
+                  >
+                    {t('home.streakUnitLabel')}
+                  </Text>
+                </View>
+                <TabSwitch
+                  segments={ledgerSegments}
+                  value={ledgerPeriod}
+                  onChange={(key) => setLedgerPeriod(key as HomeReadingPeriod)}
+                  size="sm"
+                  accessibilityLabel={t('home.ledgerPeriodLabel')}
+                />
+              </View>
+
+              <View>
+                <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
+                  <BookOpen size={18} color={colors.secondaryText} strokeWidth={2} />
+                  <View style={styles.ledgerRowCopy}>
+                    <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
+                      {t('home.ledgerChaptersRead')}
+                    </Text>
+                  </View>
+                  <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
+                    {readingStats.chaptersReadCount}
+                  </Text>
+                </View>
+
+                <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
+                  <Headphones size={18} color={colors.secondaryText} strokeWidth={2} />
+                  <View style={styles.ledgerRowCopy}>
+                    <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
+                      {t('home.ledgerChaptersListened')}
+                    </Text>
+                    <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
+                      {formatListeningTime(readingStats.listeningMinutes, t)}
+                    </Text>
+                  </View>
+                  <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
+                    {readingStats.chaptersListenedCount}
+                  </Text>
+                </View>
+
+                <View style={[styles.ledgerFinished, { borderTopColor: colors.borderStrong }]}>
+                  <View style={styles.ledgerFinishedRow}>
+                    <CircleCheck size={18} color={colors.success} strokeWidth={2} />
+                    <View style={styles.ledgerRowCopy}>
+                      <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
+                        {t('home.ledgerBooksFinished')}
+                      </Text>
+                      <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
+                        {finishedBookNames.length > 0
+                          ? t('home.ledgerBooksFinishedCaption')
+                          : t('home.ledgerNoBooksFinished')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
+                      {finishedBookNames.length}
+                    </Text>
+                  </View>
+                  {finishedBookNames.length > 0 ? (
+                    <View style={styles.ledgerChips}>
+                      {finishedBookNames.map((bookName) => (
+                        <Text
+                          key={bookName}
+                          style={[
+                            styles.ledgerChip,
+                            displayFont.regular,
+                            {
+                              backgroundColor: colors.successSoft,
+                              color: colors.onSuccessSoft,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {bookName}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.ledgerFooter}>
+                <Text
+                  style={[
+                    styles.ledgerFooterLabel,
+                    displayFont.regular,
+                    { color: colors.secondaryText },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {ledgerFooterLabel}
+                </Text>
+                {ledgerNextUpLabel ? (
+                  <Text
+                    style={[
+                      styles.ledgerNextUp,
+                      displayFont.regular,
+                      { color: colors.secondaryText },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {ledgerNextUpLabel}
+                  </Text>
+                ) : null}
+              </View>
+            </AppCard>
+          </Animated.View>
         </View>
       </ScrollView>
 
@@ -1042,6 +1255,91 @@ const styles = StyleSheet.create({
   },
   gatherSubtitle: {
     ...typography.caption,
+  },
+  ledgerCard: {
+    paddingHorizontal: layout.cardPaddingWide,
+    gap: spacing.md,
+  },
+  ledgerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  ledgerStreak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  ledgerStreakCount: {
+    ...typography.numeralRow,
+  },
+  ledgerStreakUnit: {
+    ...typography.captionStrong,
+    // Two short lines beside the numeral, as in the reference.
+    maxWidth: 54,
+    flexShrink: 1,
+  },
+  ledgerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: LEDGER_ROW_MIN_HEIGHT,
+    borderTopWidth: 1,
+  },
+  ledgerRowCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  ledgerRowTitle: {
+    ...typography.bodyMedium,
+  },
+  ledgerRowCaption: {
+    ...typography.caption,
+  },
+  ledgerRowValue: {
+    ...typography.numeralRow,
+    fontSize: 22,
+    lineHeight: 22,
+    letterSpacing: -0.88,
+  },
+  ledgerFinished: {
+    borderTopWidth: 1,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    gap: 10,
+  },
+  ledgerFinishedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  ledgerChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  ledgerChip: {
+    ...typography.monoSmall,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+  },
+  // Stacked so the period summary never has to ellipsise beside the next-up line.
+  ledgerFooter: {
+    gap: spacing.xs,
+  },
+  ledgerFooterLabel: {
+    ...typography.eyebrow,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  ledgerNextUp: {
+    ...typography.mono,
+    flexShrink: 0,
   },
   sharePreviewMount: {
     position: 'absolute',

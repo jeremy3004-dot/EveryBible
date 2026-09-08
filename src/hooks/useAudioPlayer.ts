@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../stores/audioStore';
 import { useBibleStore } from '../stores/bibleStore';
 import { useLibraryStore } from '../stores/libraryStore';
+import { useProgressStore } from '../stores/progressStore';
 import {
   audioPlayer,
   backgroundMusicPlayer,
@@ -577,6 +578,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // for the last required chapter of the day.
     if (bookId && chapterNum && finishedDuration > 0) {
       useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
+      // A finished listen also counts as covering the chapter, so the Home
+      // reading ledger can credit chapters heard cover to cover, not just read.
+      useProgressStore.getState().markChapterListened(bookId, chapterNum, finishedDuration);
     }
 
     // A plan or rhythm owns playback until its last chapter finishes.
@@ -689,7 +693,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       emitAudioPlaybackProgress('pause', true);
       stopAudioProgressTelemetryTimer();
     };
-  }, [handleStatusUpdate, handlePlaybackFinished, setError, stopAudioProgressTelemetryTimer, emitAudioPlaybackProgress, t]);
+  }, [
+    handleStatusUpdate,
+    handlePlaybackFinished,
+    setError,
+    stopAudioProgressTelemetryTimer,
+    emitAudioPlaybackProgress,
+    t,
+  ]);
 
   useEffect(() => {
     if (status === 'playing') {
