@@ -20,6 +20,8 @@ Pull requests run the reusable **Verify Workspace** workflow. Main pushes and ma
 
 ## Manual Device Gates
 
+- Check bottom clearance across each root tab and nested stack using the [floating-tab audit](floating-tab-layout-audit-2026-09-08.md). Final list rows and fixed action bars must clear the capsule; native modals, lesson/plan detail and reader sessions must retain their intended full-screen behavior. New tab screens inherit `renderTabScreenLayout`; do not add independent hardcoded tab padding.
+- In Settings → Nation and Bible, verify Continue and Finish sit fully above the floating tabs on both steps. Scroll to the final nation and language and confirm each row is fully visible and tappable on iOS and Android. First-run onboarding should retain its normal bottom safe area without a tab-bar gap. After searching, drag the nation/language list and confirm the keyboard dismisses.
 - Fresh install: accept the recommended Bible language from the one-screen onboarding path, then confirm the app lands in the main shell as a guest.
 - From More and Profile as a guest, open the auth flow and confirm the shared auth screen appears in the expected mode.
 - Verify email/password sign-in on a release-like build, then fully quit and relaunch to confirm session restoration.

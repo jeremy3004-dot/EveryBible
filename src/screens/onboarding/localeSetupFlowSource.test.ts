@@ -7,6 +7,21 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
+test('Settings locale flow leaves bottom clearance to the shared navigation layout', () => {
+  const source = readRelativeSource('./LocaleSetupFlow.tsx');
+  assert.doesNotMatch(source, /useTabBarHeight/);
+  assert.match(
+    source,
+    /edges=\{mode === 'settings' \? \['top', 'left', 'right'\] : undefined\}/,
+    'Settings avoids counting the bottom safe area twice; first-run onboarding keeps all edges'
+  );
+});
+
+test('dragging locale search results dismisses the keyboard covering the footer', () => {
+  const source = readRelativeSource('./LocaleSetupFlow.tsx');
+  assert.match(source, /<ScrollView[\s\S]*?keyboardDismissMode="on-drag"/);
+});
+
 test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
 
@@ -218,7 +233,7 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
   );
 
   assert.equal(
-    appSource.includes("import { LocaleSetupFlow } from"),
+    appSource.includes('import { LocaleSetupFlow } from'),
     false,
     'App.tsx should not statically import LocaleSetupFlow onto the boot render path'
   );
@@ -236,7 +251,7 @@ test('App boot no longer routes onboarding completion through accessMode', () =>
   );
 
   assert.equal(
-    flowSource.includes("accessMode"),
+    flowSource.includes('accessMode'),
     false,
     'LocaleSetupFlow completion should not route onboarding handoff through accessMode'
   );

@@ -1,3 +1,4 @@
+import { renderTabScreenLayout } from './TabScreenLayout';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BibleStackParamList } from './types';
 import { useTheme } from '../contexts/ThemeContext';
@@ -9,6 +10,7 @@ export function BibleStack() {
 
   return (
     <Stack.Navigator
+      screenLayout={renderTabScreenLayout}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.background },

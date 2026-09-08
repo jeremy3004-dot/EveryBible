@@ -15,7 +15,7 @@ import {
 import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,7 +107,7 @@ export function HomeScreen() {
   const sectionEntering = (step: number) =>
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const bottomTabBarHeight = useBottomTabBarHeight();
+  const { height: bottomTabBarHeight } = useTabBarHeight();
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);

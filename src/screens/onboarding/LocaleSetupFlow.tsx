@@ -914,7 +914,10 @@ export function LocaleSetupFlow({
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={mode === 'settings' ? ['top', 'left', 'right'] : undefined}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
         {canUseHeaderBack ? (
           <TouchableOpacity
@@ -953,6 +956,7 @@ export function LocaleSetupFlow({
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {mode === 'initial' && step === steps[0] ? (
           <Text style={[styles.brandWordmark, { color: colors.accentPrimary }]}>EveryBible</Text>

@@ -1341,6 +1341,6 @@ const createMainStyles = (colors: ThemeColors) =>
       gap: spacing.lg,
     },
     scrollContent: {
-      paddingBottom: layout.tabBarBaseHeight + spacing.xl,
+      paddingBottom: spacing.xl,
     },
   });
