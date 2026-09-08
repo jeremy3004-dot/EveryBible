@@ -1,4 +1,5 @@
 import * as bibleDb from './bibleDatabase';
+import { chapterCache } from './chapterCache';
 import { DEFAULT_MINIMUM_READY_VERSE_COUNT } from './bibleDatabase';
 import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
@@ -63,13 +64,53 @@ export async function initBibleData(): Promise<void> {
   return initPromise;
 }
 
+let foregroundChapterReads = 0;
+let prefetchInProgress = false;
+
+function readCachedChapter(
+  translationId: string,
+  bookId: string,
+  chapter: number
+): Promise<Verse[]> {
+  const key = () =>
+    JSON.stringify([bibleDb.getChapterSourceKey(translationId), translationId, bookId, chapter]);
+  return chapterCache.get(key, () => bibleDb.getChapter(translationId, bookId, chapter));
+}
+
 export async function getChapter(
   translationId: string,
   bookId: string,
   chapter: number
 ): Promise<Verse[]> {
-  await initBibleData();
-  return bibleDb.getChapter(translationId, bookId, chapter);
+  foregroundChapterReads++;
+  try {
+    await initBibleData();
+    return await readCachedChapter(translationId, bookId, chapter);
+  } finally {
+    foregroundChapterReads--;
+  }
+}
+
+/** Best-effort local text only. The reader calls this after displaying the current chapter. */
+export async function prefetchNextChapter(
+  translationId: string,
+  bookId: string,
+  chapter: number
+): Promise<void> {
+  if (!isInitialized || foregroundChapterReads > 0 || prefetchInProgress) return;
+  const bookIndex = bibleBooks.findIndex((book) => book.id === bookId);
+  const book = bibleBooks[bookIndex];
+  if (!book || !Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) return;
+  const nextBook = chapter < book.chapters ? book : bibleBooks[bookIndex + 1];
+  if (!nextBook) return;
+  prefetchInProgress = true;
+  try {
+    await readCachedChapter(translationId, nextBook.id, nextBook === book ? chapter + 1 : 1);
+  } catch {
+    // A speculative read must not surface an error or prevent a foreground retry.
+  } finally {
+    prefetchInProgress = false;
+  }
 }
 
 export async function searchBible(translationId: string, query: string): Promise<Verse[]> {

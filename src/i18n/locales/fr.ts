@@ -1308,6 +1308,9 @@ export const fr = {
     "totalListening": "Écoute totale"
   },
   "translations": {
+    "pin": "Ajouter à mes traductions",
+    "unpin": "Détacher",
+    "hide": "Masquer de mes traductions",
     "title": "Traductions bibliques",
     "languagePreference": "Préférence linguistique",
     "myTranslations": "Mes traductions",

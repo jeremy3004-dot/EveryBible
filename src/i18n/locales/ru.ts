@@ -1310,6 +1310,9 @@ export const ru = {
     "totalListening": "Всего прослушано"
   },
   "translations": {
+    "pin": "Добавить в мои переводы",
+    "unpin": "Открепить",
+    "hide": "Скрыть из моих переводов",
     "title": "Переводы Библии",
     "languagePreference": "Предпочитаемый язык",
     "myTranslations": "Мои переводы",

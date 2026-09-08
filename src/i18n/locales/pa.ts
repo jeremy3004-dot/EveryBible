@@ -1030,6 +1030,9 @@ export const pa = {
     "totalListening": "ਕੁੱਲ ਸੁਣਨਾ"
   },
   "translations": {
+    "pin": "ਮੇਰੇ ਅਨੁਵਾਦਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ",
+    "unpin": "ਪਿੰਨ ਹਟਾਓ",
+    "hide": "ਮੇਰੇ ਅਨੁਵਾਦਾਂ ਤੋਂ ਲੁਕਾਓ",
     "title": "ਬਾਈਬਲ ਅਨੁਵਾਦ",
     "languagePreference": "ਭਾਸ਼ਾ ਦੀ ਤਰਜੀਹ",
     "myTranslations": "ਮੇਰੇ ਅਨੁਵਾਦ",

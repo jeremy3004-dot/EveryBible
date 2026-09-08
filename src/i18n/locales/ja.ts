@@ -1306,6 +1306,9 @@ export const ja = {
     "totalListening": "総聴取時間"
   },
   "translations": {
+    "pin": "自分の翻訳に追加",
+    "unpin": "ピン留めを解除",
+    "hide": "自分の翻訳から非表示",
     "title": "聖書の翻訳",
     "languagePreference": "言語設定",
     "myTranslations": "私の翻訳",

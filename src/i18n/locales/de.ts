@@ -1306,6 +1306,9 @@ export const de = {
     "totalListening": "Gesamte Hörzeit"
   },
   "translations": {
+    "pin": "Zu meinen Übersetzungen hinzufügen",
+    "unpin": "Loslösen",
+    "hide": "Aus meinen Übersetzungen ausblenden",
     "title": "Bibelübersetzungen",
     "languagePreference": "Sprachpräferenz",
     "myTranslations": "Meine Übersetzungen",

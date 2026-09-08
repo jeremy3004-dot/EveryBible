@@ -20,10 +20,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { bibleTranslations, getBookById, getTranslatedBookName } from '../../constants';
+import { bibleTranslations } from '../../constants/translations';
+import { getBookById, getTranslatedBookName } from '../../constants/books';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -41,11 +42,14 @@ import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
 import { getVisibleCompletedEntryCount } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
-import { AppCard, CardSkeleton, ProgressBar } from '../../components';
+import { AppCard } from '../../components/ui/AppCard';
+import { CardSkeleton } from '../../components/skeleton/CardSkeleton';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { motion, radius, spacing, typography } from '../../design/system';
-import { lightHaptic } from '../../utils';
+import { lightHaptic } from '../../utils/haptics';
+import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -76,6 +80,24 @@ function getGreetingKey(
 
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const homeReadyReporter = useMemo(
+    () =>
+      createHomeReadyReporter({
+        schedule: (report) => {
+          let frame: number | undefined;
+          const interaction = InteractionManager.runAfterInteractions(() => {
+            frame = requestAnimationFrame(report);
+          });
+          return () => {
+            interaction.cancel();
+            if (frame !== undefined) cancelAnimationFrame(frame);
+          };
+        },
+        report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
+      }),
+    []
+  );
+  useEffect(() => () => homeReadyReporter.cancel(), [homeReadyReporter]);
   const { colors, isDark } = useTheme();
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
@@ -504,6 +526,7 @@ export function HomeScreen() {
       edges={['top']}
     >
       <ScrollView
+        onLayout={homeReadyReporter.onLayout}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,

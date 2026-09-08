@@ -1030,6 +1030,9 @@ export const hi = {
     }
   },
   "translations": {
+    "pin": "मेरे अनुवाद में जोड़ें",
+    "unpin": "पिन हटाएँ",
+    "hide": "मेरे अनुवाद से छिपाएँ",
     "title": "बाइबल अनुवाद",
     "languagePreference": "भाषा प्राथमिकता",
     "myTranslations": "मेरे अनुवाद",

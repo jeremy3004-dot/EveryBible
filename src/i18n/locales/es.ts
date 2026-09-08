@@ -1754,6 +1754,9 @@ export const es = {
     }
   },
   "translations": {
+    "pin": "Añadir a mis traducciones",
+    "unpin": "Desfijar",
+    "hide": "Ocultar de mis traducciones",
     "title": "Traducciones bíblicas",
     "languagePreference": "Preferencia de idioma",
     "myTranslations": "Mis traducciones",

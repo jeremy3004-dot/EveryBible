@@ -1306,6 +1306,9 @@ export const tr = {
     "totalListening": "Toplam Dinleme"
   },
   "translations": {
+    "pin": "Çevirilerime ekle",
+    "unpin": "Sabitlemeyi kaldır",
+    "hide": "Çevirilerimden gizle",
     "title": "Kutsal Kitap Çevirileri",
     "languagePreference": "Dil Tercihi",
     "myTranslations": "Çevirilerim",

@@ -1306,6 +1306,9 @@ export const ur = {
     "totalListening": "سننے کا کُل وقت"
   },
   "translations": {
+    "pin": "میرے تراجم میں شامل کریں",
+    "unpin": "پن ہٹائیں",
+    "hide": "میرے تراجم سے چھپائیں",
     "title": "بائبل کے تراجم",
     "languagePreference": "زبان کی ترجیح",
     "myTranslations": "میرے ترجمے",

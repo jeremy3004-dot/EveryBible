@@ -1030,6 +1030,9 @@ export const mr = {
     "totalListening": "एकूण ऐकणे"
   },
   "translations": {
+    "pin": "माझ्या भाषांतरांमध्ये जोडा",
+    "unpin": "पिन काढा",
+    "hide": "माझ्या भाषांतरांमधून लपवा",
     "title": "बायबल भाषांतरे",
     "languagePreference": "भाषा प्राधान्य",
     "myTranslations": "माझी भाषांतरे",

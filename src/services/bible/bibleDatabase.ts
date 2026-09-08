@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { chapterCache } from './chapterCache';
 import { importDatabaseFromAssetAsync } from 'expo-sqlite';
 import type { Verse } from '../../types';
 import {
@@ -64,6 +65,7 @@ const bundledBibleDatabaseSource: BibleDatabaseSource = {
 let bibleDatabaseSourceResolver: BibleDatabaseSourceResolver = () => null;
 
 export function setBibleDatabaseSourceResolver(resolver: BibleDatabaseSourceResolver | null): void {
+  chapterCache.clear();
   bibleDatabaseSourceResolver = resolver ?? (() => null);
 }
 
@@ -83,7 +85,12 @@ function getSourceCacheKey(source: BibleDatabaseSource): string {
   return `${source.kind}:${source.databaseName}:${source.kind === 'installed' ? source.directory : ''}`;
 }
 
+export function getChapterSourceKey(translationId: string): string {
+  return getSourceCacheKey(resolveBibleDatabaseSource(translationId));
+}
+
 export async function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void> {
+  chapterCache.clear();
   const source = buildInstalledBibleDatabaseSource('installed', localPath);
 
   if (!source) {
@@ -111,6 +118,7 @@ async function closeDatabase(database?: SQLite.SQLiteDatabase | null): Promise<v
 }
 
 async function closeBundledDatabase(): Promise<void> {
+  chapterCache.clear();
   if (!db) {
     return;
   }
@@ -502,6 +510,7 @@ export async function insertVerse(translationId: string, verse: Omit<Verse, 'id'
       serializeVerseFormatting(verse.formatting),
     ]
   );
+  chapterCache.clear();
 }
 
 export async function insertVerses(
@@ -529,6 +538,7 @@ export async function insertVerses(
       );
     }
   });
+  chapterCache.clear();
 }
 
 export async function getVerseCount(): Promise<number> {

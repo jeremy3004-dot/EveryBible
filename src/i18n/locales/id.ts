@@ -1306,6 +1306,9 @@ export const id = {
     "totalListening": "Total waktu mendengarkan"
   },
   "translations": {
+    "pin": "Tambahkan ke terjemahan saya",
+    "unpin": "Lepas sematan",
+    "hide": "Sembunyikan dari terjemahan saya",
     "title": "Terjemahan Alkitab",
     "languagePreference": "Preferensi Bahasa",
     "myTranslations": "Terjemahan Saya",

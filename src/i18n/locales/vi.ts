@@ -1306,6 +1306,9 @@ export const vi = {
     "totalListening": "Tổng thời gian nghe"
   },
   "translations": {
+    "pin": "Thêm vào bản dịch của tôi",
+    "unpin": "Bỏ ghim",
+    "hide": "Ẩn khỏi bản dịch của tôi",
     "title": "Bản dịch Kinh Thánh",
     "languagePreference": "Tùy chọn ngôn ngữ",
     "myTranslations": "Bản dịch của tôi",

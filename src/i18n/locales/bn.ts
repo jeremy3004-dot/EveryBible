@@ -1030,6 +1030,9 @@ export const bn = {
     "totalListening": "টোটাল লিসেনিং"
   },
   "translations": {
+    "pin": "আমার অনুবাদে যোগ করুন",
+    "unpin": "পিন সরান",
+    "hide": "আমার অনুবাদ থেকে লুকান",
     "title": "বাইবেল অনুবাদ",
     "languagePreference": "ভাষা পছন্দ",
     "myTranslations": "আমার অনুবাদ",

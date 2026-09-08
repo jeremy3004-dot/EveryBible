@@ -472,3 +472,16 @@ test('translation picker keeps search results reachable above the on-screen keyb
     'TranslationPickerList should keep the static content style for the keyboard-free ScrollViews (languages mode and the audio manager)'
   );
 });
+
+test('download progress is scoped to memoized translation cards', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+  const cardStart = source.indexOf('const TranslationCard = memo(');
+  assert.ok(cardStart > 0);
+  assert.doesNotMatch(source.slice(0, cardStart), /state\.downloadProgress/);
+  assert.match(
+    source.slice(cardStart),
+    /state\.downloadProgress\?\.translationId === translation\.id \? state\.downloadProgress : null/
+  );
+  assert.match(source, /handleTranslationSelect = useCallback/);
+  assert.match(source, /handleDownloadTextTranslation = useCallback/);
+});

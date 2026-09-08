@@ -1030,6 +1030,9 @@ export const te = {
     "totalListening": "టోటల్ లిజనింగ్"
   },
   "translations": {
+    "pin": "నా అనువాదాలకు జోడించు",
+    "unpin": "పిన్ తీసివేయి",
+    "hide": "నా అనువాదాల నుండి దాచు",
     "title": "బైబిల్ అనువాదాలు",
     "languagePreference": "భాష ప్రాధాన్యత",
     "myTranslations": "నా అనువాదాలు",

@@ -11,11 +11,25 @@ import { useAudioStore } from '../stores/audioStore';
  * screens that consume `useAudioPlayer` for transport controls do not re-render
  * on every position tick.
  */
-export function useAudioPosition() {
+export function useAudioPosition(track?: {
+  translationId: string;
+  bookId: string;
+  chapter: number;
+}) {
   return useAudioStore(
-    useShallow((state) => ({
-      currentPosition: state.currentPosition,
-      duration: state.duration,
-    }))
+    useShallow((state) => {
+      // A reader displaying another chapter has no live progress to paint.
+      // Preserve the legacy unknown-translation match used by the reader.
+      const matchesTrack =
+        !track ||
+        (state.currentBookId === track.bookId &&
+          state.currentChapter === track.chapter &&
+          (state.currentTranslationId == null ||
+            state.currentTranslationId === track.translationId));
+      return {
+        currentPosition: matchesTrack ? state.currentPosition : 0,
+        duration: matchesTrack ? state.duration : 0,
+      };
+    })
   );
 }

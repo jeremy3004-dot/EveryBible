@@ -71,7 +71,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPlayedTranslationId,
     lastPlayedBookId,
     lastPlayedChapter,
-    lastPosition,
     playbackRate,
     autoAdvanceChapter,
     repeatMode,
@@ -114,7 +113,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       lastPlayedTranslationId: state.lastPlayedTranslationId,
       lastPlayedBookId: state.lastPlayedBookId,
       lastPlayedChapter: state.lastPlayedChapter,
-      lastPosition: state.lastPosition,
       playbackRate: state.playbackRate,
       autoAdvanceChapter: state.autoAdvanceChapter,
       repeatMode: state.repeatMode,
@@ -875,7 +873,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Toggle play/pause
   const togglePlayPause = useCallback(async () => {
-    const { currentPosition, duration } = useAudioStore.getState();
+    // Resume offsets are action-time data, not a transport render dependency.
+    const { currentPosition, duration, lastPosition } = useAudioStore.getState();
     if (status === 'playing') {
       await pause();
     } else if (
@@ -908,7 +907,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentTranslationId,
     currentBookId,
     currentChapter,
-    lastPosition,
     lastPlayedTranslationId,
     lastPlayedBookId,
     lastPlayedChapter,
@@ -1195,7 +1193,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPlayedTranslationId,
     lastPlayedBookId,
     lastPlayedChapter,
-    lastPosition,
     playbackRate,
     autoAdvanceChapter,
     repeatMode,

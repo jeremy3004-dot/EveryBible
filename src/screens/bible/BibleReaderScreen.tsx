@@ -70,7 +70,7 @@ import {
   softDeleteAnnotation,
   upsertAnnotation,
 } from '../../services/annotations/annotationService';
-import { getChapter } from '../../services/bible/bibleService';
+import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
 import { MissingInstalledDatabaseError } from '../../services/bible/bibleDatabase';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import {
@@ -767,6 +767,9 @@ export function BibleReaderScreen() {
   );
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
   const chapterLoadRequestIdRef = useRef(0);
+  const chapterPrefetchTaskRef = useRef<ReturnType<
+    typeof InteractionManager.runAfterInteractions
+  > | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const readerBottomChromeCollapsedRef = useRef(false);
@@ -1067,7 +1070,11 @@ export function BibleReaderScreen() {
     startSleepTimer,
     changeBackgroundMusicChoice,
   } = useAudioPlayer(currentTranslation);
-  const { currentPosition, duration } = useAudioPosition();
+  const { currentPosition, duration } = useAudioPosition({
+    translationId: currentTranslation,
+    bookId,
+    chapter,
+  });
 
   const book = getBookById(bookId);
   const audioEnabled = getAudioAvailability({
@@ -2023,6 +2030,11 @@ export function BibleReaderScreen() {
 
   useEffect(() => {
     void loadChapter();
+    return () => {
+      chapterLoadRequestIdRef.current += 1;
+      chapterPrefetchTaskRef.current?.cancel();
+      chapterPrefetchTaskRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, chapter, currentTranslation]);
 
@@ -2350,6 +2362,8 @@ export function BibleReaderScreen() {
 
   async function loadChapter() {
     const requestId = ++chapterLoadRequestIdRef.current;
+    chapterPrefetchTaskRef.current?.cancel();
+    chapterPrefetchTaskRef.current = null;
     // HARD RULE (do not change): chapter-to-chapter transitions must NEVER show a
     // loading skeleton. Only show the skeleton on the very first load (no verses yet).
     // For chapter-to-chapter transitions, keep the old content visible to avoid a
@@ -2367,6 +2381,15 @@ export function BibleReaderScreen() {
         return;
       }
       setVerses(data);
+      if (data.length > 0) {
+        chapterPrefetchTaskRef.current = InteractionManager.runAfterInteractions(() => {
+          if (requestId !== chapterLoadRequestIdRef.current) {
+            return;
+          }
+          chapterPrefetchTaskRef.current = null;
+          void prefetchNextChapter(currentTranslation, bookId, chapter);
+        });
+      }
       if (!returnToPlanOnComplete) {
         markChapterRead(bookId, chapter);
       }

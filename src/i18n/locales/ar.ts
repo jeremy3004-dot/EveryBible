@@ -1314,6 +1314,9 @@ export const ar = {
     "totalListening": "إجمالي وقت الاستماع"
   },
   "translations": {
+    "pin": "إضافة إلى ترجماتي",
+    "unpin": "إلغاء التثبيت",
+    "hide": "إخفاء من ترجماتي",
     "title": "ترجمات الكتاب المقدس",
     "languagePreference": "تفضيلات اللغة",
     "myTranslations": "ترجماتي",

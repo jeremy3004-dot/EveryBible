@@ -214,7 +214,7 @@ test('useAudioPlayer does not subscribe to the live position/duration ticks, so 
 
   assert.match(
     source,
-    /const togglePlayPause = useCallback\(async \(\) => \{\s*\n\s*const \{ currentPosition, duration \} = useAudioStore\.getState\(\);/,
+    /const togglePlayPause = useCallback\(async \(\) => \{\s*\n\s*\/\/[^\n]*\n\s*const \{ currentPosition, duration, lastPosition \} = useAudioStore\.getState\(\);/,
     'togglePlayPause should read the resume-eligibility snapshot from the store directly instead of a stale closure value'
   );
 

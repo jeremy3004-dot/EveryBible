@@ -1306,6 +1306,9 @@ export const zh = {
     "totalListening": "总收听时长"
   },
   "translations": {
+    "pin": "添加到我的译本",
+    "unpin": "取消置顶",
+    "hide": "从我的译本中隐藏",
     "title": "圣经翻译",
     "languagePreference": "语言偏好",
     "myTranslations": "我的翻译",

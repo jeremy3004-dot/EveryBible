@@ -1308,6 +1308,9 @@ export const pt = {
     "totalListening": "Escuta Total"
   },
   "translations": {
+    "pin": "Adicionar às minhas traduções",
+    "unpin": "Desafixar",
+    "hide": "Ocultar das minhas traduções",
     "title": "Traduções da Bíblia",
     "languagePreference": "Preferência de idioma",
     "myTranslations": "Minhas traduções",

@@ -1382,6 +1382,9 @@ export const en = {
     totalListening: 'Total Listening',
   },
   translations: {
+    pin: 'Add to My Translations',
+    unpin: 'Unpin',
+    hide: 'Hide from My Translations',
     title: 'Bible Translations',
     languagePreference: 'Language Preference',
     myTranslations: 'My Translations',

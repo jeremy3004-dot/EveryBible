@@ -1476,6 +1476,9 @@ export const ne = {
     }
   },
   "translations": {
+    "pin": "मेरो अनुवादमा थप्नुहोस्",
+    "unpin": "पिन हटाउनुहोस्",
+    "hide": "मेरो अनुवादबाट लुकाउनुहोस्",
     "title": "बाइबल अनुवादहरू",
     "languagePreference": "भाषा प्राथमिकता",
     "myTranslations": "मेरो अनुवादहरू",

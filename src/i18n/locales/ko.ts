@@ -1306,6 +1306,9 @@ export const ko = {
     "totalListening": "총 청취 시간"
   },
   "translations": {
+    "pin": "내 번역에 추가",
+    "unpin": "고정 해제",
+    "hide": "내 번역에서 숨기기",
     "title": "성경 번역",
     "languagePreference": "언어 기본 설정",
     "myTranslations": "내 번역",

@@ -296,7 +296,7 @@ export const filterTranslationsByLanguage = <T extends { language: string | null
   );
 };
 
-export const filterTranslationsBySearchQuery = <
+export const buildTranslationSearchIndex = <
   T extends {
     id?: string | null | undefined;
     name: string;
@@ -308,17 +308,9 @@ export const filterTranslationsBySearchQuery = <
     catalog?: BibleTranslation['catalog'];
   },
 >(
-  translations: T[],
-  query: string
-): T[] => {
-  const normalizedQuery = normalizeTranslationSearchText(query);
-  if (!normalizedQuery) {
-    return translations;
-  }
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
-
-  return translations.filter((translation) => {
+  translations: T[]
+) =>
+  translations.map((translation) => {
     const haystack = normalizeTranslationSearchText(
       [
         translation.id,
@@ -335,38 +327,61 @@ export const filterTranslationsBySearchQuery = <
         }),
       ].join(' ')
     );
-
-    return queryTokens.every((token) => fuzzyTokenMatches(haystack, token));
+    return { translation, haystack };
   });
+
+export const searchTranslationIndex = <T>(
+  index: { translation: T; haystack: string }[],
+  query: string
+): T[] => {
+  const tokens = normalizeTranslationSearchText(query).split(/\s+/).filter(Boolean);
+  return index
+    .filter((entry) => tokens.every((token) => fuzzyTokenMatches(entry.haystack, token)))
+    .map((entry) => entry.translation);
 };
+
+export const filterTranslationsBySearchQuery = <
+  T extends {
+    id?: string | null | undefined;
+    name: string;
+    abbreviation?: string | null | undefined;
+    description?: string | null | undefined;
+    language: string | null | undefined;
+    hasText?: boolean;
+    hasAudio?: boolean;
+    catalog?: BibleTranslation['catalog'];
+  },
+>(
+  translations: T[],
+  query: string
+): T[] =>
+  query.trim()
+    ? searchTranslationIndex(buildTranslationSearchIndex(translations), query)
+    : translations;
+
+export function buildTranslationLanguageSearchIndex<
+  T extends { language: string | null | undefined },
+>(translations: T[]) {
+  const counts = new Map<string, number>();
+  for (const translation of translations) {
+    const language = normalizeTranslationLanguage(translation.language);
+    counts.set(language, (counts.get(language) ?? 0) + 1);
+  }
+  return Array.from(counts, ([value, translationCount]) => {
+    const label = getTranslationLanguageDisplayLabel(value);
+    return {
+      translation: { value, label, translationCount },
+      haystack: normalizeTranslationSearchText(`${value} ${label}`),
+    };
+  }).sort((a, b) => a.translation.label.localeCompare(b.translation.label));
+}
 
 export function filterTranslationLanguagesBySearchQuery<
   T extends { language: string | null | undefined },
 >(translations: T[], query: string): TranslationLanguageSearchResult[] {
-  const normalizedQuery = normalizeTranslationSearchText(query);
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
-  const languageCounts = new Map<string, number>();
-
-  for (const translation of translations) {
-    const language = normalizeTranslationLanguage(translation.language);
-    languageCounts.set(language, (languageCounts.get(language) ?? 0) + 1);
-  }
-
-  return Array.from(languageCounts.entries())
-    .map(([value, translationCount]) => ({
-      value,
-      label: getTranslationLanguageDisplayLabel(value),
-      translationCount,
-    }))
-    .filter((language) => {
-      const haystack = normalizeTranslationSearchText([language.value, language.label].join(' '));
-      return queryTokens.every((token) => fuzzyTokenMatches(haystack, token));
-    })
-    .sort((left, right) => left.label.localeCompare(right.label));
+  return query.trim()
+    ? searchTranslationIndex(buildTranslationLanguageSearchIndex(translations), query)
+    : [];
 }
 
 function inferTranslationAudioCoverage(
@@ -450,20 +465,27 @@ export const buildTranslationPickerSections = <
 >(
   translations: T[],
   preferredLanguage: string | null,
-  options: { includeAllAvailableTranslations?: boolean } = {}
+  options: {
+    includeAllAvailableTranslations?: boolean;
+    pinnedIds?: string[];
+    hiddenIds?: string[];
+    currentTranslationId?: string;
+  } = {}
 ): TranslationPickerSections<T> => {
   const visibleTranslations = translations.filter(
     (translation) => !isHiddenTranslationId(translation.id)
   );
 
-  const myTranslations = visibleTranslations.filter((translation) =>
-    isTranslationReadableLocally({
-      isDownloaded: translation.isDownloaded,
-      hasText: translation.hasText,
-      source: translation.source,
-      textPackLocalPath: translation.textPackLocalPath,
-    })
-  );
+  const pinned = new Set(options.pinnedIds);
+  const hidden = new Set(options.hiddenIds);
+  const myTranslations = visibleTranslations
+    .filter(
+      (translation) =>
+        translation.id === options.currentTranslationId ||
+        (!hidden.has(translation.id) &&
+          (pinned.has(translation.id) || isTranslationReadableLocally(translation)))
+    )
+    .sort((left, right) => Number(pinned.has(right.id)) - Number(pinned.has(left.id)));
   const myTranslationIds = new Set(myTranslations.map((translation) => translation.id));
   const availableTranslations = options.includeAllAvailableTranslations
     ? visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id))
