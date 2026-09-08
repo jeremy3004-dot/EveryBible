@@ -203,7 +203,7 @@ test('Light-family accents (primaryDeep) stay readable on vellum surfaces', () =
   }
 });
 
-test('EL blue is the sole appearance palette and the retired ids stay retired', () => {
+test('the terracotta palette preserves the stored id and retired ids stay retired', () => {
   // The palette definition lives in appearancePalettes.ts; ThemeContext no
   // longer carries a picker-options list (it was dead code with stale copy).
   const paletteSource = readFileSync(
@@ -211,7 +211,7 @@ test('EL blue is the sole appearance palette and the retired ids stay retired', 
     'utf8'
   );
 
-  assert.match(paletteSource, /id:\s*'el-blue'/, 'EL blue palette should be present');
+  assert.match(paletteSource, /id:\s*'el-blue'/, 'The existing storage id should be preserved');
   for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
     assert.doesNotMatch(
       paletteSource,

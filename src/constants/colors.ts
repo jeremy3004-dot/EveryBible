@@ -11,24 +11,24 @@ export const colors = {
   primaryText: '#EFEBE1',
   secondaryText: '#B0A99B',
 
-  // Accent colors — Every Language blue (default palette, dark-family primary)
-  accent: '#35A7E9',
-  accentGreen: '#35A7E9', // Legacy name — actual brand color
-  accentPrimary: '#35A7E9',
-  accentSecondary: '#ADDCFF',
+  // Accent colors — Terracotta (default palette, dark-family primary)
+  accent: '#D88D74',
+  accentGreen: '#D88D74', // Legacy name — actual brand color
+  accentPrimary: '#D88D74',
+  accentSecondary: '#F0C8B8',
   accentTertiary: '#B0A99B',
-  accentSurface: '#10384C',
+  accentSurface: '#492B22',
 
   // Named aliases kept for backward compatibility
-  tibetanMaroon: '#35A7E9',
-  tibetanMaroonLight: '#ADDCFF',
+  tibetanMaroon: '#D88D74',
+  tibetanMaroonLight: '#F0C8B8',
   saffronGold: '#ECE8DF',
   saffronGoldLight: '#69624F',
   skyBlue: '#B0A99B',
-  skyBlueLight: '#0074AD',
+  skyBlueLight: '#9F503B',
 
   // Tab colors
-  tabActive: '#ADDCFF',
+  tabActive: '#F0C8B8',
   tabInactive: '#B0A99B',
 
   // Additional utility colors
@@ -46,7 +46,7 @@ export const colors = {
   bibleDivider: '#3D382E',
   biblePrimaryText: '#EFEBE1',
   bibleSecondaryText: '#B0A99B',
-  bibleAccent: '#35A7E9',
+  bibleAccent: '#D88D74',
   bibleControlBackground: '#EFEBE1',
 } as const;
 

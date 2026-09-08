@@ -1,6 +1,5 @@
-// EL blue is the sole accent palette — the Every Language brand accent, used once
-// per region. Saved preferences of the retired ember/sapphire/teal/olive palettes
-// fall back to it via the resolver in ThemeContext + the persisted-state sanitizer.
+// Terracotta is the sole accent palette, matching the approved app logo.
+// Keep the historical el-blue storage ID so existing preferences remain valid.
 export const APPEARANCE_PALETTE_IDS = ['el-blue'] as const;
 
 export type AppearancePaletteId = (typeof APPEARANCE_PALETTE_IDS)[number];
@@ -30,13 +29,11 @@ export const APPEARANCE_PALETTES: AppearancePalette[] = [
   {
     id: 'el-blue',
     swatches: {
-      // Field dark reads EL blue at hsl(202 80% 56%); vellum takes the deep
-      // variant hsl(200 100% 28%), which is the only pairing the EL system
-      // allows for blue text on pale-blue fills.
-      primary: '#35A7E9',
-      primaryDeep: '#005F8F',
-      secondary: '#ADDCFF',
-      secondaryDeep: '#00567F',
+      // A lighter clay for dark surfaces; a deeper logo terracotta for warm paper.
+      primary: '#D88D74',
+      primaryDeep: '#9F503B',
+      secondary: '#F0C8B8',
+      secondaryDeep: '#934731',
       tertiary: '#B0A99B',
     },
   },

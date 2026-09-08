@@ -110,8 +110,8 @@ const baseDarkColors: ThemeColors = {
   success: '#62C082', // --success 140 43% 57%
   warning: '#E9A23F', // --warning 35 79% 58%
   overlay: 'rgba(17, 17, 13, 0.62)',
-  accentSurface: '#10384C', // --accent 200 65% 18%
-  tabActive: '#ADDCFF', // --accent-foreground, the active tab pill glyph
+  accentSurface: '#492B22', // Terracotta selected surface
+  tabActive: '#F0C8B8', // --accent-foreground, the active tab pill glyph
   tabInactive: '#B0A99B',
   bibleBackground: '#11110D',
   bibleSurface: '#201E18',
@@ -141,8 +141,8 @@ const baseLightColors: ThemeColors = {
   success: '#2E8E5A', // --success 147 51% 37%
   warning: '#D27519', // --warning 30 79% 46%
   overlay: 'rgba(26, 25, 20, 0.34)',
-  accentSurface: '#D9EEFC', // --accent 204 87% 92%
-  tabActive: '#005F8F', // --accent-foreground, the active tab pill glyph
+  accentSurface: '#F4E1D8', // Terracotta selected surface
+  tabActive: '#9F503B', // --accent-foreground, the active tab pill glyph
   tabInactive: '#69624F',
   bibleBackground: '#F0ECE5',
   bibleSurface: '#FAF9F4',
@@ -153,7 +153,7 @@ const baseLightColors: ThemeColors = {
   bibleControlBackground: '#1A1914',
 };
 
-// The vellum scope uses the deep accent so EL blue reads on warm paper; Field
+// The vellum scope uses the deep accent so terracotta reads on warm paper; Field
 // dark uses the lighter primary so it reads on the near-black ground.
 const LIGHT_FAMILY_MODES: ReadonlySet<ThemeMode> = new Set(['light']);
 

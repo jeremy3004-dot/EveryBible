@@ -75,18 +75,11 @@ const androidSplashSizes = [
 const adaptiveForegroundScale = 0.78;
 
 // The selected square artwork contains both the launcher background and the
-// ivory cross/page mark. Android adaptive icons need those as separate layers
+// ivory cross mark. Android adaptive icons need those as separate layers
 // so the mark remains inside the launcher mask's safe area.
 const adaptiveBackgroundSvg = `
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#24A5ED"/>
-      <stop offset="0.42" stop-color="#0D9BE0"/>
-      <stop offset="1" stop-color="#066EAD"/>
-    </linearGradient>
-  </defs>
-  <rect width="432" height="432" fill="url(#blue)"/>
+  <rect width="432" height="432" fill="#AD5942"/>
 </svg>
 `;
 
@@ -145,36 +138,9 @@ const createSelectedForegroundBuffer = async () => {
       const red = data[sourceOffset];
       const green = data[sourceOffset + 1];
       const blue = data[sourceOffset + 2];
-      let alpha = 0;
-
-      // The ivory mark is deliberately separated by its warm, high-value
-      // palette. A proportional score retains anti-aliased edges.
-      if (red > 40 && green > 125 && blue > 145) {
-        const ivoryScore = Math.min(
-          (red - 40) / 202,
-          (green - 125) / 113,
-          (blue - 145) / 83
-        );
-        alpha = Math.max(alpha, Math.min(1, ivoryScore));
-      }
-
-      // Preserve the deep-blue bookmark as a distinct foreground shape. Its
-      // source geometry is a rectangle with a centered V-shaped cut-out.
-      const inBookmarkBounds = x >= 255 && x <= 435 && y >= 952 && y <= 1095;
-      const bookmarkTipY = 1049 + Math.abs(x - 345) * (45 / 88);
-      if (
-        inBookmarkBounds &&
-        x >= 257 &&
-        x <= 433 &&
-        y >= 954 &&
-        y <= 1094 &&
-        (x <= 345 || y <= bookmarkTipY) &&
-        red < 40 &&
-        green < 130 &&
-        blue < 190
-      ) {
-        alpha = Math.max(alpha, 1);
-      }
+      // The approved cream cross has much more green than its terracotta
+      // background. Keep the cream opaque and soften only boundary pixels.
+      const alpha = Math.max(0, Math.min(1, (green - 115) / 90));
 
       output[sourceOffset] = red;
       output[sourceOffset + 1] = green;
@@ -264,7 +230,10 @@ const writeAdaptiveLegacyOutput = async (outputPath, size, round = false) => {
     const circleMask = Buffer.from(
       `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/></svg>`
     );
-    pipeline = pipeline.composite([{ input: circleMask, blend: 'dest-in' }]);
+    pipeline = pipeline.composite([
+      { input: foreground },
+      { input: circleMask, blend: 'dest-in' },
+    ]);
   }
 
   await pipeline.webp({ lossless: true }).toFile(outputPath);
@@ -355,6 +324,7 @@ async function generateIcons() {
     );
   }
 
+  await ensureDirectory(path.join(androidResDir, 'mipmap-anydpi-v26'));
   for (const launcherXmlName of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
     await fs.writeFile(
       path.join(androidResDir, 'mipmap-anydpi-v26', launcherXmlName),

@@ -38,7 +38,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundImage": "./assets/adaptive-background.png",
         "monochromeImage": "./assets/monochrome-icon.png",
-        "backgroundColor": "#078ED0"
+        "backgroundColor": "#AD5942"
       },
       "package": "com.everybible.app",
       "edgeToEdgeEnabled": true,
