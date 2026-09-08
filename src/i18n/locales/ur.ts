@@ -1858,6 +1858,7 @@ export const ur = {
     "groupMissionHarvestCore": "مشن / فصل"
   },
   "learn": {
+    "sectionTabs": "سبق کے حصے",
     "decreaseTextSize": "متن کا سائز کم کریں",
     "increaseTextSize": "متن کا سائز بڑھائیں",
     "playbackAndText": "پلے بیک اور متن",

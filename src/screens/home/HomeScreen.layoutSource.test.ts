@@ -27,6 +27,12 @@ test('HomeScreen uses a bounce-enabled scroll shell while sizing itself against 
     /getHomeScreenLayout\(screenWidth, screenHeight, bottomTabBarHeight\)/,
     'HomeScreen should size itself against the visible space after the bottom bar'
   );
+
+  assert.match(
+    source,
+    /fontSize: homeLayout\.greetingFontSize,\s*lineHeight: homeLayout\.greetingLineHeight,/,
+    'the hero greeting must scale with the layout model so 320pt phones drop to the 18pt greeting'
+  );
 });
 
 test('HomeScreen lets the hero photograph bleed under the status bar', () => {

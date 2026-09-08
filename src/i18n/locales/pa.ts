@@ -1582,6 +1582,7 @@ export const pa = {
     "groupMissionHarvestCore": "ਮਿਸ਼ਨ / ਵਾਢੀ"
   },
   "learn": {
+    "sectionTabs": "ਪਾਠ ਦੇ ਭਾਗ",
     "decreaseTextSize": "ਲਿਖਤ ਦਾ ਆਕਾਰ ਘਟਾਓ",
     "increaseTextSize": "ਲਿਖਤ ਦਾ ਆਕਾਰ ਵਧਾਓ",
     "playbackAndText": "ਪਲੇਬੈਕ ਅਤੇ ਟੈਕਸਟ",

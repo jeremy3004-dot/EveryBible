@@ -1956,6 +1956,7 @@ export const en = {
     groupMissionHarvestCore: 'Mission / Harvest',
   },
   learn: {
+    sectionTabs: 'Lesson sections',
     playbackAndText: 'Playback and text',
     playbackSpeed: 'Playback speed',
     fontSizeLabel: 'Text size',

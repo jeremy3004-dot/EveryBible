@@ -1876,6 +1876,7 @@ export const ru = {
     "groupMissionHarvestCore": "Миссия / Жатва"
   },
   "learn": {
+    "sectionTabs": "Разделы урока",
     "decreaseTextSize": "Уменьшить размер текста",
     "increaseTextSize": "Увеличить размер текста",
     "playbackAndText": "Воспроизведение и текст",

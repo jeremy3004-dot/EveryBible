@@ -1582,6 +1582,7 @@ export const ne = {
     "delete": "हटाउनुहोस्"
   },
   "learn": {
+    "sectionTabs": "पाठका खण्डहरू",
     "decreaseTextSize": "पाठको आकार घटाउनुहोस्",
     "increaseTextSize": "पाठको आकार बढाउनुहोस्",
     "playbackAndText": "प्लेब्याक र पाठ",

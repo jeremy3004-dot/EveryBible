@@ -1858,6 +1858,7 @@ export const vi = {
     "groupMissionHarvestCore": "Sứ Mệnh / Thu Hoạch"
   },
   "learn": {
+    "sectionTabs": "Các phần bài học",
     "decreaseTextSize": "Giảm cỡ chữ",
     "increaseTextSize": "Tăng cỡ chữ",
     "playbackAndText": "Phát lại & Văn bản",

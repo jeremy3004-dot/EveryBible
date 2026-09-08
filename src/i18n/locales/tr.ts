@@ -1858,6 +1858,7 @@ export const tr = {
     "groupMissionHarvestCore": "Misyon / Hasat"
   },
   "learn": {
+    "sectionTabs": "Ders bölümleri",
     "decreaseTextSize": "Yazı boyutunu küçült",
     "increaseTextSize": "Yazı boyutunu büyüt",
     "playbackAndText": "Oynatma ve Metin",

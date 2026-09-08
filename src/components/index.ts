@@ -1,4 +1,4 @@
-export { Skeleton, VersesSkeleton, CardSkeleton, StatCardSkeleton } from './skeleton';
+export { Skeleton, VersesSkeleton } from './skeleton';
 export * from './ui';
 export { ErrorBoundary } from './ErrorBoundary';
 export * from './fourfields';

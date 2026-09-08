@@ -120,6 +120,7 @@ import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybac
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useFontSize } from '../../hooks/useFontSize';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useShallow } from 'zustand/react/shallow';
 import { selectionHaptic } from '../../utils/haptics';
 import { hexWithAlpha } from '../../utils/color';
@@ -647,6 +648,8 @@ function VerseImageSharePreview({
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleReaderScreenProps['route']>();
+  // The audio-share eyebrow is translated copy set in the Latin-only display face.
+  const displayFont = useDisplayFont();
   const {
     bookId,
     chapter,
@@ -6137,7 +6140,13 @@ export function BibleReaderScreen() {
 
             <View style={styles.audioShareHeader}>
               <View style={styles.audioShareTitleWrap}>
-                <Text style={[styles.audioShareEyebrow, { color: colors.bibleSecondaryText }]}>
+                <Text
+                  style={[
+                    styles.audioShareEyebrow,
+                    displayFont.regular,
+                    { color: colors.bibleSecondaryText },
+                  ]}
+                >
                   {t('groups.share')}
                 </Text>
                 <Text style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}>

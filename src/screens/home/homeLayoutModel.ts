@@ -3,14 +3,7 @@ export const HOME_SCREEN_BASE_WIDTH = 390;
 export const HOME_SCREEN_BASE_HEIGHT = 844;
 export const HOME_SCREEN_MIN_SCALE = 0.72;
 export const HOME_SCREEN_MAX_SCALE = 1.1;
-export const HOME_SCREEN_BASE_SCREEN_PADDING = 24;
-export const HOME_SCREEN_BASE_SECTION_GAP = 18;
-export const HOME_SCREEN_BASE_CARD_PADDING = 20;
-export const HOME_SCREEN_BASE_DENSE_CARD_PADDING = 16;
-export const HOME_SCREEN_BASE_CARD_GAP = 16;
 export const HOME_SCREEN_BASE_HERO_PHOTO_HEIGHT = 430;
-export const HOME_SCREEN_BASE_SPACE_SM = 8;
-export const HOME_SCREEN_BASE_SPACE_MD = 12;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -41,41 +34,14 @@ export function getHomeScreenLayout(
   const isTightHeight = availableHeight < 700;
 
   return {
-    scale,
-    screenPadding: scaleDimension(HOME_SCREEN_BASE_SCREEN_PADDING, scale, 18, 28),
-    sectionGap: scaleDimension(HOME_SCREEN_BASE_SECTION_GAP, scale, 14, 22),
-    cardPadding: scaleDimension(HOME_SCREEN_BASE_CARD_PADDING, scale, 14, 24),
-    denseCardPadding: scaleDimension(HOME_SCREEN_BASE_DENSE_CARD_PADDING, scale, 12, 20),
-    cardTitleGap: scaleDimension(HOME_SCREEN_BASE_SPACE_MD, scale, 8, 14),
-    bodyGap: scaleDimension(HOME_SCREEN_BASE_SPACE_SM, scale, 6, 10),
-    foundationCardGap: scaleDimension(HOME_SCREEN_BASE_CARD_GAP, scale, 10, 18),
-    foundationIconSize: scaleDimension(62, scale, 52, 70),
-    verseCardMinHeight: scaleDimension(285, scale, 250, 320),
     // The full-bleed hero photograph. 430pt on the 390×844 reference frame; it
     // has to shrink on short phones or the sheet cards fall under the tab bar.
     heroPhotoHeight: scaleDimension(HOME_SCREEN_BASE_HERO_PHOTO_HEIGHT, scale, 340, 470),
     greetingFontSize: scaleDimension(22, scale, 18, 24),
     greetingLineHeight: scaleDimension(26, scale, 22, 28),
-    subtitleFontSize: scaleDimension(15, scale, 13, 17),
-    subtitleLineHeight: scaleDimension(22, scale, 18, 24),
     verseTextFontSize: scaleDimension(28, scale, 21, 30),
     verseTextLineHeight: scaleDimension(36, scale, 27, 38),
-    verseBodyFontSize: scaleDimension(17, scale, 14, 18),
-    verseBodyLineHeight: scaleDimension(26, scale, 21, 28),
-    verseReferenceFontSize: scaleDimension(16, scale, 14, 18),
-    verseReferenceLineHeight: scaleDimension(22, scale, 18, 24),
-    statNumberFontSize: scaleDimension(28, scale, 20, 30),
-    statNumberLineHeight: scaleDimension(32, scale, 24, 34),
-    statLabelFontSize: scaleDimension(12, scale, 10, 13),
-    statLabelLineHeight: scaleDimension(16, scale, 14, 18),
-    audioButtonPaddingHorizontal: scaleDimension(20, scale, 16, 24),
-    audioButtonPaddingVertical: scaleDimension(14, scale, 10, 16),
-    audioButtonGap: scaleDimension(HOME_SCREEN_BASE_SPACE_SM, scale, 6, 10),
-    statsRowGap: scaleDimension(HOME_SCREEN_BASE_SPACE_SM, scale, 6, 12),
-    foundationTitleLines: isTightHeight ? 1 : 2,
-    foundationSubtitleLines: isTightHeight ? 1 : 2,
     verseTextLines: isTightHeight ? 3 : 4,
-    verseBodyLines: isTightHeight ? 3 : 4,
   };
 }
 

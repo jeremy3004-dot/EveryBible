@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { spacing, typography } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
@@ -49,6 +50,9 @@ export function ListRow({
   accessibilityLabel,
 }: ListRowProps) {
   const { colors } = useTheme();
+  // `value` is translated metadata ("6-day streak", a language's native name), and
+  // the mono token is the Latin-only display face, so it needs the fallback merge.
+  const displayFont = useDisplayFont();
   const titleColor = destructive ? colors.error : colors.primaryText;
 
   const content = (
@@ -77,7 +81,10 @@ export function ListRow({
       <View style={styles.trailing}>
         {trailing ??
           (value ? (
-            <Text style={[typography.mono, { color: colors.secondaryText }]} numberOfLines={1}>
+            <Text
+              style={[typography.mono, displayFont.regular, { color: colors.secondaryText }]}
+              numberOfLines={1}
+            >
               {value}
             </Text>
           ) : null)}

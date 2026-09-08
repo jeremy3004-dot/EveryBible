@@ -1582,6 +1582,7 @@ export const bn = {
     "groupMissionHarvestCore": "মিশন / ফসল"
   },
   "learn": {
+    "sectionTabs": "পাঠের অংশ",
     "decreaseTextSize": "লেখার আকার ছোট করুন",
     "increaseTextSize": "লেখার আকার বড় করুন",
     "playbackAndText": "প্লেব্যাক ও টেক্সট",

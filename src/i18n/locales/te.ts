@@ -1582,6 +1582,7 @@ export const te = {
     "groupMissionHarvestCore": "మిషన్ / పంట"
   },
   "learn": {
+    "sectionTabs": "పాఠం విభాగాలు",
     "decreaseTextSize": "అక్షర పరిమాణాన్ని తగ్గించు",
     "increaseTextSize": "అక్షర పరిమాణాన్ని పెంచు",
     "playbackAndText": "ప్లేబ్యాక్ & వచనం",

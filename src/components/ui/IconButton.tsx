@@ -1,15 +1,20 @@
 import {
   type GestureResponderEvent,
+  I18nManager,
   type StyleProp,
   StyleSheet,
   type ViewStyle,
 } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, shadows } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
 export type IconButtonVariant = 'paper' | 'accent' | 'onPhoto';
+
+// Arabic and Urdu are shipped interface languages: "back" points the other way
+// in RTL, so every back control reads this instead of hardcoding ArrowLeft.
+export const BackArrowIcon: LucideIcon = I18nManager.isRTL ? ArrowRight : ArrowLeft;
 
 export interface IconButtonProps {
   icon: LucideIcon;

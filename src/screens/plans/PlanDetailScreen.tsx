@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  I18nManager,
   Image,
   type ColorValue,
   type LayoutChangeEvent,
@@ -17,13 +16,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
-import { ArrowLeft, ArrowRight, BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
+import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont, useTabBarHeight } from '../../hooks';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
-import { AppButton, AppCard, IconButton, PressableScale, SectionHeader } from '../../components/ui';
+import {
+  AppButton,
+  AppCard,
+  BackArrowIcon,
+  IconButton,
+  PressableScale,
+  SectionHeader,
+} from '../../components/ui';
 import {
   useBibleStore,
   useLibraryStore,
@@ -1281,8 +1287,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     [tabBar.contentClearance]
   );
 
-  const BackGlyph = I18nManager.isRTL ? ArrowRight : ArrowLeft;
-
   const listHeader = (
     <View>
       {/* ------------------------------------------------------------------ */}
@@ -1314,7 +1318,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
         <View style={[styles.coverControls, { top: controlTop }]} pointerEvents="box-none">
           <IconButton
-            icon={BackGlyph}
+            icon={BackArrowIcon}
             variant="paper"
             onPress={() => navigation.goBack()}
             accessibilityLabel={t('common.back')}
@@ -1433,7 +1437,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
           <IconButton
-            icon={BackGlyph}
+            icon={BackArrowIcon}
             variant="paper"
             onPress={() => navigation.goBack()}
             accessibilityLabel={t('common.back')}
@@ -1451,7 +1455,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
           <IconButton
-            icon={BackGlyph}
+            icon={BackArrowIcon}
             variant="paper"
             onPress={() => navigation.goBack()}
             accessibilityLabel={t('common.back')}

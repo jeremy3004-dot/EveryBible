@@ -425,7 +425,9 @@ export function BibleBrowserScreen() {
       return (
         <View style={styles.dividerRow}>
           <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
-          <Text style={[styles.dividerLabel, { color: colors.bibleSecondaryText }]}>
+          <Text
+            style={[styles.dividerLabel, displayFont.regular, { color: colors.bibleSecondaryText }]}
+          >
             {t(item.testament === 'NT' ? 'bible.newTestament' : 'bible.oldTestament')}
           </Text>
           <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />

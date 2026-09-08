@@ -1858,6 +1858,7 @@ export const zh = {
     "groupMissionHarvestCore": "宣教 / 收割"
   },
   "learn": {
+    "sectionTabs": "课程部分",
     "decreaseTextSize": "缩小文字",
     "increaseTextSize": "放大文字",
     "playbackAndText": "播放与文本",

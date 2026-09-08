@@ -1867,6 +1867,7 @@ export const fr = {
     "groupMissionHarvestCore": "Mission / Moisson"
   },
   "learn": {
+    "sectionTabs": "Sections de la leçon",
     "decreaseTextSize": "Réduire la taille du texte",
     "increaseTextSize": "Augmenter la taille du texte",
     "playbackAndText": "Lecture et texte",

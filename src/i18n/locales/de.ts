@@ -1858,6 +1858,7 @@ export const de = {
     "groupMissionHarvestCore": "Mission / Ernte"
   },
   "learn": {
+    "sectionTabs": "Lektionsabschnitte",
     "decreaseTextSize": "Textgröße verkleinern",
     "increaseTextSize": "Textgröße vergrößern",
     "playbackAndText": "Wiedergabe & Text",

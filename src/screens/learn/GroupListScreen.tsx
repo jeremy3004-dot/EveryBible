@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
@@ -33,6 +34,8 @@ export function GroupListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // The eyebrow badges below are translated copy in the Latin-only display face.
+  const displayFont = useDisplayFont();
   const user = useAuthStore((state) => state.user);
   const groups = useFourFieldsStore((state) => state.groups);
   const syncFeatureEnabled = config.features.studyGroupsSync;
@@ -162,7 +165,9 @@ export function GroupListScreen() {
               <Ionicons name="shield-checkmark-outline" size={24} color={colors.accentSecondary} />
             </View>
             <View style={styles.heroCopy}>
-              <Text style={[styles.heroBadge, { color: colors.accentSecondary }]}>
+              <Text
+                style={[styles.heroBadge, displayFont.regular, { color: colors.accentSecondary }]}
+              >
                 {t('harvest.groupPreviewBadge')}
               </Text>
               <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
@@ -239,7 +244,13 @@ export function GroupListScreen() {
                     </Text>
                   </View>
                   <View style={[styles.localOnlyBadge, { backgroundColor: colors.cardBorder }]}>
-                    <Text style={[styles.localOnlyText, { color: colors.secondaryText }]}>
+                    <Text
+                      style={[
+                        styles.localOnlyText,
+                        displayFont.regular,
+                        { color: colors.secondaryText },
+                      ]}
+                    >
                       {t('harvest.localOnly')}
                     </Text>
                   </View>
@@ -340,7 +351,13 @@ export function GroupListScreen() {
                       </Text>
                     </View>
                     <View style={[styles.localOnlyBadge, { backgroundColor: colors.cardBorder }]}>
-                      <Text style={[styles.localOnlyText, { color: colors.secondaryText }]}>
+                      <Text
+                        style={[
+                          styles.localOnlyText,
+                          displayFont.regular,
+                          { color: colors.secondaryText },
+                        ]}
+                      >
                         {t('harvest.syncedLabel')}
                       </Text>
                     </View>

@@ -16,8 +16,13 @@ import { getDisplayFontFamily } from '../design/fonts';
 //   <Text style={[styles.greetingLine, displayFont.bold, { color }]} />
 //
 // For locales the face covers this is a no-op. For the rest it clears the family
-// so the platform UI font renders, and relaxes the tight EL display tracking,
-// which is metric-matched to Alte Haas and looks broken on fallback glyphs.
+// so the platform UI font renders, relaxes the tight EL display tracking, which
+// is metric-matched to Alte Haas and looks broken on fallback glyphs, and drops
+// the token's line height. The EL display tokens set leading BELOW their font
+// size (32/31, 28/27, 24/23), which only works because Alte Haas has shallow
+// Latin extenders. Devanagari matras, Bengali/Tamil vowel signs and Vietnamese
+// stacked diacritics sit outside that box and clip at sub-1em leading, so the
+// fallback lets the platform font's natural leading apply instead.
 export interface DisplayFontOverrides {
   /** For displayHero, screenTitle, pageTitle, chapterNumeral. */
   bold: TextStyle;
@@ -36,11 +41,18 @@ export function useDisplayFont(): DisplayFontOverrides {
     const regular = getDisplayFontFamily(language, 400);
     const isFallback = bold === undefined;
 
-    // Undefined clears the token's fontFamily when the styles are flattened, so
-    // React Native picks the platform face that has the glyphs.
+    // Undefined clears the token's fontFamily and lineHeight when the styles are
+    // flattened, so React Native picks the platform face that has the glyphs and
+    // lets that face's own leading size the line.
+    const fallback: TextStyle = {
+      fontFamily: undefined,
+      letterSpacing: 0,
+      lineHeight: undefined,
+    };
+
     return {
-      bold: isFallback ? { fontFamily: undefined, letterSpacing: 0 } : { fontFamily: bold },
-      regular: isFallback ? { fontFamily: undefined, letterSpacing: 0 } : { fontFamily: regular },
+      bold: isFallback ? fallback : { fontFamily: bold },
+      regular: isFallback ? fallback : { fontFamily: regular },
       isFallback,
     };
   }, [language]);

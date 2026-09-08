@@ -1858,6 +1858,7 @@ export const ko = {
     "groupMissionHarvestCore": "선교 / 추수"
   },
   "learn": {
+    "sectionTabs": "수업 섹션",
     "decreaseTextSize": "글자 크기 줄이기",
     "increaseTextSize": "글자 크기 키우기",
     "playbackAndText": "재생 및 텍스트",

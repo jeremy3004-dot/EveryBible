@@ -1858,6 +1858,7 @@ export const id = {
     "groupMissionHarvestCore": "Misi / Panen"
   },
   "learn": {
+    "sectionTabs": "Bagian pelajaran",
     "decreaseTextSize": "Perkecil ukuran teks",
     "increaseTextSize": "Perbesar ukuran teks",
     "playbackAndText": "Pemutaran & Teks",

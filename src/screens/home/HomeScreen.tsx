@@ -566,7 +566,17 @@ export function HomeScreen() {
             <Text style={[styles.heroDate, displayFont.regular]} numberOfLines={1}>
               {todayLabel}
             </Text>
-            <Text style={[styles.heroGreeting, displayFont.bold]} numberOfLines={2}>
+            <Text
+              style={[
+                styles.heroGreeting,
+                displayFont.bold,
+                {
+                  fontSize: homeLayout.greetingFontSize,
+                  lineHeight: homeLayout.greetingLineHeight,
+                },
+              ]}
+              numberOfLines={2}
+            >
               {greetingLabel}
             </Text>
           </View>
@@ -899,9 +909,8 @@ const styles = StyleSheet.create({
     ...typography.eyebrow,
     color: ON_PHOTO_EYEBROW,
   },
+  // fontSize/lineHeight come from getHomeScreenLayout so narrow phones drop to 18pt.
   heroGreeting: {
-    fontSize: 22,
-    lineHeight: 26,
     letterSpacing: -0.66,
     color: ON_PHOTO_INK,
   },

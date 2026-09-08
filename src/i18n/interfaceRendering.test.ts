@@ -4,11 +4,7 @@ import { createInstance } from 'i18next';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { en } from './locales/en';
 import { localeLoaders } from './localeLoaders';
-import {
-  buildCalendarLocale,
-  formatListeningTime,
-  formatRelativeTime,
-} from './interfaceFormatting';
+import { formatListeningTime, formatRelativeTime } from './interfaceFormatting';
 import {
   localizeRhythmPreset,
   getLocalizedRhythmTitle,
@@ -92,10 +88,6 @@ for (const { code } of SUPPORTED_LANGUAGES) {
         `${code}.${bookId} has untranslated companion content`
       );
     }
-    const calendar = buildCalendarLocale(code, t('home.today'));
-    assert.equal(calendar.monthNames.length, 12);
-    assert.equal(calendar.dayNames.length, 7);
-    assert.equal(new Set(calendar.monthNames).size, 12);
   });
 }
 

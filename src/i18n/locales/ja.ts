@@ -1858,6 +1858,7 @@ export const ja = {
     "groupMissionHarvestCore": "宣教 / 収穫"
   },
   "learn": {
+    "sectionTabs": "レッスンのセクション",
     "decreaseTextSize": "文字を小さくする",
     "increaseTextSize": "文字を大きくする",
     "playbackAndText": "再生とテキスト",

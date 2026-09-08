@@ -1894,6 +1894,7 @@ export const ar = {
     "groupMissionHarvestCore": "المهمة / الحصاد"
   },
   "learn": {
+    "sectionTabs": "أقسام الدرس",
     "decreaseTextSize": "تصغير حجم النص",
     "increaseTextSize": "تكبير حجم النص",
     "playbackAndText": "التشغيل والنص",

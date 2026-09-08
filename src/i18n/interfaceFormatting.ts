@@ -17,25 +17,3 @@ export function formatListeningTime(minutes: number, t: TFunction): string {
     ? t('interface.hoursMinutes', { hours, minutes: remainder })
     : t('interface.hoursShort', { count: hours });
 }
-
-export function buildCalendarLocale(language: string, today: string) {
-  const monthNames = (width: 'long' | 'short') => {
-    const formatter = new Intl.DateTimeFormat(language, { month: width, timeZone: 'UTC' });
-    return Array.from({ length: 12 }, (_, month) =>
-      formatter.format(new Date(Date.UTC(2024, month, 1)))
-    );
-  };
-  const dayNames = (width: 'long' | 'short') => {
-    const formatter = new Intl.DateTimeFormat(language, { weekday: width, timeZone: 'UTC' });
-    return Array.from({ length: 7 }, (_, day) =>
-      formatter.format(new Date(Date.UTC(2024, 0, 7 + day)))
-    );
-  };
-  return {
-    monthNames: monthNames('long'),
-    monthNamesShort: monthNames('short'),
-    dayNames: dayNames('long'),
-    dayNamesShort: dayNames('short'),
-    today,
-  };
-}

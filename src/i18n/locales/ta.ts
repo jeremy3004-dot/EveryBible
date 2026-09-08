@@ -1582,6 +1582,7 @@ export const ta = {
     "groupMissionHarvestCore": "பணி / அறுவடை"
   },
   "learn": {
+    "sectionTabs": "பாடப் பிரிவுகள்",
     "decreaseTextSize": "எழுத்து அளவைக் குறை",
     "increaseTextSize": "எழுத்து அளவை அதிகரி",
     "playbackAndText": "இயக்கம் & உரை",

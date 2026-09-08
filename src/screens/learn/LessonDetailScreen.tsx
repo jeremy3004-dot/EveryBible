@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, Minus, Pause, Play, Plus, Type } from 'lucide-react-native';
+import { Check, Minus, Pause, Play, Plus, Type } from 'lucide-react-native';
 import { Audio, type AVPlaybackStatus } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +31,7 @@ import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import {
   AppButton,
   AppCard,
+  BackArrowIcon,
   IconButton,
   PressableScale,
   ProgressBar,
@@ -415,7 +416,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       >
         <View style={styles.notFoundContainer}>
           <IconButton
-            icon={ArrowLeft}
+            icon={BackArrowIcon}
             onPress={() => navigation.goBack()}
             accessibilityLabel={t('common.back')}
           />
@@ -462,7 +463,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       {/* Header */}
       <View style={styles.header}>
         <IconButton
-          icon={ArrowLeft}
+          icon={BackArrowIcon}
           onPress={() => navigation.goBack()}
           accessibilityLabel={t('common.back')}
         />
@@ -535,6 +536,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           }}
           fullWidth
           size="md"
+          accessibilityLabel={t('learn.sectionTabs')}
           style={styles.tabSwitch}
         />
 

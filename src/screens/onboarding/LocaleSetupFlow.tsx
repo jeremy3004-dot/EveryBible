@@ -13,15 +13,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  MapPin,
-  Search,
-} from 'lucide-react-native';
+import { Check, ChevronDown, ChevronRight, ChevronUp, MapPin, Search } from 'lucide-react-native';
 import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,7 +48,14 @@ import {
   type SetupStep,
 } from './localeSetupModel';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { AppButton, AppCard, IconButton, PressableScale, ProgressBar } from '../../components/ui';
+import {
+  AppButton,
+  AppCard,
+  BackArrowIcon,
+  IconButton,
+  PressableScale,
+  ProgressBar,
+} from '../../components/ui';
 // Import the hooks from their own modules rather than the hooks barrel: the
 // barrel re-exports useSync, which transitively evaluates the Supabase client.
 // A barrel import here would undo the deferred-import work below.
@@ -1150,7 +1149,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         <View style={styles.headerSide}>
           {canUseHeaderBack ? (
             <IconButton
-              icon={ArrowLeft}
+              icon={BackArrowIcon}
               onPress={handleHeaderBack}
               accessibilityLabel={t('common.back')}
             />

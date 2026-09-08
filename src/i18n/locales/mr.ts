@@ -1582,6 +1582,7 @@ export const mr = {
     "groupMissionHarvestCore": "मिशन / कापणी"
   },
   "learn": {
+    "sectionTabs": "धड्याचे विभाग",
     "decreaseTextSize": "मजकुराचा आकार कमी करा",
     "increaseTextSize": "मजकुराचा आकार वाढवा",
     "playbackAndText": "प्लेबॅक आणि मजकूर",

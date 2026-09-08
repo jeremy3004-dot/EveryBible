@@ -1867,6 +1867,7 @@ export const es = {
     "delete": "Eliminar"
   },
   "learn": {
+    "sectionTabs": "Secciones de la lección",
     "decreaseTextSize": "Reducir el tamaño del texto",
     "increaseTextSize": "Aumentar el tamaño del texto",
     "playbackAndText": "Reproducción y texto",

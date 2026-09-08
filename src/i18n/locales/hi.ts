@@ -1582,6 +1582,7 @@ export const hi = {
     "groupMissionHarvestCore": "मिशन / फसल"
   },
   "learn": {
+    "sectionTabs": "पाठ के भाग",
     "decreaseTextSize": "पाठ का आकार घटाएँ",
     "increaseTextSize": "पाठ का आकार बढ़ाएँ",
     "playbackAndText": "प्लेबैक और टेक्स्ट",

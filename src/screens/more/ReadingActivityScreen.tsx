@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
@@ -29,7 +29,7 @@ import { getEngagementSummary, refreshEngagement } from '../../services/analytic
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
-import { AppCard, IconButton } from '../../components/ui';
+import { AppCard, BackArrowIcon, IconButton } from '../../components/ui';
 import {
   buildReadingActivityGrid,
   buildWeekdayInitials,
@@ -117,8 +117,13 @@ export function ReadingActivityScreen() {
   }, [isAuthenticated]);
 
   const activitySummary = useMemo(() => summarizeReadingActivity(chaptersRead), [chaptersRead]);
-  const effectiveSelectedDateKey =
-    selectedDateKey ?? getMonthSelectionKey(viewDate, activitySummary.daysByDateKey);
+  // Scanning + sorting every read day only has to happen when the month or the
+  // activity data changes, not on every render of the screen.
+  const monthSelectionKey = useMemo(
+    () => getMonthSelectionKey(viewDate, activitySummary.daysByDateKey),
+    [viewDate, activitySummary.daysByDateKey]
+  );
+  const effectiveSelectedDateKey = selectedDateKey ?? monthSelectionKey;
   const grid = useMemo(
     () =>
       buildReadingActivityGrid({
@@ -193,7 +198,7 @@ export function ReadingActivityScreen() {
       >
         <View style={styles.header}>
           <IconButton
-            icon={ArrowLeft}
+            icon={BackArrowIcon}
             onPress={() => navigation.goBack()}
             accessibilityLabel={t('common.back')}
           />
@@ -330,7 +335,7 @@ export function ReadingActivityScreen() {
                     })}
                   </Text>
                   {sessionMinutes > 0 ? (
-                    <Text style={styles.dayWindow}>
+                    <Text style={[styles.dayWindow, displayFont.regular]}>
                       {t('readingActivity.sessionWindow', {
                         start: formatTime(selectedDay.firstReadAt, i18n.language),
                         end: formatTime(selectedDay.lastReadAt, i18n.language),
@@ -342,7 +347,9 @@ export function ReadingActivityScreen() {
               ) : (
                 <>
                   <Text style={styles.daySummary}>{t('readingActivity.noReading')}</Text>
-                  <Text style={styles.dayWindow}>{t('readingActivity.noReadingHint')}</Text>
+                  <Text style={[styles.dayWindow, displayFont.regular]}>
+                    {t('readingActivity.noReadingHint')}
+                  </Text>
                 </>
               )}
             </View>
