@@ -31,6 +31,10 @@ import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { useI18n, useDisplayFont } from '../../hooks';
 import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
 import {
+  getBookContentAvailability,
+  getChapterContentAvailability,
+} from '../../services/bible/contentAvailability';
+import {
   parsePassageReferenceLocale,
   type PassageReferenceTarget,
 } from '../../services/bible/referenceParser';
@@ -87,6 +91,7 @@ export function BibleBrowserScreen() {
   const hasExplicitInitialBook = initialBookId != null && Boolean(getBookById(initialBookId));
   const resolvedInitialBookId = hasExplicitInitialBook ? initialBookId : currentBook;
   const [expandedBookId, setExpandedBookId] = useState<string | null>(resolvedInitialBookId);
+  const [unavailableChapterKey, setUnavailableChapterKey] = useState<string | null>(null);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [TranslationPickerComponent, setTranslationPickerComponent] =
     useState<TranslationPickerListComponent | null>(null);
@@ -322,7 +327,12 @@ export function BibleBrowserScreen() {
   };
 
   const handleBookPress = (book: BibleBook) => {
+    // An unavailable book still expands: the row opens onto the "not available yet"
+    // note instead of a chapter grid, which keeps the explanation where the reader
+    // tapped. A system alert cannot be used here — this screen is often presented
+    // modally, and UIAlertController never surfaces above that modal.
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setUnavailableChapterKey(null);
     setExpandedBookId((prev) => (prev === book.id ? null : book.id));
   };
 
@@ -345,6 +355,15 @@ export function BibleBrowserScreen() {
   });
 
   const handleChapterPress = (bookId: string, chapter: number) => {
+    const book = getBookById(bookId);
+
+    if (book && !getChapterContentAvailability(book, chapter, currentTranslationInfo).isAvailable) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setUnavailableChapterKey(`${bookId}:${chapter}`);
+      return;
+    }
+
+    setUnavailableChapterKey(null);
     navigateToReader(buildReaderLaunchParams({ bookId, chapter, focusVerse: undefined }));
   };
 
@@ -442,35 +461,53 @@ export function BibleBrowserScreen() {
       book.id,
       translatorFeedbackSummaries
     );
+    const isBookAvailable = getBookContentAvailability(book, currentTranslationInfo).isAvailable;
+    const bookInk = isBookAvailable ? colors.biblePrimaryText : colors.bibleSecondaryText;
 
     return (
       <View>
         <TouchableOpacity
-          style={[styles.bookRow, { borderBottomColor: colors.bibleDivider }]}
+          style={[
+            styles.bookRow,
+            { borderBottomColor: colors.bibleDivider },
+            !isBookAvailable && styles.unavailable,
+          ]}
           onPress={() => handleBookPress(book)}
           activeOpacity={0.7}
+          accessibilityHint={isBookAvailable ? undefined : t('bible.notAvailableYet')}
         >
           <View style={styles.bookRowLeft}>
             <View style={styles.bookIconWrap}>
               <Image
                 source={getBookIcon(book.id)}
-                style={[styles.bookIcon, { tintColor: colors.biblePrimaryText }]}
+                style={[styles.bookIcon, { tintColor: bookInk }]}
                 resizeMode="contain"
               />
               {getTranslatorFeedbackBadge(bookFeedbackStatus)}
             </View>
-            <Text style={[styles.bookName, { color: colors.biblePrimaryText }]}>
+            <Text style={[styles.bookName, { color: bookInk }]}>
               {getTranslatedBookName(book.id, t)}
             </Text>
           </View>
           <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            name={isBookAvailable ? (isExpanded ? 'chevron-up' : 'chevron-down') : 'lock-closed'}
             size={20}
             color={colors.bibleSecondaryText}
           />
         </TouchableOpacity>
 
-        {isExpanded && (
+        {isExpanded && !isBookAvailable && (
+          <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
+            <Text style={[styles.unavailableNoticeTitle, { color: colors.biblePrimaryText }]}>
+              {t('bible.notAvailableYet')}
+            </Text>
+            <Text style={[styles.unavailableNoticeBody, { color: colors.bibleSecondaryText }]}>
+              {t('bible.bookComingSoon', { book: getTranslatedBookName(book.id, t) })}
+            </Text>
+          </View>
+        )}
+
+        {isExpanded && isBookAvailable && (
           <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
             <View style={styles.chapterGridInner}>
               {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => {
@@ -480,6 +517,11 @@ export function BibleBrowserScreen() {
                 const chapterFeedbackStatus = chapterSummary
                   ? getTranslatorFeedbackChapterSummaryStatus(chapterSummary)
                   : null;
+                const isChapterAvailable = getChapterContentAvailability(
+                  book,
+                  chapter,
+                  currentTranslationInfo
+                ).isAvailable;
 
                 return (
                   <TouchableOpacity
@@ -490,11 +532,22 @@ export function BibleBrowserScreen() {
                         backgroundColor: colors.bibleSurface,
                         borderColor: colors.bibleDivider,
                       },
+                      !isChapterAvailable && styles.unavailable,
                     ]}
                     onPress={() => handleChapterPress(book.id, chapter)}
                     activeOpacity={0.7}
+                    accessibilityHint={isChapterAvailable ? undefined : t('bible.notAvailableYet')}
                   >
-                    <Text style={[styles.chapterNumber, { color: colors.biblePrimaryText }]}>
+                    <Text
+                      style={[
+                        styles.chapterNumber,
+                        {
+                          color: isChapterAvailable
+                            ? colors.biblePrimaryText
+                            : colors.bibleSecondaryText,
+                        },
+                      ]}
+                    >
                       {chapter}
                     </Text>
                     {getTranslatorFeedbackBadge(chapterFeedbackStatus)}
@@ -502,6 +555,11 @@ export function BibleBrowserScreen() {
                 );
               })}
             </View>
+            {unavailableChapterKey?.startsWith(`${book.id}:`) && (
+              <Text style={[styles.unavailableNoticeBody, { color: colors.bibleSecondaryText }]}>
+                {t('bible.fullBibleComingSoon')}
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -1005,6 +1063,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  unavailable: {
+    opacity: 0.45,
+  },
+  unavailableNoticeTitle: {
+    ...typography.captionStrong,
+    paddingHorizontal: spacing.sm,
+  },
+  unavailableNoticeBody: {
+    ...typography.caption,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
   },
   chapterNumber: {
     fontSize: 15,

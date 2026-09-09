@@ -468,6 +468,8 @@ export const ko = {
     "searchUnavailable": "이 번역에는 아직 전체 텍스트 검색을 사용할 수 없습니다.",
     "noVersesAvailable": "{{book}} {{chapter}}에는 아직 작성된 텍스트가 없습니다.",
     "fullBibleComingSoon": "이 장은 현재 텍스트로 제공되지 않습니다. 오디오를 사용할 수 있는 경우 Every Bible는 대신 청취 환경을 엽니다.",
+    "notAvailableYet": "아직 제공되지 않음",
+    "bookComingSoon": "{{book}}은(는) 이 번역에서 아직 본문이나 오디오로 제공되지 않습니다.",
     "audioOnlyTitle": "오디오 중심의 장",
     "audioOnlyBody": "{{translation}}는 현재 이 장의 오디오로 제공되며 서면 텍스트는 아직 준비 중입니다.",
     "verseCount_one": "{{count}}절",

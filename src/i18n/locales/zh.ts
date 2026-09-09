@@ -468,6 +468,8 @@ export const zh = {
     "searchUnavailable": "此翻译尚不支持全文搜索。",
     "noVersesAvailable": "{{book}} {{chapter}} 还没有文字。",
     "fullBibleComingSoon": "本章目前没有文本版本。如果音频可用，Every Bible 将打开聆听体验。",
+    "notAvailableYet": "尚未提供",
+    "bookComingSoon": "{{book}}在此译本中尚未提供文本或音频。",
     "audioOnlyTitle": "以音频为主的章节",
     "audioOnlyBody": "{{translation}} 目前可作为本章的音频提供，而书面文本仍在准备中。",
     "verseCount_one": "{{count}} 节经文",

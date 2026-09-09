@@ -192,6 +192,8 @@ export const bn = {
     "searchUnavailable": "এই অনুবাদের জন্য পূর্ণ-পাঠ্য অনুসন্ধান এখনও উপলব্ধ নয়।",
     "noVersesAvailable": "{{book}} {{chapter}} এখনও কোন লেখা নেই.",
     "fullBibleComingSoon": "এই অধ্যায় এই মুহূর্তে পাঠ্য পাওয়া যায় না. অডিও উপলব্ধ থাকলে, Every Bible পরিবর্তে শোনার অভিজ্ঞতা খুলবে৷",
+    "notAvailableYet": "এখনও উপলব্ধ নয়",
+    "bookComingSoon": "{{book}} এই অনুবাদে এখনও লিখিত বা অডিও আকারে উপলব্ধ নয়।",
     "audioOnlyTitle": "অডিও-প্রথম অধ্যায়",
     "audioOnlyBody": "{{translation}} বর্তমানে এই অধ্যায়ের জন্য অডিও হিসাবে উপলব্ধ যখন লিখিত পাঠ্য এখনও প্রস্তুত করা হচ্ছে৷",
     "verseCount_one": "{{count}} আয়াত",

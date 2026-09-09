@@ -192,6 +192,8 @@ export const hi = {
     "searchUnavailable": "इस अनुवाद के लिए पूर्ण-पाठ खोज अभी उपलब्ध नहीं है।",
     "noVersesAvailable": "{{book}} {{chapter}} में अभी तक लिखित पाठ नहीं है।",
     "fullBibleComingSoon": "यह अध्याय अभी पाठ में उपलब्ध नहीं है. यदि ऑडियो उपलब्ध है, तो Every Bible इसके बजाय सुनने का अनुभव खोलेगा।",
+    "notAvailableYet": "अभी उपलब्ध नहीं",
+    "bookComingSoon": "{{book}} इस अनुवाद में अभी पाठ या ऑडियो के रूप में उपलब्ध नहीं है।",
     "audioOnlyTitle": "ऑडियो-प्रथम अध्याय",
     "audioOnlyBody": "{{translation}} वर्तमान में इस अध्याय के लिए ऑडियो के रूप में उपलब्ध है जबकि लिखित पाठ अभी भी तैयार किया जा रहा है।",
     "verseCount_one": "{{count}} श्लोक",

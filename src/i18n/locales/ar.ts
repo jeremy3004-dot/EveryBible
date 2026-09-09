@@ -484,6 +484,8 @@ export const ar = {
     "searchUnavailable": "البحث عن النص الكامل غير متاح لهذه الترجمة بعد.",
     "noVersesAvailable": "{{book}} {{chapter}} ليس لديه نص مكتوب بعد.",
     "fullBibleComingSoon": "هذا الفصل غير متوفر في النص الآن. إذا كان الصوت متاحًا، فسيقوم Every Bible بفتح تجربة الاستماع بدلاً من ذلك.",
+    "notAvailableYet": "غير متوفر بعد",
+    "bookComingSoon": "{{book}} غير متوفر كنص أو صوت في هذه الترجمة بعد.",
     "audioOnlyTitle": "إصحاح متاح صوتيًا أولًا",
     "audioOnlyBody": "يتوفر {{translation}} حاليًا كصوت لهذا الفصل بينما لا يزال النص المكتوب قيد الإعداد.",
     "verseCount_zero": "{{count}} آيات",

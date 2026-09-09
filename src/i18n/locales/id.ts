@@ -468,6 +468,8 @@ export const id = {
     "searchUnavailable": "Penelusuran teks lengkap belum tersedia untuk terjemahan ini.",
     "noVersesAvailable": "{{book}} {{chapter}} belum memiliki teks tertulis.",
     "fullBibleComingSoon": "Bab ini tidak tersedia dalam bentuk teks saat ini. Jika audio tersedia, Every Bible akan membuka pengalaman mendengarkan.",
+    "notAvailableYet": "Belum tersedia",
+    "bookComingSoon": "{{book}} belum tersedia dalam bentuk teks atau audio pada terjemahan ini.",
     "audioOnlyTitle": "Pasal dengan audio sebagai pilihan utama",
     "audioOnlyBody": "{{translation}} saat ini tersedia sebagai audio untuk bab ini sementara teks tertulis masih disiapkan.",
     "verseCount_one": "{{count}} ayat",

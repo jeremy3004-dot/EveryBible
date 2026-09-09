@@ -8,3 +8,4 @@ export * from './cloudTranslationService';
 export { getChapterTimestamps, hasTimestampsForTranslation } from './verseTimestamps';
 export type { VerseTimestamps } from './verseTimestamps';
 export * from './crossReferenceService';
+export * from './contentAvailability';

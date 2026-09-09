@@ -192,6 +192,8 @@ export const ne = {
     "searchUnavailable": "यो अनुवादका लागि पूर्ण-पाठ खोज अहिले उपलब्ध छैन।",
     "noVersesAvailable": "{{book}} {{chapter}} सँग अझै लेखिएको पाठ छैन।",
     "fullBibleComingSoon": "यो अध्याय अहिले पाठमा उपलब्ध छैन। यदि अडियो उपलब्ध छ भने, Every Bible ले सुन्ने अनुभव खोल्नेछ।",
+    "notAvailableYet": "अझै उपलब्ध छैन",
+    "bookComingSoon": "{{book}} यो अनुवादमा अझै पाठ वा अडियोका रूपमा उपलब्ध छैन।",
     "audioOnlyTitle": "अडियो-पहिलो अध्याय",
     "audioOnlyBody": "{{translation}} हाल यस अध्यायको लागि अडियोको रूपमा उपलब्ध छ जबकि लिखित पाठ अझै तयार भइरहेको छ।",
     "verseCount_one": "{{count}} पद",

@@ -468,6 +468,8 @@ export const vi = {
     "searchUnavailable": "Tính năng tìm kiếm toàn văn chưa có sẵn cho bản dịch này.",
     "noVersesAvailable": "{{book}} {{chapter}} chưa có văn bản nào được viết.",
     "fullBibleComingSoon": "Chương này hiện không có sẵn trong văn bản. Nếu có âm thanh, Every Bible sẽ mở trải nghiệm nghe thay thế.",
+    "notAvailableYet": "Chưa có sẵn",
+    "bookComingSoon": "{{book}} chưa có bản văn hoặc âm thanh trong bản dịch này.",
     "audioOnlyTitle": "Chương ưu tiên âm thanh",
     "audioOnlyBody": "{{translation}} hiện có sẵn dưới dạng âm thanh cho chương này trong khi văn bản viết vẫn đang được chuẩn bị.",
     "verseCount_one": "{{count}} câu Kinh Thánh",

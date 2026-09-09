@@ -468,6 +468,8 @@ export const ja = {
     "searchUnavailable": "この翻訳では全文検索はまだ利用できません。",
     "noVersesAvailable": "{{book}} {{chapter}} にはまだテキストが書き込まれていません。",
     "fullBibleComingSoon": "現在、この章はテキストで利用できません。オーディオが利用可能な場合は、代わりに Every Bible がリスニング エクスペリエンスを開きます。",
+    "notAvailableYet": "まだ利用できません",
+    "bookComingSoon": "{{book}} はこの翻訳ではまだテキストでも音声でも利用できません。",
     "audioOnlyTitle": "音声を優先する章",
     "audioOnlyBody": "{{translation}} は現在、この章の音声として利用可能ですが、テキストはまだ準備中です。",
     "verseCount_one": "{{count}}節",

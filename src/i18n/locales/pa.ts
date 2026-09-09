@@ -192,6 +192,8 @@ export const pa = {
     "searchUnavailable": "ਇਸ ਅਨੁਵਾਦ ਲਈ ਪੂਰੀ-ਪਾਠ ਖੋਜ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
     "noVersesAvailable": "{{book}} {{chapter}} ਕੋਲ ਅਜੇ ਤੱਕ ਕੋਈ ਲਿਖਤੀ ਟੈਕਸਟ ਨਹੀਂ ਹੈ।",
     "fullBibleComingSoon": "ਇਹ ਅਧਿਆਇ ਇਸ ਸਮੇਂ ਟੈਕਸਟ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਜੇਕਰ ਆਡੀਓ ਉਪਲਬਧ ਹੈ, ਤਾਂ Every Bible ਇਸਦੀ ਬਜਾਏ ਸੁਣਨ ਦਾ ਅਨੁਭਵ ਖੋਲ੍ਹੇਗਾ।",
+    "notAvailableYet": "ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ",
+    "bookComingSoon": "{{book}} ਇਸ ਅਨੁਵਾਦ ਵਿੱਚ ਅਜੇ ਲਿਖਤ ਜਾਂ ਆਡੀਓ ਵਜੋਂ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
     "audioOnlyTitle": "ਆਡੀਓ-ਪਹਿਲਾ ਅਧਿਆਇ",
     "audioOnlyBody": "{{translation}} ਵਰਤਮਾਨ ਵਿੱਚ ਇਸ ਅਧਿਆਇ ਲਈ ਆਡੀਓ ਦੇ ਰੂਪ ਵਿੱਚ ਉਪਲਬਧ ਹੈ ਜਦੋਂ ਕਿ ਲਿਖਤੀ ਟੈਕਸਟ ਅਜੇ ਵੀ ਤਿਆਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ।",
     "verseCount_one": "{{count}} ਆਇਤ",

@@ -468,6 +468,8 @@ export const tr = {
     "searchUnavailable": "Bu çeviri için henüz tam metin araması mevcut değil.",
     "noVersesAvailable": "{{book}} {{chapter}}'in henüz yazılı metni yok.",
     "fullBibleComingSoon": "Bu bölüm şu anda metin olarak mevcut değil. Ses mevcutsa Every Bible bunun yerine dinleme deneyimini açacaktır.",
+    "notAvailableYet": "Henüz mevcut değil",
+    "bookComingSoon": "{{book}} bu çeviride henüz metin veya ses olarak mevcut değil.",
     "audioOnlyTitle": "Öncelikle sesli bölüm",
     "audioOnlyBody": "{{translation}} şu anda bu bölüm için ses olarak mevcuttur ve yazılı metin henüz hazırlanma aşamasındadır.",
     "verseCount_one": "{{count}} ayet",

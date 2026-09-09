@@ -472,6 +472,8 @@ export const fr = {
     "searchUnavailable": "La recherche en texte intégral n'est pas encore disponible pour cette traduction.",
     "noVersesAvailable": "{{book}} {{chapter}} n’a pas encore de texte écrit.",
     "fullBibleComingSoon": "Ce chapitre n'est pas disponible sous forme de texte pour le moment. Si l'audio est disponible, Every Bible ouvrira l'expérience d'écoute à la place.",
+    "notAvailableYet": "Pas encore disponible",
+    "bookComingSoon": "{{book}} n'est pas encore disponible en texte ni en audio dans cette traduction.",
     "audioOnlyTitle": "Chapitre disponible en audio",
     "audioOnlyBody": "{{translation}} est actuellement disponible sous forme audio pour ce chapitre alors que le texte écrit est encore en préparation.",
     "verseCount_one": "{{count}} Verset",

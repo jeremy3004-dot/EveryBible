@@ -468,6 +468,8 @@ export const ur = {
     "searchUnavailable": "اس ترجمے کے لیے مکمل متن کی تلاش ابھی تک دستیاب نہیں ہے۔",
     "noVersesAvailable": "{{book}} {{chapter}} کے پاس ابھی تک کوئی تحریری متن موجود نہیں ہے۔",
     "fullBibleComingSoon": "یہ باب ابھی متن میں دستیاب نہیں ہے۔ اگر آڈیو دستیاب ہے تو اس کی بجائے Every Bible سننے کا تجربہ کھول دے گا۔",
+    "notAvailableYet": "ابھی دستیاب نہیں",
+    "bookComingSoon": "{{book}} اس ترجمے میں ابھی متن یا آڈیو کے طور پر دستیاب نہیں ہے۔",
     "audioOnlyTitle": "صوتی مطالعے والا باب",
     "audioOnlyBody": "{{translation}} فی الحال اس باب کے لیے آڈیو کے طور پر دستیاب ہے جبکہ تحریری متن ابھی تیار کیا جا رہا ہے۔",
     "verseCount_one": "{{count}} آیت",

@@ -192,6 +192,8 @@ export const mr = {
     "searchUnavailable": "या भाषांतरासाठी पूर्ण-मजकूर शोध अद्याप उपलब्ध नाही.",
     "noVersesAvailable": "{{book}} {{chapter}} कडे अद्याप लिखित मजकूर नाही.",
     "fullBibleComingSoon": "हा धडा सध्या मजकुरात उपलब्ध नाही. ऑडिओ उपलब्ध असल्यास, त्याऐवजी Every Bible ऐकण्याचा अनुभव उघडेल.",
+    "notAvailableYet": "अद्याप उपलब्ध नाही",
+    "bookComingSoon": "{{book}} या भाषांतरात अद्याप मजकूर किंवा ऑडिओ स्वरूपात उपलब्ध नाही.",
     "audioOnlyTitle": "ऑडिओ-पहिला अध्याय",
     "audioOnlyBody": "{{translation}} सध्या लिखित मजकूर तयार होत असताना या प्रकरणासाठी ऑडिओ म्हणून उपलब्ध आहे.",
     "verseCount_one": "{{count}} श्लोक",
