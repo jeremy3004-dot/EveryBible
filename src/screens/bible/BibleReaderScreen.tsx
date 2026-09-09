@@ -75,6 +75,7 @@ import { MissingInstalledDatabaseError } from '../../services/bible/bibleDatabas
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import {
   getChapterPresentationMode,
+  shouldAttemptChapterTextLoad,
   type ChapterPresentationMode,
 } from '../../services/bible/presentation';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
@@ -2378,6 +2379,16 @@ export function BibleReaderScreen() {
       setIsLoading(true);
     }
     setError(null);
+
+    // An audio-only translation has no text pack, so querying for one throws and
+    // the resulting error card would hide the audio-first chapter screen. Clear the
+    // verses instead: an empty chapter with audio available IS the audio-first state.
+    if (!shouldAttemptChapterTextLoad(currentTranslationInfo)) {
+      setVerses([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const data = await getChapter(currentTranslation, bookId, chapter);
       if (requestId !== chapterLoadRequestIdRef.current) {

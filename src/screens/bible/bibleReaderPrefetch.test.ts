@@ -19,6 +19,10 @@ function harness() {
     chapterLoadRequestIdRef: request,
     chapterPrefetchTaskRef: pending,
     shouldShowChapterLoadSkeleton: () => false,
+    // These cases cover a text translation, so the loader must reach getChapter.
+    // The audio-only short-circuit has its own coverage in presentation.test.ts.
+    shouldAttemptChapterTextLoad: () => true,
+    currentTranslationInfo: { hasText: true },
     verses: [],
     setIsLoading: () => {},
     setError: () => {},

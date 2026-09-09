@@ -5,6 +5,7 @@ import {
   buildAudioFirstChapterPresentation,
   buildDailyScripture,
   getChapterPresentationMode,
+  shouldAttemptChapterTextLoad,
 } from './presentation';
 
 const textAndAudioTranslation = {
@@ -210,4 +211,22 @@ test('includes the offline pill when chapter audio is already saved', () => {
   });
 
   assert.deepEqual(presentation.pills, ['BSB', 'Old Testament', 'Saved for Offline Listening']);
+});
+
+// Regression: opening an audio-only translation (e.g. Bhujel, hasText: false) used
+// to run a text query anyway. The lookup throws because no text pack exists, the
+// reader set a load error, and the error card pre-empted the audio-first screen —
+// audio played under an error message instead of the chapter artwork.
+test('never attempts a text load for a translation that has no text', () => {
+  assert.equal(shouldAttemptChapterTextLoad(audioOnlyChapterTranslation), false);
+  assert.equal(shouldAttemptChapterTextLoad(audioOnlyVerseTranslation), false);
+});
+
+test('attempts a text load for translations that carry text', () => {
+  assert.equal(shouldAttemptChapterTextLoad(textAndAudioTranslation), true);
+  assert.equal(shouldAttemptChapterTextLoad({ hasText: true }), true);
+});
+
+test('attempts a text load when the translation is not yet known, so text is never silently skipped', () => {
+  assert.equal(shouldAttemptChapterTextLoad(undefined), true);
 });

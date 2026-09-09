@@ -37,6 +37,28 @@ interface BuildAudioFirstChapterPresentationOptions {
   offlineLabel?: string;
 }
 
+/**
+ * Whether a chapter's text is worth fetching at all.
+ *
+ * Audio-only translations (Bhujel, and every other `hasText: false` entry) have no
+ * text pack to read, so a lookup throws. The reader treated that throw as a load
+ * failure and rendered its error card, which sits ahead of the audio-first branch —
+ * so audio played while the screen showed "couldn't load", instead of the chapter
+ * artwork. Skipping the query leaves `verses` empty, which is exactly what
+ * getChapterPresentationMode() needs to resolve 'audio-first'.
+ *
+ * An unknown translation returns true: text must never be skipped just because the
+ * catalog entry has not resolved yet.
+ */
+export function shouldAttemptChapterTextLoad(
+  translation?: Pick<BibleTranslation, 'hasText'>
+): boolean {
+  if (!translation) {
+    return true;
+  }
+  return translation.hasText;
+}
+
 export function getChapterPresentationMode({
   verses,
   translation,
