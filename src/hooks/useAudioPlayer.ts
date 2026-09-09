@@ -26,6 +26,12 @@ import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from 
 import { advanceAudioQueue } from '../stores/audioQueueModel';
 import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
 import {
+  findAdjacentAvailableChapter,
+  getAudioChaptersForBook,
+  type AudioChapterMap,
+} from '../services/bible/contentAvailability';
+import { useTranslationContentSummary } from './useTranslationContentSummary';
+import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
 } from '../stores/audioPlaybackSequenceModel';
@@ -145,6 +151,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }))
   );
 
+  // Exact per-chapter audio coverage for the translation that is actually playing.
+  // Every Language sets describe their audio only through a signed manifest, and it is
+  // sparse, so plain chapter adjacency auto-advances into chapters that can never play.
+  // The hook reuses the cached manifest resolution; until it resolves the map is
+  // undefined and every walk stays on the canonical 1..N path.
+  const activeAudioTranslation = useBibleStore((state) =>
+    state.translations.find((candidate) => candidate.id === (currentTranslationId ?? translationId))
+  );
+  const audioChapterMap = useTranslationContentSummary(activeAudioTranslation)?.audioChapters;
+  // A ref because playback completion runs outside React's render cycle and must not
+  // re-subscribe the finished-listener every time the manifest resolves.
+  const audioChapterMapRef = useRef<AudioChapterMap | undefined>(undefined);
+  audioChapterMapRef.current = audioChapterMap;
+
   const syncCurrentNowPlaying = useCallback(
     (overrides: Partial<BibleNowPlayingInput> = {}, force = false) => {
       const state = useAudioStore.getState();
@@ -171,19 +191,23 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       // Compute skip availability so the lock screen next/previous buttons reflect
       // whether adjacent chapters actually exist. Queue entries take priority over
-      // the linear chapter adjacency check.
+      // the linear chapter adjacency check, and an exact chapter map (Every Language)
+      // decides for translations whose audio skips books and chapters.
+      const resolvedAdjacentChapter = (direction: -1 | 1) =>
+        audioChapterMapRef.current
+          ? findAdjacentAvailableChapter(
+              resolvedBookId,
+              resolvedChapter,
+              direction,
+              audioChapterMapRef.current
+            )
+          : getAdjacentBibleChapter(resolvedBookId, resolvedChapter, direction);
       const resolvedCanSkipNext =
         overrides.canSkipNext ??
-        Boolean(
-          state.queue[state.queueIndex + 1] ??
-          getAdjacentBibleChapter(resolvedBookId, resolvedChapter, 1)
-        );
+        Boolean(state.queue[state.queueIndex + 1] ?? resolvedAdjacentChapter(1));
       const resolvedCanSkipPrevious =
         overrides.canSkipPrevious ??
-        Boolean(
-          state.queue[state.queueIndex - 1] ??
-          getAdjacentBibleChapter(resolvedBookId, resolvedChapter, -1)
-        );
+        Boolean(state.queue[state.queueIndex - 1] ?? resolvedAdjacentChapter(-1));
 
       const signature = [
         resolvedTranslationId,
@@ -617,6 +641,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       bookId,
       chapter: chapterNum,
       totalChapters: currentBook?.chapters ?? null,
+      availableChapters: bookId
+        ? getAudioChaptersForBook(audioChapterMapRef.current, bookId)
+        : undefined,
     });
     if (repeatTarget && playChapterForTranslationRef.current) {
       isChapterTransitioningRef.current = true;
@@ -654,7 +681,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       return;
     }
 
-    const adjacentChapter = getAdjacentBibleChapter(bookId, chapterNum, 1);
+    const adjacentChapter = audioChapterMapRef.current
+      ? findAdjacentAvailableChapter(bookId, chapterNum, 1, audioChapterMapRef.current)
+      : getAdjacentBibleChapter(bookId, chapterNum, 1);
     if (adjacentChapter && playChapterForTranslationRef.current) {
       isChapterTransitioningRef.current = true;
       await playChapterForTranslationRef.current(
@@ -1052,7 +1081,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (!currentBookId || !currentChapter) return null;
-    const adjacentChapter = getAdjacentBibleChapter(currentBookId, currentChapter, -1);
+    const adjacentChapter = audioChapterMapRef.current
+      ? findAdjacentAvailableChapter(currentBookId, currentChapter, -1, audioChapterMapRef.current)
+      : getAdjacentBibleChapter(currentBookId, currentChapter, -1);
     if (!adjacentChapter) return null;
     await navigateChapterForTranslation(
       currentTranslationId ?? translationId,
@@ -1111,7 +1142,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (!currentBookId || !currentChapter) return null;
-    const adjacentChapter = getAdjacentBibleChapter(currentBookId, currentChapter, 1);
+    const adjacentChapter = audioChapterMapRef.current
+      ? findAdjacentAvailableChapter(currentBookId, currentChapter, 1, audioChapterMapRef.current)
+      : getAdjacentBibleChapter(currentBookId, currentChapter, 1);
     if (!adjacentChapter) return null;
 
     await navigateChapterForTranslation(

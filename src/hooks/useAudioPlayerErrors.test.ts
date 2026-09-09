@@ -59,7 +59,18 @@ async function mountPlayer(failure: 'unavailable' | 'lookup' | 'playback') {
     'react-i18next': { useTranslation: () => ({ t: i18n.t.bind(i18n) }) },
     'zustand/react/shallow': { useShallow: (selector: unknown) => selector },
     '../stores/audioStore': { useAudioStore },
-    '../stores/bibleStore': { useBibleStore: { getState: () => ({ translations: [] }) } },
+    '../stores/bibleStore': {
+      useBibleStore: Object.assign(
+        (selector: (state: { translations: unknown[] }) => unknown) =>
+          selector({ translations: [] }),
+        { getState: () => ({ translations: [] }) }
+      ),
+    },
+    './useTranslationContentSummary': { useTranslationContentSummary: () => undefined },
+    '../services/bible/contentAvailability': {
+      findAdjacentAvailableChapter: () => null,
+      getAudioChaptersForBook: () => undefined,
+    },
     '../stores/libraryStore': {
       useLibraryStore: { getState: () => ({ recordHistory: () => {} }) },
     },
