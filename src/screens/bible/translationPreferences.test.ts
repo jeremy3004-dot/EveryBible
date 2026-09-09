@@ -62,3 +62,20 @@ test('search builds one normalized haystack per catalog row across repeated quer
   for (const query of ['b', 'bi', 'bib', 'bibl', 'bible']) searchTranslationIndex(index, query);
   assert.equal(reads, 1000, 'five queries previously read and normalized 5000 catalog names');
 });
+
+test('the current translation leads My Translations ahead of pinned favourites', () => {
+  const result = buildTranslationPickerSections(
+    [
+      { id: 'asv', language: 'English', isDownloaded: true, hasText: true },
+      { id: 'kjv', language: 'English', isDownloaded: true, hasText: true },
+      { id: 'bsb', language: 'English', isDownloaded: true, hasText: true },
+    ],
+    'English',
+    { pinnedIds: ['kjv'], currentTranslationId: 'bsb' }
+  );
+
+  assert.deepEqual(
+    result.myTranslations.map((x) => x.id),
+    ['bsb', 'kjv', 'asv']
+  );
+});

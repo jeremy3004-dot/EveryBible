@@ -485,7 +485,13 @@ export const buildTranslationPickerSections = <
         (!hidden.has(translation.id) &&
           (pinned.has(translation.id) || isTranslationReadableLocally(translation)))
     )
-    .sort((left, right) => Number(pinned.has(right.id)) - Number(pinned.has(left.id)));
+    .sort((left, right) => {
+      // The Bible being read leads the group so the picker opens on "you are here";
+      // pinned favourites follow, then everything else in catalog order.
+      const rank = (translation: T) =>
+        translation.id === options.currentTranslationId ? 0 : pinned.has(translation.id) ? 1 : 2;
+      return rank(left) - rank(right);
+    });
   const myTranslationIds = new Set(myTranslations.map((translation) => translation.id));
   const availableTranslations = options.includeAllAvailableTranslations
     ? visibleTranslations.filter((translation) => !myTranslationIds.has(translation.id))

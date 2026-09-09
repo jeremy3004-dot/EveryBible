@@ -35,39 +35,21 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
-    source.includes('textDownloadButton'),
-    false,
-    'TranslationPickerList should not keep a separate text button block once the action is merged into the chip row'
-  );
-
-  assert.equal(
     source.includes("t('translations.download')"),
     true,
     'TranslationPickerList should keep the text download prompt short and explicit'
   );
 
   assert.equal(
-    source.includes("t('bible.audioDownloads')"),
-    true,
-    'TranslationPickerList should still label the audio modal'
-  );
-
-  assert.equal(
     source.includes("t('common.loading')"),
     true,
-    'TranslationPickerList should use the shared loading copy for download progress instead of an undefined downloading key'
+    'TranslationPickerList should use the shared loading copy while the catalog hydrates'
   );
 
   assert.equal(
     source.includes("t('common.downloading')"),
     false,
     'TranslationPickerList should not reference the missing common.downloading key'
-  );
-
-  assert.equal(
-    source.includes('filterTranslationsBySearchQuery'),
-    true,
-    'TranslationPickerList should filter the visible translation list through the shared fuzzy search helper'
   );
 
   assert.equal(
@@ -97,37 +79,7 @@ test('shared translation picker can filter by language and download runtime tran
   assert.equal(
     source.includes('numberOfLines={1}'),
     true,
-    'TranslationPickerList should keep long translation names on one line and let the name truncate before the code'
-  );
-
-  assert.equal(
-    source.includes('audioDownloadHeader'),
-    false,
-    'TranslationPickerList should not render a separate audio heading above the chips'
-  );
-
-  assert.equal(
-    source.includes('translationMeta'),
-    false,
-    'TranslationPickerList should remove the noisy metadata row from each translation card'
-  );
-
-  assert.equal(
-    source.includes('translationSize'),
-    false,
-    'TranslationPickerList should not render per-translation size labels in the card body'
-  );
-
-  assert.equal(
-    source.includes('downloadedBadge'),
-    false,
-    'TranslationPickerList should not render the old inline status badge row'
-  );
-
-  assert.equal(
-    source.includes('time-outline'),
-    false,
-    'TranslationPickerList should remove the old clock icon status hint from the card metadata row'
+    'TranslationPickerList should keep long translation names on one line'
   );
 
   assert.equal(
@@ -151,19 +103,7 @@ test('shared translation picker can filter by language and download runtime tran
   assert.match(
     source,
     /modalContent:[\s\S]*height:\s*'82%'/,
-    'TranslationPickerList should keep the modal sheet height stable while filters change'
-  );
-
-  assert.match(
-    source,
-    /translationCard:[\s\S]*marginBottom:\s*spacing\.xs/,
-    'TranslationPickerList should keep the translation cards close together'
-  );
-
-  assert.match(
-    source,
-    /translationItem:[\s\S]*minHeight:\s*68,[\s\S]*paddingVertical:\s*10/,
-    'TranslationPickerList should keep each translation card compact so more rows stay close together'
+    'TranslationPickerList should keep the manage sheet height stable while its contents change'
   );
 
   assert.match(
@@ -190,100 +130,22 @@ test('shared translation picker can filter by language and download runtime tran
     'TranslationPickerList should render the translation mode from a typed virtualized row model'
   );
 
-  assert.doesNotMatch(
-    source,
-    /sections\.availableTranslations\.map\(\(translation\) =>\s*renderTranslationCard\(translation\)/,
-    'TranslationPickerList should not eagerly render every available translation card in a ScrollView'
-  );
-
-  assert.equal(
-    source.includes('downloadAudioForBooks'),
-    true,
-    'TranslationPickerList should use the shared batch audio download action for collection audio buttons'
-  );
-
-  assert.equal(
-    source.includes('getTranslationAudioBookIds'),
-    true,
-    'TranslationPickerList should read explicit audio book coverage when deciding which books to show'
-  );
-
-  assert.equal(
-    source.includes("t('bible.fullBible')"),
-    true,
-    'TranslationPickerList should use the localized full-bible label when the row can wrap cleanly'
-  );
-
-  assert.equal(
-    source.includes("t('bible.oldTestament')"),
-    false,
-    'TranslationPickerList should not render a separate Old Testament audio download option'
-  );
-
-  assert.equal(
-    source.includes("t('bible.byBook')"),
-    true,
-    'TranslationPickerList should keep the book-by-book audio action while localizing the label'
-  );
-
-  assert.equal(
-    source.includes("t('bible.newTestament')"),
-    true,
-    'TranslationPickerList should support a New Testament audio chip when only NT collection audio is available'
-  );
-
-  assert.equal(
-    source.includes('Download by book'),
-    false,
-    'TranslationPickerList should stop using the longer book-by-book label'
-  );
-
-  assert.equal(
-    source.includes('chatbox-ellipses-outline'),
-    true,
-    'TranslationPickerList should render the text action with a text/message icon'
-  );
-
-  assert.equal(
-    source.includes('audioDownloadByBook'),
-    false,
-    'TranslationPickerList should render the book-by-book action as the same chip style as Full Bible'
-  );
-
-  assert.equal(
-    source.includes('translationAudioBooks.length > 0'),
-    true,
-    'TranslationPickerList should hide audio chips when the translation has no known book coverage'
-  );
-
-  assert.match(
-    source,
-    /audioDownloadButtons:[\s\S]*flexWrap:\s*'wrap'/,
-    'TranslationPickerList should let the audio chip row wrap to a second line when needed'
-  );
-
   assert.equal(
     source.includes("t('translations.languagePreference')"),
     true,
-    "TranslationPickerList should label the top row as the user's language preference"
+    "TranslationPickerList should label the language pill as the user's language preference"
   );
 
   assert.equal(
     source.includes("t('translations.myTranslations')"),
     true,
-    'TranslationPickerList should render a dedicated My Translations section above the language catalog'
+    'TranslationPickerList should render a dedicated My Translations section'
   );
 
   assert.equal(
     source.includes('getTranslationLanguageDisplayLabel'),
     true,
     'TranslationPickerList should render language labels with native-script support where available'
-  );
-
-  assert.equal(
-    source.includes('deleteTranslation'),
-    true,
-    'TranslationPickerList should route remove-download actions through the shared store cleanup path'
   );
 
   assert.match(
@@ -296,6 +158,167 @@ test('shared translation picker can filter by language and download runtime tran
     source,
     /setPreferredTranslationLanguage\(/,
     'TranslationPickerList should persist language changes through the Bible store so every entry point stays aligned'
+  );
+});
+
+test('translation picker lists My Translations before the language catalog in one grouped row recipe', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  const myIndex = source.indexOf("id: 'section-my-translations'");
+  const availableIndex = source.indexOf("id: 'section-available-translations'");
+  assert.ok(myIndex > 0 && availableIndex > 0);
+  assert.ok(
+    myIndex < availableIndex,
+    'The Bibles the reader already has must come before the "more in this language" catalog, so the sheet has one stable order'
+  );
+
+  assert.match(
+    source,
+    /`\$\{t\('translations\.available'\)\} · \$\{languageLabel\}`/,
+    'The available section header should name the language inline instead of stacking a second title under the eyebrow'
+  );
+
+  assert.equal(
+    (source.match(/sectionEyebrow:/g) ?? []).length,
+    1,
+    'There should be exactly one section heading style in the picker'
+  );
+
+  assert.equal(
+    source.includes('sectionTitle'),
+    false,
+    'The picker should not render a second, larger title under section eyebrows'
+  );
+
+  assert.equal(
+    source.includes('preferenceEyebrow'),
+    false,
+    'The language preference should be a compact pill, not a boxed card with its own eyebrow'
+  );
+
+  assert.equal(
+    source.includes('translation-picker-language-pill'),
+    true,
+    'The language pill should be addressable for UI tests'
+  );
+
+  assert.match(
+    source,
+    /type GroupPosition = 'only' \| 'first' \| 'middle' \| 'last'/,
+    'Rows should know their position so a section renders as one grouped list'
+  );
+
+  assert.match(
+    source,
+    /rowTitle:\s*\{\s*\.\.\.typography\.rowTitle/,
+    'Row titles should come from the shared rowTitle token'
+  );
+
+  assert.match(
+    source,
+    /rowMeta:\s*\{\s*\.\.\.typography\.caption/,
+    'Row metadata should come from the shared caption token'
+  );
+
+  assert.equal(
+    source.includes('const TranslationRow = memo('),
+    true,
+    'Each Bible should render through one memoized row component'
+  );
+});
+
+test('translation picker moves download, pin, hide and delete into a per-translation manage sheet', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+  const rowStart = source.indexOf('const TranslationRow = memo(');
+  const sheetStart = source.indexOf('function TranslationManageSheet(');
+  assert.ok(rowStart > 0 && sheetStart > rowStart);
+  const rowSource = source.slice(rowStart, sheetStart);
+  const sheetSource = source.slice(sheetStart);
+
+  assert.match(
+    rowSource,
+    /ellipsis-horizontal/,
+    'Each row should expose a single "more" affordance instead of a chip row'
+  );
+
+  assert.equal(
+    rowSource.includes("t('translations.pin')") || rowSource.includes("'translations.pin'"),
+    false,
+    'The pin action must not render inline on every row'
+  );
+
+  assert.equal(
+    rowSource.includes('headset-outline'),
+    false,
+    'Audio download chips must not render inline on every row'
+  );
+
+  assert.match(
+    sheetSource,
+    /'translations\.unpin' : 'translations\.pin'/,
+    'The manage sheet should offer pin/unpin'
+  );
+
+  assert.match(sheetSource, /t\('translations\.hide'\)/, 'The manage sheet should offer hide');
+
+  assert.equal(
+    sheetSource.includes('hasTranslationDownloadData'),
+    true,
+    'The manage sheet should gate delete on real local assets instead of hard-coded translation ids'
+  );
+
+  assert.equal(
+    sheetSource.includes('trash-outline'),
+    true,
+    'The manage sheet should keep the trash icon on delete'
+  );
+
+  assert.equal(
+    source.includes("translation.id !== 'bsb'"),
+    false,
+    'TranslationPickerList should not hard-block BSB from the remove-download flow'
+  );
+
+  assert.equal(
+    sheetSource.includes('deleteTranslation(translation.id)'),
+    true,
+    'Delete should route through the shared translation cleanup action'
+  );
+
+  assert.match(
+    sheetSource,
+    /t\('bible\.fullBible'\)[\s\S]*t\('bible\.newTestament'\)[\s\S]*t\('bible\.byBook'\)/,
+    'The manage sheet should offer Full Bible, New Testament, and by-book audio downloads'
+  );
+
+  assert.match(
+    sheetSource,
+    /chatbox-ellipses-outline[\s\S]*t\('audio\.showText'\)/,
+    'The manage sheet should render the text download row with the text icon'
+  );
+
+  assert.equal(
+    sheetSource.includes('downloadAudioForBooks'),
+    true,
+    'The manage sheet should use the shared batch audio download action for New Testament audio'
+  );
+
+  assert.equal(
+    sheetSource.includes('getTranslationAudioBookIds'),
+    true,
+    'The manage sheet should read explicit audio book coverage when deciding which books to show'
+  );
+
+  assert.equal(
+    sheetSource.includes('translationAudioBooks.length > 0'),
+    true,
+    'The manage sheet should hide audio rows when the translation has no known book coverage'
+  );
+
+  assert.equal(
+    sheetSource.includes('checkmark-circle'),
+    true,
+    'Completed downloads should show a green check'
   );
 });
 
@@ -325,73 +348,22 @@ test('translation picker activates a runtime text translation after download com
   );
 });
 
-test('translation picker renders collection, by-book, and text chip download actions', () => {
+test('translation picker shows live download progress on the row itself', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
+  const rowStart = source.indexOf('const TranslationRow = memo(');
+  const sheetStart = source.indexOf('function TranslationManageSheet(');
+  const rowSource = source.slice(rowStart, sheetStart);
 
   assert.match(
-    source,
-    /<View style=\{styles\.audioDownloadButtons\}>[\s\S]*t\('bible\.fullBible'\)[\s\S]*t\('bible\.newTestament'\)[\s\S]*t\('bible\.byBook'\)[\s\S]*chatbox-ellipses-outline[\s\S]*t\('audio\.showText'\)/,
-    'TranslationPickerList should render Full Bible, New Testament, By book, and icon-plus-Text chips'
-  );
-
-  assert.match(
-    source,
-    /downloadProgress\?\.translationId === translation\.id[\s\S]*downloadProgress\?\.progress[\s\S]*ActivityIndicator/,
-    'TranslationPickerList should render a live percentage beside the active download chip'
-  );
-
-  assert.equal(
-    source.includes('audioDownloadHeader'),
-    false,
-    'TranslationPickerList should not render a separate audio heading above the chips'
-  );
-
-  assert.equal(
-    source.includes('Download by book'),
-    false,
-    'TranslationPickerList should not use the longer book-by-book label'
-  );
-
-  assert.equal(
-    source.includes('textDownloadProgress'),
-    false,
-    'TranslationPickerList should not show the old inline text progress block'
-  );
-
-  assert.equal(
-    source.includes('downloadProgress?.progress'),
-    true,
-    'TranslationPickerList should read the shared download progress percent from the Bible store'
-  );
-
-  assert.equal(
-    source.includes("t('audio.showText')"),
-    true,
-    'TranslationPickerList should render the Text label again now that the row can wrap'
-  );
-
-  assert.equal(
-    source.includes('headset-outline'),
-    true,
-    'TranslationPickerList should keep the headphones icon on the audio chips'
-  );
-
-  assert.equal(
-    source.includes('checkmark-circle'),
-    true,
-    'TranslationPickerList should use a green check icon when a download is complete'
-  );
-
-  assert.equal(
-    source.includes('downloadAudioForBooks'),
-    true,
-    'TranslationPickerList should use the shared batch audio download action for collection audio buttons like New Testament'
+    rowSource,
+    /activeDownloadProgress != null[\s\S]*downloadProgressFill[\s\S]*\{activeDownloadProgress\}%/,
+    'A downloading row should show a progress bar and percentage in place of its status glyph'
   );
 
   assert.match(
-    source,
-    /audioDownloadChip:[\s\S]*paddingHorizontal:\s*10,[\s\S]*paddingVertical:\s*6/,
-    'TranslationPickerList should keep the pills readable without making them oversized'
+    rowSource,
+    /t\('translations\.cancelDownload'\)[\s\S]*cancelDownload\(\)/,
+    'A downloading row should offer cancel'
   );
 });
 
@@ -402,34 +374,6 @@ test('translation picker checks remote availability against each by-book row', (
     source,
     /remoteAudioAvailable:\s*isRemoteAudioAvailable\(translation\.id,\s*bookId\s*\?\?\s*currentBook\)/,
     'TranslationPickerList should check remote audio coverage against the row book instead of the reader book'
-  );
-});
-
-test('translation picker keeps the delete chip available for any translation with removable local data', () => {
-  const source = readRelativeSource('./TranslationPickerList.tsx');
-
-  assert.equal(
-    source.includes('hasTranslationDownloadData'),
-    true,
-    'TranslationPickerList should gate destructive remove-download chips on real local assets instead of hard-coded translation ids'
-  );
-
-  assert.equal(
-    source.includes('trash-outline'),
-    true,
-    'TranslationPickerList should keep the trash icon on the remove-download chip'
-  );
-
-  assert.equal(
-    source.includes("translation.id !== 'bsb'"),
-    false,
-    'TranslationPickerList should not hard-block BSB from the remove-download flow'
-  );
-
-  assert.equal(
-    source.includes('deleteTranslation(translation.id)'),
-    true,
-    'TranslationPickerList should route delete-chip presses through the shared translation cleanup action'
   );
 });
 
@@ -457,7 +401,7 @@ test('translation picker keeps search results reachable above the on-screen keyb
   assert.match(
     source,
     /contentContainerStyle=\{translationListContentStyle\}/,
-    'TranslationPickerList should actually feed the keyboard-aware style to the FlashList — asserting the style exists is not enough, since reverting this one prop would leave every other assertion passing'
+    'TranslationPickerList should actually feed the keyboard-aware style to the FlashList'
   );
 
   assert.match(
@@ -465,21 +409,15 @@ test('translation picker keeps search results reachable above the on-screen keyb
     /keyboardShouldPersistTaps="handled"/,
     'TranslationPickerList should keep single-tap row activation while the keyboard is up'
   );
-
-  assert.match(
-    source,
-    /translationListContent:[\s\S]*paddingBottom:\s*layout\.sectionGap/,
-    'TranslationPickerList should keep the static content style for the keyboard-free ScrollViews (languages mode and the audio manager)'
-  );
 });
 
-test('download progress is scoped to memoized translation cards', () => {
+test('download progress is scoped to memoized translation rows', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
-  const cardStart = source.indexOf('const TranslationCard = memo(');
-  assert.ok(cardStart > 0);
-  assert.doesNotMatch(source.slice(0, cardStart), /state\.downloadProgress/);
+  const rowStart = source.indexOf('const TranslationRow = memo(');
+  assert.ok(rowStart > 0);
+  assert.doesNotMatch(source.slice(0, rowStart), /state\.downloadProgress/);
   assert.match(
-    source.slice(cardStart),
+    source.slice(rowStart),
     /state\.downloadProgress\?\.translationId === translation\.id \? state\.downloadProgress : null/
   );
   assert.match(source, /handleTranslationSelect = useCallback/);
