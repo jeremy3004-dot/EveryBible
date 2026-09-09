@@ -323,7 +323,7 @@ test('BibleReaderScreen renders scripture section headings with the shared readi
 
   assert.match(
     source,
-    /sectionHeading:\s*{\s*\.\.\.typography\.readingHeading,\s*marginTop:\s*8,/s,
+    /sectionHeading:\s*{\s*\.\.\.typography\.readingHeading,[\s\S]*?marginTop:\s*8,/s,
     'BibleReaderScreen should style section headings with the shared reading heading typography'
   );
 
@@ -1491,5 +1491,56 @@ test('invisible animated top chrome excludes interaction without disabling liste
     wrapper,
     /importantForAccessibility=\{\s*useAnimatedChrome && isReadBottomChromeCollapsed \? 'no-hide-descendants' : 'auto'\s*\}/,
     'Android must exclude hidden descendants while nonanimated listen chrome stays reachable'
+  );
+});
+
+test('the reader reinstates prose lead-ins inside poetry verses without emphasising them', () => {
+  const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
+  const databaseSource = readRelativeSource('../../services/bible/bibleDatabase.ts');
+
+  assert.equal(
+    databaseSource.includes('reconcileVerseFormattingWithText'),
+    true,
+    'Verses read from the bundled database must reconcile poetry lines against the verse text, or prose lead-ins like Hebrews 1:5 are dropped from the reader'
+  );
+
+  assert.equal(
+    (databaseSource.match(/reconcileVerseFormattingWithText\(/g) ?? []).length,
+    2,
+    'Both the chapter read path and the search read path must reconcile, so search results are not missing text either'
+  );
+
+  assert.equal(
+    readerSource.includes('structuredVerseProse'),
+    false,
+    'Recovered prose is scripture and must render at normal weight — only the editorial section titles are bold'
+  );
+
+  assert.doesNotMatch(
+    readerSource,
+    /line\.prose \?/,
+    'Prose lines must not be styled differently from the rest of the verse'
+  );
+});
+
+test('editorial section titles render in the bold reading face', () => {
+  const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
+
+  assert.match(
+    readerSource,
+    /getReadingFontFamily\(currentTranslationInfo\?\.language, 700\)/,
+    'The bold reading face must be resolved for the active translation script'
+  );
+
+  assert.match(
+    readerSource,
+    /fontFamily: readingFontFamilyBold \?\? readingFontFamily,/,
+    'The section heading must use the bold face; using readingFontFamily there silently overrode the heading token and rendered titles at body weight'
+  );
+
+  assert.match(
+    readerSource,
+    /sectionHeading:[\s\S]*fontWeight: '700'/,
+    'sectionHeading keeps fontWeight for the platform-serif fallback used by non-Latin scripts'
   );
 });

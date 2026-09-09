@@ -7,7 +7,11 @@ import {
   buildInstalledBibleDatabaseSource,
   isBundledBibleDatabaseReady,
 } from './bibleDataModel';
-import { normalizeVerseFormatting, serializeVerseFormatting } from './verseFormatting';
+import {
+  normalizeVerseFormatting,
+  reconcileVerseFormattingWithText,
+  serializeVerseFormatting,
+} from './verseFormatting';
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
@@ -430,7 +434,10 @@ export async function getChapter(
     verse: row.verse,
     text: row.text,
     heading: row.heading ?? undefined,
-    formatting: normalizeVerseFormatting(row.formatting),
+    formatting: reconcileVerseFormattingWithText(
+      row.text,
+      normalizeVerseFormatting(row.formatting)
+    ),
   }));
 }
 
@@ -482,7 +489,10 @@ export async function searchVerses(
         verse: row.verse,
         text: row.text,
         heading: row.heading ?? undefined,
-        formatting: normalizeVerseFormatting(row.formatting),
+        formatting: reconcileVerseFormattingWithText(
+          row.text,
+          normalizeVerseFormatting(row.formatting)
+        ),
       }));
     } catch (error) {
       console.warn('[Bible] Indexed search failed:', error);

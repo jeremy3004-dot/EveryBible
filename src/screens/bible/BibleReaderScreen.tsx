@@ -1112,6 +1112,10 @@ export function BibleReaderScreen() {
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
   // glyphs render instead of tofu. `language` is a display name ('Hindi').
   const readingFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
+  // Bold face for the editorial section titles ("Jesus like His Brothers"). React Native will
+  // not synthesise a bold weight for a named custom family, so the 700 face has to be asked
+  // for by name; non-Latin scripts get undefined and fall back to the platform serif.
+  const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
@@ -5088,7 +5092,10 @@ export function BibleReaderScreen() {
               {
                 fontSize: headingFontSize,
                 color: colors.biblePrimaryText,
-                fontFamily: readingFontFamily,
+                // Must be the bold face, not `readingFontFamily`: that is the regular weight
+                // and silently overrode the heading token's own semi-bold family, which is
+                // why section titles rendered at body weight.
+                fontFamily: readingFontFamilyBold ?? readingFontFamily,
               },
             ]}
           >
@@ -7138,6 +7145,9 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     ...typography.readingHeading,
+    // Carried for the platform-serif fallback used by non-Latin scripts, where no named
+    // bold family is available and fontWeight is what actually thickens the glyphs.
+    fontWeight: '700',
     marginTop: 8,
     marginBottom: 4,
   },
