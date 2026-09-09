@@ -154,6 +154,26 @@ export function getAudioChaptersForBook(
 }
 
 /**
+ * Whether a specific chapter is in the resolved audio manifest.
+ *
+ * isRemoteAudioAvailable() can only say an Every Language manifest is *addressable*, so
+ * consumers that name one chapter — Home's daily scripture, the reader — must ask the
+ * exact map instead. `undefined` means the manifest has not resolved yet (or the
+ * translation has none), and the answer stays optimistic, matching getBookContentAvailability.
+ */
+export function isChapterAudioCovered(
+  audioChapters: AudioChapterMap | undefined,
+  bookId: string,
+  chapter: number
+): boolean {
+  if (!audioChapters) {
+    return true;
+  }
+
+  return getAudioChaptersForBook(audioChapters, bookId)?.includes(chapter) ?? false;
+}
+
+/**
  * The nearest chapter that actually has audio, walking `direction` from
  * (bookId, chapter) through the canonical book order.
  *

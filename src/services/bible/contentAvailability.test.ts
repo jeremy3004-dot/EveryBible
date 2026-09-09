@@ -6,6 +6,7 @@ import {
   getAudioChaptersForBook,
   getBookContentAvailability,
   getChapterContentAvailability,
+  isChapterAudioCovered,
   type TranslationContentSummary,
 } from './contentAvailability';
 
@@ -215,4 +216,22 @@ test('getAudioChaptersForBook matches manifest keys regardless of case', () => {
   assert.deepEqual(getAudioChaptersForBook({ jos: [1, 2] }, 'JOS'), [1, 2]);
   assert.equal(getAudioChaptersForBook(undefined, 'JOS'), undefined);
   assert.equal(getAudioChaptersForBook(sparseAudioChapters, 'MAT'), undefined);
+});
+
+test('isChapterAudioCovered stays optimistic until a manifest resolves', () => {
+  assert.equal(isChapterAudioCovered(undefined, 'MAT', 7), true);
+});
+
+test('isChapterAudioCovered answers from the exact chapter map once it resolves', () => {
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'JOS', 2), true);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'PSA', 117), true);
+  // Bhujel's real shape: nineteen Old Testament books, no Matthew at all.
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'MAT', 7), false);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'JOS', 3), false);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'PSA', 1), false);
+});
+
+test('isChapterAudioCovered tolerates manifest keys of any case and an empty map', () => {
+  assert.equal(isChapterAudioCovered({ jos: [1, 2] }, 'JOS', 2), true);
+  assert.equal(isChapterAudioCovered({}, 'JOS', 1), false);
 });
