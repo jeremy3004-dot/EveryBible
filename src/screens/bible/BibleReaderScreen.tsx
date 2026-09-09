@@ -1113,9 +1113,9 @@ export function BibleReaderScreen() {
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
   // glyphs render instead of tofu. `language` is a display name ('Hindi').
   const readingFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
-  // Bold companion face for the prose lead-ins inside poetry verses. React Native will not
-  // synthesise a bold weight for a named custom family, so the 700 face has to be asked for
-  // by name; for non-Latin scripts this is undefined and fontWeight drives the platform serif.
+  // Bold face for the editorial section titles ("Jesus like His Brothers"). React Native will
+  // not synthesise a bold weight for a named custom family, so the 700 face has to be asked
+  // for by name; non-Latin scripts get undefined and fall back to the platform serif.
   const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
@@ -4980,10 +4980,6 @@ export function BibleReaderScreen() {
                   styles.structuredVerseLine,
                   lineIndex > 0 ? styles.structuredVerseContinuation : null,
                   isSelected ? selectedVerseDecorationStyle : null,
-                  line.prose ? styles.structuredVerseProse : null,
-                  line.prose && readingFontFamilyBold
-                    ? { fontFamily: readingFontFamilyBold }
-                    : null,
                   line.indentLevel
                     ? { marginLeft: structuredVerseIndentSize * line.indentLevel }
                     : null,
@@ -5085,7 +5081,10 @@ export function BibleReaderScreen() {
               {
                 fontSize: headingFontSize,
                 color: colors.biblePrimaryText,
-                fontFamily: readingFontFamily,
+                // Must be the bold face, not `readingFontFamily`: that is the regular weight
+                // and silently overrode the heading token's own semi-bold family, which is
+                // why section titles rendered at body weight.
+                fontFamily: readingFontFamilyBold ?? readingFontFamily,
               },
             ]}
           >
@@ -7133,15 +7132,11 @@ const styles = StyleSheet.create({
   structuredVerseContinuation: {
     marginTop: 2,
   },
-  // The prose lead-in that introduces a quotation ("For to which of the angels did God ever
-  // say:"). Bold so the introduction frames the poetry rather than reading as part of it, and
-  // never indented — the poetry it introduces carries the indent.
-  structuredVerseProse: {
-    fontWeight: '700',
-    marginLeft: 0,
-  },
   sectionHeading: {
     ...typography.readingHeading,
+    // Carried for the platform-serif fallback used by non-Latin scripts, where no named
+    // bold family is available and fontWeight is what actually thickens the glyphs.
+    fontWeight: '700',
     marginTop: 8,
     marginBottom: 4,
   },

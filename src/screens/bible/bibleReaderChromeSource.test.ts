@@ -323,7 +323,7 @@ test('BibleReaderScreen renders scripture section headings with the shared readi
 
   assert.match(
     source,
-    /sectionHeading:\s*{\s*\.\.\.typography\.readingHeading,\s*marginTop:\s*8,/s,
+    /sectionHeading:\s*{\s*\.\.\.typography\.readingHeading,[\s\S]*?marginTop:\s*8,/s,
     'BibleReaderScreen should style section headings with the shared reading heading typography'
   );
 
@@ -1494,7 +1494,7 @@ test('invisible animated top chrome excludes interaction without disabling liste
   );
 });
 
-test('the reader reinstates and emphasises prose lead-ins inside poetry verses', () => {
+test('the reader reinstates prose lead-ins inside poetry verses without emphasising them', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
   const databaseSource = readRelativeSource('../../services/bible/bibleDatabase.ts');
 
@@ -1510,27 +1510,37 @@ test('the reader reinstates and emphasises prose lead-ins inside poetry verses',
     'Both the chapter read path and the search read path must reconcile, so search results are not missing text either'
   );
 
-  assert.match(
-    readerSource,
-    /line\.prose \? styles\.structuredVerseProse : null/,
-    'Recovered prose lines must get their own style rather than rendering as poetry'
+  assert.equal(
+    readerSource.includes('structuredVerseProse'),
+    false,
+    'Recovered prose is scripture and must render at normal weight — only the editorial section titles are bold'
   );
 
-  assert.match(
+  assert.doesNotMatch(
     readerSource,
-    /line\.prose && readingFontFamilyBold/,
-    'Prose lead-ins must use the bold serif face by name — React Native will not synthesise a bold weight for a named custom font family'
+    /line\.prose \?/,
+    'Prose lines must not be styled differently from the rest of the verse'
   );
+});
 
-  assert.match(
-    readerSource,
-    /structuredVerseProse:[\s\S]*fontWeight: '700'/,
-    'The prose style should still carry fontWeight so the platform serif fallback renders bold for non-Latin scripts'
-  );
+test('editorial section titles render in the bold reading face', () => {
+  const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
 
   assert.match(
     readerSource,
     /getReadingFontFamily\(currentTranslationInfo\?\.language, 700\)/,
     'The bold reading face must be resolved for the active translation script'
+  );
+
+  assert.match(
+    readerSource,
+    /fontFamily: readingFontFamilyBold \?\? readingFontFamily,/,
+    'The section heading must use the bold face; using readingFontFamily there silently overrode the heading token and rendered titles at body weight'
+  );
+
+  assert.match(
+    readerSource,
+    /sectionHeading:[\s\S]*fontWeight: '700'/,
+    'sectionHeading keeps fontWeight for the platform-serif fallback used by non-Latin scripts'
   );
 });
