@@ -28,7 +28,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
-import { useI18n, useDisplayFont } from '../../hooks';
+import { useI18n, useDisplayFont, useTranslationContentSummary } from '../../hooks';
 import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
 import {
   getBookContentAvailability,
@@ -120,6 +120,7 @@ export function BibleBrowserScreen() {
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
+  const availabilityTranslation = useTranslationContentSummary(currentTranslationInfo);
   const isPickerModal = route.name === 'BiblePicker';
   const canDismissModal = isPickerModal;
   const canOpenTranslationPicker = !isPickerModal && config.features.multipleTranslations;
@@ -130,6 +131,11 @@ export function BibleBrowserScreen() {
   const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
   const failedToLoadMessage = t('bible.failedToLoad');
   const searchUnavailableMessage = t('bible.searchUnavailable');
+
+  useEffect(() => {
+    // A "not available" note describes the translation it was shown for.
+    setUnavailableChapterKey(null);
+  }, [currentTranslation]);
 
   useEffect(() => {
     if (!shouldFocusSearch) {
@@ -357,7 +363,10 @@ export function BibleBrowserScreen() {
   const handleChapterPress = (bookId: string, chapter: number) => {
     const book = getBookById(bookId);
 
-    if (book && !getChapterContentAvailability(book, chapter, currentTranslationInfo).isAvailable) {
+    if (
+      book &&
+      !getChapterContentAvailability(book, chapter, availabilityTranslation).isAvailable
+    ) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setUnavailableChapterKey(`${bookId}:${chapter}`);
       return;
@@ -461,7 +470,7 @@ export function BibleBrowserScreen() {
       book.id,
       translatorFeedbackSummaries
     );
-    const isBookAvailable = getBookContentAvailability(book, currentTranslationInfo).isAvailable;
+    const isBookAvailable = getBookContentAvailability(book, availabilityTranslation).isAvailable;
     const bookInk = isBookAvailable ? colors.biblePrimaryText : colors.bibleSecondaryText;
 
     return (
@@ -520,7 +529,7 @@ export function BibleBrowserScreen() {
                 const isChapterAvailable = getChapterContentAvailability(
                   book,
                   chapter,
-                  currentTranslationInfo
+                  availabilityTranslation
                 ).isAvailable;
 
                 return (

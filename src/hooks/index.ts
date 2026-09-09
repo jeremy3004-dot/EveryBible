@@ -7,6 +7,7 @@ export { useI18n } from './useI18n';
 export { useDisplayFont, type DisplayFontOverrides } from './useDisplayFont';
 export { useKeyboardBottomInset } from './useKeyboardBottomInset';
 export { usePrivacyLock } from './usePrivacyLock';
+export { useTranslationContentSummary } from './useTranslationContentSummary';
 export {
   useTabBarHeight,
   TAB_BAR_CAPSULE_HEIGHT,

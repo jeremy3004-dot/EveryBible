@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildAudioChapterMapFromElManifest,
   getBookContentAvailability,
   getChapterContentAvailability,
   type TranslationContentSummary,
@@ -101,4 +102,56 @@ test('an empty audio catalog is treated as unknown rather than empty coverage', 
   };
 
   assert.equal(getBookContentAvailability(genesis, emptyCatalog).isAvailable, true);
+});
+
+const psalms = { id: 'PSA', testament: 'OT' as const, chapters: 150 };
+
+// Shaped like Bhujel's real manifest: Old Testament books only, Psalms is chapter 117 alone.
+const manifestResolvedAudio: TranslationContentSummary = {
+  hasText: false,
+  hasAudio: true,
+  catalog: { audio: { coverage: 'new-testament' } },
+  audioChapters: { GEN: [1, 2, 3], PSA: [117] },
+};
+
+test('a resolved chapter map overrides the catalog coverage', () => {
+  assert.equal(getBookContentAvailability(genesis, manifestResolvedAudio).isAvailable, true);
+  assert.equal(getBookContentAvailability(matthew, manifestResolvedAudio).isAvailable, false);
+});
+
+test('a resolved chapter map is exact, so sparse books do not gain chapters', () => {
+  assert.equal(getChapterContentAvailability(psalms, 117, manifestResolvedAudio).isAvailable, true);
+  assert.equal(getChapterContentAvailability(psalms, 1, manifestResolvedAudio).isAvailable, false);
+  assert.equal(getChapterContentAvailability(genesis, 4, manifestResolvedAudio).isAvailable, false);
+});
+
+test('a resolved chapter map with no books is authoritative, unlike an empty catalog map', () => {
+  const nothingResolved: TranslationContentSummary = {
+    hasText: false,
+    hasAudio: true,
+    audioChapters: {},
+  };
+
+  assert.equal(getBookContentAvailability(genesis, nothingResolved).isAvailable, false);
+});
+
+test('text still keeps a book available when the chapter map excludes it', () => {
+  const textAndManifest: TranslationContentSummary = { ...manifestResolvedAudio, hasText: true };
+
+  assert.equal(getBookContentAvailability(matthew, textAndManifest).isAvailable, true);
+  assert.equal(getChapterContentAvailability(psalms, 1, textAndManifest).isAvailable, true);
+});
+
+test('buildAudioChapterMapFromElManifest keeps only sorted, unique chapter numbers', () => {
+  const chapter = (number: number) => ({
+    chapter: number,
+    path: `/${number}.mp3`,
+    bytes: 1,
+    sha256: '',
+  });
+  const map = buildAudioChapterMapFromElManifest({
+    books: { PSA: [chapter(117)], GEN: [chapter(3), chapter(1), chapter(3), chapter(2)] },
+  });
+
+  assert.deepEqual(map, { PSA: [117], GEN: [1, 2, 3] });
 });
