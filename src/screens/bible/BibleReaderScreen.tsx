@@ -127,7 +127,7 @@ import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useShallow } from 'zustand/react/shallow';
-import { selectionHaptic } from '../../utils/haptics';
+import { lightHaptic, selectionHaptic } from '../../utils/haptics';
 import { hexWithAlpha } from '../../utils/color';
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
@@ -150,8 +150,6 @@ import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
-  SWIPE_THRESHOLD,
-  SWIPE_VELOCITY_MIN,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
   getListenCountedNoticeViewModel,
@@ -164,6 +162,7 @@ import {
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
+  resolveSwipeChapterNavigation,
   hasAudioPositionRestarted,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
@@ -2017,6 +2016,23 @@ export function BibleReaderScreen() {
     }
   };
 
+  // Resolved on the JS thread so the shared, tested swipe model stays the single
+  // source of truth for thresholds (worklets cannot call non-worklet functions).
+  const handleSwipeEnd = (translationX: number, velocityX: number) => {
+    if (swipeInFlightRef.current) return;
+
+    const direction = resolveSwipeChapterNavigation({
+      translationX,
+      velocityX,
+      hasNextChapter,
+      hasPrevChapter,
+    });
+    if (!direction) return;
+
+    lightHaptic();
+    handleSwipeNavigation(direction);
+  };
+
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-15, 15])
     .failOffsetY([-10, 10])
@@ -2026,12 +2042,7 @@ export function BibleReaderScreen() {
     })
     .onEnd((event) => {
       'worklet';
-      const wantsNext =
-        event.translationX < -SWIPE_THRESHOLD || event.velocityX < -SWIPE_VELOCITY_MIN;
-      const wantsPrev =
-        event.translationX > SWIPE_THRESHOLD || event.velocityX > SWIPE_VELOCITY_MIN;
-      if (wantsNext && hasNextChapter) runOnJS(handleSwipeNavigation)('next');
-      else if (wantsPrev && hasPrevChapter) runOnJS(handleSwipeNavigation)('prev');
+      runOnJS(handleSwipeEnd)(event.translationX, event.velocityX);
       swipeX.value = withSpring(0, { damping: 30, stiffness: 300 });
     });
 

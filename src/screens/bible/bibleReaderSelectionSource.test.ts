@@ -14,7 +14,7 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
-    /import \* as Clipboard from 'expo-clipboard';[\s\S]*import \{ selectionHaptic \} from '\.\.\/\.\.\/utils\/haptics';/s,
+    /import \* as Clipboard from 'expo-clipboard';[\s\S]*import \{[^}]*\bselectionHaptic\b[^}]*\} from '\.\.\/\.\.\/utils\/haptics';/s,
     'BibleReaderScreen should use a real clipboard implementation and the local haptic helper for copy feedback'
   );
 
