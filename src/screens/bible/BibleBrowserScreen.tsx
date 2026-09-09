@@ -2,7 +2,6 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   Modal,
@@ -53,7 +52,7 @@ import {
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { getBookIcon } from '../../constants/bookIcons';
+import { BookIcon } from '../../components/bible/BookIcon';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
@@ -487,11 +486,7 @@ export function BibleBrowserScreen() {
         >
           <View style={styles.bookRowLeft}>
             <View style={styles.bookIconWrap}>
-              <Image
-                source={getBookIcon(book.id)}
-                style={[styles.bookIcon, { tintColor: bookInk }]}
-                resizeMode="contain"
-              />
+              <BookIcon bookId={book.id} style={styles.bookIcon} color={bookInk} />
               {getTranslatorFeedbackBadge(bookFeedbackStatus)}
             </View>
             <Text style={[styles.bookName, { color: bookInk }]}>

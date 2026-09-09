@@ -1,3 +1,4 @@
+import { BookIcon } from '../../components/bible/BookIcon';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ReactElement } from 'react';
@@ -8,7 +9,6 @@ import {
   AppState,
   FlatList,
   LayoutAnimation,
-  Image,
   ImageBackground,
   InteractionManager,
   KeyboardAvoidingView,
@@ -49,7 +49,6 @@ import Svg, { Circle } from 'react-native-svg';
 import {
   getAdjacentBibleChapter,
   getBookById,
-  getBookIcon,
   getCompactTranslatedBookName,
   getTranslatedBookName,
 } from '../../constants';
@@ -4592,7 +4591,7 @@ export function BibleReaderScreen() {
             },
           ]}
         >
-          <Image source={getBookIcon(bookId)} style={styles.listenArtwork} resizeMode="cover" />
+          <BookIcon bookId={bookId} style={styles.listenArtwork} />
         </View>
 
         <View

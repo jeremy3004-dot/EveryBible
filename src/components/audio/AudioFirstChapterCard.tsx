@@ -1,8 +1,9 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { BookIcon } from '../bible/BookIcon';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAudioPlayer } from '../../hooks';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
-import { getBookById, getBookIcon } from '../../constants';
+import { getBookById } from '../../constants';
 import { useBibleStore } from '../../stores';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { formatPlaybackTime } from '../../utils';
@@ -72,7 +73,8 @@ export function AudioFirstChapterCard({
   const previousNavigationTarget =
     previousSequenceEntry ?? (chapter > 1 ? { bookId, chapter: chapter - 1 } : null);
   const nextNavigationTarget =
-    nextSequenceEntry ?? (book && chapter < book.chapters ? { bookId, chapter: chapter + 1 } : null);
+    nextSequenceEntry ??
+    (book && chapter < book.chapters ? { bookId, chapter: chapter + 1 } : null);
   const displayPosition = isCurrentChapter ? currentPosition : 0;
   const displayDuration = isCurrentChapter ? duration : 0;
 
@@ -138,7 +140,7 @@ export function AudioFirstChapterCard({
           },
         ]}
       >
-        <Image source={getBookIcon(bookId)} style={styles.artwork} resizeMode="cover" />
+        <BookIcon bookId={bookId} style={styles.artwork} />
       </View>
 
       <View style={styles.controlBlock}>

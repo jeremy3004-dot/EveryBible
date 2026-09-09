@@ -1,5 +1,6 @@
+import { BookIcon } from '../../components/bible/BookIcon';
 import { useMemo } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { getBookById, getBookIcon, getTranslatedBookName } from '../../constants';
+import { getBookById, getTranslatedBookName } from '../../constants';
 import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
@@ -209,7 +210,7 @@ export function ChapterSelectorScreen() {
                   },
                 ]}
               >
-                <Image source={getBookIcon(book.id)} style={styles.bookIcon} resizeMode="contain" />
+                <BookIcon bookId={book.id} style={styles.bookIcon} />
               </View>
 
               <Text style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}>

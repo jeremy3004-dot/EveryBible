@@ -1,6 +1,6 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getBookIcon } from '../../constants';
+import { BookIcon } from './BookIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { BookCompanionCardModel } from '../../screens/bible/bookCompanionModel';
 
@@ -34,7 +34,7 @@ export function CompanionCard({ item, onPress }: CompanionCardProps) {
           },
         ]}
       >
-        <Image source={getBookIcon(item.target.bookId)} style={styles.artworkIcon} resizeMode="contain" />
+        <BookIcon bookId={item.target.bookId} style={styles.artworkIcon} />
       </View>
 
       <View style={styles.copy}>
