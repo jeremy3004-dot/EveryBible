@@ -77,6 +77,11 @@ import {
   shouldAttemptChapterTextLoad,
   type ChapterPresentationMode,
 } from '../../services/bible/presentation';
+import {
+  findAdjacentAvailableChapter,
+  getChapterContentAvailability,
+} from '../../services/bible/contentAvailability';
+import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
@@ -1037,6 +1042,10 @@ export function BibleReaderScreen() {
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
+  // Every Language translations describe their audio only through a signed manifest, so
+  // the catalog row cannot say whether *this* chapter exists. Until the manifest resolves
+  // `audioChapters` is undefined and the reader behaves exactly as before.
+  const audioChapterMap = useTranslationContentSummary(currentTranslationInfo)?.audioChapters;
   const getTranslationAudioAvailability = (
     translation: Pick<BibleTranslation, 'id' | 'hasAudio' | 'downloadedAudioBooks'>,
     targetBookId?: string
@@ -1080,13 +1089,25 @@ export function BibleReaderScreen() {
   });
 
   const book = getBookById(bookId);
-  const audioEnabled = getAudioAvailability({
-    featureEnabled: config.features.audioEnabled,
-    translationHasAudio: Boolean(currentTranslationInfo?.hasAudio),
-    remoteAudioAvailable: isRemoteAudioAvailable(currentTranslation, bookId),
-    downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
-    bookId,
-  }).canPlayAudio;
+  // isRemoteAudioAvailable() can only say the manifest is addressable, not that this
+  // chapter is in it, so an uncovered chapter used to render the audio-first artwork
+  // behind a play button that could never play. With an exact map the chapter decides.
+  const chapterHasCoveredAudio =
+    audioChapterMap && book
+      ? getChapterContentAvailability(book, chapter, {
+          hasText: Boolean(currentTranslationInfo?.hasText),
+          hasAudio: Boolean(currentTranslationInfo?.hasAudio),
+          audioChapters: audioChapterMap,
+        }).hasAudio
+      : true;
+  const audioEnabled =
+    getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: Boolean(currentTranslationInfo?.hasAudio),
+      remoteAudioAvailable: isRemoteAudioAvailable(currentTranslation, bookId),
+      downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
+      bookId,
+    }).canPlayAudio && chapterHasCoveredAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
   // Reading-surface serif family for this translation's script. Latin → Lora;
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
@@ -2640,16 +2661,20 @@ export function BibleReaderScreen() {
   );
   const shouldConstrainChapterNavigationToSession =
     activeRhythmSession != null || showPlanSessionChrome;
-  const previousNavigationTarget =
-    previousSequenceEntry ??
-    (shouldConstrainChapterNavigationToSession
-      ? null
-      : getAdjacentBibleChapter(bookId, chapter, -1));
-  const nextNavigationTarget =
-    nextSequenceEntry ??
-    (shouldConstrainChapterNavigationToSession
-      ? null
-      : getAdjacentBibleChapter(bookId, chapter, 1));
+  // With an exact chapter map the chevrons skip past everything the translation does not
+  // cover — Bhujel runs Joshua 2 past Judges and Ruth to 1 Samuel 1 — and go dead at the ends
+  // instead of walking the reader into a chapter with nothing to show.
+  const resolveChapterNavigationTarget = (direction: -1 | 1) => {
+    if (shouldConstrainChapterNavigationToSession) {
+      return null;
+    }
+
+    return audioChapterMap
+      ? findAdjacentAvailableChapter(bookId, chapter, direction, audioChapterMap)
+      : getAdjacentBibleChapter(bookId, chapter, direction);
+  };
+  const previousNavigationTarget = previousSequenceEntry ?? resolveChapterNavigationTarget(-1);
+  const nextNavigationTarget = nextSequenceEntry ?? resolveChapterNavigationTarget(1);
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas = chapterPresentationMode === 'audio-first';

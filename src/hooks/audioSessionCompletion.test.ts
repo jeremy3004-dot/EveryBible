@@ -43,6 +43,11 @@ async function finishSession(repeatMode: string, queued: boolean, chapters = [7]
     getAdjacentAudioPlaybackSequenceEntry,
     hasAudioPlaybackSequenceEntry,
     getAdjacentBibleChapter: () => ({ bookId: 'PRO', chapter: 8 }),
+    // No exact chapter map in these sessions: BSB audio covers every chapter, so
+    // completion falls back to plain canonical adjacency.
+    audioChapterMapRef: { current: undefined },
+    getAudioChaptersForBook: () => undefined,
+    findAdjacentAvailableChapter: () => null,
     playChapterForTranslationRef: {
       current: async (...args: unknown[]) => {
         played.push(args);

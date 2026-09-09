@@ -12,11 +12,18 @@ export function resolveRepeatPlaybackTarget({
   bookId,
   chapter,
   totalChapters,
+  availableChapters,
 }: {
   repeatMode: RepeatMode;
   bookId: string | null;
   chapter: number | null;
   totalChapters: number | null;
+  /**
+   * Exact per-chapter audio coverage for this book, when the translation has one
+   * (Every Language sets are sparse — Psalms can be chapter 117 alone). Omitted or
+   * undefined keeps the plain 1..totalChapters walk.
+   */
+  availableChapters?: readonly number[] | undefined;
 }): { bookId: string; chapter: number } | null {
   if (repeatMode === 'off' || !bookId || !chapter || !totalChapters || totalChapters <= 0) {
     return null;
@@ -24,6 +31,15 @@ export function resolveRepeatPlaybackTarget({
 
   if (repeatMode === 'chapter') {
     return { bookId, chapter };
+  }
+
+  if (availableChapters) {
+    if (availableChapters.length === 0) {
+      return null;
+    }
+
+    const ordered = [...availableChapters].sort((a, b) => a - b);
+    return { bookId, chapter: ordered.find((entry) => entry > chapter) ?? ordered[0] };
   }
 
   return {

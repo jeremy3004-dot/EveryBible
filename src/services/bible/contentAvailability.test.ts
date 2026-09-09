@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildAudioChapterMapFromElManifest,
+  findAdjacentAvailableChapter,
+  getAudioChaptersForBook,
   getBookContentAvailability,
   getChapterContentAvailability,
+  isChapterAudioCovered,
   type TranslationContentSummary,
 } from './contentAvailability';
 
@@ -154,4 +157,81 @@ test('buildAudioChapterMapFromElManifest keeps only sorted, unique chapter numbe
   });
 
   assert.deepEqual(map, { PSA: [117], GEN: [1, 2, 3] });
+});
+
+// Bhujel-shaped: sparse Old Testament chapters, no New Testament at all.
+const sparseAudioChapters = {
+  JOS: [1, 2],
+  '1KI': [1],
+  PSA: [117],
+};
+
+test('findAdjacentAvailableChapter steps to the next covered chapter inside a book', () => {
+  assert.deepEqual(findAdjacentAvailableChapter('JOS', 1, 1, sparseAudioChapters), {
+    bookId: 'JOS',
+    chapter: 2,
+  });
+});
+
+test('findAdjacentAvailableChapter skips whole uncovered books in canonical order', () => {
+  // Judges, Ruth, 1-2 Samuel have no audio, so Joshua 2 leads to 1 Kings 1.
+  assert.deepEqual(findAdjacentAvailableChapter('JOS', 2, 1, sparseAudioChapters), {
+    bookId: '1KI',
+    chapter: 1,
+  });
+});
+
+test('findAdjacentAvailableChapter walks backwards to the last covered chapter of an earlier book', () => {
+  assert.deepEqual(findAdjacentAvailableChapter('PSA', 117, -1, sparseAudioChapters), {
+    bookId: '1KI',
+    chapter: 1,
+  });
+});
+
+test('findAdjacentAvailableChapter returns null at both ends of the covered set', () => {
+  assert.equal(findAdjacentAvailableChapter('JOS', 1, -1, sparseAudioChapters), null);
+  assert.equal(findAdjacentAvailableChapter('PSA', 117, 1, sparseAudioChapters), null);
+});
+
+test('findAdjacentAvailableChapter works from a chapter that has no audio itself', () => {
+  assert.deepEqual(findAdjacentAvailableChapter('JDG', 5, 1, sparseAudioChapters), {
+    bookId: '1KI',
+    chapter: 1,
+  });
+  assert.deepEqual(findAdjacentAvailableChapter('JDG', 5, -1, sparseAudioChapters), {
+    bookId: 'JOS',
+    chapter: 2,
+  });
+});
+
+test('findAdjacentAvailableChapter ignores chapter order inside the map and unknown books', () => {
+  assert.deepEqual(findAdjacentAvailableChapter('JOS', 1, 1, { JOS: [3, 2, 1] }), {
+    bookId: 'JOS',
+    chapter: 2,
+  });
+  assert.equal(findAdjacentAvailableChapter('NOPE', 1, 1, sparseAudioChapters), null);
+});
+
+test('getAudioChaptersForBook matches manifest keys regardless of case', () => {
+  assert.deepEqual(getAudioChaptersForBook({ jos: [1, 2] }, 'JOS'), [1, 2]);
+  assert.equal(getAudioChaptersForBook(undefined, 'JOS'), undefined);
+  assert.equal(getAudioChaptersForBook(sparseAudioChapters, 'MAT'), undefined);
+});
+
+test('isChapterAudioCovered stays optimistic until a manifest resolves', () => {
+  assert.equal(isChapterAudioCovered(undefined, 'MAT', 7), true);
+});
+
+test('isChapterAudioCovered answers from the exact chapter map once it resolves', () => {
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'JOS', 2), true);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'PSA', 117), true);
+  // Bhujel's real shape: nineteen Old Testament books, no Matthew at all.
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'MAT', 7), false);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'JOS', 3), false);
+  assert.equal(isChapterAudioCovered(sparseAudioChapters, 'PSA', 1), false);
+});
+
+test('isChapterAudioCovered tolerates manifest keys of any case and an empty map', () => {
+  assert.equal(isChapterAudioCovered({ jos: [1, 2] }, 'JOS', 2), true);
+  assert.equal(isChapterAudioCovered({}, 'JOS', 1), false);
 });

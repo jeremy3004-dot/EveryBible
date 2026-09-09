@@ -32,6 +32,7 @@ import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -54,6 +55,8 @@ import {
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import { formatDailyScriptureReferenceLabel } from '../../services/bible/presentation';
+import { getDailyScriptureReference } from '../../services/bible/dailyScripture';
+import { isChapterAudioCovered } from '../../services/bible/contentAvailability';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
@@ -188,8 +191,20 @@ export function HomeScreen() {
   const currentTranslationInfo = translations.find(
     (translation) => translation.id === currentTranslation
   );
+  // isRemoteAudioAvailable() can only say an Every Language manifest is addressable, never
+  // that today's chapter is inside it, so an audio-only set with no Matthew (Bhujel) used to
+  // offer "available as audio" plus a Listen button for Matthew 7:7. The exact chapter map
+  // decides instead; until the manifest resolves it is undefined and Home stays optimistic.
+  const dailyAudioChapters = useTranslationContentSummary(currentTranslationInfo)?.audioChapters;
+  const dailyScriptureReference = getDailyScriptureReference();
   const remoteAudioAvailable =
-    config.features.audioEnabled && isRemoteAudioAvailable(currentTranslation);
+    config.features.audioEnabled &&
+    isRemoteAudioAvailable(currentTranslation) &&
+    isChapterAudioCovered(
+      dailyAudioChapters,
+      dailyScriptureReference.bookId,
+      dailyScriptureReference.chapter
+    );
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
 
   const completedLessons = useGatherStore((state) => state.completedLessons);
@@ -499,17 +514,21 @@ export function HomeScreen() {
           bookId: dailyScripture.bookId,
         })
       : null;
-  const shouldShowDailyAudio =
+  // Downloaded audio is tracked per book, so a partially covered book (Joshua 1-2) would
+  // otherwise re-enable Listen for an uncovered chapter of that same book.
+  const canPlayDailyAudio =
     dailyScripture != null &&
-    dailyAudioAvailability?.canPlayAudio &&
-    dailyScripture.kind !== 'verse-text';
+    Boolean(dailyAudioAvailability?.canPlayAudio) &&
+    isChapterAudioCovered(dailyAudioChapters, dailyScripture.bookId, dailyScripture.chapter);
+  const shouldShowDailyAudio =
+    dailyScripture != null && canPlayDailyAudio && dailyScripture.kind !== 'verse-text';
   const dailyAudioKind =
     shouldShowDailyAudio && dailyScripture?.kind === 'empty'
       ? currentTranslationInfo?.audioGranularity === 'verse'
         ? 'verse-audio'
         : 'section-audio'
       : dailyScripture?.kind;
-  const canListenToDailyScripture = dailyScripture != null && dailyAudioAvailability?.canPlayAudio;
+  const canListenToDailyScripture = canPlayDailyAudio;
   const verseCardTitleLabel =
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
   const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
@@ -537,7 +556,7 @@ export function HomeScreen() {
   );
 
   const handlePlayDailyAudio = () => {
-    if (!dailyScripture || !dailyAudioAvailability?.canPlayAudio) {
+    if (!dailyScripture || !canPlayDailyAudio) {
       return;
     }
 

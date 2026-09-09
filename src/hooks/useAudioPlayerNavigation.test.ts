@@ -56,7 +56,20 @@ function mountPlayer() {
       'react-i18next': { useTranslation: () => ({ t: (key: string) => key }) },
       'zustand/react/shallow': { useShallow: (selector: unknown) => selector },
       '../stores/audioStore': { useAudioStore },
-      '../stores/bibleStore': { useBibleStore: { getState: () => ({ translations: [] }) } },
+      '../stores/bibleStore': {
+        useBibleStore: Object.assign(
+          (selector: (state: { translations: unknown[] }) => unknown) =>
+            selector({ translations: [] }),
+          { getState: () => ({ translations: [] }) }
+        ),
+      },
+      // No Every Language manifest in these navigation cases, so chapter walks fall
+      // back to plain canonical adjacency.
+      './useTranslationContentSummary': { useTranslationContentSummary: () => undefined },
+      '../services/bible/contentAvailability': {
+        findAdjacentAvailableChapter: () => null,
+        getAudioChaptersForBook: () => undefined,
+      },
       '../stores/libraryStore': {
         useLibraryStore: { getState: () => ({ recordHistory: () => {} }) },
       },

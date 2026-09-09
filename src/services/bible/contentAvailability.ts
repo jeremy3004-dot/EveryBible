@@ -1,4 +1,4 @@
-import type { BibleBook } from '../../constants/books';
+import { bibleBooks, type AdjacentBibleChapter, type BibleBook } from '../../constants/books';
 import type { TranslationAudioCoverage } from '../../types';
 import type { ElAudioManifest } from '../elMedia/elManifestModel';
 
@@ -143,4 +143,81 @@ export function buildAudioChapterMapFromElManifest(
   }
 
   return map;
+}
+
+/** The covered chapters for a book, tolerating manifest keys of any case. */
+export function getAudioChaptersForBook(
+  audioChapters: AudioChapterMap | undefined,
+  bookId: string
+): readonly number[] | undefined {
+  return findBookEntry(audioChapters, bookId);
+}
+
+/**
+ * Whether a specific chapter is in the resolved audio manifest.
+ *
+ * isRemoteAudioAvailable() can only say an Every Language manifest is *addressable*, so
+ * consumers that name one chapter — Home's daily scripture, the reader — must ask the
+ * exact map instead. `undefined` means the manifest has not resolved yet (or the
+ * translation has none), and the answer stays optimistic, matching getBookContentAvailability.
+ */
+export function isChapterAudioCovered(
+  audioChapters: AudioChapterMap | undefined,
+  bookId: string,
+  chapter: number
+): boolean {
+  if (!audioChapters) {
+    return true;
+  }
+
+  return getAudioChaptersForBook(audioChapters, bookId)?.includes(chapter) ?? false;
+}
+
+/**
+ * The nearest chapter that actually has audio, walking `direction` from
+ * (bookId, chapter) through the canonical book order.
+ *
+ * Only meaningful with an exact chapter map: an Every Language set can cover two
+ * chapters of Joshua, one of 1 Kings and Psalm 117 alone, so plain adjacency
+ * (getAdjacentBibleChapter) walks the reader into chapters that can never play.
+ * The starting chapter itself is never returned, and neither is anything past the
+ * ends of the covered set — callers treat null as "stop here".
+ */
+export function findAdjacentAvailableChapter(
+  bookId: string,
+  chapter: number,
+  direction: -1 | 1,
+  audioChapters: AudioChapterMap
+): AdjacentBibleChapter | null {
+  const startIndex = bibleBooks.findIndex((book) => book.id === bookId);
+  if (startIndex === -1) {
+    return null;
+  }
+
+  for (let index = startIndex; index >= 0 && index < bibleBooks.length; index += direction) {
+    const candidateBookId = bibleBooks[index].id;
+    const chapters = getAudioChaptersForBook(audioChapters, candidateBookId);
+    if (!chapters || chapters.length === 0) {
+      continue;
+    }
+
+    // Sorting defensively: the map usually comes from buildAudioChapterMapFromElManifest
+    // (already sorted), but a hand-built map should not silently pick the wrong chapter.
+    const ordered = [...chapters].sort((a, b) => a - b);
+    const reachable =
+      index === startIndex
+        ? ordered.filter((entry) => (direction === 1 ? entry > chapter : entry < chapter))
+        : ordered;
+
+    if (reachable.length === 0) {
+      continue;
+    }
+
+    return {
+      bookId: candidateBookId,
+      chapter: direction === 1 ? reachable[0] : reachable[reachable.length - 1],
+    };
+  }
+
+  return null;
 }

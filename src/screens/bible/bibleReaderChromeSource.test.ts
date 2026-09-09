@@ -810,14 +810,26 @@ test('BibleReaderScreen resolves chapter navigation targets across book boundari
 
   assert.match(
     source,
-    /getAdjacentBibleChapter\(bookId, chapter, -1\)/,
-    'BibleReaderScreen should resolve the previous chapter target through the canonical adjacent-book helper'
+    /getAdjacentBibleChapter\(bookId, chapter, direction\)/,
+    'BibleReaderScreen should resolve chapter targets through the canonical adjacent-book helper'
   );
 
   assert.match(
     source,
-    /getAdjacentBibleChapter\(bookId, chapter, 1\)/,
-    'BibleReaderScreen should resolve the next chapter target through the canonical adjacent-book helper'
+    /resolveChapterNavigationTarget\(-1\)/,
+    'BibleReaderScreen should resolve the previous chapter target through the shared resolver'
+  );
+
+  assert.match(
+    source,
+    /resolveChapterNavigationTarget\(1\)/,
+    'BibleReaderScreen should resolve the next chapter target through the shared resolver'
+  );
+
+  assert.match(
+    source,
+    /findAdjacentAvailableChapter\(bookId, chapter, direction, audioChapterMap\)/,
+    'BibleReaderScreen should skip chapters an exact audio chapter map does not cover'
   );
 });
 
