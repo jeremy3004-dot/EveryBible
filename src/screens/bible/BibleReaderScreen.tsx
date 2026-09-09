@@ -1113,6 +1113,10 @@ export function BibleReaderScreen() {
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
   // glyphs render instead of tofu. `language` is a display name ('Hindi').
   const readingFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
+  // Bold companion face for the prose lead-ins inside poetry verses. React Native will not
+  // synthesise a bold weight for a named custom family, so the 700 face has to be asked for
+  // by name; for non-Latin scripts this is undefined and fontWeight drives the platform serif.
+  const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
@@ -4976,6 +4980,10 @@ export function BibleReaderScreen() {
                   styles.structuredVerseLine,
                   lineIndex > 0 ? styles.structuredVerseContinuation : null,
                   isSelected ? selectedVerseDecorationStyle : null,
+                  line.prose ? styles.structuredVerseProse : null,
+                  line.prose && readingFontFamilyBold
+                    ? { fontFamily: readingFontFamilyBold }
+                    : null,
                   line.indentLevel
                     ? { marginLeft: structuredVerseIndentSize * line.indentLevel }
                     : null,
@@ -7124,6 +7132,13 @@ const styles = StyleSheet.create({
   },
   structuredVerseContinuation: {
     marginTop: 2,
+  },
+  // The prose lead-in that introduces a quotation ("For to which of the angels did God ever
+  // say:"). Bold so the introduction frames the poetry rather than reading as part of it, and
+  // never indented — the poetry it introduces carries the indent.
+  structuredVerseProse: {
+    fontWeight: '700',
+    marginLeft: 0,
   },
   sectionHeading: {
     ...typography.readingHeading,

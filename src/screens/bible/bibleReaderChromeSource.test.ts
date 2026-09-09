@@ -1493,3 +1493,44 @@ test('invisible animated top chrome excludes interaction without disabling liste
     'Android must exclude hidden descendants while nonanimated listen chrome stays reachable'
   );
 });
+
+test('the reader reinstates and emphasises prose lead-ins inside poetry verses', () => {
+  const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
+  const databaseSource = readRelativeSource('../../services/bible/bibleDatabase.ts');
+
+  assert.equal(
+    databaseSource.includes('reconcileVerseFormattingWithText'),
+    true,
+    'Verses read from the bundled database must reconcile poetry lines against the verse text, or prose lead-ins like Hebrews 1:5 are dropped from the reader'
+  );
+
+  assert.equal(
+    (databaseSource.match(/reconcileVerseFormattingWithText\(/g) ?? []).length,
+    2,
+    'Both the chapter read path and the search read path must reconcile, so search results are not missing text either'
+  );
+
+  assert.match(
+    readerSource,
+    /line\.prose \? styles\.structuredVerseProse : null/,
+    'Recovered prose lines must get their own style rather than rendering as poetry'
+  );
+
+  assert.match(
+    readerSource,
+    /line\.prose && readingFontFamilyBold/,
+    'Prose lead-ins must use the bold serif face by name — React Native will not synthesise a bold weight for a named custom font family'
+  );
+
+  assert.match(
+    readerSource,
+    /structuredVerseProse:[\s\S]*fontWeight: '700'/,
+    'The prose style should still carry fontWeight so the platform serif fallback renders bold for non-Latin scripts'
+  );
+
+  assert.match(
+    readerSource,
+    /getReadingFontFamily\(currentTranslationInfo\?\.language, 700\)/,
+    'The bold reading face must be resolved for the active translation script'
+  );
+});

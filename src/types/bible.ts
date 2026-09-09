@@ -1,6 +1,13 @@
 export interface VerseFormattingLine {
   text: string;
   indentLevel?: number;
+  /**
+   * A run of ordinary prose inside an otherwise poetic verse — typically the lead-in that
+   * introduces a quotation ("For to which of the angels did God ever say:"). Stored poetry
+   * lines cover only the quoted couplets, so these are recovered from the verse text at read
+   * time by reconcileVerseFormattingWithText. Rendered flush left, never indented as poetry.
+   */
+  prose?: boolean;
 }
 
 export interface VerseFormatting {
