@@ -830,6 +830,21 @@ test('invalidateInstalledBibleDatabaseAtPath ignores a path that names no databa
   assert.deepEqual(closes, [], 'an unparsable or uncached path is a no-op, not an error');
 });
 
+test('invalidateInstalledBibleDatabaseAtPath drops cached chapter text even with no open handle', async () => {
+  const { invalidateInstalledBibleDatabaseAtPath } = await loadModule();
+  const { chapterCache } = await import('./chapterCache');
+  const cachedVerse: Verse[] = [{ id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'old' }];
+  await chapterCache.get('installed:web', async () => cachedVerse);
+
+  await invalidateInstalledBibleDatabaseAtPath(`${installedDirectory}/never-opened.db`);
+
+  const reread = await chapterCache.get('installed:web', async () => [
+    { id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'new' },
+  ]);
+  assert.equal(reread[0]?.text, 'new', 'a replaced pack must not keep serving the old text');
+  chapterCache.clear();
+});
+
 // ─── Chapter reads ────────────────────────────────────────────────────────────
 
 test('getChapter returns only the requested translation, ordered by verse', async () => {

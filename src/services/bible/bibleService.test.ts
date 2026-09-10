@@ -186,6 +186,12 @@ test('the daily scripture initialises the bundled database when it is not ready 
   assert.equal(db.initCalls, 1);
 });
 
+test('prefetching does nothing until the bundled data has been initialised', async () => {
+  await service.prefetchNextChapter('bsb', 'ROM', 8);
+
+  assert.deepEqual(db.chapterReads, [], 'a speculative read must not race the startup import');
+});
+
 test('concurrent initialisation requests share a single database initialisation', async () => {
   const gate = defer<{ verseCount: number }>();
   db.initResult = () => gate.promise;
@@ -535,5 +541,39 @@ test('the chapter cache can be cleared without disturbing the service', async ()
   chapterCache.clear();
   await service.getChapter('bsb', 'ROM', 8);
 
+  assert.equal(db.chapterReads.length, 2);
+});
+
+test('a foreground read is not queued behind a speculative one', async () => {
+  const prefetchGate = defer<Verse[]>();
+  db.chapterImpl = (read) =>
+    read.chapter === 9
+      ? prefetchGate.promise
+      : Promise.resolve([makeVerse(read.bookId, read.chapter, 1, 'foreground')]);
+  const speculative = service.prefetchNextChapter('bsb', 'ROM', 8);
+
+  const foreground = await service.getChapter('bsb', 'PHP', 1);
+
+  assert.equal(foreground[0]?.text, 'foreground');
+  assert.deepEqual(db.chapterReads, [
+    { translationId: 'bsb', bookId: 'ROM', chapter: 9 },
+    { translationId: 'bsb', bookId: 'PHP', chapter: 1 },
+  ]);
+  prefetchGate.resolve([]);
+  await speculative;
+});
+
+test('a read whose source changes while it is in flight is retried against the new source', async () => {
+  const gate = defer<Verse[]>();
+  db.chapterImpl = () => gate.promise;
+  const pending = service.getChapter('bsb', 'ROM', 8);
+  await Promise.resolve();
+
+  db.sourceKeyGeneration += 1;
+  db.chapterImpl = (read) =>
+    Promise.resolve([makeVerse(read.bookId, read.chapter, 28, 'installed')]);
+  gate.resolve([makeVerse('ROM', 8, 28, 'bundled')]);
+
+  assert.equal((await pending)[0]?.text, 'installed', 'the stale bundled read is discarded');
   assert.equal(db.chapterReads.length, 2);
 });

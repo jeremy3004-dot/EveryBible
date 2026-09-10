@@ -1,10 +1,9 @@
 /**
  * Behavioural tests for translation pack download + install, loaded through the real loader.
  *
- * `cloudTranslationInstall.test.ts` covers the same installer through a `vm` transpile of the
- * source; this file exercises the shipped module itself with `expo-sqlite` backed by real
- * `node:sqlite` databases and `expo-file-system/legacy` backed by a real temp directory, so the
- * SQL, the SHA-256 verification (pure-JS, no WebCrypto) and the file moves all really happen.
+ * This file exercises the shipped module itself with `expo-sqlite` backed by real `node:sqlite`
+ * databases and `expo-file-system/legacy` backed by a real temp directory, so the SQL, the
+ * SHA-256 verification (pure-JS, no WebCrypto) and the file moves all really happen.
  *
  * The module never calls `fetch`; downloads go through `FileSystem.downloadAsync`, which the
  * fake below scripts per test.
@@ -110,13 +109,24 @@ const opens: Array<{ name: string; directory: string; options: unknown }> = [];
 const closedPaths: string[] = [];
 const openHandles: Array<{ path: string; closed: boolean }> = [];
 
+// `walByDefault` mimics a platform whose SQLite opens databases in WAL mode: the installer
+// has to force DELETE journalling, or activation moves the main file and strands the sidecar.
+const sqliteFaults = { failOpen: false, walByDefault: false };
+
 mockModule(mock, 'expo-sqlite', {
   openDatabaseAsync: async (name: string, options: unknown, directory?: string) => {
+    if (sqliteFaults.failOpen) {
+      throw new Error('native sqlite open failed');
+    }
     const resolvedDirectory = directory ?? `${root}/SQLite`;
     mkdirSync(resolvedDirectory, { recursive: true });
     const path = `${resolvedDirectory}/${name}`;
     opens.push({ name, directory: resolvedDirectory, options });
+    const isNewFile = !existsSync(path);
     const handle = new DatabaseSync(path);
+    if (sqliteFaults.walByDefault && isNewFile) {
+      handle.exec('PRAGMA journal_mode = WAL');
+    }
     const record = { path, closed: false };
     openHandles.push(record);
 
@@ -249,6 +259,7 @@ interface BackendScript {
   countError?: string;
   pageError?: string;
   verses?: number;
+  formatting?: unknown;
 }
 
 function scriptBackend(script: BackendScript): void {
@@ -279,7 +290,7 @@ function scriptBackend(script: BackendScript): void {
         verse: (index % 50) + 1,
         text: `Verse number ${index + 1}`,
         heading: index === 0 ? 'The Beginning' : null,
-        formatting: null,
+        formatting: script.formatting ?? null,
       });
     }
     return { data: rows };
@@ -322,6 +333,8 @@ afterEach(() => {
   download.bytes = buildPackBytes();
   fileSystemFaults.failMove = null;
   fileSystemFaults.unreadableBytes = false;
+  sqliteFaults.failOpen = false;
+  sqliteFaults.walByDefault = false;
   fileSystemCalls.length = 0;
   opens.length = 0;
   closedPaths.length = 0;
@@ -805,4 +818,168 @@ test('downloadCatalogTextPack cleans up staging artifacts when the download thro
 
   assert.equal(existsSync(stagingPath('leftover')), false);
   assert.equal(existsSync(`${stagingPath('leftover')}-wal`), false);
+});
+
+test('an invalid pack is rejected before the working install is touched at all', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('untouched'), buildPackBytes({ verses: 2 }));
+  download.bytes = buildPackBytes({ versesTable: false });
+  fileSystemCalls.length = 0;
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'untouched',
+        downloadUrl: 'https://media.example.test/untouched.db',
+        expectedVerseCount: 1,
+      }),
+    /missing the verses table/
+  );
+
+  assert.equal(readVerseCount(packPath('untouched')), 2);
+  assert.deepEqual(
+    fileSystemCalls.filter((call) => call.startsWith('move:')),
+    [],
+    'verification runs before the installed copy is backed up or replaced'
+  );
+});
+
+// ─── Native-crash and Hermes guards ───────────────────────────────────────────
+
+test('every sqlite handle an install opens disables expo-sqlite auto-finalization', async () => {
+  const { downloadCloudTranslation, downloadCatalogTextPack } = await loadModule();
+  scriptBackend({ catalogId: 'finalize', count: 3, verses: 3 });
+
+  await downloadCloudTranslation('finalize');
+  await downloadCatalogTextPack({
+    translationId: 'finalize2',
+    downloadUrl: 'https://media.example.test/finalize2.db',
+    expectedVerseCount: 3,
+  });
+
+  assert.ok(opens.length >= 2);
+  assert.deepEqual(
+    [...new Set(opens.map((entry) => JSON.stringify(entry.options)))],
+    [JSON.stringify({ finalizeUnusedStatementsBeforeClosing: false })],
+    'expo-sqlite crashes natively in closeDatabase when it auto-finalizes statements'
+  );
+});
+
+test('an installed pack is a self-contained file with no journal sidecar left beside it', async () => {
+  const { downloadCloudTranslation } = await loadModule();
+  scriptBackend({ catalogId: 'selfcontained', count: 3, verses: 3 });
+  sqliteFaults.walByDefault = true;
+
+  const installedPath = await downloadCloudTranslation('selfcontained');
+
+  assert.equal(existsSync(`${installedPath}-wal`), false);
+  assert.equal(existsSync(`${installedPath}-shm`), false);
+  const database = new DatabaseSync(installedPath, { readOnly: true });
+  const mode = (database.prepare('PRAGMA journal_mode').get() as { journal_mode: string })
+    .journal_mode;
+  database.close();
+  assert.equal(mode, 'delete', 'a WAL pack would strand its rows when only the main file moves');
+});
+
+test('a progress callback that throws mid-write closes the handle and keeps the old pack', async () => {
+  const { downloadCloudTranslation } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('throwing'), buildPackBytes({ verses: 2 }));
+  scriptBackend({ catalogId: 'throwing', count: 3, verses: 3 });
+
+  await assert.rejects(
+    () =>
+      downloadCloudTranslation('throwing', (progress) => {
+        if (progress.phase === 'writing' && progress.versesDownloaded > 0) {
+          throw new Error('the reporter blew up');
+        }
+      }),
+    /the reporter blew up/
+  );
+
+  assert.equal(readVerseCount(packPath('throwing')), 2);
+  assert.ok(openHandles.length > 0);
+  assert.ok(openHandles.every((handle) => handle.closed));
+  assert.equal(existsSync(stagingPath('throwing')), false);
+});
+
+test('an install whose sqlite open fails leaves the previous pack and no staging file', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('unopenable'), buildPackBytes({ verses: 2 }));
+  sqliteFaults.failOpen = true;
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'unopenable',
+        downloadUrl: 'https://media.example.test/unopenable.db',
+        expectedVerseCount: 3,
+      }),
+    /native sqlite open failed/
+  );
+
+  assert.equal(readVerseCount(packPath('unopenable')), 2);
+  assert.equal(existsSync(stagingPath('unopenable')), false);
+});
+
+test('checksum verification runs on Hermes, where Web Crypto and atob do not exist', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const expectedSha256 = createHash('sha256').update(download.bytes).digest('hex');
+  const savedCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const savedAtob = Object.getOwnPropertyDescriptor(globalThis, 'atob');
+  Reflect.deleteProperty(globalThis, 'crypto');
+  Reflect.deleteProperty(globalThis, 'atob');
+
+  try {
+    assert.equal(
+      readVerseCount(
+        await downloadCatalogTextPack({
+          translationId: 'hermes',
+          downloadUrl: 'https://media.example.test/hermes.db',
+          expectedVerseCount: 3,
+          expectedSha256,
+        })
+      ),
+      3
+    );
+
+    await assert.rejects(
+      () =>
+        downloadCatalogTextPack({
+          translationId: 'hermesbad',
+          downloadUrl: 'https://media.example.test/hermesbad.db',
+          expectedVerseCount: 3,
+          expectedSha256: 'a'.repeat(64),
+        }),
+      /checksum mismatch/,
+      'a pure-JS digest must still reject the wrong bytes, never pass them through'
+    );
+  } finally {
+    if (savedCrypto) Object.defineProperty(globalThis, 'crypto', savedCrypto);
+    if (savedAtob) Object.defineProperty(globalThis, 'atob', savedAtob);
+  }
+});
+
+test('downloadCloudTranslation stores the verse formatting the backend sends', async () => {
+  const { downloadCloudTranslation } = await loadModule();
+  scriptBackend({
+    catalogId: 'formatted',
+    count: 1,
+    verses: 1,
+    formatting: { mode: 'poetry', lines: [{ text: 'Praise the LORD', indentLevel: 1 }] },
+  });
+
+  const installedPath = await downloadCloudTranslation('formatted');
+
+  const database = new DatabaseSync(installedPath, { readOnly: true });
+  const row = database.prepare('SELECT formatting FROM verses LIMIT 1').get() as {
+    formatting: string | null;
+  };
+  database.close();
+  assert.deepEqual(JSON.parse(row.formatting ?? 'null'), {
+    mode: 'poetry',
+    lines: [{ text: 'Praise the LORD', indentLevel: 1 }],
+  });
 });

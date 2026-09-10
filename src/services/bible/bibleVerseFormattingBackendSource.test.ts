@@ -1,3 +1,6 @@
+// Contract guard: checks the shape of the Supabase migration, the generated row types and the
+// text-pack export script — real config/data files, not app logic. Behaviour lives in
+// cloudTranslationService.behavior.test.ts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -9,8 +12,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const readRepoFile = (relativePath: string): string =>
   readFileSync(path.join(REPO_ROOT, relativePath), 'utf8');
 
-const FORMAT_MIGRATION =
-  'supabase/migrations/20260412113000_add_formatting_to_bible_verses.sql';
+const FORMAT_MIGRATION = 'supabase/migrations/20260412113000_add_formatting_to_bible_verses.sql';
 
 test('bible_verses formatting rollout adds a dedicated Supabase migration', () => {
   const migrationPath = path.join(REPO_ROOT, FORMAT_MIGRATION);
@@ -38,7 +40,6 @@ test('bible_verses formatting rollout adds a dedicated Supabase migration', () =
 test('remote text-pack pipeline preserves verse formatting payloads from Supabase', () => {
   const supabaseTypes = readRepoFile('src/services/supabase/types.ts');
   const exportScript = readRepoFile('scripts/export_translation_text_packs.py');
-  const cloudBootstrap = readRepoFile('src/services/bible/cloudTranslationService.ts');
 
   assert.match(
     supabaseTypes,
@@ -59,10 +60,5 @@ test('remote text-pack pipeline preserves verse formatting payloads from Supabas
     exportScript,
     /json\.dumps\(row\["formatting"\]/,
     'Expected exported text packs to serialize formatting payloads from Supabase rows'
-  );
-  assert.match(
-    cloudBootstrap,
-    /serializeVerseFormatting\(row\.formatting\)/,
-    'Expected downloaded translations to write Supabase formatting payloads into the local SQLite cache'
   );
 });
