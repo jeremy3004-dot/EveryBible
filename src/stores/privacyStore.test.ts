@@ -47,6 +47,8 @@ mockModule(mock, 'expo-secure-store', {
 });
 
 const iconCalls: PrivacyAppIconMode[] = [];
+// A device that supports alternate icons but can refuse a particular switch.
+let setAppIconResult = true;
 mockModule(
   mock,
   'react-native',
@@ -55,7 +57,7 @@ mockModule(
       EveryBiblePrivacyModule: {
         setAppIcon: async (mode: PrivacyAppIconMode) => {
           iconCalls.push(mode);
-          return true;
+          return setAppIconResult;
         },
         getCurrentAppIcon: async () => 'standard',
       },
@@ -107,6 +109,7 @@ beforeEach(() => {
   mmkv.set(PRIVACY_INSTALLATION_MARKER_KEY, '1');
   pendingRead = null;
   readFailure = null;
+  setAppIconResult = true;
 });
 
 test('the app starts locked and uninitialized so no content shows before privacy is resolved', () => {
@@ -411,6 +414,17 @@ test('locking a standard install leaves the app open because there is nothing to
   assert.equal(store().isLocked, false);
 });
 
+test('a discreet install whose pin was lost is not locked again on backgrounding', async () => {
+  // Without a stored pin there is nothing to unlock with, so re-locking would
+  // shut the owner out of their own Bible until they reinstalled the app.
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: null }));
+  await store().initialize();
+
+  store().lock();
+
+  assert.equal(store().isLocked, false);
+});
+
 test('locking before initialization keeps the app locked', () => {
   store().lock();
 
@@ -451,6 +465,13 @@ test('the correct pin unlocks the app', async () => {
   assert.equal(store().isLocked, false);
 });
 
+test('a well-formed pin entered on a standard install does not unlock anything', async () => {
+  await store().initialize();
+
+  assert.equal(await store().unlock('1234'), false);
+  assert.equal(store().isLocked, false, 'a standard install was never locked to begin with');
+});
+
 test('disabling privacy erases the keychain settings and reopens the app', async () => {
   secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
   await store().initialize();
@@ -477,4 +498,33 @@ test('disabling privacy from an unavailable state still leaves the app usable', 
   assert.equal(store().initializationError, null);
   assert.equal(store().isInitialized, true);
   assert.equal(store().isLocked, false);
+});
+
+// QUESTION for review: is this the right failure mode? clearPrivacySettings
+// deletes the keychain entry BEFORE it restores the standard icon, so an icon
+// restore that a supported device refuses leaves the app believing privacy is
+// still on (mode discreet, hasPin true) while the pin that would unlock it no
+// longer exists. The next background lock is then unopenable until reinstall.
+// Documented rather than fixed: it needs a product call on whether the store
+// should fall back to the standard state anyway, or the service should restore
+// the icon first. No production change made.
+test('a refused icon restore leaves disablePrivacy rejecting with privacy still switched on', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+  usePrivacyStore.setState({ isLocked: false });
+  setAppIconResult = false;
+
+  await assert.rejects(
+    () => store().disablePrivacy(),
+    /Failed to apply the standard privacy app icon/
+  );
+
+  assert.equal(store().mode, 'discreet');
+  assert.equal(store().hasPin, true);
+  assert.equal(
+    secureStore.has(PRIVACY_SETTINGS_KEY),
+    false,
+    'the stored pin is already gone even though the store still believes in it'
+  );
+  assert.equal(await store().unlock('1234'), false);
 });

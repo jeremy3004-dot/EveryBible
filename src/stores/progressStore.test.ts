@@ -233,6 +233,18 @@ test('the period counters only count chapters read inside each window', (t) => {
   );
 });
 
+test('the year window opens on 1 January, not on the current day of the month', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 9) });
+  useProgressStore.setState({
+    chaptersRead: {
+      GEN_1: localNoon(2026, 1, 2), // early January, inside this year
+      GEN_2: localNoon(2025, 12, 31), // last year, outside
+    },
+  });
+
+  assert.equal(state().getYearCount(), 1);
+});
+
 test('a chapter read at exactly local midnight counts toward today', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 9) });
   useProgressStore.setState({
@@ -306,8 +318,11 @@ test('a zero, negative or non-finite duration records the listen without a time 
   state().markChapterListened('GEN', 1, 0);
   state().markChapterListened('GEN', 2, -5000);
   state().markChapterListened('GEN', 3, Number.NaN);
+  // An infinite duration is reachable from a player that reports a live/unknown
+  // stream length; it must never poison the day's minute total.
+  state().markChapterListened('GEN', 4, Number.POSITIVE_INFINITY);
 
-  assert.deepEqual(Object.keys(state().chaptersListened), ['GEN_1', 'GEN_2', 'GEN_3']);
+  assert.deepEqual(Object.keys(state().chaptersListened), ['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4']);
   assert.deepEqual(state().listeningMsByDate, {});
 });
 
@@ -381,6 +396,24 @@ test('a differing chapter timestamp is enough to apply synced progress', () => {
   });
 
   assert.deepEqual(state().chaptersRead, { GEN_1: 999 });
+});
+
+test('a synced ledger with a chapter removed shrinks the local ledger', () => {
+  // The server dropping a chapter is only visible in the key count: every key it
+  // still sends matches, so the per-entry comparison alone would call this a no-op.
+  useProgressStore.setState({
+    chaptersRead: { GEN_1: 100, GEN_2: 200 },
+    streakDays: 4,
+    lastReadDate: '2026-09-08',
+  });
+
+  state().applySyncedProgress({
+    chaptersRead: { GEN_1: 100 },
+    streakDays: 4,
+    lastReadDate: '2026-09-08',
+  });
+
+  assert.deepEqual(state().chaptersRead, { GEN_1: 100 });
 });
 
 test('applying synced progress leaves the listening ledger alone', () => {

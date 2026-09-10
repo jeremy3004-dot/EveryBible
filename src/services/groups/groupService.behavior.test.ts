@@ -43,6 +43,15 @@ const failAuthLookup = (message: string) => {
   })) as unknown as typeof supabase.auth.handlers.getUser;
 };
 
+/**
+ * Pin `Math.random` to a fixed sequence so join-code generation is exact. Values
+ * beyond the sequence repeat the last one; the caller restores the stub.
+ */
+const seedRandom = (values: number[]) => {
+  let index = 0;
+  return mock.method(Math, 'random', () => values[Math.min(index++, values.length - 1)]);
+};
+
 let service: typeof import('./groupService');
 
 before(async () => {
@@ -203,6 +212,23 @@ test('creating a group generates a six-character join code from the unambiguous 
   assert.match(insert.join_code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
 });
 
+test('every join-code position is drawn independently from the alphabet', async () => {
+  // Math.random is the only randomness seam in the service. Pinning it turns the
+  // code into an exact expectation, which is what distinguishes a real per-index
+  // draw from an implementation that keeps returning the same character.
+  const random = seedRandom([0 / 32, 1 / 32, 2 / 32, 9 / 32, 25 / 32, 31 / 32]);
+  supabase.respondTo('groups', (call) => ({ data: { id: 'g1', ...(call.payload as object) } }));
+
+  try {
+    await service.createSyncedGroup('Alpha');
+  } finally {
+    random.mock.restore();
+  }
+
+  const insert = supabase.callsFor('groups')[0].payload as { join_code: string };
+  assert.equal(insert.join_code, 'ABCK39');
+});
+
 test('creating a group enrols the creator as leader and returns them in the group', async () => {
   supabase.respondTo('groups', () => ({ data: { id: 'g1', name: 'Alpha' } }));
 
@@ -225,15 +251,35 @@ test('a duplicate join code is retried with a fresh code', async () => {
       : { data: { id: 'g1', name: 'Alpha' } };
   });
 
-  const group = await service.createSyncedGroup('Alpha');
+  // A fixed draw per attempt: the retry must reach for six fresh characters
+  // rather than resubmitting the code the database has already rejected.
+  const random = seedRandom([
+    0 / 32,
+    0 / 32,
+    0 / 32,
+    0 / 32,
+    0 / 32,
+    0 / 32,
+    1 / 32,
+    1 / 32,
+    1 / 32,
+    1 / 32,
+    1 / 32,
+    1 / 32,
+  ]);
 
-  assert.equal(group.id, 'g1');
-  assert.equal(supabase.callsFor('groups').length, 2);
-  const [first, second] = supabase
-    .callsFor('groups')
-    .map((call) => (call.payload as { join_code: string }).join_code);
-  assert.equal(first.length, 6);
-  assert.equal(second.length, 6);
+  let group: Awaited<ReturnType<typeof service.createSyncedGroup>> | null = null;
+  try {
+    group = await service.createSyncedGroup('Alpha');
+  } finally {
+    random.mock.restore();
+  }
+
+  assert.equal(group?.id, 'g1');
+  assert.deepEqual(
+    supabase.callsFor('groups').map((call) => (call.payload as { join_code: string }).join_code),
+    ['AAAAAA', 'BBBBBB']
+  );
 });
 
 test('five colliding join codes give up with a clear error', async () => {
@@ -311,6 +357,19 @@ test('joining returns the freshly joined group', async () => {
     supabase.callsFor('groups')[0].steps.find((step) => step.method === 'eq')?.args,
     ['id', 'g1']
   );
+});
+
+test('joining a group the reader is already in resolves to that same group', async () => {
+  supabase.respondToRpc('join_group_by_code', () => ({ data: 'g1' }));
+  supabase.respondTo('groups', () => ({
+    data: { id: 'g1', name: 'Alpha', group_members: [{ user_id: 'user-1', role: 'member' }] },
+  }));
+
+  const group = await service.joinSyncedGroup('ABC234');
+
+  assert.equal(group?.id, 'g1');
+  assert.equal(supabase.callsFor('rpc:join_group_by_code').length, 1);
+  assert.deepEqual(supabase.callsFor('group_members'), [], "membership is the RPC's business");
 });
 
 test('joining surfaces an RPC failure', async () => {

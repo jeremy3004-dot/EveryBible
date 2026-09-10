@@ -97,6 +97,22 @@ test('fetching hides soft-deleted annotations', async () => {
   );
 });
 
+test('a row with no deleted_at field at all is still an active annotation', async () => {
+  // JSON.stringify drops undefined, so a snapshot written before the column
+  // existed rehydrates without the key. Those rows must stay visible.
+  const legacyRow: Partial<UserAnnotation> = makeAnnotation({ id: 'legacy' });
+  delete legacyRow.deleted_at;
+  seedStore([legacyRow as UserAnnotation]);
+
+  const result = await service.fetchAnnotations();
+
+  assert.deepEqual(
+    result.data?.map((annotation) => annotation.id),
+    ['legacy']
+  );
+  assert.equal((await service.getAnnotationsForChapter('GEN', 1)).data?.length, 1);
+});
+
 test('fetching with a book filter narrows the result to that book', async () => {
   seedStore([
     makeAnnotation({ id: 'gen', book: 'GEN' }),
@@ -465,6 +481,11 @@ test('chapter annotations are returned in reading order by verse', async () => {
     ['v2', 'v5', 'v9']
   );
 });
+
+// QUESTION: sortByChapterVerse compares chapters first, but its only caller
+// (getAnnotationsForChapter) has already filtered to a single chapter, so that
+// branch is unreachable and no test can cover it. Should the chapter comparison
+// be dropped, or is a cross-chapter caller planned?
 
 test('chapter annotations exclude other chapters and other books', async () => {
   seedStore([

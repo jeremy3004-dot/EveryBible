@@ -818,3 +818,105 @@ test('a join code with surrounding whitespace is not matched by the local store'
   assert.equal(state().joinGroup(' abc234 ', 'user-2', 'Bo'), false);
   assert.equal(state().joinGroup('abc234', 'user-2', 'Bo'), true);
 });
+
+// ---------------------------------------------------------------------------
+// reset then rehydrate
+// ---------------------------------------------------------------------------
+
+test('rehydrating after a sign-out reset does not resurrect the previous account', async () => {
+  seedStorage(
+    {
+      currentField: 'gospel',
+      groups: [makeStoredGroup()],
+      activeGroupId: 'group-stored',
+      groupProgress: {
+        'group-stored': { groupId: 'group-stored', completedLessons: ['entry-1'], notes: {} },
+      },
+    },
+    1
+  );
+  await useFourFieldsStore.persist.rehydrate();
+
+  state().resetForSignOut();
+  await useFourFieldsStore.persist.rehydrate();
+
+  assert.deepEqual(state().groups, []);
+  assert.equal(state().activeGroupId, null);
+  assert.deepEqual(state().groupProgress, {});
+  assert.equal(state().currentField, 'entry');
+});
+
+test('a group created after a sign-out reset is the only thing left in storage', async () => {
+  state().createGroup('Old Account', 'leader-1', 'Lee');
+  state().resetForSignOut();
+
+  const group = state().createGroup('New Account', 'leader-2', 'Sam');
+  await useFourFieldsStore.persist.rehydrate();
+
+  assert.deepEqual(
+    state().groups.map((stored) => stored.id),
+    [group.id]
+  );
+});
+
+// ---------------------------------------------------------------------------
+// leaveGroup persistence and pointer follow-through
+// ---------------------------------------------------------------------------
+
+test('a promoted leader is written to the persisted snapshot, not just to memory', () => {
+  useFourFieldsStore.setState({
+    groups: [
+      makeStoredGroup({
+        members: [
+          { id: 'leader-1', name: 'Leader', role: 'leader', joinedAt: 100 },
+          { id: 'heir', name: 'Heir', role: 'member', joinedAt: 200 },
+        ],
+      }),
+    ],
+  });
+
+  state().leaveGroup('group-stored', 'leader-1');
+
+  assert.deepEqual(
+    readPersisted().state.groups[0].members.map((member: { id: string; role: string }) => [
+      member.id,
+      member.role,
+    ]),
+    [['heir', 'leader']]
+  );
+});
+
+test('getActiveGroup reports nothing once the active group has been dissolved', () => {
+  useFourFieldsStore.setState({
+    groups: [
+      makeStoredGroup({
+        members: [{ id: 'leader-1', name: 'Leader', role: 'leader', joinedAt: 100 }],
+      }),
+    ],
+    activeGroupId: 'group-stored',
+  });
+
+  state().leaveGroup('group-stored', 'leader-1');
+
+  assert.equal(state().getActiveGroup(), null);
+  assert.equal(state().getGroupByCode('ABC234'), undefined);
+});
+
+test('a member can rejoin by code after leaving, as a plain member', () => {
+  const group = state().createGroup('Harvest Group', 'leader-1', 'Ada');
+  state().joinGroup(group.joinCode, 'user-2', 'Bo');
+
+  state().leaveGroup(group.id, 'user-2');
+  const rejoined = state().joinGroup(group.joinCode, 'user-2', 'Bo');
+
+  assert.equal(rejoined, true);
+  assert.deepEqual(
+    state()
+      .getGroup(group.id)
+      ?.members.map((member) => [member.id, member.role]),
+    [
+      ['leader-1', 'leader'],
+      ['user-2', 'member'],
+    ]
+  );
+});

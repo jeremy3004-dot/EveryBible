@@ -306,6 +306,46 @@ test('legacy marker entries that are not objects are dropped during migration', 
   });
 });
 
+test('a legacy marker whose listenedAt is not a string migrates to an explicit null', async () => {
+  // Pre-v2 builds briefly wrote an epoch number here; anything but an ISO string
+  // has to become null so getTranslatorFeedbackReviewStatus never trusts it.
+  seedStorage(
+    {
+      enabled: true,
+      accessPasscode: 'code',
+      feedbackMarkers: { 'feedback-1': { listenedAt: 1735689600000 } },
+    },
+    2
+  );
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  assert.deepEqual(state().feedbackMarkers, { 'feedback-1': { listenedAt: null } });
+});
+
+test('a legacy snapshot with no accessPasscode key at all migrates without throwing', async () => {
+  seedStorage({ enabled: true, feedbackMarkers: {} }, 2);
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  // `enabled: true` proves the migration ran to completion: if it threw on the
+  // missing key, persist would abandon the snapshot and leave the initial state.
+  assert.equal(state().enabled, true);
+  assert.equal(state().accessPasscode, null);
+});
+
+// QUESTION: at v2 and above a blank passcode is normalised to null but `enabled`
+// is left true, unlike the v1 path which revokes access outright. Every consumer
+// gates on `enabled && accessPasscode`, so nothing is exposed today — should the
+// migration still clear `enabled` for consistency?
+test('a legacy snapshot with a whitespace-only passcode migrates the passcode to null', async () => {
+  seedStorage({ enabled: true, accessPasscode: '   ', feedbackMarkers: {} }, 2);
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  assert.equal(state().accessPasscode, null);
+});
+
 test('a legacy snapshot whose markers are not an object migrates to no markers', async () => {
   seedStorage({ enabled: true, accessPasscode: 'code', feedbackMarkers: 'nope' }, 2);
 

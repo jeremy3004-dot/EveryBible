@@ -443,3 +443,101 @@ test('an empty storage slot leaves every collection empty', async () => {
   assert.deepEqual(state().playlists, []);
   assert.deepEqual(state().history, []);
 });
+
+// ---------------------------------------------------------------------------
+// round trips: writes made after hydration
+// ---------------------------------------------------------------------------
+
+test('un-favouriting is persisted, not just removed from memory', () => {
+  state().toggleFavorite('GEN', 3);
+
+  state().toggleFavorite('GEN', 3);
+
+  assert.deepEqual(readPersisted().state.favorites, []);
+});
+
+test('a chapter saved after hydration is persisted next to the rehydrated ones', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  seedStorage({
+    playlists: [
+      {
+        id: 'saved-chapters',
+        title: 'Saved Chapters',
+        createdAt: 1,
+        updatedAt: 2,
+        entries: [{ id: 'JHN:3', bookId: 'JHN', chapter: 3, addedAt: 2 }],
+      },
+    ],
+  });
+  await useLibraryStore.persist.rehydrate();
+
+  state().addChapterToDefaultPlaylist('GEN', 1);
+
+  assert.equal(readPersisted().state.playlists.length, 1);
+  assert.deepEqual(
+    readPersisted().state.playlists[0].entries.map((entry: { id: string }) => entry.id),
+    ['GEN:1', 'JHN:3']
+  );
+});
+
+test('rehydrating over a locally built library replaces it with the stored snapshot', async () => {
+  state().toggleFavorite('GEN', 3);
+  seedStorage({ favorites: [{ id: 'JHN:3', bookId: 'JHN', chapter: 3, addedAt: 1 }] });
+
+  await useLibraryStore.persist.rehydrate();
+
+  assert.deepEqual(
+    state().favorites.map((favorite) => favorite.id),
+    ['JHN:3']
+  );
+});
+
+// The audio player only calls recordHistory when duration > 0, so a non-finite
+// progress cannot arrive today; this pins what would happen if it ever did.
+test('a non-finite progress passes the clamp in memory and is dropped by the next hydration', async () => {
+  state().recordHistory('GEN', 1, Number.NaN);
+
+  assert.ok(Number.isNaN(state().history[0].progress));
+  // JSON has no NaN: the persisted snapshot stores null, and the sanitizer drops it.
+  assert.equal(readPersisted().state.history[0].progress, null);
+
+  await useLibraryStore.persist.rehydrate();
+
+  assert.deepEqual(state().history, []);
+});
+
+// ---------------------------------------------------------------------------
+// playlist id collisions
+// ---------------------------------------------------------------------------
+
+// Documents current behaviour: playlist ids are `playlist-${Date.now()}` with no
+// collision check, so two playlists created inside the same millisecond share an
+// id and `addChapterToPlaylist` then writes into both. A human cannot tap twice
+// in one millisecond, but a scripted/bulk create could.
+// QUESTION for review — should createPlaylist disambiguate ids the way
+// annotationStore's createAnnotationId does (timestamp plus a random suffix)?
+test('two playlists created in the same millisecond share an id', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+
+  const first = state().createPlaylist('Advent');
+  const second = state().createPlaylist('Lent');
+
+  assert.equal(first, second);
+  assert.deepEqual(
+    state().playlists.map((playlist) => playlist.title),
+    ['Advent', 'Lent']
+  );
+});
+
+test('adding a chapter to a duplicated playlist id writes into every playlist holding it', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  const id = state().createPlaylist('Advent');
+  state().createPlaylist('Lent');
+
+  state().addChapterToPlaylist(id, 'GEN', 1);
+
+  assert.deepEqual(
+    state().playlists.map((playlist) => playlist.entries.map((entry) => entry.id)),
+    [['GEN:1'], ['GEN:1']]
+  );
+});

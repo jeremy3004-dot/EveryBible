@@ -204,6 +204,8 @@ test('deleting an avatar removes every file variant in the user folder', async (
   }));
 
   assert.deepEqual(await storage.deleteAvatar(), { success: true });
+  const list = fake.storageCalls.find((call) => call.method === 'list');
+  assert.deepEqual(list?.args, ['user-1'], 'only the signed-in user folder is listed');
   const remove = fake.storageCalls.find((call) => call.method === 'remove');
   assert.deepEqual(remove?.args[0], ['user-1/avatar.jpg', 'user-1/avatar.png']);
 });
@@ -269,6 +271,20 @@ test('deleting an avatar while signed out is refused', async () => {
 
   assert.deepEqual(await storage.deleteAvatar(), { success: false, error: 'Not signed in' });
   assert.deepEqual(fake.storageCalls, []);
+});
+
+test('a re-upload with a different extension writes a second object under the same folder', async () => {
+  files.set('file:///tmp/first.png', base64('one'));
+  files.set('file:///tmp/second.jpg', base64('two'));
+
+  await storage.uploadAvatar('file:///tmp/first.png');
+  await storage.uploadAvatar('file:///tmp/second.jpg');
+
+  assert.deepEqual(
+    uploadsTo('avatars').map((call) => call.args[0]),
+    ['user-1/avatar.png', 'user-1/avatar.jpg'],
+    'stale variants are why deleteAvatar lists the folder instead of guessing'
+  );
 });
 
 // ─── Avatar URL ──────────────────────────────────────────────────────────────
@@ -363,6 +379,8 @@ test('deleting a group cover removes every file variant in the group folder', as
   }));
 
   assert.deepEqual(await storage.deleteGroupImage('group-7'), { success: true });
+  const list = fake.storageCalls.find((call) => call.method === 'list');
+  assert.deepEqual(list?.args, ['group-7'], "only that group's folder is listed");
   const remove = fake.storageCalls.find((call) => call.method === 'remove');
   assert.deepEqual(remove?.args[0], ['group-7/cover.jpg', 'group-7/cover.webp']);
 });

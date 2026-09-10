@@ -127,6 +127,22 @@ test('a synced group with no members summarises as a zero-member group', () => {
   );
 });
 
+test('a member listed twice in a synced row is counted twice, as the row says', () => {
+  // memberCount mirrors the joined rows the backend returned; group_members has a
+  // unique (group_id, user_id) constraint, so a duplicate would be a backend bug
+  // to fix there rather than something the summary should quietly paper over.
+  const summary = repository.buildSyncedGroupSummary(
+    makeSyncedGroup({
+      group_members: [
+        { user_id: 'member-remote', role: 'member', joined_at: '2026-03-11T00:00:00.000Z' },
+        { user_id: 'member-remote', role: 'member', joined_at: '2026-03-11T00:00:00.000Z' },
+      ],
+    })
+  );
+
+  assert.equal(summary.memberCount, 2);
+});
+
 // ---------------------------------------------------------------------------
 // buildGroupRepositorySnapshot
 // ---------------------------------------------------------------------------
@@ -175,12 +191,12 @@ test('sync-enabled mode keeps local and synced groups in separate sections', () 
   });
 
   assert.deepEqual(
-    snapshot.localGroups.map((group) => group.source),
-    ['local']
+    snapshot.localGroups.map((group) => [group.name, group.source]),
+    [['Harvest', 'local']]
   );
   assert.deepEqual(
-    snapshot.syncedGroups.map((group) => group.source),
-    ['synced']
+    snapshot.syncedGroups.map((group) => [group.id, group.source]),
+    [['synced-1', 'synced']]
   );
 });
 
@@ -597,7 +613,7 @@ test('a failing synced detail fetch rejects rather than degrading to null', asyn
 // the rollout gate, exhaustively
 // ---------------------------------------------------------------------------
 
-test('the mode is decided by the flag first, the backend second and the session last', () => {
+test('every rollout, backend and session combination resolves to one repository mode', () => {
   const modes = [false, true].flatMap((syncFeatureEnabled) =>
     [false, true].flatMap((backendConfigured) =>
       [false, true].map((signedIn) => [
@@ -629,40 +645,6 @@ test('a signed-in reader behind the rollout flag never sees the synced section',
   });
 
   assert.deepEqual(snapshot, { mode: 'local-only', localGroups: [], syncedGroups: [] });
-});
-
-test('sign-in-required mode drops the synced rows only when the build has no backend', () => {
-  const noBackend = repository.buildGroupRepositorySnapshot({
-    localGroups: [],
-    syncFeatureEnabled: true,
-    backendConfigured: false,
-    signedIn: true,
-    syncedGroups: [makeSyncedGroup()],
-  });
-
-  assert.deepEqual(noBackend.syncedGroups, []);
-  assert.equal(noBackend.mode, 'local-only');
-});
-
-test('a synced group summary keeps its own id space, distinct from local groups', () => {
-  useFourFieldsStore.getState().createGroup('Tuesday Night', 'leader-1', 'Lee');
-
-  const snapshot = repository.buildGroupRepositorySnapshot({
-    localGroups: localGroups(),
-    syncFeatureEnabled: true,
-    backendConfigured: true,
-    signedIn: true,
-    syncedGroups: [makeSyncedGroup()],
-  });
-
-  assert.deepEqual(
-    snapshot.localGroups.map((group) => group.source),
-    ['local']
-  );
-  assert.deepEqual(
-    snapshot.syncedGroups.map((group) => [group.id, group.source]),
-    [['synced-1', 'synced']]
-  );
 });
 
 // ---------------------------------------------------------------------------

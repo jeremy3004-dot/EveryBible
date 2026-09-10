@@ -1,22 +1,18 @@
 import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, sourcePath } from '../../testing/mockModules';
+import { mockMmkvStorage } from '../../testing/mockModules';
 import type { CrashLogEntry } from './crashLogEntry';
 
 /**
- * The crash log is exercised for real in crashLogStore.test.ts; here it is
- * replaced so the assertions are about what the global handlers hand it.
+ * The real crashLogStore (and the real `toCrashLogEntry`) is used here — only
+ * MMKV is replaced — so these tests assert what actually lands on disk when a
+ * global handler fires, not what a hand-written double would have recorded.
+ *
+ * Tests in this file are order-dependent on purpose: `installGlobalErrorHandlers`
+ * installs process-wide handlers once per module instance, so the `before` hook
+ * installs them and every test drives the captured handlers.
  */
-const recorded: CrashLogEntry[] = [];
-mockModule(mock, sourcePath('services/diagnostics/crashLogStore.ts'), {
-  recordCrashLog: (entry: CrashLogEntry) => {
-    recorded.push(entry);
-  },
-  toCrashLogEntry: (error: unknown, isFatal: boolean, timestamp: number): CrashLogEntry =>
-    error instanceof Error
-      ? { message: error.message, stack: error.stack, isFatal, timestamp }
-      : { message: String(error), isFatal, timestamp },
-});
+const mmkv = mockMmkvStorage(mock);
 
 type ErrorHandler = (error: unknown, isFatal?: boolean) => void;
 type RejectionOptions = {
@@ -38,6 +34,14 @@ const originalHandler: ErrorHandler = (error, isFatal) => {
   handledByOriginal.push({ error, isFatal });
 };
 
+let crashLogStore: typeof import('./crashLogStore');
+/** Entries as the real store persisted them, read back through the real reader. */
+const persisted = (): CrashLogEntry[] => crashLogStore.getCrashLogs();
+const reset = () => {
+  mmkv.store.clear();
+  handledByOriginal.length = 0;
+};
+
 before(async () => {
   globals.ErrorUtils = {
     getGlobalHandler: () => originalHandler,
@@ -51,6 +55,7 @@ before(async () => {
     },
   };
 
+  crashLogStore = await import('./crashLogStore');
   const { installGlobalErrorHandlers } = await import('./globalErrorHandler');
   installGlobalErrorHandlers();
   // A second call in the same runtime (Fast Refresh) must not stack wrappers.
@@ -67,42 +72,56 @@ test('installing replaces the global handler exactly once even when called twice
   assert.equal(trackerOptions.length, 1, 'the rejection tracker must not be registered twice');
 });
 
-test('a fatal JS error is recorded before the original handler still runs', () => {
-  recorded.length = 0;
-  handledByOriginal.length = 0;
+test('a fatal JS error is persisted to the crash log before the original handler still runs', () => {
+  reset();
   const error = new Error('render exploded');
 
   installedHandler(error, true);
 
-  assert.equal(recorded.length, 1);
-  assert.equal(recorded[0].message, 'render exploded');
-  assert.equal(recorded[0].isFatal, true);
-  assert.match(recorded[0].stack ?? '', /render exploded/);
+  const entries = persisted();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].message, 'render exploded');
+  assert.equal(entries[0].isFatal, true);
+  assert.match(entries[0].stack ?? '', /render exploded/);
   assert.deepEqual(handledByOriginal, [{ error, isFatal: true }]);
 });
 
 test('a non-fatal JS error is recorded as non-fatal and still chained', () => {
-  recorded.length = 0;
-  handledByOriginal.length = 0;
+  reset();
   const error = new Error('soft failure');
 
   installedHandler(error, false);
 
-  assert.equal(recorded[0].isFatal, false);
+  assert.equal(persisted()[0].isFatal, false);
   assert.deepEqual(handledByOriginal, [{ error, isFatal: false }]);
 });
 
 test('an error reported without an isFatal flag is recorded as non-fatal', () => {
-  recorded.length = 0;
+  reset();
 
   installedHandler('a thrown string');
 
-  assert.equal(recorded[0].message, 'a thrown string');
-  assert.equal(recorded[0].isFatal, false);
+  assert.equal(persisted()[0].message, 'a thrown string');
+  assert.equal(persisted()[0].isFatal, false);
+});
+
+test('successive crashes accumulate in the log rather than replacing each other', () => {
+  reset();
+
+  installedHandler(new Error('first'), false);
+  installedHandler(new Error('second'), true);
+
+  assert.deepEqual(
+    persisted().map((entry) => [entry.message, entry.isFatal]),
+    [
+      ['first', false],
+      ['second', true],
+    ]
+  );
 });
 
 test('recorded entries are stamped with the time the error surfaced', () => {
-  recorded.length = 0;
+  reset();
   mock.timers.enable({ apis: ['Date'], now: 1_760_000_000_000 });
 
   try {
@@ -111,7 +130,7 @@ test('recorded entries are stamped with the time the error surfaced', () => {
     mock.timers.reset();
   }
 
-  assert.equal(recorded[0].timestamp, 1_760_000_000_000);
+  assert.equal(persisted()[0].timestamp, 1_760_000_000_000);
 });
 
 test('the Hermes tracker is asked for all rejections, not just late ones', () => {
@@ -119,7 +138,7 @@ test('the Hermes tracker is asked for all rejections, not just late ones', () =>
 });
 
 test('an unhandled promise rejection is recorded as a non-fatal crash entry', () => {
-  recorded.length = 0;
+  reset();
   const consoleError = mock.method(console, 'error', () => {});
 
   try {
@@ -128,15 +147,17 @@ test('an unhandled promise rejection is recorded as a non-fatal crash entry', ()
     consoleError.mock.restore();
   }
 
-  assert.equal(recorded.length, 1);
-  assert.equal(recorded[0].message, 'dangling await');
-  assert.equal(recorded[0].isFatal, false);
+  const entries = persisted();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].message, 'dangling await');
+  assert.equal(entries[0].isFatal, false);
+  assert.match(entries[0].stack ?? '', /dangling await/);
   assert.equal(consoleError.mock.callCount(), 1);
   assert.match(String(consoleError.mock.calls[0].arguments[0]), /Unhandled promise rejection/);
 });
 
 test('a rejection with a non-Error reason is still recorded', () => {
-  recorded.length = 0;
+  reset();
   const consoleError = mock.method(console, 'error', () => {});
 
   try {
@@ -145,6 +166,29 @@ test('a rejection with a non-Error reason is still recorded', () => {
     consoleError.mock.restore();
   }
 
-  assert.equal(recorded[0].message, '[object Object]');
-  assert.equal(recorded[0].isFatal, false);
+  assert.deepEqual(
+    { ...persisted()[0], timestamp: 0 },
+    { message: '[object Object]', isFatal: false, timestamp: 0 }
+  );
+});
+
+test('a crash log write failure inside the handler never propagates to the app', () => {
+  reset();
+  const error = new Error('unwritable');
+  const throwOnSet = mock.method(mmkv.mmkvInstance, 'set', () => {
+    throw new Error('MMKV full');
+  });
+
+  try {
+    assert.doesNotThrow(() => installedHandler(error, true));
+  } finally {
+    throwOnSet.mock.restore();
+  }
+
+  assert.deepEqual(persisted(), [], 'nothing could be written');
+  assert.deepEqual(
+    handledByOriginal,
+    [{ error, isFatal: true }],
+    'the redbox still gets the error'
+  );
 });

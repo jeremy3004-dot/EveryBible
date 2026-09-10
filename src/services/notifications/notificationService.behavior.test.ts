@@ -193,6 +193,15 @@ test('an undetermined permission prompts the user and reports the grant', async 
   assert.deepEqual(permissionCalls, ['get', 'request']);
 });
 
+test('a previously denied permission is asked for again and still reports unavailable', async () => {
+  permission.current = 'denied';
+  permission.requested = 'denied';
+
+  assert.equal(await notifications.requestNotificationPermissions(), false);
+
+  assert.deepEqual(permissionCalls, ['get', 'request']);
+});
+
 test('a denied prompt reports that notifications are unavailable', async () => {
   permission.current = 'undetermined';
   permission.requested = 'denied';
@@ -220,6 +229,38 @@ test('scheduling a reminder replaces the previous one under a stable identifier'
     sound: true,
   });
 });
+
+test('rescheduling a reminder cancels the previous one each time and keeps one identifier', async () => {
+  await notifications.scheduleDailyReminder(8, 30);
+  await notifications.scheduleDailyReminder(21, 15);
+
+  assert.deepEqual(cancellations, ['daily-reading-reminder', 'daily-reading-reminder']);
+  assert.deepEqual(
+    schedules.map((request) => [request.identifier, (request.trigger as { hour: number }).hour]),
+    [
+      ['daily-reading-reminder', 8],
+      ['daily-reading-reminder', 21],
+    ],
+    'the stable identifier is what stops duplicates piling up on the device'
+  );
+});
+
+for (const [hour, minute] of [
+  [0, 0],
+  [23, 59],
+  [12, 5],
+] as const) {
+  test(`a reminder set for ${hour}:${String(minute).padStart(2, '0')} is scheduled at exactly that time every day`, async () => {
+    await notifications.scheduleDailyReminder(hour, minute);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].trigger)), {
+      type: 'daily',
+      hour,
+      minute,
+      channelId: 'daily-reminder',
+    });
+  });
+}
 
 test('scheduling still succeeds when there is no previous reminder to cancel', async () => {
   cancelFailure = new Error('no scheduled notification with that identifier');

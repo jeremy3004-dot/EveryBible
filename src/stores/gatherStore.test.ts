@@ -152,3 +152,48 @@ test('a corrupted completedLessons payload hydrates unsanitized and throws on fi
     name: 'TypeError',
   });
 });
+
+test('a lesson can be completed again after it was unmarked', () => {
+  useGatherStore.getState().markLessonComplete('foundation-1', 'lesson-a');
+  useGatherStore.getState().unmarkLessonComplete('foundation-1', 'lesson-a');
+
+  useGatherStore.getState().markLessonComplete('foundation-1', 'lesson-a');
+
+  assert.equal(useGatherStore.getState().isLessonComplete('foundation-1', 'lesson-a'), true);
+  assert.deepEqual(readPersisted().state.completedLessons['foundation-1'], ['lesson-a']);
+});
+
+test('unmarking a lesson that was never completed leaves its siblings in place', () => {
+  useGatherStore.getState().markLessonComplete('foundation-1', 'lesson-a');
+
+  useGatherStore.getState().unmarkLessonComplete('foundation-1', 'lesson-z');
+
+  assert.deepEqual(useGatherStore.getState().completedLessons['foundation-1'], ['lesson-a']);
+  assert.equal(useGatherStore.getState().getCompletedCount('foundation-1'), 1);
+});
+
+test('completions recorded after hydration are persisted alongside the rehydrated ones', async () => {
+  seedStorage({
+    completedLessons: { 'foundation-2': ['seeded-1'] },
+    infoBannerDismissed: true,
+  });
+  await useGatherStore.persist.rehydrate();
+
+  useGatherStore.getState().markLessonComplete('foundation-2', 'fresh-1');
+
+  assert.deepEqual(readPersisted().state, {
+    completedLessons: { 'foundation-2': ['seeded-1', 'fresh-1'] },
+    infoBannerDismissed: true,
+  });
+});
+
+test('rehydrating over locally recorded completions replaces them with the stored snapshot', async () => {
+  useGatherStore.getState().markLessonComplete('foundation-1', 'local-only');
+  seedStorage({ completedLessons: { 'foundation-2': ['seeded-1'] }, infoBannerDismissed: false });
+
+  await useGatherStore.persist.rehydrate();
+
+  assert.deepEqual(useGatherStore.getState().completedLessons, {
+    'foundation-2': ['seeded-1'],
+  });
+});

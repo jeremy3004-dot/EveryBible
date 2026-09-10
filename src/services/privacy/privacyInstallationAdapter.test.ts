@@ -183,6 +183,61 @@ test('a retry after a failed migration starts a fresh attempt rather than replay
   assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
 });
 
+test('a bootstrap whose reset fails rejects, and the next launch retries both steps', async () => {
+  clearFailure = new Error('keychain locked');
+
+  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), /keychain locked/);
+  assert.deepEqual(events, ['migrate', 'clearPrivacySettings']);
+  assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
+
+  clearFailure = null;
+  events.length = 0;
+  await adapter.initializePrivacyInstallationOnStartup();
+
+  assert.deepEqual(events, ['migrate', 'clearPrivacySettings']);
+  assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+});
+
+test('the bootstrap always migrates storage before it classifies the installation', async () => {
+  const order: string[] = [];
+  const bootstrap = adapter.createPrivacyInstallationBootstrap({
+    migrateStorage: async () => {
+      order.push('migrate');
+    },
+    reconcileInstallation: async () => {
+      order.push('reconcile');
+    },
+  });
+
+  await bootstrap();
+
+  assert.deepEqual(order, ['migrate', 'reconcile']);
+});
+
+test('a bootstrap that is still migrating is joined, not restarted', async () => {
+  const order: string[] = [];
+  let releaseMigration!: () => void;
+  const migrationStarted = new Promise<void>((resolve) => {
+    releaseMigration = resolve;
+  });
+  const bootstrap = adapter.createPrivacyInstallationBootstrap({
+    migrateStorage: async () => {
+      order.push('migrate');
+      await migrationStarted;
+    },
+    reconcileInstallation: async () => {
+      order.push('reconcile');
+    },
+  });
+
+  const first = bootstrap();
+  const second = bootstrap();
+  releaseMigration();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(order, ['migrate', 'reconcile'], 'the retry must not reconcile concurrently');
+});
+
 test('a failed reset leaves the marker unwritten so the next launch retries in a locked state', async () => {
   clearFailure = new Error('keychain locked');
 

@@ -1,4 +1,4 @@
-import test, { before, mock } from 'node:test';
+import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule } from '../testing/mockModules';
 
@@ -27,23 +27,30 @@ mockModule(mock, 'react', { ...reactStub, default: reactStub });
 let useReaderChromeProgress: typeof import('./readerChromeStore').useReaderChromeProgress;
 let useReaderChromeOwner: typeof import('./readerChromeStore').useReaderChromeOwner;
 
+// Snapshotted the moment the module is loaded, before any test writes to the
+// slots — otherwise the resting-value assertions below would only be reading
+// back whatever `beforeEach` had just written.
+let valuesAtLoad: unknown[] = [];
+
 before(async () => {
   ({ useReaderChromeProgress, useReaderChromeOwner } = await import('./readerChromeStore'));
+  valuesAtLoad = madeMutables.map((mutable) => mutable.value);
 });
 
-test('the chrome store creates exactly two shared values at module scope', () => {
+// The chapter/focus lifecycle owns these resets in the app; here it keeps each
+// test independent of whatever the previous one wrote to the shared slots.
+beforeEach(() => {
+  useReaderChromeProgress().value = 0;
+  useReaderChromeOwner().value = '';
+});
+
+test('the reader chrome exposes one progress slot and one owner slot, made once', () => {
   assert.equal(madeMutables.length, 2);
-  assert.deepEqual(
-    madeMutables.map((mutable) => mutable.value),
-    [0, '']
-  );
 });
 
-test('reader chrome progress starts at zero', () => {
+test('reader chrome progress starts at zero and the owner at the empty key', () => {
+  assert.deepEqual(valuesAtLoad, [0, '']);
   assert.equal(useReaderChromeProgress().value, 0);
-});
-
-test('reader chrome owner starts as the empty key', () => {
   assert.equal(useReaderChromeOwner().value, '');
 });
 
@@ -64,17 +71,31 @@ test('a write to the shared value is visible through a later read of the same sl
 
   assert.equal(useReaderChromeProgress().value, 0.42);
   assert.equal(useReaderChromeOwner().value, 'GEN:1');
-
-  // Transient UI-thread state only: nothing here is persisted, so restore the
-  // resting values the chapter/focus lifecycle would write.
-  useReaderChromeProgress().value = 0;
-  useReaderChromeOwner().value = '';
 });
 
 test('writing the progress slot never disturbs the owner slot', () => {
   useReaderChromeProgress().value = 0.9;
 
   assert.equal(useReaderChromeOwner().value, '');
+});
+
+test('writing the owner slot never disturbs the progress slot', () => {
+  useReaderChromeOwner().value = 'JHN:3';
+
+  assert.equal(useReaderChromeProgress().value, 0);
+});
+
+// The chapter/focus lifecycle resets by writing the resting values back, not by
+// swapping the boxes: readers already holding a slot must see the reset.
+test('resetting the slots to their resting values is visible through an existing reference', () => {
+  const progress = useReaderChromeProgress();
+  const owner = useReaderChromeOwner();
+  progress.value = 0.75;
+  owner.value = 'PSA:23';
 
   useReaderChromeProgress().value = 0;
+  useReaderChromeOwner().value = '';
+
+  assert.equal(progress.value, 0);
+  assert.equal(owner.value, '');
 });

@@ -209,6 +209,25 @@ test('a null interactions payload leaves every count at zero', async () => {
   assert.equal(only.prayed_count, 0);
 });
 
+// QUESTION: `countMap[request.id]?.prayed ?? 0` in listPrayerRequests can never
+// take its fallback — countMap is keyed from the very rows being mapped, and a
+// missing id coerces to the same "undefined" key on both sides. Kept as defensive
+// code; this test pins the user-visible behaviour (no crash, no leaked counts).
+test('a request row without an id still renders, with zero counts', async () => {
+  const malformed = { ...request(), id: undefined } as unknown as PrayerRequest;
+  fake.respondTo('prayer_requests', () => ({ data: [malformed] }));
+  fake.respondTo('prayer_interactions', () => ({
+    data: [{ request_id: 'req-1', type: 'prayed' }],
+  }));
+
+  const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
+  assert.deepEqual(
+    { prayed: only.prayed_count, encouraged: only.encouraged_count },
+    { prayed: 0, encouraged: 0 },
+    'a row the counts map cannot key on must not crash the prayer wall'
+  );
+});
+
 test('an RLS failure on the requests query is reported instead of an empty wall', async () => {
   fake.respondTo('prayer_requests', () => ({
     data: null,

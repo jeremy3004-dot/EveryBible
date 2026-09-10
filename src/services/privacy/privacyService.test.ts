@@ -104,6 +104,19 @@ test('a corrupt stored payload is logged and treated as no privacy configuration
   assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to parse privacy settings/);
 });
 
+test('a stored payload that is not an object at all is treated as no configuration', async () => {
+  // JSON.parse succeeds but yields null, so the property reads throw inside the
+  // same guard that catches malformed text.
+  secureStore.set(PRIVACY_SETTINGS_KEY, 'null');
+  const consoleError = mock.method(console, 'error', () => {});
+
+  try {
+    assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
+  } finally {
+    consoleError.mock.restore();
+  }
+});
+
 test('an unavailable keychain surfaces to the caller instead of silently unlocking', async () => {
   secureStoreFailure = new Error('keychain locked');
 
@@ -152,6 +165,13 @@ test('a wrong pin does not verify', async () => {
   await privacyService.updatePrivacyMode('discreet', '2468');
 
   assert.equal(await privacyService.verifyPrivacyPin('1111'), false);
+});
+
+test('switching to discreet mode without a pin stores no pin at all', async () => {
+  const settings = await privacyService.updatePrivacyMode('discreet', null);
+
+  assert.deepEqual(settings, { mode: 'discreet', pin: null });
+  assert.equal(await privacyService.verifyPrivacyPin(''), false);
 });
 
 test('no pin can be verified when privacy was never configured', async () => {

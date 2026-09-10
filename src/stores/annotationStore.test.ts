@@ -540,3 +540,147 @@ test('the facade replace and clear write through to the store', () => {
   localAnnotationStore.clearAnnotations();
   assert.deepEqual(state().annotations, []);
 });
+
+// ---------------------------------------------------------------------------
+// sync-shaped input
+// ---------------------------------------------------------------------------
+
+test('replaceAnnotations keeps the remote owner rather than stamping the local user id', () => {
+  state().replaceAnnotations([makeRemoteAnnotation({ id: 'from-server', user_id: 'user-7' })]);
+
+  assert.equal(state().annotations[0].user_id, 'user-7');
+});
+
+test('replacing with a list carrying tombstones keeps them so the reader can filter', () => {
+  state().replaceAnnotations([
+    makeRemoteAnnotation({ id: 'live', verse_start: 1 }),
+    makeRemoteAnnotation({ id: 'dead', verse_start: 2, deleted_at: '2026-02-02T00:00:00.000Z' }),
+  ]);
+
+  assert.deepEqual(
+    state()
+      .annotations.map((annotation) => [annotation.id, annotation.deleted_at != null])
+      .sort(),
+    [
+      ['dead', true],
+      ['live', false],
+    ]
+  );
+});
+
+test('sorting tolerates a hydrated row whose timestamps are missing', () => {
+  const malformed = { ...makeRemoteAnnotation({ id: 'no-times' }) } as UserAnnotation;
+  delete (malformed as Partial<UserAnnotation>).updated_at;
+  delete (malformed as Partial<UserAnnotation>).created_at;
+
+  state().replaceAnnotations([malformed, makeRemoteAnnotation({ id: 'timed', verse_start: 2 })]);
+
+  assert.equal(state().annotations.length, 2);
+  assert.deepEqual(
+    state()
+      .annotations.map((annotation) => annotation.id)
+      .sort(),
+    ['no-times', 'timed']
+  );
+});
+
+// ---------------------------------------------------------------------------
+// identity boundaries
+// ---------------------------------------------------------------------------
+
+test('the returned annotation is the very row that landed in the store', () => {
+  const saved = state().upsertAnnotation({
+    id: 'a1',
+    book: 'GEN',
+    chapter: 1,
+    verse_start: 1,
+    verse_end: null,
+    type: 'highlight',
+    color: 'amber',
+    content: null,
+    deleted_at: null,
+  });
+
+  assert.equal(state().annotations[0] as unknown, saved as unknown);
+});
+
+// Documents current behaviour: the composite key is book|chapter|verse_start|type,
+// so two highlights that start on the same verse but span different ranges collide
+// and the second overwrites the first.
+// QUESTION for review — the reader dedups on verse_end too (BibleReaderScreen
+// matches `getAnnotationVerseEnd(annotation) === range.verse_end`), so should
+// verse_end be part of the store's composite key as well?
+test('two highlights starting on the same verse but ending differently collapse into one', () => {
+  const base = {
+    id: '',
+    book: 'GEN',
+    chapter: 1,
+    verse_start: 1,
+    type: 'highlight' as const,
+    color: 'amber',
+    content: null,
+    deleted_at: null,
+  };
+
+  state().upsertAnnotation({ ...base, verse_end: 3 });
+  state().upsertAnnotation({ ...base, verse_end: 7 });
+
+  assert.equal(state().annotations.length, 1);
+  assert.equal(state().annotations[0].verse_end, 7);
+});
+
+// Documents current behaviour: the `existing.deleted_at == null` guard that stops
+// a new annotation reviving a tombstone also blocks an *id-targeted* upsert from
+// matching one, so the row is appended instead and the store ends up holding two
+// rows under the same id — which sync would then push as two rows for one PK.
+// Not reachable from BibleReaderScreen today (it only reuses ids of live rows).
+// QUESTION for review — should the id branch match regardless of deleted_at,
+// leaving only the composite-key branch guarded?
+test('an id-targeted upsert of a soft-deleted row appends a second row under that same id', () => {
+  useAnnotationStore.setState({
+    annotations: [makeRemoteAnnotation({ id: 'a1', deleted_at: '2026-02-02T00:00:00.000Z' })],
+  });
+
+  const saved = state().upsertAnnotation({
+    id: 'a1',
+    book: 'GEN',
+    chapter: 1,
+    verse_start: 1,
+    verse_end: null,
+    type: 'highlight',
+    color: 'rose',
+    content: null,
+    deleted_at: null,
+  });
+
+  assert.equal(saved.id, 'a1');
+  assert.deepEqual(
+    state().annotations.map((annotation) => annotation.id),
+    ['a1', 'a1']
+  );
+});
+
+// Documents current behaviour: createAnnotationId is `Date.now()` plus a random
+// suffix and is not checked against ids already in the store. With both seams
+// frozen, two saves on different verses generate the same id.
+// QUESTION for review — should the generator re-roll on an id already in use?
+test('generated ids can collide when the clock and the random suffix both repeat', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  t.mock.method(Math, 'random', () => 0);
+  const base = {
+    id: '',
+    book: 'GEN',
+    chapter: 1,
+    verse_end: null,
+    type: 'highlight' as const,
+    color: 'amber',
+    content: null,
+    deleted_at: null,
+  };
+
+  const first = state().upsertAnnotation({ ...base, verse_start: 1 });
+  const second = state().upsertAnnotation({ ...base, verse_start: 2 });
+
+  assert.equal(first.id, second.id);
+  assert.equal(state().annotations.length, 2);
+});

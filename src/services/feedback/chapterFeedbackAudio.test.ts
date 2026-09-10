@@ -152,11 +152,23 @@ test('a recording under half a second is rejected as too short', async () => {
   );
 });
 
-test('a negative duration is clamped and rejected as too short', async () => {
+test('a negative duration is rejected as too short', async () => {
   assert.deepEqual(
     await audio.uploadChapterFeedbackAudio({ uri: 'file:///rec.m4a', durationMs: -5_000 }, context),
     { success: false, error: 'Please record at least a short audio response.' }
   );
+});
+
+test('a recording of exactly half a second is accepted', async () => {
+  putFile('file:///rec.m4a', 64);
+
+  const result = await audio.uploadChapterFeedbackAudio(
+    { uri: 'file:///rec.m4a', durationMs: 500 },
+    context
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.data?.durationMs, 500);
 });
 
 test('a recording of exactly one minute is still accepted', async () => {
@@ -233,8 +245,10 @@ test('a truncated read that does not match the reported size is rejected', async
   );
 });
 
+// 1023 bytes encode with no '=' padding, 1024 with '==', and 1025 with '=';
+// all three must reconcile against the size the platform reported.
 for (const bytes of [1_023, 1_024, 1_025]) {
-  test(`a ${bytes}-byte payload with ${bytes % 3} bytes of base64 padding validates`, async () => {
+  test(`a ${bytes}-byte payload validates against its reported size`, async () => {
     putFile('file:///rec.m4a', bytes);
 
     const result = await audio.uploadChapterFeedbackAudio(
