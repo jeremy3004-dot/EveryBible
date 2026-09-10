@@ -13,6 +13,7 @@
  * `fake.auth.setSession(...)`, `rn.AppState.emit('background')`), not by
  * re-mocking.
  */
+import { createHash } from 'node:crypto';
 import type { MockTracker } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createReactNativeStub, type ReactNativeStubOptions } from './reactNativeStub';
@@ -121,4 +122,108 @@ export function mockReactNative(mocker: MockTracker, options: ReactNativeStubOpt
   const stub = createReactNativeStub(options);
   mockModule(mocker, 'react-native', stub);
   return stub;
+}
+
+export interface SecureStoreCall {
+  op: 'get' | 'set' | 'delete';
+  key: string;
+  options?: unknown;
+}
+
+/**
+ * Replace `expo-secure-store` with an in-memory keystore. Returns the backing
+ * map (seed or inspect it), the recorded calls (each carries the options object
+ * the caller passed, so keychain-accessibility can be asserted) and a mutable
+ * `failure` slot: set it and every operation rejects, the way a locked keychain
+ * does.
+ */
+export function mockSecureStore(mocker: MockTracker, seed?: Record<string, string>) {
+  const store = new Map<string, string>(Object.entries(seed ?? {}));
+  const calls: SecureStoreCall[] = [];
+  const state: { failure: unknown } = { failure: null };
+
+  const guard = () => {
+    if (state.failure) {
+      throw state.failure;
+    }
+  };
+
+  mockModule(mocker, 'expo-secure-store', {
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+    AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'afterFirstUnlockThisDeviceOnly',
+    getItemAsync: async (key: string, options?: unknown) => {
+      calls.push({ op: 'get', key, options });
+      guard();
+      return store.has(key) ? (store.get(key) as string) : null;
+    },
+    setItemAsync: async (key: string, value: string, options?: unknown) => {
+      calls.push({ op: 'set', key, options });
+      guard();
+      store.set(key, value);
+    },
+    deleteItemAsync: async (key: string, options?: unknown) => {
+      calls.push({ op: 'delete', key, options });
+      guard();
+      store.delete(key);
+    },
+  });
+
+  return { store, calls, state };
+}
+
+/**
+ * Replace `expo-crypto` with a deterministic double: `getRandomBytesAsync`
+ * hands out a byte counter (reproducible hex nonces/salts) and
+ * `digestStringAsync` computes a real SHA-256 through `node:crypto`. Either
+ * half can be made to reject through the returned `state`, which is how the
+ * "the nonce is mandatory" and "the PIN cannot be hashed" paths are exercised.
+ */
+export function mockExpoCrypto(mocker: MockTracker) {
+  const state: {
+    randomFailure: unknown;
+    digestFailure: unknown;
+    randomLengths: number[];
+    digestAlgorithms: string[];
+    cursor: number;
+  } = {
+    randomFailure: null,
+    digestFailure: null,
+    randomLengths: [],
+    digestAlgorithms: [],
+    cursor: 0,
+  };
+
+  mockModule(mocker, 'expo-crypto', {
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+    CryptoEncoding: { HEX: 'hex', BASE64: 'base64' },
+    getRandomBytesAsync: async (length: number) => {
+      state.randomLengths.push(length);
+      if (state.randomFailure) {
+        throw state.randomFailure;
+      }
+      const bytes = new Uint8Array(length);
+      for (let index = 0; index < length; index += 1) {
+        bytes[index] = state.cursor & 0xff;
+        state.cursor += 1;
+      }
+      return bytes;
+    },
+    digestStringAsync: async (algorithm: string, value: string) => {
+      state.digestAlgorithms.push(algorithm);
+      if (state.digestFailure) {
+        throw state.digestFailure;
+      }
+      return createHash('sha256').update(value).digest('hex');
+    },
+  });
+
+  const reset = () => {
+    state.randomFailure = null;
+    state.digestFailure = null;
+    state.randomLengths = [];
+    state.digestAlgorithms = [];
+    state.cursor = 0;
+  };
+
+  return { state, reset };
 }

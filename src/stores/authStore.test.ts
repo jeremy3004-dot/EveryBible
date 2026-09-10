@@ -1,6 +1,13 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockMmkvStorage, mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
+import {
+  mockExpoCrypto,
+  mockMmkvStorage,
+  mockModule,
+  mockReactNative,
+  mockSecureStore,
+  sourcePath,
+} from '../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../testing/supabaseFake';
 import type { UserPreferences } from '../types';
 
@@ -73,6 +80,12 @@ mockModule(mock, '@react-native-google-signin/google-signin', {
   isErrorWithCode: () => false,
   statusCodes: {},
 });
+
+// authStore lazy-`require`s the auth barrel inside initialize()/signOut(), so the
+// real authService loads: it needs expo-crypto (Apple nonce) and the translator
+// review store needs expo-secure-store (the passcode moved into the keystore).
+mockExpoCrypto(mock);
+const secureStore = mockSecureStore(mock);
 
 const events: string[] = [];
 let bibleResetCount = 0;
@@ -530,6 +543,24 @@ test('signing out clears every per-user store and the local preferences', async 
   assert.equal(useAuthStore.getState().lastSyncedUserId, null);
   assert.equal(useAuthStore.getState().user, null);
   assert.equal(useAuthStore.getState().isAuthenticated, false);
+});
+
+test('signing out deletes the translator review passcode from the OS keystore', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  seedPerUserData();
+  secureStore.store.set('everybible.translatorReview.passcode', 'Secret-1');
+  secureStore.calls.length = 0;
+
+  await useAuthStore.getState().signOut();
+  // The keystore delete is fire-and-forget inside resetForSignOut.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(useTranslatorReviewStore.getState().accessPasscode, null);
+  assert.deepEqual(
+    secureStore.calls.map((call) => `${call.op} ${call.key}`),
+    ['delete everybible.translatorReview.passcode']
+  );
+  assert.equal(secureStore.store.has('everybible.translatorReview.passcode'), false);
 });
 
 test('signing out still clears local data when Supabase is unreachable', async () => {

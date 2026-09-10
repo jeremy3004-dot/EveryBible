@@ -187,12 +187,18 @@ const makeTask = (id: string): FakeTask => {
     },
     resume: () => {
       backgroundCalls.push({ method: 'resume', args: [id] });
+      if (resumeErrors.has(id)) {
+        throw new Error(`cannot resume ${id}`);
+      }
     },
   };
   return task;
 };
 
-let ensureDownloadsAreRunningError: unknown = null;
+/** Task ids whose resume() throws, to prove one bad task does not stop the rest. */
+const resumeErrors = new Set<string>();
+/** Set to make the native task listing itself fail (no native module in Expo Go). */
+let existingTasksError: unknown = null;
 
 mockModule(mock, '@kesha-antonov/react-native-background-downloader', {
   createDownloadTask: (options: { id: string; url: string; destination: string }) => {
@@ -204,13 +210,10 @@ mockModule(mock, '@kesha-antonov/react-native-background-downloader', {
   },
   getExistingDownloadTasks: async (): Promise<FakeTask[]> => {
     backgroundCalls.push({ method: 'getExistingDownloadTasks', args: [] });
-    return existingTasks;
-  },
-  ensureDownloadsAreRunning: async (): Promise<void> => {
-    backgroundCalls.push({ method: 'ensureDownloadsAreRunning', args: [] });
-    if (ensureDownloadsAreRunningError) {
-      throw ensureDownloadsAreRunningError;
+    if (existingTasksError) {
+      throw existingTasksError;
     }
+    return existingTasks;
   },
 });
 
@@ -252,7 +255,8 @@ beforeEach(() => {
   existingTasks = [];
   downloadScript = { writeSize: VALID_AUDIO_BYTES };
   taskScript = { outcome: 'done' };
-  ensureDownloadsAreRunningError = null;
+  resumeErrors.clear();
+  existingTasksError = null;
   deleteError = null;
   lastOnProgress = undefined;
 });
@@ -762,16 +766,56 @@ test('cancelling a job stops the exact task and its per-chapter children', async
 // Resuming background downloads on launch
 // ---------------------------------------------------------------------------
 
-test('ensuring background downloads are running asks the native downloader to resume', async () => {
+test('every audio task the OS still holds is resumed on launch', async () => {
+  existingTasks = [makeTask('audio-download:job-1'), makeTask('audio-download:job-2')];
+
   await mod.ensureBackgroundAudioDownloadsRunning();
 
-  assert.deepEqual(backgroundCalls, [{ method: 'ensureDownloadsAreRunning', args: [] }]);
+  assert.deepEqual(backgroundCalls, [
+    { method: 'getExistingDownloadTasks', args: [] },
+    { method: 'resume', args: ['audio-download:job-1'] },
+    { method: 'resume', args: ['audio-download:job-2'] },
+  ]);
 });
 
-test('a native downloader that cannot resume never breaks startup', async () => {
-  ensureDownloadsAreRunningError = new Error('no native module');
+test('tasks belonging to another feature are left alone', async () => {
+  existingTasks = [makeTask('bible-pack:swahili'), makeTask('audio-download:job-1')];
+
+  await mod.ensureBackgroundAudioDownloadsRunning();
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    [{ method: 'resume', args: ['audio-download:job-1'] }]
+  );
+});
+
+test('one task that refuses to resume does not strand the tasks after it', async () => {
+  existingTasks = [makeTask('audio-download:job-1'), makeTask('audio-download:job-2')];
+  resumeErrors.add('audio-download:job-1');
 
   await assert.doesNotReject(() => mod.ensureBackgroundAudioDownloadsRunning());
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    [
+      { method: 'resume', args: ['audio-download:job-1'] },
+      { method: 'resume', args: ['audio-download:job-2'] },
+    ]
+  );
+  assert.equal(warnings.length, 1);
+  assert.match(String(warnings[0][0]), /Failed to resume background task/);
+});
+
+test('an unavailable native downloader never breaks startup', async () => {
+  existingTasksError = new Error('no native module');
+
+  await assert.doesNotReject(() => mod.ensureBackgroundAudioDownloadsRunning());
+});
+
+test('nothing is resumed when the OS holds no tasks at all', async () => {
+  await mod.ensureBackgroundAudioDownloadsRunning();
+
+  assert.deepEqual(backgroundCalls, [{ method: 'getExistingDownloadTasks', args: [] }]);
 });
 
 // ---------------------------------------------------------------------------

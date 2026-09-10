@@ -23,7 +23,7 @@ let backendConfigured = true;
 mockSupabaseModule(mock, supabaseFake, { configured: () => backendConfigured });
 // expo-* packages pull in expo-modules-core, which reads __DEV__ at import time.
 // Always replace them; never let the real package load under Node.
-mockModule(mock, 'expo-file-system', {
+mockModule(mock, 'expo-file-system/legacy', {
   getInfoAsync: async () => ({ exists: false }),
   readAsStringAsync: async () => '',
 });
@@ -51,8 +51,8 @@ test('react-native consumers see the stub values', async () => {
   const platform = await import('../utils/platform');
 
   assert.equal(platform.isAndroid, true);
-  assert.equal(platform.androidVersion, 34);
-  assert.equal(platform.isSmallScreen, true);
+  assert.equal(platform.isIOS, false);
+  assert.equal(platform.screenWidth, 360);
   assert.equal(platform.isTablet, false);
   assert.equal(rn.Platform.OS, 'android');
 });
@@ -60,13 +60,13 @@ test('react-native consumers see the stub values', async () => {
 test('services importing the supabase barrel talk to the fake', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: { id: 'user-9' } as never }));
   const { getCurrentUserId, isSupabaseConfigured } = await import('../services/supabase');
-  const { getAvatarUrl } = await import('../services/storage/storageService');
+  const { getGroupImageUrl } = await import('../services/storage/storageService');
 
   assert.equal(isSupabaseConfigured(), true);
   assert.equal(await getCurrentUserId(), 'user-9');
   assert.equal(
-    getAvatarUrl('user-9'),
-    `${supabaseFake.storage.publicUrlBase}/avatars/user-9/avatar.jpg`
+    getGroupImageUrl('group-9'),
+    `${supabaseFake.storage.publicUrlBase}/group-images/group-9/cover.jpg`
   );
   assert.equal(supabaseFake.storageCalls[0]?.method, 'getPublicUrl');
 });

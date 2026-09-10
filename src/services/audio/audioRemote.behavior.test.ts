@@ -790,12 +790,64 @@ test('el-manifest chapter audio caches the resolved immutable url', async () => 
   const first = await mod.fetchRemoteChapterAudio('el', 'JHN', 3);
   const second = await mod.fetchRemoteChapterAudio('el', 'JHN', 3);
 
+  // The byte count rides along so the download service can verify a finished
+  // chapter against the manifest instead of trusting the 1KB size floor.
   assert.deepEqual(first, {
     url: 'https://media.example.test/audio/el/JHN/3.mp3',
     duration: 42000,
+    bytes: 1234,
   });
   assert.deepEqual(second, first);
   assert.equal(resolveCount, 1);
+});
+
+test('a manifest checksum is carried through to the resolved asset', async () => {
+  useTranslations(
+    withCatalogAudio('el', {
+      strategy: 'el-manifest',
+      manifestUrl: '/manifests/audio/el/v1.json',
+      audioVersion: 'v1',
+      catalogBaseUrl: 'https://media.example.test',
+    })
+  );
+  mod.setElManifestChapterResolverForTests(async () => ({
+    url: 'https://media.example.test/audio/el/JHN/4.mp3',
+    mimeType: 'audio/mpeg',
+    fileExt: 'mp3',
+    bytes: 1234,
+    sha256: 'abc123',
+    durationMs: 1000,
+  }));
+
+  assert.deepEqual(await mod.fetchRemoteChapterAudio('el', 'JHN', 4), {
+    url: 'https://media.example.test/audio/el/JHN/4.mp3',
+    duration: 1000,
+    bytes: 1234,
+    sha256: 'abc123',
+  });
+});
+
+test('a manifest entry with no byte count omits bytes rather than claiming zero', async () => {
+  useTranslations(
+    withCatalogAudio('el', {
+      strategy: 'el-manifest',
+      manifestUrl: '/manifests/audio/el/v1.json',
+      audioVersion: 'v1',
+      catalogBaseUrl: 'https://media.example.test',
+    })
+  );
+  mod.setElManifestChapterResolverForTests(async () => ({
+    url: 'https://media.example.test/audio/el/JHN/5.mp3',
+    mimeType: 'audio/mpeg',
+    fileExt: 'mp3',
+    bytes: 0,
+    durationMs: 1000,
+  }));
+
+  assert.deepEqual(await mod.fetchRemoteChapterAudio('el', 'JHN', 5), {
+    url: 'https://media.example.test/audio/el/JHN/5.mp3',
+    duration: 1000,
+  });
 });
 
 test('el-manifest chapter audio without a duration reports zero', async () => {
@@ -817,6 +869,7 @@ test('el-manifest chapter audio without a duration reports zero', async () => {
   assert.deepEqual(await mod.fetchRemoteChapterAudio('el', 'JHN', 3), {
     url: 'https://media.example.test/audio/el/JHN/3.mp3',
     duration: 0,
+    bytes: 1234,
   });
 });
 

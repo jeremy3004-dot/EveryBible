@@ -1,7 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
+import { mockExpoCrypto, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 
 // ---------------------------------------------------------------------------
@@ -127,34 +127,15 @@ mockModule(mock, '@react-native-google-signin/google-signin', {
   statusCodes: GOOGLE_STATUS_CODES,
 });
 
-// --- deterministic WebCrypto seam ------------------------------------------
-// generateNoncePair() reads globalThis.crypto. Replacing getRandomValues with a
-// counter makes the nonce pair reproducible while keeping the real SHA-256.
-const realCryptoDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
-const realSubtle = globalThis.crypto.subtle;
-let randomCursor = 0;
-const seededCrypto = {
-  getRandomValues: <T extends ArrayBufferView>(array: T): T => {
-    const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
-    for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = randomCursor & 0xff;
-      randomCursor += 1;
-    }
-    return array;
-  },
-  subtle: realSubtle,
-};
+// --- deterministic expo-crypto seam ----------------------------------------
+// generateNoncePair() uses expo-crypto (Hermes has no globalThis.crypto, so the
+// old WebCrypto implementation produced no nonce at all on device). The shared
+// double hands out a reproducible byte counter and computes a real SHA-256, and
+// can be told to fail either half so the mandatory-nonce path is exercised.
+const expoCrypto = mockExpoCrypto(mock).state;
+
+/** 32 counter bytes (0x00..0x1f) rendered as hex — the first nonce of each test. */
 const FIRST_NONCE_RAW = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f';
-
-const setCrypto = (value: unknown): void => {
-  Object.defineProperty(globalThis, 'crypto', { value, configurable: true, writable: true });
-};
-
-const restoreRealCrypto = (): void => {
-  if (realCryptoDescriptor) {
-    Object.defineProperty(globalThis, 'crypto', realCryptoDescriptor);
-  }
-};
 
 let authService: typeof import('./authService');
 
@@ -177,8 +158,11 @@ beforeEach(() => {
   google.response = { type: 'success', data: { idToken: 'google-id-token' } };
   google.signInError = null;
   google.playServicesError = null;
-  randomCursor = 0;
-  setCrypto(seededCrypto);
+  expoCrypto.randomFailure = null;
+  expoCrypto.digestFailure = null;
+  expoCrypto.randomLengths.length = 0;
+  expoCrypto.digestAlgorithms.length = 0;
+  expoCrypto.cursor = 0;
 });
 
 const signedInUser = (overrides: Record<string, unknown> = {}) =>
@@ -408,27 +392,43 @@ test('signInWithApple hands Apple the hashed nonce and Supabase the raw one', as
   });
 });
 
-test('signInWithApple still signs in when WebCrypto is unavailable, omitting the nonce', async () => {
-  setCrypto(undefined);
+test('signInWithApple draws its nonce from 32 bytes of native randomness', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 
-  const result = await authService.signInWithApple();
+  await authService.signInWithApple();
 
-  assert.equal(result.success, true);
-  assert.deepEqual(apple.requests, [{ requestedScopes: ['FULL_NAME', 'EMAIL'] }]);
-  assert.deepEqual(supabaseFake.authCalls[0].args, [
-    { provider: 'apple', token: 'apple-identity-token' },
-  ]);
+  assert.deepEqual(expoCrypto.randomLengths, [32]);
+  assert.deepEqual(expoCrypto.digestAlgorithms, ['SHA-256']);
+  const raw = (supabaseFake.authCalls[0].args[0] as { nonce?: string }).nonce;
+  assert.match(raw ?? '', /^[0-9a-f]{64}$/);
 });
 
-test('signInWithApple omits the nonce when the runtime crypto has no subtle digest', async () => {
-  setCrypto({ getRandomValues: seededCrypto.getRandomValues });
+test('signInWithApple aborts before opening the native sheet when randomness is unavailable', async () => {
+  expoCrypto.randomFailure = new Error('native crypto unavailable');
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 
   const result = await authService.signInWithApple();
 
-  assert.equal(result.success, true);
-  assert.deepEqual(apple.requests, [{ requestedScopes: ['FULL_NAME', 'EMAIL'] }]);
+  assert.deepEqual(result, {
+    success: false,
+    code: 'service_unavailable',
+    error: 'native crypto unavailable',
+  });
+  // The point of the mandatory nonce: no unhardened identity token is ever minted.
+  assert.deepEqual(apple.requests, []);
+  assert.deepEqual(supabaseFake.authCalls, []);
+});
+
+test('signInWithApple aborts when the nonce cannot be hashed, never falling back to a nonce-less request', async () => {
+  expoCrypto.digestFailure = new Error('digest unavailable');
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  const result = await authService.signInWithApple();
+
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'service_unavailable');
+  assert.deepEqual(apple.requests, []);
+  assert.deepEqual(supabaseFake.authCalls, []);
 });
 
 test('signInWithApple reports provider-unavailable when Apple returns no identity token', async () => {
@@ -741,6 +741,26 @@ test('signInWithGoogle maps missing Play Services to a provider-unavailable fail
   assert.equal(google.signInCalls, 0);
 });
 
+test('signInWithGoogle names an Android DEVELOPER_ERROR instead of a bare unknown failure', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  rn.Platform.OS = 'android';
+  // The native module rejects with the raw CommonStatusCodes number as a string;
+  // `statusCodes` has no entry for it, so production matches the literal '10'.
+  google.signInError = { code: '10' };
+
+  const result = await authService.signInWithGoogle();
+
+  assert.deepEqual(result, {
+    success: false,
+    code: 'provider_unavailable',
+    error: 'Google sign in is not configured for this Android build (DEVELOPER_ERROR).',
+  });
+  // It is invisible in the UI, so it has to be named in logcat.
+  assert.equal(logged.mock.callCount(), 1);
+  assert.match(String(logged.mock.calls[0].arguments[0]), /DEVELOPER_ERROR/);
+  assert.deepEqual(supabaseFake.authCalls, []);
+});
+
 test('signInWithGoogle falls through to an unknown failure for an unrecognised status code', async () => {
   google.signInError = { code: GOOGLE_STATUS_CODES.SIGN_IN_REQUIRED, message: 'sign in required' };
 
@@ -1010,9 +1030,4 @@ test('getCurrentSession swallows a SecureStore failure and reports a signed-out 
 
   assert.deepEqual(await authService.getCurrentSession(), { session: null, user: null });
   assert.equal(logged.mock.callCount(), 1);
-});
-
-test('the real WebCrypto implementation is restored for other suites', () => {
-  restoreRealCrypto();
-  assert.equal(typeof globalThis.crypto.getRandomValues, 'function');
 });

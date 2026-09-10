@@ -1,6 +1,6 @@
 import test, { before, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule } from '../../testing/mockModules';
+import { mockExpoCrypto, mockModule } from '../../testing/mockModules';
 import { createReactNativeStub } from '../../testing/reactNativeStub';
 
 /**
@@ -9,6 +9,8 @@ import { createReactNativeStub } from '../../testing/reactNativeStub';
  * import time, so this scenario needs a module instance of its own.
  */
 mockModule(mock, 'react-native', createReactNativeStub({ os: 'android', nativeModules: {} }));
+
+mockExpoCrypto(mock);
 
 const secureStore = new Map<string, string>();
 mockModule(mock, 'expo-secure-store', {
@@ -42,10 +44,19 @@ test('reading the current icon on an unsupported platform reports unknown', asyn
 });
 
 test('clearing privacy settings succeeds on a platform that cannot switch icons', async () => {
-  await privacyService.savePrivacySettings({ mode: 'discreet', pin: '1234' });
+  await privacyService.updatePrivacyMode('discreet', '1234');
+  assert.equal(secureStore.size, 1);
 
+  // setPrivacyAppIcon returns false here, but with no dynamic-icon support that is
+  // the expected answer rather than a failure, so clearing must still resolve.
   await privacyService.clearPrivacySettings();
 
   assert.equal(secureStore.size, 0);
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
+  assert.deepEqual(await privacyService.loadPrivacySettings(), {
+    mode: 'standard',
+    pinCredential: null,
+    legacyPin: null,
+    failedPinAttempts: 0,
+    pinLockedUntil: null,
+  });
 });

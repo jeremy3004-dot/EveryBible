@@ -28,7 +28,7 @@ const respond = (): Promise<void> => {
 };
 
 mockModule(mock, 'expo-haptics', {
-  ImpactFeedbackStyle: { Light: 'impact-light', Medium: 'impact-medium', Heavy: 'impact-heavy' },
+  ImpactFeedbackStyle: { Light: 'impact-light', Medium: 'impact-medium' },
   NotificationFeedbackType: {
     Success: 'notify-success',
     Warning: 'notify-warning',
@@ -71,14 +71,6 @@ test('mediumHaptic asks for the medium impact style', async () => {
   assert.deepEqual(hapticCalls, [{ api: 'impactAsync', style: 'impact-medium' }]);
 });
 
-test('heavyHaptic asks for the heavy impact style', async () => {
-  const { heavyHaptic } = await loadHaptics();
-
-  heavyHaptic();
-
-  assert.deepEqual(hapticCalls, [{ api: 'impactAsync', style: 'impact-heavy' }]);
-});
-
 test('successHaptic asks for the success notification style', async () => {
   const { successHaptic } = await loadHaptics();
 
@@ -117,15 +109,14 @@ test('every helper returns undefined so callers never await feedback', async () 
   const returned = [
     haptics.lightHaptic(),
     haptics.mediumHaptic(),
-    haptics.heavyHaptic(),
     haptics.successHaptic(),
     haptics.warningHaptic(),
     haptics.errorHaptic(),
     haptics.selectionHaptic(),
   ];
 
-  assert.deepEqual(returned, new Array(7).fill(undefined));
-  assert.equal(hapticCalls.length, 7);
+  assert.deepEqual(returned, new Array(6).fill(undefined));
+  assert.equal(hapticCalls.length, 6);
 });
 
 test('a rejected haptic promise is swallowed instead of becoming an unhandled rejection', async () => {

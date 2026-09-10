@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, sourcePath } from '../testing/mockModules';
+import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 
 /**
@@ -28,6 +28,9 @@ mockModule(mock, 'react', { ...reactStub, default: reactStub });
 
 const rn = createReactNativeStub({ nativeModules: {} });
 mockModule(mock, 'react-native', rn);
+
+// The privacy store's service layer hashes the secure code with expo-crypto.
+mockExpoCrypto(mock);
 
 const secureStore = new Map<string, string>();
 mockModule(mock, 'expo-secure-store', {
