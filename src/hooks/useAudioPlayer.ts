@@ -976,6 +976,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       const nextPosition = Math.max(0, Math.min(duration, currentPosition + deltaMs));
+      // Re-anchor interpolation on the skip target, exactly as seekTo does.
+      // Without this the next interpolation tick extrapolates from the stale
+      // pre-skip poll and the monotonic clamp snaps a backward skip forward
+      // again until the native player reports a fresh position.
+      lastPollPositionRef.current = nextPosition;
+      lastPollTimeRef.current = Date.now();
       await audioPlayer.seekTo(nextPosition);
       setPosition(nextPosition);
     },
