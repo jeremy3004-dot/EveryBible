@@ -25,6 +25,7 @@ let downloadedChapterUri: string | null = null;
 let remoteAudio: RemoteAudioAsset | null = null;
 let granularity: 'chapter' | 'verse' = 'chapter';
 let translationHasAudio = true;
+let remoteFailure: unknown = null;
 
 mockModule(mock, sourcePath('services/audio/audioDownloadService.ts'), {
   getDownloadedChapterAudioUri: async (
@@ -69,6 +70,9 @@ mockModule(mock, sourcePath('services/audio/audioRemote.ts'), {
       method: 'fetchRemoteChapterAudio',
       args: [translationId, bookId, chapter, verse],
     });
+    if (remoteFailure) {
+      throw remoteFailure;
+    }
     return remoteAudio;
   },
   prefetchRemoteChapterAudio: async (
@@ -104,6 +108,7 @@ beforeEach(() => {
   remoteAudio = null;
   granularity = 'chapter';
   translationHasAudio = true;
+  remoteFailure = null;
 });
 
 // ---------------------------------------------------------------------------
@@ -174,6 +179,12 @@ test('a chapter request never consults the granularity of the translation', asyn
   await mod.getChapterAudioUrl('bsb', 'JHN', 3);
 
   assert.equal(methodsCalled().includes('getConfiguredAudioGranularity'), false);
+});
+
+test('a remote lookup failure is surfaced to the caller rather than swallowed as no audio', async () => {
+  remoteFailure = new Error('media host unreachable');
+
+  await assert.rejects(() => mod.getChapterAudioUrl('bsb', 'GEN', 1), /media host unreachable/);
 });
 
 // ---------------------------------------------------------------------------

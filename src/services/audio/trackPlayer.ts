@@ -283,6 +283,9 @@ async function add(track: Track | Track[]): Promise<void> {
     );
 
     if (requestId !== loadRequestId) {
+      // Detach before tearing down: expo-av reports a final loaded status from
+      // stopAsync, and this sound is not the one playing any more.
+      newSound.setOnPlaybackStatusUpdate(null);
       await newSound.stopAsync();
       await newSound.unloadAsync();
       return;

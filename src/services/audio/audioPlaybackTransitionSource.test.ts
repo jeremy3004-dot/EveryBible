@@ -40,7 +40,7 @@ test('track-player wrapper invalidates stale async loads before mounting the nex
 
   assert.match(
     trackPlayerSource,
-    /if \(requestId !== loadRequestId\) \{\s+await newSound\.stopAsync\(\);\s+await newSound\.unloadAsync\(\);\s+return;\s+\}/,
+    /if \(requestId !== loadRequestId\) \{[\s\S]*?await newSound\.stopAsync\(\);\s+await newSound\.unloadAsync\(\);\s+return;\s+\}/,
     'TrackPlayer should discard stale sounds when a newer chapter load wins the race'
   );
 });

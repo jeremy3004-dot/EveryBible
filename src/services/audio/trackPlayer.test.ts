@@ -31,6 +31,13 @@ interface FakeStatus {
 class FakeSound {
   readonly calls: RecordedCall[] = [];
   readonly rejections = new Map<string, unknown>();
+  /**
+   * Statuses expo-av pushes as a side effect of a transport call. Real
+   * `stopAsync()` on a loaded sound reports one last loaded status (position
+   * rewound, not playing) before the promise settles, so a sound whose handler
+   * was never detached keeps talking to trackPlayer while it is being torn down.
+   */
+  readonly statusOn = new Map<string, FakeStatus>();
   statusListener: ((status: FakeStatus) => void) | null = null;
   status: FakeStatus = {
     isLoaded: true,
@@ -74,6 +81,10 @@ class FakeSound {
 
   private record(method: string, args: unknown[]): Promise<void> {
     this.calls.push({ method, args });
+    const emitted = this.statusOn.get(method);
+    if (emitted) {
+      this.emitStatus(emitted);
+    }
     const failure = this.rejections.get(method);
     return failure ? Promise.reject(failure) : Promise.resolve();
   }
@@ -303,13 +314,42 @@ test('a stale load that finishes after a newer one is unloaded instead of becomi
   await stalePending;
 
   const [staleSound, freshSound] = soundInstances;
-  assert.deepEqual(staleSound.methods(), ['stopAsync', 'unloadAsync']);
+  assert.deepEqual(staleSound.methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
+  assert.equal(staleSound.calls[0].args[0], null);
   assert.deepEqual(freshSound.methods(), []);
   assert.deepEqual(await mod.default.getActiveTrack(), track('fresh'));
   assert.deepEqual(
     events.filter((entry) => entry.event === mod.Event.PlaybackActiveTrackChanged),
     [{ event: mod.Event.PlaybackActiveTrackChanged, data: { track: track('fresh') } }]
   );
+});
+
+test('a stale load being discarded cannot report progress over the track that replaced it', async () => {
+  const gate = createDeferred();
+
+  nextCreateGate = gate.promise;
+  const stalePending = mod.default.add(track('stale'));
+  await flush();
+
+  nextCreateGate = null;
+  await mod.default.add(track('fresh'));
+
+  const [staleSound] = soundInstances;
+  // expo-av reports one last loaded status while a sound is torn down. The
+  // discarded load must be detached first, or the live track's scrubber jumps
+  // back to zero and the transport flips to paused.
+  staleSound.statusOn.set('stopAsync', {
+    isLoaded: true,
+    positionMillis: 0,
+    durationMillis: 0,
+    isPlaying: false,
+  });
+  const events = recordEvents();
+
+  gate.resolve();
+  await stalePending;
+
+  assert.deepEqual(events, []);
 });
 
 test('a stale load that fails after a newer one succeeded is swallowed', async () => {
@@ -333,6 +373,28 @@ test('a stale load that fails after a newer one succeeded is swallowed', async (
     []
   );
   assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Ready });
+});
+
+test('a load still in flight when stop is called never becomes the active track', async () => {
+  const gate = createDeferred();
+
+  nextCreateGate = gate.promise;
+  const pending = mod.default.add(track('interrupted'));
+  await flush();
+
+  await mod.default.stop();
+  const events = recordEvents();
+
+  gate.resolve();
+  await pending;
+
+  assert.equal(await mod.default.getActiveTrack(), null);
+  assert.deepEqual(soundInstances[0].methods(), [
+    'setOnPlaybackStatusUpdate',
+    'stopAsync',
+    'unloadAsync',
+  ]);
+  assert.deepEqual(events, []);
 });
 
 test('add surfaces a load failure as a PlaybackError and rethrows for the caller', async () => {
@@ -726,6 +788,34 @@ test('loadAndPlay skips the redundant rate call at 1x', async () => {
 
   assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
 });
+
+test('loadAndPlay surfaces a load failure and leaves the transport with nothing to drive', async () => {
+  const events = recordEvents();
+  nextCreateFailure = new Error('chapter 404');
+
+  await assert.rejects(() => mod.default.loadAndPlay('https://audio.test/missing.mp3'), /404/);
+
+  // No sound was ever assigned, so the transport calls are inert rather than
+  // driving the sound the failed load replaced.
+  await mod.default.play();
+  await mod.default.seekTo(10);
+
+  assert.deepEqual(soundInstances, []);
+  assert.deepEqual(
+    events.filter((entry) => entry.event === mod.Event.PlaybackError),
+    [{ event: mod.Event.PlaybackError, data: { code: 'LOAD_ERROR', message: 'chapter 404' } }]
+  );
+});
+
+/*
+ * QUESTION: after a failed `add`, `activeTrack` still names the track the
+ * failed load replaced (unloadSound() runs before createAsync, and the catch
+ * path only sets State.Error). getActiveTrack() therefore reports a track that
+ * is not loaded, and no PlaybackActiveTrackChanged(null) is emitted, so the
+ * lock-screen bridge keeps showing the old chapter. Left as-is: no in-repo
+ * caller reads getActiveTrack() on the error path today, so changing it would
+ * be a behaviour change without a demonstrated symptom.
+ */
 
 test('loadAndPlay stamps the loaded track with the current clock', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });

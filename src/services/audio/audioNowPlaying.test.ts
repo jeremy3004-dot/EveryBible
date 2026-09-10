@@ -272,6 +272,9 @@ test('a production build with no native module stays silent and does not throw',
   assert.deepEqual(nativeCalls, []);
 });
 
+// `didWarnAboutMissingNativeModule` is module state that nothing resets, so this
+// must stay ahead of any other test that runs a dev-mode call: once the warning
+// has fired, no later test can observe it again.
 test('a dev build warns exactly once about the missing native module', async () => {
   devFlag.__DEV__ = true;
   delete nativeModules.EveryBibleAudioNowPlayingModule;

@@ -465,6 +465,14 @@ test('webbe psalms chapters use three-digit chapter numbering', async () => {
   });
 });
 
+test('webbe audio for a chapter that is not a positive integer resolves to no audio', async () => {
+  useTranslations(withCatalogAudio('web', { strategy: 'provider', provider: 'ebible-webbe' }));
+
+  assert.equal(await mod.fetchRemoteChapterAudio('web', 'GEN', 0), null);
+  assert.equal(await mod.fetchRemoteChapterAudio('web', 'GEN', -1), null);
+  assert.equal(await mod.fetchRemoteChapterAudio('web', 'GEN', 1.5), null);
+});
+
 test('webbe audio for a book outside the fileset resolves to no audio', async () => {
   useTranslations(withCatalogAudio('web', { strategy: 'provider', provider: 'ebible-webbe' }));
 

@@ -183,6 +183,9 @@ test('configure sets up the session and subscribes to progress, state, queue-end
   ]);
 });
 
+// Depends on the preceding test having configured the singleton: `configure()`
+// short-circuits on `isConfigured`, which nothing resets, so a second call can
+// only be observed after a first one somewhere in this file.
 test('configure is idempotent and never double-subscribes', async () => {
   await mod.audioPlayer.configure();
 
@@ -339,6 +342,22 @@ test('loadAndPlay resets the merged snapshot to a buffering start-of-track', asy
       didJustFinish: false,
     },
   ]);
+});
+
+test('a load that fails leaves the player unloaded so the transport stays inert', async () => {
+  failures.set('loadAndPlay', new Error('chapter unavailable'));
+
+  await assert.rejects(
+    () => mod.audioPlayer.loadAndPlay('https://audio.test/missing.mp3'),
+    /chapter unavailable/
+  );
+  trackPlayerCalls.length = 0;
+
+  await mod.audioPlayer.play();
+  await mod.audioPlayer.seekTo(1_000);
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  assert.deepEqual(trackPlayerCalls, []);
 });
 
 // ---------------------------------------------------------------------------

@@ -246,6 +246,19 @@ test('an action after hydration overwrites the malformed stored snapshot', async
   assert.equal(readPersisted().state.playbackRate, 1.75);
 });
 
+test('clearing the persisted storage forgets the dedupe cache so the next save lands', () => {
+  resetStore();
+  actions().setPlaybackRate(1.25);
+
+  useAudioStore.persist.clearStorage();
+  // Same value, so the projection is byte-identical to the one just written.
+  // Without removeItem resetting the cache the write is suppressed and the
+  // settings are silently lost until some other persisted field changes.
+  actions().setPlaybackRate(1.25);
+
+  assert.equal(readPersisted().state.playbackRate, 1.25);
+});
+
 test('clearing the persisted storage removes the stored snapshot', () => {
   resetStore();
   actions().setPlaybackRate(1.25);

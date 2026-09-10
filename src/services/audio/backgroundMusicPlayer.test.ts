@@ -211,13 +211,13 @@ test('starting a preset loads its bundled asset muted and fades it up to the cat
   assert.equal(volumes.at(-1), AMBIENT_VOLUME);
 });
 
+// `isConfigured` is never reset (not by stop(), not by sync('off')), so exactly
+// one configureAudioMode call may happen across this whole file.
 test('the audio session is configured on the first sync and never again', async () => {
-  const configureCallsBefore = configureAudioModeCalls;
-
   await mod.backgroundMusicPlayer.sync('ambient', true);
   await mod.backgroundMusicPlayer.sync('piano', true);
 
-  assert.equal(configureAudioModeCalls, Math.max(configureCallsBefore, 1));
+  assert.equal(configureAudioModeCalls, 1);
 });
 
 test('each preset fades to its own catalog volume', async () => {
@@ -376,6 +376,20 @@ test('a pause failure is swallowed so the next sync pass can reconcile', async (
   sounds[0].rejections.set('setVolumeAsync', new Error('sound released'));
 
   await assert.doesNotReject(() => mod.backgroundMusicPlayer.sync('ambient', false));
+});
+
+test('a volume change that fails mid-fade lets the ramp run to the target anyway', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  // expo-av rejects setVolumeAsync once the sound is released. The fade runs on
+  // an interval, so an unhandled rejection there would take down the process
+  // rather than the one step that failed.
+  sounds[0].rejections.set('setVolumeAsync', new Error('sound released'));
+
+  runFade();
+  await flush();
+
+  assert.equal(sounds[0].volumes().length, FADE_DURATION_MS / 50);
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME);
 });
 
 // ---------------------------------------------------------------------------
