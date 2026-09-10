@@ -142,3 +142,157 @@ test('muted reads as a well against both the page and card surfaces', () => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Status and reader foregrounds. The block above audits the accent matrix; the
+// pairs below are the scope tokens the a11y audit found being used as *text*
+// colours in screens, plus the two tokens added to make those uses legal.
+// ---------------------------------------------------------------------------
+
+// `success` and `warning` are fill/border tones, not text tones: on vellum they
+// land at 3.47:1 and 2.83:1. Screens that need green or amber *words* use the
+// `on*Soft` foregrounds, which are asserted here against every surface a status
+// line can sit on — the page, a card, and the matching soft tint.
+test('the status foregrounds clear AA on page, card and their own tint', () => {
+  for (const mode of MODES) {
+    const background = extractColorToken(source, mode.object, 'background');
+    const cardBackground = extractColorToken(source, mode.object, 'cardBackground');
+
+    const pairs: Array<[string, string, string]> = [
+      [
+        'onSuccessSoft on background',
+        extractColorToken(source, mode.object, 'onSuccessSoft'),
+        background,
+      ],
+      [
+        'onSuccessSoft on cardBackground',
+        extractColorToken(source, mode.object, 'onSuccessSoft'),
+        cardBackground,
+      ],
+      [
+        'onWarningSoft on warningSoft',
+        extractColorToken(source, mode.object, 'onWarningSoft'),
+        extractColorToken(source, mode.object, 'warningSoft'),
+      ],
+      [
+        'onWarningSoft on background',
+        extractColorToken(source, mode.object, 'onWarningSoft'),
+        background,
+      ],
+      [
+        'onWarningSoft on cardBackground',
+        extractColorToken(source, mode.object, 'onWarningSoft'),
+        cardBackground,
+      ],
+    ];
+
+    for (const [label, fg, bg] of pairs) {
+      const ratio = contrastRatio(fg, bg);
+      assert.ok(
+        ratio >= AA_TEXT,
+        `${mode.name} — ${label}: ${ratio.toFixed(2)}:1 (need ${AA_TEXT}:1)`
+      );
+    }
+  }
+});
+
+// Guard the reason those tokens exist: if a future edit makes `success` or
+// `warning` itself readable as body text on the page, this test is the place to
+// relax the rule deliberately rather than discovering it by shipping.
+test('success and warning stay fills, not text colours, on the light page', () => {
+  const background = extractColorToken(source, 'baseLightColors', 'background');
+  for (const token of ['success', 'warning']) {
+    const ratio = contrastRatio(extractColorToken(source, 'baseLightColors', token), background);
+    assert.ok(
+      ratio < AA_TEXT,
+      `${token} now clears ${ratio.toFixed(2)}:1 on vellum — if that is intended, drop this guard ` +
+        `and let screens use it as text directly instead of on${token[0].toUpperCase()}${token.slice(1)}Soft`
+    );
+  }
+});
+
+// The follow band is a highlight the reader paints behind the verse being read
+// aloud. Body text on it is fine (9.23:1 / 8.74:1), but the verse *number* is
+// set in `bibleSecondaryText`, which only reaches 3.18:1 on the light band —
+// hence `bibleFollowVerseNumber`.
+test('the follow band carries both scripture and its verse numbers', () => {
+  for (const mode of MODES) {
+    const band = extractColorToken(source, mode.object, 'bibleFollowHighlight');
+
+    const bodyRatio = contrastRatio(
+      extractColorToken(source, mode.object, 'biblePrimaryText'),
+      band
+    );
+    assert.ok(
+      bodyRatio >= AA_TEXT,
+      `${mode.name} — biblePrimaryText on bibleFollowHighlight: ${bodyRatio.toFixed(2)}:1`
+    );
+
+    const numberRatio = contrastRatio(
+      extractColorToken(source, mode.object, 'bibleFollowVerseNumber'),
+      band
+    );
+    assert.ok(
+      numberRatio >= AA_TEXT,
+      `${mode.name} — bibleFollowVerseNumber on bibleFollowHighlight: ${numberRatio.toFixed(2)}:1`
+    );
+
+    // Documented exception: the band itself against the page is 1.6:1 (light) /
+    // 1.8:1 (dark). It is a reading-position tint, not a UI boundary — the
+    // audible playback is the primary signal and the text on it stays >= 8:1 —
+    // so it is deliberately below the 3:1 non-text floor. Raising it would put
+    // a coloured slab through the middle of scripture.
+    const bandOnPage = contrastRatio(
+      band,
+      extractColorToken(source, mode.object, 'bibleBackground')
+    );
+    assert.ok(
+      bandOnPage < 3,
+      `${mode.name} — the follow band is now ${bandOnPage.toFixed(2)}:1 against the page; if that ` +
+        `is intended, this documented exception should be re-argued rather than silently kept`
+    );
+  }
+});
+
+// Documented exception: disabled controls (IconButton, ListRow) render at 0.45
+// opacity, which drops any foreground below AA. WCAG 1.4.3 exempts inactive
+// controls, and both primitives also set accessibilityState.disabled so the
+// state is announced rather than relying on the dimming alone. Asserted here so
+// the exemption stays a decision with a stated basis.
+test('the disabled treatment is opacity plus announced state, not colour alone', () => {
+  const iconButton = readFileSync(
+    fileURLToPath(new URL('../components/ui/IconButton.tsx', import.meta.url).href),
+    'utf8'
+  );
+  const listRow = readFileSync(
+    fileURLToPath(new URL('../components/ui/ListRow.tsx', import.meta.url).href),
+    'utf8'
+  );
+
+  assert.match(iconButton, /opacity: 0\.45/, 'IconButton keeps the 0.45 disabled dimming');
+  assert.match(
+    iconButton,
+    /accessibilityState=\{\{ disabled \}\}/,
+    'IconButton must announce disabled, since the dimming alone is below AA'
+  );
+  assert.match(
+    listRow,
+    /accessibilityState=\{\{ disabled \}\}/,
+    'ListRow must announce disabled, since the dimming alone is below AA'
+  );
+});
+
+// `error` is used as text on cards in a handful of places. Dark cards put it at
+// 4.39:1 — just under AA, and the closest thing to a real regression this audit
+// found outside the tokens above. Locked at its current value so it cannot
+// drift further while a deliberate fix is scheduled.
+test('error text on a dark card is held at its current near-AA value', () => {
+  const ratio = contrastRatio(
+    extractColorToken(source, 'baseDarkColors', 'error'),
+    extractColorToken(source, 'baseDarkColors', 'cardBackground')
+  );
+  assert.ok(
+    ratio >= 4.35,
+    `dark — error on cardBackground: ${ratio.toFixed(2)}:1 must not drop further`
+  );
+});

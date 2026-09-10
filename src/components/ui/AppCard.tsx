@@ -105,8 +105,14 @@ export function AppCard({
     );
   }
 
+  // A bare View drops accessibilityLabel unless it is also an accessibility
+  // element, so the label is paired with `accessible` rather than set alone.
   return (
-    <View style={cardStyle} accessibilityLabel={accessibilityLabel}>
+    <View
+      style={cardStyle}
+      accessible={accessibilityLabel ? true : undefined}
+      accessibilityLabel={accessibilityLabel}
+    >
       {edgeLight}
       {rule}
       {children}

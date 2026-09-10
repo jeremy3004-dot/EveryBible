@@ -59,8 +59,10 @@ export const PressableScale = forwardRef<View, PressableScaleProps>(function Pre
     scaleTo = 0.96,
     pressEffect = 'scale',
     haptic,
+    onPress,
     onPressIn,
     onPressOut,
+    accessibilityRole,
     disabled,
     style,
     ...rest
@@ -104,8 +106,13 @@ export const PressableScale = forwardRef<View, PressableScaleProps>(function Pre
     <AnimatedPressable
       ref={ref}
       disabled={disabled}
+      onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      // Anything that responds to a tap is a button unless the caller says
+      // otherwise, so a new call site cannot ship an untyped control by
+      // forgetting the prop. Every existing call site already passes one.
+      accessibilityRole={accessibilityRole ?? (onPress ? 'button' : undefined)}
       style={[animatedStyle, style]}
       {...rest}
     >

@@ -29,8 +29,15 @@ export function SectionHeader({ title, eyebrow, action, style }: SectionHeaderPr
   return (
     <View style={[styles.row, style]}>
       <Text
+        // The navigators run headerShown:false, so this is the only thing that
+        // can populate VoiceOver's heading rotor on a screen. Every section
+        // title is a real heading, so it says so.
+        accessibilityRole="header"
         style={[typography.sectionHeading, displayFont.bold, { color: colors.primaryText }]}
-        numberOfLines={1}
+        // The row is laid out by content (marginBottom only, no fixed height),
+        // so a second line pushes the section down instead of being clipped —
+        // a translated title at large Dynamic Type stays readable.
+        numberOfLines={2}
       >
         {title}
       </Text>

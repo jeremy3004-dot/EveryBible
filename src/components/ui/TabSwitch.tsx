@@ -16,7 +16,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { motion, radius, shadows } from '../../design/system';
+import { layout, motion, radius, shadows } from '../../design/system';
 import { selectionHaptic } from '../../utils/haptics';
 
 export interface TabSwitchSegment {
@@ -41,11 +41,24 @@ export interface TabSwitchProps {
   /** `sm` hugs its labels (1d's Foundations/Wisdom); `md` is the full-width form. */
   size?: TabSwitchSize;
   style?: StyleProp<ViewStyle>;
-  accessibilityLabel?: string;
+  /**
+   * Required: a tablist with no name announces as a bare group, so the user
+   * hears "tab, 1 of 3" with no idea what is being switched. Every call site
+   * already passes one.
+   */
+  accessibilityLabel: string;
 }
 
 const TRACK_PADDING = 3;
 const ICON_STROKE = 2;
+
+// The `sm` track is ~24pt tall, well under the 44pt touch floor, and the track
+// itself is only 3pt of padding — so the shortfall is reclaimed as hit slop the
+// way IconButton does, rather than by growing the control.
+const SIZE_HEIGHT: Record<TabSwitchSize, number> = {
+  sm: 24,
+  md: 30,
+};
 
 const SIZE_METRICS: Record<
   TabSwitchSize,
@@ -73,6 +86,12 @@ export function TabSwitch({
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
   const metrics = SIZE_METRICS[size];
+  const segmentHitSlop = {
+    top: Math.max(0, Math.round((layout.minTouchTarget - SIZE_HEIGHT[size]) / 2)),
+    bottom: Math.max(0, Math.round((layout.minTouchTarget - SIZE_HEIGHT[size]) / 2)),
+    left: 0,
+    right: 0,
+  } as const;
 
   // Segment geometry is only known after layout, so the thumb is parked at zero
   // width until then — which also keeps it invisible on the very first frame.
@@ -151,6 +170,7 @@ export function TabSwitch({
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={segment.label}
+            hitSlop={segmentHitSlop}
             onPress={() => handlePress(segment.key)}
             onLayout={(event) => handleLayout(index, event)}
             style={[

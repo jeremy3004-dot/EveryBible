@@ -11,6 +11,7 @@ const LEADING_GAP = spacing.md;
 const CHEVRON_SIZE = 16;
 const ICON_STROKE = 2;
 const ROW_MIN_HEIGHT = 52;
+const ROW_HIT_SLOP = 8;
 
 export interface ListRowProps {
   title: string;
@@ -29,7 +30,19 @@ export interface ListRowProps {
   /** Hide the bottom separator on the final row of a group. */
   isLast?: boolean;
   haptic?: HapticFeedback;
+  /**
+   * Dim and un-press the row. Always sets the RN `disabled` prop and
+   * `accessibilityState.disabled` together — setting either alone leaves the
+   * row either silently untappable or announced wrong.
+   */
+  disabled?: boolean;
   accessibilityLabel?: string;
+  /**
+   * Escape hatch for rows whose `trailing` control has to stay its own focus
+   * stop (a Switch a screen reader must be able to toggle directly). Forwarded
+   * verbatim to the pressable; leave it unset for the default grouped row.
+   */
+  accessible?: boolean;
 }
 
 // The one row recipe for More / Settings / pickers: 52pt min height, a plain
@@ -47,13 +60,20 @@ export function ListRow({
   titleWeight = '500',
   isLast = false,
   haptic = 'selection',
+  disabled = false,
   accessibilityLabel,
+  accessible,
 }: ListRowProps) {
   const { colors } = useTheme();
   // `value` is translated metadata ("6-day streak", a language's native name), and
   // the mono token is the Latin-only display face, so it needs the fallback merge.
   const displayFont = useDisplayFont();
   const titleColor = destructive ? colors.error : colors.primaryText;
+
+  // A row announces everything it shows. Reading only the title dropped the
+  // value ("6-day streak") and the subtitle, which is often the entire state
+  // the row exists to report.
+  const composedLabel = accessibilityLabel ?? [title, value, subtitle].filter(Boolean).join(', ');
 
   const content = (
     <View style={styles.row}>
@@ -68,7 +88,9 @@ export function ListRow({
       <View style={styles.textColumn}>
         <Text
           style={[typography.rowTitle, { color: titleColor, fontWeight: titleWeight }]}
-          numberOfLines={1}
+          // The row is `minHeight`, not a fixed height, so a wrapped title grows
+          // the row instead of being cut off at large Dynamic Type.
+          numberOfLines={2}
         >
           {title}
         </Text>
@@ -118,10 +140,17 @@ export function ListRow({
       <View>
         <PressableScale
           onPress={onPress}
+          disabled={disabled}
           pressEffect="translate"
           haptic={haptic}
+          accessible={accessible}
           accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel ?? title}
+          accessibilityLabel={composedLabel}
+          // `disabled` and accessibilityState.disabled always travel together.
+          accessibilityState={{ disabled }}
+          // The row's own 52pt box already clears the touch floor, but the
+          // separator gap between rows was dead space; 8pt closes it.
+          hitSlop={ROW_HIT_SLOP}
         >
           {content}
         </PressableScale>
