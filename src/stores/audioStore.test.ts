@@ -316,6 +316,66 @@ test('the persisted snapshot carries only the settings and resume fields', () =>
   ]);
 });
 
+/**
+ * Counts the writes that actually reach MMKV by shadowing `set` on the backing
+ * map the mmkv mock closes over. Returns a restore function.
+ */
+const countStorageWrites = (onWrite?: () => void) => {
+  const writes: string[] = [];
+  const native = Map.prototype.set.bind(mmkv.store);
+  mmkv.store.set = (key: string, value: string) => {
+    writes.push(key);
+    onWrite?.();
+    return native(key, value);
+  };
+  return {
+    writes,
+    restore: () => {
+      delete (mmkv.store as { set?: unknown }).set;
+    },
+  };
+};
+
+test('a minute of quarter-second playback ticks only writes the five-second resume checkpoints', () => {
+  resetStore();
+  actions().setCurrentTrack('bsb', 'PSA', 119);
+  const recorder = countStorageWrites();
+
+  try {
+    for (let position = 250; position <= 60_000; position += 250) {
+      actions().setPosition(position);
+      actions().setDuration(90_000);
+      actions().setStatus('playing');
+    }
+  } finally {
+    recorder.restore();
+  }
+
+  // 240 ticks, one write per 5s checkpoint: the resume anchor is the only
+  // persisted field playback moves, so serialising more than this is wasted work.
+  assert.equal(recorder.writes.length, 12);
+  assert.equal(useAudioStore.getState().currentPosition, 60_000);
+  assert.equal(readPersisted().state.lastPosition, 60_000);
+});
+
+test('a persisted write that throws is not remembered as saved, so the next change writes again', () => {
+  resetStore();
+  const recorder = countStorageWrites(() => {
+    throw new Error('disk unavailable');
+  });
+
+  try {
+    assert.throws(() => actions().setPlaybackRate(1.5), /disk unavailable/);
+  } finally {
+    recorder.restore();
+  }
+
+  // Same value again: only a store that did not cache the failed write persists it.
+  actions().setPlaybackRate(1.5);
+
+  assert.equal(readPersisted().state.playbackRate, 1.5);
+});
+
 // ---------------------------------------------------------------------------
 // Playback state actions
 // ---------------------------------------------------------------------------

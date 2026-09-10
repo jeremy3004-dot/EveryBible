@@ -1,11 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
-import { mergeRuntimeCatalogTranslations } from './bibleStoreModel';
-import { refreshRuntimeCatalog } from '../services/translations/runtimeCatalogRefresh';
 import { mapElCatalogToBibleTranslations } from '../services/elMedia/elTranslationMapping';
 import type { BibleTranslation } from '../types';
 import { APPEARANCE_PALETTE_IDS } from '../constants/appearancePalettes';
@@ -963,84 +957,3 @@ test('zero-book and legacy timestamp exceptions reject corrupt or unrelated runt
     );
   }
 });
-
-// Execute the real store action with only its native side effects stubbed. Importing the
-// whole store under Node loads React Native; extracting this property with TypeScript keeps
-// the persistence/download assertions tied to production code instead of a copied reducer.
-function makeCatalogActionStore(initial: ReturnType<typeof sanitizePersistedBibleState>) {
-  let state = initial;
-  const source = ts.createSourceFile(
-    'bibleStore.ts',
-    readFileSync(fileURLToPath(new URL('./bibleStore.ts', import.meta.url).href), 'utf8'),
-    ts.ScriptTarget.Latest,
-    true
-  );
-  let actionSource: string | undefined;
-  const visit = (node: ts.Node) => {
-    if (ts.isPropertyAssignment(node) && node.name.getText(source) === 'applyRuntimeCatalog') {
-      actionSource = node.initializer.getText(source);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  assert.ok(actionSource, 'production applyRuntimeCatalog action must exist');
-  const script = ts.transpileModule(`const action = ${actionSource}; action;`, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const applyRuntimeCatalog = runInNewContext(script, {
-    set: (update: (current: typeof state) => Partial<typeof state>) => {
-      state = { ...state, ...update(state) };
-    },
-    mergeRuntimeCatalogTranslations,
-    syncRemoteAudioMetadataResolverWithTranslations: () => {},
-    syncVerseTimestampMetadata: () => {},
-  }) as (translations: BibleTranslation[]) => void;
-  return {
-    get state() {
-      return state;
-    },
-    getStoreTranslations: () => state.translations,
-    applyRuntimeCatalog,
-  };
-}
-
-for (const legacy of [false, true]) {
-  test(`EL selection and audio downloads survive restart and actual catalog apply (legacy=${legacy})`, async () => {
-    const mapped = makeMappedElTranslation();
-    const persisted = {
-      ...mapped,
-      downloadedAudioBooks: ['GEN', 'JHN'],
-      catalog: { ...mapped.catalog!, updatedAt: legacy ? '' : mapped.catalog!.updatedAt },
-    };
-    const restored = sanitizePersistedBibleState(
-      JSON.parse(
-        JSON.stringify({
-          currentTranslation: persisted.id,
-          translations: [persisted],
-        })
-      )
-    );
-    const store = makeCatalogActionStore(restored);
-    const refreshed = {
-      ...makeMappedElTranslation(),
-      name: 'Updated audio catalog',
-      catalog: { ...mapped.catalog!, updatedAt: '2026-09-06T00:00:00.000Z' },
-    };
-    await refreshRuntimeCatalog({
-      listTranslations: async () => ({ success: false, error: 'offline' }),
-      getStoreTranslations: store.getStoreTranslations,
-      applyRuntimeCatalog: store.applyRuntimeCatalog,
-      resolveUrl: () => 'https://media.example.com/catalog.json',
-      elStep: async () => [refreshed],
-    });
-    const secondRestart = sanitizePersistedBibleState(JSON.parse(JSON.stringify(store.state)));
-    assert.equal(secondRestart.currentTranslation, persisted.id);
-    const el = secondRestart.translations.find(({ id }) => id === persisted.id);
-    assert.ok(el);
-    assert.equal(el.name, 'Updated audio catalog');
-    assert.equal(el.catalog?.updatedAt, '2026-09-06T00:00:00.000Z');
-    assert.deepEqual(el.downloadedAudioBooks, ['GEN', 'JHN']);
-    assert.equal(el.hasText, false);
-    assert.equal(el.totalBooks, 0);
-  });
-}

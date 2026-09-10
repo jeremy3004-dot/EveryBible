@@ -22,6 +22,9 @@ const doubles: BibleStoreDoubles = installBibleStoreDoubles(mock);
 
 let useBibleStore: typeof import('./bibleStore').useBibleStore;
 let defaultTranslations: () => BibleTranslation[];
+let sanitizePersistedBibleState: typeof import('./persistedStateSanitizers').sanitizePersistedBibleState;
+let refreshRuntimeCatalog: typeof import('../services/translations/runtimeCatalogRefresh').refreshRuntimeCatalog;
+let mapElCatalogToBibleTranslations: typeof import('../services/elMedia/elTranslationMapping').mapElCatalogToBibleTranslations;
 /** Recorded before any test runs, so import-time side effects stay assertable. */
 let importTimeAudioSyncs: string[][] = [];
 let importTimeResolverRegistrations = 0;
@@ -29,6 +32,9 @@ let importTimeResolverRegistrations = 0;
 before(async () => {
   const sanitizers = await import('./persistedStateSanitizers');
   defaultTranslations = sanitizers.getDefaultBibleTranslations;
+  sanitizePersistedBibleState = sanitizers.sanitizePersistedBibleState;
+  ({ refreshRuntimeCatalog } = await import('../services/translations/runtimeCatalogRefresh'));
+  ({ mapElCatalogToBibleTranslations } = await import('../services/elMedia/elTranslationMapping'));
   useBibleStore = (await import('./bibleStore')).useBibleStore;
   await flushAsyncWork();
   importTimeAudioSyncs = doubles.remote.syncedTranslationIds.map((ids) => [...ids]);
@@ -911,3 +917,89 @@ test('recoverMissingInstalledPack skips database invalidation when no pack path 
   assert.deepEqual(doubles.database.invalidatedPaths, []);
   assert.equal(findTranslation('esv1')?.installState, 'remote-only');
 });
+
+// ---------------------------------------------------------------------------
+// Every Language audio-only catalog rows across a refresh and a restart
+// ---------------------------------------------------------------------------
+
+/** An audio-only EL row exactly as the EL catalog mapper produces it. */
+const makeMappedElTranslation = (): BibleTranslation =>
+  mapElCatalogToBibleTranslations({
+    schemaVersion: 'lqd-catalog/v1',
+    sequence: 1,
+    generatedAt: '2026-09-05T00:00:00.000Z',
+    baseUrl: 'https://media.example.com',
+    translations: [
+      {
+        translationId: 'el-persistence',
+        languageIso6393: 'eng',
+        languageName: 'English',
+        translationName: 'Persistence Audio',
+        abbreviation: 'PA',
+        source: 'langquest',
+        copyright: 'CC0-1.0',
+        deliveryMode: 'chapter',
+        hasAudio: true,
+        currentAudioVersion: 'v1',
+        manifestUrl: '/manifest.json',
+        manifestSha256: 'a'.repeat(64),
+      },
+    ],
+  })[0];
+
+// An EL row carries no text and no books, which is exactly the shape earlier builds
+// mistook for a corrupt runtime row and dropped, losing the reader's selection and
+// every downloaded chapter. `legacy` covers rows persisted before the catalog
+// carried a timestamp.
+for (const legacy of [false, true]) {
+  test(`an EL audio-only translation keeps its selection and downloads across a catalog refresh and restart (legacy=${legacy})`, async () => {
+    const mapped = makeMappedElTranslation();
+    const persisted = {
+      ...mapped,
+      downloadedAudioBooks: ['GEN', 'JHN'],
+      catalog: { ...mapped.catalog!, updatedAt: legacy ? '' : mapped.catalog!.updatedAt },
+    };
+    const restored = sanitizePersistedBibleState(
+      JSON.parse(JSON.stringify({ currentTranslation: persisted.id, translations: [persisted] }))
+    );
+    useBibleStore.setState({ ...useBibleStore.getInitialState(), ...restored }, true);
+
+    await refreshRuntimeCatalog({
+      listTranslations: async () => ({ success: false, error: 'offline' }),
+      getStoreTranslations: () => useBibleStore.getState().translations,
+      applyRuntimeCatalog: (translations) =>
+        useBibleStore.getState().applyRuntimeCatalog(translations),
+      resolveUrl: () => 'https://media.example.com/catalog.json',
+      elStep: async () => [
+        {
+          ...makeMappedElTranslation(),
+          name: 'Updated audio catalog',
+          catalog: { ...mapped.catalog!, updatedAt: '2026-09-06T00:00:00.000Z' },
+        },
+      ],
+    });
+
+    const afterRestart = sanitizePersistedBibleState(
+      JSON.parse(JSON.stringify(useBibleStore.getState()))
+    );
+    const el = afterRestart.translations.find(({ id }) => id === persisted.id);
+    assert.equal(afterRestart.currentTranslation, persisted.id);
+    assert.ok(el);
+    assert.deepEqual(
+      {
+        name: el.name,
+        updatedAt: el.catalog?.updatedAt,
+        downloadedAudioBooks: el.downloadedAudioBooks,
+        hasText: el.hasText,
+        totalBooks: el.totalBooks,
+      },
+      {
+        name: 'Updated audio catalog',
+        updatedAt: '2026-09-06T00:00:00.000Z',
+        downloadedAudioBooks: ['GEN', 'JHN'],
+        hasText: false,
+        totalBooks: 0,
+      }
+    );
+  });
+}
