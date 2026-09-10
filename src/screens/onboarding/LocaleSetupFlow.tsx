@@ -1,10 +1,18 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
   BackHandler,
   InteractionManager,
-  ScrollView,
   StyleSheet,
   Text,
   type TextStyle,
@@ -47,6 +55,17 @@ import {
   type SetupMode,
   type SetupStep,
 } from './localeSetupModel';
+import { GroupedRowCard, LocaleSetupList } from './LocaleSetupList';
+import {
+  buildBibleLanguageListItems,
+  buildContentLanguageListItems,
+  buildCountryListItems,
+  isLastInLocaleSetupGroup,
+  type BibleLanguageListItem,
+  type ContentLanguageListItem,
+  type CountryListItem,
+  type LocaleSetupGroupPosition,
+} from './localeSetupListModel';
 import { layout, radius, spacing, typography } from '../../design/system';
 import {
   AppButton,
@@ -272,15 +291,21 @@ function SectionEyebrow({ label, colors, eyebrowFont }: SectionEyebrowProps) {
 
 // Row components are extracted and memoized (keyed by stable id) so a keystroke
 // that only changes one row's selection — or leaves the visible set unchanged —
-// doesn't re-render every row in the non-virtualized ScrollView. Props are kept
+// doesn't re-render every visible row of the virtualized list. Props are kept
 // primitive/stable (precomputed labels + a stable onSelect callback) so
 // React.memo's shallow compare actually skips unchanged rows.
+//
+// `position` is what replaces the old AppCard wrapper around a whole section:
+// each row now paints the slice of the grouped card it occupies. Rows that still
+// sit inside a real AppCard (the pinned recommendation, the interface-language
+// list) pass no position and render bare, exactly as before.
 interface CountryRowProps {
   countryCode: string;
   countryName: string;
   countrySubtitle: string;
   isSelected: boolean;
   isLast: boolean;
+  position?: LocaleSetupGroupPosition;
   colors: ThemeColors;
   onSelect: (countryCode: string) => void;
 }
@@ -291,10 +316,11 @@ const CountryRow = memo(function CountryRow({
   countrySubtitle,
   isSelected,
   isLast,
+  position,
   colors,
   onSelect,
 }: CountryRowProps) {
-  return (
+  const row = (
     <OptionRow
       title={countryName}
       subtitle={countrySubtitle}
@@ -304,6 +330,8 @@ const CountryRow = memo(function CountryRow({
       onPress={() => onSelect(countryCode)}
     />
   );
+
+  return position ? <GroupedRowCard position={position}>{row}</GroupedRowCard> : row;
 });
 
 interface LanguageRowProps {
@@ -311,6 +339,7 @@ interface LanguageRowProps {
   isRecommended: boolean;
   isSelected: boolean;
   isLast: boolean;
+  position?: LocaleSetupGroupPosition;
   recommendedBadgeLabel: string;
   colors: ThemeColors;
   eyebrowFont: TextStyle;
@@ -322,12 +351,13 @@ const LanguageRow = memo(function LanguageRow({
   isRecommended,
   isSelected,
   isLast,
+  position,
   recommendedBadgeLabel,
   colors,
   eyebrowFont,
   onSelect,
 }: LanguageRowProps) {
-  return (
+  const row = (
     <OptionRow
       title={language.nativeName}
       subtitle={language.name}
@@ -344,6 +374,8 @@ const LanguageRow = memo(function LanguageRow({
       onPress={() => onSelect(language.code)}
     />
   );
+
+  return position ? <GroupedRowCard position={position}>{row}</GroupedRowCard> : row;
 });
 
 interface OnboardingLanguageRowProps {
@@ -357,6 +389,7 @@ interface OnboardingLanguageRowProps {
   isRecommended: boolean;
   isInstalling: boolean;
   isLast: boolean;
+  position?: LocaleSetupGroupPosition;
   progress: number | null;
   colors: ThemeColors;
   eyebrowFont: TextStyle;
@@ -374,6 +407,7 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
   isRecommended,
   isInstalling,
   isLast,
+  position,
   progress,
   colors,
   eyebrowFont,
@@ -398,7 +432,7 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
     </View>
   );
 
-  return (
+  const row = (
     <OptionRow
       title={optionLabel}
       subtitle={
@@ -413,6 +447,8 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
       onPress={() => onPress(translation)}
     />
   );
+
+  return position ? <GroupedRowCard position={position}>{row}</GroupedRowCard> : row;
 });
 
 interface InterfaceLanguageRowProps {
@@ -442,6 +478,15 @@ const InterfaceLanguageRow = memo(function InterfaceLanguageRow({
     />
   );
 });
+
+// Every step feeds the same virtualized list, so their item unions are merged
+// into one discriminated union keyed on `type` — which is also what FlashList's
+// getItemType() pools recycled cells by.
+type LocaleSetupStepItem =
+  | { type: 'interfaceLanguageList'; id: string }
+  | BibleLanguageListItem<InitialOnboardingLanguageOption<BibleTranslation>>
+  | CountryListItem
+  | ContentLanguageListItem<LocaleLanguage>;
 
 export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: LocaleSetupFlowProps) {
   const { colors } = useTheme();
@@ -713,6 +758,74 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         : { recommended: [], global: [] },
     [debouncedLanguageQuery, selectedCountryCode, step]
   );
+
+  // Every step's body is one flat item array behind a single virtualized list.
+  // Mapped into a ScrollView, these lists mounted every row of the catalog at
+  // once — hundreds of views in a single commit, which is exactly the kind of
+  // synchronous work that jams the JS thread on Hermes (no JIT) and hung this
+  // screen on low-end Android. The flattening itself is a pure function in
+  // localeSetupListModel.ts so it can be unit tested.
+  const stepItems = useMemo<LocaleSetupStepItem[]>(() => {
+    if (step === 'interfaceLanguage') {
+      return [{ type: 'interfaceLanguageList', id: 'interface-language-list' }];
+    }
+
+    if (step === 'translation') {
+      return buildBibleLanguageListItems({
+        sections: onboardingLanguageSections,
+        primaryOption: primaryOnboardingLanguageOption,
+        showsPrimaryOption: mode === 'initial',
+        pinsRecommendedOption: bibleLanguageListState.pinsRecommendedOption,
+        showsFullList: bibleLanguageListState.showsFullList,
+        isHydratingRuntimeCatalog,
+        runtimeCatalogLoadFailed,
+        hasAnyOptions: onboardingLanguageOptions.length > 0,
+        recommendedLabel: t('onboarding.recommendedBadge'),
+      });
+    }
+
+    if (step === 'country') {
+      return buildCountryListItems({
+        suggestedCountryCode: suggestedCountry?.code ?? null,
+        listedCountryCodes: listedCountries.map((country) => country.code),
+        suggestedLabel: t('onboarding.suggestedFromDevice'),
+        listLabel: debouncedCountryQuery.trim()
+          ? t('onboarding.searchResults')
+          : t('onboarding.allNations'),
+      });
+    }
+
+    if (step === 'contentLanguage') {
+      return buildContentLanguageListItems({
+        recommended: languageResults.recommended,
+        global: languageResults.global,
+        recommendedLabel: t('onboarding.recommendedLanguages', {
+          country: selectedCountryDisplayName,
+        }),
+        moreLabel: t('onboarding.moreLanguages'),
+      });
+    }
+
+    return [];
+  }, [
+    bibleLanguageListState.pinsRecommendedOption,
+    bibleLanguageListState.showsFullList,
+    debouncedCountryQuery,
+    isHydratingRuntimeCatalog,
+    languageResults.global,
+    languageResults.recommended,
+    listedCountries,
+    mode,
+    onboardingLanguageOptions.length,
+    onboardingLanguageSections,
+    primaryOnboardingLanguageOption,
+    runtimeCatalogLoadFailed,
+    selectedCountryDisplayName,
+    step,
+    suggestedCountry,
+    t,
+  ]);
+
   // Pre-warm the locale search engine off the interaction/render critical path.
   // The engine's first use (129 KB catalog require + ICU sorts + Fuse build) is
   // otherwise paid synchronously on the first country-step render or first
@@ -949,125 +1062,158 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     void handleInterfaceLanguageSelectRef.current(language);
   }, []);
 
-  const renderInterfaceLanguageList = (testID?: string) => (
-    <View testID={testID}>
-      <AppCard padding={0}>
-        {SUPPORTED_LANGUAGES.map((language, index) => (
-          <InterfaceLanguageRow
-            key={language.code}
-            language={language}
-            isSelected={selectedInterfaceLanguageCode === language.code}
-            isLast={index === SUPPORTED_LANGUAGES.length - 1}
-            colors={colors}
-            onSelect={handleInterfaceLanguageSelect}
-          />
-        ))}
-      </AppCard>
-    </View>
+  // The interface-language list is the one list on this flow that stays a plain
+  // mapped AppCard: it is a fixed 21 rows, so virtualizing it would cost more
+  // than it saves. It renders as a single list item / header block instead.
+  const renderInterfaceLanguageList = useCallback(
+    (testID?: string) => (
+      <View testID={testID}>
+        <AppCard padding={0}>
+          {SUPPORTED_LANGUAGES.map((language, index) => (
+            <InterfaceLanguageRow
+              key={language.code}
+              language={language}
+              isSelected={selectedInterfaceLanguageCode === language.code}
+              isLast={index === SUPPORTED_LANGUAGES.length - 1}
+              colors={colors}
+              onSelect={handleInterfaceLanguageSelect}
+            />
+          ))}
+        </AppCard>
+      </View>
+    ),
+    [colors, handleInterfaceLanguageSelect, selectedInterfaceLanguageCode]
   );
 
-  const renderOnboardingLanguageRow = (
-    option: InitialOnboardingLanguageOption<BibleTranslation>,
-    isRecommended = false,
-    isLast = true
-  ) => {
-    const translation = option.primaryTranslation;
-    const isInstalling = installingTranslationId === translation.id;
-    const progress =
-      downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
-    // Read precomputed availability/selection state (computed once per
-    // translation in translationDisplayDataById) instead of recomputing per row.
-    const selectionState =
-      translationDisplayDataById.get(translation.id)?.selectionState ??
-      getTranslationSelectionState({
-        isDownloaded: translation.isDownloaded,
-        hasText: translation.hasText,
-        hasAudio: translation.hasAudio,
-        canPlayAudio: false,
-        hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
-        source: translation.source,
-        textPackLocalPath: translation.textPackLocalPath,
-      });
-    const statusLabel =
-      selectionState.reason === 'download-required'
-        ? t('translations.download')
-        : t('common.continue');
-    const translationLabel = translation.abbreviation
-      ? `${translation.name} (${translation.abbreviation})`
-      : translation.name;
+  const renderOnboardingLanguageRow = useCallback(
+    (
+      option: InitialOnboardingLanguageOption<BibleTranslation>,
+      isRecommended = false,
+      position?: LocaleSetupGroupPosition
+    ) => {
+      const isLast = position ? isLastInLocaleSetupGroup(position) : true;
+      const translation = option.primaryTranslation;
+      const isInstalling = installingTranslationId === translation.id;
+      const progress =
+        downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
+      // Read precomputed availability/selection state (computed once per
+      // translation in translationDisplayDataById) instead of recomputing per row.
+      const selectionState =
+        translationDisplayDataById.get(translation.id)?.selectionState ??
+        getTranslationSelectionState({
+          isDownloaded: translation.isDownloaded,
+          hasText: translation.hasText,
+          hasAudio: translation.hasAudio,
+          canPlayAudio: false,
+          hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+          source: translation.source,
+          textPackLocalPath: translation.textPackLocalPath,
+        });
+      const statusLabel =
+        selectionState.reason === 'download-required'
+          ? t('translations.download')
+          : t('common.continue');
+      const translationLabel = translation.abbreviation
+        ? `${translation.name} (${translation.abbreviation})`
+        : translation.name;
 
-    return (
-      <OnboardingLanguageRow
-        key={option.key}
-        translation={translation}
-        optionLabel={option.label}
-        translationLabel={translationLabel}
-        availabilitySummary={getTranslationAvailabilitySummary(translation, t)}
-        statusLabel={statusLabel}
-        recommendedBadgeLabel={t('onboarding.recommendedBadge')}
-        downloadingLabel={t('translations.downloading')}
-        isRecommended={isRecommended}
-        isInstalling={isInstalling}
-        isLast={isLast}
-        progress={progress}
-        colors={colors}
-        eyebrowFont={displayFont.regular}
-        onPress={handleTranslationSelect}
-      />
-    );
-  };
+      return (
+        <OnboardingLanguageRow
+          translation={translation}
+          optionLabel={option.label}
+          translationLabel={translationLabel}
+          availabilitySummary={getTranslationAvailabilitySummary(translation, t)}
+          statusLabel={statusLabel}
+          recommendedBadgeLabel={t('onboarding.recommendedBadge')}
+          downloadingLabel={t('translations.downloading')}
+          isRecommended={isRecommended}
+          isInstalling={isInstalling}
+          isLast={isLast}
+          position={position}
+          progress={progress}
+          colors={colors}
+          eyebrowFont={displayFont.regular}
+          onPress={handleTranslationSelect}
+        />
+      );
+    },
+    [
+      colors,
+      displayFont,
+      downloadProgress,
+      handleTranslationSelect,
+      installingTranslationId,
+      t,
+      translationDisplayDataById,
+    ]
+  );
 
   // "Nepal · 123 languages" under the localized nation name. The English name is
   // dropped when it is the same string the title already shows.
-  const getCountrySubtitle = (countryCode: string, displayName: string): string => {
-    const country = localeSearchEngine.getCountryByCode(countryCode);
-    const languageCount = t('onboarding.countryLanguageCount', {
-      count: country?.languageCodes.length ?? 0,
-    });
+  const getCountrySubtitle = useCallback(
+    (countryCode: string, displayName: string): string => {
+      const country = localeSearchEngine.getCountryByCode(countryCode);
+      const languageCount = t('onboarding.countryLanguageCount', {
+        count: country?.languageCodes.length ?? 0,
+      });
 
-    return country && country.name !== displayName
-      ? `${country.name} · ${languageCount}`
-      : languageCount;
-  };
+      return country && country.name !== displayName
+        ? `${country.name} · ${languageCount}`
+        : languageCount;
+    },
+    [t]
+  );
 
-  const renderCountryRow = (countryCode: string, isLast: boolean) => {
-    const isSelected = selectedCountryCode === countryCode;
-    const countryName = localeSearchEngine.getCountryDisplayName(
-      countryCode,
-      selectedInterfaceLanguageCode
-    );
+  const renderCountryRow = useCallback(
+    (countryCode: string, position: LocaleSetupGroupPosition) => {
+      const isSelected = selectedCountryCode === countryCode;
+      const countryName = localeSearchEngine.getCountryDisplayName(
+        countryCode,
+        selectedInterfaceLanguageCode
+      );
 
-    return (
-      <CountryRow
-        key={countryCode}
-        countryCode={countryCode}
-        countryName={countryName}
-        countrySubtitle={getCountrySubtitle(countryCode, countryName)}
-        isSelected={isSelected}
-        isLast={isLast}
-        colors={colors}
-        onSelect={handleCountrySelect}
-      />
-    );
-  };
+      return (
+        <CountryRow
+          countryCode={countryCode}
+          countryName={countryName}
+          countrySubtitle={getCountrySubtitle(countryCode, countryName)}
+          isSelected={isSelected}
+          isLast={isLastInLocaleSetupGroup(position)}
+          position={position}
+          colors={colors}
+          onSelect={handleCountrySelect}
+        />
+      );
+    },
+    [
+      colors,
+      getCountrySubtitle,
+      handleCountrySelect,
+      selectedCountryCode,
+      selectedInterfaceLanguageCode,
+    ]
+  );
 
-  const renderLanguageRow = (language: LocaleLanguage, isRecommended: boolean, isLast: boolean) => {
-    const isSelected = selectedLanguageCode === language.code;
+  const renderLanguageRow = useCallback(
+    (language: LocaleLanguage, isRecommended: boolean, position: LocaleSetupGroupPosition) => {
+      const isSelected = selectedLanguageCode === language.code;
 
-    return (
-      <LanguageRow
-        key={`${isRecommended ? 'recommended' : 'global'}-${language.code}`}
-        language={language}
-        isRecommended={isRecommended}
-        isSelected={isSelected}
-        isLast={isLast}
-        recommendedBadgeLabel={t('onboarding.recommendedBadge')}
-        colors={colors}
-        eyebrowFont={displayFont.regular}
-        onSelect={handleLanguageSelect}
-      />
-    );
-  };
+      return (
+        <LanguageRow
+          language={language}
+          isRecommended={isRecommended}
+          isSelected={isSelected}
+          isLast={isLastInLocaleSetupGroup(position)}
+          position={position}
+          recommendedBadgeLabel={t('onboarding.recommendedBadge')}
+          colors={colors}
+          eyebrowFont={displayFont.regular}
+          onSelect={handleLanguageSelect}
+        />
+      );
+    },
+    [colors, displayFont, handleLanguageSelect, selectedLanguageCode, t]
+  );
 
   const renderSearchField = (
     value: string,
@@ -1096,22 +1242,25 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     </View>
   );
 
-  const renderEmptyCard = (title: string, body: string, retry?: () => void) => (
-    <AppCard padding={layout.cardPaddingWide} style={styles.emptyCard}>
-      <Text style={[typography.cardTitle, { color: colors.primaryText }]}>{title}</Text>
-      <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>{body}</Text>
-      {retry ? (
-        <View style={styles.emptyCta} testID="onboarding-runtime-catalog-retry">
-          <AppButton
-            label={t('common.retry')}
-            variant="secondary"
-            size="md"
-            fullWidth={false}
-            onPress={retry}
-          />
-        </View>
-      ) : null}
-    </AppCard>
+  const renderEmptyCard = useCallback(
+    (title: string, body: string, retry?: () => void) => (
+      <AppCard padding={layout.cardPaddingWide} style={styles.emptyCard}>
+        <Text style={[typography.cardTitle, { color: colors.primaryText }]}>{title}</Text>
+        <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>{body}</Text>
+        {retry ? (
+          <View style={styles.emptyCta} testID="onboarding-runtime-catalog-retry">
+            <AppButton
+              label={t('common.retry')}
+              variant="secondary"
+              size="md"
+              fullWidth={false}
+              onPress={retry}
+            />
+          </View>
+        ) : null}
+      </AppCard>
+    ),
+    [colors, t]
   );
 
   const canUseHeaderBack = mode === 'settings' || step !== steps[0];
@@ -1124,10 +1273,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
     goToPreviousStep();
   };
-
-  const suggestedCountryName = suggestedCountry
-    ? localeSearchEngine.getCountryDisplayName(suggestedCountry.code, selectedInterfaceLanguageCode)
-    : '';
 
   const isCountryStep = step === 'country';
   const canAdvance = isCountryStep ? Boolean(selectedCountry) : Boolean(selectedLanguage);
@@ -1142,6 +1287,286 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   // already reserves, so subtract it or the footer floats too high.
   const keyboardOffset = Math.max(0, keyboardBottomInset - insets.bottom);
   const showFooter = mode === 'settings';
+
+  const activeSearchQuery =
+    step === 'translation'
+      ? debouncedTranslationQuery
+      : step === 'country'
+        ? debouncedCountryQuery
+        : step === 'contentLanguage'
+          ? debouncedLanguageQuery
+          : '';
+  // A new step, or a freshly filtered result set, is a different list: keeping
+  // the old scroll offset would drop the reader into the middle of results they
+  // have not seen. The list scrolls itself back to the top when this changes.
+  const scrollResetKey = `${step}:${activeSearchQuery}`;
+
+  const renderSuggestedCountryCard = useCallback(
+    (countryCode: string) => {
+      const countryName = localeSearchEngine.getCountryDisplayName(
+        countryCode,
+        selectedInterfaceLanguageCode
+      );
+
+      return (
+        <AppCard
+          accentRule
+          pressable
+          padding={layout.cardPadding}
+          accessibilityLabel={countryName}
+          onPress={() => handleCountrySelect(countryCode)}
+        >
+          <View style={styles.suggestedRow}>
+            <View style={styles.optionRowCopy}>
+              <Text
+                style={[styles.suggestedTitle, { color: colors.primaryText }]}
+                numberOfLines={1}
+              >
+                {countryName}
+              </Text>
+              <Text
+                style={[styles.suggestedSubtitle, { color: colors.secondaryText }]}
+                numberOfLines={1}
+              >
+                {getCountrySubtitle(countryCode, countryName)}
+              </Text>
+            </View>
+            <StatusChip
+              label={t('onboarding.suggestedBadge')}
+              colors={colors}
+              eyebrowFont={displayFont.regular}
+            />
+            <SelectionMark
+              isSelected={selectedCountryCode === countryCode}
+              colors={colors}
+              size={SUGGESTED_MARK_SIZE}
+            />
+          </View>
+        </AppCard>
+      );
+    },
+    [
+      colors,
+      displayFont,
+      getCountrySubtitle,
+      handleCountrySelect,
+      selectedCountryCode,
+      selectedInterfaceLanguageCode,
+      t,
+    ]
+  );
+
+  const renderStepItem = useCallback(
+    ({ item }: { item: LocaleSetupStepItem }): ReactElement | null => {
+      switch (item.type) {
+        case 'interfaceLanguageList':
+          return renderInterfaceLanguageList();
+        case 'eyebrow':
+          return (
+            <View style={item.hasSectionSpacing ? styles.listSection : undefined}>
+              <SectionEyebrow
+                label={item.label}
+                colors={colors}
+                eyebrowFont={displayFont.regular}
+              />
+            </View>
+          );
+        case 'loading':
+          return (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.accentPrimary} />
+            </View>
+          );
+        case 'catalogError':
+          return renderEmptyCard(
+            t('common.somethingWentWrong'),
+            t('onboarding.noLanguagesFoundBody'),
+            () => setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
+          );
+        case 'primaryOption':
+          return (
+            <View testID="onboarding-primary-recommendation">
+              <AppCard accentRule padding={0}>
+                {renderOnboardingLanguageRow(item.option, item.isRecommended)}
+              </AppCard>
+            </View>
+          );
+        case 'option':
+          return renderOnboardingLanguageRow(item.option, false, item.position);
+        case 'suggestedCountry':
+          return renderSuggestedCountryCard(item.countryCode);
+        case 'country':
+          return renderCountryRow(item.countryCode, item.position);
+        case 'language':
+          return renderLanguageRow(item.language, item.isRecommended, item.position);
+        case 'empty':
+          return step === 'country'
+            ? renderEmptyCard(t('onboarding.noNationsFound'), t('onboarding.noNationsFoundBody'))
+            : renderEmptyCard(
+                t('onboarding.noLanguagesFound'),
+                t('onboarding.noLanguagesFoundBody')
+              );
+        default:
+          return null;
+      }
+    },
+    [
+      colors,
+      displayFont,
+      renderCountryRow,
+      renderEmptyCard,
+      renderInterfaceLanguageList,
+      renderLanguageRow,
+      renderOnboardingLanguageRow,
+      renderSuggestedCountryCard,
+      step,
+      t,
+    ]
+  );
+
+  // Hero copy, the app-language control and the search field ride in the list
+  // header rather than in the item array. Items are recycled cells: a search
+  // TextInput inside one can be unmounted as the results below it re-filter,
+  // which would drop focus and dismiss the keyboard mid-word. The header is
+  // re-rendered in place instead, so the input keeps focus. It is passed as an
+  // element of a stable component type (a plain View) — an inline function
+  // component would be a new type every render and React would remount it.
+  const listHeader = (
+    <View>
+      {step === 'interfaceLanguage' ? (
+        <>
+          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+            {t('onboarding.interfaceLanguageTitle')}
+          </Text>
+          <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
+            {t('onboarding.interfaceLanguageBody')}
+          </Text>
+
+          <SectionEyebrow
+            label={t('onboarding.availableInterfaceLanguages')}
+            colors={colors}
+            eyebrowFont={displayFont.regular}
+          />
+        </>
+      ) : null}
+
+      {step === 'translation' ? (
+        <>
+          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+            {t('onboarding.languageTitle')}
+          </Text>
+
+          {mode === 'initial' ? (
+            <>
+              <View testID="onboarding-interface-language-toggle">
+                <AppCard
+                  pressable
+                  padding={14}
+                  style={styles.inlinePreferenceCard}
+                  accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
+                  onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
+                >
+                  <View style={styles.inlinePreferenceRow}>
+                    <View style={styles.inlinePreferenceCopy}>
+                      <Text
+                        style={[
+                          typography.eyebrow,
+                          displayFont.regular,
+                          { color: colors.secondaryText },
+                        ]}
+                      >
+                        {selectedInterfaceLanguage.appLanguageLabel}
+                      </Text>
+                      <Text style={[styles.inlinePreferenceValue, { color: colors.primaryText }]}>
+                        {selectedInterfaceLanguage.nativeName}
+                      </Text>
+                    </View>
+                    {showInterfaceLanguagePicker ? (
+                      <ChevronUp size={18} color={colors.textTertiary} strokeWidth={2} />
+                    ) : (
+                      <ChevronDown size={18} color={colors.textTertiary} strokeWidth={2} />
+                    )}
+                  </View>
+                </AppCard>
+              </View>
+
+              {showInterfaceLanguagePicker
+                ? renderInterfaceLanguageList('onboarding-interface-language-inline-picker')
+                : null}
+            </>
+          ) : null}
+
+          {bibleLanguageListState.showsSearch
+            ? renderSearchField(
+                translationQuery,
+                setTranslationQuery,
+                t('onboarding.languageSearchPlaceholder'),
+                'onboarding-translation-search'
+              )
+            : null}
+        </>
+      ) : null}
+
+      {step === 'country' ? (
+        <>
+          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+            {t('onboarding.countryTitle')}
+          </Text>
+          <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
+            {t('onboarding.countryBody')}
+          </Text>
+
+          {renderSearchField(
+            countryQuery,
+            setCountryQuery,
+            t('onboarding.countrySearchPlaceholderCount', { total: countryCatalogSize }),
+            'onboarding-country-search'
+          )}
+        </>
+      ) : null}
+
+      {step === 'contentLanguage' ? (
+        <>
+          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+            {t('onboarding.languageTitle')}
+          </Text>
+          <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
+            {t('onboarding.languageBody', {
+              country: selectedCountryDisplayName || t('common.notSet'),
+            })}
+          </Text>
+
+          <View style={styles.countryPillRow}>
+            <TouchableOpacity
+              style={[
+                styles.countryPill,
+                { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={selectedCountryDisplayName}
+              onPress={() => goToStep('country')}
+              activeOpacity={0.85}
+            >
+              <MapPin size={16} color={colors.accentPrimary} strokeWidth={2} />
+              {selectedCountry ? (
+                <Text style={styles.pillFlagEmoji}>{getFlagEmoji(selectedCountry.code)}</Text>
+              ) : null}
+              <Text style={[typography.captionStrong, { color: colors.primaryText }]}>
+                {selectedCountryDisplayName}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {renderSearchField(
+            languageQuery,
+            setLanguageQuery,
+            t('onboarding.languageSearchPlaceholder'),
+            'onboarding-language-search'
+          )}
+        </>
+      ) : null}
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1198,322 +1623,36 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: (showFooter ? footerHeight : 0) + keyboardOffset + spacing.xxl },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {step === 'interfaceLanguage' ? (
-          <>
-            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
-              {t('onboarding.interfaceLanguageTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('onboarding.interfaceLanguageBody')}
-            </Text>
-
-            <SectionEyebrow
-              label={t('onboarding.availableInterfaceLanguages')}
-              colors={colors}
-              eyebrowFont={displayFont.regular}
-            />
-            {renderInterfaceLanguageList()}
-          </>
-        ) : step === 'translation' ? (
-          <>
-            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
-              {t('onboarding.languageTitle')}
-            </Text>
-
-            {mode === 'initial' ? (
-              <>
-                <View testID="onboarding-interface-language-toggle">
-                  <AppCard
-                    pressable
-                    padding={14}
-                    style={styles.inlinePreferenceCard}
-                    accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
-                    onPress={() => setShowInterfaceLanguagePicker((isVisible) => !isVisible)}
-                  >
-                    <View style={styles.inlinePreferenceRow}>
-                      <View style={styles.inlinePreferenceCopy}>
-                        <Text
-                          style={[
-                            typography.eyebrow,
-                            displayFont.regular,
-                            { color: colors.secondaryText },
-                          ]}
-                        >
-                          {selectedInterfaceLanguage.appLanguageLabel}
-                        </Text>
-                        <Text style={[styles.inlinePreferenceValue, { color: colors.primaryText }]}>
-                          {selectedInterfaceLanguage.nativeName}
-                        </Text>
-                      </View>
-                      {showInterfaceLanguagePicker ? (
-                        <ChevronUp size={18} color={colors.textTertiary} strokeWidth={2} />
-                      ) : (
-                        <ChevronDown size={18} color={colors.textTertiary} strokeWidth={2} />
-                      )}
-                    </View>
-                  </AppCard>
-                </View>
-
-                {showInterfaceLanguagePicker
-                  ? renderInterfaceLanguageList('onboarding-interface-language-inline-picker')
-                  : null}
-              </>
-            ) : null}
-
-            {bibleLanguageListState.showsSearch
-              ? renderSearchField(
-                  translationQuery,
-                  setTranslationQuery,
-                  t('onboarding.languageSearchPlaceholder'),
-                  'onboarding-translation-search'
-                )
-              : null}
-
-            {isHydratingRuntimeCatalog ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator color={colors.accentPrimary} />
-              </View>
-            ) : null}
-
-            {runtimeCatalogLoadFailed
-              ? renderEmptyCard(
-                  t('common.somethingWentWrong'),
-                  t('onboarding.noLanguagesFoundBody'),
-                  () => setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
-                )
-              : null}
-
-            {mode === 'initial' && primaryOnboardingLanguageOption ? (
-              <View testID="onboarding-primary-recommendation">
-                <SectionEyebrow
-                  label={t('onboarding.recommendedBadge')}
-                  colors={colors}
-                  eyebrowFont={displayFont.regular}
-                />
-                <AppCard accentRule padding={0}>
-                  {renderOnboardingLanguageRow(
-                    primaryOnboardingLanguageOption,
-                    bibleLanguageListState.pinsRecommendedOption
-                  )}
-                </AppCard>
-              </View>
-            ) : null}
-
-            {bibleLanguageListState.showsFullList
-              ? onboardingLanguageSections.map((section) => {
-                  const sectionOptions =
-                    mode === 'initial' && primaryOnboardingLanguageOption
-                      ? section.options.filter(
-                          (option) => option.key !== primaryOnboardingLanguageOption.key
-                        )
-                      : section.options;
-
-                  if (sectionOptions.length === 0) {
-                    return null;
-                  }
-
-                  return (
-                    <View key={section.groupLabel} style={styles.listSection}>
-                      <SectionEyebrow
-                        label={section.groupLabel}
-                        colors={colors}
-                        eyebrowFont={displayFont.regular}
-                      />
-                      <AppCard padding={0}>
-                        {sectionOptions.map((option, index) =>
-                          renderOnboardingLanguageRow(
-                            option,
-                            false,
-                            index === sectionOptions.length - 1
-                          )
-                        )}
-                      </AppCard>
-                    </View>
-                  );
-                })
-              : null}
-
-            {!isHydratingRuntimeCatalog && onboardingLanguageOptions.length === 0
-              ? renderEmptyCard(
-                  t('onboarding.noLanguagesFound'),
-                  t('onboarding.noLanguagesFoundBody')
-                )
-              : null}
-          </>
-        ) : step === 'country' ? (
-          <>
-            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
-              {t('onboarding.countryTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('onboarding.countryBody')}
-            </Text>
-
-            {renderSearchField(
-              countryQuery,
-              setCountryQuery,
-              t('onboarding.countrySearchPlaceholderCount', { total: countryCatalogSize }),
-              'onboarding-country-search'
-            )}
-
-            {suggestedCountry ? (
-              <View style={styles.listSection}>
-                <SectionEyebrow
-                  label={t('onboarding.suggestedFromDevice')}
-                  colors={colors}
-                  eyebrowFont={displayFont.regular}
-                />
-                <AppCard
-                  accentRule
-                  pressable
-                  padding={layout.cardPadding}
-                  accessibilityLabel={suggestedCountryName}
-                  onPress={() => handleCountrySelect(suggestedCountry.code)}
-                >
-                  <View style={styles.suggestedRow}>
-                    <View style={styles.optionRowCopy}>
-                      <Text
-                        style={[styles.suggestedTitle, { color: colors.primaryText }]}
-                        numberOfLines={1}
-                      >
-                        {suggestedCountryName}
-                      </Text>
-                      <Text
-                        style={[styles.suggestedSubtitle, { color: colors.secondaryText }]}
-                        numberOfLines={1}
-                      >
-                        {getCountrySubtitle(suggestedCountry.code, suggestedCountryName)}
-                      </Text>
-                    </View>
-                    <StatusChip
-                      label={t('onboarding.suggestedBadge')}
-                      colors={colors}
-                      eyebrowFont={displayFont.regular}
-                    />
-                    <SelectionMark
-                      isSelected={selectedCountryCode === suggestedCountry.code}
-                      colors={colors}
-                      size={SUGGESTED_MARK_SIZE}
-                    />
-                  </View>
-                </AppCard>
-              </View>
-            ) : null}
-
-            <View style={styles.listSection}>
-              <SectionEyebrow
-                label={
-                  debouncedCountryQuery.trim()
-                    ? t('onboarding.searchResults')
-                    : t('onboarding.allNations')
-                }
-                colors={colors}
-                eyebrowFont={displayFont.regular}
-              />
-              {listedCountries.length > 0 ? (
-                <AppCard padding={0}>
-                  {listedCountries.map((country, index) =>
-                    renderCountryRow(country.code, index === listedCountries.length - 1)
-                  )}
-                </AppCard>
-              ) : (
-                renderEmptyCard(t('onboarding.noNationsFound'), t('onboarding.noNationsFoundBody'))
-              )}
-            </View>
-          </>
-        ) : step === 'contentLanguage' ? (
-          <>
-            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
-              {t('onboarding.languageTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
-              {t('onboarding.languageBody', {
-                country: selectedCountryDisplayName || t('common.notSet'),
-              })}
-            </Text>
-
-            <View style={styles.countryPillRow}>
-              <TouchableOpacity
-                style={[
-                  styles.countryPill,
-                  { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={selectedCountryDisplayName}
-                onPress={() => goToStep('country')}
-                activeOpacity={0.85}
-              >
-                <MapPin size={16} color={colors.accentPrimary} strokeWidth={2} />
-                {selectedCountry ? (
-                  <Text style={styles.pillFlagEmoji}>{getFlagEmoji(selectedCountry.code)}</Text>
-                ) : null}
-                <Text style={[typography.captionStrong, { color: colors.primaryText }]}>
-                  {selectedCountryDisplayName}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {renderSearchField(
-              languageQuery,
-              setLanguageQuery,
-              t('onboarding.languageSearchPlaceholder'),
-              'onboarding-language-search'
-            )}
-
-            {languageResults.recommended.length > 0 ? (
-              <View style={styles.listSection}>
-                <SectionEyebrow
-                  label={t('onboarding.recommendedLanguages', {
-                    country: selectedCountryDisplayName,
-                  })}
-                  colors={colors}
-                  eyebrowFont={displayFont.regular}
-                />
-                <AppCard padding={0}>
-                  {languageResults.recommended.map((language, index) =>
-                    renderLanguageRow(
-                      language,
-                      true,
-                      index === languageResults.recommended.length - 1
-                    )
-                  )}
-                </AppCard>
-              </View>
-            ) : null}
-
-            {languageResults.global.length > 0 ? (
-              <View style={styles.listSection}>
-                <SectionEyebrow
-                  label={t('onboarding.moreLanguages')}
-                  colors={colors}
-                  eyebrowFont={displayFont.regular}
-                />
-                <AppCard padding={0}>
-                  {languageResults.global.map((language, index) =>
-                    renderLanguageRow(language, false, index === languageResults.global.length - 1)
-                  )}
-                </AppCard>
-              </View>
-            ) : null}
-
-            {languageResults.recommended.length === 0 && languageResults.global.length === 0
-              ? renderEmptyCard(
-                  t('onboarding.noLanguagesFound'),
-                  t('onboarding.noLanguagesFoundBody')
-                )
-              : null}
-          </>
-        ) : null}
-      </ScrollView>
+      <LocaleSetupList
+        // Remounting per step keeps recycled cells from one step's item types
+        // out of the next step's list, and resets the scroll offset for free.
+        key={step}
+        data={stepItems}
+        renderItem={renderStepItem}
+        header={listHeader}
+        contentPaddingBottom={(showFooter ? footerHeight : 0) + keyboardOffset + spacing.xxl}
+        scrollResetKey={scrollResetKey}
+        // FlashList compares extraData by reference and only re-renders the
+        // header and the visible cells when it changes, so this is deliberately
+        // a fresh object per render: the search field's value and the rows'
+        // selection marks/download progress have to stay current on every
+        // keystroke. The memoized row components are what keep that cheap — a
+        // re-render of ~10 visible cells whose props did not change costs
+        // nothing beyond creating the elements.
+        extraData={{
+          colors,
+          countryQuery,
+          displayFont,
+          downloadProgress,
+          installingTranslationId,
+          languageQuery,
+          selectedCountryCode,
+          selectedInterfaceLanguageCode,
+          selectedLanguageCode,
+          showInterfaceLanguagePicker,
+          translationQuery,
+        }}
+      />
 
       {showFooter ? (
         <View
@@ -1596,13 +1735,8 @@ const styles = StyleSheet.create({
     height: STEP_BAR_HEIGHT,
     borderRadius: STEP_BAR_HEIGHT / 2,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.md,
-  },
+  // The scroll container and its screen padding moved to LocaleSetupList, which
+  // owns the FlashList that replaced this screen's ScrollView.
   heroTitle: {
     ...typography.displayHero,
     fontSize: 34,
