@@ -83,6 +83,47 @@ export type AuthChangeEvent =
 
 type AuthListener = (event: AuthChangeEvent, session: Session | null) => void;
 
+/** Shape of a Supabase auth error as services see it (`error.message`, optional code/status). */
+export interface SupabaseAuthErrorLike {
+  message: string;
+  code?: string;
+  status?: number;
+  name?: string;
+}
+
+type AuthResult<T> = Promise<{ data: T; error: SupabaseAuthErrorLike | null }>;
+type UserSessionData = { user: User | null; session: Session | null };
+
+/**
+ * Every auth method is overridable per test, e.g.
+ * `fake.auth.handlers.signInWithPassword = async () => ({ data: { user: null, session: null }, error: { message: 'Invalid login credentials' } })`.
+ * Result types are deliberately wide so error scenarios need no casts.
+ */
+export interface SupabaseAuthHandlers {
+  getUser: () => AuthResult<{ user: User | null }>;
+  getSession: () => AuthResult<{ session: Session | null }>;
+  signInWithPassword: (credentials: {
+    email: string;
+    password: string;
+  }) => AuthResult<UserSessionData>;
+  signUp: (credentials: unknown) => AuthResult<UserSessionData>;
+  signInWithIdToken: (credentials: unknown) => AuthResult<UserSessionData>;
+  signOut: (options?: unknown) => Promise<{ error: SupabaseAuthErrorLike | null }>;
+  setSession: (session: {
+    access_token: string;
+    refresh_token: string;
+  }) => AuthResult<UserSessionData>;
+  refreshSession: (session?: unknown) => AuthResult<UserSessionData>;
+  updateUser: (attributes: unknown) => AuthResult<{ user: User | null }>;
+  resetPasswordForEmail: (
+    email: string,
+    options?: unknown
+  ) => AuthResult<Record<string, never> | null>;
+  exchangeCodeForSession: (code: string) => AuthResult<UserSessionData>;
+  startAutoRefresh: () => Promise<void>;
+  stopAutoRefresh: () => Promise<void>;
+}
+
 const FILTER_METHODS = [
   'eq',
   'neq',
@@ -227,41 +268,38 @@ export function createSupabaseFake() {
     authCalls.push({ method, args });
   };
 
-  const authHandlers = {
+  const authHandlers: SupabaseAuthHandlers = {
     getUser: async () => ({ data: { user: authState.user }, error: null }),
     getSession: async () => ({ data: { session: authState.session }, error: null }),
-    signInWithPassword: async (_credentials: { email: string; password: string }) => ({
+    signInWithPassword: async () => ({
       data: { user: authState.user, session: authState.session },
       error: null,
     }),
-    signUp: async (_credentials: unknown) => ({
+    signUp: async () => ({
       data: { user: authState.user, session: authState.session },
       error: null,
     }),
-    signInWithIdToken: async (_credentials: unknown) => ({
+    signInWithIdToken: async () => ({
       data: { user: authState.user, session: authState.session },
       error: null,
     }),
-    signOut: async (_options?: unknown) => {
+    signOut: async () => {
       fake.auth.setSession(null);
       emitAuth('SIGNED_OUT', null);
       return { error: null };
     },
-    setSession: async (session: { access_token: string; refresh_token: string }) => {
+    setSession: async (session) => {
       const next = makeFakeSession({ ...authState.session, ...session } as Partial<Session>);
       fake.auth.setSession(next);
       return { data: { session: next, user: next.user }, error: null };
     },
-    refreshSession: async (_session?: unknown) => ({
+    refreshSession: async () => ({
       data: { session: authState.session, user: authState.user },
       error: null,
     }),
-    updateUser: async (_attributes: unknown) => ({ data: { user: authState.user }, error: null }),
-    resetPasswordForEmail: async (_email: string, _options?: unknown) => ({
-      data: {},
-      error: null,
-    }),
-    exchangeCodeForSession: async (_code: string) => ({
+    updateUser: async () => ({ data: { user: authState.user }, error: null }),
+    resetPasswordForEmail: async () => ({ data: {}, error: null }),
+    exchangeCodeForSession: async () => ({
       data: { session: authState.session, user: authState.user },
       error: null,
     }),
@@ -288,7 +326,7 @@ export function createSupabaseFake() {
           };
         };
       }
-      const handler = (fake.auth.handlers as Record<string, unknown>)[property];
+      const handler = (fake.auth.handlers as unknown as Record<string, unknown>)[property];
       if (typeof handler === 'function') {
         return (...args: unknown[]) => {
           recordAuth(property, args);
