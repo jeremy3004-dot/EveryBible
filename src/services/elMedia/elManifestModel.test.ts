@@ -64,6 +64,9 @@ test('resolves absolute chapter URLs from the fixture manifest', async () => {
   assert.equal(resolved.mimeType, 'audio/mpeg');
   assert.equal(resolved.fileExt, 'mp3');
   assert.equal(resolved.bytes, 2703104);
+  // The audio download service verifies completed chapters against this checksum.
+  assert.match(resolved.sha256, /^[0-9a-f]{64}$/);
+  assert.equal(resolved.sha256, manifest.books.JHN[0].sha256);
   assert.equal(resolved.durationMs, 225000);
 });
 

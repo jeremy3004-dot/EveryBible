@@ -1,7 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import {
+  AUDIO_DOWNLOAD_JOB_ID_PREFIX,
   AudioDownloadCancelledError,
   AudioDownloadStopError,
+  audioDownloadTaskIdMatchesJob,
   downloadAndValidateAudioFile,
   isAudioDownloadCancellation,
 } from './audioDownloadService';
@@ -61,9 +63,14 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
             if (settled || cancelling) return;
             cancelling = true;
             // The download promise may never settle on cancellation. The native
-            // cancel promise is the boundary after which retrying the path is safe.
+            // cancel promise is the boundary after which retrying the path is safe —
+            // and the only point at which deleting the partial is safe. Nothing resumes
+            // partials, so a preserved one over the 1KB floor would look complete forever. (N23)
             void download.cancelAsync().then(
-              () => settle(() => reject(new AudioDownloadCancelledError())),
+              () =>
+                void discardPartialAudioFile(to).then(() =>
+                  settle(() => reject(new AudioDownloadCancelledError()))
+                ),
               (error: unknown) => settle(() => reject(new AudioDownloadStopError(error)))
             );
           };
@@ -106,7 +113,33 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
   deleteFile: async (fileUri) => {
     await FileSystem.deleteAsync(fileUri, { idempotent: true });
   },
+  readBase64File: async (fileUri) => {
+    try {
+      return await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    } catch {
+      return null;
+    }
+  },
+  getFreeDiskBytes: async () => {
+    try {
+      return await FileSystem.getFreeDiskStorageAsync();
+    } catch {
+      return null;
+    }
+  },
 };
+
+// A cancelled transfer leaves a truncated file at the destination. Only ever called after the
+// native writer has confirmably stopped.
+async function discardPartialAudioFile(fileUri: string): Promise<void> {
+  try {
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+  } catch {
+    // A missing partial is the desired end state anyway.
+  }
+}
 
 // Background audio downloads require UIBackgroundModes: ["audio", "fetch"] in app.json (iOS).
 // Without "fetch", native OS download tasks may be suspended when the app moves to the background
@@ -168,7 +201,10 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
               if (settled || cancelling) return;
               cancelling = true;
               void task.stop().then(
-                () => settle(() => reject(new AudioDownloadCancelledError())),
+                () =>
+                  void discardPartialAudioFile(to).then(() =>
+                    settle(() => reject(new AudioDownloadCancelledError()))
+                  ),
                 (error: unknown) => settle(() => reject(new AudioDownloadStopError(error)))
               );
             };
@@ -204,18 +240,20 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
           await expoAudioFileSystemAdapter.downloadFile(from, to, options);
         }
       },
+      // Chapter tasks are named after their BOOK job even inside a translation download, so both
+      // of these must match in the translation's task-id namespace. (N22)
       reattachJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
         tasks
-          .filter((task) => task.id === jobId || task.id.startsWith(`${jobId}:`))
+          .filter((task) => audioDownloadTaskIdMatchesJob(task.id, jobId))
           .forEach((task) => {
             task.resume();
           });
       },
       cancelJob: async (jobId) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
-        const matchingTasks = tasks.filter(
-          (candidate) => candidate.id === jobId || candidate.id.startsWith(`${jobId}:`)
+        const matchingTasks = tasks.filter((candidate) =>
+          audioDownloadTaskIdMatchesJob(candidate.id, jobId)
         );
         for (const task of matchingTasks) {
           await task.stop();
@@ -229,17 +267,27 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
   }
 }
 
+// The library has no "ensure downloads are running" entry point (4.5.4 exports cleanup, setConfig,
+// getExistingDownloadTasks, completeHandler, createDownloadTask, getExistingUploadTasks,
+// createUploadTask, directories, getNativeModule), so the old guarded call was a permanent silent
+// no-op. Enumerate the surviving native tasks in this app's namespace and resume each one, with a
+// per-task try/catch: Android throws "Hasn't been prepared" for tasks the OS already dropped, and
+// that must not abort the rest of the loop. (N24)
 export async function ensureBackgroundAudioDownloadsRunning(): Promise<void> {
   try {
     const backgroundDownloader = await import('@kesha-antonov/react-native-background-downloader');
-    const ensureDownloadsAreRunning = (
-      backgroundDownloader as {
-        ensureDownloadsAreRunning?: () => Promise<void>;
-      }
-    ).ensureDownloadsAreRunning;
+    const tasks = await backgroundDownloader.getExistingDownloadTasks();
 
-    if (typeof ensureDownloadsAreRunning === 'function') {
-      await ensureDownloadsAreRunning();
+    for (const task of tasks) {
+      if (!task?.id?.startsWith(AUDIO_DOWNLOAD_JOB_ID_PREFIX)) {
+        continue;
+      }
+
+      try {
+        await task.resume();
+      } catch (error) {
+        console.warn('[AudioDownload] Failed to resume background task:', task.id, error);
+      }
     }
   } catch {
     // The background downloader is optional in some Expo/dev contexts.

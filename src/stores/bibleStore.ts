@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import { bibleBooks, config, getBookById } from '../constants';
+// Direct module imports, not the '../constants' barrel: the barrel re-exports bookIcons, which
+// drags a ~298KB vector JSON into the store's startup graph. (P3)
+import { bibleBooks, getBookById } from '../constants/books';
+import { config } from '../constants/config';
 import type {
   Verse,
   BibleTranslation,
@@ -95,6 +98,19 @@ function trackBibleStoreEvent(
       trackAnonymousUsageEvent(eventName, properties);
     })
     .catch(() => {});
+}
+
+// Module-eval used to call syncRemoteAudioMetadataResolverWithTranslations synchronously, adding
+// a full pass over the catalog to the startup JS thread. Deferred the same way verse-timestamp
+// metadata already is. (P19)
+function syncRemoteAudioMetadataDeferred(translations: BibleTranslation[]): void {
+  void import('../services/audio/audioRemote')
+    .then(({ syncRemoteAudioMetadataResolverWithTranslations }) => {
+      syncRemoteAudioMetadataResolverWithTranslations(translations);
+    })
+    .catch(() => {
+      // Audio metadata is a best-effort enrichment; a failure here must not block startup.
+    });
 }
 
 function syncVerseTimestampMetadata(translations: BibleTranslation[]): void {
@@ -197,11 +213,7 @@ function mapAudioDownloadProgress(job: AudioDownloadJobRecord): TranslationDownl
     bookId: job.bookId,
     progress: job.status === 'completed' ? 100 : 0,
     status:
-      job.status === 'completed'
-        ? 'completed'
-        : job.status === 'failed'
-          ? 'error'
-          : 'downloading',
+      job.status === 'completed' ? 'completed' : job.status === 'failed' ? 'error' : 'downloading',
     error: job.error,
   };
 }
@@ -312,7 +324,8 @@ export const useBibleStore = create<BibleState>()(
         const preferredTranslationLanguage = translation.language?.trim() || null;
 
         const hasInstalledTextPack = Boolean(translation.textPackLocalPath);
-        const hasReadableText = translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
+        const hasReadableText =
+          translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
 
         if (translation.isDownloaded || hasReadableText) {
           set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
@@ -362,11 +375,11 @@ export const useBibleStore = create<BibleState>()(
                 downloadedBooks:
                   translation.downloadedBooks.length > 0
                     ? translation.downloadedBooks
-                    : existing?.downloadedBooks ?? [],
+                    : (existing?.downloadedBooks ?? []),
                 downloadedAudioBooks:
                   translation.downloadedAudioBooks.length > 0
                     ? translation.downloadedAudioBooks
-                    : existing?.downloadedAudioBooks ?? [],
+                    : (existing?.downloadedAudioBooks ?? []),
                 installState: existing?.installState ?? translation.installState,
                 activeTextPackVersion:
                   existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
@@ -387,9 +400,7 @@ export const useBibleStore = create<BibleState>()(
             nextRuntimeTranslations
           );
           nextTranslationsSnapshot = nextTranslations;
-          const nextTranslationIds = new Set(
-            nextTranslations.map((translation) => translation.id)
-          );
+          const nextTranslationIds = new Set(nextTranslations.map((translation) => translation.id));
 
           return {
             translations: nextTranslations,
@@ -409,7 +420,8 @@ export const useBibleStore = create<BibleState>()(
 
       reconcileTranslationPacks: async () => {
         const runtimeTranslations = get().translations.filter(
-          (translation) => translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
+          (translation) =>
+            translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
         );
 
         if (runtimeTranslations.length === 0) {
@@ -460,7 +472,11 @@ export const useBibleStore = create<BibleState>()(
           try {
             await invalidateInstalledBibleDatabaseAtPath(localPath);
           } catch (error) {
-            console.warn('[Bible] Failed to invalidate missing installed pack:', translationId, error);
+            console.warn(
+              '[Bible] Failed to invalidate missing installed pack:',
+              translationId,
+              error
+            );
           }
         }
 
@@ -564,7 +580,9 @@ export const useBibleStore = create<BibleState>()(
       failTranslationPack: (translationId, error) => {
         set((state) => ({
           translations: state.translations.map((translation) =>
-            translation.id === translationId ? failTranslationPackCandidate(translation, error) : translation
+            translation.id === translationId
+              ? failTranslationPackCandidate(translation, error)
+              : translation
           ),
         }));
       },
@@ -629,7 +647,8 @@ export const useBibleStore = create<BibleState>()(
           }));
 
           const textPack = translation?.catalog?.text;
-          const { downloadCatalogTextPack } = await import('../services/bible/cloudTranslationService');
+          const { downloadCatalogTextPack } =
+            await import('../services/bible/cloudTranslationService');
 
           const handleProgress = (progress: {
             error?: string;
@@ -673,7 +692,8 @@ export const useBibleStore = create<BibleState>()(
 
           // Activate the installed pack — sets textPackLocalPath, isDownloaded, installState
           set((state) => ({
-            currentTranslation: state.currentTranslation === translationId ? translationId : state.currentTranslation,
+            currentTranslation:
+              state.currentTranslation === translationId ? translationId : state.currentTranslation,
             downloadProgress: null,
             error: null,
             translations: state.translations.map((t) =>
@@ -847,6 +867,28 @@ export const useBibleStore = create<BibleState>()(
             downloadProgress: mapAudioDownloadProgress(job),
           }));
         };
+        // Chapter-level aggregate across every book in the collection, so a whole-Bible download
+        // moves instead of sitting at 0% until a book finishes. The service already coalesces
+        // these events. (N25)
+        const handleAudioCollectionProgress = ({
+          jobId,
+          progress,
+          translationId: progressTranslationId,
+        }: AudioDownloadBookProgress) => {
+          set((state) => ({
+            translations: state.translations.map((item) =>
+              item.id === progressTranslationId
+                ? updateTranslationAudioJobProgress(item, progress)
+                : item
+            ),
+            downloadProgress: {
+              translationId: progressTranslationId,
+              jobId,
+              progress: clampPercent(progress),
+              status: 'downloading',
+            },
+          }));
+        };
         const handleAudioBookComplete = ({
           bookId: completedBookId,
           completedBooks,
@@ -855,22 +897,31 @@ export const useBibleStore = create<BibleState>()(
           jobId,
         }: AudioDownloadCollectionProgress) => {
           const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
-          set((state) => ({
-            translations: state.translations.map((item) =>
-              item.id === completedTranslationId
-                ? updateTranslationAudioJobProgress(
-                    mergeDownloadedAudioBook(item, completedBookId),
-                    collectionProgress
-                  )
-                : item
-            ),
-            downloadProgress: {
-              translationId: completedTranslationId,
-              progress: collectionProgress,
-              status: 'downloading',
-              jobId,
-            },
-          }));
+          set((state) => {
+            // Never walk backwards: the chapter aggregate above is always >= this book fraction.
+            const nextProgress = Math.max(
+              state.downloadProgress?.translationId === completedTranslationId
+                ? (state.downloadProgress.progress ?? 0)
+                : 0,
+              collectionProgress
+            );
+            return {
+              translations: state.translations.map((item) =>
+                item.id === completedTranslationId
+                  ? updateTranslationAudioJobProgress(
+                      mergeDownloadedAudioBook(item, completedBookId),
+                      nextProgress
+                    )
+                  : item
+              ),
+              downloadProgress: {
+                translationId: completedTranslationId,
+                jobId,
+                progress: nextProgress,
+                status: 'downloading',
+              },
+            };
+          });
         };
 
         let result: { downloadedBookIds: string[] };
@@ -888,6 +939,7 @@ export const useBibleStore = create<BibleState>()(
               onReattach: handleAudioJobUpdate,
               onFailure: (job) => handleAudioJobUpdate(job),
               onComplete: handleAudioJobUpdate,
+              onProgress: handleAudioCollectionProgress,
               onBookComplete: handleAudioBookComplete,
             },
           });
@@ -947,8 +999,17 @@ export const useBibleStore = create<BibleState>()(
       cancelDownload: () => {
         const progress = get().downloadProgress;
         const cancelledTranslationId = progress?.translationId;
-        if (progress?.jobId) {
-          const jobId = progress.jobId;
+        // The authoritative id is the one on the translation's active job. downloadProgress.jobId
+        // is a best-effort mirror, and during a collection download a book-scope event could once
+        // leave a nested book job id there — which requestAudioDownloadCancellation could not
+        // resolve, so cancel silently did nothing while chapters kept downloading. (N22)
+        const activeJobId = cancelledTranslationId
+          ? (get().translations.find((item) => item.id === cancelledTranslationId)
+              ?.activeDownloadJob?.id ?? null)
+          : null;
+        const resolvedJobId = activeJobId ?? progress?.jobId;
+        if (resolvedJobId) {
+          const jobId = resolvedJobId;
           // Stop the in-JS scheduling loop (runWithConcurrency) immediately, ask the native
           // background transport to stop any in-flight task for the same real job id, AND remove
           // the persisted registry record so the cancelled job can't resurrect as a phantom
@@ -1012,7 +1073,12 @@ export const useBibleStore = create<BibleState>()(
               await invalidateInstalledBibleDatabaseAtPath(localPath);
               await deleteFileSystemPath(localPath);
             } catch (error) {
-              console.warn('[Bible] Failed to remove translation text pack:', translationId, localPath, error);
+              console.warn(
+                '[Bible] Failed to remove translation text pack:',
+                translationId,
+                localPath,
+                error
+              );
             }
           })
         );
@@ -1021,7 +1087,11 @@ export const useBibleStore = create<BibleState>()(
           const audio = await loadAudioDownloadModules();
           await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
         } catch (error) {
-          console.warn('[Bible] Failed to remove translation audio downloads:', translationId, error);
+          console.warn(
+            '[Bible] Failed to remove translation audio downloads:',
+            translationId,
+            error
+          );
         }
 
         try {
@@ -1162,7 +1232,7 @@ setBibleDatabaseSourceResolver((translationId) => {
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:post-create', Date.now());
 }
-syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);
+syncRemoteAudioMetadataDeferred(useBibleStore.getState().translations);
 syncVerseTimestampMetadata(useBibleStore.getState().translations);
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:module-done', Date.now());

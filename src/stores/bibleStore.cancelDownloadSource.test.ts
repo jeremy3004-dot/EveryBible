@@ -16,10 +16,12 @@ test('bibleStore cancelDownload targets the real running job id instead of recon
     'cancelDownload should not hand-build a job id string that omits the audio-download: prefix and scope segment'
   );
 
+  // The translation's own activeDownloadJob is authoritative; downloadProgress.jobId is the
+  // fallback mirror. Neither may be rebuilt by hand. (N22)
   assert.match(
     source,
-    /cancelDownload:\s*\(\)\s*=>\s*\{[\s\S]{0,400}progress\.jobId/,
-    'cancelDownload should read the real job id captured on downloadProgress, not reconstruct one'
+    /cancelDownload:\s*\(\)\s*=>\s*\{[\s\S]{0,1200}activeDownloadJob\s*\r?\n?\s*\?\.id[\s\S]{0,200}progress\?\.jobId/,
+    'cancelDownload should target the running translation job id, falling back to downloadProgress.jobId'
   );
 
   assert.match(
@@ -46,7 +48,20 @@ test('downloadProgress updates carry the real job id from the underlying audio d
 
   assert.match(
     source,
-    /const handleAudioBookComplete = \(\{[\s\S]{0,200}jobId[\s\S]{0,800}downloadProgress: \{[\s\S]{0,200}jobId,/,
+    /const handleAudioBookComplete = \(\{[\s\S]{0,200}jobId[\s\S]{0,1200}downloadProgress: \{[\s\S]{0,200}jobId,/,
     'per-book collection progress updates should keep carrying jobId forward instead of dropping it'
+  );
+
+  // (N25) The collection path must also report chapter-level aggregate progress, not only
+  // whole-book completions, and that event carries the translation-scope job id.
+  assert.match(
+    source,
+    /const handleAudioCollectionProgress = \(\{[\s\S]{0,200}jobId[\s\S]{0,600}downloadProgress: \{[\s\S]{0,200}jobId,/,
+    'aggregate collection progress updates should carry the translation job id forward'
+  );
+  assert.match(
+    source,
+    /onProgress: handleAudioCollectionProgress/,
+    'the translation-scope download should subscribe to aggregate chapter progress'
   );
 });

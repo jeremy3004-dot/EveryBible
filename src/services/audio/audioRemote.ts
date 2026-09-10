@@ -155,6 +155,7 @@ interface ElResolvedChapterAudio {
   mimeType: string;
   fileExt: string;
   bytes: number;
+  sha256?: string;
   durationMs?: number;
 }
 
@@ -635,8 +636,15 @@ export async function fetchRemoteChapterAudio(
       return null;
     }
 
-    // EL manifest URLs are immutable, so caching the resolved chapter URL is safe.
-    const result = { url: resolved.url, duration: resolved.durationMs ?? 0 };
+    // EL manifest URLs are immutable, so caching the resolved chapter URL is safe. The byte count
+    // and checksum ride along so the download service can verify a completed chapter instead of
+    // trusting the 1KB floor. (N23)
+    const result: RemoteAudioAsset = {
+      url: resolved.url,
+      duration: resolved.durationMs ?? 0,
+      ...(resolved.bytes > 0 ? { bytes: resolved.bytes } : {}),
+      ...(resolved.sha256 ? { sha256: resolved.sha256 } : {}),
+    };
     audioUrlCache.set(cacheKey, result);
     return result;
   }

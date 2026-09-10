@@ -182,7 +182,28 @@ test('a resolved transfer with a truncated file never completes the book', async
   assert.equal(runtime.progress.includes(100), false);
 });
 
+interface FakeExistingTask {
+  id: string;
+  resumed: number;
+  resumeError?: Error;
+  resume: () => Promise<void>;
+}
+
+function existingTask(id: string, resumeError?: Error): FakeExistingTask {
+  const fake: FakeExistingTask = {
+    id,
+    resumed: 0,
+    resumeError,
+    resume: async () => {
+      fake.resumed += 1;
+      if (resumeError) throw resumeError;
+    },
+  };
+  return fake;
+}
+
 function storageRuntime() {
+  const existingTasks: FakeExistingTask[] = [];
   const stop = deferred<void>();
   const cancel = deferred<void>();
   const transfer = deferred<{ status: number } | undefined>();
@@ -259,6 +280,8 @@ function storageRuntime() {
       completeHandler: () => {
         calls.completed += 1;
       },
+      // The real 4.5.4 surface: there is no ensureDownloadsAreRunning export.
+      getExistingDownloadTasks: async () => existingTasks,
     },
   };
   const compiled = ts.transpileModule(
@@ -277,6 +300,7 @@ function storageRuntime() {
   });
   return {
     ...(exports as typeof storage),
+    existingTasks,
     calls,
     stop,
     cancel,
@@ -314,7 +338,10 @@ test('Expo fallback reports activity past 60 seconds and validates a completed d
   assert.equal(runtime.calls.deleted, 0);
 });
 
-test('Expo cancellation awaits native cancellation and preserves the partial file', async () => {
+// Resume-from-partial is not implemented and the transport writes straight to the
+// destination, so a preserved partial over the 1KB floor would be accepted as a complete
+// chapter forever. Once the native writer has confirmably stopped, the partial must go. (N23)
+test('Expo cancellation awaits native cancellation and then deletes the partial file', async () => {
   const runtime = storageRuntime();
   const controller = new AbortController();
   let settled = false;
@@ -330,9 +357,10 @@ test('Expo cancellation awaits native cancellation and preserves the partial fil
   await flush();
   assert.equal(runtime.calls.cancel, 1);
   assert.equal(settled, false);
+  assert.equal(runtime.calls.deleted, 0, 'never delete before the native writer has stopped');
   runtime.cancel.resolve();
   await rejected;
-  assert.equal(runtime.calls.deleted, 0);
+  assert.equal(runtime.calls.deleted, 1);
 });
 
 test('native cancellation awaits stop, ignores late callbacks, and never starts fallback', async () => {
@@ -356,11 +384,13 @@ test('native cancellation awaits stop, ignores late callbacks, and never starts 
   await flush();
   assert.equal(runtime.calls.stop, 1);
   assert.equal(settled, false);
+  assert.equal(runtime.calls.deleted, 0, 'never delete before the native writer has stopped');
   runtime.stop.resolve();
   await rejected;
   assert.deepEqual(progress, []);
   assert.equal(runtime.calls.completed, 0);
   assert.equal(runtime.calls.resumable + runtime.calls.fallback, 0);
+  assert.equal(runtime.calls.deleted, 1, 'a cancelled native transfer must not leave a partial');
 });
 
 test('native stop failure is terminal and does not start a retry or fallback', async (t) => {
@@ -398,4 +428,49 @@ test('Expo cancel failure is terminal without retrying or deleting a possibly li
   await rejected;
   assert.equal(runtime.calls.resumable, 1);
   assert.equal(runtime.calls.deleted, 0);
+});
+
+// N24: ensureDownloadsAreRunning does not exist in @kesha-antonov/react-native-background-downloader
+// 4.5.4, so the previous guarded call was a permanent silent no-op. Resume must go through the
+// library's real export surface instead.
+test('the background downloader package does not export ensureDownloadsAreRunning', () => {
+  const source = readFileSync(
+    new URL(
+      '../../../node_modules/@kesha-antonov/react-native-background-downloader/src/index.ts',
+      import.meta.url
+    ),
+    'utf8'
+  );
+  assert.equal(/export\s+(?:const|function)\s+ensureDownloadsAreRunning\b/.test(source), false);
+  assert.match(source, /export const getExistingDownloadTasks/);
+});
+
+test("ensureBackgroundAudioDownloadsRunning resumes this app's existing tasks only", async () => {
+  const runtime = storageRuntime();
+  const mine = existingTask('audio-download:bsb:book:PHM:PHM:1');
+  const alsoMine = existingTask('audio-download:bsb:translation:all');
+  const foreign = existingTask('some-other-feature:1');
+  runtime.existingTasks.push(mine, alsoMine, foreign);
+
+  await runtime.ensureBackgroundAudioDownloadsRunning();
+
+  assert.equal(mine.resumed, 1);
+  assert.equal(alsoMine.resumed, 1);
+  assert.equal(foreign.resumed, 0, 'tasks outside the audio-download namespace must be left alone');
+});
+
+test('a failing resume never aborts the remaining tasks', async () => {
+  const runtime = storageRuntime();
+  // Android throws "Hasn't been prepared" for tasks the OS already dropped.
+  const broken = existingTask(
+    'audio-download:bsb:book:JUD:JUD:1',
+    new Error("Hasn't been prepared")
+  );
+  const healthy = existingTask('audio-download:bsb:book:PHM:PHM:1');
+  runtime.existingTasks.push(broken, healthy);
+
+  await runtime.ensureBackgroundAudioDownloadsRunning();
+
+  assert.equal(broken.resumed, 1);
+  assert.equal(healthy.resumed, 1, 'one broken task must not stop the loop');
 });
